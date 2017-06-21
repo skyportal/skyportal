@@ -9,7 +9,7 @@ webpack = ./node_modules/.bin/webpack
 
 
 dependencies:
-#	git submodule update --init --recursive
+	git submodule update --init --recursive
 	@./baselayer/tools/silent_monitor.py pip install -r baselayer/requirements.txt
 	@./baselayer/tools/silent_monitor.py pip install -r requirements.txt
 	@./baselayer/tools/silent_monitor.py ./baselayer/tools/check_js_deps.sh
