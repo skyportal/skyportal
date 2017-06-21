@@ -1,0 +1,33 @@
+app:
+    secret-key: abc01234  # This secret key can be any random string of
+                          # characters.
+                          #
+                          # You should re-generate this for your application
+                          # using:
+                          #
+                          # base64.b64encode(os.urandom(50)).decode('ascii')
+    factory: template_app.app_server.make_app
+
+database:
+    database: template_app
+    host: localhost
+    port: 5432
+    user: template_app
+    password:
+
+server:
+    url: http://localhost:5000
+    multi_user: False
+
+    # From https://console.developers.google.com/
+    #
+    # - Create Client ID
+    # - Javascript origins: https://localhost:5000
+    # - Authorized redirect URLs: http://localhost:5000/complete/google-oauth2/
+    #
+    # You need to have Google+ API enabled; it takes a few minutes to activate.
+
+    auth:
+        debug_login: False
+        google_oauth2_key:
+        google_oauth2_secret:

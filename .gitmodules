@@ -1,0 +1,3 @@
+[submodule "baselayer"]
+	path = baselayer
+	url = https://github.com/cesium-ml/baselayer.git

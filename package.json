@@ -1,0 +1,42 @@
+{
+  "name": "template_application",
+  "license": "BSD-3-Clause",
+  "scripts": {
+    "build": "make bundle",
+    "test": "eslint -c .eslintrc --ext .jsx,.js ../static/scripts/ && make test"
+  },
+  "dependencies": {
+    "exports-loader": "^0.6.4",
+    "imports-loader": "^0.7.1",
+    "react": "^15.1.0",
+    "react-dom": "^15.1.0",
+    "react-redux": "^5.0.3",
+    "redux": "^3.6.0",
+    "redux-logger": "^2.8.1",
+    "redux-thunk": "^2.2.0",
+    "webpack": "^2.2.1",
+    "webpack-dev-server": "^2.4.1",
+    "whatwg-fetch": "^2.0.2",
+    "css-loader": "^0.26.2",
+    "style-loader": "^0.13.2"
+  },
+  "devDependencies": {
+    "babel": "^6.23.0",
+    "babel-core": "^6.23.1",
+    "babel-eslint": "^7.1.1",
+    "babel-loader": "^6.3.2",
+    "babel-preset-es2015": "^6.22.0",
+    "babel-preset-react": "^6.23.0",
+    "babel-preset-stage-2": "^6.22.0",
+    "eslint": "^3.16.1",
+    "eslint-config-airbnb": "^14.1.0",
+    "eslint-loader": "^1.6.3",
+    "eslint-plugin-import": "^2.2.0",
+    "eslint-plugin-jsx-a11y": "^4.0.0",
+    "eslint-plugin-react": "^6.10.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cesium-ml/baselayer.git"
+  }
+}

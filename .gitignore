@@ -1,0 +1,14 @@
+.#*
+log/
+.cache
+static/build
+run/
+ghostdriver.log
+\#*
+*~
+*.swp
+*.swo
+.DS_Store
+__pycache__/
+node_modules/
+*.pyc
