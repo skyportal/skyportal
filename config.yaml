@@ -6,13 +6,13 @@ app:
                           # using:
                           #
                           # base64.b64encode(os.urandom(50)).decode('ascii')
-    factory: template_app.app_server.make_app
+    factory: skyportal_app.app_server.make_app
 
 database:
-    database: template_app
+    database: skyportal
     host: localhost
     port: 5432
-    user: template_app
+    user: skyportal
     password:
 
 server:

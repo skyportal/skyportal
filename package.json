@@ -1,5 +1,5 @@
 {
-  "name": "template_application",
+  "name": "skyportal",
   "license": "BSD-3-Clause",
   "scripts": {
     "build": "make bundle",
@@ -37,6 +37,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/cesium-ml/baselayer.git"
+    "url": "https://github.com/skyportal/skyportal"
   }
 }

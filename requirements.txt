@@ -1,0 +1,14 @@
+cesium>=0.9.2
+peewee>=2.9.2
+psycopg2==2.7.1
+pyyaml
+tornado
+pyzmq
+pyjwt
+simplejson
+distributed>=1.17.1
+selenium
+joblib>=0.11
+bokeh==0.12.5
+pytest-randomly
+pytest-factoryboy

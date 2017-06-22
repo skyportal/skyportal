@@ -12,7 +12,7 @@ baselayer: baselayer-update
 
 .PHONY: baselayer-update
 baselayer-update:
-	./baselayer/tools/submodule-update.sh
+	./baselayer/tools/submodule_update.sh
 
 dependencies: baselayer
 	@./baselayer/tools/silent_monitor.py pip install -r baselayer/requirements.txt

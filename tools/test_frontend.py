@@ -25,7 +25,7 @@ base_dir = os.path.abspath(pjoin(os.path.dirname(__file__), '..'))
 if len(sys.argv) > 1:
     test_spec = sys.argv[1]
 else:
-    test_spec = pjoin(base_dir, 'template_app', 'tests')
+    test_spec = pjoin(base_dir, 'skyportal_app', 'tests')
 
 
 def add_test_yaml():
@@ -35,8 +35,8 @@ def add_test_yaml():
     with open(TEST_CONFIG, 'w') as f:
         f.write(dedent('''
             database:
-                database: template_app_test
-                user: template_app
+                database: skyportal
+                user: skyportal
 
             server:
                 url: http://localhost:5000
@@ -58,7 +58,7 @@ if __name__ == '__main__':
 
     # Initialize the test database connection
     from baselayer.app.models import init_db
-    from template_app.app_server import load_config
+    from skyportal_app.app_server import load_config
     basedir = pathlib.Path(os.path.dirname(__file__))/'..'
     cfg = load_config([basedir/'config.yaml.example',
                        basedir/TEST_CONFIG])
