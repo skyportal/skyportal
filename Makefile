@@ -8,7 +8,9 @@ bundle = ./static/build/bundle.js
 webpack = ./node_modules/.bin/webpack
 baselayer_branch = $(shell git config -f .gitmodules submodule.baselayer.branch)
 
-baselayer/README.md: baselayer-update
+baselayer/README.md:
+	git submodule update --init --remote
+	$(MAKE) baselayer-update
 
 .PHONY: baselayer-update
 baselayer-update:
