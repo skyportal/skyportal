@@ -14,7 +14,7 @@ hash -d pip  # find upgraded pip
 section_end "install.base.requirements"
 
 section "install.baselayer.requirements"
-git submodule init && git submodule update
+git submodule update --init
 npm -g install npm@4.2.0
 npm --version
 node --version
