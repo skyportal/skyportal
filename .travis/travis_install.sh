@@ -15,7 +15,7 @@ section_end "install.base.requirements"
 
 section "install.baselayer.requirements"
 git submodule init && git submodule update
-npm -g install npm@latest
+npm -g install npm@4.2.0
 npm --version
 node --version
 make dependencies
