@@ -1,0 +1,83 @@
+# vim ft=yaml
+
+# Notes below compliments of the scikit-image team:
+
+# - Use http://yaml-online-parser.appspot.com/ to make sure the yaml
+#   file is valid.  http://lint.travis-ci.org/ is recommended
+#   elsewhere but does not give helpful error reports.
+
+# - Make sure all of your "-" lines start on the same column
+
+# - Use bash scripts for `before_install` and `script` or any part
+#   that has conditional statements
+#    - Make sure they are "executable" (chmod +x)
+#    - Use the following header:
+
+#    ```
+#      #!/usr/bin/env bash
+#      set -ex
+#    ```
+
+# - Use the `retry` bash function from `before_install.sh` before a
+#   command to have it try 3 times before failing.
+
+# - Use `pip install --retries N` for retrying package downloads.
+
+# - Use the `section` function to start a folded section of the
+#   script.  Section names must have underscores or dots instead of
+#   spaces and must be accompanied by a corresponding `section_end`
+#   call.
+
+# - Feel free to cancel a build rather than waiting for it to go to
+#   completion if you have made a change to that branch.
+
+# - A VM with 64bit Ubuntu 12.04 is a huge help for debugging.
+
+
+language: python
+dist: trusty
+sudo: required
+cache:
+  # See http://docs.travis-ci.com/user/caching/#pip-cache
+  directories:
+    - $HOME/.cache/pip
+    - $HOME/.cache/sphinx
+    - $HOME/.ccache
+    - $HOME/.local
+    - node_modules
+addons:
+  apt:
+    packages:
+    - ccache
+    - wget
+    - nodejs
+    - supervisor
+    - nginx
+    - xvfb
+    - chromium-browser
+    - unzip
+    - libnss3
+    - libgconf-2-4
+  postgresql: "9.6"
+
+matrix:
+  include:
+    - python: 3.6
+      env:
+        - TEST_TARGET=test
+
+before_install:
+  - ccache -s
+  - export PATH=/usr/lib/ccache:${PATH}
+  - which python; python --version
+  - source .travis/travis_funcs.sh
+
+install:
+  - .travis/travis_install.sh
+
+before_script:
+  - "export DISPLAY=:99.0"
+  - "sh -e /etc/init.d/xvfb start"
+  - sleep 3 # give xvfb some time to start
+
+script: .travis/travis_script.sh
