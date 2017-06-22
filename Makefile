@@ -6,10 +6,15 @@ SUPERVISORCTL=supervisorctl -c baselayer/conf/supervisor/common.conf
 
 bundle = ./static/build/bundle.js
 webpack = ./node_modules/.bin/webpack
+baselayer_branch = $(shell git config -f .gitmodules submodule.baselayer.branch)
 
+baselayer: baselayer-update
 
-dependencies:
-	git submodule update --init --recursive
+.PHONY: baselayer-update
+baselayer-update:
+	./baselayer/tools/submodule-update.sh
+
+dependencies: baselayer
 	@./baselayer/tools/silent_monitor.py pip install -r baselayer/requirements.txt
 	@./baselayer/tools/silent_monitor.py pip install -r requirements.txt
 	@./baselayer/tools/silent_monitor.py ./baselayer/tools/check_js_deps.sh
