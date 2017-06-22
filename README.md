@@ -13,4 +13,6 @@ get a batteries-included web application.  It includes:
 
 ## Customization guide
 
+1. Clone this repository
+
 To be completed.
