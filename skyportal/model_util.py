@@ -1,11 +1,14 @@
+import os
 import numpy as np
 import pandas as pd
+
 from baselayer.app import cfg
 from baselayer.app.model_util import status, create_tables, drop_tables
 from skyportal import models
 
 
-def insert_test_data():
+if __name__ == "__main__":
+    """Insert test data"""
     with status(f"Connecting to database {cfg['database']['database']}"):
         models.init_db(**cfg['database'])
 
@@ -31,16 +34,11 @@ def insert_test_data():
                                      "R>26 in LRIS imaging", user=u),
                       models.Comment(text="Strong calcium lines have emerged.",
                                      user=u)]
-        start = pd.Timestamp('2015-07-01')
-        end = pd.Timestamp('2015-08-01')
-        times = pd.to_datetime(np.linspace(start.value, end.value, 100))
-        s.photometry = [models.Photometry(obs_time=t, mag=np.random.uniform(19, 22),
-                                          e_mag=np.random.uniform(0, 0.5),
-                                          lim_mag=np.random.uniform(22, 25),
-                                          filter=np.random.choice(['R', 'G']))
-                        for t in times]
+        phot_file = os.path.join(os.path.dirname(__file__), 'tests', 'data',
+                                 'phot.csv')
+        phot_data = pd.read_csv(phot_file)
+        s.photometry = [models.Photometry(**row)
+                        for i, row in phot_data.iterrows()]
+                        
         models.DBSession().add(s)
         models.DBSession().commit()
-
-if __name__ == "__main__":
-    insert_test_data()
