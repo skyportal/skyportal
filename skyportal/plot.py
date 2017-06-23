@@ -39,7 +39,7 @@ def photometry_plot(source_id):
                       formatters={'obs_time': 'datetime'})
 
     plot = figure(plot_width=600, plot_height=300, title='Photometry',
-                  tools='box_zoom,pan,reset',
+                  tools='box_zoom,pan,reset', active_drag='box_zoom',
                   y_range=(max(data.mag) + 0.1, min(data.mag) - 0.1))
     plot.add_tools(hover)
     plot.scatter(x='obs_time', y='mag', color='color', source=source)
