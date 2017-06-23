@@ -5,7 +5,7 @@ from baselayer.app.app_server import (handlers as baselayer_handlers,
                                       settings as baselayer_settings)
 from baselayer.app.config import load_config
 
-from skyportal.handlers import SourceHandler
+from skyportal.handlers import SourceHandler, PlotPhotometryHandler
 from skyportal import models
 
 
@@ -35,6 +35,7 @@ def make_app(config_files=None, debug=False):
 
     handlers = baselayer_handlers + [
         (r'/sources(/.*)?', SourceHandler),
+        (r'/plot_photometry/(.*)', PlotPhotometryHandler)
     ]
 
     settings = baselayer_settings

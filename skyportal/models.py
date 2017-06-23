@@ -30,7 +30,7 @@ class Photometry(Base):
 
 
 class Source(Base):
+    name = sa.Column(sa.String())
     ra = sa.Column(sa.Float())
     dec = sa.Column(sa.Float())
     red_shift = sa.Column(sa.Float(), nullable=True)
-    name = sa.Column(sa.String())
