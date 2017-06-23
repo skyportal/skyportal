@@ -7,36 +7,66 @@ import { Notifications, reducer as notificationReducer, showNotification }
            from 'baselayer/components/Notifications';
 import MessageHandler from 'baselayer/MessageHandler';
 
-// Construct the application state store
-import { createStore, combineReducers, applyMiddleware } from 'redux';
-import thunk from 'redux-thunk';
+import SourceList from './SourceList';
 
-function rootReducer(state={}, action) {
+// Construct the application state store
+import { createStore, combineReducers, applyMiddleware, compose } from 'redux';
+import thunk from 'redux-thunk';
+import createLogger from 'redux-logger';
+
+
+const logger = createLogger({
+  collapsed: (getState, action, logEntry) => !logEntry.error
+});
+
+function sourceReducer(state=[], action) {
     switch (action.type) {
         default:
-            console.log('Root reducer saw action:', action);
             return state;
     }
 }
 
-let store = createStore(
+const store = createStore(
     combineReducers({
-        root: rootReducer,
-        notifications: notificationReducer
+        sources: sourceReducer,
+        notifications: notificationReducer,
     }),
-    applyMiddleware(thunk)
+    compose(
+      applyMiddleware(thunk, logger),
+      // Enable the Chrome developer plugin
+      // https://github.com/zalmoxisus/redux-devtools-extension
+      window.devToolsExtension ? window.devToolsExtension() : f => f,
+    )
 );
 // End store construction
 
+let fetchSources = () => (
+  async (dispatch) => {
+    try {
+      const json = await fetch('/sources', {credentials: 'same-origin'});
+      dispatch(receiveSources());
+    }
+    catch (err) {
+      dispatch(showNotification(`Error fetching sources ({err})`, type='error'));
+    }
+  }
+)
+
+let receiveSources = () => (
+  {'type': 'skyportal/RECEIVE_SOURCES'}
+)
+
+let hydrate = () => (
+  (dispatch) => {
+    dispatch(fetchSources());
+  }
+)
 
 const messageHandler = (new MessageHandler(store.dispatch));
 
 class MainContent extends React.Component {
   componentDidMount() {
-    // Typically, you want to load some initial application state.  That
-    // happens here.
-    //
-    // store.dispatch(Action.hydrate());
+    store.dispatch(hydrate());
   }
   render() {
     return (
@@ -53,13 +83,10 @@ class MainContent extends React.Component {
 
         <Notifications style={{}} />
 
-        <h1>Baselayer Template Application</h1>
-        <p>Hi, and welcome to Baselayer!</p>
+        <h1>SkyPortal</h1>
 
-        <a href="#"
-           onClick={() => store.dispatch(showNotification("Hello from Baselayer"))}>
-          Click here to display a notification
-        </a>
+        <SourceList/>
+
       </div>
     );
   }

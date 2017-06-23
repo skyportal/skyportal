@@ -2,7 +2,8 @@ const webpack = require('webpack');
 const path = require('path');
 
 const config = {
-  entry: path.resolve(__dirname, 'static/js/components/Main.jsx'),
+  entry: ['babel-polyfill',
+          path.resolve(__dirname, 'static/js/components/Main.jsx')],
   output: {
     path: path.resolve(__dirname, 'static/build'),
     filename: 'bundle.js'
@@ -15,6 +16,7 @@ const config = {
         options:
         {
           presets: ['es2015', 'react', 'stage-2'],
+          plugins: ['transform-async-to-generator'],
           compact: false
         }
       },

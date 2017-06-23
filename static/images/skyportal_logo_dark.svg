@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg8"
+   inkscape:version="0.92.1 r15371"
+   sodipodi:docname="ztf_logo_dark.svg">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.98994949"
+     inkscape:cx="181.41727"
+     inkscape:cy="600.4061"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="2556"
+     inkscape:window-height="1384"
+     inkscape:window-x="0"
+     inkscape:window-y="26"
+     inkscape:window-maximized="0" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       style="fill:#ffffff;stroke-width:0.99999994"
+       d="M 321.49609 318.29492 A 214.99999 214.99999 0 0 0 172.85742 522.51953 A 214.99999 214.99999 0 0 0 387.85742 737.51953 A 214.99999 214.99999 0 0 0 602.85742 522.51953 A 214.99999 214.99999 0 0 0 602.58008 514.66797 A 171.78572 171.78572 0 0 1 545.4707 562.69922 A 162.85713 162.85713 0 0 1 387.85742 685.37695 A 162.85713 162.85713 0 0 1 225 522.51953 A 162.85713 162.85713 0 0 1 295.99609 388.24805 A 171.78572 171.78572 0 0 1 321.49609 318.29492 z "
+       transform="scale(0.26458333)"
+       id="path10" />
+    <circle
+       style="fill:#ffffff;stroke-width:0.17306675"
+       id="circle18"
+       cx="102.62054"
+       cy="138.25"
+       r="37.209354" />
+  </g>
+</svg>
