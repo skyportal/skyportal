@@ -43,11 +43,15 @@ const store = createStore(
 let fetchSources = () => (
   async (dispatch) => {
     try {
-      const json = await fetch('/sources', {credentials: 'same-origin'});
+      let response = await fetch('/sources', {credentials: 'same-origin'});
+      if (response.status != 200) {
+        throw `Could not fetch data from server (${response.status})`;
+      }
+      let json = await response.json();
       dispatch(receiveSources());
     }
     catch (err) {
-      dispatch(showNotification(`Error fetching sources ({err})`, type='error'));
+      dispatch(showNotification(err, 'error'));
     }
   }
 )
