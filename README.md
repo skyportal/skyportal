@@ -16,3 +16,20 @@ get a batteries-included web application.  It includes:
 1. Clone this repository
 
 To be completed.
+
+## Notes
+
+On Debian, in `/etc/postgresql/9.6/main/pg_hba.conf`, insert the
+following *before* any line starting with `host`:
+
+```
+host skyportal skyportal 127.0.0.1/32 trust
+host skyportal_test skyportal 127.0.0.1/32 trust
+host skyportal skyportal ::1/128 trust
+host skyportal_test skyportal ::1/128 trust
+```
+
+(The ::1/128 is what localhost translates to in IPV6.)
+
+Also, ensure that PostgreSQL is running on port 5432, and not 5433
+(see `/etc/postgresql/9.6/main/postgresql.conf`).

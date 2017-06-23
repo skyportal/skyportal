@@ -6,7 +6,7 @@ app:
                           # using:
                           #
                           # base64.b64encode(os.urandom(50)).decode('ascii')
-    factory: skyportal_app.app_server.make_app
+    factory: skyportal.app_server.make_app
 
 database:
     database: skyportal
