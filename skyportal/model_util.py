@@ -39,6 +39,6 @@ if __name__ == "__main__":
         phot_data = pd.read_csv(phot_file)
         s.photometry = [models.Photometry(**row)
                         for i, row in phot_data.iterrows()]
-                        
+
         models.DBSession().add(s)
         models.DBSession().commit()
