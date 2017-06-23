@@ -5,6 +5,7 @@ from baselayer.app.app_server import (handlers as baselayer_handlers,
                                       settings as baselayer_settings)
 from baselayer.app.config import load_config
 
+from skyportal.handlers import SourceHandler
 from skyportal import models
 
 
@@ -33,7 +34,7 @@ def make_app(config_files=None, debug=False):
         print('!' * 80)
 
     handlers = baselayer_handlers + [
-    #    (r'/some_url(/.*)?', MyTornadoHandler),
+        (r'/sources(/.*)?', SourceHandler),
     ]
 
     settings = baselayer_settings
