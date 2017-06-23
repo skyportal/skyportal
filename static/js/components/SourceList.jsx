@@ -7,8 +7,8 @@ import Source from './Source';
 let SourceList = ({sources}) => (
   <div>
     {
-      sources.map((source) => (
-        <Source {...source}/>
+      sources.map((source, idx) => (
+        <Source key={idx} {...source}/>
       ))
     }
   </div>

@@ -20,10 +20,12 @@ const logger = createLogger({
 });
 
 function sourceReducer(state=[], action) {
-    switch (action.type) {
-        default:
-            return state;
-    }
+  switch (action.type) {
+    case 'skyportal/RECEIVE_SOURCES':
+      return action.sources
+    default:
+      return state;
+  }
 }
 
 const store = createStore(
@@ -48,16 +50,14 @@ let fetchSources = () => (
         throw `Could not fetch data from server (${response.status})`;
       }
       let json = await response.json();
-      dispatch(receiveSources());
+      let sources = json["data"];
+      dispatch({type: 'skyportal/RECEIVE_SOURCES',
+                sources})
     }
     catch (err) {
       dispatch(showNotification(err, 'error'));
     }
   }
-)
-
-let receiveSources = () => (
-  {'type': 'skyportal/RECEIVE_SOURCES'}
 )
 
 let hydrate = () => (
