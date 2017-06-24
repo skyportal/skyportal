@@ -19,6 +19,8 @@ To be completed.
 
 ## Notes
 
+### Database errors, or "fe_sendauth: no password supplied"
+
 On Debian, in `/etc/postgresql/9.6/main/pg_hba.conf`, insert the
 following *before* any line starting with `host`:
 
@@ -33,3 +35,4 @@ host skyportal_test skyportal ::1/128 trust
 
 Also, ensure that PostgreSQL is running on port 5432, and not 5433
 (see `/etc/postgresql/9.6/main/postgresql.conf`).
+
