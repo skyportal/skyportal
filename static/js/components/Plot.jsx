@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { showNotification } from 'baselayer/components/Notifications';
 import "../../../node_modules/bokehjs/build/js/bokeh.js";
@@ -66,8 +67,8 @@ class Plot extends Component {
   }
 }
 Plot.propTypes = {
-  url: React.PropTypes.string.isRequired,
-  dispatch: React.PropTypes.func.isRequired // provided by connect
+  url: PropTypes.string.isRequired,
+  dispatch: PropTypes.func.isRequired // provided by connect
 };
 
 Plot = connect()(Plot);
