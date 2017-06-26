@@ -2,6 +2,8 @@ import React from 'react';
 import { connect, Provider } from 'react-redux';
 import ReactDOM from 'react-dom';
 
+import styles from './Main.css';
+
 import WebSocket from 'baselayer/components/WebSocket';
 import { Notifications, reducer as notificationReducer, showNotification }
            from 'baselayer/components/Notifications';
@@ -74,7 +76,7 @@ class MainContent extends React.Component {
   }
   render() {
     return (
-      <div>
+      <div className={styles.main}>
         <div style={{float: "right"}}>
           <b>WebSocket connection: </b>
           <WebSocket
