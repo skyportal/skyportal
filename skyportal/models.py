@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import pandas as pd
 
 import sqlalchemy as sa
@@ -6,6 +7,13 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects import postgresql as psql
 
 from baselayer.app.models import init_db, Base, DBSession, User
+
+
+class NumpyArray(sa.types.TypeDecorator):
+    impl = psql.ARRAY(sa.Float)
+
+    def process_result_value(self, value, dialect):
+        return np.array(value)
 
 
 class Source(Base):
@@ -72,6 +80,6 @@ class Spectrum(Base):
                               nullable=False, index=True)
     instrument = relationship('Instrument', backref='spectra')
     # TODO better numpy integration
-    wavelengths = sa.Column(psql.ARRAY(sa.Float), nullable=False)
-    fluxes = sa.Column(psql.ARRAY(sa.Float), nullable=False)
-    errors = sa.Column(psql.ARRAY(sa.Float))
+    wavelengths = sa.Column(NumpyArray, nullable=False)
+    fluxes = sa.Column(NumpyArray, nullable=False)
+    errors = sa.Column(NumpyArray)
