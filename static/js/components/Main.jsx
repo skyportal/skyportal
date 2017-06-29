@@ -1,72 +1,27 @@
+// React and Redux
 import React from 'react';
-import { connect, Provider } from 'react-redux';
+import { Provider } from 'react-redux';
 import ReactDOM from 'react-dom';
+import { BrowserRouter, Link } from 'react-router-dom';
+import { Route, Switch } from 'react-router';
 
-import styles from './Main.css';
-
+// Baselayer components
 import WebSocket from 'baselayer/components/WebSocket';
-import { Notifications, reducer as notificationReducer, showNotification }
-           from 'baselayer/components/Notifications';
+import { Notifications } from 'baselayer/components/Notifications';
 import MessageHandler from 'baselayer/MessageHandler';
 
+// Main style
+import styles from './Main.css';
+
+// Store
+import configureStore from '../store';
+const store = configureStore({});
+
+// Local
+import CachedSource from './CachedSource';
 import SourceList from './SourceList';
-
-// Construct the application state store
-import { createStore, combineReducers, applyMiddleware, compose } from 'redux';
-import thunk from 'redux-thunk';
-import createLogger from 'redux-logger';
-
-
-const logger = createLogger({
-  collapsed: (getState, action, logEntry) => !logEntry.error
-});
-
-function sourceReducer(state=[], action) {
-  switch (action.type) {
-    case 'skyportal/RECEIVE_SOURCES':
-      return action.sources
-    default:
-      return state;
-  }
-}
-
-const store = createStore(
-    combineReducers({
-        sources: sourceReducer,
-        notifications: notificationReducer,
-    }),
-    compose(
-      applyMiddleware(thunk, logger),
-      // Enable the Chrome developer plugin
-      // https://github.com/zalmoxisus/redux-devtools-extension
-      window.devToolsExtension ? window.devToolsExtension() : f => f,
-    )
-);
-// End store construction
-
-let fetchSources = () => (
-  async (dispatch) => {
-    try {
-      let response = await fetch('/sources', {credentials: 'same-origin'});
-      if (response.status != 200) {
-        throw `Could not fetch data from server (${response.status})`;
-      }
-      let json = await response.json();
-      let sources = json["data"];
-      dispatch({type: 'skyportal/RECEIVE_SOURCES',
-                sources})
-    }
-    catch (err) {
-      dispatch(showNotification(err, 'error'));
-    }
-  }
-)
-
-let hydrate = () => (
-  (dispatch) => {
-    dispatch(fetchSources());
-  }
-)
+import NoMatchingRoute from './NoMatchingRoute';
+import { hydrate } from '../actions';
 
 const messageHandler = (new MessageHandler(store.dispatch));
 
@@ -77,8 +32,7 @@ class MainContent extends React.Component {
   render() {
     return (
       <div className={styles.main}>
-        <div style={{float: "right"}}>
-          <b>WebSocket connection: </b>
+        <div className={styles.websocket}>
           <WebSocket
               url={`ws://${this.props.root}websocket`}
               auth_url={`${location.protocol}//${this.props.root}socket_auth_token`}
@@ -87,26 +41,41 @@ class MainContent extends React.Component {
           />
         </div>
 
-        <Notifications style={{}} />
+        <div className={styles.topBanner}>
+          <img className={styles.logo} src="/static/images/skyportal_logo_dark.png"/>
+          <Link className={styles.title} to="/">SkyPortal ∝</Link>
+        </div>
 
-        <h1>SkyPortal</h1>
+        <div className={styles.content}>
 
-        <SourceList/>
+          <Notifications/>
+
+          <Switch>
+            <Route exact path="/" component={SourceList}/>
+            {'See https://stackoverflow.com/a/35604855 for syntax'}
+            <Route path="/source/:id" component={CachedSource}/>
+            <Route component={NoMatchingRoute}/>
+          </Switch>
+
+        </div>
+
+        <div className={styles.footer}>
+          This is a first proof of concept. Please file issues at
+          <a href="https://github.com/skyportal/skyportal">
+            https://github.com/skyportal/skyportal
+          </a>.
+        </div>
 
       </div>
     );
   }
 }
-//const mapStateToProps = function (state) (
-//);
-//const mapDispatchToProps = dispatch => (
-//);
-//
-//MainContent = connect(mapStateToProps, mapDispatchToProps)(MainContent);
 
 ReactDOM.render(
   <Provider store={store}>
-    <MainContent root={location.host + location.pathname} />
+    <BrowserRouter basename="/">
+      <MainContent root={location.host + '/'} />
+    </BrowserRouter>
   </Provider>,
   document.getElementById('content')
 );

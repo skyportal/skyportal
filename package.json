@@ -6,6 +6,7 @@
     "test": "eslint -c .eslintrc --ext .jsx,.js ../static/scripts/ && make test"
   },
   "dependencies": {
+    "bokehjs": "^0.12.5",
     "css-loader": "^0.26.2",
     "exports-loader": "^0.6.4",
     "imports-loader": "^0.7.1",
@@ -13,14 +14,15 @@
     "react": "^15.1.0",
     "react-dom": "^15.1.0",
     "react-redux": "^5.0.3",
+    "react-router": "^4.1.1",
+    "react-router-dom": "^4.1.1",
     "redux": "^3.6.0",
     "redux-logger": "^2.8.1",
     "redux-thunk": "^2.2.0",
     "style-loader": "^0.13.2",
     "webpack": "^2.2.1",
     "webpack-dev-server": "^2.4.1",
-    "whatwg-fetch": "^2.0.2",
-    "bokehjs": "^0.12.5"
+    "whatwg-fetch": "^2.0.2"
   },
   "devDependencies": {
     "babel": "^6.23.0",

@@ -11,7 +11,11 @@ class SourceHandler(BaseHandler):
         else:
             info = list(Source.query)
 
-        return self.success(info)
+        if info is None:
+            return self.error(f"Could not load source {source_id}",
+                              {"source_id": source_id})
+        else:
+            return self.success(info)
 
     @tornado.web.authenticated
     def post(self):

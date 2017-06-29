@@ -2,7 +2,8 @@ import tornado.web
 
 from baselayer.app import  model_util
 from baselayer.app.app_server import (handlers as baselayer_handlers,
-                                      settings as baselayer_settings)
+                                      settings as baselayer_settings,
+                                      MainPageHandler)
 from baselayer.app.config import load_config
 
 from skyportal.handlers import SourceHandler, PlotPhotometryHandler
@@ -35,7 +36,9 @@ def make_app(config_files=None, debug=False):
 
     handlers = baselayer_handlers + [
         (r'/sources(/.*)?', SourceHandler),
-        (r'/plot_photometry/(.*)', PlotPhotometryHandler)
+        (r'/plot_photometry/(.*)', PlotPhotometryHandler),
+        (r'/.*', MainPageHandler)  # route all frontend pages, such as
+                                   # /sources/g647ba through main page
     ]
 
     settings = baselayer_settings
