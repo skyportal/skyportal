@@ -1,11 +1,8 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { showNotification } from 'baselayer/components/Notifications';
+
 import "../../../node_modules/bokehjs/build/js/bokeh.js";
 import "../../../node_modules/bokehjs/build/css/bokeh.css";
-
-import { API, RECEIVE_SOURCE_PLOT } from '../actions.js';
 
 function bokeh_render_plot(node, docs_json, render_items) {
   // Create bokeh div element
@@ -33,11 +30,18 @@ class Plot extends Component {
 
   async componentDidMount() {
     let plotData = await this.props.fetchPlotData(this.props.url);
-    this.setState({ plotData });
+    if (plotData) {
+      this.setState({ plotData, error: false });
+    } else {
+      this.setState({ error: true });
+    }
   }
 
   render() {
-    let { plotData } = this.state;
+    let { plotData, error } = this.state;
+    if (error) {
+      return <b>Error: Could not fetch plotting data</b>
+    }
     if (!plotData) {
       return <b>Please wait while we load your plotting data...</b>;
     }
@@ -61,14 +65,5 @@ Plot.propTypes = {
   url: PropTypes.string.isRequired,
   fetchPlotData: PropTypes.func.isRequired
 };
-
-
-let fetchPlotData = (url) => (
-  (dispatch) => {
-    return API(url, RECEIVE_SOURCE_PLOT)(dispatch);
-  }
-)
-
-Plot = connect(null, {fetchPlotData})(Plot);
 
 export default Plot;

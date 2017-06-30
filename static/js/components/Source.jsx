@@ -1,5 +1,5 @@
 import React from 'react'
-import Plot from './Plot'
+import PlotContainer from '../containers/PlotContainer'
 
 
 const Source = ({ ra, dec, red_shift, id }) => {
@@ -13,7 +13,7 @@ const Source = ({ ra, dec, red_shift, id }) => {
         <hr/>
         <b>Red Shift:</b>{red_shift}<br/>
       <b>Photometry ({id}):</b><br/>
-      <Plot url={`/plot_photometry/${id}`}/>
+      <PlotContainer url={`/plot_photometry/${id}`}/>
       </div>
     )
   }
