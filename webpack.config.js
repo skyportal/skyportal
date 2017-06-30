@@ -29,16 +29,28 @@ const config = {
           compact: false
         }
       },
+
+      // Enable CSS Modules for Skyportal
       { test: /\.css$/,
+        exclude: /node_modules/,
         use: [
-          'style-loader',
+          {
+            loader: 'style-loader'
+          },
           {
             loader: 'css-loader',
             options: {
-              modules: true
+              modules: true,
             }
           }
         ]
+      },
+
+      // bokehjs doesn't like css-modules, but it
+      // does need style-loader and css-loader
+      { test: /\.css$/,
+        include: /node_modules\/bokehjs/,
+        use: ['style-loader', 'css-loader']
       }
     ],
   },
