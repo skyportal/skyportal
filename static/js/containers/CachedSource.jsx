@@ -1,7 +1,7 @@
 import React from 'react';
 import { connect } from 'react-redux';
 
-import Source from './Source';
+import Source from '../components/Source';
 import * as Action from '../actions.js';
 
 

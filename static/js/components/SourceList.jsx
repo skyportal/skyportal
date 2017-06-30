@@ -1,9 +1,6 @@
 import React from 'react';
-import { connect } from 'react-redux';
 import { Link } from 'react-router-dom';
-
 import Source from './Source';
-
 
 let SourceList = ({sources}) => (
   <div>
@@ -19,13 +16,5 @@ let SourceList = ({sources}) => (
     </ul>
   </div>
 );
-
-const mapStateToProps = (state, ownProps) => {
-  return {
-    sources: state.sources.latest
-  };
-};
-
-SourceList = connect(mapStateToProps)(SourceList);
 
 export default SourceList;

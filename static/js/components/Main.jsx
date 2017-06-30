@@ -18,8 +18,8 @@ import configureStore from '../store';
 const store = configureStore({});
 
 // Local
-import CachedSource from './CachedSource';
-import SourceList from './SourceList';
+import CachedSource from '../containers/CachedSource';
+import SourceListContainer from '../containers/SourceListContainer';
 import NoMatchingRoute from './NoMatchingRoute';
 import { hydrate } from '../actions';
 
@@ -51,7 +51,7 @@ class MainContent extends React.Component {
           <Notifications/>
 
           <Switch>
-            <Route exact path="/" component={SourceList}/>
+            <Route exact path="/" component={SourceListContainer}/>
             {'See https://stackoverflow.com/a/35604855 for syntax'}
             <Route path="/source/:id" component={CachedSource}/>
             <Route component={NoMatchingRoute}/>
@@ -60,7 +60,7 @@ class MainContent extends React.Component {
         </div>
 
         <div className={styles.footer}>
-          This is a first proof of concept. Please file issues at
+          This is a first proof of concept. Please file issues at&nbsp;
           <a href="https://github.com/skyportal/skyportal">
             https://github.com/skyportal/skyportal
           </a>.
