@@ -1,0 +1,9 @@
+.source {
+}
+
+.name {
+    font-size: 200%;
+    font-weight: 900;
+    color: darkgray;
+    padding-bottom: 0.25em;
+}
