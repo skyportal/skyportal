@@ -2,8 +2,10 @@
 import React from 'react';
 import { Provider } from 'react-redux';
 import ReactDOM from 'react-dom';
+
 import { BrowserRouter, Link } from 'react-router-dom';
-import { Route, Switch } from 'react-router';
+import { Switch } from 'react-router';
+import PropsRoute from '../route';
 
 // Baselayer components
 import WebSocket from 'baselayer/components/WebSocket';
@@ -51,10 +53,10 @@ class MainContent extends React.Component {
           <Notifications/>
 
           <Switch>
-            <Route exact path="/" component={SourceListContainer}/>
+            <PropsRoute exact path="/" component={SourceListContainer}/>
             {'See https://stackoverflow.com/a/35604855 for syntax'}
-            <Route path="/source/:id" component={CachedSource}/>
-            <Route component={NoMatchingRoute}/>
+            <PropsRoute path="/source/:id" component={CachedSource}/>
+            <PropsRoute component={NoMatchingRoute}/>
           </Switch>
 
         </div>
