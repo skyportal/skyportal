@@ -6,7 +6,8 @@ from baselayer.app.app_server import (handlers as baselayer_handlers,
                                       MainPageHandler)
 from baselayer.app.config import load_config
 
-from skyportal.handlers import SourceHandler, PlotPhotometryHandler
+from skyportal.handlers import (SourceHandler, PlotPhotometryHandler,
+                                PlotSpectroscopyHandler)
 from skyportal import models
 
 
@@ -36,7 +37,9 @@ def make_app(config_files=None, debug=False):
 
     handlers = baselayer_handlers + [
         (r'/sources(/.*)?', SourceHandler),
+        # TODO combine plot handlers? one per plot seems excessive
         (r'/plot_photometry/(.*)', PlotPhotometryHandler),
+        (r'/plot_spectroscopy/(.*)', PlotSpectroscopyHandler),
         (r'/.*', MainPageHandler)  # route all frontend pages, such as
                                    # /sources/g647ba through main page
     ]

@@ -9,12 +9,14 @@ const Source = ({ ra, dec, red_shift, id }) => {
     return (
       <div>
         <hr/>
-        <b>{name} (location: {ra}, {dec})</b>
+        <b>{id} (location: {ra}, {dec})</b>
         <hr/>
-        <b>Red Shift:</b>{red_shift}<br/>
-      <b>Photometry ({id}):</b><br/>
-      <PlotContainer url={`/plot_photometry/${id}`}/>
-      </div>
+        <b>Red Shift: </b>{red_shift}<br/>
+        <b>Photometry:</b><br/>
+        <PlotContainer url={`/plot_photometry/${id}`}/>
+        <b>Spectroscopy:</b><br/>
+        <PlotContainer url={`/plot_spectroscopy/${id}`}/>
+    </div>
     )
   }
 };

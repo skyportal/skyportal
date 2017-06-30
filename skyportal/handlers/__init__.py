@@ -5,3 +5,4 @@ from baselayer.app.custom_exceptions import AccessError
 
 from .source import SourceHandler
 from .plot_photometry import PlotPhotometryHandler
+from .plot_spectroscopy import PlotSpectroscopyHandler
