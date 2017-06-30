@@ -2,6 +2,8 @@ export const API_CALL = 'skyportal/API_CALL';
 export const RECEIVE_SOURCES = 'skyportal/RECEIVE_SOURCES';
 export const RECEIVE_LOADED_SOURCE = 'skyportal/RECEIVE_LOADED_SOURCE';
 export const RECEIVE_LOADED_SOURCE_FAIL = 'skyportal/RECEIVE_LOADED_SOURCE_FAIL';
+export const RECEIVE_SOURCE_PLOT = 'skyportal/RECEIVE_SOURCE_PLOT';
+export const RECEIVE_SOURCE_PLOT_FAIL = 'skyportal/RECEIVE_SOURCE_PLOT_FAIL';
 
 import { showNotification } from 'baselayer/components/Notifications';
 
@@ -16,12 +18,10 @@ let API = (endpoint, receiveActionType, args) => (
       }
 
       let json = await response.json();
-      let actionType = (json.status == "success") ?
-                       receiveActionType : `${receiveActionType}_FAIL`;
-
-      dispatch({type: actionType, ...json});
-
-      if (json.status != "success") {
+      if (json.status == "success") {
+        dispatch({type: receiveActionType, ...json});
+        return json["data"];
+      } else {
         /* In case of an error, dispatch an action that contains
            every piece of information we have about the request, including
            JSON args, and the response that came back from the server.
@@ -52,4 +52,4 @@ function hydrate() {
   }
 }
 
-export { fetchSources, fetchSource, hydrate };
+export { fetchSources, fetchSource, hydrate, API };

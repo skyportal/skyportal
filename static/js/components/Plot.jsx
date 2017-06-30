@@ -5,6 +5,8 @@ import { showNotification } from 'baselayer/components/Notifications';
 import "../../../node_modules/bokehjs/build/js/bokeh.js";
 import "../../../node_modules/bokehjs/build/css/bokeh.css";
 
+import { API, RECEIVE_SOURCE_PLOT } from '../actions.js';
+
 function bokeh_render_plot(node, docs_json, render_items) {
   // Create bokeh div element
   var bokeh_div = document.createElement("div");
@@ -29,48 +31,44 @@ class Plot extends Component {
     };
   }
 
-  componentDidMount() {
-    fetch(this.props.url, {
-      credentials: 'same-origin'
-    })
-      .then(response => response.json())
-      .then((json) => {
-        if (json.status == 'success') {
-          this.setState({ plotData: json.data });
-        } else {
-          console.log('dispatching error notification', json.message);
-          this.props.dispatch(
-            showNotification(json.message, 'error')
-          );
-        }
-      });
+  async componentDidMount() {
+    let plotData = await this.props.fetchPlotData(this.props.url);
+    this.setState({ plotData });
   }
 
   render() {
-    const { plotData } = this.state;
+    let { plotData } = this.state;
     if (!plotData) {
       return <b>Please wait while we load your plotting data...</b>;
     }
-    var docs_json = JSON.parse(plotData.docs_json);
-    var render_items = JSON.parse(plotData.render_items);
+
+    let { docs_json, render_items } = plotData;
+    docs_json = JSON.parse(docs_json);
+    render_items = JSON.parse(render_items);
 
     return (
-      plotData &&
       <div
           ref={
             (node) => {
               node && bokeh_render_plot(node, docs_json, render_items)
             }
-              }
+          }
       />
     );
   }
 }
 Plot.propTypes = {
   url: PropTypes.string.isRequired,
-  dispatch: PropTypes.func.isRequired // provided by connect
+  fetchPlotData: PropTypes.func.isRequired
 };
 
-Plot = connect()(Plot);
+
+let fetchPlotData = (url) => (
+  (dispatch) => {
+    return API(url, RECEIVE_SOURCE_PLOT)(dispatch);
+  }
+)
+
+Plot = connect(null, {fetchPlotData})(Plot);
 
 export default Plot;

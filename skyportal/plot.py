@@ -25,11 +25,16 @@ def photometry_plot(source_id):
     """
     color_map = {'ipr': 'yellow', 'rpr': 'red', 'g': 'green'}
 
-    s = Source.query.first()
     # TODO how to properly filter out junk values?
-    data = pd.read_sql(Photometry.query.filter(Photometry.source_id == s.id).filter(
-        Photometry.mag > 0).filter(Photometry.mag < 90).statement,
-        DBSession().bind)
+    data = pd.read_sql(Photometry
+                           .query
+                           .filter(Photometry.source_id == source_id)
+                           .filter(Photometry.mag > 0)
+                           .filter(Photometry.mag < 90)
+                           .statement, DBSession().bind)
+    if data.empty:
+        return None, None
+
     data['min'] = data.mag + data.e_mag
     data['max'] = data.mag - data.e_mag
     data['color'] = [color_map[f] for f in data['filter']]
