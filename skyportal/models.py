@@ -21,6 +21,10 @@ Base.is_owned_by = is_owned_by
 class NumpyArray(sa.types.TypeDecorator):
     impl = psql.ARRAY(sa.Float)
 
+    def __repr__(self):
+        """Override for correct `alembic` parsing."""
+        return 'NumpyArray()'
+
     def process_result_value(self, value, dialect):
         return np.array(value)
 
