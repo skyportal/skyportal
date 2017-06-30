@@ -4,6 +4,7 @@
     width: 100%;
     top: 0;
     left: 0;
+    min-height: 100%;
 }
 
 .topBanner {
@@ -11,7 +12,7 @@
     margin: 0;
     background: #38B0DE;
     padding: 1em;
-    border-bottom: 5px solid lightgray;
+    border-bottom: 0.25em solid lightgray;
     zIndex: 10;
 }
 
@@ -39,8 +40,8 @@
 
 .content {
     padding: 1em;
-    min-height: 100%;
     height: auto;
+    padding-bottom: 6em; /* same as footer height */
 }
 
 .content a {
@@ -49,18 +50,18 @@
 }
 
 .footer {
+    position: absolute;
+    bottom: 0;
     background: #38B0DE;
     width: 100%;
-    position: fixed;
     zIndex: -1000;
-    bottom: 0;
     text-align: center;
     vertical-align: middle;
     height: 5em;
     line-height: 5em;
     color: white;
     font-size: 110%;
-    border-top: 5px solid lightgray;
+    border-top: .25em solid lightgray;
 }
 
 .footer a {
