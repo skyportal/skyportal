@@ -1,0 +1,9 @@
+{
+	"namespace": "ztf.alert",
+	"type": "record",
+	"name": "cutout",
+	"fields": [
+		{"name": "fileName", "type": "string"},
+		{"name": "stampData", "type": "bytes", "doc": "jpeg"}
+			]
+}
