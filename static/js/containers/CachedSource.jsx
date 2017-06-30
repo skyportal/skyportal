@@ -16,7 +16,7 @@ class CachedSource extends React.Component {
   isCached() {
     // TODO: Change this.props.match.params.id -> this.props.id by rendering
     // component differently in router
-    let loadedSource = this.props.loadedSource;
+    let loadedSource = this.props.fields;
     let cachedSource = loadedSource ? loadedSource.id : null;
     let requestedSource = this.props.match.params.id;
 
@@ -24,13 +24,13 @@ class CachedSource extends React.Component {
   }
 
   render = () => {
-    if (this.props.error) {
+    if (this.props.loadError) {
       return <div>Could not retrieve requested source</div>
     } else {
       if (!this.isCached()) {
         return <div><span>Loading...</span></div>
       } else {
-        return <Source {...this.props.loadedSource}/>
+        return <Source {...this.props.fields}/>
       }
     }
   }
@@ -38,8 +38,8 @@ class CachedSource extends React.Component {
 
 const mapStateToProps = (state, ownProps) => (
   {
-    loadedSource: state.sources.loaded,
-    error: state.sources.loadError
+    fields: state.source.fields,
+    loadError: state.source.loadError
   }
 )
 
