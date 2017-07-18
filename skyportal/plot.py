@@ -51,30 +51,38 @@ def photometry_plot(source_id):
     """
     color_map = {'ipr': 'yellow', 'rpr': 'red', 'g': 'green'}
 
-    # TODO how to properly filter out junk values?
     data = pd.read_sql(Photometry
                            .query
                            .filter(Photometry.source_id == source_id)
-                           .filter(Photometry.mag > 0)
-                           .filter(Photometry.mag < 90)
                            .statement, DBSession().bind)
     if data.empty:
         return None, None
 
+    # TODO this feels redundant and silly but I couldn't figure out a one-liner
+    data.loc[data.mag > 90, 'mag'] = np.nan
+    data.loc[data.e_mag > 90, 'e_mag'] = np.nan
+    data.loc[data.lim_mag > 90, 'lim_mag'] = np.nan
     data['min'] = data.mag + data.e_mag
     data['max'] = data.mag - data.e_mag
     data['color'] = [color_map[f] for f in data['filter']]
-    source = ColumnDataSource(data)
+
+    observed = ColumnDataSource(data.loc[np.isnan(data.lim_mag), :])
+    unobserved = ColumnDataSource(data.loc[np.isnan(data.mag), :])
+
     hover = HoverTool(tooltips=[('obs_time', '@obs_time{%D}'), ('mag', '@mag'),
+                                ('lim_mag', '@lim_mag'),
                                 ('filter', '@filter')],
                       formatters={'obs_time': 'datetime'})
 
     plot = figure(plot_width=600, plot_height=300,#title='Photometry',
                   tools='box_zoom,pan,reset', active_drag='box_zoom',
-                  y_range=(max(data.mag) + 0.1, min(data.mag) - 0.1))
+                  y_range=(max(observed.data['mag']) + 0.1,
+                           min(observed.data['mag']) - 0.1))
     plot.add_tools(hover)
-    plot.scatter(x='obs_time', y='mag', color='color', source=source)
-    plot.add_layout(Whisker(source=source, base='obs_time', upper='max', lower='min'))
+    plot.scatter(x='obs_time', y='mag', color='color', source=observed)
+    plot.add_layout(Whisker(source=observed, base='obs_time', upper='max', lower='min'))
+    plot.scatter(x='obs_time', y='lim_mag', color='color',
+                 marker='inverted_triangle', source=unobserved)
     plot.xaxis.axis_label = 'Observation Date'
     plot.xaxis.formatter = DatetimeTickFormatter(hours=['%D'], days=['%D'],
                                                  months=['%D'], years=['%D'])
