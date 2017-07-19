@@ -3,6 +3,6 @@ scipy>=0.16.0
 pandas>=0.17.0
 dask>=0.15.0
 joblib>=0.11
-bokeh>=0.12.6
+bokeh==0.12.6
 pytest-randomly
 pytest-factoryboy

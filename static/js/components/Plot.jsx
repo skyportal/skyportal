@@ -3,6 +3,8 @@ import PropTypes from 'prop-types';
 
 import "../../../node_modules/bokehjs/build/js/bokeh.js";
 import "../../../node_modules/bokehjs/build/css/bokeh.css";
+//import "../../../node_modules/bokehjs/build/js/bokeh-widgets.js";
+//import "../../../node_modules/bokehjs/build/css/bokeh-widgets.css";
 
 function bokeh_render_plot(node, docs_json, render_items) {
   // Create bokeh div element
