@@ -3,13 +3,15 @@ import os
 import numpy as np
 import pandas as pd
 
-from baselayer.app import cfg
+from baselayer.app.config import load_config
 from baselayer.app.model_util import status, create_tables, drop_tables
 from skyportal import models
 
 
 if __name__ == "__main__":
     """Insert test data"""
+    cfg = load_config()
+
     with status(f"Connecting to database {cfg['database']['database']}"):
         models.init_db(**cfg['database'])
 

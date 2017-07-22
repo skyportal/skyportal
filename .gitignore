@@ -13,3 +13,4 @@ __pycache__/
 node_modules/
 *.pyc
 _test_config.yaml
+config.yaml

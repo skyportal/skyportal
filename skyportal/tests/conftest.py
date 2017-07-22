@@ -58,22 +58,14 @@ def driver(request):
 
     # Authenticate by clicking login button
     driver.get('/')
-# TODO: restore proper log-in logic
-#    try:
-#        driver.wait_for_xpath('//div[contains(text(), "testuser@gmail.com")]')
-#    except TimeoutException:
-#        # Already logged in
-#        element = WebDriverWait(driver, 1).until(
-#            expected_conditions.element_to_be_clickable(
-#                (By.XPATH, '//a[@href="login/google-oauth2"]')))
-#        element.click()
     try:
-        element = WebDriverWait(driver, 1).until(
+        driver.wait_for_xpath('//div[contains(text(), "testuser@gmail.com")]')
+    except TimeoutException:
+        # Already logged in
+        element = WebDriverWait(driver, 5).until(
             expected_conditions.element_to_be_clickable(
-                (By.XPATH, '//a[@href="login/google-oauth2"]')))
+                (By.XPATH, '//a[@href="/login/google-oauth2"]')))
         element.click()
-    except:
-        pass
 
     return driver
 
