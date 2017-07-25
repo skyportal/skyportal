@@ -3,8 +3,10 @@ import PropTypes from 'prop-types';
 
 import "../../../node_modules/bokehjs/build/js/bokeh.js";
 import "../../../node_modules/bokehjs/build/css/bokeh.css";
+import "../../../node_modules/bokehjs/build/js/bokeh-widgets.js";
+import "../../../node_modules/bokehjs/build/css/bokeh-widgets.css";
 
-function bokeh_render_plot(node, docs_json, render_items) {
+function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
   // Create bokeh div element
   var bokeh_div = document.createElement("div");
   var inner_div = document.createElement("div");
@@ -13,6 +15,7 @@ function bokeh_render_plot(node, docs_json, render_items) {
   inner_div.setAttribute("id", render_items[0].elementid);
   bokeh_div.appendChild(inner_div);
   node.appendChild(bokeh_div);
+  eval(custom_model_js);
 
   // Generate plot
   Bokeh.safely(function() {
@@ -46,7 +49,7 @@ class Plot extends Component {
       return <b>Please wait while we load your plotting data...</b>;
     }
 
-    let { docs_json, render_items } = plotData;
+    let { docs_json, render_items, custom_model_js } = plotData;
     docs_json = JSON.parse(docs_json);
     render_items = JSON.parse(render_items);
 
@@ -54,7 +57,7 @@ class Plot extends Component {
       <div
           ref={
             (node) => {
-              node && bokeh_render_plot(node, docs_json, render_items)
+              node && bokeh_render_plot(node, docs_json, render_items, custom_model_js)
             }
           }
       />

@@ -20,6 +20,7 @@ const config = {
           compact: false
         }
       },
+
       { test: /\.jsx?$/,
         exclude: /node_modules/,
         loader: 'babel-loader',
@@ -50,8 +51,8 @@ const config = {
       // does need style-loader and css-loader
       { test: /\.css$/,
         include: /node_modules\/bokehjs/,
-        use: ['style-loader', 'css-loader']
-      }
+        use: ['style-loader', 'raw-loader']
+      },
     ],
   },
   plugins: [
