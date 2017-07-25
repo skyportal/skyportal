@@ -2,18 +2,103 @@ import numpy as np
 import pandas as pd
 
 from bokeh.core.json_encoder import serialize_json
+from bokeh.core.properties import List, String
 from bokeh.document import Document
-from bokeh.layouts import row
-from bokeh.models import CustomJS, Whisker, DatetimeTickFormatter, HoverTool
-from bokeh.models.widgets import CheckboxGroup
+from bokeh.layouts import row, column
+from bokeh.models import CustomJS, Whisker, DatetimeTickFormatter, HoverTool, Range1d
+from bokeh.models.glyphs import Segment
+from bokeh.models.widgets import CheckboxGroup, TextInput
 from bokeh.palettes import viridis
 from bokeh.plotting import figure, show, ColumnDataSource
+from bokeh.util.compiler import bundle_all_models
 from bokeh.util.serialization import make_id
 
 from skyportal.models import (DBSession, Source, Photometry, Spectrum,
                               Instrument, Telescope)
 
 
+SPEC_LINES = {
+    'H': ([3970, 4102, 4341, 4861, 6563], '#ff0000'),
+    'He': ([3886, 4472, 5876, 6678, 7065], '#002157'),
+    'He II': ([3203, 4686], '#003b99'),
+    'C II': ([3919, 4267, 6580, 7234, 9234], '#570199'),
+    'C III': ([4650, 5696], '#a30198'),
+    'C IV': ([5801], '#ff0073'),
+    'O': ([7772, 7774, 7775, 8447, 9266], '#007236'),
+    'O II': ([3727], '#00a64d'),
+    'O III': ([4959, 5007], '#00bf59'),
+    'Na': ([5890, 5896, 8183, 8195], '#aba000'),
+    'Mg': ([2780, 2852, 3829, 3832, 3838, 4571, 5167, 5173, 5184], '#8c6239'),
+    'Mg II': ([2791, 2796, 2803, 4481], '#bf874e'),
+    'Si II': ([3856, 5041, 5056, 5670, 6347, 6371], '#5674b9'),
+    'S II': ([5433, 5454, 5606, 5640, 5647, 6715], '#a38409'),
+    'Ca II': ([3934, 3969, 7292, 7324, 8498, 8542, 8662], '#005050'),
+    'Fe II': ([5018, 5169], '#f26c4f'),
+    'Fe III': ([4397, 4421, 4432, 5129, 5158], '#f9917b')
+}
+# Galaxy lines
+#'H': '4341, 4861, 6563; N II': '6548, 6583; O I': '6300; O II': '3727; O III': '4959, 5007; Mg II': '2798; S II': '6717, 6731'
+#'H': '3970, 4102, 4341, 4861, 6563'
+#'Na': '5890, 5896, 8183, 8195'
+#'He': '3886, 4472, 5876, 6678, 7065'
+#'Mg': '2780, 2852, 3829, 3832, 3838, 4571, 5167, 5173, 5184'
+#'He II': '3203, 4686'
+#'Mg II': '2791, 2796, 2803, 4481'
+#'O': '7772, 7774, 7775, 8447, 9266'
+#'Si II': '3856, 5041, 5056, 5670 6347, 6371'
+#'O II': '3727'
+#'Ca II': '3934, 3969, 7292, 7324, 8498, 8542, 8662'
+#'O III': '4959, 5007'
+#'Fe II': '5018, 5169'
+#'S II': '5433, 5454, 5606, 5640, 5647, 6715'
+#'Fe III': '4397, 4421, 4432, 5129, 5158'
+# Other
+#'Tel: 6867-6884, 7594-7621'
+#'Tel': '#b7b7b7',
+#'H: 4341, 4861, 6563; N II: 6548, 6583; O I: 6300; O II: 3727; O III: 4959, 5007; Mg II: 2798; S II: 6717, 6731'
+
+class CheckboxWithLegendGroup(CheckboxGroup):
+    colors = List(String, help="List of legend colors")
+    __implementation__ = """
+import {empty, input, label, div} from "core/dom"
+import * as p from "core/properties"
+
+import {CheckboxGroup, CheckboxGroupView} from "models/widgets/checkbox_group"
+
+export class CheckboxWithLegendGroupView extends CheckboxGroupView
+  render: () ->
+    super()
+    empty(@el)
+
+    active = @model.active
+    colors = @model.colors
+    for text, i in @model.labels
+      inputEl = input({type: "checkbox", value: "#{i}"})
+      inputEl.addEventListener("change", () => @change_input())
+
+      if @model.disabled then inputEl.disabled = true
+      if i in active then inputEl.checked = true
+      attrs = {style: "border-left: 12px solid #{colors[i]}; padding-left: 0.3em;"}
+      labelEl = label(attrs, inputEl, text)
+      if @model.inline
+        labelEl.classList.add("bk-bs-checkbox-inline")
+        @el.appendChild(labelEl)
+      else
+        divEl = div({class: "bk-bs-checkbox"}, labelEl)
+        @el.appendChild(divEl)
+
+    return @
+
+export class CheckboxWithLegendGroup extends CheckboxGroup
+  type: "CheckboxWithLegendGroup"
+  default_view: CheckboxWithLegendGroupView
+
+  @define {
+    colors:   [ p.Array, []    ]
+  }
+"""
+
+# TODO replace with (script, div) method
 def _plot_to_json(plot):
     """Convert plot to JSON objects necessary for rendering with `bokehJS`.
 
@@ -36,8 +121,9 @@ def _plot_to_json(plot):
 
     docs_json = serialize_json(docs_json)
     render_items = serialize_json(render_items)
+    custom_model_js = bundle_all_models()
 
-    return docs_json, render_items
+    return docs_json, render_items, custom_model_js
 
 
 def photometry_plot(source_id):
@@ -72,7 +158,7 @@ def photometry_plot(source_id):
     split = data.groupby(('label', 'observed'))
 
     plot = figure(plot_width=600, plot_height=300, active_drag='box_zoom',
-                  tools='box_zoom,pan,reset',
+                  tools='box_zoom,wheel_zoom,pan,reset',
                   y_range=(np.nanmax(data['mag']) + 0.1,
                            np.nanmin(data['mag']) - 0.1))
     model_dict = {}
@@ -86,6 +172,7 @@ def photometry_plot(source_id):
     plot.xaxis.axis_label = 'Observation Date'
     plot.xaxis.formatter = DatetimeTickFormatter(hours=['%D'], days=['%D'],
                                                  months=['%D'], years=['%D'])
+    plot.toolbar.logo = None
 
     hover = HoverTool(tooltips=[('obs_time', '@obs_time{%D}'), ('mag', '@mag'),
                                 ('lim_mag', '@lim_mag'),
@@ -93,22 +180,24 @@ def photometry_plot(source_id):
                       formatters={'obs_time': 'datetime'})
     plot.add_tools(hover)
 
-    checkbox = CheckboxGroup(labels=list(data.label.unique()),
-                             active=list(range(len(data.label.unique()))))
-    checkbox.callback = CustomJS(args={'checkbox': checkbox, **model_dict},
-                                 code="""
-        for (let i = 0; i < checkbox.labels.length; i++) {
-            eval("obs" + i).visible = (checkbox.active.includes(i))
-            eval("unobs" + i).visible = (checkbox.active.includes(i));
+    toggle = CheckboxWithLegendGroup(labels=list(data.label.unique()),
+				     active=list(range(len(data.label.unique()))),
+				     colors=list(data.color.unique()))
+    # TODO replace `eval` with Namespaces https://github.com/bokeh/bokeh/pull/6340
+    toggle.callback = CustomJS(args={'toggle': toggle, **model_dict},
+                               code="""
+        for (let i = 0; i < toggle.labels.length; i++) {
+            eval("obs" + i).visible = (toggle.active.includes(i))
+            eval("unobs" + i).visible = (toggle.active.includes(i));
         }
     """)
 
-    layout = row(plot, checkbox)
-
+    layout = row(plot, toggle)
     return _plot_to_json(layout)
 
 
 def spectroscopy_plot(source_id):
+    source = Source.query.get(source_id)
     spectra = Source.query.get(source_id).spectra
     color_map = dict(zip([s.id for s in spectra], viridis(len(spectra))))
     data = pd.concat([pd.DataFrame({'wavelength': s.wavelengths,
@@ -119,7 +208,7 @@ def spectroscopy_plot(source_id):
     hover = HoverTool(tooltips=[('wavelength', '$x'), ('flux', '$y'),
                                 ('instrument', '@instrument')])
     plot = figure(plot_width=600, plot_height=300,
-               tools='box_zoom,pan,reset', active_drag='box_zoom')
+                  tools='box_zoom,wheel_zoom,pan,reset', active_drag='box_zoom')
     plot.add_tools(hover)
     model_dict = {}
     for i, (key, df) in enumerate(split):
@@ -128,15 +217,48 @@ def spectroscopy_plot(source_id):
                                              source=ColumnDataSource(df))
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
-    checkbox = CheckboxGroup(labels=[s.instrument.telescope.nickname for s in spectra],
-                             active=list(range(len(spectra))))
-    checkbox.callback = CustomJS(args={'checkbox': checkbox, **model_dict},
-                                 code="""
-          console.log(checkbox.active);
-          for (let i = 0; i < checkbox.labels.length; i++) {
-              eval("s" + i).visible = (checkbox.active.includes(i))
+    plot.y_range = Range1d(0, 1.03 * data.flux.max())  # TODO how to choose a good default?
+    plot.toolbar.logo = None
+
+    toggle = CheckboxWithLegendGroup(labels=[s.instrument.telescope.nickname for s in spectra],
+				     active=list(range(len(spectra))), width=100,
+                                     colors=[color_map[k] for k, df in split])
+    toggle.callback = CustomJS(args={'toggle': toggle, **model_dict},
+                               code="""
+          for (let i = 0; i < toggle.labels.length; i++) {
+              eval("s" + i).visible = (toggle.active.includes(i))
           }
     """)
-    layout = row(plot, checkbox)
 
+    elements = CheckboxWithLegendGroup(labels=list(SPEC_LINES.keys()),
+				       active=[], width=80,
+                                       colors=[c for w, c in SPEC_LINES.values()])
+    z = TextInput(value=str(source.red_shift), title="z:")
+    v_exp = TextInput(value='0', title="v_exp:")
+    for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
+        el_data = pd.DataFrame({'wavelength': wavelengths})
+        el_data['x'] = el_data['wavelength'] * (1 + source.red_shift)
+        model_dict[f'el{i}'] = plot.segment(x0='x', x1='x',
+                                             # TODO change limits
+                                             y0=0, y1=1e-13, color=color,
+                                             source=ColumnDataSource(el_data))
+        model_dict[f'el{i}'].visible = False
+
+    # TODO callback policy: don't require submit for text changes?
+    elements.callback = CustomJS(args={'elements': elements, 'z': z,
+                                       'v_exp': v_exp, **model_dict},
+                               code="""
+          let c = 299792.458; // speed of light in km / s
+          for (let i = 0; i < elements.labels.length; i++) {
+              let el = eval("el" + i);
+              el.visible = (elements.active.includes(i))
+              el.data_source.data.x = el.data_source.data.wavelength.map(
+                  x_i => x_i * (1 + parseFloat(z.value)) / (1 + parseFloat(v_exp.value) / c));
+              el.data_source.change.emit();
+          }
+    """)
+    z.callback = elements.callback
+    v_exp.callback = elements.callback
+
+    layout = row(plot, toggle, elements, column(z, v_exp))
     return _plot_to_json(layout)
