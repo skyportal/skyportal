@@ -1,0 +1,12 @@
+.comments {
+    float: right;
+}
+
+.commentHeader {
+    font-style: italic;
+    padding-top: 0.5em;
+}
+
+.commentMessage {
+    padding-left: 1em;
+}
