@@ -6,12 +6,16 @@ import tornado.web
 class SourceCommentsHandler(BaseHandler):
     @tornado.web.authenticated
     def get(self, source_id):
-        comments_username = (Comment
-                             .query
-                             .filter(Source.id == source_id)
-                             .all())
+        results = (DBSession
+                   .query(Comment, User.username)
+                   .filter(Source.id == source_id)
+                   .filter(User.id == Comment.user_id))
+        comments = [
+            {**comment.to_dict(), 'username': username}
+            for (comment, username) in results
+        ]
 
-        return self.success(comments_username)
+        return self.success(data=comments)
 
 
 class CommentHandler(BaseHandler):
@@ -21,19 +25,21 @@ class CommentHandler(BaseHandler):
 
         # TODO: Ensure that it's okay for anyone to read any comment
         comment = Comment.query.get(comment_id)
-        return self.success(comment)
+        return self.success(data=comment)
 
     @tornado.web.authenticated
     def post(self):
         data = self.get_json()
+        source_id = data['source_id'];
 
-        c = Comment(user_id=self.current_user.username,
-                    text=data['text'], source_id=data['source_id'])
+        comment = Comment(user=self.current_user,
+                          text=data['text'], source_id=source_id)
 
-        DBSession().add(c)
+        DBSession().add(comment)
         DBSession().commit()
 
-        return self.success({"id": s.id}, 'cesium/FETCH_COMMENTS')
+        return self.success(action='skyportal/FETCH_COMMENTS',
+                            payload={'source_id': source_id})
 
     @tornado.web.authenticated
     def put(self, comment_id):
@@ -45,7 +51,8 @@ class CommentHandler(BaseHandler):
 
         DBSession().commit()
 
-        return self.success(action='cesium/FETCH_COMMENTS')
+        return self.success(action='skyportal/FETCH_COMMENTS',
+                            payload={'source_id': c.source_id})
 
     @tornado.web.authenticated
     def delete(self, comment_id):
@@ -54,4 +61,5 @@ class CommentHandler(BaseHandler):
         DBSession().delete(c)
         DBSession().commit()
 
-        return self.success(action='cesium/FETCH_COMMENTS')
+        return self.success(action='skyportal/FETCH_COMMENTS',
+                            payload={'source_id': c.source_id})

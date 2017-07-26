@@ -3,12 +3,12 @@ import styles from './CommentList.css';
 import CommentEntry from './CommentEntry';
 
 
-const CommentList = ({source, comments}) => {
+const CommentList = ({source, comments, addComment}) => {
   comments = comments || [];
-  const items = comments.map(({id, user_id, created_at, text}) => (
+  const items = comments.map(({id, username, created_at, text}) => (
     <span key={id}>
       <div className={styles.commentHeader}>
-        On {created_at}, user {user_id} wrote:
+        On {created}, {username} wrote:
       </div>
       <div className={styles.commentMessage}>
         {text}
@@ -20,7 +20,7 @@ const CommentList = ({source, comments}) => {
       <b>Comments</b><br/>
       {items}
       <br/>
-      <CommentEntry source={source} handleSubmit={x => console.log(x)}/>
+      <CommentEntry source={source} handleSubmit={addComment}/>
     </div>
   );
 };

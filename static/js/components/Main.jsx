@@ -10,7 +10,7 @@ import PropsRoute from '../route';
 // Baselayer components
 import WebSocket from 'baselayer/components/WebSocket';
 import { Notifications } from 'baselayer/components/Notifications';
-import MessageHandler from 'baselayer/MessageHandler';
+import CustomMessageHandler from '../CustomMessageHandler';
 
 // Main style
 import styles from './Main.css';
@@ -25,7 +25,7 @@ import SourceListContainer from '../containers/SourceListContainer';
 import NoMatchingRoute from './NoMatchingRoute';
 import { hydrate } from '../actions';
 
-const messageHandler = (new MessageHandler(store.dispatch));
+const messageHandler = (new CustomMessageHandler(store.dispatch));
 
 class MainContent extends React.Component {
   componentDidMount() {

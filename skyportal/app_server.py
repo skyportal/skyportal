@@ -37,7 +37,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
     handlers = baselayer_handlers + [
         (r'/sources(/.*)?', SourceHandler),
         (r'/source/(.*)/comments$', SourceCommentsHandler),
-        (r'/comment/(.*)?', CommentHandler),
+        (r'/comment(/.*)?', CommentHandler),
         # TODO combine plot handlers? one per plot seems excessive
         (r'/plot_photometry/(.*)', PlotPhotometryHandler),
         (r'/plot_spectroscopy/(.*)', PlotSpectroscopyHandler),

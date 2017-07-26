@@ -4,14 +4,18 @@ import { connect } from 'react-redux';
 import * as Action from '../actions';
 import CommentList from '../components/CommentList';
 
+
 class CommentListContainer extends React.Component {
   componentDidMount() {
-    this.props.dispatch(Action.fetchComments(this.props.source));
+    this.props.fetchComments();
   }
 
   render = () => {
-    return <CommentList comments={this.props.comments}
-                        source={this.props.source}/>;
+    return (
+      <CommentList comments={this.props.comments}
+                   source={this.props.source}
+                   addComment={this.props.addComment}/>
+    );
   };
 }
 
@@ -21,4 +25,11 @@ const mapStateToProps = (state, ownProps) => (
   }
 );
 
-export default connect(mapStateToProps)(CommentListContainer);
+const mapDispatchToProps = (dispatch, ownProps) => (
+  {
+    fetchComments: () => dispatch(Action.fetchComments(ownProps.source)),
+    addComment: ({text}) => dispatch(Action.addComment(ownProps.source, text))
+  }
+);
+
+export default connect(mapStateToProps, mapDispatchToProps)(CommentListContainer);

@@ -5,7 +5,6 @@ import styles from './CommentEntry.css';
 class CommentEntry extends React.Component {
   constructor(props) {
     super(props);
-//    {source, handleSubmit} = this.props;
 
     this.state = {value: ''};
     this._handleSubmit = this._handleSubmit.bind(this);
@@ -13,11 +12,10 @@ class CommentEntry extends React.Component {
   }
 
   _handleSubmit = (event) => {
-    console.log('Submitted:', this.state.value);
+    event.preventDefault();
     this.props.handleSubmit({text: this.state.value,
                              source: this.props.source});
     this.setState({value: ""});
-    event.preventDefault();
   };
 
   _handleChange = (event) => {
