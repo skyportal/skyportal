@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Source from './Source';
 
-let SourceList = ({sources, ...rest}) => (
+let SourceList = ({sources}) => (
   <div>
     <h2>List of Sources</h2>
     <ul>
