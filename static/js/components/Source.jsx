@@ -1,16 +1,19 @@
 import React from 'react'
 import PlotContainer from '../containers/PlotContainer'
+import CommentListContainer from '../containers/CommentListContainer';
 
 import styles from "./Source.css";
 
 
 const Source = ({ ra, dec, red_shift, id }) => {
   if (id === undefined) {
-    return <div>Source not found</div>
+    return <div>Source not found</div>;
   } else {
     return (
       <div className={styles.source}>
         <div className={styles.name}>{id}</div>
+
+        <CommentListContainer source={id}/>
 
         <b>Location:</b> {ra}, {dec}<br/>
         <b>Red Shift: </b>{red_shift}
@@ -23,7 +26,7 @@ const Source = ({ ra, dec, red_shift, id }) => {
         <b>Spectroscopy:</b><br/>
         <PlotContainer url={`/plot_spectroscopy/${id}`}/>
     </div>
-    )
+    );
   }
 };
 

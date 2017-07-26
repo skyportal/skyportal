@@ -4,6 +4,8 @@ export const RECEIVE_LOADED_SOURCE = 'skyportal/RECEIVE_LOADED_SOURCE';
 export const RECEIVE_LOADED_SOURCE_FAIL = 'skyportal/RECEIVE_LOADED_SOURCE_FAIL';
 export const RECEIVE_SOURCE_PLOT = 'skyportal/RECEIVE_SOURCE_PLOT';
 export const RECEIVE_SOURCE_PLOT_FAIL = 'skyportal/RECEIVE_SOURCE_PLOT_FAIL';
+export const RECEIVE_COMMENTS = 'skyportal/RECEIVE_COMMENTS';
+export const RECEIVE_COMMENTS_FAIL = 'skyportal/RECEIVE_COMMENTS_FAIL';
 
 import { showNotification } from 'baselayer/components/Notifications';
 
@@ -28,7 +30,7 @@ let API = (endpoint, receiveActionType, args) => (
 
            This information can be used in a reducer to set an error message.
          */
-        dispatch({type: `${receiveActionType}_FAIL`, endpoint, args, response: json})
+        dispatch({type: `${receiveActionType}_FAIL`, endpoint, args, response: json});
         throw json["message"];
       }
     }
@@ -39,17 +41,21 @@ let API = (endpoint, receiveActionType, args) => (
 )
 
 function fetchSource(id) {
-  return API(`/sources/${id}`, RECEIVE_LOADED_SOURCE)
+  return API(`/sources/${id}`, RECEIVE_LOADED_SOURCE);
 }
 
 function fetchSources() {
-  return API('/sources', RECEIVE_SOURCES)
+  return API('/sources', RECEIVE_SOURCES);
+}
+
+function fetchComments(source) {
+  return API(`/source/${source}/comments`, RECEIVE_COMMENTS);
 }
 
 function hydrate() {
   return (dispatch) => {
     dispatch(fetchSources());
-  }
+  };
 }
 
-export { fetchSources, fetchSource, hydrate, API };
+export { fetchSources, fetchSource, fetchComments, hydrate, API };
