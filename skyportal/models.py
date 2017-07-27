@@ -50,6 +50,9 @@ class Comment(Base):
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, index=True)
     source = relationship('Source', backref='comments')
+    attachment_name = sa.Column(sa.String, nullable=True)
+    attachment_type = sa.Column(sa.String, nullable=True)
+    attachment_bytes = sa.Column(sa.types.LargeBinary, nullable=True)
 
 
 class Photometry(Base):
