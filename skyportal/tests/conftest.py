@@ -26,7 +26,7 @@ class MyCustomWebDriver(RequestMixin, webdriver.Chrome):
     def get(self, uri):
         return webdriver.Chrome.get(self, cfg['server:url'] + uri)
 
-    def wait_for_xpath(self, xpath, timeout=1):
+    def wait_for_xpath(self, xpath, timeout=5):
         return WebDriverWait(self, timeout).until(
             expected_conditions.presence_of_element_located((By.XPATH, xpath)))
 
