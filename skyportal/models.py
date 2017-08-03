@@ -17,7 +17,7 @@ class NumpyArray(sa.types.TypeDecorator):
 
 
 class Source(Base):
-    id = sa.Column(sa.String(5), primary_key=True)
+    id = sa.Column(sa.String, primary_key=True)
     ra = sa.Column(sa.Float)
     dec = sa.Column(sa.Float)
     red_shift = sa.Column(sa.Float, nullable=True)
