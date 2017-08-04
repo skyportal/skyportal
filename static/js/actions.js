@@ -8,8 +8,6 @@ export const FETCH_COMMENTS = 'skyportal/FETCH_COMMENTS';
 export const RECEIVE_COMMENTS = 'skyportal/RECEIVE_COMMENTS';
 export const RECEIVE_COMMENTS_FAIL = 'skyportal/RECEIVE_COMMENTS_FAIL';
 
-import { showNotification } from 'baselayer/components/Notifications';
-
 import * as API from './API';
 
 

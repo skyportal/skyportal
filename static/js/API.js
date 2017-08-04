@@ -1,8 +1,23 @@
+import { showNotification } from 'baselayer/components/Notifications';
+
 const API_CALL = 'skyportal/API_CALL';
 
 function API(endpoint, actionType,
              method='GET', body={}, otherArgs={}) {
   let parameters = {endpoint, actionType, body, method, otherArgs};
+
+  let fetchInit = {
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    method,
+    ...otherArgs
+  };
+  if (method != 'GET') {
+    fetchInit = {...fetchInit, body: JSON.stringify(body)};
+  }
+
   return (
     async (dispatch) => {
       if (!actionType) {
@@ -14,15 +29,7 @@ function API(endpoint, actionType,
       }
       dispatch({type: API_CALL, parameters});
       try {
-        let response = await fetch(endpoint, {
-          credentials: 'same-origin',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          method,
-          body: method == 'GET' ? null : JSON.stringify(body),
-          ...otherArgs
-        });
+        let response = await fetch(endpoint, fetchInit);
         if (response.status != 200) {
           throw `Could not fetch data from server (${response.status})`;
         }
