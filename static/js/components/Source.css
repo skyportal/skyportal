@@ -7,3 +7,13 @@
     color: darkgray;
     padding-bottom: 0.25em;
 }
+
+.plot {
+    float: right;
+    width: 60%;
+}
+
+.comments {
+    float: left;
+    width: 40%;
+}

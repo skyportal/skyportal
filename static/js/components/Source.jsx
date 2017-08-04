@@ -13,18 +13,19 @@ const Source = ({ ra, dec, red_shift, id }) => {
       <div className={styles.source}>
         <div className={styles.name}>{id}</div>
 
-        <CommentListContainer source={id}/>
+        <CommentListContainer className={styles.comments} source={id}/>
 
         <b>Location:</b> {ra}, {dec}<br/>
         <b>Red Shift: </b>{red_shift}
 
         <br/>
         <b>Photometry:</b>
-        <PlotContainer url={`/plot_photometry/${id}`}/>
+
+        <PlotContainer className={styles.plot} url={`/plot_photometry/${id}`}/>
 
         <br/>
         <b>Spectroscopy:</b><br/>
-        <PlotContainer url={`/plot_spectroscopy/${id}`}/>
+        <PlotContainer className={styles.plot}url={`/plot_spectroscopy/${id}`}/>
     </div>
     );
   }
