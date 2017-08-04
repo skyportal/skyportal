@@ -8,8 +8,8 @@ class SourceCommentsHandler(BaseHandler):
     def get(self, source_id):
         results = (DBSession
                    .query(Comment, User.username)
-                   .filter(Source.id == source_id)
-                   .filter(User.id == Comment.user_id))
+                   .join(User)
+                   .filter(Comment.source_id == source_id))
         comments = [
             {**comment.to_dict(), 'username': username}
             for (comment, username) in results

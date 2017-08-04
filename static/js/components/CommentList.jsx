@@ -8,7 +8,7 @@ const CommentList = ({source, comments, addComment}) => {
   const items = comments.map(({id, username, created_at, text}) => (
     <span key={id}>
       <div className={styles.commentHeader}>
-        On {created}, {username} wrote:
+        On {created_at}, {username} wrote:
       </div>
       <div className={styles.commentMessage}>
         {text}
