@@ -70,6 +70,7 @@ before_install:
   - ccache -s
   - export PATH=/usr/lib/ccache:${PATH}
   - which python; python --version
+  - wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
   - source .travis/travis_funcs.sh
 
 install:
