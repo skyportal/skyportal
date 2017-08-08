@@ -23,6 +23,7 @@ const store = configureStore({});
 import CachedSource from '../containers/CachedSource';
 import SourceListContainer from '../containers/SourceListContainer';
 import NoMatchingRoute from './NoMatchingRoute';
+import Profile from '../containers/Profile';
 import { hydrate } from '../actions';
 
 const messageHandler = (new CustomMessageHandler(store.dispatch));
@@ -46,6 +47,7 @@ class MainContent extends React.Component {
         <div className={styles.topBanner}>
           <img className={styles.logo} src="/static/images/skyportal_logo_dark.png"/>
           <Link className={styles.title} to="/">SkyPortal ∝</Link>
+          <Profile/>
         </div>
 
         <div className={styles.content}>

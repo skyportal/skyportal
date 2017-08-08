@@ -58,11 +58,24 @@ export function commentsReducer(state={}, action) {
   }
 }
 
+function profileReducer(state={ username: '' }, action) {
+  switch (action.type) {
+
+  case Action.RECEIVE_USER_PROFILE:
+    return action.data;
+  default:
+    return state;
+  }
+
+}
+
+
 const root = combineReducers({
   comments: commentsReducer,
   source: sourceReducer,
   sources: sourcesReducer,
-  notifications: notificationsReducer
+  notifications: notificationsReducer,
+  profile: profileReducer
 });
 
 export default root;
