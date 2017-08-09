@@ -1,6 +1,7 @@
-from baselayer.app.handlers.base import BaseHandler
-from ..models import DBSession, Source, User, Comment
 import tornado.web
+from baselayer.app.access import permissions
+from baselayer.app.handlers.base import BaseHandler
+from ..models import DBSession, Source, User, Comment, Role
 
 
 class SourceCommentsHandler(BaseHandler):
@@ -21,13 +22,11 @@ class SourceCommentsHandler(BaseHandler):
 class CommentHandler(BaseHandler):
     @tornado.web.authenticated
     def get(self, comment_id):
-        comment_id = int(comment_id)
-
         # TODO: Ensure that it's okay for anyone to read any comment
         comment = Comment.query.get(comment_id)
         return self.success(data=comment)
 
-    @tornado.web.authenticated
+    @permissions(['Comment'])
     def post(self):
         data = self.get_json()
         source_id = data['source_id'];
@@ -41,7 +40,7 @@ class CommentHandler(BaseHandler):
         return self.success(action='skyportal/FETCH_COMMENTS',
                             payload={'source_id': source_id})
 
-    @tornado.web.authenticated
+    @permissions(['Comment'])
     def put(self, comment_id):
         data = self.get_json()
 
@@ -54,10 +53,10 @@ class CommentHandler(BaseHandler):
         return self.success(action='skyportal/FETCH_COMMENTS',
                             payload={'source_id': c.source_id})
 
-    @tornado.web.authenticated
+    @permissions(['Comment'])
     def delete(self, comment_id):
         # TODO: Check ownership
-        c = Comment.query.get(source_id)
+        c = Comment.query.get(comment_id)
         DBSession().delete(c)
         DBSession().commit()
 
