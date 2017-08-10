@@ -1,15 +1,16 @@
+import tornado.web
+from baselayer.app.access import permissions
 from baselayer.app.handlers.base import BaseHandler
 from ..models import DBSession, Source
-import tornado.web
 
 
 class SourceHandler(BaseHandler):
     @tornado.web.authenticated
     def get(self, source_id=None):
         if source_id is not None:
-            info = Source.query.get(source_id)
+            info = Source.get_if_owned_by(source_id, self.current_user)
         else:
-            info = list(Source.query)
+            info = list(self.current_user.sources)
 
         if info is None:
             return self.error(f"Could not load source {source_id}",
@@ -17,7 +18,7 @@ class SourceHandler(BaseHandler):
         else:
             return self.success(info)
 
-    @tornado.web.authenticated
+    @permissions(['Manage sources'])
     def post(self):
         data = self.get_json()
 
@@ -28,7 +29,7 @@ class SourceHandler(BaseHandler):
 
         return self.success({"id": s.id}, 'cesium/FETCH_SOURCES')
 
-    @tornado.web.authenticated
+    @permissions(['Manage sources'])
     def put(self, source_id):
         data = self.get_json()
 
@@ -41,7 +42,7 @@ class SourceHandler(BaseHandler):
 
         return self.success(action='cesium/FETCH_SOURCES')
 
-    @tornado.web.authenticated
+    @permissions(['Manage sources'])
     def delete(self, source_id):
         s = Source.query.get(source_id)
         DBSession().delete(s)
