@@ -21,11 +21,11 @@ const Source = ({ ra, dec, red_shift, id }) => {
         <br/>
         <b>Photometry:</b>
 
-        <PlotContainer className={styles.plot} url={`/plot_photometry/${id}`}/>
+        <PlotContainer className={styles.plot} url={`/api/plot_photometry/${id}`}/>
 
         <br/>
         <b>Spectroscopy:</b><br/>
-        <PlotContainer className={styles.plot}url={`/plot_spectroscopy/${id}`}/>
+        <PlotContainer className={styles.plot}url={`/api/plot_spectroscopy/${id}`}/>
     </div>
     );
   }

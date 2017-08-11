@@ -14,19 +14,19 @@ import * as API from './API';
 
 
 export function fetchSource(id) {
-  return API.GET(`/sources/${id}`, RECEIVE_LOADED_SOURCE);
+  return API.GET(`/api/sources/${id}`, RECEIVE_LOADED_SOURCE);
 }
 
 export function fetchSources() {
-  return API.GET('/sources', RECEIVE_SOURCES);
+  return API.GET('/api/sources', RECEIVE_SOURCES);
 }
 
 export function fetchComments(source) {
-  return API.GET(`/source/${source}/comments`, RECEIVE_COMMENTS);
+  return API.GET(`/api/sources/${source}/comments`, RECEIVE_COMMENTS);
 }
 
 export function fetchUserProfile() {
-  return API.GET('/profile', RECEIVE_USER_PROFILE);
+  return API.GET('/api/profile', RECEIVE_USER_PROFILE);
 }
 
 export function hydrate() {
@@ -37,5 +37,5 @@ export function hydrate() {
 }
 
 export function addComment(source_id, text) {
-  return API.POST(`/comment`, ADD_COMMENT, {source_id, text});
+  return API.POST(`/api/comment`, ADD_COMMENT, {source_id, text});
 }

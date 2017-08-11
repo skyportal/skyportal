@@ -36,17 +36,20 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         print('!' * 80)
 
     handlers = baselayer_handlers + [
-        (r'/sources(/.*)?', SourceHandler),
-        (r'/source/(.*)/comments$', SourceCommentsHandler),
-        (r'/comment(/.*)?', CommentHandler),
-        # TODO combine plot handlers? one per plot seems excessive
-        (r'/plot_photometry/(.*)', PlotPhotometryHandler),
-        (r'/plot_spectroscopy/(.*)', PlotSpectroscopyHandler),
-        (r'/profile', ProfileHandler),
+        # API endpoints
+        (r'/api/sources/(.*)/comments$', SourceCommentsHandler),
+        (r'/api/sources(/.*)?', SourceHandler),
+        (r'/api/plot_photometry/(.*)', PlotPhotometryHandler),
+        (r'/api/plot_spectroscopy/(.*)', PlotSpectroscopyHandler),
+        (r'/api/comment(/.*)?', CommentHandler),
+        (r'/api/profile', ProfileHandler),
         (r'/logout', LogoutHandler),
-        (r'/.*', MainPageHandler)  # route all frontend pages, such as
-                                   # /sources/g647ba through main page,
-                                   # where redux router will pick them up
+
+        # User-facing pages
+        (r'/.*', MainPageHandler)  # Route all frontend pages, such as
+                                   # `/source/g647ba`, through the main page.
+                                   #
+                                   # Refer to Main.jsx for routing info.
     ]
 
     settings = baselayer_settings
