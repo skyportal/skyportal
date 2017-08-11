@@ -44,10 +44,24 @@ class UserGroup(Base):
 class Group(Base):
     name = sa.Column(sa.String, unique=True, nullable=False)
     sources = relationship('Source', secondary='group_sources', cascade='all')
+    streams = relationship('Stream', secondary='stream_groups', cascade='all',
+                           back_populates='groups')
     user_groups = relationship('UserGroup', back_populates='group',
                                cascade='all', passive_deletes=True)
     users = relationship('User', secondary='user_groups', cascade='all',
                          back_populates='groups')
+
+
+class Stream(Base):
+    name = sa.Column(sa.String, unique=True, nullable=False)
+    url = sa.Column(sa.String, unique=True, nullable=False)
+    username = sa.Column(sa.String)
+    password = sa.Column(sa.String)
+    groups = relationship('Group', secondary='stream_groups', cascade='all',
+                          back_populates='streams')
+
+
+stream_groups = join_table('stream_groups', Stream, Group)
 
 
 User.user_groups = relationship('UserGroup', back_populates='user', cascade='all')
