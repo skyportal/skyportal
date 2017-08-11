@@ -3,6 +3,9 @@ export const RECEIVE_LOADED_SOURCE = 'skyportal/RECEIVE_LOADED_SOURCE';
 export const RECEIVE_LOADED_SOURCE_FAIL = 'skyportal/RECEIVE_LOADED_SOURCE_FAIL';
 export const RECEIVE_SOURCE_PLOT = 'skyportal/RECEIVE_SOURCE_PLOT';
 export const RECEIVE_SOURCE_PLOT_FAIL = 'skyportal/RECEIVE_SOURCE_PLOT_FAIL';
+export const RECEIVE_GROUPS = 'skyportal/RECEIVE_GROUPS';
+export const RECEIVE_GROUP = 'skyportal/RECEIVE_GROUP';
+export const RECEIVE_GROUP_FAIL = 'skyportal/RECEIVE_GROUP_FAIL';
 export const ADD_COMMENT = 'skyportal/ADD_COMMENT';
 export const FETCH_COMMENTS = 'skyportal/FETCH_COMMENTS';
 export const RECEIVE_COMMENTS = 'skyportal/RECEIVE_COMMENTS';
@@ -21,6 +24,14 @@ export function fetchSources() {
   return API.GET('/api/sources', RECEIVE_SOURCES);
 }
 
+export function fetchGroup(id) {
+  return API.GET(`/api/groups/${id}`, RECEIVE_GROUP);
+}
+
+export function fetchGroups() {
+  return API.GET('/api/groups', RECEIVE_GROUPS);
+}
+
 export function fetchComments(source) {
   return API.GET(`/api/sources/${source}/comments`, RECEIVE_COMMENTS);
 }
@@ -33,6 +44,7 @@ export function hydrate() {
   return (dispatch) => {
     dispatch(fetchUserProfile());
     dispatch(fetchSources());
+    dispatch(fetchGroups());
   };
 }
 

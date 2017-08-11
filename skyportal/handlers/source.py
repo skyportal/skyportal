@@ -22,8 +22,8 @@ class SourceHandler(BaseHandler):
     def post(self):
         data = self.get_json()
 
-        s = Source(name=data['sourceName'], ra=data['sourceRA'],
-                   dec=data['sourceDec'], red_shift=data.get('sourceRedShift'))
+        s = Source(ra=data['sourceRA'], dec=data['sourceDec'],
+                   red_shift=data.get('sourceRedShift'))
         DBSession().add(s)
         DBSession().commit()
 
@@ -34,10 +34,9 @@ class SourceHandler(BaseHandler):
         data = self.get_json()
 
         s = Source.query.get(source_id)
-        s.name = data['sourceName']
         s.ra = data['sourceRA']
-        dec = data['sourceDec']
-        red_shift = data.get('sourceRedShift')
+        s.dec = data['sourceDec']
+        s.red_shift = data.get('sourceRedShift')
         DBSession().commit()
 
         return self.success(action='cesium/FETCH_SOURCES')

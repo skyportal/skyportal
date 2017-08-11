@@ -21,7 +21,9 @@ const store = configureStore({});
 
 // Local
 import CachedSource from '../containers/CachedSource';
+import GroupContainer from '../containers/GroupContainer';
 import SourceListContainer from '../containers/SourceListContainer';
+import GroupListContainer from '../containers/GroupListContainer';
 import NoMatchingRoute from './NoMatchingRoute';
 import Profile from '../containers/Profile';
 import { hydrate } from '../actions';
@@ -58,6 +60,8 @@ class MainContent extends React.Component {
             <PropsRoute exact path="/" component={SourceListContainer}/>
             {'See https://stackoverflow.com/a/35604855 for syntax'}
             <PropsRoute path="/source/:id" component={CachedSource}/>
+            <PropsRoute exact path="/groups/" component={GroupListContainer}/>
+            <PropsRoute path="/group/:id" component={GroupContainer}/>
             <PropsRoute component={NoMatchingRoute}/>
           </Switch>
 

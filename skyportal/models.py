@@ -13,8 +13,8 @@ from baselayer.app.models import (init_db, join_table, Base, DBSession, ACL,
 def is_owned_by(self, user):
     if hasattr(self, 'users'):
         return (user in self.users)
-    elif hasattr(self, 'group'):
-        return (self.group in user.groups)
+    elif hasattr(self, 'groups'):
+        return bool(set(self.groups) & set(user.groups))
     else:
         raise NotImplementedError(f"{type(self).__name__} object has no owner")
 Base.is_owned_by = is_owned_by

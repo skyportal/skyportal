@@ -37,43 +37,57 @@ export function sourcesReducer(state={ latest: [] }, action) {
   }
 }
 
-export function commentsReducer(state={}, action) {
+export function groupReducer(state={}, action) {
   switch (action.type) {
+    case Action.RECEIVE_GROUP:
+      return action.data;
+    default:
+      return state;
+  }
+}
 
-  case Action.RECEIVE_COMMENTS:
-    let comments = action.data || [];
-    if (comments.length > 0) {
-      let source_id = comments[0].source_id;
-      comments = comments.filter(comment => comment.source_id == source_id);
+export function groupsReducer(state={ latest: [] }, action) {
+  switch (action.type) {
+    case Action.RECEIVE_GROUPS:
+      let groups = action.data;
       return {
         ...state,
-        [source_id]: comments
+        latest: groups
       };
-    } else {
+    default:
+      return state;
+  }
+}
+
+export function commentsReducer(state={}, action) {
+  switch (action.type) {
+    case Action.RECEIVE_COMMENTS:
+      let comments = action.data || [];
+      let source_id = comments[0].source_id;
+      return {
+          ...state,
+          [source_id]: comments
+        };
+    default:
+      return state;
+  }
+}
+
+export function profileReducer(state={ username: '' }, action) {
+  switch (action.type) {
+    case Action.RECEIVE_USER_PROFILE:
+      return action.data;
+    default:
       return state;
     }
-  default:
-    return state;
-
-  }
 }
-
-function profileReducer(state={ username: '' }, action) {
-  switch (action.type) {
-
-  case Action.RECEIVE_USER_PROFILE:
-    return action.data;
-  default:
-    return state;
-  }
-
-}
-
 
 const root = combineReducers({
   comments: commentsReducer,
   source: sourceReducer,
   sources: sourcesReducer,
+  group: groupReducer,
+  groups: groupsReducer,
   notifications: notificationsReducer,
   profile: profileReducer
 });
