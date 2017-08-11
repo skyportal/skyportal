@@ -25,7 +25,7 @@ db_init:
 	@PYTHONPATH=. ./baselayer/tools/silent_monitor.py ./baselayer/tools/db_init.py
 
 db_clear:
-	PYTHONPATH=. ./baselayer/tools/db_clear.py
+	@PYTHONPATH=. ./baselayer/tools/silent_monitor.py ./baselayer/tools/db_init.py --force
 
 $(bundle): webpack.config.js package.json
 	$(webpack)
