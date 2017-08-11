@@ -9,7 +9,8 @@ from baselayer.app.config import load_config
 from skyportal.handlers import (SourceHandler, SourceCommentsHandler,
                                 CommentHandler,
                                 PlotPhotometryHandler,
-                                PlotSpectroscopyHandler)
+                                PlotSpectroscopyHandler,
+                                ProfileHandler, LogoutHandler)
 from skyportal import models
 
 
@@ -41,8 +42,11 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         # TODO combine plot handlers? one per plot seems excessive
         (r'/plot_photometry/(.*)', PlotPhotometryHandler),
         (r'/plot_spectroscopy/(.*)', PlotSpectroscopyHandler),
+        (r'/profile', ProfileHandler),
+        (r'/logout', LogoutHandler),
         (r'/.*', MainPageHandler)  # route all frontend pages, such as
-                                   # /sources/g647ba through main page
+                                   # /sources/g647ba through main page,
+                                   # where redux router will pick them up
     ]
 
     settings = baselayer_settings
