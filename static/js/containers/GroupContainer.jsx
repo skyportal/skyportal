@@ -12,7 +12,7 @@ class GroupContainer extends React.Component {
 
   render = () => {
     return (
-      <Group name={this.props.name} id={this.props.id}/>
+      <Group name={this.props.name} id={this.props.id} users={this.props.users}/>
     );
   };
 }

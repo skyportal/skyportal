@@ -12,11 +12,11 @@ class SourceHandler(BaseHandler):
         else:
             info = list(self.current_user.sources)
 
-        if info is None:
+        if info is not None:
+            return self.success(info)
+        else:
             return self.error(f"Could not load source {source_id}",
                               {"source_id": source_id})
-        else:
-            return self.success(info)
 
     @permissions(['Manage sources'])
     def post(self):

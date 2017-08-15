@@ -3,7 +3,6 @@ import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, relationship
 
 from baselayer.app.models import (init_db, join_table, Base, DBSession, ACL,
@@ -27,8 +26,8 @@ class NumpyArray(sa.types.TypeDecorator):
         return np.array(value)
 
 
-class UserGroup(Base):
-    __tablename__ = 'user_groups'
+class GroupUser(Base):
+    __tablename__ = 'group_users'
     id = None
     user_id = sa.Column(sa.Integer, sa.ForeignKey('users.id',
                                                   ondelete='CASCADE'),
@@ -37,8 +36,8 @@ class UserGroup(Base):
                                                    ondelete='CASCADE'),
                          primary_key=True)
     admin = sa.Column(sa.Boolean, nullable=False, default=False)
-    user = relationship('User', backref='user_groups_group', cascade='all')
-    group = relationship('Group', backref='user_groups_user', cascade='all')
+    user = relationship('User', backref='group_users_group', cascade='all')
+    group = relationship('Group', backref='group_users_user', cascade='all')
 
 
 class Group(Base):
@@ -46,9 +45,9 @@ class Group(Base):
     sources = relationship('Source', secondary='group_sources', cascade='all')
     streams = relationship('Stream', secondary='stream_groups', cascade='all',
                            back_populates='groups')
-    user_groups = relationship('UserGroup', back_populates='group',
+    group_users = relationship('GroupUser', back_populates='group',
                                cascade='all', passive_deletes=True)
-    users = relationship('User', secondary='user_groups', cascade='all',
+    users = relationship('User', secondary='group_users', cascade='all',
                          back_populates='groups')
 
 
@@ -64,8 +63,8 @@ class Stream(Base):
 stream_groups = join_table('stream_groups', Stream, Group)
 
 
-User.user_groups = relationship('UserGroup', back_populates='user', cascade='all')
-User.groups = relationship('Group', secondary='user_groups', cascade='all',
+User.group_users = relationship('GroupUser', back_populates='user', cascade='all')
+User.groups = relationship('Group', secondary='group_users', cascade='all',
                            back_populates='users')
 
 
@@ -83,14 +82,8 @@ class Source(Base):
 group_sources = join_table('group_sources', Group, Source)
 
 
-@hybrid_property
-def user_sources(self):
-    return list(Source.query
-                .join(group_sources)
-                .join(Group)
-                .join(UserGroup)
-                .filter(UserGroup.user_id == self.id))
-User.sources = user_sources
+User.sources = relationship('Source', secondary='join(Group, group_sources).join(group_users)',
+                            primaryjoin='group_users.c.user_id == users.c.id')
 
 
 class Telescope(Base):
