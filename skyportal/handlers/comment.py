@@ -4,21 +4,6 @@ from baselayer.app.handlers.base import BaseHandler
 from ..models import DBSession, Source, User, Comment, Role
 
 
-class SourceCommentsHandler(BaseHandler):
-    @tornado.web.authenticated
-    def get(self, source_id):
-        results = (DBSession
-                   .query(Comment, User.username)
-                   .join(User)
-                   .filter(Comment.source_id == source_id))
-        comments = [
-            {**comment.to_dict(), 'username': username}
-            for (comment, username) in results
-        ]
-
-        return self.success(data=comments)
-
-
 class CommentHandler(BaseHandler):
     @tornado.web.authenticated
     def get(self, comment_id):

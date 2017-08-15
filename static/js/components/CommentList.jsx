@@ -3,7 +3,7 @@ import styles from './CommentList.css';
 import CommentEntry from './CommentEntry';
 
 
-const CommentList = ({source, comments, addComment}) => {
+const CommentList = ({source_id, comments, addComment}) => {
   comments = comments || [];
   const items = comments.map(({id, username, created_at, text}) => (
     <span key={id}>
@@ -20,7 +20,7 @@ const CommentList = ({source, comments, addComment}) => {
       <b>Comments</b><br/>
       {items}
       <br/>
-      <CommentEntry source={source} handleSubmit={addComment}/>
+      <CommentEntry source_id={source_id} handleSubmit={addComment}/>
     </div>
   );
 };

@@ -14,7 +14,7 @@ class CommentEntry extends React.Component {
   _handleSubmit = (event) => {
     event.preventDefault();
     this.props.handleSubmit({text: this.state.value,
-                             source: this.props.source});
+                             source_id: this.props.source.id});
     this.setState({value: ""});
   };
 

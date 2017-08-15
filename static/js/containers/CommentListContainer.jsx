@@ -6,14 +6,10 @@ import CommentList from '../components/CommentList';
 
 
 class CommentListContainer extends React.Component {
-  componentDidMount() {
-    this.props.fetchComments();
-  }
-
   render = () => {
     return (
-      <CommentList comments={this.props.comments}
-                   source={this.props.source}
+      <CommentList comments={this.props.source.comments}
+                   source_id={this.props.source.id}
                    addComment={this.props.addComment}/>
     );
   };
@@ -21,14 +17,13 @@ class CommentListContainer extends React.Component {
 
 const mapStateToProps = (state, ownProps) => (
   {
-    comments: state.comments[ownProps.source] || []
+    source: state.source
   }
 );
 
 const mapDispatchToProps = (dispatch, ownProps) => (
   {
-    fetchComments: () => dispatch(Action.fetchComments(ownProps.source)),
-    addComment: ({text}) => dispatch(Action.addComment(ownProps.source, text))
+    addComment: ({text}) => dispatch(Action.addComment(ownProps.source.id, text))
   }
 );
 

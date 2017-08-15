@@ -10,11 +10,12 @@ class CachedSource extends React.Component {
     if (!this.isCached()) {
       let id = this.props.route.id;
       this.props.dispatch(Action.fetchSource(id));
+      console.log(this.props.source);
     }
   }
 
   isCached() {
-    let loadedSource = this.props.fields;
+    let loadedSource = this.props.source;
     let cachedSource = loadedSource ? loadedSource.id : null;
     let requestedSource = this.props.route.id;
 
@@ -28,7 +29,7 @@ class CachedSource extends React.Component {
       if (!this.isCached()) {
         return <div><span>Loading...</span></div>
       } else {
-        return <Source {...this.props.fields}/>
+        return <Source {...this.props.source}/>
       }
     }
   }
@@ -36,7 +37,7 @@ class CachedSource extends React.Component {
 
 const mapStateToProps = (state, ownProps) => (
   {
-    fields: state.source.fields,
+    source: state.source,
     loadError: state.source.loadError
   }
 )
