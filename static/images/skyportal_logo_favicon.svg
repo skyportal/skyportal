@@ -15,7 +15,7 @@
    version="1.1"
    id="svg8"
    inkscape:version="0.91 r13725"
-   sodipodi:docname="skyportal_logo.svg">
+   sodipodi:docname="skyportal_logo_favicon.svg">
   <defs
      id="defs2" />
   <sodipodi:namedview
@@ -25,9 +25,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.98994949"
-     inkscape:cx="-205.47116"
-     inkscape:cy="600.4061"
+     inkscape:zoom="0.75085371"
+     inkscape:cx="574.36661"
+     inkscape:cy="241.80195"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -44,7 +44,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -58,10 +58,10 @@
        transform="scale(0.26458333)"
        id="path10" />
     <circle
-       style="fill:#27a3de;stroke-width:0.17306675;fill-opacity:1"
+       style="fill:#27a3de;fill-opacity:1;stroke-width:0.17306675"
        id="circle18"
        cx="102.62054"
        cy="138.25"
-       r="37.209354" />
+       r="32.323063" />
   </g>
 </svg>
