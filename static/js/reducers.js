@@ -5,13 +5,13 @@ import { reducer as notificationsReducer } from 'baselayer/components/Notificati
 import * as Action from './actions';
 
 // Reducer for currently displayed source
-export function sourceReducer(state={ fields: null, loadError: false }, action) {
+export function sourceReducer(state={ source: null, loadError: false }, action) {
   switch (action.type) {
     case Action.RECEIVE_LOADED_SOURCE:
       let source = action.data;
       return {
         ...state,
-        fields: source,
+        ...source,
         loadError: false
       };
     case Action.RECEIVE_LOADED_SOURCE_FAIL:
@@ -59,20 +59,6 @@ export function groupsReducer(state={ latest: [] }, action) {
   }
 }
 
-export function commentsReducer(state={}, action) {
-  switch (action.type) {
-    case Action.RECEIVE_COMMENTS:
-      let comments = action.data || [];
-      let source_id = comments[0].source_id;
-      return {
-          ...state,
-          [source_id]: comments
-        };
-    default:
-      return state;
-  }
-}
-
 export function profileReducer(state={ username: '' }, action) {
   switch (action.type) {
     case Action.RECEIVE_USER_PROFILE:
@@ -83,7 +69,6 @@ export function profileReducer(state={ username: '' }, action) {
 }
 
 const root = combineReducers({
-  comments: commentsReducer,
   source: sourceReducer,
   sources: sourcesReducer,
   group: groupReducer,

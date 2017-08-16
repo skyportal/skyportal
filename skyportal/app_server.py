@@ -6,7 +6,7 @@ from baselayer.app.app_server import (handlers as baselayer_handlers,
                                       MainPageHandler)
 from baselayer.app.config import load_config
 
-from skyportal.handlers import (SourceHandler, SourceCommentsHandler,
+from skyportal.handlers import (SourceHandler,
                                 CommentHandler, GroupHandler,
                                 PlotPhotometryHandler,
                                 PlotSpectroscopyHandler,
@@ -37,7 +37,6 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
 
     handlers = baselayer_handlers + [
         # API endpoints
-        (r'/api/sources/(.*)/comments$', SourceCommentsHandler),
         (r'/api/sources(/.*)?', SourceHandler),
         (r'/api/groups(/.*)?', GroupHandler),
         (r'/api/plot_photometry/(.*)', PlotPhotometryHandler),

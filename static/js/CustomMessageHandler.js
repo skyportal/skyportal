@@ -7,10 +7,6 @@ let CustomMessageHandler = dispatch => {
 
     switch (action) {
 
-    case Action.FETCH_COMMENTS:
-      let {source_id} = payload;
-      dispatch(Action.fetchComments(source_id));
-      break;
     default:
       console.log('Unknown message received through flow:',
                   message);

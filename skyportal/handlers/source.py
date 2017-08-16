@@ -1,4 +1,5 @@
 import tornado.web
+from sqlalchemy.orm import joinedload
 from baselayer.app.access import permissions
 from baselayer.app.handlers.base import BaseHandler
 from ..models import DBSession, Source
@@ -8,15 +9,16 @@ class SourceHandler(BaseHandler):
     @tornado.web.authenticated
     def get(self, source_id=None):
         if source_id is not None:
-            info = Source.get_if_owned_by(source_id, self.current_user)
+            info = Source.get_if_owned_by(source_id, self.current_user,
+                                          options=joinedload(Source.comments))
         else:
             info = list(self.current_user.sources)
 
-        if info is None:
+        if info is not None:
+            return self.success(info)
+        else:
             return self.error(f"Could not load source {source_id}",
                               {"source_id": source_id})
-        else:
-            return self.success(info)
 
     @permissions(['Manage sources'])
     def post(self):

@@ -32,10 +32,6 @@ export function fetchGroups() {
   return API.GET('/api/groups', RECEIVE_GROUPS);
 }
 
-export function fetchComments(source) {
-  return API.GET(`/api/sources/${source}/comments`, RECEIVE_COMMENTS);
-}
-
 export function fetchUserProfile() {
   return API.GET('/api/profile', RECEIVE_USER_PROFILE);
 }
