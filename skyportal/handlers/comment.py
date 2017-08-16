@@ -22,7 +22,7 @@ class CommentHandler(BaseHandler):
         DBSession().add(comment)
         DBSession().commit()
 
-        self.push_all(action='skyportal/FETCH_COMMENTS',
+        self.push_all(action='skyportal/REFRESH_SOURCE',
                       payload={'source_id': comment.source_id})
         return self.success()
 
@@ -36,7 +36,7 @@ class CommentHandler(BaseHandler):
 
         DBSession().commit()
 
-        self.push_all(action='skyportal/FETCH_COMMENTS',
+        self.push_all(action='skyportal/REFRESH_SOURCE',
                       payload={'source_id': comment.source_id})
         return self.success()
 
@@ -47,6 +47,6 @@ class CommentHandler(BaseHandler):
         DBSession().delete(c)
         DBSession().commit()
 
-        self.push_all(action='skyportal/FETCH_COMMENTS',
+        self.push_all(action='skyportal/REFRESH_SOURCE',
                       payload={'source_id': comment.source_id})
         return self.success()

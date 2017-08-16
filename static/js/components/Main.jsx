@@ -28,7 +28,8 @@ import NoMatchingRoute from './NoMatchingRoute';
 import Profile from '../containers/Profile';
 import { hydrate } from '../actions';
 
-const messageHandler = (new CustomMessageHandler(store.dispatch));
+const messageHandler = (new CustomMessageHandler(store.dispatch,
+                                                 store.getState));
 
 class MainContent extends React.Component {
   componentDidMount() {

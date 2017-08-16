@@ -20,7 +20,7 @@ const CommentList = ({source_id, comments, addComment}) => {
       <b>Comments</b><br/>
       {items}
       <br/>
-      <CommentEntry source_id={source_id} handleSubmit={addComment}/>
+      <CommentEntry source_id={source_id} addComment={addComment}/>
     </div>
   );
 };
