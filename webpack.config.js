@@ -41,7 +41,7 @@ const config = {
           {
             loader: 'css-loader',
             options: {
-              modules: true,
+              modules: true
             }
           }
         ]
@@ -64,7 +64,7 @@ const config = {
     // depends on it
     new webpack.ProvidePlugin({
       $: "jquery",
-      jQuery: "jquery",
+      jQuery: "jquery"
     })
   ],
   resolve: {

@@ -94,3 +94,9 @@ docker-images:
 # Call this target to see which Javascript dependencies are not up to date
 check-js-updates:
 	./baselayer/tools/check_js_updates.sh
+
+update-eslint:
+	./tools/update_eslint.sh
+
+lint:
+	./node_modules/.bin/eslint --ext .jsx,.js static/js
