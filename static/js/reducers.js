@@ -7,14 +7,14 @@ import * as Action from './actions';
 // Reducer for currently displayed source
 export function sourceReducer(state={ source: null, loadError: false }, action) {
   switch (action.type) {
-    case Action.RECEIVE_LOADED_SOURCE:
+    case Action.FETCH_LOADED_SOURCE_OK:
       let source = action.data;
       return {
         ...state,
         ...source,
         loadError: false
       };
-    case Action.RECEIVE_LOADED_SOURCE_FAIL:
+    case Action.FETCH_LOADED_SOURCE_FAIL:
       return {
         ...state,
         loadError: true
@@ -26,7 +26,7 @@ export function sourceReducer(state={ source: null, loadError: false }, action) 
 
 export function sourcesReducer(state={ latest: [] }, action) {
   switch (action.type) {
-    case Action.RECEIVE_SOURCES:
+    case Action.FETCH_SOURCES_OK:
       let sources = action.data;
       return {
         ...state,
@@ -39,7 +39,7 @@ export function sourcesReducer(state={ latest: [] }, action) {
 
 export function groupReducer(state={}, action) {
   switch (action.type) {
-    case Action.RECEIVE_GROUP:
+    case Action.FETCH_GROUP_OK:
       return action.data;
     default:
       return state;
@@ -48,7 +48,7 @@ export function groupReducer(state={}, action) {
 
 export function groupsReducer(state={ latest: [] }, action) {
   switch (action.type) {
-    case Action.RECEIVE_GROUPS:
+    case Action.FETCH_GROUPS_OK:
       let groups = action.data;
       return {
         ...state,
@@ -61,7 +61,7 @@ export function groupsReducer(state={ latest: [] }, action) {
 
 export function profileReducer(state={ username: '' }, action) {
   switch (action.type) {
-    case Action.RECEIVE_USER_PROFILE:
+    case Action.FETCH_USER_PROFILE_OK:
       return action.data;
     default:
       return state;
