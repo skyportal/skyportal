@@ -5,6 +5,8 @@ let CustomMessageHandler = dispatch => {
   return new MessageHandler(dispatch, message => {
     let {action, payload} = message;
 
+    console.log('WebSocket', action, payload);
+
     switch (action) {
 
     default:

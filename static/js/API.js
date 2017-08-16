@@ -36,7 +36,7 @@ function API(endpoint, actionType,
 
         let json = await response.json();
         if (json.status == "success") {
-          dispatch({type: actionType, ...json});
+          dispatch({type: actionType + "_OK", ...json});
           return json["data"];
         } else {
           /* In case of an error, dispatch an action that contains
