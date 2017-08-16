@@ -22,28 +22,31 @@ class CommentHandler(BaseHandler):
         DBSession().add(comment)
         DBSession().commit()
 
-        return self.success(action='skyportal/FETCH_COMMENTS',
-                            payload={'source_id': source_id})
+        self.push_all(action='skyportal/REFRESH_SOURCE',
+                      payload={'source_id': comment.source_id})
+        return self.success()
 
     @permissions(['Comment'])
     def put(self, comment_id):
         data = self.get_json()
 
         # TODO: Check ownership
-        c = Comment.query.get(comment_id)
-        c.text = data['text']
+        comment = Comment.query.get(comment_id)
+        comment.text = data['text']
 
         DBSession().commit()
 
-        return self.success(action='skyportal/FETCH_COMMENTS',
-                            payload={'source_id': c.source_id})
+        self.push_all(action='skyportal/REFRESH_SOURCE',
+                      payload={'source_id': comment.source_id})
+        return self.success()
 
     @permissions(['Comment'])
     def delete(self, comment_id):
         # TODO: Check ownership
-        c = Comment.query.get(comment_id)
+        comment = Comment.query.get(comment_id)
         DBSession().delete(c)
         DBSession().commit()
 
-        return self.success(action='skyportal/FETCH_COMMENTS',
-                            payload={'source_id': c.source_id})
+        self.push_all(action='skyportal/REFRESH_SOURCE',
+                      payload={'source_id': comment.source_id})
+        return self.success()

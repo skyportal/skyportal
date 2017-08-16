@@ -1,6 +1,8 @@
 export const FETCH_SOURCES = 'skyportal/FETCH_SOURCES';
 export const FETCH_SOURCES_OK = 'skyportal/FETCH_SOURCES_OK';
 
+export const REFRESH_SOURCE = 'skyportal/REFRESH_SOURCE';
+
 export const FETCH_LOADED_SOURCE = 'skyportal/FETCH_LOADED_SOURCE';
 export const FETCH_LOADED_SOURCE_OK = 'skyportal/FETCH_LOADED_SOURCE_OK';
 export const FETCH_LOADED_SOURCE_FAIL = 'skyportal/FETCH_LOADED_SOURCE_FAIL';
@@ -17,9 +19,6 @@ export const FETCH_GROUP_OK = 'skyportal/FETCH_GROUP_OK';
 
 export const ADD_COMMENT = 'skyportal/ADD_COMMENT';
 export const ADD_COMMENT_OK = 'skyportal/ADD_COMMENT_OK';
-
-export const FETCH_COMMENTS = 'skyportal/FETCH_COMMENTS';
-export const FETCH_COMMENTS_OK = 'skyportal/FETCH_COMMENTS_OK';
 
 export const FETCH_USER_PROFILE = 'skyportal/FETCH_USER_PROFILE';
 export const FETCH_USER_PROFILE_OK = 'skyportal/FETCH_USER_PROFILE_OK';
@@ -56,6 +55,6 @@ export function hydrate() {
   };
 }
 
-export function addComment(source_id, text) {
+export function addComment({source_id, text}) {
   return API.POST(`/api/comment`, ADD_COMMENT, {source_id, text});
 }
