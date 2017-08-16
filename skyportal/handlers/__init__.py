@@ -6,7 +6,6 @@ from baselayer.app.custom_exceptions import AccessError
 from .source import SourceHandler
 from .comment import CommentHandler
 from .group import GroupHandler
-from .plot_photometry import PlotPhotometryHandler
-from .plot_spectroscopy import PlotSpectroscopyHandler
+from .plot import PlotPhotometryHandler, PlotSpectroscopyHandler
 from .profile import ProfileHandler
 from .logout import LogoutHandler
