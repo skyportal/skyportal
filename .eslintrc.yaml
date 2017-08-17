@@ -47,4 +47,5 @@ rules:
   radix: 0
   react/forbid-prop-types: 1
   space-infix-ops: 0
+  no-underscore-dangle: [2, {"allowAfterThis": true}]
   vars-on-top: 0

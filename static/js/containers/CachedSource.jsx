@@ -1,45 +1,54 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
 import Source from '../components/Source';
-import * as Action from '../actions.js';
+import * as Action from '../actions';
 
 
 class CachedSource extends React.Component {
   componentDidMount() {
     if (!this.isCached()) {
-      let id = this.props.route.id;
+      const id = this.props.route.id;
       this.props.dispatch(Action.fetchSource(id));
-      console.log(this.props.source);
     }
   }
 
   isCached() {
-    let loadedSource = this.props.source;
-    let cachedSource = loadedSource ? loadedSource.id : null;
-    let requestedSource = this.props.route.id;
+    const loadedSource = this.props.source;
+    const cachedSource = loadedSource ? loadedSource.id : null;
+    const requestedSource = this.props.route.id;
 
-    return requestedSource == cachedSource;
+    return requestedSource === cachedSource;
   }
 
   render = () => {
     if (this.props.loadError) {
-      return <div>Could not retrieve requested source</div>
+      return <div>Could not retrieve requested source</div>;
+    } else if (!this.isCached()) {
+      return <div><span>Loading...</span></div>;
     } else {
-      if (!this.isCached()) {
-        return <div><span>Loading...</span></div>
-      } else {
-        return <Source {...this.props.source}/>
-      }
+      return <Source {...this.props.source} />;
     }
   }
 }
+
+CachedSource.propTypes = {
+  route: PropTypes.shape({
+    id: PropTypes.string
+  }).isRequired,
+  dispatch: PropTypes.func.isRequired,
+  source: PropTypes.shape({
+    id: PropTypes.String
+  }).isRequired,
+  loadError: PropTypes.bool.isRequired
+};
 
 const mapStateToProps = (state, ownProps) => (
   {
     source: state.source,
     loadError: state.source.loadError
   }
-)
+);
 
 export default connect(mapStateToProps)(CachedSource);

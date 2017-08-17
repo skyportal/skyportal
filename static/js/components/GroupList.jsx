@@ -1,14 +1,14 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
-import Group from './Group';
 
-let GroupList = ({groups}) => (
+const GroupList = ({ groups }) => (
   <div>
     <h2>List of Groups</h2>
     <ul>
       {
         groups.map((group, idx) => (
-          <li key={idx}>
+          <li key={group.id}>
             <Link to={`/group/${group.id}`}>{group.name}</Link>
           </li>
         ))
@@ -16,5 +16,10 @@ let GroupList = ({groups}) => (
     </ul>
   </div>
 );
+
+GroupList.propTypes = {
+  groups: PropTypes.arrayOf(PropTypes.object).isRequired
+};
+
 
 export default GroupList;

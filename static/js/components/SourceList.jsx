@@ -1,14 +1,15 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
-import Source from './Source';
 
-let SourceList = ({sources}) => (
+
+const SourceList = ({ sources }) => (
   <div>
     <h2>List of Sources</h2>
     <ul>
       {
         sources.map((source, idx) => (
-          <li key={idx}>
+          <li key={source.id}>
             <Link to={`/source/${source.id}`}>{source.id}</Link>
           </li>
         ))
@@ -16,5 +17,10 @@ let SourceList = ({sources}) => (
     </ul>
   </div>
 );
+
+SourceList.propTypes = {
+  sources: PropTypes.arrayOf(PropTypes.object).isRequired
+};
+
 
 export default SourceList;

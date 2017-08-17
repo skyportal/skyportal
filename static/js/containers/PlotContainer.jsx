@@ -1,13 +1,12 @@
-import React from 'react';
 import { connect } from 'react-redux';
 
 import Plot from '../components/Plot';
 import { FETCH_SOURCE_PLOT } from '../actions';
 import * as API from '../API';
 
-let fetchPlotData = (url) => (
+const fetchPlotData = url => (
   API.GET(url, FETCH_SOURCE_PLOT)
 );
 
-const PlotContainer = connect(null, {fetchPlotData})(Plot);
+const PlotContainer = connect(null, { fetchPlotData })(Plot);
 export default PlotContainer;
