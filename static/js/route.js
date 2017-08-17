@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Route } from 'react-router';
 
 // See: https://github.com/ReactTraining/react-router/issues/4105#issuecomment-289195202
@@ -8,7 +9,7 @@ const renderMergedProps = (component, ...rest) => {
   return (
     React.createElement(component, finalProps)
   );
-}
+};
 
 /* Can be used as follows:
  *
@@ -18,15 +19,16 @@ const renderMergedProps = (component, ...rest) => {
  * accessed as props.route.
  *
  */
-const PropsRoute = ({ component, ...rest }) => {
-  return (
-    <Route {...rest} render={routeProps => {
-      return renderMergedProps(component,
-                               routeProps,
-                               {route: routeProps.match.params},
-                               rest);
-    }}/>
-  );
-}
+const PropsRoute = ({ component, ...rest }) => (
+  <Route
+    {...rest}
+    render={routeProps => (
+      renderMergedProps(component,
+                        routeProps,
+                        { route: routeProps.match.params },
+                        rest)
+    )}
+  />
+);
 
 export default PropsRoute;

@@ -7,13 +7,14 @@ import * as Action from './actions';
 // Reducer for currently displayed source
 export function sourceReducer(state={ source: null, loadError: false }, action) {
   switch (action.type) {
-    case Action.FETCH_LOADED_SOURCE_OK:
-      let source = action.data;
+    case Action.FETCH_LOADED_SOURCE_OK: {
+      const source = action.data;
       return {
         ...state,
         ...source,
         loadError: false
       };
+    }
     case Action.FETCH_LOADED_SOURCE_FAIL:
       return {
         ...state,
@@ -26,12 +27,13 @@ export function sourceReducer(state={ source: null, loadError: false }, action) 
 
 export function sourcesReducer(state={ latest: [] }, action) {
   switch (action.type) {
-    case Action.FETCH_SOURCES_OK:
-      let sources = action.data;
+    case Action.FETCH_SOURCES_OK: {
+      const sources = action.data;
       return {
         ...state,
         latest: sources
       };
+    }
     default:
       return state;
   }
@@ -48,12 +50,13 @@ export function groupReducer(state={}, action) {
 
 export function groupsReducer(state={ latest: [] }, action) {
   switch (action.type) {
-    case Action.FETCH_GROUPS_OK:
-      let groups = action.data;
+    case Action.FETCH_GROUPS_OK: {
+      const groups = action.data;
       return {
         ...state,
         latest: groups
       };
+    }
     default:
       return state;
   }
@@ -65,7 +68,7 @@ export function profileReducer(state={ username: '' }, action) {
       return action.data;
     default:
       return state;
-    }
+  }
 }
 
 const root = combineReducers({

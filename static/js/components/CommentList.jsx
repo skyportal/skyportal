@@ -1,11 +1,13 @@
 import React from 'react';
+import PropTypes from 'prop-types';
+
 import styles from './CommentList.css';
 import CommentEntry from './CommentEntry';
 
 
-const CommentList = ({source_id, comments, addComment}) => {
+const CommentList = ({ source_id, comments, addComment }) => {
   comments = comments || [];
-  const items = comments.map(({id, username, created_at, text}) => (
+  const items = comments.map(({ id, username, created_at, text }) => (
     <span key={id}>
       <div className={styles.commentHeader}>
         On {created_at}, {username} wrote:
@@ -17,12 +19,23 @@ const CommentList = ({source_id, comments, addComment}) => {
   ));
   return (
     <div className={styles.comments}>
-      <b>Comments</b><br/>
+      <b>Comments</b><br />
       {items}
-      <br/>
-      <CommentEntry source_id={source_id} addComment={addComment}/>
+      <br />
+      <CommentEntry addComment={addComment} />
     </div>
   );
+};
+
+CommentList.propTypes = {
+  source_id: PropTypes.string.isRequired,
+  comments: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.String,
+    username: PropTypes.String,
+    created_at: PropTypes.String,
+    text: PropTypes.string
+  })).isRequired,
+  addComment: PropTypes.func.isRequired
 };
 
 export default CommentList;

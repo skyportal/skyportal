@@ -1,3 +1,5 @@
+import * as API from './API';
+
 export const FETCH_SOURCES = 'skyportal/FETCH_SOURCES';
 export const FETCH_SOURCES_OK = 'skyportal/FETCH_SOURCES_OK';
 
@@ -22,9 +24,6 @@ export const ADD_COMMENT_OK = 'skyportal/ADD_COMMENT_OK';
 
 export const FETCH_USER_PROFILE = 'skyportal/FETCH_USER_PROFILE';
 export const FETCH_USER_PROFILE_OK = 'skyportal/FETCH_USER_PROFILE_OK';
-
-
-import * as API from './API';
 
 
 export function fetchSource(id) {
@@ -55,6 +54,6 @@ export function hydrate() {
   };
 }
 
-export function addComment({source_id, text}) {
-  return API.POST(`/api/comment`, ADD_COMMENT, {source_id, text});
+export function addComment({ source_id, text }) {
+  return API.POST(`/api/comment`, ADD_COMMENT, { source_id, text });
 }

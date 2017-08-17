@@ -1,19 +1,26 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
 import * as Action from '../actions';
 import CommentList from '../components/CommentList';
 
 
-class CommentListContainer extends React.Component {
-  render = () => {
-    return (
-      <CommentList comments={this.props.source.comments}
-                   source_id={this.props.source.id}
-                   addComment={this.props.addComment}/>
-    );
-  };
-}
+const CommentListContainer = ({ source, addComment }) => (
+  <CommentList
+    comments={source.comments}
+    source_id={source.id}
+    addComment={addComment}
+  />
+);
+
+CommentListContainer.propTypes = {
+  source: PropTypes.shape({
+    comments: PropTypes.arrayOf(PropTypes.object),
+    source_id: PropTypes.string
+  }).isRequired,
+  addComment: PropTypes.func.isRequired
+};
 
 const mapStateToProps = (state, ownProps) => (
   {
@@ -23,8 +30,8 @@ const mapStateToProps = (state, ownProps) => (
 
 const mapDispatchToProps = (dispatch, ownProps) => (
   {
-    addComment: (text) => dispatch(
-      Action.addComment({source_id: ownProps.source, text})
+    addComment: text => dispatch(
+      Action.addComment({ source_id: ownProps.source, text })
     )
   }
 );
