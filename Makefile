@@ -95,8 +95,11 @@ docker-images:
 check-js-updates:
 	./baselayer/tools/check_js_updates.sh
 
-update-eslint:
-	./tools/update_eslint.sh
+lint-install:
+	./baselayer/tools/update_eslint.sh
 
 lint:
 	./node_modules/.bin/eslint --ext .jsx,.js static/js
+
+lint-unix:
+	./node_modules/.bin/eslint --ext .jsx,.js --format=unix static/js
