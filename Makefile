@@ -103,3 +103,6 @@ lint:
 
 lint-unix:
 	./node_modules/.bin/eslint --ext .jsx,.js --format=unix static/js
+
+lint-githook:
+	cp .git-pre-commit .git/hooks/pre-commit
