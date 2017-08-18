@@ -1,38 +1,34 @@
-# Baselayer Template App
+# SkyPortal
 
-This template application shows how to leverage Cesium's BaseLayer to
-get a batteries-included web application.  It includes:
+The SkyPortal web application consumes and displays events from the
+Zwicky Transient Facility.
 
-- A Tornado-based Python web application that can be customized to your liking
-- WebSockets
-- JavaScript 6 compilation via Babel, with a Redux & React frontend
-- Process management via supervisord
-- Proxy configuration via nginx
-- Authentication (currently using Google) via Python Social Auth
-- Distributed task computation, via `dask` and `distributed`
+## Developer notes
 
-## Customization guide
+### Important Makefile targets
 
-1. Clone this repository
+DB preparation:
 
-To be completed.
+- db_init : Create database
+- db_clear : Drop and re-create DB
 
-## Notes
+Launching:
 
-### Database errors, or "fe_sendauth: no password supplied"
+- debug : Launch app in debug mode, which auto-refreshes files and
+          monitors micro-services
+- log : Tail all log files
 
-On Debian, in `/etc/postgresql/9.6/main/pg_hba.conf`, insert the
-following *before* any line starting with `host`:
+Testing:
 
-```
-host skyportal skyportal 127.0.0.1/32 trust
-host skyportal_test skyportal 127.0.0.1/32 trust
-host skyportal skyportal ::1/128 trust
-host skyportal_test skyportal ::1/128 trust
-```
+- test : Launch web app & execute frontend tests
+- test_headless : (Linux only) The above, but without a visible
+                  browser
 
-(The ::1/128 is what localhost translates to in IPV6.)
+Development:
 
-Also, ensure that PostgreSQL is running on port 5432, and not 5433
-(see `/etc/postgresql/9.6/main/postgresql.conf`).
-
+- lint-install : Install ESLint and dependencies
+- lint : Run ESLint on all files
+- lint-unix : Same as above, but outputs in a format that most text
+              editors can parse
+- lint-githook : Install a Git pre-commit hook that lints staged
+                 chunks
