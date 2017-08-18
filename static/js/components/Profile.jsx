@@ -5,7 +5,7 @@ import styles from "./Profile.css";
 
 const Profile = ({ username }) => (
   <div className={styles.profile}>
-    { username }
+    { username } &nbsp;▾
   </div>
 );
 

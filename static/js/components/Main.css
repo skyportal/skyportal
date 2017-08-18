@@ -1,5 +1,5 @@
 .main {
-    font-family: sans-serif;
+    font-family: 'Roboto', sans-serif;
     position: absolute;
     width: 100%;
     top: 0;
@@ -29,13 +29,11 @@
     padding-left: 0.4em;
     font-size: 200%;
     font-weight: bold;
+    vertical-align: middle;
 }
 
 .websocket {
-    float: right;
-    padding-top: 0.75em;
-    padding-right: 0.75em;
-    color: white;
+    display: none;
 }
 
 .content {
@@ -46,6 +44,7 @@
 
 .content a {
     text-decoration: none;
+    color: gray;
     font-weight: bold;
 }
 

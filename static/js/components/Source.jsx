@@ -28,6 +28,7 @@ const Source = ({ ra, dec, red_shift, id }) => {
         <br />
         <b>Spectroscopy:</b><br />
         <PlotContainer className={styles.plot} url={`/api/plot/spectroscopy/${id}`} />
+        <br />
 
         { /* TODO 1) check for dead links; 2) simplify link formatting if possible */ }
         <b>Additional info:</b><br />

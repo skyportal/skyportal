@@ -1,5 +1,6 @@
+/* eslint-disable */
+
 import React from 'react';
-import PropTypes from 'prop-types';
 import { Route } from 'react-router';
 
 // See: https://github.com/ReactTraining/react-router/issues/4105#issuecomment-289195202
@@ -23,10 +24,12 @@ const PropsRoute = ({ component, ...rest }) => (
   <Route
     {...rest}
     render={routeProps => (
-      renderMergedProps(component,
-                        routeProps,
-                        { route: routeProps.match.params },
-                        rest)
+      renderMergedProps(
+        component,
+        routeProps,
+        { route: routeProps.match.params },
+        rest
+      )
     )}
   />
 );
