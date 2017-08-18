@@ -42,14 +42,6 @@ class MainContent extends React.Component {
   render() {
     return (
       <div className={styles.main}>
-        <div className={styles.websocket}>
-          <WebSocket
-            url={`ws://${this.props.root}websocket`}
-            auth_url={`${location.protocol}//${this.props.root}socket_auth_token`}
-            messageHandler={messageHandler}
-            dispatch={store.dispatch}
-          />
-        </div>
 
         <div className={styles.topBanner}>
           <img
@@ -58,7 +50,15 @@ class MainContent extends React.Component {
             src="/static/images/skyportal_logo_dark.png"
           />
           <Link className={styles.title} to="/">SkyPortal ∝</Link>
-          <Profile />
+          <div className={styles.websocket}>
+            <WebSocket
+              url={`ws://${this.props.root}websocket`}
+              auth_url={`${location.protocol}//${this.props.root}socket_auth_token`}
+              messageHandler={messageHandler}
+              dispatch={store.dispatch}
+            />
+          </div>
+          <Link to="/profile"><Profile /></Link>
         </div>
 
         <div className={styles.content}>

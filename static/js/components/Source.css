@@ -9,11 +9,10 @@
 }
 
 .plot {
-    float: right;
-    width: 60%;
+    float: left;
 }
 
 .comments {
-    float: left;
-    width: 40%;
+    float: right;
+    width: 35%;
 }
