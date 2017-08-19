@@ -71,13 +71,27 @@ export function profileReducer(state={ username: '' }, action) {
   }
 }
 
+export function miscReducer(state={ rotateLogo: false }, action) {
+  switch (action.type) {
+    case Action.ROTATE_LOGO: {
+      return {
+        ...state,
+        rotateLogo: true
+      };
+    }
+    default:
+      return state;
+  }
+}
+
 const root = combineReducers({
   source: sourceReducer,
   sources: sourcesReducer,
   group: groupReducer,
   groups: groupsReducer,
   notifications: notificationsReducer,
-  profile: profileReducer
+  profile: profileReducer,
+  misc: miscReducer
 });
 
 export default root;
