@@ -25,6 +25,7 @@ export const ADD_COMMENT_OK = 'skyportal/ADD_COMMENT_OK';
 export const FETCH_USER_PROFILE = 'skyportal/FETCH_USER_PROFILE';
 export const FETCH_USER_PROFILE_OK = 'skyportal/FETCH_USER_PROFILE_OK';
 
+export const ROTATE_LOGO = 'skyportal/ROTATE_LOGO';
 
 export function fetchSource(id) {
   return API.GET(`/api/sources/${id}`, FETCH_LOADED_SOURCE);
@@ -51,6 +52,12 @@ export function hydrate() {
     dispatch(fetchUserProfile());
     dispatch(fetchSources());
     dispatch(fetchGroups());
+  };
+}
+
+export function rotateLogo() {
+  return {
+    type: ROTATE_LOGO
   };
 }
 

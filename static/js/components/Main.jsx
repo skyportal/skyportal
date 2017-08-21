@@ -26,7 +26,8 @@ import SourceListContainer from '../containers/SourceListContainer';
 import GroupListContainer from '../containers/GroupListContainer';
 import NoMatchingRoute from './NoMatchingRoute';
 import Profile from '../containers/Profile';
-import { hydrate } from '../actions';
+import Logo from '../containers/Logo';
+import * as Action from '../actions';
 
 
 const store = configureStore({});
@@ -34,21 +35,17 @@ const messageHandler = (
   new CustomMessageHandler(store.dispatch, store.getState)
 );
 
-
 class MainContent extends React.Component {
-  componentDidMount() {
-    store.dispatch(hydrate());
+  async componentDidMount() {
+    await store.dispatch(Action.hydrate());
+    store.dispatch(Action.rotateLogo());
   }
   render() {
     return (
       <div className={styles.main}>
 
         <div className={styles.topBanner}>
-          <img
-            alt="SkyPortal logo"
-            className={styles.logo}
-            src="/static/images/skyportal_logo_dark.png"
-          />
+          <Logo className={styles.logo} />
           <Link className={styles.title} to="/">SkyPortal ∝</Link>
           <div className={styles.websocket}>
             <WebSocket
