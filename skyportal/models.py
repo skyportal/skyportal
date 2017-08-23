@@ -4,7 +4,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import backref, relationship
 
-from baselayer.app.models import (init_db, join_table, Base, DBSession, ACL,
+from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User)
 
 
@@ -25,20 +25,6 @@ class NumpyArray(sa.types.TypeDecorator):
         return np.array(value)
 
 
-class GroupUser(Base):
-    __tablename__ = 'group_users'
-    id = None
-    user_id = sa.Column(sa.Integer, sa.ForeignKey('users.id',
-                                                  ondelete='CASCADE'),
-                        primary_key=True)
-    group_id = sa.Column(sa.Integer, sa.ForeignKey('groups.id',
-                                                   ondelete='CASCADE'),
-                         primary_key=True)
-    admin = sa.Column(sa.Boolean, nullable=False, default=False)
-    user = relationship('User', backref='group_users_group', cascade='all')
-    group = relationship('Group', backref='group_users_user', cascade='all')
-
-
 class Group(Base):
     name = sa.Column(sa.String, unique=True, nullable=False)
     sources = relationship('Source', secondary='group_sources', cascade='all')
@@ -50,6 +36,10 @@ class Group(Base):
                          back_populates='groups')
 
 
+GroupUser = join_model('group_users', Group, User)
+GroupUser.admin = sa.Column(sa.Boolean, nullable=False, default=False)
+
+
 class Stream(Base):
     name = sa.Column(sa.String, unique=True, nullable=False)
     url = sa.Column(sa.String, unique=True, nullable=False)
@@ -59,7 +49,7 @@ class Stream(Base):
                           back_populates='streams')
 
 
-stream_groups = join_table('stream_groups', Stream, Group)
+StreamGroup = join_model('stream_groups', Stream, Group)
 
 
 User.group_users = relationship('GroupUser', back_populates='user', cascade='all')
@@ -78,9 +68,7 @@ class Source(Base):
     spectra = relationship('Spectrum', back_populates='source', cascade='all')
 
 
-group_sources = join_table('group_sources', Group, Source)
-
-
+GroupSource = join_model('group_sources', Group, Source)
 User.sources = relationship('Source', secondary='join(Group, group_sources).join(group_users)',
                             primaryjoin='group_users.c.user_id == users.c.id')
 
