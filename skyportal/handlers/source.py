@@ -2,7 +2,7 @@ import tornado.web
 from sqlalchemy.orm import joinedload
 from baselayer.app.access import permissions
 from baselayer.app.handlers.base import BaseHandler
-from ..models import DBSession, Source
+from ..models import DBSession, Source, Comment
 
 
 class SourceHandler(BaseHandler):
@@ -10,7 +10,8 @@ class SourceHandler(BaseHandler):
     def get(self, source_id=None):
         if source_id is not None:
             info = Source.get_if_owned_by(source_id, self.current_user,
-                                          options=joinedload(Source.comments))
+                                          options=joinedload(Source.comments)
+                                                  .joinedload(Comment.user))
         else:
             info = list(self.current_user.sources)
 

@@ -7,10 +7,10 @@ import CommentEntry from './CommentEntry';
 
 const CommentList = ({ source_id, comments, addComment }) => {
   comments = comments || [];
-  const items = comments.map(({ id, username, created_at, text }) => (
+  const items = comments.map(({ id, user, created_at, text }) => (
     <span key={id}>
       <div className={styles.commentHeader}>
-        On {created_at}, {username} wrote:
+        On {created_at}, {user.username} wrote:
       </div>
       <div className={styles.commentMessage}>
         {text}
