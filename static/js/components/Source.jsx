@@ -15,24 +15,34 @@ const Source = ({ ra, dec, red_shift, id }) => {
       <div className={styles.source}>
         <div className={styles.name}>{id}</div>
 
-        <CommentListContainer className={styles.comments} source={id} />
+        <div className={styles.leftColumn}>
 
-        <b>Location:</b> {ra}, {dec}<br />
-        <b>Red Shift: </b>{red_shift}
+          <b>Location:</b> {ra}, {dec}<br />
+          <b>Red Shift: </b>{red_shift}
 
-        <br />
-        <b>Photometry:</b>
+          <br />
+          <b>Photometry:</b>
 
-        <PlotContainer className={styles.plot} url={`/api/plot/photometry/${id}`} />
+          <PlotContainer className={styles.plot} url={`/api/plot/photometry/${id}`} />
 
-        <br />
-        <b>Spectroscopy:</b><br />
-        <PlotContainer className={styles.plot} url={`/api/plot/spectroscopy/${id}`} />
-        <br />
+          <br />
+          <b>Spectroscopy:</b><br />
+          <PlotContainer className={styles.plot} url={`/api/plot/spectroscopy/${id}`} />
+          <br />
 
-        { /* TODO 1) check for dead links; 2) simplify link formatting if possible */ }
-        <b>Additional info:</b><br />
-        <SurveyLinkList id={id} ra={ra} dec={dec} />
+          { /* TODO 1) check for dead links; 2) simplify link formatting if possible */ }
+          <b>Additional info:</b><br />
+          <SurveyLinkList id={id} ra={ra} dec={dec} />
+        </div>
+
+        <div className={styles.rightColumn}>
+
+          <div className={styles.comments}>
+            <CommentListContainer source={id} />
+          </div>
+
+        </div>
+
       </div>
     );
   }

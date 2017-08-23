@@ -2,8 +2,10 @@ const webpack = require('webpack');
 const path = require('path');
 
 const config = {
-  entry: ['babel-polyfill',
-          path.resolve(__dirname, 'static/js/components/Main.jsx')],
+  entry: [
+    'babel-polyfill',
+    path.resolve(__dirname, 'static/js/components/Main.jsx')
+  ],
   output: {
     path: path.resolve(__dirname, 'static/build'),
     filename: 'bundle.js'
@@ -41,7 +43,8 @@ const config = {
           {
             loader: 'css-loader',
             options: {
-              modules: true
+              modules: true,
+              localIdentName: '[path][name]__[local]--[hash:base64:5]'
             }
           }
         ]

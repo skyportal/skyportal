@@ -1,12 +1,40 @@
-.comments {
-    float: right;
+.commentTitle {
+    font-weight: bold;
+    font-size: 120%;
+    padding-bottom: 1em;
+}
+
+.comment {
+    font-size: 90%;
 }
 
 .commentHeader {
-    font-style: italic;
-    padding-top: 0.5em;
+    padding-top: 0.3em;
+    padding-bottom: 0.1em;
 }
 
 .commentMessage {
-    padding-left: 1em;
+}
+
+.commentTime {
+    color: lightgray;
+    font-size: 80%;
+}
+
+.commentUser .commentUserDomain {
+    display: none;
+}
+
+.commentUser:hover .commentUserDomain {
+    display: inline-block;
+}
+
+.commentUserName {
+    font-weight: bold;
+}
+
+.commentUserDomain {
+    color: lightgray;
+    font-size: 80%;
+    padding-right: 0.5em;
 }

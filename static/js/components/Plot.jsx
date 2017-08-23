@@ -62,6 +62,7 @@ class Plot extends Component {
 
     return (
       <div
+        className={this.props.className}
         ref={
           (node) => {
             if (node) {
@@ -78,9 +79,15 @@ class Plot extends Component {
     );
   }
 }
+
 Plot.propTypes = {
   url: PropTypes.string.isRequired,
-  fetchPlotData: PropTypes.func.isRequired
+  fetchPlotData: PropTypes.func.isRequired,
+  className: PropTypes.string
+};
+
+Plot.defaultProps = {
+  className: ""
 };
 
 export default Plot;
