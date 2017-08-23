@@ -6,3 +6,68 @@
     float: right;
     vertical-align: middle;
 }
+
+.rule {
+    margin-left: 0em;
+    margin-right: 0em;
+    border-top: 1px solid lightgray;
+    width: calc(100% - 2px);
+}
+
+.entry {
+    padding-left: 1em;
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
+}
+
+.entry:hover {
+    background: #38B0DE;
+    color: white;
+}
+
+.entry:hover a {
+    color: white;
+}
+
+
+:global(.dropdown) {
+    display: inline-block;
+    cursor: pointer; /* different names */
+    cursor: hand;    /* for different browsers */
+}
+
+:global(.dropdown__trigger) {
+  -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none; /* Safari */
+     -khtml-user-select: none; /* Konqueror HTML */
+       -moz-user-select: none; /* Firefox */
+        -ms-user-select: none; /* Internet Explorer/Edge */
+            user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome and Opera */
+}
+
+:global(.dropdown__content) {
+    border: 1px solid lightgray;
+    border-radius: 4px;
+    box-shadow: 0 3px 12px lightgray;
+    background: white;
+    margin-top: 0.5em;
+    padding: 0;
+    color: gray;
+    font-size: 90%;
+}
+
+:global(.dropdown__content) a {
+    text-decoration: none;
+    color: gray;
+}
+
+:global(.dropdown__content) :global(.dropdown--active) {
+    display: block;
+}
+
+:not(:global(.dropdown--active)) > :global(.dropdown__content) {
+    display: none;
+    position: absolute;
+    background: white;
+}

@@ -55,7 +55,7 @@ class MainContent extends React.Component {
               dispatch={store.dispatch}
             />
           </div>
-          <Link to="/profile"><Profile /></Link>
+          <Profile />
         </div>
 
         <div className={styles.content}>
