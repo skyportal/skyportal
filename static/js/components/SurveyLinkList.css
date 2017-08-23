@@ -1,4 +1,5 @@
 .SurveyLinkList {
+    display: inline-block;
 }
 
 .SurveyLink {

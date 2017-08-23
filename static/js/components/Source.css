@@ -1,6 +1,19 @@
 .source {
 }
 
+.leftColumn {
+    display: inline-block;
+    vertical-align: top;
+    width: 900px;
+    padding-right: 1em;
+}
+
+.rightColumn {
+    display: inline-block;
+    min-width: 20em;
+    vertical-align: top;
+}
+
 .name {
     font-size: 200%;
     font-weight: 900;
@@ -9,10 +22,9 @@
 }
 
 .plot {
-    float: left;
+    width: 900px;
+    overflow: auto;
 }
 
 .comments {
-    float: right;
-    width: 35%;
 }
