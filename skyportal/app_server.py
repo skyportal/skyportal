@@ -7,8 +7,9 @@ from baselayer.app.app_server import (handlers as baselayer_handlers,
 from baselayer.app.config import load_config
 
 from skyportal.handlers import (SourceHandler, CommentHandler, GroupHandler,
-                                PlotPhotometryHandler, PlotSpectroscopyHandler,
-                                ProfileHandler, LogoutHandler)
+                                GroupUserHandler, PlotPhotometryHandler,
+                                PlotSpectroscopyHandler, ProfileHandler,
+                                LogoutHandler)
 from skyportal import models
 
 
@@ -36,6 +37,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
     handlers = baselayer_handlers + [
         # API endpoints
         (r'/api/sources(/.*)?', SourceHandler),
+        (r'/api/groups/(.*)/users/(.*)?', GroupUserHandler),
         (r'/api/groups(/.*)?', GroupHandler),
         (r'/api/plot/photometry/(.*)', PlotPhotometryHandler),
         (r'/api/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),

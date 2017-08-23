@@ -2,7 +2,6 @@ import numpy as np
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import backref, relationship
 
 from baselayer.app.models import (init_db, join_table, Base, DBSession, ACL,

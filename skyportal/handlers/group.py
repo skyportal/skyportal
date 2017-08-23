@@ -50,17 +50,22 @@ class GroupHandler(BaseHandler):
 
 
 class GroupUserHandler(BaseHandler):
-    @tornado.web.authenticated
-    def post(self):
+    @permissions(['Manage groups'])
+    def put(self, group_id, user_id):
         data = self.get_json()
-        gu = GroupUser(group_id=data['groupID'], user_id=data['userID'],
-                       admin=data['admin'])
+        gu = (GroupUser.query.filter(GroupUser.group_id == group_id)
+                       .filter(GroupUser.user_id == user_id).first())
+        if gu is None:
+            gu = GroupUser(group_id=group_id, user_id=user_id)
+        gu.admin = data['admin']
         DBSession().add(gu)
         DBSession().commit()
 
-    @tornado.web.authenticated
+        return self.success({"group_id": gu.group_id, "user_id": gu.user_id,
+                             "admin": gu.admin}, 'cesium/FETCH_GROUPS')
+
+    @permissions(['Manage groups'])
     def delete(self, group_id, user_id):
-        data = self.get_json()
-        GroupUser.query.filter(GroupUser.group_id == group_id)\
-                       .filter(GroupUser.user_id == user_id).delete()
+        (GroupUser.query.filter(GroupUser.group_id == group_id)
+                   .filter(GroupUser.user_id == user_id).delete())
         DBSession().commit()

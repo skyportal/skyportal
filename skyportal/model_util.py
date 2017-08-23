@@ -27,9 +27,11 @@ if __name__ == "__main__":
     with status(f"Creating permissions"):
         manage_users = models.ACL(id='Manage users')
         manage_sources = models.ACL(id='Manage sources')
+        manage_groups = models.ACL(id='Manage groups')
         post_comments = models.ACL(id='Comment')
 
         super_admin = models.Role(id='Super admin', acls=[manage_users,
+                                                          manage_groups,
                                                           manage_sources,
                                                           post_comments])
         group_admin = models.Role(id='Group admin', acls=[manage_sources,
@@ -40,9 +42,13 @@ if __name__ == "__main__":
     with status(f"Creating dummy users"):
         g = models.Group(name='Stream A')
         super_admin_user = models.User(username='testuser@cesium-ml.org',
-                                       roles=[super_admin], groups=[g])
+                                       roles=[super_admin])
         group_admin_user = models.User(username='groupadmin@cesium-ml.org',
-                                       roles=[group_admin], groups=[g])
+                                       roles=[group_admin])
+        models.DBSession().add_all(
+            [models.GroupUser(group=g, user=super_admin_user, admin=True),
+             models.GroupUser(group=g, user=group_admin_user, admin=True)]
+        )
         full_user = models.User(username='fulluser@cesium-ml.org',
                                 roles=[full], groups=[g])
         models.DBSession().add_all([super_admin_user, group_admin_user,
