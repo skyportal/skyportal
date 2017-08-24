@@ -20,8 +20,11 @@
 }
 
 .topBannerContent {
-    padding: 1em;
-    margin-top: 1em;
+    position: relative;
+    top: 50%;
+    transform: translate(0%, -50%);
+    padding-left: 1em;
+    padding-right: 1em;
 }
 
 .title {
