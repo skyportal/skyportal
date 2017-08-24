@@ -8,12 +8,20 @@
 }
 
 .topBanner {
+    position: relative;
+    display: inline-block;
     top: 0;
     margin: 0;
     background: #38B0DE;
-    padding: 1em;
     border-bottom: 0.25em solid lightgray;
     zIndex: 10;
+    width: 100%;
+    height: 6em;
+}
+
+.topBannerContent {
+    padding: 1em;
+    margin-top: 1em;
 }
 
 .title {
@@ -33,6 +41,7 @@
     padding: 1em;
     height: auto;
     padding-bottom: 6em; /* same as footer height */
+    position: relative;
 }
 
 .content a {

@@ -55,6 +55,8 @@
     padding: 0;
     color: gray;
     font-size: 90%;
+    position: relative;
+    z-index: 100;
 }
 
 :global(.dropdown__content) a {
@@ -63,11 +65,9 @@
 }
 
 :global(.dropdown__content) :global(.dropdown--active) {
-    display: block;
+    display: inline-block;
 }
 
 :not(:global(.dropdown--active)) > :global(.dropdown__content) {
     display: none;
-    position: absolute;
-    background: white;
 }

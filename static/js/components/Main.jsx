@@ -45,17 +45,19 @@ class MainContent extends React.Component {
       <div className={styles.main}>
 
         <div className={styles.topBanner}>
-          <Logo className={styles.logo} />
-          <Link className={styles.title} to="/">SkyPortal ∝</Link>
-          <div className={styles.websocket}>
-            <WebSocket
-              url={`ws://${this.props.root}websocket`}
-              auth_url={`${location.protocol}//${this.props.root}socket_auth_token`}
-              messageHandler={messageHandler}
-              dispatch={store.dispatch}
-            />
+          <div className={styles.topBannerContent}>
+            <Logo className={styles.logo} />
+            <Link className={styles.title} to="/">SkyPortal ∝</Link>
+            <div className={styles.websocket}>
+              <WebSocket
+                url={`ws://${this.props.root}websocket`}
+                auth_url={`${location.protocol}//${this.props.root}socket_auth_token`}
+                messageHandler={messageHandler}
+                dispatch={store.dispatch}
+              />
+            </div>
+            <Profile />
           </div>
-          <Profile />
         </div>
 
         <div className={styles.content}>
