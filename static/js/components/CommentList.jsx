@@ -39,7 +39,9 @@ CommentList.propTypes = {
   source_id: PropTypes.string.isRequired,
   comments: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.String,
-    username: PropTypes.string.isRequired,
+    user: PropTypes.shape({
+      username: PropTypes.string.isRequired
+    }),
     created_at: PropTypes.string.isRequired,
     text: PropTypes.string.isRequired
   })).isRequired,
