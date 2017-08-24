@@ -44,7 +44,6 @@
     padding: 1em;
     height: auto;
     padding-bottom: 6em; /* same as footer height */
-    position: relative;
 }
 
 .content a {
