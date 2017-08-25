@@ -89,7 +89,7 @@ status:
 
 docker-images:
 	# Add --no-cache flag to rebuild from scratch
-	docker build -t cesium/web . && docker push cesium/web
+	docker build -t skyportal/web . && docker push skyportal/web
 
 # Call this target to see which Javascript dependencies are not up to date
 check-js-updates:

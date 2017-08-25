@@ -1,0 +1,14 @@
+web:
+  image: skyportal/web
+  ports:
+    - "9000:5000"
+  links:
+    - db
+
+db:
+  image: postgres:9.5
+  environment:
+    - POSTGRES_USER=skyportal
+    - POSTGRES_PASSWORD=
+    - POSTGRES_DB=skyportal
+
