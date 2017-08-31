@@ -1,10 +1,22 @@
-.profile {
+.profileDesktop {
     padding: 1em;
     color: white;
     font-weight: normal;
-    display: inline-block;
     float: right;
     vertical-align: middle;
+}
+
+.profileMobile {
+    position: relative;
+    margin-right: 5em;
+    padding-left: 1em;
+    padding-top: 0.25em;
+    padding-bottom: 0.25em;
+    color: white;
+    width: 100%;
+    z-index: 100;
+    background: #38B0DE;
+    border-bottom: 0.25em solid lightgray;
 }
 
 .rule {
@@ -47,9 +59,9 @@
 }
 
 :global(.dropdown__content) {
-    border: 1px solid lightgray;
+    border: 1px solid gray;
     border-radius: 4px;
-    box-shadow: 0 3px 12px lightgray;
+    box-shadow: 0 3px 12px darkgray;
     background: white;
     margin-top: 0.5em;
     padding: 0;

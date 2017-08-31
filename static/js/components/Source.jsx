@@ -1,10 +1,13 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+
 import PlotContainer from '../containers/PlotContainer';
 import CommentListContainer from '../containers/CommentListContainer';
 import SurveyLinkList from './SurveyLinkList';
 
 import styles from "./Source.css";
+import Responsive from "./Responsive";
+import FoldBox from "./FoldBox";
 
 
 const Source = ({ ra, dec, red_shift, id }) => {
@@ -13,33 +16,54 @@ const Source = ({ ra, dec, red_shift, id }) => {
   } else {
     return (
       <div className={styles.source}>
-        <div className={styles.name}>{id}</div>
 
         <div className={styles.leftColumn}>
+
+          <div className={styles.name}>{id}</div>
 
           <b>Location:</b> {ra}, {dec}<br />
           <b>Red Shift: </b>{red_shift}
 
           <br />
-          <b>Photometry:</b>
+          <Responsive
+            element={FoldBox}
+            title="Photometry"
+            mobileProps={{ folded: true }}
+          >
+            <PlotContainer className={styles.plot} url={`/api/plot/photometry/${id}`} />
+          </Responsive>
 
-          <PlotContainer className={styles.plot} url={`/api/plot/photometry/${id}`} />
+          <Responsive
+            element={FoldBox}
+            title="Spectroscopy"
+            mobileProps={{ folded: true }}
+          >
 
-          <br />
-          <b>Spectroscopy:</b><br />
-          <PlotContainer className={styles.plot} url={`/api/plot/spectroscopy/${id}`} />
-          <br />
+            <PlotContainer className={styles.plot} url={`/api/plot/spectroscopy/${id}`} />
+          </Responsive>
 
           { /* TODO 1) check for dead links; 2) simplify link formatting if possible */ }
-          <b>Additional info:</b><br />
-          <SurveyLinkList id={id} ra={ra} dec={dec} />
+          <Responsive
+            element={FoldBox}
+            title="Surveys"
+            mobileProps={{ folded: true }}
+          >
+
+            <SurveyLinkList id={id} ra={ra} dec={dec} />
+
+          </Responsive>
         </div>
 
         <div className={styles.rightColumn}>
 
-          <div className={styles.comments}>
+          <Responsive
+            element={FoldBox}
+            title="Comments"
+            mobileProps={{ folded: true }}
+            className={styles.comments}
+          >
             <CommentListContainer source={id} />
-          </div>
+          </Responsive>
 
         </div>
 

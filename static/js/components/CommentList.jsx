@@ -27,7 +27,6 @@ const CommentList = ({ source_id, comments, addComment }) => {
   });
   return (
     <div className={styles.comments}>
-      <span className={styles.commentTitle}>Comments</span><br />
       {items}
       <br />
       <CommentEntry addComment={addComment} />
