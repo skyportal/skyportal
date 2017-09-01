@@ -22,12 +22,14 @@ class FoldBox extends Component {
 
     return (
       <div
-        onClick={onClick}
-        role="button"
-        tabIndex={0}
         style={{ paddingTop: '0.25em', outline: 'none' }}
       >
-        <div style={{ fontSize: '150%' }}>
+        <div
+          onClick={onClick}
+          role="button"
+          tabIndex={0}
+          style={{ fontSize: '150%' }}
+        >
           {this.state.folded ? '▸' : '▾'} {this.props.title}
         </div>
         {children}
