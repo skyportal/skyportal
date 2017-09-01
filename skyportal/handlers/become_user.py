@@ -4,9 +4,8 @@ from baselayer.app.access import permissions
 import tornado.web
 
 
-@permissions(['System admin'])
 class BecomeUserHandler(BaseHandler):
-    @tornado.web.authenticated
+#    @permissions(['System admin'])
     def get(self, new_user_id=None):
         user_id = self.get_secure_cookie('user_id')
         self.clear_cookie('user_id')

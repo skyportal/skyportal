@@ -8,6 +8,30 @@ from baselayer.app.model_util import status, create_tables, drop_tables
 from skyportal import models
 
 
+def setup_permissions(super_username=None):
+    """Create default ACLs/Roles needed by application.
+    
+    If `super_username` is given, also initializes a super user with full
+    permissions with the given username.
+    """
+    manage_users = models.ACL(id='Manage users')
+    manage_sources = models.ACL(id='Manage sources')
+    manage_groups = models.ACL(id='Manage groups')
+    post_comments = models.ACL(id='Comment')
+    sys_admin = models.ACL(id='System admin')
+
+    super_admin = models.Role(id='Super admin', acls=[manage_users,
+                                                      manage_groups,
+                                                      manage_sources,
+                                                      post_comments,
+                                                      sys_admin])
+    group_admin = models.Role(id='Group admin', acls=[manage_sources,
+                                                      post_comments])
+    full = models.Role(id='Full user', acls=[post_comments])
+    models.DBSession().add_all([super_admin, group_admin, full])
+    models.DBSession().commit()
+
+
 if __name__ == "__main__":
     """Insert test data"""
     cfg = load_config()
@@ -25,19 +49,7 @@ if __name__ == "__main__":
         print('    -', model)
 
     with status(f"Creating permissions"):
-        manage_users = models.ACL(id='Manage users')
-        manage_sources = models.ACL(id='Manage sources')
-        manage_groups = models.ACL(id='Manage groups')
-        post_comments = models.ACL(id='Comment')
-
-        super_admin = models.Role(id='Super admin', acls=[manage_users,
-                                                          manage_groups,
-                                                          manage_sources,
-                                                          post_comments])
-        group_admin = models.Role(id='Group admin', acls=[manage_sources,
-                                                          post_comments])
-        full = models.Role(id='Full user', acls=[post_comments])
-        models.DBSession().add_all([super_admin, group_admin, full])
+        setup_permissions()
 
     with status(f"Creating dummy users"):
         g = models.Group(name='Stream A')

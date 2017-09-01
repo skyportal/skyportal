@@ -15,7 +15,8 @@ from seleniumrequests.request import RequestMixin
 from pytest_factoryboy import register, LazyFixture
 from baselayer.app.config import Config
 from baselayer.app import models
-from skyportal.tests.fixtures import TMP_DIR, SourceFactory, GroupFactory
+from skyportal.model_util import setup_permissions
+from skyportal.tests.fixtures import TMP_DIR, SourceFactory, GroupFactory, UserFactory
 
 print('Loading test configuration from _test_config.yaml')
 basedir = pathlib.Path(os.path.dirname(__file__))
@@ -76,6 +77,27 @@ def driver(request):
     return driver
 
 
+@pytest.fixture(scope='session', autouse=True)
+def add_acls(request):
+    """Create roles/ACLs needed by application."""
+    setup_permissions()
+    """TODO Allow admin user to change to another user for testing.
+    role = models.Role.query.get('Test user')
+    if role is None:
+        role = models.Role(id='Test user')
+        role.acls = [models.ACL(id='System admin')]
+    username = 'testuser@cesium-ml.org'
+    u = models.User.query.filter(models.User.username ==
+                                 'testuser@cesium-ml.org').first()
+    if u is None:
+        u = models.User(username=username)
+    if role not in u.roles:
+        u.roles.append(role)
+    models.DBSession().add(u)
+    models.DBSession().commit()
+    """
+
+
 @pytest.fixture(scope='function', autouse=True)
 def reset_state(request):
     def teardown():
@@ -95,6 +117,8 @@ variable injection performed by `pytest_factoryboy.register` is working.
 #register(SourceFactory, "private_source", id="private_source")
 #register(SourceWithGroupFactory, "public_source", id="public_source",
 #         group=LazyFixture("group"))
+
+
 @pytest.fixture(autouse=True)
 def public_group():
     return GroupFactory()
@@ -102,9 +126,15 @@ def public_group():
 
 @pytest.fixture(autouse=True)
 def public_source(public_group):
-    return SourceFactory(id="public_source", groups=[public_group])
+    return SourceFactory(groups=[public_group])
 
 
 @pytest.fixture(autouse=True)
 def private_source():
-    return SourceFactory(id="private_source", groups=[])
+    return SourceFactory(groups=[])
+
+
+@pytest.fixture(autouse=True)
+def user(public_group):
+    return UserFactory(groups=[public_group],
+                       roles=[models.Role.query.get('Full user')])
