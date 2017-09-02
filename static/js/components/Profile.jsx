@@ -4,17 +4,22 @@ import { Link } from 'react-router-dom';
 import Dropdown, { DropdownTrigger, DropdownContent } from 'react-simple-dropdown';
 
 import styles from "./Profile.css";
+import Responsive from "./Responsive";
 
 
 const Profile = ({ username }) => (
-  <div className={styles.profile}>
+  <Responsive
+    desktopStyle={styles.profileDesktop}
+    mobileStyle={styles.profileMobile}
+  >
+
     <Dropdown>
 
       <DropdownTrigger>
         { username } &nbsp;▾
       </DropdownTrigger>
 
-      <DropdownContent className={styles.dropdownContent}>
+      <DropdownContent>
 
         <Link to="/profile">
           <div className={styles.entry}>
@@ -43,8 +48,10 @@ const Profile = ({ username }) => (
         </a>
 
       </DropdownContent>
+
     </Dropdown>
-  </div>
+
+  </Responsive>
 );
 
 Profile.propTypes = {

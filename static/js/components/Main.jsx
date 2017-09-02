@@ -28,6 +28,7 @@ import NoMatchingRoute from './NoMatchingRoute';
 import Profile from '../containers/Profile';
 import Logo from '../containers/Logo';
 import * as Action from '../actions';
+import Responsive from '../components/Responsive';
 
 
 const store = configureStore({});
@@ -56,9 +57,11 @@ class MainContent extends React.Component {
                 dispatch={store.dispatch}
               />
             </div>
-            <Profile />
+            <Responsive desktopElement={Profile} />
           </div>
         </div>
+
+        <Responsive mobileElement={Profile} />
 
         <div className={styles.content}>
 
@@ -76,10 +79,12 @@ class MainContent extends React.Component {
         </div>
 
         <div className={styles.footer}>
-          This is a first proof of concept. Please file issues at&nbsp;
-          <a href="https://github.com/skyportal/skyportal">
-            https://github.com/skyportal/skyportal
-          </a>.
+          <div className={styles.footerContent}>
+            This is a first proof of concept. Please file issues at&nbsp;
+            <a href="https://github.com/skyportal/skyportal">
+              https://github.com/skyportal/skyportal
+            </a>.
+          </div>
         </div>
 
       </div>
