@@ -9,7 +9,7 @@ from baselayer.app.config import load_config
 from skyportal.handlers import (SourceHandler, CommentHandler, GroupHandler,
                                 GroupUserHandler, PlotPhotometryHandler,
                                 PlotSpectroscopyHandler, ProfileHandler,
-                                LogoutHandler)
+                                BecomeUserHandler, LogoutHandler)
 from skyportal import models
 
 
@@ -43,6 +43,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
         (r'/api/comment(/.*)?', CommentHandler),
         (r'/api/profile', ProfileHandler),
+        (r'/become_user(/.*)?', BecomeUserHandler),
         (r'/logout', LogoutHandler),
 
         # User-facing pages
