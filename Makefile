@@ -1,6 +1,6 @@
 SHELL = /bin/bash
-SUPERVISORD=supervisord
-SUPERVISORCTL=supervisorctl -c baselayer/conf/supervisor/common.conf
+SUPERVISORD=FLAGS=$$FLAGS supervisord -c baselayer/conf/supervisor/supervisor.conf
+SUPERVISORCTL=FLAGS=$$FLAGS supervisorctl -c baselayer/conf/supervisor/supervisor.conf
 
 .DEFAULT_GOAL := run
 
@@ -50,7 +50,7 @@ run: paths dependencies
 	@echo " - Press Ctrl-C to abort the server"
 	@echo " - Run \`make monitor\` in another terminal to restart services"
 	@echo
-	$(SUPERVISORD) -c baselayer/conf/supervisor/app.conf
+	$(SUPERVISORD)
 
 monitor:
 	@echo "Entering supervisor control panel."
@@ -62,13 +62,13 @@ attach:
 	$(SUPERVISORCTL) fg app
 
 testrun: paths dependencies
-	$(SUPERVISORD) -c baselayer/conf/supervisor/testing.conf
+	export FLAGS="--config _test_config.yaml" && $(SUPERVISORD)
 
 debug:
 	@echo "Starting web service in debug mode"
 	@echo "Press Ctrl-D to stop"
 	@echo
-	@$(SUPERVISORD) -c baselayer/conf/supervisor/debug.conf &
+	@FLAGS="--debug" && $(SUPERVISORD) &
 	@sleep 1 && $(SUPERVISORCTL) -i status
 	@$(SUPERVISORCTL) shutdown
 
