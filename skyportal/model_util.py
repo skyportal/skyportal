@@ -14,21 +14,26 @@ def setup_permissions(super_username=None):
     If `super_username` is given, also initializes a super user with full
     permissions with the given username.
     """
-    manage_users = models.ACL(id='Manage users')
-    manage_sources = models.ACL(id='Manage sources')
-    manage_groups = models.ACL(id='Manage groups')
-    post_comments = models.ACL(id='Comment')
-    sys_admin = models.ACL(id='System admin')
+    all_acl_ids = ['Comment', 'Manage users', 'Manage sources', 'Manage groups',
+                   'Upload data', 'System admin']
+    all_acls = [models.ACL(id=a) for a in all_acl_ids]
+    models.DBSession().add_all(all_acls)
 
-    super_admin = models.Role(id='Super admin', acls=[manage_users,
-                                                      manage_groups,
-                                                      manage_sources,
-                                                      post_comments,
-                                                      sys_admin])
-    group_admin = models.Role(id='Group admin', acls=[manage_sources,
-                                                      post_comments])
-    full = models.Role(id='Full user', acls=[post_comments])
-    models.DBSession().add_all([super_admin, group_admin, full])
+    role_acls = {
+        'Super admin': all_acl_ids,
+        'Group admin': ['Comment', 'Manage sources', 'Upload data'],
+        'Full user': ['Comment', 'Upload data']
+    }
+
+    for role_id, all_acl_ids in role_acls.items():
+        models.DBSession().add(models.Role(id=role_id,
+                                           acls=[a for a in all_acls
+                                                 if a.id in all_acl_ids]))
+
+    if super_username is not None:
+        super_user = models.User(username=super_username, roles=[super_admin])
+        models.DBSession().add(super_user)
+
     models.DBSession().commit()
 
 
