@@ -5,14 +5,19 @@ import os
 import pathlib
 from pytest_factoryboy import register, LazyFixture
 from baselayer.app import models
-from baselayer.app.test_util import (driver, load_test_config, MyCustomWebDriver,
+from baselayer.app.config import Config
+from baselayer.app.test_util import (driver, MyCustomWebDriver, set_server_url,
                                      reset_state)
 from skyportal.model_util import setup_permissions
 from skyportal.tests.fixtures import TMP_DIR, SourceFactory, GroupFactory, UserFactory
 
 
+print('Loading test configuration from _test_config.yaml')
 basedir = pathlib.Path(os.path.dirname(__file__))
-cfg = load_test_config([(basedir/'../../_test_config.yaml').absolute()])
+cfg = Config([(basedir/'../../_test_config.yaml').absolute()])
+set_server_url(cfg['server:url'])
+print('Setting test database to:', cfg['database'])
+models.init_db(**cfg['database'])
 
 
 @pytest.fixture(scope='session', autouse=True)
