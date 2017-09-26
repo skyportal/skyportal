@@ -31,7 +31,8 @@ def setup_permissions(super_username=None):
                                                  if a.id in all_acl_ids]))
 
     if super_username is not None:
-        super_user = models.User(username=super_username, roles=[super_admin])
+        super_user = models.User(username=super_username,
+                                 role_ids=['Super admin'])
         models.DBSession().add(super_user)
 
     models.DBSession().commit()
@@ -59,15 +60,15 @@ if __name__ == "__main__":
     with status(f"Creating dummy users"):
         g = models.Group(name='Stream A')
         super_admin_user = models.User(username='testuser@cesium-ml.org',
-                                       roles=[super_admin])
+                                       role_ids=['Super admin'])
         group_admin_user = models.User(username='groupadmin@cesium-ml.org',
-                                       roles=[group_admin])
+                                       role_ids=['Super admin'])
         models.DBSession().add_all(
             [models.GroupUser(group=g, user=super_admin_user, admin=True),
              models.GroupUser(group=g, user=group_admin_user, admin=True)]
         )
         full_user = models.User(username='fulluser@cesium-ml.org',
-                                roles=[full], groups=[g])
+                                role_ids=['Full user'], groups=[g])
         models.DBSession().add_all([super_admin_user, group_admin_user,
                                     full_user])
 
