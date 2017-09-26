@@ -47,6 +47,14 @@ const Profile = ({ username }) => (
           </div>
         </a>
 
+        <div className={styles.rule} />
+
+        <a href="/logout">
+          <div className={styles.entry}>
+            Sign out
+          </div>
+        </a>
+
       </DropdownContent>
 
     </Dropdown>
