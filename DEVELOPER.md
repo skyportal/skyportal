@@ -6,20 +6,21 @@ The following snippet loads the config file and initializes a
 connection to the database:
 
 ```
-from skyportal import app_server, models
-session = models.DBSession
+from skyportal import app_server
+from skyportal.models import DBSession, init_db
 cfg = app_server.load_config()
-models.init_db(**cfg['database'])
+init_db(**cfg['database'])
 ```
 
-Objects can now be queried, e.g.
+Models can be queried directly, e.g.,
 
 ```
-models.User.query.all()
+from skyportal.models import User
+User.query.all()
 ```
 
 The session object allows various DB state operations:
 
-- `session().commit()` -- commit modifications to objects
-- `session().rollback()` -- recover after a DB error
-- `session().add(obj)` -- add a new object into the DB
+- `DBSession().add(obj)` -- add a new object into the DB
+- `DBSession().commit()` -- commit modifications to objects
+- `DBSession().rollback()` -- recover after a DB error
