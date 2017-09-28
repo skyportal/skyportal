@@ -17,7 +17,6 @@ database:
 
 server:
     url: http://localhost:5000
-    multi_user: False
 
     # From https://console.developers.google.com/
     #

@@ -5,6 +5,7 @@ import pandas as pd
 
 from baselayer.app.config import load_config
 from baselayer.app.model_util import status, create_tables, drop_tables
+from social_tornado.models import TornadoStorage
 from skyportal import models
 
 
@@ -71,6 +72,10 @@ if __name__ == "__main__":
                                 role_ids=['Full user'], groups=[g])
         models.DBSession().add_all([super_admin_user, group_admin_user,
                                     full_user])
+
+        for u in [super_admin_user, group_admin_user, full_user]:
+            models.DBSession().add(TornadoStorage.user.create_social_auth(u, u.username,
+                                                                          'google-oauth2'))
 
     with status("Creating dummy instruments"):
         t1 = models.Telescope(name='Palomar 1.5m', nickname='P60',
