@@ -9,6 +9,11 @@ from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
 
 
 def is_owned_by(self, user):
+    """Generic ownership logic for any `skyportal` ORM model.
+
+    Models with complicated ownership logic should implement their own method
+    instead of adding too many additional conditions here.
+    """
     if hasattr(self, 'users'):
         return (user in self.users)
     elif hasattr(self, 'groups'):
@@ -27,6 +32,7 @@ class NumpyArray(sa.types.TypeDecorator):
 
 class Group(Base):
     name = sa.Column(sa.String, unique=True, nullable=False)
+    public = sa.Column(sa.Boolean, nullable=False, default=True)
     sources = relationship('Source', secondary='group_sources', cascade='all')
     streams = relationship('Stream', secondary='stream_groups', cascade='all',
                            back_populates='groups')
@@ -69,8 +75,18 @@ class Source(Base):
 
 
 GroupSource = join_model('group_sources', Group, Source)
-User.sources = relationship('Source', secondary='join(Group, group_sources).join(group_users)',
-                            primaryjoin='group_users.c.user_id == users.c.id')
+"""User.sources defines the logic for whether a user has access to a source;
+   if this gets more complicated it should become a function/`hybrid_property`
+   rather than a `relationship`.
+
+   Returns all sources that either:
+       1) Belong to a group to which the user belongs, or
+       2) Belong to a group which is public
+"""
+User.sources = relationship('Source', backref='users',
+                            secondary='join(Group, group_sources).join(group_users, isouter=True)',
+                            primaryjoin='or_(group_users.c.user_id == users.c.id, '
+                                        '    and_(group_users.c.user_id == None, groups.c.public))')
 
 
 class Telescope(Base):
