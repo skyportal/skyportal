@@ -166,11 +166,11 @@ def photometry_plot(source_id):
                        .filter(Photometry.source_id == source_id)
                        .statement, DBSession().bind)
     if data.empty:
-        return None, None
+        return None, None, None
 
     for col in ['mag', 'e_mag', 'lim_mag']:
         data.loc[data[col] > 90, col] = np.nan
-    data['color'] = [color_map[f] for f in data['filter']]
+    data['color'] = [color_map.get(f, 'black') for f in data['filter']]
     data['label'] = [f'{t} {f}-band'
                      for t, f in zip(data['telescope'], data['filter'])]
     data['observed'] = ~np.isnan(data.mag)
@@ -227,6 +227,9 @@ def photometry_plot(source_id):
 def spectroscopy_plot(source_id):
     source = Source.query.get(source_id)
     spectra = Source.query.get(source_id).spectra
+    if len(spectra) == 0:
+        return None, None, None
+
     color_map = dict(zip([s.id for s in spectra], viridis(len(spectra))))
     data = pd.concat(
         [pd.DataFrame({'wavelength': s.wavelengths,
