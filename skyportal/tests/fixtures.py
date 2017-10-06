@@ -121,16 +121,3 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
                 obj.groups.append(group)
                 DBSession().add(obj)
                 DBSession().commit()
-
-
-#    @classmethod
-#    def _create(cls, model_class, *args, **kwargs):
-#        """Get `User` if it already exists, otherwise create/add a new one."""
-#        q = cls._meta.sqlalchemy_session.query(model_class)
-#        for key, value in kwargs.items():
-#            q = q.filter(getattr(model_class, key) == value)
-#        obj = q.first()
-#        if obj is None:
-#            return super(UserFactory, cls)._create(model_class, *args, **kwargs)
-#        else:
-#            return obj
