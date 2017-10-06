@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 
-import sys
 import os
-import pathlib
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-import subprocess
 from os.path import join as pjoin
-import time
+import pathlib
+import sys
+sys.path.insert(0, pjoin(os.path.dirname(__file__), '..'))
+
+import signal
 import socket
+import subprocess
+import time
 from baselayer.tools.supervisor_status import supervisor_status
 try:
     import http.client as http
@@ -68,7 +69,8 @@ if __name__ == '__main__':
 
     clear_tables()
 
-    web_client = subprocess.Popen(['make', 'testrun'], cwd=base_dir)
+    web_client = subprocess.Popen(['make', 'testrun'], cwd=base_dir,
+                                  preexec_fn=os.setsid)
 
     print('[test_frontend] Waiting for supervisord to launch all server processes...')
 
@@ -111,5 +113,5 @@ if __name__ == '__main__':
         raise
     finally:
         print('[test_frontend] Terminating supervisord...')
-        web_client.terminate()
+        os.killpg(os.getpgid(web_client.pid), signal.SIGTERM)
         delete_test_yaml()
