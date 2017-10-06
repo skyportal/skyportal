@@ -11,14 +11,6 @@ def test_public_source_page(driver, user, public_source):
     driver.wait_for_xpath('//label[contains(text(), "Fe III")]')
 
 
-def test_owned_source_page(driver, user, owned_source):
-    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
-    driver.get(f"/source/{owned_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{owned_source.id}"]')
-    driver.wait_for_xpath('//label[contains(text(), "band")]')  # TODO how to check plot?
-    driver.wait_for_xpath('//label[contains(text(), "Fe III")]')
-
-
 def test_comments(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")

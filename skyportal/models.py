@@ -32,7 +32,6 @@ class NumpyArray(sa.types.TypeDecorator):
 
 class Group(Base):
     name = sa.Column(sa.String, unique=True, nullable=False)
-    public = sa.Column(sa.Boolean, nullable=False, default=True)
     sources = relationship('Source', secondary='group_sources', cascade='all')
     streams = relationship('Stream', secondary='stream_groups', cascade='all',
                            back_populates='groups')
@@ -78,15 +77,10 @@ GroupSource = join_model('group_sources', Group, Source)
 """User.sources defines the logic for whether a user has access to a source;
    if this gets more complicated it should become a function/`hybrid_property`
    rather than a `relationship`.
-
-   Returns all sources that either:
-       1) Belong to a group to which the user belongs, or
-       2) Belong to a group which is public
 """
 User.sources = relationship('Source', backref='users',
-                            secondary='join(Group, group_sources).join(group_users, isouter=True)',
-                            primaryjoin='or_(group_users.c.user_id == users.c.id, '
-                                        '    and_(group_users.c.user_id == None, groups.c.public))')
+                            secondary='join(Group, group_sources).join(group_users)',
+                            primaryjoin='group_users.c.user_id == users.c.id')
 
 
 class Telescope(Base):

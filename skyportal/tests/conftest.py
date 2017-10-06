@@ -58,17 +58,7 @@ variable injection performed by `pytest_factoryboy.register` is working.
 # TODO can we remove `autouse` here?
 @pytest.fixture(autouse=True)
 def public_group():
-    return GroupFactory(public=True)
-
-
-@pytest.fixture(autouse=True)
-def owned_group():
-    return GroupFactory(public=False)
-
-
-@pytest.fixture(autouse=True)
-def private_group():
-    return GroupFactory(public=False)
+    return GroupFactory()
 
 
 @pytest.fixture(autouse=True)
@@ -77,16 +67,11 @@ def public_source(public_group):
 
 
 @pytest.fixture(autouse=True)
-def owned_source(owned_group):
-    return SourceFactory(groups=[owned_group])
+def private_source():
+    return SourceFactory(groups=[])
 
 
 @pytest.fixture(autouse=True)
-def private_source(private_group):
-    return SourceFactory(groups=[private_group])
-
-
-@pytest.fixture(autouse=True)
-def user(owned_group):
-    return UserFactory(groups=[owned_group],
+def user(public_group):
+    return UserFactory(groups=[public_group],
                        roles=[models.Role.query.get('Full user')])
