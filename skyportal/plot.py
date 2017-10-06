@@ -169,7 +169,8 @@ def photometry_plot(source_id):
         return None, None, None
 
     for col in ['mag', 'e_mag', 'lim_mag']:
-        data.loc[data[col] > 90, col] = np.nan
+        # TODO remove magic number; where can this logic live?
+        data.loc[np.abs(data[col]) > 90, col] = np.nan
     data['color'] = [color_map.get(f, 'black') for f in data['filter']]
     data['label'] = [f'{t} {f}-band'
                      for t, f in zip(data['telescope'], data['filter'])]

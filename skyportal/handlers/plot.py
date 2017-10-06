@@ -4,6 +4,7 @@ from .. import plot
 import tornado.web
 
 
+# TODO this should distinguish between "no data to plot" and "plot failed"
 class PlotPhotometryHandler(BaseHandler):
     @tornado.web.authenticated
     def get(self, source_id):
