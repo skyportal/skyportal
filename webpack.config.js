@@ -12,29 +12,43 @@ const config = {
   },
   module: {
     rules: [
-      { test: /\.js?$/,
+      {
+        test: /\.js?$/,
         exclude: /node_modules/,
         loader: 'babel-loader',
         options:
         {
-          presets: ['es2015', 'react', 'stage-2'],
-          plugins: ['transform-async-to-generator'],
+          presets: ['env'],
+          plugins: [
+            'transform-object-rest-spread',
+            'transform-async-to-generator',
+            'transform-es2015-arrow-functions',
+            'transform-class-properties'
+          ],
           compact: false
         }
       },
 
-      { test: /\.jsx?$/,
+      {
+        test: /\.jsx?$/,
         exclude: /node_modules/,
         loader: 'babel-loader',
         options:
         {
-          presets: ['es2015', 'react', 'stage-2'],
+          presets: ['env', 'react'],
+          plugins: [
+            'transform-object-rest-spread',
+            'transform-async-to-generator',
+            'transform-es2015-arrow-functions',
+            'transform-class-properties'
+          ],
           compact: false
         }
       },
 
       // Enable CSS Modules for Skyportal
-      { test: /\.css$/,
+      {
+        test: /\.css$/,
         exclude: /node_modules/,
         use: [
           {
@@ -52,7 +66,8 @@ const config = {
 
       // bokehjs doesn't like css-modules, but it
       // does need style-loader and css-loader
-      { test: /\.css$/,
+      {
+        test: /\.css$/,
         include: /node_modules\/bokehjs/,
         use: ['style-loader', 'raw-loader']
       },
@@ -72,7 +87,9 @@ const config = {
   ],
   resolve: {
     alias: {
-      baselayer: path.resolve(__dirname, 'baselayer/static/js')
+      baselayer: path.resolve(__dirname, 'baselayer/static/js'),
+      bokehjs: path.resolve(__dirname, 'node_modules/bokehjs/build/js'),
+      bokehcss: path.resolve(__dirname, 'node_modules/bokehjs/build/css')
     },
     extensions: ['.js', '.jsx']
   }
