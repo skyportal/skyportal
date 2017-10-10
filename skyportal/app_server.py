@@ -4,7 +4,6 @@ from baselayer.app import  model_util
 from baselayer.app.app_server import (handlers as baselayer_handlers,
                                       settings as baselayer_settings,
                                       MainPageHandler)
-from baselayer.app.config import load_config
 
 from skyportal.handlers import (SourceHandler, CommentHandler, GroupHandler,
                                 GroupUserHandler, PlotPhotometryHandler,

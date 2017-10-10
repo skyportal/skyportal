@@ -1,6 +1,7 @@
 SHELL = /bin/bash
 SUPERVISORD=FLAGS=$$FLAGS supervisord -c baselayer/conf/supervisor/supervisor.conf
 SUPERVISORCTL=FLAGS=$$FLAGS supervisorctl -c baselayer/conf/supervisor/supervisor.conf
+ENV_SUMMARY=PYTHONPATH=. ./baselayer/tools/env_summary.py $$FLAGS
 
 .DEFAULT_GOAL := run
 
@@ -50,7 +51,8 @@ run: paths dependencies
 	@echo " - Press Ctrl-C to abort the server"
 	@echo " - Run \`make monitor\` in another terminal to restart services"
 	@echo
-	$(SUPERVISORD)
+	@$(ENV_SUMMARY)
+	@$(SUPERVISORD)
 
 monitor:
 	@echo "Entering supervisor control panel."
@@ -62,13 +64,16 @@ attach:
 	$(SUPERVISORCTL) fg app
 
 testrun: paths dependencies
-	export FLAGS="--config _test_config.yaml" && $(SUPERVISORD)
+	export FLAGS="--config _test_config.yaml" && \
+	$(ENV_SUMMARY) && \
+	$(SUPERVISORD)
 
 debug:
+	@echo
 	@echo "Starting web service in debug mode"
 	@echo "Press Ctrl-D to stop"
 	@echo
-	@FLAGS="--debug" && $(SUPERVISORD) &
+	@FLAGS="--debug" && $(ENV_SUMMARY) && $(SUPERVISORD) &
 	@sleep 1 && $(SUPERVISORCTL) -i status
 	@$(SUPERVISORCTL) shutdown
 

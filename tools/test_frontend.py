@@ -61,7 +61,7 @@ if __name__ == '__main__':
 
     # Initialize the test database connection
     from baselayer.app.models import init_db
-    from skyportal.app_server import load_config
+    from baselayer.app.config import load_config
 
     basedir = pathlib.Path(os.path.dirname(__file__))/'..'
     cfg = load_config([basedir/TEST_CONFIG])
