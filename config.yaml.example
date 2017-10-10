@@ -17,7 +17,6 @@ database:
 
 server:
     url: http://localhost:5000
-    multi_user: False
 
     # From https://console.developers.google.com/
     #
@@ -28,7 +27,6 @@ server:
     # You need to have Google+ API enabled; it takes a few minutes to activate.
 
     auth:
-        debug_login: False
+        debug_login: True
         google_oauth2_key:
         google_oauth2_secret:
-

@@ -6,9 +6,9 @@ The following snippet loads the config file and initializes a
 connection to the database:
 
 ```
-from skyportal import app_server
+from baselayer.app.env import load_env
 from skyportal.models import DBSession, init_db
-cfg = app_server.load_config()
+env, cfg = load_env()
 init_db(**cfg['database'])
 ```
 
