@@ -111,3 +111,9 @@ lint-unix:
 
 lint-githook:
 	cp .git-pre-commit .git/hooks/pre-commit
+
+doc_reqs:
+	pip install -q -r requirements.docs.txt
+
+html: | doc_reqs
+	export SPHINXOPTS=-W; make -C doc html
