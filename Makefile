@@ -2,6 +2,7 @@ SHELL = /bin/bash
 SUPERVISORD=FLAGS=$$FLAGS supervisord -c baselayer/conf/supervisor/supervisor.conf
 SUPERVISORCTL=FLAGS=$$FLAGS supervisorctl -c baselayer/conf/supervisor/supervisor.conf
 ENV_SUMMARY=PYTHONPATH=. ./baselayer/tools/env_summary.py $$FLAGS
+ESLINT=./node_modules/.bin/eslint
 
 .DEFAULT_GOAL := run
 
@@ -28,9 +29,11 @@ db_init:
 db_clear:
 	@PYTHONPATH=. ./baselayer/tools/silent_monitor.py ./baselayer/tools/db_init.py --force
 
-$(bundle): webpack.config.js package.json
+.PHONY: $(bundle)
+$(bundle): static/js node_modules webpack.config.js package.json
 	$(webpack)
 
+.PHONY: bundle
 bundle: $(bundle)
 
 bundle-watch:
@@ -100,14 +103,16 @@ docker-images:
 check-js-updates:
 	./baselayer/tools/check_js_updates.sh
 
-lint-install:
+lint-install: lint-githook
 	./baselayer/tools/update_eslint.sh
 
+$(ESLINT): lint-install
+
 lint:
-	./node_modules/.bin/eslint --ext .jsx,.js static/js
+	$(ESLINT) --ext .jsx,.js static/js
 
 lint-unix:
-	./node_modules/.bin/eslint --ext .jsx,.js --format=unix static/js
+	$(ESLINT) --ext .jsx,.js --format=unix static/js
 
 lint-githook:
 	cp .git-pre-commit .git/hooks/pre-commit
