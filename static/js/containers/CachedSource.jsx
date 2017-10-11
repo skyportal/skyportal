@@ -9,7 +9,7 @@ import * as Action from '../actions';
 class CachedSource extends React.Component {
   componentDidMount() {
     if (!this.isCached()) {
-      const id = this.props.route.id;
+      const { id } = this.props.route;
       this.props.dispatch(Action.fetchSource(id));
     }
   }
@@ -22,7 +22,7 @@ class CachedSource extends React.Component {
     return requestedSource === cachedSource;
   }
 
-  render = () => {
+  render() {
     if (this.props.loadError) {
       return <div>Could not retrieve requested source</div>;
     } else if (!this.isCached()) {

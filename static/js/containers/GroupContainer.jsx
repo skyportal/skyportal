@@ -7,13 +7,13 @@ import Group from '../components/Group';
 
 class GroupContainer extends React.Component {
   componentDidMount() {
-    const id = this.props.route.id;
+    const { id } = this.props.route;
     this.props.dispatch(Action.fetchGroup(id));
   }
 
-  render = () => (
-    <Group name={this.props.name} id={this.props.id} users={this.props.users} />
-  );
+  render() {
+    return <Group name={this.props.name} id={this.props.id} users={this.props.users} />;
+  }
 }
 
 GroupContainer.propTypes = {

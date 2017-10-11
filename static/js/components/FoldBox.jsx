@@ -26,6 +26,7 @@ class FoldBox extends Component {
       >
         <div
           onClick={onClick}
+          onKeyDown={onClick}
           role="button"
           tabIndex={0}
           style={{ fontSize: '150%' }}
