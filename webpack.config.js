@@ -14,7 +14,7 @@ const config = {
     rules: [
       {
         test: /\.js?$/,
-        exclude: /node_modules/,
+        include: /static\/js/,
         loader: 'babel-loader',
         options:
         {
@@ -31,7 +31,7 @@ const config = {
 
       {
         test: /\.jsx?$/,
-        exclude: /node_modules/,
+        include: /static\/js/,
         loader: 'babel-loader',
         options:
         {
@@ -49,7 +49,7 @@ const config = {
       // Enable CSS Modules for Skyportal
       {
         test: /\.css$/,
-        exclude: /node_modules/,
+        include: /static\/js/,
         use: [
           {
             loader: 'style-loader'
@@ -71,7 +71,17 @@ const config = {
         include: /node_modules\/bokehjs/,
         use: ['style-loader', 'raw-loader']
       },
-    ],
+      {
+        test: /\.js$/,
+        include: /node_modules\/bokehjs/,
+
+        // See https://webpack.js.org/guides/shimming/
+        // Bokeh needs 'this' to be defined, in part since the npm package
+        // does not support the Universal Module spec
+        use: 'imports-loader?this=>window'
+      }
+
+    ]
   },
   plugins: [
     new webpack.ProvidePlugin({
@@ -81,8 +91,8 @@ const config = {
     // We do not use JQuery for anything in this project; but Bootstrap
     // depends on it
     new webpack.ProvidePlugin({
-      $: "jquery",
-      jQuery: "jquery"
+      $: 'jquery',
+      jQuery: 'jquery'
     })
   ],
   resolve: {

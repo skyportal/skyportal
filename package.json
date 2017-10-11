@@ -6,7 +6,7 @@
     "test": "eslint --ext .jsx,.js static/js && make test"
   },
   "dependencies": {
-    "bokehjs": "^0.12.6",
+    "bokehjs": "^0.12.9",
     "check-dependencies": "^1.1.0",
     "css-loader": "^0.28.4",
     "exports-loader": "^0.6.4",
