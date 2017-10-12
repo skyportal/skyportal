@@ -26,9 +26,9 @@ Testing:
 
 Development:
 
-- lint-install : Install ESLint and dependencies
-- lint : Run ESLint on all files
+- lint : Run ESLint on all files.  Installs ESLint if necessary.
 - lint-unix : Same as above, but outputs in a format that most text
               editors can parse
 - lint-githook : Install a Git pre-commit hook that lints staged
-                 chunks
+                 chunks (this is done automatically when you lint
+                 for the first time).

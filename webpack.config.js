@@ -12,30 +12,44 @@ const config = {
   },
   module: {
     rules: [
-      { test: /\.js?$/,
-        exclude: /node_modules/,
+      {
+        test: /\.js?$/,
+        include: /static\/js/,
         loader: 'babel-loader',
         options:
         {
-          presets: ['es2015', 'react', 'stage-2'],
-          plugins: ['transform-async-to-generator'],
+          presets: ['env'],
+          plugins: [
+            'transform-object-rest-spread',
+            'transform-async-to-generator',
+            'transform-es2015-arrow-functions',
+            'transform-class-properties'
+          ],
           compact: false
         }
       },
 
-      { test: /\.jsx?$/,
-        exclude: /node_modules/,
+      {
+        test: /\.jsx?$/,
+        include: /static\/js/,
         loader: 'babel-loader',
         options:
         {
-          presets: ['es2015', 'react', 'stage-2'],
+          presets: ['env', 'react'],
+          plugins: [
+            'transform-object-rest-spread',
+            'transform-async-to-generator',
+            'transform-es2015-arrow-functions',
+            'transform-class-properties'
+          ],
           compact: false
         }
       },
 
       // Enable CSS Modules for Skyportal
-      { test: /\.css$/,
-        exclude: /node_modules/,
+      {
+        test: /\.css$/,
+        include: /static\/js/,
         use: [
           {
             loader: 'style-loader'
@@ -52,11 +66,22 @@ const config = {
 
       // bokehjs doesn't like css-modules, but it
       // does need style-loader and css-loader
-      { test: /\.css$/,
+      {
+        test: /\.css$/,
         include: /node_modules\/bokehjs/,
         use: ['style-loader', 'raw-loader']
       },
-    ],
+      {
+        test: /\.js$/,
+        include: /node_modules\/bokehjs/,
+
+        // See https://webpack.js.org/guides/shimming/
+        // Bokeh needs 'this' to be defined, in part since the npm package
+        // does not support the Universal Module spec
+        use: 'imports-loader?this=>window'
+      }
+
+    ]
   },
   plugins: [
     new webpack.ProvidePlugin({
@@ -66,13 +91,15 @@ const config = {
     // We do not use JQuery for anything in this project; but Bootstrap
     // depends on it
     new webpack.ProvidePlugin({
-      $: "jquery",
-      jQuery: "jquery"
+      $: 'jquery',
+      jQuery: 'jquery'
     })
   ],
   resolve: {
     alias: {
-      baselayer: path.resolve(__dirname, 'baselayer/static/js')
+      baselayer: path.resolve(__dirname, 'baselayer/static/js'),
+      bokehjs: path.resolve(__dirname, 'node_modules/bokehjs/build/js'),
+      bokehcss: path.resolve(__dirname, 'node_modules/bokehjs/build/css')
     },
     extensions: ['.js', '.jsx']
   }

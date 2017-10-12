@@ -52,7 +52,7 @@ class MainContent extends React.Component {
             <div className={styles.websocket}>
               <WebSocket
                 url={`ws://${this.props.root}websocket`}
-                auth_url={`${location.protocol}//${this.props.root}socket_auth_token`}
+                auth_url={`${window.location.protocol}//${this.props.root}socket_auth_token`}
                 messageHandler={messageHandler}
                 dispatch={store.dispatch}
               />
@@ -99,7 +99,7 @@ MainContent.propTypes = {
 ReactDOM.render(
   <Provider store={store}>
     <BrowserRouter basename="/">
-      <MainContent root={`${location.host}/`} />
+      <MainContent root={`${window.location.host}/`} />
     </BrowserRouter>
   </Provider>,
   document.getElementById('content')

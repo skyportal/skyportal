@@ -23,7 +23,8 @@ function API(endpoint, actionType, method='GET', body={}, otherArgs={}) {
         return dispatch(
           showNotification(
             'API invocation error: no actionType specified',
-            'error')
+            'error'
+          )
         );
       }
       dispatch({ type: API_CALL, parameters });

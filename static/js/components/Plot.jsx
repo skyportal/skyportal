@@ -1,14 +1,16 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 
+// These imports are necessary to initialize Bokeh + its extensions
+
 // eslint-disable-next-line import/extensions
-import "../../../node_modules/bokehjs/build/js/bokeh.js";
+import "bokehjs/bokeh.js";
 // eslint-disable-next-line import/extensions
-import "../../../node_modules/bokehjs/build/css/bokeh.css";
+import "bokehcss/bokeh.css";
 // eslint-disable-next-line import/extensions
-import "../../../node_modules/bokehjs/build/js/bokeh-widgets.js";
+import "bokehjs/bokeh-widgets.js";
 // eslint-disable-next-line import/extensions
-import "../../../node_modules/bokehjs/build/css/bokeh-widgets.css";
+import "bokehcss/bokeh-widgets.css";
 
 
 function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
@@ -21,8 +23,19 @@ function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
   bokeh_div.appendChild(inner_div);
   node.appendChild(bokeh_div);
 
+  // We have to give the Bokeh-generated JS snippet access to Bokeh.
+  // We do that by attaching Bokeh to the (global) Window object, and then
+  // modifying "this" (used by the universal module initializer) to point
+  // to it.
+  //
+  // The next statement may seem strange, since "Bokeh" is not defined; but the import
+  // above and/or webpack handles that for us.
+
+  // eslint-disable-next-line no-undef
+  window.Bokeh = Bokeh;
+  custom_model_js = custom_model_js.replace('this', 'root');
   // eslint-disable-next-line no-eval
-  eval(custom_model_js);
+  eval(`const root = { Bokeh: window.Bokeh }; ${custom_model_js}`);
 
   // Generate plot
   // eslint-disable-next-line no-undef

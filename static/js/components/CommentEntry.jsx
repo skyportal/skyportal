@@ -13,15 +13,15 @@ class CommentEntry extends React.Component {
     this._handleChange = this._handleChange.bind(this);
   }
 
-  _handleSubmit = (event) => {
+  _handleSubmit(event) {
     const { addComment } = this.props;
 
     event.preventDefault();
     addComment(this.state.value);
     this.setState({ value: "" });
-  };
+  }
 
-  _handleChange = (event) => {
+  _handleChange(event) {
     this.setState({ value: event.target.value });
   }
 

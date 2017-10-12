@@ -2,7 +2,7 @@
 parser: babel-eslint
 env:
   browser: true
-extends: airbnb
+extends: [airbnb, plugin:react/recommended]
 plugins: [import, react]
 settings:
   import/resolver:
@@ -49,3 +49,5 @@ rules:
   space-infix-ops: 0
   no-underscore-dangle: [2, {"allowAfterThis": true}]
   vars-on-top: 0
+  object-curly-newline: [2, {"consistent": true}]
+  function-paren-newline: [2, "consistent"]
