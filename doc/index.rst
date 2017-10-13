@@ -1,10 +1,14 @@
 Skyportal
-=========
+---------
 
 .. toctree::
    :maxdepth: 2
 
-   Installation <install>
+   setup
+   dev
+   usage
+   api/api
+
 
 .. Indices and tables
 .. ==================
