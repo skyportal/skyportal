@@ -6,7 +6,7 @@ web:
     - db
 
 db:
-  image: postgres:9.5
+  image: postgres:9.6
   environment:
     - POSTGRES_USER=skyportal
     - POSTGRES_PASSWORD=
