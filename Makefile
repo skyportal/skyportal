@@ -71,6 +71,11 @@ testrun: paths dependencies
 	$(ENV_SUMMARY) && \
 	$(SUPERVISORD)
 
+dockerrun: paths dependencies
+	export FLAGS="--config docker.yaml" && \
+	$(ENV_SUMMARY) && \
+	$(SUPERVISORD)
+
 debug:
 	@echo
 	@echo "Starting web service in debug mode"

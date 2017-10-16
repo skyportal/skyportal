@@ -28,7 +28,7 @@ WORKDIR /skyportal
 RUN bash -c "source /skyportal_env/bin/activate && \
     make paths && \
     make dependencies && \
-    cp docker/skyportal.yaml . && \
+    cp docker/skyportal.yaml ./docker.yaml && \
     chown -R skyportal.skyportal /skyportal_env && \
     chown -R skyportal.skyportal /skyportal"
 
@@ -38,5 +38,4 @@ EXPOSE 5000
 
 CMD bash -c "source /skyportal_env/bin/activate && \
              (make log &) && \
-             make run"
-
+	     make dockerrun"
