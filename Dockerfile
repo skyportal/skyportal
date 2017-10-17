@@ -16,7 +16,6 @@ RUN apt-get update && \
 RUN python3.6 -m venv /skyportal_env && \
     \
     bash -c "source /skyportal_env/bin/activate && \
-    pip install --upgrade pip && \
     pip install --upgrade pip"
 
 ENV LC_ALL=C.UTF-8
@@ -27,6 +26,7 @@ WORKDIR /skyportal
 
 RUN bash -c "source /skyportal_env/bin/activate && \
     make paths && \
+    make dependencies || echo 'npm: failed first run, trying again' && \
     make dependencies && \
     chown -R skyportal.skyportal /skyportal_env && \
     chown -R skyportal.skyportal /skyportal"
