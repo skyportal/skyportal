@@ -24,12 +24,19 @@ ENV LANG=C.UTF-8
 ADD . /skyportal
 WORKDIR /skyportal
 
-RUN bash -c "source /skyportal_env/bin/activate && \
+RUN bash -c "\
+    source /skyportal_env/bin/activate && \
+    \
     make paths && \
-    make dependencies || echo 'npm: failed first run, trying again' && \
-    make dependencies && \
+    (make dependencies || make dependencies) && \
+    \
+    make bundle && \
+    rm -rf node_modules && \
+    \
     chown -R skyportal.skyportal /skyportal_env && \
-    chown -R skyportal.skyportal /skyportal"
+    chown -R skyportal.skyportal /skyportal && \
+    \
+    cp docker.yaml config.yaml"
 
 USER skyportal
 
@@ -37,4 +44,4 @@ EXPOSE 5000
 
 CMD bash -c "source /skyportal_env/bin/activate && \
              (make log &) && \
-	     make dockerrun"
+             make run_production"
