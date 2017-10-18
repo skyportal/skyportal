@@ -145,6 +145,7 @@ def _plot_to_json(plot):
     return docs_json, render_items, custom_model_js
 
 
+# TODO make async so that thread isn't blocked
 def photometry_plot(source_id):
     """Create scatter plot of photometry for source.
 
@@ -161,8 +162,7 @@ def photometry_plot(source_id):
     color_map = {'ipr': 'yellow', 'rpr': 'red', 'g': 'green'}
 
     data = pd.read_sql(DBSession()
-                       .query(Photometry,
-                              Telescope.nickname.label('telescope'))
+                       .query(Photometry, Telescope.nickname.label('telescope'))
                        .join(Instrument).join(Telescope)
                        .filter(Photometry.source_id == source_id)
                        .statement, DBSession().bind)
@@ -190,7 +190,7 @@ def photometry_plot(source_id):
     for i, ((label, is_obs), df) in enumerate(split):
         key = ("" if is_obs else "un") + 'obs' + str(i // 2)
         model_dict[key] = plot.scatter(
-            x='obs_time', y='mag' if is_obs else 'lim_mag',
+            x='observed_at', y='mag' if is_obs else 'lim_mag',
             color='color',
             marker='circle' if is_obs else 'inverted_triangle',
             fill_color='color' if is_obs else 'white',
@@ -201,10 +201,10 @@ def photometry_plot(source_id):
                                                  months=['%D'], years=['%D'])
     plot.toolbar.logo = None
 
-    hover = HoverTool(tooltips=[('obs_time', '@obs_time{%D}'), ('mag', '@mag'),
+    hover = HoverTool(tooltips=[('observed_at', '@observed_at{%D}'), ('mag', '@mag'),
                                 ('lim_mag', '@lim_mag'),
                                 ('filter', '@filter')],
-                      formatters={'obs_time': 'datetime'})
+                      formatters={'observed_at': 'datetime'})
     plot.add_tools(hover)
 
     toggle = CheckboxWithLegendGroup(
@@ -226,6 +226,7 @@ def photometry_plot(source_id):
     return _plot_to_json(layout)
 
 
+# TODO make async so that thread isn't blocked
 def spectroscopy_plot(source_id):
     """TODO normalization? should this be handled at data ingestion or plot-time?"""
     source = Source.query.get(source_id)

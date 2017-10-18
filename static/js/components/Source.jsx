@@ -3,14 +3,16 @@ import PropTypes from 'prop-types';
 
 import PlotContainer from '../containers/PlotContainer';
 import CommentListContainer from '../containers/CommentListContainer';
+import ThumbnailList from './ThumbnailList';
 import SurveyLinkList from './SurveyLinkList';
+import { ra_to_hours, dec_to_hours } from '../units';
 
 import styles from "./Source.css";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 
 
-const Source = ({ ra, dec, red_shift, id }) => {
+const Source = ({ ra, dec, red_shift, thumbnails, id }) => {
   if (id === undefined) {
     return <div>Source not found</div>;
   } else {
@@ -21,8 +23,9 @@ const Source = ({ ra, dec, red_shift, id }) => {
 
           <div className={styles.name}>{id}</div>
 
-          <b>Location:</b> {ra}, {dec}<br />
-          <b>Red Shift: </b>{red_shift}
+          <b>Location:</b> {ra}, {dec} ({ra_to_hours(ra)}, {dec_to_hours(dec)})<br />
+          <b>Red Shift: </b>{red_shift}<br />
+          <ThumbnailList ra={ra} dec={dec} thumbnails={thumbnails} />
 
           <br />
           <Responsive
@@ -75,8 +78,13 @@ const Source = ({ ra, dec, red_shift, id }) => {
 Source.propTypes = {
   ra: PropTypes.number.isRequired,
   dec: PropTypes.number.isRequired,
-  red_shift: PropTypes.number.isRequired,
-  id: PropTypes.string.isRequired
+  red_shift: PropTypes.number,
+  id: PropTypes.string.isRequired,
+  thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired
+};
+
+Source.defaultProps = {
+  red_shift: null
 };
 
 export default Source;

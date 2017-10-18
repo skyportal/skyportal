@@ -11,7 +11,8 @@ class SpectrumHandler(BaseHandler):
         data = self.get_json()
 
         # TODO where do we get the instrument info?
-        p = Spectrum(source_id=data['sourceID'], observed_at=data['observed_at'], 
+        p = Spectrum(source_id=data['sourceID'],
+                     observed_at=data['observed_at'],
                      instrument_id=data['instrumentID'],
                      wavelengths=data['wavlengths'],
                      fluxes=data['fluxes'],

@@ -109,6 +109,7 @@ if __name__ == '__main__':
         except ValueError:
             print(f"Skipped {f}")
 
+    # TODO can't serve from outside static/
     cutout_files = glob(f'{args.data_dir}/cutouts/*')
     phot_info = DBSession().query(sa.sql.functions.min(Photometry.id),
                                   Photometry.source_id).group_by(Photometry.source_id).all()
