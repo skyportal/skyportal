@@ -34,7 +34,10 @@ def setup_permissions(super_username=None):
     if super_username is not None:
         super_user = models.User(username=super_username,
                                  role_ids=['Super admin'])
-        models.DBSession().add(super_user)
+        social = TornadoStorage.user.create_social_auth(super_user,
+                                                        super_user.username,
+                                                        'google-oauth2')
+        models.DBSession().add_all([super_user, social])
 
     models.DBSession().commit()
 

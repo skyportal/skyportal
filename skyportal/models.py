@@ -160,3 +160,13 @@ class Spectrum(Base):
     wavelengths = sa.Column(NumpyArray, nullable=False)
     fluxes = sa.Column(NumpyArray, nullable=False)
     errors = sa.Column(NumpyArray)
+
+    @classmethod
+    def from_ascii(cls, filename, source_id, instrument_id, observed_at):
+        data = np.loadtxt(filename)
+        if data.shape[1] != 2:  # TODO support other formats
+            raise ValueError(f"Expected 2 columns, got {data.shape[1]}")
+
+        return cls(wavelengths=data[:, 0], fluxes=data[:, 1],
+                   source_id=source_id, instrument_id=instrument_id,
+                   observed_at=observed_at)

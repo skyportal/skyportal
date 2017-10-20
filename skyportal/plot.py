@@ -35,6 +35,7 @@ SPEC_LINES = {
     'Fe II': ([5018, 5169], '#f26c4f'),
     'Fe III': ([4397, 4421, 4432, 5129, 5158], '#f9917b')
 }
+# TODO add groups
 # Galaxy lines
 #
 # 'H': '4341, 4861, 6563;
@@ -226,6 +227,7 @@ def photometry_plot(source_id):
 
 
 def spectroscopy_plot(source_id):
+    """TODO normalization? should this be handled at data ingestion or plot-time?"""
     source = Source.query.get(source_id)
     spectra = Source.query.get(source_id).spectra
     if len(spectra) == 0:
