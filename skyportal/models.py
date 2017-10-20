@@ -68,7 +68,8 @@ class Source(Base):
     dec = sa.Column(sa.Float)
     red_shift = sa.Column(sa.Float, nullable=True)
     groups = relationship('Group', secondary='group_sources', cascade='all')
-    comments = relationship('Comment', back_populates='source', cascade='all')
+    comments = relationship('Comment', back_populates='source', cascade='all',
+                            order_by="Comment.created_at")
     photometry = relationship('Photometry', back_populates='source', cascade='all')
     spectra = relationship('Spectrum', back_populates='source', cascade='all')
 
@@ -122,7 +123,8 @@ class Comment(Base):
     attachment_bytes = sa.Column(sa.types.LargeBinary, nullable=True)
 
 
-User.comments = relationship('Comment', back_populates='user', cascade='all')
+User.comments = relationship('Comment', back_populates='user', cascade='all',
+                             order_by="Comment.created_at")
 
 
 class Photometry(Base):
