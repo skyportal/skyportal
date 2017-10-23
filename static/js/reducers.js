@@ -25,7 +25,7 @@ export function sourceReducer(state={ source: null, loadError: false }, action) 
   }
 }
 
-export function sourcesReducer(state={ latest: [] }, action) {
+export function sourcesReducer(state={ latest: null }, action) {
   switch (action.type) {
     case Action.FETCH_SOURCES_OK: {
       const sources = action.data;
@@ -48,7 +48,7 @@ export function groupReducer(state={}, action) {
   }
 }
 
-export function groupsReducer(state={ latest: [] }, action) {
+export function groupsReducer(state={ latest: null }, action) {
   switch (action.type) {
     case Action.FETCH_GROUPS_OK: {
       const groups = action.data;
