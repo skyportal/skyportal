@@ -45,7 +45,7 @@ class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Photometry
 
     instrument = factory.SubFactory(InstrumentFactory)
-    obs_time = factory.LazyFunction(lambda: datetime.datetime.now() -
+    observed_at = factory.LazyFunction(lambda: datetime.datetime.now() -
                                     datetime.timedelta(days=np.random.randint(0, 10)))
     mag = factory.LazyFunction(lambda: 20 + 10 * np.random.random())
     e_mag = factory.LazyFunction(lambda: 2 * np.random.random())

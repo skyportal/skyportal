@@ -1,0 +1,15 @@
+.ThumbnailList {
+    display: inline-block;
+    white-space: nowrap;
+}
+
+.Thumbnail {
+    display: inline-block;
+    padding: 0.2em;
+    margin: 0.2em;
+}
+
+.Thumbnail img {
+    width: 200px;
+    height: 200px;
+}

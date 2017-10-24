@@ -1,5 +1,7 @@
 import datetime
 import os
+from pathlib import Path
+import shutil
 import numpy as np
 import pandas as pd
 
@@ -45,6 +47,7 @@ def setup_permissions(super_username=None):
 if __name__ == "__main__":
     """Insert test data"""
     env, cfg = load_env()
+    basedir = Path(os.path.dirname(__file__))/'..'
 
     with status(f"Connecting to database {cfg['database']['database']}"):
         models.init_db(**cfg['database'])
@@ -95,12 +98,13 @@ if __name__ == "__main__":
         models.DBSession().add_all([i1, i2])
 
     with status("Creating dummy sources"):
-        SOURCES = [{'id': '14gqr', 'ra': 353.36647, 'dec': 33.656149, 'red_shift': 0.063,
+        SOURCES = [{'id': '14gqr', 'ra': 353.36647, 'dec': 33.646149, 'red_shift': 0.063,
                     'comments': ["No source at transient location to R>26 in LRIS imaging",
                                  "Strong calcium lines have emerged."]},
                    {'id': '16fil', 'ra': 322.718872, 'dec': 27.574113, 'red_shift': 0.0,
                     'comments': ["Frogs in the pond", "The eagle has landed"]}]
 
+        (basedir/'static/thumbnails').mkdir(parents=True, exist_ok=True)
         for source_info in SOURCES:
             comments = source_info.pop('comments')
 
@@ -122,5 +126,15 @@ if __name__ == "__main__":
                                          wavelengths=df.wavelength,
                                          fluxes=df.flux, errors=None)
                          for i, df in spec_data.groupby('instrument_id')]
-
             models.DBSession().add(s)
+            models.DBSession().commit()
+
+            for ttype in ['new', 'ref', 'sub']:
+                fname = f'{s.id}_{ttype}.png'
+                t = models.Thumbnail(type=ttype, photometry_id=s.photometry[0].id,
+                                     file_uri=f'static/thumbnails/{fname}',
+                                     public_url=f'/static/thumbnails/{fname}')
+                models.DBSession().add(t)
+                shutil.copy(basedir/f'skyportal/tests/data/{fname}', basedir/'static/thumbnails/')
+
+            s.add_linked_thumbnails()
