@@ -50,8 +50,6 @@ export function fetchUserProfile() {
 export function hydrate() {
   return (dispatch) => {
     dispatch(fetchUserProfile());
-    dispatch(fetchSources());
-    dispatch(fetchGroups());
   };
 }
 

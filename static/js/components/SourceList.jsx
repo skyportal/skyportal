@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 
 const SourceList = ({ sources }) => (
   <div>
-    <h2>List of Sources</h2>
+    <h2>Sources</h2>
     <ul>
       {
         sources.map((source, idx) => (
