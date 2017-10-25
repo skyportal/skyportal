@@ -16,12 +16,11 @@
       local skyportal_test skyportal trust
       ```
 - Initialize the database with `make db_init` (also tests that your permissions have been properly configured)
-- Install Python and JavaScript dependencies with `make_dependencies`
 - #TODO Add test data into the database
 - Run `make` to start the server and navigate to `localhost:5000`
 
 ## Configuration
-- Copy `config.yaml.example` to `config.yaml` and customize.  #TODO renaming this? also, no need to copy (FWIW, I think this is currently broken; we don’t read `config.yaml` 😕 )
+- Copy `config.yaml.defaults` to `config.yaml` and customize.  #TODO renaming this? also, no need to copy (FWIW, I think this is currently broken; we don’t read `config.yaml` 😕 )
 - #TODO How to configure User #0 as admin
 - If you want other users to be able to access the server:
   - #TODO Serve on 127.0.0.1 instead of 0.0.0.0 unless debug login is disabled?

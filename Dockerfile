@@ -27,10 +27,10 @@ WORKDIR /skyportal
 RUN bash -c "\
     source /skyportal_env/bin/activate && \
     \
-    make paths && \
-    (make dependencies || make dependencies) && \
+    make -C baselayer paths && \
+    (make -C baselayer dependencies || make -C baselayer dependencies) && \
     \
-    make bundle && \
+    make -C baselayer bundle && \
     rm -rf node_modules && \
     \
     chown -R skyportal.skyportal /skyportal_env && \

@@ -17,8 +17,6 @@ section "install.baselayer.requirements"
 npm -g install npm@4.2.0
 npm --version
 node --version
-make dependencies
-make check-js-updates
 
 # TODO replace w/ baselayer dependent build info
 if [[ -n ${TRIGGERED_FROM_REPO} ]]; then
@@ -36,11 +34,9 @@ pip list --format=columns
 section_end "install.baselayer.requirements"
 
 
-section "init.baselayer"
-make paths
+section "init.db"
 make db_init
-make bundle
-section_end "init.baselayer"
+section_end "init.db"
 
 
 section "install.chromedriver"

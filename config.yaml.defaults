@@ -16,8 +16,6 @@ database:
     password:
 
 server:
-    url: http://localhost:5000
-
     # From https://console.developers.google.com/
     #
     # - Create Client ID
