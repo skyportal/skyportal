@@ -1,0 +1,13 @@
+# Here, you can customize your Skyportal configuration
+#
+# Refer to `config.yaml.example` and `baselayer/config.yaml.defaults`
+# for a full list of variables.
+
+app:
+    secret-key: abc01234  # This secret key can be any random string of
+                          # characters.
+                          #
+                          # You should re-generate this for your application
+                          # using:
+                          #
+                          # base64.b64encode(os.urandom(50)).decode('ascii')
