@@ -12,4 +12,3 @@ db:
     - POSTGRES_USER=skyportal
     - POSTGRES_PASSWORD=
     - POSTGRES_DB=skyportal
-
