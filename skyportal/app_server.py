@@ -1,6 +1,5 @@
 import tornado.web
 
-from baselayer.app import  model_util
 from baselayer.app.app_server import (handlers as baselayer_handlers,
                                       settings as baselayer_settings,
                                       MainPageHandler)
@@ -9,7 +8,7 @@ from skyportal.handlers import (SourceHandler, CommentHandler, GroupHandler,
                                 GroupUserHandler, PlotPhotometryHandler,
                                 PlotSpectroscopyHandler, ProfileHandler,
                                 BecomeUserHandler, LogoutHandler)
-from skyportal import models
+from skyportal import models, model_util
 
 
 def make_app(cfg, baselayer_handlers, baselayer_settings):
@@ -58,6 +57,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
     app = tornado.web.Application(handlers, **settings)
     models.init_db(**cfg['database'])
     model_util.create_tables()
+    model_util.setup_permissions()
     app.cfg = cfg
 
     return app
