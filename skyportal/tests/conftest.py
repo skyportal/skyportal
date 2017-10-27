@@ -23,7 +23,7 @@ models.init_db(**cfg['database'])
 @pytest.fixture(scope='session', autouse=True)
 def add_acls(request):
     """Create roles/ACLs needed by application."""
-    setup_permissions()
+#    setup_permissions()
     """TODO Allow admin user to change to another user for testing.
     role = models.Role.query.get('Test user')
     if role is None:
