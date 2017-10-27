@@ -5,7 +5,6 @@ import numpy as np
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, relationship
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
@@ -70,6 +69,7 @@ User.groups = relationship('Group', secondary='group_users', cascade='all',
 
 class Source(Base):
     id = sa.Column(sa.String, primary_key=True)
+    # TODO should this column type be decimal? fixed-precison numeric
     ra = sa.Column(sa.Float)
     dec = sa.Column(sa.Float)
     red_shift = sa.Column(sa.Float, nullable=True)

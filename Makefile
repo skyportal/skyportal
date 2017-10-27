@@ -62,6 +62,6 @@ doc_reqs:
 	pip install -q -r requirements.docs.txt
 
 html: | doc_reqs
-       export SPHINXOPTS=-W; make -C doc html
+	export SPHINXOPTS=-W; make -C doc html
 
 -include "baselayer/README.md"  # always clone baselayer if it doesn't exist
