@@ -13,16 +13,30 @@ from skyportal.models import (init_db, DBSession, ACL, Comment, Instrument,
                               Telescope, User)
 
 
-def setup_permissions(super_username=None):
+def add_super_user(username):
+    """Initializes a super user with full permissions."""
+    super_user = User.query.filter(User.username==username).first()
+    if super_user is None:
+        super_user = User(username=username)
+        social = TornadoStorage.user.create_social_auth(super_user,
+                                                        super_user.username,
+                                                        'google-oauth2')
+    admin_role = Role.query.get('Super admin')
+    if admin_role not in super_user.roles:
+        super_user.roles.append(admin_role)
+    DBSession().add(super_user)
+    DBSession().commit()
+
+
+def setup_permissions():
     """Create default ACLs/Roles needed by application.
 
-    If `super_username` is given, also initializes a super user with full
-    permissions with the given username.
-    """
-    all_acl_ids = ['Comment', 'Manage users', 'Manage sources', 'Manage groups',
-                   'Upload data', 'System admin']
-    all_acls = [ACL(id=a) for a in all_acl_ids]
+    If a given ACL or Role already exists, it will be skipped."""
+    all_acl_ids = ['Become user', 'Comment', 'Manage users', 'Manage sources',
+                   'Manage groups', 'Upload data', 'System admin']
+    all_acls = [ACL.create_or_get(a) for a in all_acl_ids]
     DBSession().add_all(all_acls)
+    DBSession().commit()
 
     role_acls = {
         'Super admin': all_acl_ids,
@@ -30,18 +44,10 @@ def setup_permissions(super_username=None):
         'Full user': ['Comment', 'Upload data']
     }
 
-    for role_id, all_acl_ids in role_acls.items():
-        DBSession().add(Role(id=role_id, acls=[a for a in all_acls
-                                               if a.id in all_acl_ids]))
-
-    if super_username is not None:
-        super_user = User(username=super_username,
-                          role_ids=['Super admin'])
-        social = TornadoStorage.user.create_social_auth(super_user,
-                                                        super_user.username,
-                                                        'google-oauth2')
-        DBSession().add_all([super_user, social])
-
+    for r, acl_ids in role_acls.items():
+        role = Role.create_or_get(r)
+        role.acls = [ACL.query.get(a) for a in acl_ids]
+        DBSession().add(role)
     DBSession().commit()
 
 
