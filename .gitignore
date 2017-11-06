@@ -13,3 +13,4 @@ __pycache__/
 node_modules/
 *.pyc
 config.yaml
+static/thumbnails
