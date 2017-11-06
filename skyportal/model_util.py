@@ -10,7 +10,7 @@ from baselayer.app.model_util import status, create_tables, drop_tables
 from social_tornado.models import TornadoStorage
 from skyportal.models import (init_db, Base, DBSession, ACL, Comment,
                               Instrument, Group, GroupUser, Photometry, Role,
-                              Spectrum, Telescope, User)
+                              Source, Spectrum, Telescope, Thumbnail, User)
 
 
 def add_super_user(username):

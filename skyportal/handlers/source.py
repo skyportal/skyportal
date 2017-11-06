@@ -1,7 +1,7 @@
 import tornado.web
 from sqlalchemy.orm import joinedload
 from baselayer.app.access import permissions
-from baselayer.app.handlers.base import BaseHandler
+from baselayer.app.handlers import BaseHandler
 from ..models import (DBSession, Comment, Instrument, Photometry, Source,
                       Thumbnail)
 
