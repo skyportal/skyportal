@@ -45,53 +45,36 @@ function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
   });
 }
 
-class Plot extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      plotData: null
-    };
+class Plot = props => {
+  const { plotData, error } = props;
+  if (error) {
+    return <b>Error: Could not fetch plotting data</b>;
+  }
+  if (!plotData) {
+    return <b>Please wait while we load your plotting data...</b>;
   }
 
-  async componentWillMount() {
-    const plotData = await this.props.fetchPlotData(this.props.url);
-    if (plotData) {
-      this.setState({ plotData, error: false });
-    } else {
-      this.setState({ error: true });
-    }
-  }
+  const { docs_json, render_items, custom_model_js } = plotData;
 
-  render() {
-    const { plotData, error } = this.state;
-    if (error) {
-      return <b>Error: Could not fetch plotting data</b>;
-    }
-    if (!plotData) {
-      return <b>Please wait while we load your plotting data...</b>;
-    }
-
-    const { docs_json, render_items, custom_model_js } = plotData;
-
-    return (
-      <div
-        className={this.props.className}
-        ref={
-          (node) => {
-            if (node) {
-              bokeh_render_plot(
-                node,
-                JSON.parse(docs_json),
-                JSON.parse(render_items),
-                custom_model_js
-              );
-            }
+  return (
+    <div
+      className={this.props.className}
+      ref={
+        (node) => {
+          if (node) {
+            bokeh_render_plot(
+              node,
+              JSON.parse(docs_json),
+              JSON.parse(render_items),
+              custom_model_js
+            );
           }
         }
-      />
-    );
-  }
-}
+          }
+    />
+  );
+};
+
 
 Plot.propTypes = {
   url: PropTypes.string.isRequired,

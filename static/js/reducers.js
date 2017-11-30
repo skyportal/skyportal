@@ -72,6 +72,31 @@ export function profileReducer(state={ username: '', roles: [] }, action) {
   }
 }
 
+export function plotsReducer(state={ plotData: {}, plotIDList: [] }, action) {
+  switch (action.type) {
+    case Action.FETCH_PLOT_DATA_OK: {
+      plotData = Object.assign({}, state.plotData);
+      plotIDList = Object.assign({}, state.plotIDList);
+
+      plotIDList.unshift(action.data.url);
+      plotData[action.data.url] = action.data.plotData;
+      if (state.plotIDList.length >= 20) {
+        plotIDList.length = 20;
+        for (ID in plotData) {
+          if (!plotIDList.includes(ID)) {
+            delete plotData[ID];
+          }
+      }
+      return {
+        plotData,
+        plotIDList
+      };
+    }
+    default:
+      return state;
+  }
+}
+
 export function miscReducer(state={ rotateLogo: false }, action) {
   switch (action.type) {
     case Action.ROTATE_LOGO: {
@@ -92,6 +117,7 @@ const root = combineReducers({
   groups: groupsReducer,
   notifications: notificationsReducer,
   profile: profileReducer,
+  plots: plotsReducer,
   misc: miscReducer
 });
 
