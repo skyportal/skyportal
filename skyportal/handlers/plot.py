@@ -13,7 +13,8 @@ class PlotPhotometryHandler(BaseHandler):
             self.error(f"Could not generate plot for source {source_id}")
         else:
             self.success({'docs_json': docs_json, 'render_items': render_items,
-                          'custom_model_js': custom_model_js})
+                          'custom_model_js': custom_model_js,
+                          'url': self.request.path})
 
 
 class PlotSpectroscopyHandler(BaseHandler):
@@ -24,4 +25,5 @@ class PlotSpectroscopyHandler(BaseHandler):
             self.error(f"Could not generate plot for source {source_id}")
         else:
             self.success({'docs_json': docs_json, 'render_items': render_items,
-                          'custom_model_js': custom_model_js})
+                          'custom_model_js': custom_model_js,
+                          'url': self.request.path})

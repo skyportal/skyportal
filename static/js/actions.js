@@ -49,6 +49,10 @@ export function fetchGroup(id) {
   return API.GET(`/api/groups/${id}`, FETCH_GROUP);
 }
 
+export function fetchPlotData(url) {
+  return API.GET(url, FETCH_SOURCE_PLOT);
+}
+
 export function fetchGroups() {
   return API.GET('/api/groups', FETCH_GROUPS);
 }

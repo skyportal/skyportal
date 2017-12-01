@@ -45,7 +45,7 @@ function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
   });
 }
 
-class Plot = props => {
+const Plot = props => {
   const { plotData, error } = props;
   if (error) {
     return <b>Error: Could not fetch plotting data</b>;
@@ -58,7 +58,7 @@ class Plot = props => {
 
   return (
     <div
-      className={this.props.className}
+      className={props.className}
       ref={
         (node) => {
           if (node) {
@@ -77,8 +77,6 @@ class Plot = props => {
 
 
 Plot.propTypes = {
-  url: PropTypes.string.isRequired,
-  fetchPlotData: PropTypes.func.isRequired,
   className: PropTypes.string
 };
 
