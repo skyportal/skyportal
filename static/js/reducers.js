@@ -81,8 +81,8 @@ export function plotsReducer(state={ plotData: {}, plotIDList: [] }, action) {
       const { url, ...incomingData } = action.data;
       plotIDList.unshift(url);
       plotData[url] = incomingData;
-      if (plotIDList.length >= 20) {
-        plotIDList.length = 20;
+      if (plotIDList.length >= 40) {
+        plotIDList.length = 40;
         for (ID in plotData) {
           if (!plotIDList.includes(ID)) {
             delete plotData[ID];
