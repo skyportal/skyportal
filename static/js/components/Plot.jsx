@@ -21,6 +21,7 @@ function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
   inner_div.setAttribute("class", "bk-plotdiv");
   inner_div.setAttribute("id", render_items[0].elementid);
   bokeh_div.appendChild(inner_div);
+  while (node.hasChildNodes()) { node.removeChild(node.lastChild); }
   node.appendChild(bokeh_div);
 
   // We have to give the Bokeh-generated JS snippet access to Bokeh.
