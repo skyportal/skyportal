@@ -23,14 +23,12 @@ class PlotContainer extends Component {
       this.setState({ fetchingPlotIDs: this.state.fetchingPlotIDs.concat(
         [this.props.url]) });
     }
-    if (this.props.plots.plotData[this.props.url] &&
-        this.state.fetchingPlotIDs.includes(this.props.url)) {
-      let fetchingPlotIDs = this.state.fetchingPlotIDs.slice();
-      fetchingPlotIDs.splice(fetchingPlotIDs.indexOf(this.props.url), 1);
-      this.setState({ fetchingPlotIDs: fetchingPlotIDs });
-    }
+    this.updateFetchingIDsList()
   }
   componentWillReceiveProps() {
+    this.updateFetchingIDsList()
+  }
+  updateFetchingIDsList() {
     if (this.props.plots.plotData[this.props.url] &&
         this.state.fetchingPlotIDs.includes(this.props.url)) {
       let fetchingPlotIDs = this.state.fetchingPlotIDs.slice();
@@ -44,7 +42,7 @@ class PlotContainer extends Component {
              plotData={this.props.plots.plotData[this.props.url]}
              error={this.state.error}
              className={this.props.className}
-           />;
+    />;
   }
 }
 
