@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
 
 // These imports are necessary to initialize Bokeh + its extensions
@@ -46,7 +46,7 @@ function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
   });
 }
 
-const Plot = props => {
+const Plot = (props) => {
   const { plotData, error } = props;
   if (error) {
     return <b>Error: Could not fetch plotting data</b>;
@@ -78,10 +78,14 @@ const Plot = props => {
 
 
 Plot.propTypes = {
+  plotData: PropTypes.object,
+  error: PropTypes.bool,
   className: PropTypes.string
 };
 
 Plot.defaultProps = {
+  plotData: null,
+  error: false,
   className: ""
 };
 

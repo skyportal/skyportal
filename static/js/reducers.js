@@ -75,19 +75,19 @@ export function profileReducer(state={ username: '', roles: [] }, action) {
 export function plotsReducer(state={ plotData: {}, plotIDList: [] }, action) {
   switch (action.type) {
     case Action.FETCH_SOURCE_PLOT_OK: {
-      let plotData = Object.assign({}, state.plotData);
-      let plotIDList = state.plotIDList.slice();
+      const plotData = Object.assign({}, state.plotData);
+      const plotIDList = state.plotIDList.slice();
 
       const { url, ...incomingData } = action.data;
       plotIDList.unshift(url);
       plotData[url] = incomingData;
       if (plotIDList.length >= 40) {
         plotIDList.length = 40;
-        for (ID in plotData) {
+        Object.keys(plotData).forEach((ID) => {
           if (!plotIDList.includes(ID)) {
             delete plotData[ID];
           }
-        }
+        });
       }
       return {
         plotData,

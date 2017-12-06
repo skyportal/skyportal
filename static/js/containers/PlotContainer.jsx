@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
 import Plot from '../components/Plot';
-import * as API from '../API';
 import * as Actions from '../actions';
 
 
@@ -16,35 +15,50 @@ class PlotContainer extends Component {
     };
   }
   componentWillMount() {
-    this.fetchPlotDataIfNotCached()
+    this.fetchPlotDataIfNotCached();
   }
   componentWillReceiveProps() {
-    this.fetchPlotDataIfNotCached()
+    this.fetchPlotDataIfNotCached();
   }
   fetchPlotDataIfNotCached() {
     if (!this.props.plots.plotIDList.includes(this.props.url) &&
         !this.state.fetchingPlotIDs.includes(this.props.url)) {
-      this.props.dispatch(Actions.fetchPlotData(this.props.url,
-                                                Actions.FETCH_SOURCE_PLOT));
-      this.setState({ fetchingPlotIDs: this.state.fetchingPlotIDs.concat(
-        [this.props.url]) });
+      this.props.dispatch(
+        Actions.fetchPlotData(
+          this.props.url,
+          Actions.FETCH_SOURCE_PLOT
+        )
+      );
+      this.setState(
+        { fetchingPlotIDs: this.state.fetchingPlotIDs.concat([this.props.url]) }
+      );
     }
     if (this.props.plots.plotData[this.props.url] &&
         this.state.fetchingPlotIDs.includes(this.props.url)) {
-      let fetchingPlotIDs = this.state.fetchingPlotIDs.slice();
+      const fetchingPlotIDs = this.state.fetchingPlotIDs.slice();
       fetchingPlotIDs.splice(fetchingPlotIDs.indexOf(this.props.url), 1);
-      this.setState({ fetchingPlotIDs: fetchingPlotIDs });
+      this.setState({ fetchingPlotIDs });
     }
   }
 
   render() {
-    return <Plot
-             plotData={this.props.plots.plotData[this.props.url]}
-             error={this.state.error}
-             className={this.props.className}
-    />;
+    return (
+      <Plot
+        plotData={this.props.plots.plotData[this.props.url]}
+        error={this.state.error}
+        className={this.props.className}
+      />);
   }
 }
+PlotContainer.propTypes = {
+  url: PropTypes.string.isRequired,
+  className: PropTypes.string,
+  plots: PropTypes.object.isRequired,
+  dispatch: PropTypes.func.isRequired
+};
+PlotContainer.defaultProps = {
+  className: ""
+};
 
 const mapStateToProps = (state, ownProps) => (
   {
