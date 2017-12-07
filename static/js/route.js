@@ -1,7 +1,7 @@
 /* eslint-disable */
 
 import React from 'react';
-import { Route } from 'react-router';
+import { Route } from 'react-router-dom';
 
 // See: https://github.com/ReactTraining/react-router/issues/4105#issuecomment-289195202
 

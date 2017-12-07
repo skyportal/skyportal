@@ -8,8 +8,7 @@ import PropTypes from 'prop-types';
 import { Provider } from 'react-redux';
 import ReactDOM from 'react-dom';
 
-import { BrowserRouter, Link } from 'react-router-dom';
-import { Switch } from 'react-router';
+import { BrowserRouter, Link, Switch } from 'react-router-dom';
 import PropsRoute from '../route';
 
 // Main style
