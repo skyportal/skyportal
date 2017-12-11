@@ -62,7 +62,7 @@ export function groupsReducer(state={ latest: null }, action) {
   }
 }
 
-export function profileReducer(state={ username: '' }, action) {
+export function profileReducer(state={ username: '', roles: [] }, action) {
   switch (action.type) {
     case Action.FETCH_USER_PROFILE_OK:
       return action.data;

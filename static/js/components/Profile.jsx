@@ -7,7 +7,7 @@ import styles from "./Profile.css";
 import Responsive from "./Responsive";
 
 
-const Profile = ({ username }) => (
+const Profile = props => (
   <Responsive
     desktopStyle={styles.profileDesktop}
     mobileStyle={styles.profileMobile}
@@ -16,7 +16,7 @@ const Profile = ({ username }) => (
     <Dropdown>
 
       <DropdownTrigger>
-        { username } &nbsp;▾
+        { props.profile.username } &nbsp;▾
       </DropdownTrigger>
 
       <DropdownContent>
@@ -26,6 +26,16 @@ const Profile = ({ username }) => (
             Profile
           </div>
         </Link>
+
+        <div className={styles.rule} />
+
+        {props.profile.roles.includes("Super admin") &&
+        <Link to="/group_management">
+          <div className={styles.entry}>
+            <font color="red">Super Admin: </font>Manage Groups &nbsp;&nbsp;
+          </div>
+        </Link>
+        }
 
         <div className={styles.rule} />
 
@@ -63,7 +73,7 @@ const Profile = ({ username }) => (
 );
 
 Profile.propTypes = {
-  username: PropTypes.string.isRequired
+  profile: PropTypes.object.isRequired
 };
 
 export default Profile;
