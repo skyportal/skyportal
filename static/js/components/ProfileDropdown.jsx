@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import Dropdown, { DropdownTrigger, DropdownContent } from 'react-simple-dropdown';
 
-import styles from "./Profile.css";
+import styles from "./ProfileDropdown.css";
 import Responsive from "./Responsive";
 
 

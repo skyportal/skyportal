@@ -24,7 +24,7 @@ import GroupContainer from '../containers/GroupContainer';
 import SourceListContainer from '../containers/SourceListContainer';
 import GroupListContainer from '../containers/GroupListContainer';
 import NoMatchingRoute from './NoMatchingRoute';
-import Profile from '../containers/Profile';
+import ProfileDropdown from '../containers/ProfileDropdown';
 import Logo from '../containers/Logo';
 import * as Action from '../actions';
 import Responsive from '../components/Responsive';
@@ -56,11 +56,11 @@ class MainContent extends React.Component {
                 dispatch={store.dispatch}
               />
             </div>
-            <Responsive desktopElement={Profile} />
+            <Responsive desktopElement={ProfileDropdown} />
           </div>
         </div>
 
-        <Responsive mobileElement={Profile} />
+        <Responsive mobileElement={ProfileDropdown} />
 
         <div className={styles.content}>
 

@@ -1,9 +1,9 @@
 import { connect } from 'react-redux';
 
-import Profile from '../components/Profile';
+import ProfileDropdown from '../components/ProfileDropdown';
 
 const mapStateToProps = (state, ownProps) => (
   { profile: state.profile }
 );
 
-export default connect(mapStateToProps)(Profile);
+export default connect(mapStateToProps)(ProfileDropdown);
