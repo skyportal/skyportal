@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import Dropdown, { DropdownTrigger, DropdownContent } from 'react-simple-dropdown';
@@ -7,73 +7,77 @@ import styles from "./ProfileDropdown.css";
 import Responsive from "./Responsive";
 
 
-const Profile = props => (
-  <Responsive
-    desktopStyle={styles.profileDesktop}
-    mobileStyle={styles.profileMobile}
-  >
+class ProfileDropdown extends Component {
+  constructor(props) {
+    super(props);
+    this.collapse = this.collapse.bind(this);
+  }
 
-    <Dropdown>
+  collapse() {
+    this.dropdown.hide();
+  }
 
-      <DropdownTrigger>
-        { props.profile.username } &nbsp;▾
-      </DropdownTrigger>
+  render() {
+    const dropdown = (el) => { this.dropdown = el; };
+    return (
+      <Responsive
+        desktopStyle={styles.profileDesktop}
+        mobileStyle={styles.profileMobile}
+      >
 
-      <DropdownContent>
+        <Dropdown ref={dropdown}>
 
-        <Link to="/profile">
-          <div className={styles.entry}>
-            Profile
-          </div>
-        </Link>
+          <DropdownTrigger>
+            { this.props.profile.username } &nbsp;▾
+          </DropdownTrigger>
 
-        <div className={styles.rule} />
+          <DropdownContent>
 
-        {props.profile.roles.includes("Super admin") &&
-        <Link to="/group_management">
-          <div className={styles.entry}>
-            <font color="red">Super Admin: </font>Manage Groups &nbsp;&nbsp;
-          </div>
-        </Link>
-        }
+            <Link to="/profile">
+              <div className={styles.entry} onClick={this.collapse}>
+                Profile
+              </div>
+            </Link>
 
-        <div className={styles.rule} />
+            <div className={styles.rule} />
 
-        <div className={styles.entry}>
-          Groups
-        </div>
+            <div className={styles.entry} onClick={this.collapse}>
+              Groups
+            </div>
 
-        <div className={styles.rule} />
+            <div className={styles.rule} />
 
-        <a href="https://github.com/skyportal/skyportal/issues/new">
-          <div className={styles.entry}>
-            File an issue
-          </div>
-        </a>
+            <a href="https://github.com/skyportal/skyportal/issues/new">
+              <div className={styles.entry} onClick={this.collapse}>
+                File an issue
+              </div>
+            </a>
 
-        <a href="https://github.com/skyportal/skyportal">
-          <div className={styles.entry}>
-            Help
-          </div>
-        </a>
+            <a href="https://github.com/skyportal/skyportal">
+              <div className={styles.entry} onClick={this.collapse}>
+                Help
+              </div>
+            </a>
 
-        <div className={styles.rule} />
+            <div className={styles.rule} />
 
-        <a href="/logout">
-          <div className={styles.entry}>
-            Sign out
-          </div>
-        </a>
+            <a href="/logout">
+              <div className={styles.entry} onClick={this.collapse}>
+                Sign out
+              </div>
+            </a>
 
-      </DropdownContent>
+          </DropdownContent>
 
-    </Dropdown>
+        </Dropdown>
 
-  </Responsive>
-);
+      </Responsive>
+    );
+  }
+}
 
-Profile.propTypes = {
+ProfileDropdown.propTypes = {
   profile: PropTypes.object.isRequired
 };
 
-export default Profile;
+export default ProfileDropdown;
