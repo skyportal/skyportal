@@ -2,11 +2,12 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 
-const GroupList = ({ groups }) => (
+const GroupList = ({ groups, title }) => (
   <div>
-    <h2>List of Groups</h2>
+    <h2>{title}</h2>
     <ul>
       {
+        groups &&
         groups.map((group, idx) => (
           <li key={group.id}>
             <Link to={`/group/${group.id}`}>{group.name}</Link>
@@ -18,7 +19,8 @@ const GroupList = ({ groups }) => (
 );
 
 GroupList.propTypes = {
-  groups: PropTypes.arrayOf(PropTypes.object).isRequired
+  groups: PropTypes.arrayOf(PropTypes.object).isRequired,
+  title: PropTypes.string.isRequired
 };
 
 

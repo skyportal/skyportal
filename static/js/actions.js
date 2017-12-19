@@ -22,6 +22,9 @@ export const FETCH_GROUP_OK = 'skyportal/FETCH_GROUP_OK';
 export const ADD_COMMENT = 'skyportal/ADD_COMMENT';
 export const ADD_COMMENT_OK = 'skyportal/ADD_COMMENT_OK';
 
+export const ADD_GROUP = 'skyportal/ADD_GROUP';
+export const ADD_GROUP_OK = 'skyportal/ADD_GROUP_OK';
+
 export const FETCH_USER_PROFILE = 'skyportal/FETCH_USER_PROFILE';
 export const FETCH_USER_PROFILE_OK = 'skyportal/FETCH_USER_PROFILE_OK';
 
@@ -50,6 +53,7 @@ export function fetchUserProfile() {
 export function hydrate() {
   return (dispatch) => {
     dispatch(fetchUserProfile());
+    dispatch(fetchGroups());
   };
 }
 
@@ -61,4 +65,8 @@ export function rotateLogo() {
 
 export function addComment({ source_id, text }) {
   return API.POST(`/api/comment`, ADD_COMMENT, { source_id, text });
+}
+
+export function addNewGroup(form_data) {
+  return API.POST('/api/groups', ADD_GROUP, form_data);
 }

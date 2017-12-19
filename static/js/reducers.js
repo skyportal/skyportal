@@ -48,13 +48,14 @@ export function groupReducer(state={}, action) {
   }
 }
 
-export function groupsReducer(state={ latest: null }, action) {
+export function groupsReducer(state={ latest: null, all: null }, action) {
   switch (action.type) {
     case Action.FETCH_GROUPS_OK: {
-      const groups = action.data;
+      const { user_groups, all_groups } = action.data;
       return {
         ...state,
-        latest: groups
+        latest: user_groups,
+        all: all_groups
       };
     }
     default:

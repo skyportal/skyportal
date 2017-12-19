@@ -19,6 +19,10 @@ const CustomMessageHandler = (dispatch, getState) => (
         }
         break;
       }
+      case Action.FETCH_GROUPS: {
+        dispatch(Action.fetchGroups());
+        break;
+      }
       default:
         // eslint-disable-next-line no-console
         console.log('Unknown message received through flow:', message);

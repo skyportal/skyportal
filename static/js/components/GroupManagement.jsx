@@ -1,9 +1,13 @@
 import React from 'react';
 
+import NewGroupForm from '../containers/NewGroupForm';
+import SuperAdminGroupList from '../containers/SuperAdminGroupList';
 
-const GroupManagement = () => (
+
+const GroupManagement = props => (
   <div>
-    GroupManagementProp renders here
+    <NewGroupForm />
+    <SuperAdminGroupList title="All Groups" />
   </div>
 );
 

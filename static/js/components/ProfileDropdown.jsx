@@ -10,22 +10,21 @@ import Responsive from "./Responsive";
 class ProfileDropdown extends Component {
   constructor(props) {
     super(props);
-    this.collapse = this.collapse.bind(this);
+    this._collapse = this._collapse.bind(this);
   }
 
-  collapse() {
+  _collapse() {
     this.dropdown.hide();
   }
 
   render() {
-    const dropdown = (el) => { this.dropdown = el; };
     return (
       <Responsive
         desktopStyle={styles.profileDesktop}
         mobileStyle={styles.profileMobile}
       >
 
-        <Dropdown ref={dropdown}>
+        <Dropdown ref={(el) => { this.dropdown = el; }}>
 
           <DropdownTrigger>
             { this.props.profile.username } &nbsp;▾
@@ -34,27 +33,27 @@ class ProfileDropdown extends Component {
           <DropdownContent>
 
             <Link to="/profile">
-              <div className={styles.entry} onClick={this.collapse}>
+              <div className={styles.entry} onClick={this._collapse}>
                 Profile
               </div>
             </Link>
 
             <div className={styles.rule} />
 
-            <div className={styles.entry} onClick={this.collapse}>
+            <div className={styles.entry} onClick={this._collapse}>
               Groups
             </div>
 
             <div className={styles.rule} />
 
             <a href="https://github.com/skyportal/skyportal/issues/new">
-              <div className={styles.entry} onClick={this.collapse}>
+              <div className={styles.entry} onClick={this._collapse}>
                 File an issue
               </div>
             </a>
 
             <a href="https://github.com/skyportal/skyportal">
-              <div className={styles.entry} onClick={this.collapse}>
+              <div className={styles.entry} onClick={this._collapse}>
                 Help
               </div>
             </a>
@@ -62,7 +61,7 @@ class ProfileDropdown extends Component {
             <div className={styles.rule} />
 
             <a href="/logout">
-              <div className={styles.entry} onClick={this.collapse}>
+              <div className={styles.entry} onClick={this._collapse}>
                 Sign out
               </div>
             </a>

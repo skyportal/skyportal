@@ -2,6 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 
 import GroupManagement from '../containers/GroupManagement';
+import GroupList from '../containers/GroupListContainer';
 
 
 const Profile = props => (
@@ -11,6 +12,7 @@ const Profile = props => (
     <div>User roles: {props.profile.roles}</div>
     <br />
     {props.profile.roles.includes("Super admin") && <GroupManagement />}
+    <GroupList title="My Groups" />
   </div>
 );
 Profile.propTypes = {
