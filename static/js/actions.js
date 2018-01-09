@@ -4,6 +4,7 @@ export const FETCH_SOURCES = 'skyportal/FETCH_SOURCES';
 export const FETCH_SOURCES_OK = 'skyportal/FETCH_SOURCES_OK';
 
 export const REFRESH_SOURCE = 'skyportal/REFRESH_SOURCE';
+export const REFRESH_GROUP = 'skyportal/REFRESH_GROUP';
 
 export const FETCH_LOADED_SOURCE = 'skyportal/FETCH_LOADED_SOURCE';
 export const FETCH_LOADED_SOURCE_OK = 'skyportal/FETCH_LOADED_SOURCE_OK';
@@ -24,6 +25,9 @@ export const ADD_COMMENT_OK = 'skyportal/ADD_COMMENT_OK';
 
 export const ADD_GROUP = 'skyportal/ADD_GROUP';
 export const ADD_GROUP_OK = 'skyportal/ADD_GROUP_OK';
+
+export const ADD_GROUP_USER = 'skyportal/ADD_GROUP_USER';
+export const ADD_GROUP_USER_OK = 'skyportal/ADD_GROUP_USER_OK';
 
 export const FETCH_USER_PROFILE = 'skyportal/FETCH_USER_PROFILE';
 export const FETCH_USER_PROFILE_OK = 'skyportal/FETCH_USER_PROFILE_OK';
@@ -69,4 +73,9 @@ export function addComment({ source_id, text }) {
 
 export function addNewGroup(form_data) {
   return API.POST('/api/groups', ADD_GROUP, form_data);
+}
+
+export function addGroupUser({ username, group_id }) {
+  return API.PUT(`/api/groups/${group_id}/users/${username}`, ADD_GROUP_USER,
+                  { username, group_id });
 }

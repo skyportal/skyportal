@@ -65,18 +65,23 @@ class GroupHandler(BaseHandler):
 
 class GroupUserHandler(BaseHandler):
     @permissions(['Manage groups'])
-    def put(self, group_id, user_id):
+    def put(self, group_id, username):
         data = self.get_json()
+        print("DATA:", data, group_id, username)
+        user_id = User.query.filter(User.username == username).first().id
         gu = (GroupUser.query.filter(GroupUser.group_id == group_id)
                        .filter(GroupUser.user_id == user_id).first())
         if gu is None:
             gu = GroupUser(group_id=group_id, user_id=user_id)
-        gu.admin = data['admin']
+        # Re-implement below?
+        # gu.admin = data['admin']
         DBSession().add(gu)
         DBSession().commit()
 
-        return self.success({"group_id": gu.group_id, "user_id": gu.user_id,
-                             "admin": gu.admin}, 'skyportal/FETCH_GROUPS')
+        self.push_all(action='skyportal/REFRESH_GROUP',
+                      payload={'group_id': gu.group_id})
+        return self.success({'group_id': gu.group_id, 'user_id': gu.user_id,
+                             'admin': gu.admin})
 
     @permissions(['Manage groups'])
     def delete(self, group_id, user_id):

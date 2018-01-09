@@ -12,7 +12,12 @@ class GroupContainer extends React.Component {
   }
 
   render() {
-    return <Group name={this.props.name} id={this.props.id} users={this.props.users} />;
+    return <Group
+             name={this.props.name}
+             id={this.props.id}
+             users={this.props.users}
+             currentUser={this.props.currentUser}
+    />;
   }
 }
 
@@ -22,12 +27,15 @@ GroupContainer.propTypes = {
     id: PropTypes.string
   }).isRequired,
   name: PropTypes.string.isRequired,
-  id: PropTypes.string.isRequired,
+  id: PropTypes.number.isRequired,
   users: PropTypes.arrayOf(PropTypes.object).isRequired
 };
 
 const mapStateToProps = (state, ownProps) => (
-  state.group
+  {
+    ...state.group,
+    currentUser: state.profile
+  }
 );
 
 export default connect(mapStateToProps)(GroupContainer);
