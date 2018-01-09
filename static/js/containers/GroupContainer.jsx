@@ -8,27 +8,32 @@ import Group from '../components/Group';
 class GroupContainer extends React.Component {
   componentDidMount() {
     const { id } = this.props.route;
-    this.props.dispatch(Action.fetchGroup(id));
+    this.props.fetchGroup(id);
   }
 
   render() {
-    return <Group
-             name={this.props.name}
-             id={this.props.id}
-             users={this.props.users}
-             currentUser={this.props.currentUser}
-    />;
+    return (
+      <Group
+        name={this.props.name}
+        id={this.props.id}
+        users={this.props.users}
+        currentUser={this.props.currentUser}
+        deleteGroupUser={this.props.deleteGroupUser}
+      />
+    );
   }
 }
 
 GroupContainer.propTypes = {
-  dispatch: PropTypes.func.isRequired,
   route: PropTypes.shape({
     id: PropTypes.string
   }).isRequired,
   name: PropTypes.string.isRequired,
   id: PropTypes.number.isRequired,
-  users: PropTypes.arrayOf(PropTypes.object).isRequired
+  users: PropTypes.arrayOf(PropTypes.object).isRequired,
+  currentUser: PropTypes.object.isRequired,
+  fetchGroup: PropTypes.func.isRequired,
+  deleteGroupUser: PropTypes.func.isRequired
 };
 
 const mapStateToProps = (state, ownProps) => (
@@ -38,4 +43,15 @@ const mapStateToProps = (state, ownProps) => (
   }
 );
 
-export default connect(mapStateToProps)(GroupContainer);
+const mapDispatchToProps = (dispatch, ownProps) => (
+  {
+    deleteGroupUser: (username, group_id) => dispatch(
+      Action.deleteGroupUser({ username, group_id })
+    ),
+    fetchGroup: id => dispatch(
+      Action.fetchGroup(id)
+    )
+  }
+);
+
+export default connect(mapStateToProps, mapDispatchToProps)(GroupContainer);

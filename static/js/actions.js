@@ -29,6 +29,9 @@ export const ADD_GROUP_OK = 'skyportal/ADD_GROUP_OK';
 export const ADD_GROUP_USER = 'skyportal/ADD_GROUP_USER';
 export const ADD_GROUP_USER_OK = 'skyportal/ADD_GROUP_USER_OK';
 
+export const DELETE_GROUP_USER = 'skyportal/DELETE_GROUP_USER';
+export const DELETE_GROUP_USER_OK = 'skyportal/DELETE_GROUP_USER_OK';
+
 export const FETCH_USER_PROFILE = 'skyportal/FETCH_USER_PROFILE';
 export const FETCH_USER_PROFILE_OK = 'skyportal/FETCH_USER_PROFILE_OK';
 
@@ -75,7 +78,18 @@ export function addNewGroup(form_data) {
   return API.POST('/api/groups', ADD_GROUP, form_data);
 }
 
-export function addGroupUser({ username, group_id }) {
-  return API.PUT(`/api/groups/${group_id}/users/${username}`, ADD_GROUP_USER,
-                  { username, group_id });
+export function addGroupUser({ username, admin, group_id }) {
+  return API.PUT(
+    `/api/groups/${group_id}/users/${username}`,
+    ADD_GROUP_USER,
+    { username, admin, group_id }
+  );
+}
+
+export function deleteGroupUser({ username, group_id }) {
+  return API.DELETE(
+    `/api/groups/${group_id}/users/${username}`,
+    DELETE_GROUP_USER,
+    { username, group_id }
+  );
 }

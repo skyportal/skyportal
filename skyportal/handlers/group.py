@@ -67,14 +67,15 @@ class GroupUserHandler(BaseHandler):
     @permissions(['Manage groups'])
     def put(self, group_id, username):
         data = self.get_json()
-        print("DATA:", data, group_id, username)
-        user_id = User.query.filter(User.username == username).first().id
+        try:
+            user_id = User.query.filter(User.username == username).first().id
+        except AttributeError:
+            return self.error('Invalid username.')
         gu = (GroupUser.query.filter(GroupUser.group_id == group_id)
                        .filter(GroupUser.user_id == user_id).first())
         if gu is None:
             gu = GroupUser(group_id=group_id, user_id=user_id)
-        # Re-implement below?
-        # gu.admin = data['admin']
+        gu.admin = data['admin']
         DBSession().add(gu)
         DBSession().commit()
 
@@ -84,7 +85,11 @@ class GroupUserHandler(BaseHandler):
                              'admin': gu.admin})
 
     @permissions(['Manage groups'])
-    def delete(self, group_id, user_id):
+    def delete(self, group_id, username):
+        user_id = User.query.filter(User.username == username).first().id
         (GroupUser.query.filter(GroupUser.group_id == group_id)
                    .filter(GroupUser.user_id == user_id).delete())
         DBSession().commit()
+        self.push_all(action='skyportal/REFRESH_GROUP',
+                      payload={'group_id': int(group_id)})
+        return self.success()

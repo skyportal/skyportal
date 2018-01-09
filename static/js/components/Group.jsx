@@ -6,40 +6,56 @@ import NewGroupUserForm from '../containers/NewGroupUserForm';
 import styles from "./Group.css";
 
 
-const Group = ({ name, id, users, currentUser }) => {
-  if (id === undefined) {
-    return <div>Group not found</div>;
-  } else {
-    return (
-      <div className={styles.group}>
-        { /* <div className={styles.name}>{id}</div> */ }
-        <b>Name: </b>{name}
-        <ul>
-          {
-            users.map((user, idx) => (
-              <li key={user.id}>
-                <Link to={`/users/${user.id}`}>{user.username}</Link>&nbsp;
-              {(currentUser.roles.includes('Super admin') ||
-                currentUser.roles.includes('Group admin')) &&
-               <button type="button">Remove from group</button>
-              }
-              </li>
-            ))
-          }
-        </ul>
-        {currentUser.roles.includes('Super admin') &&
-         <NewGroupUserForm group_id={id} />
-        }
-      </div>
-    );
+class Group extends React.Component {
+  constructor(props) {
+    super(props);
+    this.handleDeleteGroupUser = this.handleDeleteGroupUser.bind(this);
   }
-};
+  handleDeleteGroupUser(username, group_id) {
+    this.props.deleteGroupUser(username, group_id);
+  }
+  render() {
+    if (this.props.id === undefined) {
+      return <div>Group not found</div>;
+    } else {
+      return (
+        <div className={styles.group}>
+          { /* <div className={styles.name}>{id}</div> */ }
+          <b>Name: </b>{this.props.name}
+          <ul>
+            {
+              this.props.users.map((user, idx) => (
+                <li key={user.id}>
+                  <Link to={`/users/${user.id}`}>{user.username}</Link>&nbsp;
+                  {(this.props.currentUser.roles.includes('Super admin') ||
+                    this.props.currentUser.roles.includes('Group admin')) &&
+                    <input
+                      type="submit"
+                      onClick={() => this.props.deleteGroupUser(user.username,
+                                                                this.props.id)}
+                      value="Remove from group"
+                    />
+                  }
+                </li>
+              ))
+            }
+          </ul>
+          {
+            this.props.currentUser.roles.includes('Super admin') &&
+            <NewGroupUserForm group_id={this.props.id} />
+          }
+        </div>
+      );
+    }
+  }
+}
 
 Group.propTypes = {
   name: PropTypes.string.isRequired,
   id: PropTypes.number.isRequired,
   users: PropTypes.arrayOf(PropTypes.object).isRequired,
-  currentUser: PropTypes.object.isRequired
+  currentUser: PropTypes.object.isRequired,
+  deleteGroupUser: PropTypes.func.isRequired
 };
 
 
