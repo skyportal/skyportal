@@ -23,6 +23,7 @@ import CachedSource from '../containers/CachedSource';
 import GroupContainer from '../containers/GroupContainer';
 import SourceListContainer from '../containers/SourceListContainer';
 import GroupListContainer from '../containers/GroupListContainer';
+import Groups from '../containers/Groups';
 import Profile from '../containers/Profile';
 import NoMatchingRoute from './NoMatchingRoute';
 import ProfileDropdown from '../containers/ProfileDropdown';
@@ -71,7 +72,7 @@ class MainContent extends React.Component {
             <PropsRoute exact path="/" component={SourceListContainer} />
             {'See https://stackoverflow.com/a/35604855 for syntax'}
             <PropsRoute path="/source/:id" component={CachedSource} />
-            <PropsRoute exact path="/groups/" component={GroupListContainer} />
+            <PropsRoute exact path="/groups/" component={Groups} />
             <PropsRoute path="/group/:id" component={GroupContainer} />
             <PropsRoute path="/profile" component={Profile} />
             <PropsRoute component={NoMatchingRoute} />

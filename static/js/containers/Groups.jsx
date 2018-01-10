@@ -1,6 +1,6 @@
 import { connect } from 'react-redux';
 
-import Profile from '../components/Profile';
+import Groups from '../components/Groups';
 
 
 const mapStateToProps = (state, ownProps) => (
@@ -9,4 +9,4 @@ const mapStateToProps = (state, ownProps) => (
   }
 );
 
-export default connect(mapStateToProps)(Profile);
+export default connect(mapStateToProps)(Groups);

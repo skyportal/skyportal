@@ -42,7 +42,8 @@ class GroupHandler(BaseHandler):
             [self.current_user] + group_admins])
         DBSession().commit()
 
-        return self.success({"id": g.id}, 'skyportal/FETCH_GROUPS')
+        self.push_all(action='skyportal/FETCH_GROUPS')
+        return self.success({"id": g.id})
 
     @permissions(['Manage groups'])
     def put(self, group_id):

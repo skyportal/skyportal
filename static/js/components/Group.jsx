@@ -27,22 +27,24 @@ class Group extends React.Component {
               this.props.users.map((user, idx) => (
                 <li key={user.id}>
                   <Link to={`/users/${user.id}`}>{user.username}</Link>&nbsp;
-                  {(this.props.currentUser.roles.includes('Super admin') ||
-                    this.props.currentUser.roles.includes('Group admin')) &&
-                    <input
-                      type="submit"
-                      onClick={() => this.props.deleteGroupUser(user.username,
-                                                                this.props.id)}
-                      value="Remove from group"
-                    />
+                  {
+                    (this.props.currentUser.roles.includes('Super admin') ||
+                     this.props.currentUser.roles.includes('Group admin')) &&
+                     <input
+                       type="submit"
+                       onClick={() => this.props.deleteGroupUser(user.username,
+                                                                 this.props.id)}
+                       value="Remove from group"
+                     />
                   }
                 </li>
               ))
             }
           </ul>
           {
-            this.props.currentUser.roles.includes('Super admin') &&
-            <NewGroupUserForm group_id={this.props.id} />
+            (this.props.currentUser.roles.includes('Super admin') ||
+             this.props.currentUser.roles.includes('Group admin')) &&
+             <NewGroupUserForm group_id={this.props.id} />
           }
         </div>
       );

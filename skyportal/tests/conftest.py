@@ -54,3 +54,9 @@ def private_source():
 def user(public_group):
     return UserFactory(groups=[public_group],
                        roles=[models.Role.query.get('Full user')])
+
+
+@pytest.fixture()
+def super_admin_user(public_group):
+    return UserFactory(groups=[public_group],
+                       roles=[models.Role.query.get('Super admin')])

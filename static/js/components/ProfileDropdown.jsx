@@ -40,9 +40,11 @@ class ProfileDropdown extends Component {
 
             <div className={styles.rule} />
 
-            <div className={styles.entry} onClick={this._collapse}>
-              Groups
-            </div>
+            <Link to="/groups">
+              <div className={styles.entry} onClick={this._collapse}>
+                Groups
+              </div>
+            </Link>
 
             <div className={styles.rule} />
 
