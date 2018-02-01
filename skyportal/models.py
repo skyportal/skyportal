@@ -103,7 +103,7 @@ class Source(Base):
 
     def get_panstarrs_url(self):
         """Construct URL for public PanSTARRS-1 (PS1) cutout.
-        
+
         The cutout service doesn't allow directly querying for an image; the
         best we can do is request a page that contains a link to the image we
         want (in this case a combination of the green/blue/red filters).

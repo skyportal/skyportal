@@ -10,10 +10,13 @@ class GroupHandler(BaseHandler):
     def get(self, group_id=None):
         if group_id is not None:
             if 'Super admin' in [role.id for role in self.current_user.roles]:
-                info = Group.query.options(joinedload(Group.users)).get(group_id)
+                info = Group.query.options(joinedload(Group.users)).options(
+                    joinedload(Group.group_users)).get(group_id)
             else:
-                info = Group.get_if_owned_by(group_id, self.current_user,
-                                             options=joinedload(Group.users))
+                info = Group.get_if_owned_by(
+                    group_id, self.current_user,
+                    options=[joinedload(Group.users),
+                             joinedload(Group.group_users)])
         else:
             info = {}
             info['user_groups'] = list(self.current_user.groups)

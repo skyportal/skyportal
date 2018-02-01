@@ -17,6 +17,7 @@ class GroupContainer extends React.Component {
         name={this.props.name}
         id={this.props.id}
         users={this.props.users}
+        group_users={this.props.group_users}
         currentUser={this.props.currentUser}
         deleteGroupUser={this.props.deleteGroupUser}
       />
@@ -31,6 +32,7 @@ GroupContainer.propTypes = {
   name: PropTypes.string.isRequired,
   id: PropTypes.number.isRequired,
   users: PropTypes.arrayOf(PropTypes.object).isRequired,
+  group_users: PropTypes.arrayOf(PropTypes.object).isRequired,
   currentUser: PropTypes.object.isRequired,
   fetchGroup: PropTypes.func.isRequired,
   deleteGroupUser: PropTypes.func.isRequired
