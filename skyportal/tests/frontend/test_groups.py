@@ -36,3 +36,44 @@ def test_add_new_group(driver, super_admin_user, user):
     except:
         driver.save_screenshot('/tmp/screenshot2.png')
         raise
+
+
+def test_add_new_group_user_admin(driver, super_admin_user, user, public_group):
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/groups')
+    driver.wait_for_xpath('//h2[text()="All Groups"]')
+    driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]').click()
+    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../input').click()
+    time.sleep(0.5)
+    driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(user.username)
+    driver.wait_for_xpath('//input[@type="checkbox"]').click()
+    driver.wait_for_xpath('//input[@value="Add user"]').click()
+    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
+    print(user.username)
+    assert len(driver.find_elements_by_xpath(
+        f'//a[contains(.,"{user.username}")]/..//span')) == 1
+
+
+def test_add_new_group_user_nonadmin(driver, super_admin_user, user, public_group):
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/groups')
+    driver.wait_for_xpath('//h2[text()="All Groups"]')
+    driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]').click()
+    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../input').click()
+    time.sleep(0.5)
+    driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(user.username)
+    driver.wait_for_xpath('//input[@value="Add user"]').click()
+    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
+    assert len(driver.find_elements_by_xpath(
+        f'//a[contains(.,"{user.username}")]/..//span')) == 0
+
+
+def test_delete_group_user(driver, super_admin_user, user, public_group):
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/groups')
+    driver.wait_for_xpath('//h2[text()="All Groups"]')
+    driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]').click()
+    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../input').click()
+    time.sleep(0.5)
+    assert len(driver.find_elements_by_xpath(
+        f'//a[contains(.,"{user.username}")]')) == 0
