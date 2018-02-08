@@ -20,9 +20,14 @@ class PlotContainer extends Component {
   componentWillReceiveProps() {
     this.fetchPlotDataIfNotCached();
   }
+  needsFetching() {
+    return (
+      !this.props.plots.plotIDList.includes(this.props.url) &&
+      !this.state.fetchingPlotIDs.includes(this.props.url)
+    );
+  }
   fetchPlotDataIfNotCached() {
-    if (!this.props.plots.plotIDList.includes(this.props.url) &&
-        !this.state.fetchingPlotIDs.includes(this.props.url)) {
+    if (this.needsFetching()) {
       this.props.dispatch(
         Actions.fetchPlotData(
           this.props.url,
@@ -47,7 +52,8 @@ class PlotContainer extends Component {
         plotData={this.props.plots.plotData[this.props.url]}
         error={this.state.error}
         className={this.props.className}
-      />);
+      />
+    );
   }
 }
 PlotContainer.propTypes = {

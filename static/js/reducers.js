@@ -75,7 +75,7 @@ export function profileReducer(state={ username: '', roles: [] }, action) {
 export function plotsReducer(state={ plotData: {}, plotIDList: [] }, action) {
   switch (action.type) {
     case Action.FETCH_SOURCE_PLOT_OK: {
-      const plotData = Object.assign({}, state.plotData);
+      const plotData = { ...state.plotData };
       const plotIDList = state.plotIDList.slice();
 
       const { url, ...incomingData } = action.data;
