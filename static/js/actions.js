@@ -4,6 +4,7 @@ export const FETCH_SOURCES = 'skyportal/FETCH_SOURCES';
 export const FETCH_SOURCES_OK = 'skyportal/FETCH_SOURCES_OK';
 
 export const REFRESH_SOURCE = 'skyportal/REFRESH_SOURCE';
+export const REFRESH_GROUP = 'skyportal/REFRESH_GROUP';
 
 export const FETCH_LOADED_SOURCE = 'skyportal/FETCH_LOADED_SOURCE';
 export const FETCH_LOADED_SOURCE_OK = 'skyportal/FETCH_LOADED_SOURCE_OK';
@@ -21,6 +22,15 @@ export const FETCH_GROUP_OK = 'skyportal/FETCH_GROUP_OK';
 
 export const ADD_COMMENT = 'skyportal/ADD_COMMENT';
 export const ADD_COMMENT_OK = 'skyportal/ADD_COMMENT_OK';
+
+export const ADD_GROUP = 'skyportal/ADD_GROUP';
+export const ADD_GROUP_OK = 'skyportal/ADD_GROUP_OK';
+
+export const ADD_GROUP_USER = 'skyportal/ADD_GROUP_USER';
+export const ADD_GROUP_USER_OK = 'skyportal/ADD_GROUP_USER_OK';
+
+export const DELETE_GROUP_USER = 'skyportal/DELETE_GROUP_USER';
+export const DELETE_GROUP_USER_OK = 'skyportal/DELETE_GROUP_USER_OK';
 
 export const FETCH_USER_PROFILE = 'skyportal/FETCH_USER_PROFILE';
 export const FETCH_USER_PROFILE_OK = 'skyportal/FETCH_USER_PROFILE_OK';
@@ -50,6 +60,7 @@ export function fetchUserProfile() {
 export function hydrate() {
   return (dispatch) => {
     dispatch(fetchUserProfile());
+    dispatch(fetchGroups());
   };
 }
 
@@ -61,4 +72,24 @@ export function rotateLogo() {
 
 export function addComment({ source_id, text }) {
   return API.POST(`/api/comment`, ADD_COMMENT, { source_id, text });
+}
+
+export function addNewGroup(form_data) {
+  return API.POST('/api/groups', ADD_GROUP, form_data);
+}
+
+export function addGroupUser({ username, admin, group_id }) {
+  return API.PUT(
+    `/api/groups/${group_id}/users/${username}`,
+    ADD_GROUP_USER,
+    { username, admin, group_id }
+  );
+}
+
+export function deleteGroupUser({ username, group_id }) {
+  return API.DELETE(
+    `/api/groups/${group_id}/users/${username}`,
+    DELETE_GROUP_USER,
+    { username, group_id }
+  );
 }

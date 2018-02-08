@@ -19,6 +19,19 @@ const CustomMessageHandler = (dispatch, getState) => (
         }
         break;
       }
+      case Action.REFRESH_GROUP: {
+        const state = getState();
+        const loaded_group_id = state.group ? state.group.id : null;
+
+        if (loaded_group_id === payload.group_id) {
+          dispatch(Action.fetchGroup(loaded_group_id));
+        }
+        break;
+      }
+      case Action.FETCH_GROUPS: {
+        dispatch(Action.fetchGroups());
+        break;
+      }
       default:
         // eslint-disable-next-line no-console
         console.log('Unknown message received through flow:', message);

@@ -8,8 +8,7 @@ import PropTypes from 'prop-types';
 import { Provider } from 'react-redux';
 import ReactDOM from 'react-dom';
 
-import { BrowserRouter, Link } from 'react-router-dom';
-import { Switch } from 'react-router';
+import { BrowserRouter, Link, Switch } from 'react-router-dom';
 import PropsRoute from '../route';
 
 // Main style
@@ -24,8 +23,10 @@ import CachedSource from '../containers/CachedSource';
 import GroupContainer from '../containers/GroupContainer';
 import SourceListContainer from '../containers/SourceListContainer';
 import GroupListContainer from '../containers/GroupListContainer';
-import NoMatchingRoute from './NoMatchingRoute';
+import Groups from '../containers/Groups';
 import Profile from '../containers/Profile';
+import NoMatchingRoute from './NoMatchingRoute';
+import ProfileDropdown from '../containers/ProfileDropdown';
 import Logo from '../containers/Logo';
 import * as Action from '../actions';
 import Responsive from '../components/Responsive';
@@ -52,16 +53,16 @@ class MainContent extends React.Component {
             <div className={styles.websocket}>
               <WebSocket
                 url={`ws://${this.props.root}websocket`}
-                auth_url={`${window.location.protocol}//${this.props.root}socket_auth_token`}
+                auth_url={`${window.location.protocol}//${this.props.root}baselayer/socket_auth_token`}
                 messageHandler={messageHandler}
                 dispatch={store.dispatch}
               />
             </div>
-            <Responsive desktopElement={Profile} />
+            <Responsive desktopElement={ProfileDropdown} />
           </div>
         </div>
 
-        <Responsive mobileElement={Profile} />
+        <Responsive mobileElement={ProfileDropdown} />
 
         <div className={styles.content}>
 
@@ -71,8 +72,9 @@ class MainContent extends React.Component {
             <PropsRoute exact path="/" component={SourceListContainer} />
             {'See https://stackoverflow.com/a/35604855 for syntax'}
             <PropsRoute path="/source/:id" component={CachedSource} />
-            <PropsRoute exact path="/groups/" component={GroupListContainer} />
+            <PropsRoute exact path="/groups/" component={Groups} />
             <PropsRoute path="/group/:id" component={GroupContainer} />
+            <PropsRoute path="/profile" component={Profile} />
             <PropsRoute component={NoMatchingRoute} />
           </Switch>
 
