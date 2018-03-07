@@ -1,0 +1,69 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ template "skyportal.fullname" . }}
+  labels:
+    app: {{ template "skyportal.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "skyportal.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      hostname: db
+      volumes:
+      volumes:
+      - name: config
+        configMap:
+          name: {{ template "skyportal.fullname" . }}-config
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.internalPort }}
+          env:
+          - name: PYTHONPATH
+            value: "."
+          - name: FLAGS
+            value: "--config=/etc/skyportal/config.yaml"
+          args:
+          - /bin/bash
+          - -c
+          - |
+            source /skyportal_env/bin/activate && \
+            (make log &) && \
+            baselayer/tools/env_summary.py ${FLAGS} && \
+            supervisord -c baselayer/conf/supervisor/supervisor.conf
+          volumeMounts:
+          - name: config
+            mountPath: /etc/skyportal/
+            readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.internalPort }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.internalPort }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+        - name: postgres
+          image: postgres:9.6
+          env:
+          - name: POSTGRES_USER
+            value: skyportal
+          - name: POSTGRES_PASSWORD
+            value: ""
+          - name: POSTGRES_DB
+            value: skyportal
+    {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+    {{- end }}
