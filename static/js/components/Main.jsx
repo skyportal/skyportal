@@ -22,7 +22,6 @@ import CustomMessageHandler from '../CustomMessageHandler';
 import CachedSource from '../containers/CachedSource';
 import GroupContainer from '../containers/GroupContainer';
 import SourceListContainer from '../containers/SourceListContainer';
-import GroupListContainer from '../containers/GroupListContainer';
 import Groups from '../containers/Groups';
 import Profile from '../containers/Profile';
 import NoMatchingRoute from './NoMatchingRoute';
