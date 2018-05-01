@@ -39,7 +39,7 @@ CachedSource.propTypes = {
   }).isRequired,
   dispatch: PropTypes.func.isRequired,
   source: PropTypes.shape({
-    id: PropTypes.String
+    id: PropTypes.string
   }).isRequired,
   loadError: PropTypes.bool.isRequired
 };

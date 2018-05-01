@@ -1,8 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-import * as Actions from '../actions';
-
 
 class NewGroupUserForm extends React.Component {
   constructor(props) {
