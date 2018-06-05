@@ -10,3 +10,4 @@ from .plot import PlotPhotometryHandler, PlotSpectroscopyHandler
 from .profile import ProfileHandler
 from .logout import LogoutHandler
 from .become_user import BecomeUserHandler
+from .photometry import PhotometryHandler

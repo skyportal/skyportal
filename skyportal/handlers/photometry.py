@@ -12,7 +12,7 @@ class PhotometryHandler(BaseHandler):
 
         # TODO where do we get the instrument info?
         # TODO should filters be a table/plaintext/limited set of strings?
-        p = Photometry(source_id=data['sourceID'], observed_at=data['obsTime'], 
+        p = Photometry(source_id=data['sourceID'], observed_at=data['obsTime'],
                        instrument_id=data['instrumentID'], mag=data['mag'],
                        e_mag=data['e_mag'], lim_mag=data['lim_mag'],
                        filter=data['filter'])
