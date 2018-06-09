@@ -1,11 +1,12 @@
 from baselayer.app.handlers.base import BaseHandler
+from baselayer.app.access import auth_or_token
 from ..models import User
 
 import tornado.web
 
 
 class ProfileHandler(BaseHandler):
-    @tornado.web.authenticated
+    @auth_or_token
     def get(self):
         user = (User.query.filter(User.username == self.current_user.username)
                     .first())

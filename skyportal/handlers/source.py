@@ -1,13 +1,13 @@
 import tornado.web
 from sqlalchemy.orm import joinedload
-from baselayer.app.access import permissions
+from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.handlers import BaseHandler
 from ..models import (DBSession, Comment, Instrument, Photometry, Source,
                       Thumbnail)
 
 
 class SourceHandler(BaseHandler):
-    @tornado.web.authenticated
+    @auth_or_token
     def get(self, source_id=None):
         if source_id is not None:
             info = Source.get_if_owned_by(source_id, self.current_user,

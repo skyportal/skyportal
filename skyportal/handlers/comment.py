@@ -1,11 +1,11 @@
 import tornado.web
-from baselayer.app.access import permissions
+from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.handlers.base import BaseHandler
 from ..models import DBSession, Source, User, Comment, Role
 
 
 class CommentHandler(BaseHandler):
-    @tornado.web.authenticated
+    @auth_or_token
     def get(self, comment_id):
         # TODO: Ensure that it's okay for anyone to read any comment
         comment = Comment.query.get(comment_id)

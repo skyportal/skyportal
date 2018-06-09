@@ -8,7 +8,7 @@ from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import backref, relationship
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
-                                  Role, User)
+                                  Role, User, Token)
 
 
 def is_owned_by(self, user):

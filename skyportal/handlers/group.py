@@ -1,12 +1,12 @@
 import tornado.web
 from sqlalchemy.orm import joinedload
-from baselayer.app.access import permissions
+from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.handlers.base import BaseHandler
 from ..models import DBSession, Group, GroupUser, User
 
 
 class GroupHandler(BaseHandler):
-    @tornado.web.authenticated
+    @auth_or_token
     def get(self, group_id=None):
         if group_id is not None:
             if 'Super admin' in [role.id for role in self.current_user.roles]:

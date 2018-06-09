@@ -1,6 +1,6 @@
 import tornado.web
 from sqlalchemy.orm import joinedload
-from baselayer.app.access import permissions
+from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.handlers.base import BaseHandler
 from ..models import DBSession, Spectrum, Comment
 
@@ -23,7 +23,7 @@ class SpectrumHandler(BaseHandler):
         return self.success({"id": s.id}, 'cesium/FETCH_SOURCES')
 
     """TODO any need for get/put/delete?
-    @tornado.web.authenticated
+    @auth_or_token
     def get(self, source_id=None):
         if source_id is not None:
             info = Spectrum.get_if_owned_by(source_id, self.current_user,
