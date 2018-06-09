@@ -10,7 +10,8 @@ from baselayer.app.model_util import status, create_tables, drop_tables
 from social_tornado.models import TornadoStorage
 from skyportal.models import (init_db, Base, DBSession, ACL, Comment,
                               Instrument, Group, GroupUser, Photometry, Role,
-                              Source, Spectrum, Telescope, Thumbnail, User)
+                              Source, Spectrum, Telescope, Thumbnail, User,
+                              Token)
 
 
 def add_super_user(username):
@@ -50,6 +51,16 @@ def setup_permissions():
         role.acls = [ACL.query.get(a) for a in acl_ids]
         DBSession().add(role)
     DBSession().commit()
+
+
+def create_token_user(bot_name, group_ids):
+    u = User(username=bot_name)
+    g = Group.query.filter(Group.id.in_(group_ids)).all()
+    u.groups.extend(g)
+    t = Token(user=u)
+    DBSession().add_all([u, t])
+    DBSession().commit()
+    return t.id
 
 
 if __name__ == "__main__":
