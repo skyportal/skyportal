@@ -11,16 +11,18 @@ from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
 
 
-def is_owned_by(self, user):
+def is_owned_by(self, user_or_token):
     """Generic ownership logic for any `skyportal` ORM model.
 
     Models with complicated ownership logic should implement their own method
     instead of adding too many additional conditions here.
     """
-    if hasattr(self, 'users'):
-        return (user in self.users)
+    if hasattr(self, 'tokens'):
+        return (user_or_token in self.tokens)
     elif hasattr(self, 'groups'):
-        return bool(set(self.groups) & set(user.groups))
+        return bool(set(self.groups) & set(user_or_token.groups))
+    elif hasattr(self, 'users'):
+        return (user_or_token in self.users)
     else:
         raise NotImplementedError(f"{type(self).__name__} object has no owner")
 Base.is_owned_by = is_owned_by
@@ -43,7 +45,16 @@ class Group(Base):
                                cascade='all', passive_deletes=True)
     users = relationship('User', secondary='group_users', cascade='all',
                          back_populates='groups')
+    group_tokens = relationship('GroupToken', back_populates='group',
+                               cascade='all', passive_deletes=True)
+    tokens = relationship('Token', secondary='group_tokens', cascade='all',
+                          back_populates='groups')
 
+
+GroupToken = join_model('group_tokens', Group, Token)
+Token.groups = relationship('Group', secondary='group_tokens', cascade='all',
+                            back_populates='tokens')
+Token.group_users = relationship('GroupToken', back_populates='token', cascade='all')
 
 GroupUser = join_model('group_users', Group, User)
 GroupUser.admin = sa.Column(sa.Boolean, nullable=False, default=False)
