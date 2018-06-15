@@ -19,7 +19,7 @@ class PhotometryHandler(BaseHandler):
         DBSession().add(p)
         DBSession().commit()
 
-        return self.success({"id": s.id}, 'cesium/FETCH_SOURCES')
+        return self.success({"id": p.id})
 
     """TODO any need for get/put/delete?
     @auth_or_token
