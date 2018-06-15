@@ -53,12 +53,11 @@ def setup_permissions():
     DBSession().commit()
 
 
-def create_token_user(bot_name, group_ids):
-    u = User(username=bot_name)
-    g = Group.query.filter(Group.id.in_(group_ids)).all()
-    u.groups.extend(g)
-    t = Token(user=u)
-    DBSession().add_all([u, t])
+def create_token(group_id, permissions=[]):
+    group = Group.query.get(group_id)
+    t = Token(acl_ids=permissions)
+    t.groups.append(group)
+    DBSession().add(t)
     DBSession().commit()
     return t.id
 
