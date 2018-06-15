@@ -2,7 +2,7 @@ import pytest
 import uuid
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from skyportal.model_util import create_token_user
+from skyportal.model_util import create_token
 
 
 def test_public_source_page(driver, user, public_source):
@@ -25,7 +25,7 @@ def test_comments(driver, user, public_source):
 
 
 def test_token_user_retrieving_source(driver, public_group, public_source):
-    auth_token = create_token_user(uuid.uuid4(), [public_group.id])
+    auth_token = create_token(public_group.id, ['Manage sources'])
     response = driver.request(
         'GET', f'{driver.server_url}/api/sources/{public_source.id}',
         json={'token': auth_token}).json()
