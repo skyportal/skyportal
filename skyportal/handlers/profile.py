@@ -11,5 +11,13 @@ class ProfileHandler(BaseHandler):
         user = (User.query.filter(User.username == self.current_user.username)
                     .first())
         user_roles = [role.id for role in user.roles]
+        user_acls = [acl.id for acl in user.acls]
+        user_tokens = [{'id': token.id,
+                        'description': token.description,
+                        'acls': [acl.id for acl in token.acls],
+                        'created_at': token.created_at}
+                       for token in user.tokens]
         return self.success({'username': self.current_user.username,
-                             'roles': user_roles})
+                             'roles': user_roles,
+                             'acls': user_acls,
+                             'tokens': user_tokens})

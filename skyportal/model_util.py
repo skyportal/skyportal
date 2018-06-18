@@ -53,10 +53,15 @@ def setup_permissions():
     DBSession().commit()
 
 
-def create_token(group_id, permissions=[]):
+def create_token(group_id, permissions=[], created_by_id=None, description=None):
     group = Group.query.get(group_id)
-    t = Token(acl_ids=permissions)
+    t = Token(acl_ids=permissions, created_by_id=created_by_id,
+              description=description)
     t.groups.append(group)
+    if created_by_id:
+        u = User.query.get(created_by_id)
+        u.tokens.append(t)
+        DBSession().add(u)
     DBSession().add(t)
     DBSession().commit()
     return t.id

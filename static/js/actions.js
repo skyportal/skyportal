@@ -35,6 +35,9 @@ export const DELETE_GROUP_USER_OK = 'skyportal/DELETE_GROUP_USER_OK';
 export const FETCH_USER_PROFILE = 'skyportal/FETCH_USER_PROFILE';
 export const FETCH_USER_PROFILE_OK = 'skyportal/FETCH_USER_PROFILE_OK';
 
+export const GENERATE_TOKEN = 'skyportal/GENERATE_TOKEN';
+export const GENERATE_TOKEN_OK = 'skyportal/GENERATE_TOKEN_OK';
+
 export const ROTATE_LOGO = 'skyportal/ROTATE_LOGO';
 
 export function fetchSource(id) {
@@ -80,6 +83,10 @@ export function addComment({ source_id, text }) {
 
 export function addNewGroup(form_data) {
   return API.POST('/api/groups', ADD_GROUP, form_data);
+}
+
+export function createToken(form_data) {
+  return API.POST('/api/tokens', GENERATE_TOKEN, form_data);
 }
 
 export function addGroupUser({ username, admin, group_id }) {
