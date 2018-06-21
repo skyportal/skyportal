@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 
 import NewTokenForm from '../containers/NewTokenForm';
-import TokenList from './TokenList';
+import TokenList from '../containers/TokenList';
 
 
 const Profile = props => (

@@ -38,6 +38,9 @@ export const FETCH_USER_PROFILE_OK = 'skyportal/FETCH_USER_PROFILE_OK';
 export const GENERATE_TOKEN = 'skyportal/GENERATE_TOKEN';
 export const GENERATE_TOKEN_OK = 'skyportal/GENERATE_TOKEN_OK';
 
+export const DELETE_TOKEN = 'skyportal/DELETE_TOKEN';
+export const DELETE_TOKEN_OK = 'skyportal/DELETE_TOKEN_OK';
+
 export const ROTATE_LOGO = 'skyportal/ROTATE_LOGO';
 
 export function fetchSource(id) {
@@ -102,5 +105,13 @@ export function deleteGroupUser({ username, group_id }) {
     `/api/groups/${group_id}/users/${username}`,
     DELETE_GROUP_USER,
     { username, group_id }
+  );
+}
+
+export function deleteToken(tokenID) {
+  console.log('called Actions.deleteToken');
+  return API.DELETE(
+    `/api/tokens/${tokenID}`,
+    DELETE_TOKEN
   );
 }

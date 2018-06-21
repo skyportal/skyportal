@@ -45,7 +45,7 @@ const TokenList = (props) => {
                   {token.created_at}&nbsp;&nbsp;
                 </td>
                 <td>
-                  <a href="#">Delete</a>
+                  <a href="#" onClick={() => props.deleteToken(token.id)}>Delete</a>
                 </td>
               </tr>
             ))
