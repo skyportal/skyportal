@@ -1,4 +1,5 @@
 import tornado.web
+from astropy.time import Time
 from sqlalchemy.orm import joinedload
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.handlers.base import BaseHandler
@@ -12,14 +13,33 @@ class PhotometryHandler(BaseHandler):
 
         # TODO where do we get the instrument info?
         # TODO should filters be a table/plaintext/limited set of strings?
-        p = Photometry(source_id=data['sourceID'], observed_at=data['obsTime'],
-                       instrument_id=data['instrumentID'], mag=data['mag'],
-                       e_mag=data['e_mag'], lim_mag=data['lim_mag'],
-                       filter=data['filter'])
-        DBSession().add(p)
+        if not isinstance(data['mag'], (list, tuple)):
+            data['obsTime'] = [data['obsTime']]
+            data['mag'] = [data['mag']]
+            data['e_mag'] = [data['e_mag']]
+        ids = []
+        for i in range(len(data['mag'])):
+            if not (data['timeScale'] == 'tcb' and data['timeFormat'] == 'iso'):
+                t = Time(data['obsTime'][i],
+                         format=data['timeFormat'],
+                         scale=data['timeScale'])
+                obs_time = t.tcb.iso
+            else:
+                obs_time = data['obsTime'][i]
+            p = Photometry(source_id=data['sourceID'],
+                           observed_at=obs_time,
+                           mag=data['mag'][i],
+                           e_mag=data['e_mag'][i],
+                           time_scale='tcb',
+                           time_format='iso',
+                           instrument_id=data['instrumentID'],
+                           lim_mag=data['lim_mag'],
+                           filter=data['filter'])
+            ids.append(p.id)
+            DBSession().add(p)
         DBSession().commit()
 
-        return self.success({"id": p.id})
+        return self.success({"ids": ids})
 
     """TODO any need for get/put/delete?
     @auth_or_token

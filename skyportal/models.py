@@ -189,6 +189,8 @@ User.comments = relationship('Comment', back_populates='user', cascade='all',
 class Photometry(Base):
     __tablename__ = 'photometry'
     observed_at = sa.Column(sa.DateTime)
+    time_format = sa.Column(sa.String, default='iso')
+    time_scale = sa.Column(sa.String, default='tcb')
     mag = sa.Column(sa.Float)
     e_mag = sa.Column(sa.Float)
     lim_mag = sa.Column(sa.Float)

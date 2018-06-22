@@ -13,9 +13,32 @@ def test_token_user_post_photometry_data(driver, public_group, public_source):
         json={'token': auth_token,
               'sourceID': str(public_source.id),
               'obsTime': str(datetime.datetime.now()),
+              'timeFormat': 'iso',
+              'timeScale': 'utc',
               'instrumentID': 1,
               'mag': 12.24,
               'e_mag': 0.031,
+              'lim_mag': 14.1,
+              'filter': 'V'
+        }).json()
+    print(response)
+    assert response['status'] == 'success'
+
+
+def test_token_user_post_photometry_data_series(driver, public_group, public_source):
+    auth_token = create_token(public_group.id, ['Upload data'])
+    response = driver.request(
+        'POST', f'{driver.server_url}/api/photometry',
+        json={'token': auth_token,
+              'sourceID': str(public_source.id),
+              'obsTime': [str(datetime.datetime.now()),
+                          str(datetime.datetime.now() + datetime.timedelta(days=1)),
+                          str(datetime.datetime.now() + datetime.timedelta(days=2))],
+              'timeFormat': 'iso',
+              'timeScale': 'utc',
+              'instrumentID': 1,
+              'mag': [12.24, 12.52, 12.70],
+              'e_mag': [0.031, 0.029, 0.030],
               'lim_mag': 14.1,
               'filter': 'V'
         }).json()
