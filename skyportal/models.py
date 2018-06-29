@@ -54,7 +54,7 @@ class Group(Base):
 GroupToken = join_model('group_tokens', Group, Token)
 Token.groups = relationship('Group', secondary='group_tokens', cascade='all',
                             back_populates='tokens')
-Token.group_users = relationship('GroupToken', back_populates='token', cascade='all')
+Token.group_tokens = relationship('GroupToken', back_populates='token', cascade='all')
 
 GroupUser = join_model('group_users', Group, User)
 GroupUser.admin = sa.Column(sa.Boolean, nullable=False, default=False)

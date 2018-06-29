@@ -13,6 +13,9 @@ class PhotometryHandler(BaseHandler):
 
         # TODO where do we get the instrument info?
         # TODO should filters be a table/plaintext/limited set of strings?
+        if 'timeFormat' not in data or 'timeScale' not in data:
+            return self.error('Time scale (\'timeScale\') and time format '
+                              '(\'timeFormat\') are required parameters.')
         if not isinstance(data['mag'], (list, tuple)):
             data['obsTime'] = [data['obsTime']]
             data['mag'] = [data['mag']]
