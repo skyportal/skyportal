@@ -17,8 +17,8 @@ class CreateTokenForm extends React.Component {
   handleSubmit(event) {
     event.preventDefault();
     this.props.createToken(this.state);
-    const acls_state  = {};
-    Object.keys(this.state).forEach(k => {
+    const acls_state = {};
+    Object.keys(this.state).forEach((k) => {
       if (k.startsWith('acls_')) {
         acls_state[k] = false;
       }
@@ -33,13 +33,13 @@ class CreateTokenForm extends React.Component {
   handleChange(event) {
     const newState = {};
     newState[event.target.name] = event.target.type === 'checkbox' ?
-                                  event.target.checked : event.target.value;
+      event.target.checked : event.target.value;
     this.setState(newState);
   }
 
   render() {
-    if(!this.props.profile) {
-      return <div></div>;
+    if (!this.props.profile) {
+      return <div />;
     }
     return (
       <div>
@@ -50,9 +50,10 @@ class CreateTokenForm extends React.Component {
               <tr>
                 <td>Select Token ACLs:</td>
                 <td>
-                  {this.props.profile.acls.map(acl =>
-                    <label>
+                  {this.props.profile.acls.map(acl => (
+                    <label key={acl}>
                       <input
+                        key={acl}
                         type="checkbox"
                         name={`acls_${acl}`}
                         checked={this.state[`acls_${acl}`]}
@@ -60,7 +61,7 @@ class CreateTokenForm extends React.Component {
                       />
                       {acl}
                     </label>
-                  )}
+                  ))}
                 </td>
               </tr>
               <tr>
@@ -71,10 +72,9 @@ class CreateTokenForm extends React.Component {
                     value={this.state.group_id}
                     onChange={this.handleChange}
                   >
-                    <option value=""></option>
+                    <option value="" />
                     {this.props.groups.map(group =>
-                      <option value={group.id}>{group.name}</option>
-                    )}
+                      <option value={group.id} key={group.id}>{group.name}</option>)}
                   </select>
                 </td>
               </tr>
@@ -108,8 +108,9 @@ class CreateTokenForm extends React.Component {
   }
 }
 CreateTokenForm.propTypes = {
-  profile: PropTypes.object,
-  groups: PropTypes.array
+  profile: PropTypes.object.isRequired,
+  groups: PropTypes.array.isRequired,
+  createToken: PropTypes.func.isRequired
 };
 
 export default CreateTokenForm;

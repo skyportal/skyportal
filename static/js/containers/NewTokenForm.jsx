@@ -38,4 +38,4 @@ export default connect(null, mapDispatchToProps)(NewTokenForm);
  *   form: 'newTokenForm',
  *   fields: ['acls', 'group_id', 'description']
  * })(TokenForm);
- * // export default connect(null, mapDispatchToProps)(NewTokenForm);*/
+ * // export default connect(null, mapDispatchToProps)(NewTokenForm); */

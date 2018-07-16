@@ -1,9 +1,10 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 
 
 const TokenList = (props) => {
   if (!props.tokens) {
-    return <div></div>;
+    return <div />;
   }
 
   return (
@@ -30,10 +31,12 @@ const TokenList = (props) => {
           </tr>
           {
             props.tokens.map(token => (
-              <tr>
+              <tr key={token.id}>
                 <td>
                   <input type="text" id={token.id} value={token.id} readOnly />&nbsp;
-              <button onClick={() => copyToken(token.id)}>Copy to Clipboard</button>&nbsp;&nbsp;
+                  <button onClick={() => copyToken(token.id)}>
+                    Copy to Clipboard
+                  </button>&nbsp;&nbsp;
                 </td>
                 <td>
                   {token.description}&nbsp;&nbsp;
@@ -54,6 +57,9 @@ const TokenList = (props) => {
       </table>
     </div>
   );
+};
+TokenList.propTypes = {
+  tokens: PropTypes.arrayOf(PropTypes.object).isRequired
 };
 
 const copyToken = (elementID) => {

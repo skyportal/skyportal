@@ -63,8 +63,7 @@ export function groupsReducer(state={ latest: [], all: null }, action) {
   }
 }
 
-export function profileReducer(state={ username: '', roles: [], acls: [],
-                                       tokens: [] }, action) {
+export function profileReducer(state={ username: '', roles: [], acls: [], tokens: [] }, action) {
   switch (action.type) {
     case Action.FETCH_USER_PROFILE_OK:
       return action.data;
