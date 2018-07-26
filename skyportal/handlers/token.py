@@ -13,10 +13,10 @@ class TokenHandler(BaseHandler):
 
         user = (User.query.filter(User.username == self.current_user.username)
                     .first())
-        user_acls = [acl.id for acl in user.acls]
-        requested_acls = [k.replace('acls_', '') for k, v in data.items() if
-                          k.startswith('acls_') and v == True]
-        token_acls = [acl for acl in requested_acls if acl in user_acls]
+        user_acls = {acl.id for acl in user.acls}
+        requested_acls = {k.replace('acls_', '') for k, v in data.items() if
+                          k.startswith('acls_') and v == True}
+        token_acls = requested_acls & user_acls
         token_id = create_token(group_id=data['group_id'],
                                 permissions=token_acls,
                                 created_by_id=user.id,
@@ -26,9 +26,6 @@ class TokenHandler(BaseHandler):
     @auth_or_token
     def delete(self, token_id):
         t = Token.get_if_owned_by(token_id, self.current_user)
-        print(t)
-        print(type(t))
-        print(t.created_by, t.created_by_id, t.acls, t.acl_ids, t.permissions)
         if t is not None:
             DBSession.delete(t)
             DBSession.commit()

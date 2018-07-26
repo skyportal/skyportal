@@ -64,7 +64,6 @@ TokenList.propTypes = {
 
 const copyToken = (elementID) => {
   const el = document.getElementById(elementID);
-  console.log(elementID);
   el.select();
   document.execCommand("copy");
 };
