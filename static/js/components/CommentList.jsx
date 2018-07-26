@@ -8,7 +8,8 @@ import CommentEntry from './CommentEntry';
 
 const CommentList = ({ source_id, comments, addComment }) => {
   comments = comments || [];
-  const items = comments.map(({ id, user, created_at, text }) => {
+  const items = comments.map(({ id, user, created_at, text, attachment_name,
+                                attachment_bytes }) => {
     const [username, domain] = user.username.split('@', 2);
     return (
       <span key={id} className={styles.comment}>
@@ -30,6 +31,14 @@ const CommentList = ({ source_id, comments, addComment }) => {
         <div className={styles.commentMessage}>
           {text}
         </div>
+        {attachment_name &&
+        <div>
+          Attachment:&nbsp;
+          <a href={`/api/comment/${id}/download_attachment`}>
+            {attachment_name}
+          </a>
+        </div>
+        }
       </span>
     );
   });

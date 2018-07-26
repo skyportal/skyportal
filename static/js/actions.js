@@ -80,8 +80,27 @@ export function rotateLogo() {
   };
 }
 
-export function addComment({ source_id, text }) {
-  return API.POST(`/api/comment`, ADD_COMMENT, { source_id, text });
+export function addComment(form) {
+  function fileReaderPromise(file) {
+    return new Promise((resolve) => {
+      const filereader = new FileReader();
+      filereader.readAsDataURL(file);
+      filereader.onloadend = () => resolve(
+        { body: filereader.result, name: file.name }
+      );
+    });
+  }
+  if (form.attachment) {
+    return (dispatch) => {
+      fileReaderPromise(form.attachment)
+        .then(fileData => {
+          form.attachment = fileData;
+          dispatch(API.POST(`/api/comment`, ADD_COMMENT, form));
+        });
+    };
+  } else {
+    return API.POST(`/api/comment`, ADD_COMMENT, form);
+  }
 }
 
 export function addNewGroup(form_data) {

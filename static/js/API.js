@@ -16,7 +16,6 @@ function API(endpoint, actionType, method='GET', body={}, otherArgs={}) {
   if (method !== 'GET') {
     fetchInit = { ...fetchInit, body: JSON.stringify(body) };
   }
-
   return (
     async (dispatch) => {
       if (!actionType) {
