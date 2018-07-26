@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
 
 // These imports are necessary to initialize Bokeh + its extensions
@@ -21,6 +21,7 @@ function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
   inner_div.setAttribute("class", "bk-plotdiv");
   inner_div.setAttribute("id", render_items[0].elementid);
   bokeh_div.appendChild(inner_div);
+  while (node.hasChildNodes()) { node.removeChild(node.lastChild); }
   node.appendChild(bokeh_div);
 
   // We have to give the Bokeh-generated JS snippet access to Bokeh.
@@ -45,61 +46,46 @@ function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
   });
 }
 
-class Plot extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      plotData: null
-    };
+const Plot = (props) => {
+  const { plotData, error } = props;
+  if (error) {
+    return <b>Error: Could not fetch plotting data</b>;
+  }
+  if (!plotData) {
+    return <b>Please wait while we load your plotting data...</b>;
   }
 
-  async componentWillMount() {
-    const plotData = await this.props.fetchPlotData(this.props.url);
-    if (plotData) {
-      this.setState({ plotData, error: false });
-    } else {
-      this.setState({ error: true });
-    }
-  }
+  const { docs_json, render_items, custom_model_js } = plotData;
 
-  render() {
-    const { plotData, error } = this.state;
-    if (error) {
-      return <b>Error: Could not fetch plotting data</b>;
-    }
-    if (!plotData) {
-      return <b>Please wait while we load your plotting data...</b>;
-    }
-
-    const { docs_json, render_items, custom_model_js } = plotData;
-
-    return (
-      <div
-        className={this.props.className}
-        ref={
-          (node) => {
-            if (node) {
-              bokeh_render_plot(
-                node,
-                JSON.parse(docs_json),
-                JSON.parse(render_items),
-                custom_model_js
-              );
-            }
+  return (
+    <div
+      className={props.className}
+      ref={
+        (node) => {
+          if (node) {
+            bokeh_render_plot(
+              node,
+              JSON.parse(docs_json),
+              JSON.parse(render_items),
+              custom_model_js
+            );
           }
         }
-      />
-    );
-  }
-}
+          }
+    />
+  );
+};
+
 
 Plot.propTypes = {
-  url: PropTypes.string.isRequired,
-  fetchPlotData: PropTypes.func.isRequired,
+  plotData: PropTypes.object,
+  error: PropTypes.bool,
   className: PropTypes.string
 };
 
 Plot.defaultProps = {
+  plotData: null,
+  error: false,
   className: ""
 };
 
