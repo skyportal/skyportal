@@ -14,18 +14,22 @@ class PlotContainer extends Component {
       fetchingPlotIDs: []
     };
   }
+
   componentWillMount() {
     this.fetchPlotDataIfNotCached();
   }
+
   componentWillReceiveProps() {
     this.fetchPlotDataIfNotCached();
   }
+
   needsFetching() {
     return (
       !this.props.plots.plotIDList.includes(this.props.url) &&
       !this.state.fetchingPlotIDs.includes(this.props.url)
     );
   }
+
   fetchPlotDataIfNotCached() {
     if (this.needsFetching()) {
       this.props.dispatch(
@@ -38,8 +42,8 @@ class PlotContainer extends Component {
         { fetchingPlotIDs: this.state.fetchingPlotIDs.concat([this.props.url]) }
       );
     }
-    if (this.props.plots.plotData[this.props.url] &&
-        this.state.fetchingPlotIDs.includes(this.props.url)) {
+    if (this.props.plots.plotData[this.props.url]
+        && this.state.fetchingPlotIDs.includes(this.props.url)) {
       const fetchingPlotIDs = this.state.fetchingPlotIDs.slice();
       fetchingPlotIDs.splice(fetchingPlotIDs.indexOf(this.props.url), 1);
       this.setState({ fetchingPlotIDs });
