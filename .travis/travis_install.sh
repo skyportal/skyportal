@@ -46,3 +46,9 @@ rm chromedriver_linux64.zip
 which chromium-browser
 chromium-browser --version
 section_end "install.chromedriver"
+
+
+section "install.deps"
+make dependencies
+pip list --format=columns
+section_end "install.deps"

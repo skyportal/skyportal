@@ -28,7 +28,7 @@ import NoMatchingRoute from './NoMatchingRoute';
 import ProfileDropdown from '../containers/ProfileDropdown';
 import Logo from '../containers/Logo';
 import * as Action from '../actions';
-import Responsive from '../components/Responsive';
+import Responsive from './Responsive';
 
 
 const store = configureStore({});

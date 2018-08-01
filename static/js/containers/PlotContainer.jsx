@@ -38,13 +38,14 @@ class PlotContainer extends Component {
           Actions.FETCH_SOURCE_PLOT
         )
       );
+      let { fetchingPlotIDs } = this.state;
       this.setState(
-        { fetchingPlotIDs: this.state.fetchingPlotIDs.concat([this.props.url]) }
+        { fetchingPlotIDs: fetchingPlotIDs.concat([this.props.url]) }
       );
     }
     if (this.props.plots.plotData[this.props.url]
         && this.state.fetchingPlotIDs.includes(this.props.url)) {
-      const fetchingPlotIDs = this.state.fetchingPlotIDs.slice();
+      let fetchingPlotIDs = this.state.fetchingPlotIDs.slice();
       fetchingPlotIDs.splice(fetchingPlotIDs.indexOf(this.props.url), 1);
       this.setState({ fetchingPlotIDs });
     }
