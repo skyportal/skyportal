@@ -51,4 +51,5 @@ section_end "install.chromedriver"
 section "install.deps"
 make dependencies
 pip list --format=columns
+nginx -v
 section_end "install.deps"
