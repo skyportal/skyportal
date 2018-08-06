@@ -39,6 +39,12 @@ make db_init
 section_end "init.db"
 
 
+section "run.make.dependencies"
+make dependencies
+pip list --format=columns
+section_end "run.make.dependencies"
+
+
 section "install.geckodriver.and.selenium"
 wget https://github.com/mozilla/geckodriver/releases/download/v0.20.0/geckodriver-v0.20.0-linux64.tar.gz
 sudo tar -xzf geckodriver-v0.20.0-linux64.tar.gz -C /usr/local/bin

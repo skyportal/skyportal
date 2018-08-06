@@ -7,6 +7,8 @@ const TokenList = (props) => {
     return <div />;
   }
 
+  const { deleteToken } = props;
+
   return (
     <div>
       <h3>My Tokens</h3>
@@ -34,7 +36,7 @@ const TokenList = (props) => {
               <tr key={token.id}>
                 <td>
                   <input type="text" id={token.id} value={token.id} readOnly />&nbsp;
-                  <button onClick={() => copyToken(token.id)}>
+                  <button type="button" onClick={() => copyToken(token.id)}>
                     Copy to Clipboard
                   </button>&nbsp;&nbsp;
                 </td>
@@ -48,7 +50,7 @@ const TokenList = (props) => {
                   {token.created_at}&nbsp;&nbsp;
                 </td>
                 <td>
-                  <a href="#" onClick={() => props.deleteToken(token.id)}>Delete</a>
+                  <a href="#" onClick={() => deleteToken(token.id)}>Delete</a>
                 </td>
               </tr>
             ))
@@ -59,7 +61,8 @@ const TokenList = (props) => {
   );
 };
 TokenList.propTypes = {
-  tokens: PropTypes.arrayOf(PropTypes.object).isRequired
+  tokens: PropTypes.arrayOf(PropTypes.object).isRequired,
+  deleteToken: PropTypes.func.isRequired
 };
 
 const copyToken = (elementID) => {
