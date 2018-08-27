@@ -1,9 +1,8 @@
-FROM ubuntu:16.04
+FROM ubuntu:17.10
 
 RUN apt-get update && \
     apt-get install -y curl build-essential software-properties-common && \
-    curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
-    add-apt-repository ppa:jonathonf/python-3.6 && \
+    curl -sL https://deb.nodesource.com/setup_8.x | bash - && \
     apt-get update && \
     apt-get -y upgrade && \
     apt-get install -y python3.6 python3.6-venv python3.6-dev \
@@ -28,9 +27,11 @@ RUN bash -c "\
     source /skyportal_env/bin/activate && \
     \
     make -C baselayer paths && \
-    (make -C baselayer dependencies || make -C baselayer dependencies) && \
+    (make -f baselayer/Makefile baselayer dependencies || make -C baselayer dependencies)"
+
+RUN bash -c "\
     \
-    make -C baselayer bundle && \
+    (make -f baselayer/Makefile bundle || make -c baselayer bundle) && \
     rm -rf node_modules && \
     \
     chown -R skyportal.skyportal /skyportal_env && \

@@ -7,7 +7,12 @@ baselayer/Makefile:
 
 docker-images:
 	# Add --no-cache flag to rebuild from scratch
+	cd baselayer && git submodule update --init --remote
 	docker build -t skyportal/web . && docker push skyportal/web
+
+docker-local:
+	cd baselayer && git submodule update --init --remote
+	docker build -t skyportal/web .
 
 doc_reqs:
 	pip install -q -r requirements.docs.txt

@@ -3,6 +3,22 @@
 The SkyPortal web application consumes and displays events from the
 Zwicky Transient Facility.
 
+## To Use Locally with Docker-Compose
+
+Make the docker image:
+
+```
+make docker-local
+```
+
+Start the docker compose
+
+```
+docker-compose up
+```
+
+Connect to the front-end at <a href="http://localhost:9000">http://localhost:9000</a>
+
 ## Developer notes
 
 ### Important Makefile targets
