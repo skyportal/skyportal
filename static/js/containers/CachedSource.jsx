@@ -24,9 +24,19 @@ class CachedSource extends React.Component {
 
   render() {
     if (this.props.loadError) {
-      return <div>Could not retrieve requested source</div>;
+      return (
+        <div>
+Could not retrieve requested source
+        </div>
+      );
     } else if (!this.isCached()) {
-      return <div><span>Loading...</span></div>;
+      return (
+        <div>
+          <span>
+Loading...
+          </span>
+        </div>
+      );
     } else {
       return <Source {...this.props.source} />;
     }

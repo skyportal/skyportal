@@ -41,6 +41,7 @@ class MainContent extends React.Component {
     await store.dispatch(Action.hydrate());
     store.dispatch(Action.rotateLogo());
   }
+
   render() {
     return (
       <div className={styles.main}>
@@ -48,7 +49,9 @@ class MainContent extends React.Component {
         <div className={styles.topBanner}>
           <div className={styles.topBannerContent}>
             <Logo className={styles.logo} />
-            <Link className={styles.title} to="/">SkyPortal ∝</Link>
+            <Link className={styles.title} to="/">
+SkyPortal ∝
+            </Link>
             <div className={styles.websocket}>
               <WebSocket
                 url={`ws://${this.props.root}websocket`}
@@ -84,7 +87,8 @@ class MainContent extends React.Component {
             This is a first proof of concept. Please file issues at&nbsp;
             <a href="https://github.com/skyportal/skyportal">
               https://github.com/skyportal/skyportal
-            </a>.
+            </a>
+.
           </div>
         </div>
 

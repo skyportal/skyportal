@@ -5,12 +5,16 @@ import { Link } from 'react-router-dom';
 
 const SourceList = ({ sources }) => (
   <div>
-    <h2>Sources</h2>
+    <h2>
+Sources
+    </h2>
     <ul>
       {
         sources.map((source, idx) => (
           <li key={source.id}>
-            <Link to={`/source/${source.id}`}>{source.id}</Link>
+            <Link to={`/source/${source.id}`}>
+              {source.id}
+            </Link>
           </li>
         ))
       }
