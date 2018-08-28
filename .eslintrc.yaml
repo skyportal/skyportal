@@ -66,3 +66,4 @@ rules:
   lines-between-class-members: 1
   react/no-access-state-in-setstate: 1
   implicit-arrow-linebreak: 1
+  jsx-a11y/label-has-associated-control: 1
