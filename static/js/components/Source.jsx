@@ -14,17 +14,43 @@ import FoldBox from "./FoldBox";
 
 const Source = ({ ra, dec, red_shift, thumbnails, id }) => {
   if (id === undefined) {
-    return <div>Source not found</div>;
+    return (
+      <div>
+Source not found
+      </div>
+    );
   } else {
     return (
       <div className={styles.source}>
 
         <div className={styles.leftColumn}>
 
-          <div className={styles.name}>{id}</div>
+          <div className={styles.name}>
+            {id}
+          </div>
 
-          <b>Location:</b> {ra}, {dec} ({ra_to_hours(ra)}, {dec_to_hours(dec)})<br />
-          <b>Red Shift: </b>{red_shift}<br />
+          <b>
+Location:
+          </b>
+          {' '}
+          {ra}
+,
+          {' '}
+          {dec}
+          {' '}
+(
+          {ra_to_hours(ra)}
+,
+          {' '}
+          {dec_to_hours(dec)}
+)
+          <br />
+          <b>
+Red Shift:
+            {' '}
+          </b>
+          {red_shift}
+          <br />
           <ThumbnailList ra={ra} dec={dec} thumbnails={thumbnails} />
 
           <br />

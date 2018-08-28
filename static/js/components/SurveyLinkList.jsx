@@ -6,7 +6,9 @@ import styles from "./SurveyLinkList.css";
 
 const SurveyLink = ({ name, url }) => (
   <div className={styles.SurveyLink}>
-    <a href={url}>{name}</a>
+    <a href={url}>
+      {name}
+    </a>
   </div>
 );
 

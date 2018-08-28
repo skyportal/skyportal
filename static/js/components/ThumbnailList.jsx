@@ -33,7 +33,10 @@ const Thumbnail = ({ ra, dec, telescope, observed_at, name, url }) => {
   return (
     <a href={link}>
       <div className={styles.Thumbnail}>
-        <b>{name.toUpperCase()}</b><br />
+        <b>
+          {name.toUpperCase()}
+        </b>
+        <br />
         <img src={url} alt={alt} title={alt} />
       </div>
     </a>

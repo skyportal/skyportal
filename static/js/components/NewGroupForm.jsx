@@ -33,13 +33,18 @@ class NewGroupForm extends React.Component {
   render() {
     return (
       <div className={styles.newGroupFormDiv}>
-        <h3>Create New Group</h3>
+        <h3>
+Create New Group
+        </h3>
         <form className={styles.newGroupForm} onSubmit={this.handleSubmit}>
           <table>
             <tbody>
               <tr>
                 <td>
-                  <label>Group Name: </label>
+                  <label>
+Group Name:
+                    {' '}
+                  </label>
                 </td>
                 <td>
                   <input
@@ -52,7 +57,10 @@ class NewGroupForm extends React.Component {
               </tr>
               <tr>
                 <td>
-                  <label>Group Admins (comma-separated email addresses): </label>
+                  <label>
+Group Admins (comma-separated email addresses):
+                    {' '}
+                  </label>
                 </td>
                 <td>
                   <input

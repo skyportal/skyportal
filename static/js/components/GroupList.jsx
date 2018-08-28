@@ -4,13 +4,17 @@ import { Link } from 'react-router-dom';
 
 const GroupList = ({ groups, title }) => (
   <div>
-    <h2>{title}</h2>
+    <h2>
+      {title}
+    </h2>
     <ul>
       {
-        groups &&
-        groups.map((group, idx) => (
+        groups
+        && groups.map((group, idx) => (
           <li key={group.id}>
-            <Link to={`/group/${group.id}`}>{group.name}</Link>
+            <Link to={`/group/${group.id}`}>
+              {group.name}
+            </Link>
           </li>
         ))
       }

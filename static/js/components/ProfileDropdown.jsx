@@ -27,7 +27,9 @@ class ProfileDropdown extends Component {
         <Dropdown ref={(el) => { this.dropdown = el; }}>
 
           <DropdownTrigger>
-            { this.props.profile.username } &nbsp;▾
+            { this.props.profile.username }
+            {' '}
+&nbsp;▾
           </DropdownTrigger>
 
           <DropdownContent>
