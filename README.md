@@ -3,6 +3,52 @@
 The SkyPortal web application consumes and displays events from the
 Zwicky Transient Facility.
 
+## Installation on a Mac
+
+- Clone the repo and start the virtual env:
+
+```
+git clone https://github.com/skyportal/skyportal.git
+cd skyportal/
+virtualenv skyportal_env
+source skyportal_env/bin/activate
+```
+
+- Install dependencies and start postgres
+
+```
+brew install install supervisor nginx postgresql node geckodriver
+brew services start postgresql
+```
+
+- Install baselayer and dependencies
+
+```
+cd baselayer && git submodule update --init --remote
+make -C baselayer paths
+make -f baselayer/Makefile baselayer dependencies
+make -f baselayer/Makefile bundle
+rm -rf baselayer/node_modules
+```
+
+- Create the database
+
+```
+make db_init
+```
+
+- Start
+
+```
+cp docker.yaml config.yaml
+```
+
+edit `config.yaml` so that the database points to `localhost` then
+
+```
+make run
+```
+
 ## To Use Locally with Docker-Compose
 
 Make the docker image:
