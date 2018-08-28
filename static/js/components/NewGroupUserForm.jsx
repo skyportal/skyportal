@@ -14,17 +14,21 @@ class NewGroupUserForm extends React.Component {
     this.handleSubmit = this.handleSubmit.bind(this);
     this.toggleAdmin = this.toggleAdmin.bind(this);
   }
+
   handleChange(event) {
     this.setState({ newUserEmail: event.target.value });
   }
+
   handleSubmit(event) {
     event.preventDefault();
     this.props.addGroupUser(this.state.newUserEmail, this.state.admin);
     this.setState({ newUserEmail: "" });
   }
+
   toggleAdmin(event) {
     this.setState({ admin: event.target.checked });
   }
+
   render() {
     return (
       <div>
@@ -35,7 +39,8 @@ class NewGroupUserForm extends React.Component {
           onChange={this.handleChange}
         />
         &nbsp;
-        <input type="checkbox" onChange={this.toggleAdmin} />Group Admin
+        <input type="checkbox" onChange={this.toggleAdmin} />
+Group Admin
         &nbsp;&nbsp;
         <input type="submit" onClick={this.handleSubmit} value="Add user" />
       </div>

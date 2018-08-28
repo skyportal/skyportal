@@ -14,10 +14,18 @@ const CommentList = ({ source_id, comments, addComment }) => {
       <span key={id} className={styles.comment}>
         <div className={styles.commentHeader}>
           <span className={styles.commentUser}>
-            <span className={styles.commentUserName}>{username}</span>
-            <span className={styles.commentUserDomain}>@{domain}</span>
+            <span className={styles.commentUserName}>
+              {username}
+            </span>
+            <span className={styles.commentUserDomain}>
+@
+              {domain}
+            </span>
           </span>
-          &nbsp;<span className={styles.commentTime}>{moment(created_at).calendar()}</span>
+          &nbsp;
+          <span className={styles.commentTime}>
+            {moment(created_at).calendar()}
+          </span>
         </div>
         <div className={styles.commentMessage}>
           {text}

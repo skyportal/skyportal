@@ -31,7 +31,9 @@ class FoldBox extends Component {
           tabIndex={0}
           style={{ fontSize: '150%' }}
         >
-          {this.state.folded ? '▸' : '▾'} {this.props.title}
+          {this.state.folded ? '▸' : '▾'}
+          {' '}
+          {this.props.title}
         </div>
         {children}
       </div>

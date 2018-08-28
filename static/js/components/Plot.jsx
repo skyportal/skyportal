@@ -49,10 +49,18 @@ function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
 const Plot = (props) => {
   const { plotData, error } = props;
   if (error) {
-    return <b>Error: Could not fetch plotting data</b>;
+    return (
+      <b>
+Error: Could not fetch plotting data
+      </b>
+    );
   }
   if (!plotData) {
-    return <b>Please wait while we load your plotting data...</b>;
+    return (
+      <b>
+Please wait while we load your plotting data...
+      </b>
+    );
   }
 
   const { docs_json, render_items, custom_model_js } = plotData;
