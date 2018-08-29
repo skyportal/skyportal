@@ -1,3 +1,26 @@
+"""
+usage: initial_setup.py [-h] [--nodrop] [--adminusername ADMINUSER]
+                        [--username USER]
+
+Initialize Skyportal and add admin/users
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --nodrop              do not force drop existing databases
+  --adminusername ADMINUSER
+                        Email of the admin user (e.g., testuser@cesium-ml.org)
+  --username USER       Email of a normal user (e.g., user@cesium-ml.org)
+
+e.g.
+PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py  \
+           --adminuser=<email> --user=<anotheremail>
+
+If you just want to add a user to an existing database make sure you add the `--nodrop` flag:
+
+PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py  \
+          --nodrop --user=<anotheremail>
+"""
+
 import os
 from pathlib import Path
 import argparse
