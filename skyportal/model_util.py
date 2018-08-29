@@ -17,7 +17,7 @@ from skyportal.models import (init_db, Base, DBSession, ACL, Comment,
 def add_super_user(username):
     """Initializes a super user with full permissions."""
     setup_permissions()  # make sure permissions already exist
-    super_user = User.query.filter(User.username==username).first()
+    super_user = User.query.filter(User.username == username).first()
     if super_user is None:
         super_user = User(username=username)
         social = TornadoStorage.user.create_social_auth(super_user,
@@ -92,7 +92,7 @@ if __name__ == "__main__":
         super_admin_user = User(username='testuser@cesium-ml.org',
                                 role_ids=['Super admin'])
         group_admin_user = User(username='groupadmin@cesium-ml.org',
-                                role_ids=['Super admin'])
+                                role_ids=['Group admin'])
         DBSession().add_all(
             [GroupUser(group=g, user=super_admin_user, admin=True),
              GroupUser(group=g, user=group_admin_user, admin=True)]
