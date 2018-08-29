@@ -46,7 +46,16 @@ cp docker.yaml config.yaml
 edit `config.yaml` so that the database points to `localhost` then
 
 ```
+PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py  \
+           --adminuser=<email>
 make run
+```
+This will create an admin user with the username=`<email>`. If you want to add a normal user later on include
+the `--nodrop` flag:
+
+```
+PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py  \
+          --nodrop --user=<anotheremail>
 ```
 
 ## To Use Locally with Docker-Compose
