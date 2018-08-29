@@ -1,6 +1,7 @@
 import tornado.web
+from astropy.time import Time
 from sqlalchemy.orm import joinedload
-from baselayer.app.access import permissions
+from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.handlers.base import BaseHandler
 from ..models import DBSession, Photometry, Comment
 
@@ -12,17 +13,39 @@ class PhotometryHandler(BaseHandler):
 
         # TODO where do we get the instrument info?
         # TODO should filters be a table/plaintext/limited set of strings?
-        p = Photometry(source_id=data['sourceID'], observed_at=data['obsTime'], 
-                       instrument_id=data['instrumentID'], mag=data['mag'],
-                       e_mag=data['e_mag'], lim_mag=data['lim_mag'],
-                       filter=data['filter'])
-        DBSession().add(p)
+        if 'timeFormat' not in data or 'timeScale' not in data:
+            return self.error('Time scale (\'timeScale\') and time format '
+                              '(\'timeFormat\') are required parameters.')
+        if not isinstance(data['mag'], (list, tuple)):
+            data['obsTime'] = [data['obsTime']]
+            data['mag'] = [data['mag']]
+            data['e_mag'] = [data['e_mag']]
+        ids = []
+        for i in range(len(data['mag'])):
+            if not (data['timeScale'] == 'tcb' and data['timeFormat'] == 'iso'):
+                t = Time(data['obsTime'][i],
+                         format=data['timeFormat'],
+                         scale=data['timeScale'])
+                obs_time = t.tcb.iso
+            else:
+                obs_time = data['obsTime'][i]
+            p = Photometry(source_id=data['sourceID'],
+                           observed_at=obs_time,
+                           mag=data['mag'][i],
+                           e_mag=data['e_mag'][i],
+                           time_scale='tcb',
+                           time_format='iso',
+                           instrument_id=data['instrumentID'],
+                           lim_mag=data['lim_mag'],
+                           filter=data['filter'])
+            ids.append(p.id)
+            DBSession().add(p)
         DBSession().commit()
 
-        return self.success({"id": s.id}, 'cesium/FETCH_SOURCES')
+        return self.success({"ids": ids})
 
     """TODO any need for get/put/delete?
-    @tornado.web.authenticated
+    @auth_or_token
     def get(self, source_id=None):
         if source_id is not None:
             info = Photometry.get_if_owned_by(source_id, self.current_user,

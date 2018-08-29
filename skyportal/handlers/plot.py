@@ -1,4 +1,5 @@
 from baselayer.app.handlers.base import BaseHandler
+from baselayer.app.access import auth_or_token
 from .. import plot
 
 import tornado.web
@@ -6,7 +7,7 @@ import tornado.web
 
 # TODO this should distinguish between "no data to plot" and "plot failed"
 class PlotPhotometryHandler(BaseHandler):
-    @tornado.web.authenticated
+    @auth_or_token
     def get(self, source_id):
         docs_json, render_items, custom_model_js = plot.photometry_plot(source_id)
         if docs_json is None:
@@ -18,7 +19,7 @@ class PlotPhotometryHandler(BaseHandler):
 
 
 class PlotSpectroscopyHandler(BaseHandler):
-    @tornado.web.authenticated
+    @auth_or_token
     def get(self, source_id):
         docs_json, render_items, custom_model_js = plot.spectroscopy_plot(source_id)
         if docs_json is None:

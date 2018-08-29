@@ -39,13 +39,21 @@ make db_init
 section_end "init.db"
 
 
-section "install.chromedriver"
-wget https://chromedriver.storage.googleapis.com/2.29/chromedriver_linux64.zip
-sudo unzip chromedriver_linux64.zip chromedriver -d /usr/local/bin
-rm chromedriver_linux64.zip
-which chromium-browser
-chromium-browser --version
-section_end "install.chromedriver"
+section "run.make.dependencies"
+make dependencies
+pip list --format=columns
+section_end "run.make.dependencies"
+
+
+section "install.geckodriver.and.selenium"
+wget https://github.com/mozilla/geckodriver/releases/download/v0.20.0/geckodriver-v0.20.0-linux64.tar.gz
+sudo tar -xzf geckodriver-v0.20.0-linux64.tar.gz -C /usr/local/bin
+rm geckodriver-v0.20.0-linux64.tar.gz
+which geckodriver
+geckodriver --version
+pip install --upgrade selenium
+python -c "import selenium; print(f'Selenium {selenium.__version__}')"
+section_end "install.geckodriver.and.selenium"
 
 
 section "install.deps"
