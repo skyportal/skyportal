@@ -159,7 +159,8 @@ def photometry_plot(source_id):
     (str, str)
         Returns (docs_json, render_items) json for the desired plot.
     """
-    color_map = {'ipr': 'yellow', 'rpr': 'red', 'g': 'green'}
+    color_map = {'ipr': 'yellow', 'rpr': 'red', 'g': 'green',
+                 '1': 'green', '2': 'red', '3': 'pink'}
 
     data = pd.read_sql(DBSession()
                        .query(Photometry, Telescope.nickname.label('telescope'))
@@ -172,22 +173,29 @@ def photometry_plot(source_id):
     for col in ['mag', 'e_mag', 'lim_mag']:
         # TODO remove magic number; where can this logic live?
         data.loc[np.abs(data[col]) > 90, col] = np.nan
+
     data['color'] = [color_map.get(f, 'black') for f in data['filter']]
+
+    # ZTF
+    data['filter'].replace({"1": "g", "2": "r", "3": "i"}, inplace=True)
+
     data['label'] = [f'{t} {f}-band'
                      for t, f in zip(data['telescope'], data['filter'])]
     data['observed'] = ~np.isnan(data.mag)
     split = data.groupby(('label', 'observed'))
-
+    del data["altdata"]
     plot = figure(
         plot_width=600,
         plot_height=300,
         active_drag='box_zoom',
         tools='box_zoom,wheel_zoom,pan,reset',
-        y_range=(np.nanmax(data['mag']) + 0.1,
+        y_range=(np.nanmax(data['lim_mag']) + 0.1,
                  np.nanmin(data['mag']) - 0.1)
     )
     model_dict = {}
     for i, ((label, is_obs), df) in enumerate(split):
+        print(i, label, is_obs, df)
+
         key = ("" if is_obs else "un") + 'obs' + str(i // 2)
         model_dict[key] = plot.scatter(
             x='observed_at', y='mag' if is_obs else 'lim_mag',
@@ -201,8 +209,9 @@ def photometry_plot(source_id):
                                                  months=['%D'], years=['%D'])
     plot.toolbar.logo = None
 
-    hover = HoverTool(tooltips=[('observed_at', '@observed_at{%D}'), ('mag', '@mag'),
-                                ('lim_mag', '@lim_mag'),
+    hover = HoverTool(tooltips=[('observed_at', '@observed_at{%D}'), ('mjd', '@mjd'),
+                                ('mag', '@mag'),
+                                ('lim_mag', '@lim_mag'), ('score', '@score'),
                                 ('filter', '@filter')],
                       formatters={'observed_at': 'datetime'})
     plot.add_tools(hover)
@@ -223,6 +232,7 @@ def photometry_plot(source_id):
     """)
 
     layout = row(plot, toggle)
+    # layout = row(plot)
     return _plot_to_json(layout)
 
 
@@ -277,11 +287,11 @@ def spectroscopy_plot(source_id):
         active=[], width=80,
         colors=[c for w, c in SPEC_LINES.values()]
     )
-    z = TextInput(value=str(source.red_shift), title="z:")
+    z = TextInput(value=str(source.redshift), title="z:")
     v_exp = TextInput(value='0', title="v_exp:")
     for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
         el_data = pd.DataFrame({'wavelength': wavelengths})
-        el_data['x'] = el_data['wavelength'] * (1 + source.red_shift)
+        el_data['x'] = el_data['wavelength'] * (1 + source.redshift)
         model_dict[f'el{i}'] = plot.segment(x0='x', x1='x',
                                             # TODO change limits
                                             y0=0, y1=1e-13, color=color,

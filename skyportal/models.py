@@ -6,6 +6,7 @@ import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import backref, relationship
+from sqlalchemy.dialects.postgresql import JSON, JSONB
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
@@ -83,7 +84,7 @@ class Source(Base):
     # TODO should this column type be decimal? fixed-precison numeric
     ra = sa.Column(sa.Float)
     dec = sa.Column(sa.Float)
-    red_shift = sa.Column(sa.Float, nullable=True)
+    redshift = sa.Column(sa.Float, nullable=True)
 
     groups = relationship('Group', secondary='group_sources', cascade='all')
     comments = relationship('Comment', back_populates='source', cascade='all',
@@ -109,7 +110,7 @@ class Source(Base):
     def get_sdss_url(self):
         """Construct URL for public Sloan Digital Sky Survey (SDSS) cutout."""
         return (f"http://skyservice.pha.jhu.edu/DR9/ImgCutout/getjpeg.aspx"
-                f"?ra={self.ra}&dec={self.dec}&scale=0.5&width=200&height=200"
+                f"?ra={self.ra}&dec={self.dec}&scale=0.3&width=200&height=200"
                 f"&opt=G&query=&Grid=on")
 
     def get_panstarrs_url(self):
@@ -122,7 +123,7 @@ class Source(Base):
         try:
             ps_query_url = (f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
                             f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
-                            f"&filter=r&filter=i&filetypes=stack&size=400")
+                            f"&filter=r&filter=i&filetypes=stack&size=250")
             response = requests.get(ps_query_url)
             match = re.search('src="//ps1images.stsci.edu.*?"', response.content.decode())
             return match.group().replace('src="', 'http:').replace('"', '')
@@ -188,13 +189,19 @@ User.comments = relationship('Comment', back_populates='user', cascade='all',
 
 class Photometry(Base):
     __tablename__ = 'photometry'
-    observed_at = sa.Column(sa.DateTime)
+    observed_at = sa.Column(sa.DateTime) # iso date
+    mjd = sa.Column(sa.Float)  # mjd date
     time_format = sa.Column(sa.String, default='iso')
-    time_scale = sa.Column(sa.String, default='tcb')
+    time_scale = sa.Column(sa.String, default='utc')
     mag = sa.Column(sa.Float)
     e_mag = sa.Column(sa.Float)
     lim_mag = sa.Column(sa.Float)
     filter = sa.Column(sa.String)  # TODO Enum?
+
+    ## external values
+    score = sa.Column(sa.Float, nullable=True)  # RB
+    candid = sa.Column(sa.BigInteger, nullable=True)  # candidate ID
+    altdata = sa.Column(JSONB)
 
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, index=True)

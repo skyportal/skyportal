@@ -76,12 +76,13 @@ if __name__ == '__main__':
 #    """
 
     import_table('users', 'users', ['id', 'username'], dedupe=['username'])
+
     import_table('telescopes', 'telescopes', ['id', 'name', 'nickname', 'lat',
                                               'lon', 'elevation', 'diameter'])
     import_table('instruments', 'instruments', ['id', 'name', 'type', 'band', 'telid'],
                  {'telid': 'telescope_id'})
     import_table('sources', 'sources', ['name', 'ra', 'dec', 'redshift'],
-                 {'name': 'id', 'redshift': 'red_shift'})
+                 {'name': 'id'})
     import_table('comments', 'comments', ['id', 'user_id', 'text',
                                           'date_added', 'source_id'],
                  {'date_added': 'created_at'})
