@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import moment from 'moment';
+import classnames from 'classnames';
 
 import styles from "./ThumbnailList.css";
 
@@ -30,14 +31,22 @@ const Thumbnail = ({ ra, dec, telescope, observed_at, name, url }) => {
       break;
   }
 
+  let thumbnailDivClassNames = classnames(styles.Thumbnail, { [styles.ps1]: name === "ps1" });
+
   return (
     <a href={link}>
-      <div className={styles.Thumbnail}>
+      {name === "ps1" && <br />}
+      <div className={thumbnailDivClassNames}>
         <b>
           {name.toUpperCase()}
         </b>
         <br />
-        <img src={url} alt={alt} title={alt} />
+        <div className={styles.thumbnailimgdiv}>
+          <img className={name === "ps1" && styles.ps1crosshairs} src={url} alt={alt} title={alt} />
+          {name === "ps1" &&
+          <img className={styles.ps1crosshairs} src="/static/images/crosshairs.png" alt="" />
+          }
+        </div>
       </div>
     </a>
   );
