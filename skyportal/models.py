@@ -84,7 +84,38 @@ class Source(Base):
     # TODO should this column type be decimal? fixed-precison numeric
     ra = sa.Column(sa.Float)
     dec = sa.Column(sa.Float)
+
+    ra_dis = sa.Column(sa.Float)
+    dec_dis = sa.Column(sa.Float)
+
+    ra_err = sa.Column(sa.Float, nullable=True)
+    dec_err = sa.Column(sa.Float, nullable=True)
+
+    offset = sa.Column(sa.Float, default=0.0)
     redshift = sa.Column(sa.Float, nullable=True)
+
+    altdata = sa.Column(JSONB, nullable=True)
+    created = sa.Column(sa.DateTime, nullable=False,
+                        server_default=sa.func.now())
+
+    dist_nearest_source = sa.Column(sa.Float, nullable=True)
+    mag_nearest_source = sa.Column(sa.Float, nullable=True)
+    e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
+
+    varstar = sa.Column(sa.Boolean, default=False)
+
+    ## pan-starrs
+    sgmag1 = sa.Column(sa.Float, nullable=True)
+    srmag1 = sa.Column(sa.Float, nullable=True)
+    simag1 = sa.Column(sa.Float, nullable=True)
+    objectidps1 = sa.Column(sa.BigInteger, nullable=True)
+    sgscore1 = sa.Column(sa.Float, nullable=True)
+    distpsnr1 = sa.Column(sa.Float, nullable=True)
+
+    origin = sa.Column(sa.String, nullable=True)
+    modified = sa.Column(sa.DateTime, nullable=False,
+                         server_default=sa.func.now(),
+                         server_onupdate=sa.func.now())
 
     groups = relationship('Group', secondary='group_sources', cascade='all')
     comments = relationship('Comment', back_populates='source', cascade='all',
@@ -175,6 +206,7 @@ class Comment(Base):
     attachment_type = sa.Column(sa.String, nullable=True)
     attachment_bytes = sa.Column(sa.types.LargeBinary, nullable=True)
 
+    origin = sa.Column(sa.String, nullable=True)
     user_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
                         nullable=False, index=True)
     user = relationship('User', back_populates='comments', cascade='all')
@@ -197,11 +229,24 @@ class Photometry(Base):
     e_mag = sa.Column(sa.Float)
     lim_mag = sa.Column(sa.Float)
     filter = sa.Column(sa.String)  # TODO Enum?
+    isdiffpos = sa.Column(sa.Boolean, default=True)  # candidate from position?
+
+    var_mag = sa.Column(sa.Float, nullable=True)
+    var_e_mag = sa.Column(sa.Float, nullable=True)
+
+    dist_nearest_source = sa.Column(sa.Float, nullable=True)
+    mag_nearest_source = sa.Column(sa.Float, nullable=True)
+    e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
 
     ## external values
     score = sa.Column(sa.Float, nullable=True)  # RB
     candid = sa.Column(sa.BigInteger, nullable=True)  # candidate ID
     altdata = sa.Column(JSONB)
+
+    created = sa.Column(sa.DateTime, nullable=False,
+                        server_default=sa.func.now())
+
+    origin = sa.Column(sa.String, nullable=True)
 
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, index=True)
@@ -225,6 +270,7 @@ class Spectrum(Base):
                           nullable=False, index=True)
     source = relationship('Source', back_populates='spectra', cascade='all')
     observed_at = sa.Column(sa.DateTime, nullable=False)
+    origin = sa.Column(sa.String, nullable=True)
     # TODO program?
     instrument_id = sa.Column(sa.ForeignKey('instruments.id',
                                             ondelete='CASCADE'),
@@ -258,11 +304,12 @@ class Spectrum(Base):
 
 class Thumbnail(Base):
     # TODO delete file after deleting row
-    type = sa.Column(sa.Enum('new', 'ref', 'sub', 'sdss', 'ps1',
+    type = sa.Column(sa.Enum('new', 'ref', 'sub', 'sdss', 'ps1', "new_gz",
+                             'ref_gz', 'sub_gz',
                              name='thumbnail_types', validate_strings=True))
     file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     public_url = sa.Column(sa.String(), nullable=True, index=False, unique=False)
-
+    origin = sa.Column(sa.String, nullable=True)
     photometry_id = sa.Column(sa.ForeignKey('photometry.id', ondelete='CASCADE'),
                               nullable=False, index=True)
     photometry = relationship('Photometry', back_populates='thumbnails', cascade='all')
