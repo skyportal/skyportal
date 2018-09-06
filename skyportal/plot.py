@@ -203,7 +203,7 @@ def photometry_plot(source_id):
         active_drag='box_zoom',
         tools='box_zoom,wheel_zoom,pan,reset',
         y_range=(up_lim,
-                 np.nanmin(data['mag']) - 0.1)
+                 np.nanmin(data['mag']) - 0.5)
     )
     model_dict = {}
     err_model_dict = {}

@@ -15,6 +15,10 @@ import shutil
 import numpy as np
 import pandas as pd
 import copy
+from concurrent.futures import ProcessPoolExecutor
+import multiprocessing as mp
+import concurrent
+import itertools
 
 import matplotlib
 matplotlib.use('Agg')
@@ -35,10 +39,17 @@ import astropy.units as u
 from astropy.io import fits
 from astropy.time import Time
 from astropy.coordinates import SkyCoord
+from astroquery.simbad import Simbad
+from astroquery.vizier import Vizier
+
+Simbad.TIMEOUT = 5
+customSimbad = Simbad()
+customSimbad.add_votable_fields('otype', 'sp', 'pm', "v*")
+customGaia = Vizier(columns=["*", "+_r"], catalog="I/345/gaia2")
 
 class ZTFAvro():
 
-    def __init__(self, fname, ztfpack, only_pure=False, verbose=True,
+    def __init__(self, fname, ztfpack, only_pure=True, verbose=True,
                  clobber=True):
 
         self.fname = fname
@@ -77,12 +88,22 @@ class ZTFAvro():
     def save_packets(self):
 
         for packet in self._open_avro():
+            print(packet["objectId"])
             do_process = True
             if self.only_pure and not self._is_alert_pure(packet):
                 do_process = False
 
             if not do_process:
+                print(f"{self.fname}: not pure. Skipping")
                 continue
+
+            s = Source.query.filter(Source.id == packet["objectId"]).first()
+            if s:
+                print("Found an existing source with id = " + packet["objectId"])
+                source_is_varstar = s.varstar in [True]
+                if not self.clobber and s.origin == f"{os.path.basename(self.fname)}":
+                    print(f"already added this source with this avro packet {os.path.basename(self.fname)}")
+                    continue
 
             # make a dataframe and save the source/phot
             dflc = self._make_dataframe(packet)
@@ -100,18 +121,17 @@ class ZTFAvro():
                            'simag1': packet["candidate"].get("simag1"),
                            'objectidps1': packet["candidate"].get("objectidps1"),
                            'sgscore1': packet["candidate"].get("sgscore1"),
-                           'distpsnr1': packet["candidate"].get("distpsnr1")
+                           'distpsnr1': packet["candidate"].get("distpsnr1"),
+                           'score': packet['candidate']['rb']
                            }
 
-            s = Source.query.filter(Source.id == packet["objectId"]).first()
             if s is None:
                 s = Source(**source_info,
                            origin=f"{os.path.basename(self.fname)}",
                            groups=[self.ztfpack.g])
+                source_is_varstar = False
             else:
                 print("Found an existing source with id = " + packet["objectId"])
-
-            source_is_varstar = s.varstar in [True]  # we may already know about this source
 
             # let's see if we have already
             comments = Comment.query.filter(Comment.source_id == packet["objectId"]) \
@@ -138,14 +158,12 @@ class ZTFAvro():
             varstarness = []
             for j, row in dflc.iterrows():
                 rj = row.to_dict()
-
-                if (rj.get("classtar", 1.0) > 0.75 and \
-                    rj.get('dist_nearest_source', 10) < 1.0) or \
-                    (packet["candidate"].get("sgscore1", 1.0) > 0.75 and \
-                     packet["candidate"].get("distpsnr1", 10) < 1.0) or \
+                if ((packet["candidate"].get("sgscore1", 1.0) or 1.0) > 0.5) and \
+                   ((packet["candidate"].get("distpsnr1", 10) or 10) < 1.0) or \
                     (rj.get("isdiffpos", 'f') not in ["1", "t"] and \
-                     rj.get('magpsf') is not None):
+                     not pd.isnull(rj.get('magpsf'))):
                     varstarness.append(True)
+
                 else:
                     varstarness.append(False)
 
@@ -174,30 +192,37 @@ class ZTFAvro():
                 #   diff is detected in positive (ref source got brighter)
                 #   diff is detected in the negative (ref source got fainter)
                 #   diff is undetected in the neg/pos (ref similar source)
-                if not pd.isnull(mdiff):
-                    total_mag = -2.5*np.log10(10**(-0.4*mref) +
-                                              sign*10**(-0.4*mdiff))
-                    tmp_total_mag_errs = (-2.5*np.log10(10**(-0.4*mref) +
-                                          sign*10**(-0.4*(mdiff + mdiff_err))) \
-                                          - total_mag,
-                                          -2.5*np.log10(10**(-0.4*mref) +
-                                          sign*10**(-0.4*(mdiff - mdiff_err))) \
-                                          - total_mag)
-                    # add errors in quadature -- geometric mean of diff err
-                    # and ref err
-                    total_mag_err = np.sqrt(-1.0*tmp_total_mag_errs[0] *
-                                            tmp_total_mag_errs[1] +
-                                            mref_err**2)
-                else:
-                    # undetected source
-                    mref = packet["candidate"].get("magnr")
-                    mref_err = packet["candidate"].get("sigmagnr")
-                    # 5 sigma
-                    diff_err = (-2.5*np.log10(10**(-0.4*mref) +
-                                sign*10**(-0.4*phot["lim_mag"])) - mref)/5
+                try:
+                    if not pd.isnull(mdiff):
+                        total_mag = -2.5*np.log10(10**(-0.4*mref) +
+                                                  sign*10**(-0.4*mdiff))
+                        tmp_total_mag_errs = (-2.5*np.log10(10**(-0.4*mref) +
+                                              sign*10**(-0.4*(mdiff + mdiff_err))) \
+                                              - total_mag,
+                                              -2.5*np.log10(10**(-0.4*mref) +
+                                              sign*10**(-0.4*(mdiff - mdiff_err))) \
+                                              - total_mag)
+                        # add errors in quadature -- geometric mean of diff err
+                        # and ref err
+                        total_mag_err = np.sqrt(-1.0*tmp_total_mag_errs[0] *
+                                                tmp_total_mag_errs[1] +
+                                                mref_err**2)
+                    else:
+                        # undetected source
+                        mref = packet["candidate"].get("magnr")
+                        mref_err = packet["candidate"].get("sigmagnr")
+                        # 5 sigma
+                        diff_err = (-2.5*np.log10(10**(-0.4*mref) +
+                                    sign*10**(-0.4*phot["lim_mag"])) - mref)/5
 
-                    total_mag = mref
-                    total_mag_err = np.sqrt(mref_err**2 + diff_err**2)
+                        total_mag = mref
+                        total_mag_err = np.sqrt(mref_err**2 + diff_err**2)
+                except:
+                    print("Error in varstar calc")
+                    print(mdiff, mref, sign, mdiff_err, packet["candidate"].get("magnr"), packet["candidate"].get("sigmagnr"))
+
+                    total_mag = 99
+                    total_mag_err = 0
 
                 phot.update({"var_mag": total_mag, "var_e_mag": total_mag_err})
 
@@ -233,6 +258,8 @@ class ZTFAvro():
             s.spectra = []
             source_is_varstar = source_is_varstar or any(varstarness)
             s.varstar = source_is_varstar
+            s.transient = self._is_transient(dflc)
+
             DBSession().add(s)
             try:
                 DBSession().commit()
@@ -254,20 +281,23 @@ class ZTFAvro():
                 DBSession().add(t)
                 stamp = packet['cutout{}'.format(ztftype)]['stampData']
 
-                with gzip.open(io.BytesIO(stamp), 'rb') as f:
-                    gz = open(f"/tmp/{gzname}", "wb")
-                    gz.write(f.read())
-                    gz.close()
-                    f.seek(0)
-                    with fits.open(io.BytesIO(f.read())) as hdul:
-                        hdul[0].data = np.flip(hdul[0].data, axis=0)
-                        ffig = aplpy.FITSFigure(hdul[0])
-                        ffig.show_grayscale(stretch='arcsinh', invert=ztftype != 'Difference')
-                        ffig.save(f"/tmp/{fname}")
-                if not os.path.exists(self.ztfpack.basedir/f'static/thumbnails/{packet["objectId"]}'):
-                    os.makedirs(self.ztfpack.basedir/f'static/thumbnails/{packet["objectId"]}')
-                shutil.copy(f"/tmp/{fname}", self.ztfpack.basedir/f'static/thumbnails/{packet["objectId"]}/{fname}')
-                shutil.copy(f"/tmp/{gzname}", self.ztfpack.basedir/f'static/thumbnails/{packet["objectId"]}/{gzname}')
+                if (not os.path.exists(self.ztfpack.basedir/f'static/thumbnails/{packet["objectId"]}/{fname}') or \
+                    not os.path.exists(self.ztfpack.basedir/f'static/thumbnails/{packet["objectId"]}/{gzname}')) and \
+                    not self.clobber:
+                    with gzip.open(io.BytesIO(stamp), 'rb') as f:
+                        gz = open(f"/tmp/{gzname}", "wb")
+                        gz.write(f.read())
+                        gz.close()
+                        f.seek(0)
+                        with fits.open(io.BytesIO(f.read())) as hdul:
+                            hdul[0].data = np.flip(hdul[0].data, axis=0)
+                            ffig = aplpy.FITSFigure(hdul[0])
+                            ffig.show_grayscale(stretch='arcsinh', invert=True) #ztftype != 'Difference')
+                            ffig.save(f"/tmp/{fname}")
+                    if not os.path.exists(self.ztfpack.basedir/f'static/thumbnails/{packet["objectId"]}'):
+                        os.makedirs(self.ztfpack.basedir/f'static/thumbnails/{packet["objectId"]}')
+                    shutil.copy(f"/tmp/{fname}", self.ztfpack.basedir/f'static/thumbnails/{packet["objectId"]}/{fname}')
+                    shutil.copy(f"/tmp/{gzname}", self.ztfpack.basedir/f'static/thumbnails/{packet["objectId"]}/{gzname}')
 
             try:
                 s.add_linked_thumbnails()
@@ -282,9 +312,16 @@ class ZTFAvro():
                               .filter(Photometry.source_id == packet["objectId"])
                               .filter(Photometry.mag < 30)
                               .statement, DBSession().bind)
-
-            infos = [(x["altdata"]["ra"], x["altdata"]["dec"],
+            if not s.varstar:
+                infos = [(x["altdata"]["ra"], x["altdata"]["dec"],
                       x["mag"], x["e_mag"], x["score"], x["filter"]) for i, x in dat.iterrows()]
+            else:
+                infos = [(x["altdata"]["ra"], x["altdata"]["dec"],
+                      x["var_mag"], x["var_e_mag"], x["score"], x["filter"]) for i, x in dat.iterrows()]
+
+            ndet = len(dat[~pd.isnull(dat["mag"])])
+            s.detect_photometry_count =ndet
+            s.last_detected = np.max(dat[~pd.isnull(dat["mag"])]["observed_at"])
 
             calc_source_data = dict()
             new_ra = np.average([x[0] for x in infos], weights=[1./x[3] for x in infos])
@@ -298,17 +335,24 @@ class ZTFAvro():
             filts = list(set([x[-1] for x in infos]))
             for f in filts:
                 ii = [x for x in infos if x[-1] == f]
+                rez = np.average([x[2] for x in ii], weights=[1/x[3] for x in ii])
+                if pd.isnull(rez):
+                    rez = None
                 calc_source_data.update({f: {"max_delta":
                                              np.nanmax([x[2] for x in ii]) -
                                              np.nanmin([x[2] for x in ii]),
-                                             "mag_avg": np.average([x[2] for x in ii],
-                                                                   weights=[1/x[3] for x in ii])
+                                             "mag_avg": rez
                                              }
                                          }
                                         )
 
             s = Source.query.get(packet["objectId"])
-            s.altdata = calc_source_data
+
+            altdata = dict()
+            for k in calc_source_data:
+                if not pd.isnull(calc_source_data[k]): altdata.update({k: calc_source_data[k]})
+
+            s.altdata = altdata
             s.ra = new_ra
             s.dec = new_dec
             s.ra_err = ra_err
@@ -318,6 +362,37 @@ class ZTFAvro():
             c2 = SkyCoord(new_ra * u.deg, new_dec * u.deg, frame='fk5')
             sep = c1.separation(c2)
             s.offset = sep.arcsecond
+
+            ## catalog search
+            result_table = customSimbad.query_region(SkyCoord(f"{s.ra_dis}d {s.dec_dis}d", frame='icrs'), radius='0d0m3s')
+            if result_table:
+                try:
+                    s.simbad_class = result_table["OTYPE"][0].decode("utf-8", "ignore")
+
+                    altdata = dict()
+                    rj = result_table.to_pandas().dropna(axis='columns').iloc[0].to_json()
+                    s.simbad_info = rj
+                except:
+                    pass
+
+            if s.simbad_class:
+                comments = [Comment(text=comment, source_id=packet["objectId"],
+                              user=self.ztfpack.group_admin_user, ctype="classification",
+                              origin=f"{os.path.basename(self.fname)}")
+                              for comment in [f"Simbad class = {s.simbad_class}"]]
+
+            result_table = customGaia.query_region(SkyCoord(ra=s.ra_dis, dec=s.dec_dis,
+                                       unit=(u.deg, u.deg),
+                                       frame='icrs'),
+                                       width="3s",
+                                       catalog=["I/345/gaia2"])
+            if result_table:
+                try:
+                    rj = result_table.pop().to_pandas().dropna(axis='columns').iloc[0].to_json()
+                    s.gaia_info = rj
+                except:
+                    pass
+
             DBSession().commit()
             print("added")
 
@@ -390,8 +465,8 @@ class ZTFPack():
         self._connect()
         self.username = username
 
-        g = Group.query.filter(Group.name == groupname).first()
-        if not g:
+        self.g = Group.query.filter(Group.name == groupname).first()
+        if not self.g:
             self.g = Group(name=groupname)
 
         super_admin_user = User.query.filter(User.username == self.username).first()
@@ -454,7 +529,62 @@ class ZTFPack():
             init_db(**cfg['database'])
 
 
-z = ZTFPack("profjsb@gmail.com")
-#a = ZTFAvro("tools/ZTF/data/ztf_public_20180809/585153593515015006.avro", z)
-a = ZTFAvro("tools/ZTF/data/ztf_public_20180809/585153593515015006.avro", z, clobber=True)
+class LoadPTF:
 
+    def __init__(self, avro_dir=None, nproc=mp.cpu_count(), maxfiles=10,
+                 username="profjsb@gmail.com", groupname="Public ZTF", clobber=True):
+
+        self.maxfiles = maxfiles
+        self.avro_dir = Path(avro_dir)
+        self.nproc = min(nproc, maxfiles)
+        self.clobber = clobber
+
+        self.ztfpacks = [ZTFPack(username) for _ in range(1)]
+
+    def _worker(self, fname, zpack, clobber=True):
+        a = ZTFAvro(fname, zpack, clobber=clobber)
+        return fname
+
+    def runp(self):
+
+        self.i = 0
+        with ProcessPoolExecutor(max_workers=self.nproc) as executor:
+            avro_files = list(self.avro_dir.glob("*.avro"))
+            if self.maxfiles is not None and not isinstance(self.maxfiles, str):
+                avro_files = avro_files[:self.maxfiles]
+                print(f"running on {len(avro_files)} files")
+
+
+            rez = {os.path.basename(avro):
+                   executor.submit(self._worker, avro, connection, clobber=self.clobber)
+                   for avro, connection
+                   in zip(avro_files, itertools.cycle(self.ztfpacks))}
+
+            for future in concurrent.futures.as_completed(rez):
+                print(rez[future].result())
+
+    def run(self):
+
+        self.i = 0
+
+        avro_files = list(self.avro_dir.glob("*.avro"))
+        print(f"Number of files: {len(avro_files)}")
+
+        if self.maxfiles is not None and not isinstance(self.maxfiles, str):
+            avro_files = avro_files[:self.maxfiles]
+            print(f"running on {len(avro_files)} files")
+
+        rez = []
+        for avro, connection in zip(avro_files, itertools.cycle(self.ztfpacks)):
+            rez.append(self._worker(avro, connection, clobber=self.clobber))
+
+        for r in rez:
+                print(r)
+
+
+z = ZTFPack("profjsb@gmail.com")
+#a = ZTFAvro("tools/ZTF/data/ztf_public_20180809/585156990315015007.avro", z, clobber=True)
+##a = ZTFAvro("tools/ZTF/data/ztf_public_20180809/585153593515015006.avro", z, clobber=True)
+
+l = LoadPTF(avro_dir="tools/ZTF/data/ztf_public_20180809", maxfiles=100000, clobber=True)
+l.run()

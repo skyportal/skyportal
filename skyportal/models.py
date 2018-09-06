@@ -98,11 +98,14 @@ class Source(Base):
     created = sa.Column(sa.DateTime, nullable=False,
                         server_default=sa.func.now())
 
+    last_detected = sa.Column(sa.DateTime, nullable=True)
     dist_nearest_source = sa.Column(sa.Float, nullable=True)
     mag_nearest_source = sa.Column(sa.Float, nullable=True)
     e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
 
+    transient = sa.Column(sa.Boolean, default=False)
     varstar = sa.Column(sa.Boolean, default=False)
+    score = sa.Column(sa.Float, nullable=True)
 
     ## pan-starrs
     sgmag1 = sa.Column(sa.Float, nullable=True)
@@ -117,12 +120,19 @@ class Source(Base):
                          server_default=sa.func.now(),
                          server_onupdate=sa.func.now())
 
+    simbad_class = sa.Column(sa.Unicode, nullable=True, )
+    simbad_info = sa.Column(JSONB, nullable=True)
+    gaia_info = sa.Column(JSONB, nullable=True)
+
     groups = relationship('Group', secondary='group_sources', cascade='all')
     comments = relationship('Comment', back_populates='source', cascade='all',
                             order_by="Comment.created_at")
     photometry = relationship('Photometry', back_populates='source',
                               cascade='all',
                               order_by="Photometry.observed_at")
+
+    detect_photometry_count = sa.Column(sa.Integer, nullable=True)
+
     spectra = relationship('Spectrum', back_populates='source', cascade='all',
                            order_by="Spectrum.observed_at")
     thumbnails = relationship('Thumbnail', back_populates='source',
@@ -202,6 +212,9 @@ class Instrument(Base):
 
 class Comment(Base):
     text = sa.Column(sa.String, nullable=False)
+    ctype = sa.Column(sa.Enum('text', 'redshift', 'classification',
+                             name='comment_types', validate_strings=True, default="text"))
+
     attachment_name = sa.Column(sa.String, nullable=True)
     attachment_type = sa.Column(sa.String, nullable=True)
     attachment_bytes = sa.Column(sa.types.LargeBinary, nullable=True)
