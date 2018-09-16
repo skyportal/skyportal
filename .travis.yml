@@ -52,7 +52,6 @@ addons:
     - wget
     - nodejs
     - supervisor
-    - nginx
     - xvfb
     - unzip
     - libnss3

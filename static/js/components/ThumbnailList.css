@@ -12,3 +12,21 @@
     width: 200px;
     height: 200px;
 }
+
+.ps1 {
+    width: 200px;
+    height: 200px;
+}
+
+.ps1crosshairs {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 200px;
+    height: 200px;
+    padding-bottom: 0.2em;
+}
+
+.thumbnailimgdiv {
+    position: relative;
+}

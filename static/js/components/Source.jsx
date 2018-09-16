@@ -53,7 +53,7 @@ Red Shift:
           <br />
           <ThumbnailList ra={ra} dec={dec} thumbnails={thumbnails} />
 
-          <br />
+          <br /><br />
           <Responsive
             element={FoldBox}
             title="Photometry"
