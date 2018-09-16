@@ -19,6 +19,18 @@ from concurrent.futures import ProcessPoolExecutor
 import multiprocessing as mp
 import concurrent
 import itertools
+import requests
+import shutil
+from tqdm import tqdm
+import tarfile
+import json
+
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+
+
+from urllib.request import urlretrieve
+import sys
 
 import matplotlib
 matplotlib.use('Agg')
@@ -81,14 +93,15 @@ class ZTFAvro():
             print(dflc[["jd", "magpsf", "sigmapsf", "fid", "diffmaglim"]])
             for i, cutout in enumerate(['Science','Template','Difference']):
                 stamp = packet['cutout{}'.format(cutout)]['stampData']
-                f = open(f"ttt{cutout}.fits.gz","wb")
+                f = open(f"ttt{cutout}.fits.gz", "wb")
                 f.write(stamp)
                 f.close()
 
     def save_packets(self):
 
         for packet in self._open_avro():
-            print(packet["objectId"])
+            print(f"working on {packet['objectId']}")
+
             do_process = True
             if self.only_pure and not self._is_alert_pure(packet):
                 do_process = False
@@ -99,7 +112,7 @@ class ZTFAvro():
 
             s = Source.query.filter(Source.id == packet["objectId"]).first()
             if s:
-                print("Found an existing source with id = " + packet["objectId"])
+                print("Found: an existing source with id = " + packet["objectId"])
                 source_is_varstar = s.varstar in [True]
                 if not self.clobber and s.origin == f"{os.path.basename(self.fname)}":
                     print(f"already added this source with this avro packet {os.path.basename(self.fname)}")
@@ -130,8 +143,10 @@ class ZTFAvro():
                            origin=f"{os.path.basename(self.fname)}",
                            groups=[self.ztfpack.g])
                 source_is_varstar = False
+                new_source = True
             else:
                 print("Found an existing source with id = " + packet["objectId"])
+                new_source = False
 
             # let's see if we have already
             comments = Comment.query.filter(Comment.source_id == packet["objectId"]) \
@@ -148,7 +163,15 @@ class ZTFAvro():
                     skip = True
 
             if not skip:
-                s.comments = [Comment(text=comment, source_id=packet["objectId"],
+                print(f"packet id: {packet['objectId']}")
+                if new_source:
+                    s.comments = [Comment(text=comment, source_id=packet["objectId"],
+                              user=self.ztfpack.group_admin_user,
+                              origin=f"{os.path.basename(self.fname)}")
+                              for comment in ["Added by ztf_upload_avro", \
+                                              f"filename = {os.path.basename(self.fname)}"]]
+                else:
+                    comment_list = [Comment(text=comment, source_id=packet["objectId"],
                               user=self.ztfpack.group_admin_user,
                               origin=f"{os.path.basename(self.fname)}")
                               for comment in ["Added by ztf_upload_avro", \
@@ -156,14 +179,23 @@ class ZTFAvro():
 
             photdata = []
             varstarness = []
+
+            ssdistnr = packet["candidate"].get("ssdistnr")
+
+            is_roid = False
+            if packet["candidate"].get("isdiffpos", 'f') in ["1", "t"]:
+                if not ((ssdistnr is None) or (ssdistnr < 0) or (ssdistnr > 5)):
+                    is_roid = True
+
             for j, row in dflc.iterrows():
                 rj = row.to_dict()
-                if ((packet["candidate"].get("sgscore1", 1.0) or 1.0) > 0.5) and \
+                if ((packet["candidate"].get("sgscore1", 1.0) or 1.0) >= 0.5) and \
                    ((packet["candidate"].get("distpsnr1", 10) or 10) < 1.0) or \
                     (rj.get("isdiffpos", 'f') not in ["1", "t"] and \
                      not pd.isnull(rj.get('magpsf'))):
-                    varstarness.append(True)
-
+                        if not is_roid:
+                            # make sure it's not a roid
+                            varstarness.append(True)
                 else:
                     varstarness.append(False)
 
@@ -218,8 +250,8 @@ class ZTFAvro():
                         total_mag = mref
                         total_mag_err = np.sqrt(mref_err**2 + diff_err**2)
                 except:
-                    print("Error in varstar calc")
-                    print(mdiff, mref, sign, mdiff_err, packet["candidate"].get("magnr"), packet["candidate"].get("sigmagnr"))
+                    #print("Error in varstar calc")
+                    #print(mdiff, mref, sign, mdiff_err, packet["candidate"].get("magnr"), packet["candidate"].get("sigmagnr"))
 
                     total_mag = 99
                     total_mag_err = 0
@@ -234,8 +266,6 @@ class ZTFAvro():
                 phot.update({"altdata": altdata})
                 photdata.append(copy.copy(phot))
 
-
-
             photometry = Photometry.query.filter(Photometry.source_id == packet["objectId"]) \
                                          .filter(Photometry.origin == f"{os.path.basename(self.fname)}")
 
@@ -245,25 +275,36 @@ class ZTFAvro():
                     print("removing preexisting photometry from this packet")
                     photometry.delete()
                     DBSession().commit()
+
             else:
                 if photometry.count() > 0:
                     print("Existing photometry from this packet. Skipping addition of more.")
                     skip = True
 
             if not skip:
-                s.photometry = [Photometry(instrument=self.ztfpack.i1,
+                if new_source:
+                    s.photometry = [Photometry(instrument=self.ztfpack.i1,
                                 source_id=packet["objectId"],
                                 origin=f"{os.path.basename(self.fname)}", **row)
                                 for j, row in enumerate(photdata)]
-            s.spectra = []
+                else:
+                  phot_list = [Photometry(instrument=self.ztfpack.i1,
+                                source_id=packet["objectId"],
+                                origin=f"{os.path.basename(self.fname)}", **row)
+                                for j, row in enumerate(photdata)]
+                #s.photometry =
+
+            # s.spectra = []
             source_is_varstar = source_is_varstar or any(varstarness)
             s.varstar = source_is_varstar
+            s.is_roid = is_roid
             s.transient = self._is_transient(dflc)
 
             DBSession().add(s)
             try:
                 DBSession().commit()
             except:
+                print("error committing DB")
                 pass
 
             for ttype, ztftype in [('new', 'Science'), ('ref', 'Template'), ('sub', 'Difference')]:
@@ -338,9 +379,10 @@ class ZTFAvro():
                 rez = np.average([x[2] for x in ii], weights=[1/x[3] for x in ii])
                 if pd.isnull(rez):
                     rez = None
-                calc_source_data.update({f: {"max_delta":
-                                             np.nanmax([x[2] for x in ii]) -
-                                             np.nanmin([x[2] for x in ii]),
+                md = np.nanmax([x[2] for x in ii]) - np.nanmin([x[2] for x in ii])
+                max_delta = md if not pd.isnull(md) else None
+
+                calc_source_data.update({f: {"max_delta": max_delta,
                                              "mag_avg": rez
                                              }
                                          }
@@ -361,7 +403,13 @@ class ZTFAvro():
             c1 = SkyCoord(s.ra_dis * u.deg, s.dec_dis * u.deg, frame='fk5')
             c2 = SkyCoord(new_ra * u.deg, new_dec * u.deg, frame='fk5')
             sep = c1.separation(c2)
-            s.offset = sep.arcsecond
+            s.offset = sep.arcsecond if not pd.isnull(sep.arcsecond) else 0.0
+
+            # TNS
+            tns = self._tns_search(s.ra_dis, s.dec_dis)
+            s.tns_info  = tns
+            if tns["Name"]:
+                s.tns_name = tns["Name"]
 
             ## catalog search
             result_table = customSimbad.query_region(SkyCoord(f"{s.ra_dis}d {s.dec_dis}d", frame='icrs'), radius='0d0m3s')
@@ -396,6 +444,19 @@ class ZTFAvro():
             DBSession().commit()
             print("added")
 
+    def _tns_search(self, ra, dec, radius=5.0):
+
+        url = "https://wis-tns.weizmann.ac.il/search?"
+        payload = {'ra': ra, 'decl': dec, 'radius': radius, 'coords_unit': "arcsec", "format": "csv"}
+        r = requests.get(url, params=payload)
+        df = pd.read_csv(io.StringIO(r.text))
+        if len(df) == 0:
+            return {"Name": None}
+        else:
+            print(df.iloc[0])
+            print(json.loads(df.iloc[0].dropna().to_json()))
+            return json.loads(df.iloc[0].dropna().to_json())
+
     def _open_avro(self):
         with open(self.fname, 'rb') as f:
             freader = fastavro.reader(f)
@@ -427,16 +488,18 @@ class ZTFAvro():
             else:
                 no_pointsource_counterpart = False
 
-        where_detected = (dflc['isdiffpos'] == 't') # nondetections will be None
+        where_detected = (dflc['isdiffpos'] == 't')  # nondetections will be None
         if np.sum(where_detected) >= 2:
-            detection_times = dflc.loc[where_detected,'jd'].values
+            detection_times = dflc.loc[where_detected, 'jd'].values
             dt = np.diff(detection_times)
             not_moving = np.max(dt) >= (30*u.minute).to(u.day).value
         else:
             not_moving = False
 
-        no_ssobject = (candidate['ssdistnr'] is None) or (candidate['ssdistnr'] < 0) or (candidate['ssdistnr'] > 5)
-        return is_positive_sub and no_pointsource_counterpart and not_moving and no_ssobject
+        no_ssobject = (candidate['ssdistnr'] is None) or \
+                      (candidate['ssdistnr'] < 0) or (candidate['ssdistnr'] > 5)
+        return is_positive_sub and no_pointsource_counterpart  \
+               and not_moving and no_ssobject
 
     def _is_alert_pure(self, packet):
         pure = True
@@ -581,10 +644,76 @@ class LoadPTF:
         for r in rez:
                 print(r)
 
+class TqdmUpTo(tqdm):
+    """
+    from https://github.com/tqdm/tqdm/blob/master/examples/tqdm_wget.py
+    Provides `update_to(n)` which uses `tqdm.update(delta_n)`.
+    Inspired by [twine#242](https://github.com/pypa/twine/pull/242),
+    [here](https://github.com/pypa/twine/commit/42e55e06).
+    """
 
-z = ZTFPack("profjsb@gmail.com")
-#a = ZTFAvro("tools/ZTF/data/ztf_public_20180809/585156990315015007.avro", z, clobber=True)
-##a = ZTFAvro("tools/ZTF/data/ztf_public_20180809/585153593515015006.avro", z, clobber=True)
+    def update_to(self, b=1, bsize=1, tsize=None):
+        """
+        b  : int, optional
+            Number of blocks transferred so far [default: 1].
+        bsize  : int, optional
+            Size of each block (in tqdm units) [default: 1].
+        tsize  : int, optional
+            Total size (in tqdm units). If [default: None] remains unchanged.
+        """
+        if tsize is not None:
+            self.total = tsize
+        self.update(b * bsize - self.n)  # will also set self.n = b * bsize
 
-l = LoadPTF(avro_dir="tools/ZTF/data/ztf_public_20180809", maxfiles=100000, clobber=True)
-l.run()
+if __name__ == "__main__":
+
+    from argparse import ArgumentParser
+    parser = ArgumentParser()
+
+    parser.add_argument('email', help="email address of user to add sources to DB")
+    parser.add_argument('location', help="location to extract")
+    parser.add_argument('-c','--clobber', action='store_true', default=False)
+    parser.add_argument('--datadir', default='/tmp/ZTF')
+
+    args = parser.parse_args()
+
+    if not os.path.exists(args.location) and args.location.find("http") == -1:
+        print(f"{args.location} does not exist")
+        sys.exit(1)
+
+    if os.path.isdir(args.location):
+        l = LoadPTF(avro_dir=args.location, maxfiles=100000, clobber=args.clobber)
+        l.run()
+    # this is a file
+    elif args.location.split(".")[-1] in ["avro", "AVRO"]:
+        z = ZTFPack(args.email)
+        a = ZTFAvro(args.location, z, clobber=args.clobber)
+
+    elif (args.location.find(".tar.gz") != -1) or (args.location.find(".tgz")  != -1):
+        outname = Path(args.datadir) / args.location.split('/')[-1]
+
+        # this appears to be a nightly directory
+        if args.location.find("http") != -1:
+            if not os.path.isdir(args.datadir):
+                os.makedirs(args.datadir)
+            if os.path.exists(outname):
+                print(f"Not downloading {outname}. You already have it.")
+            else:
+                print(f"dowloading nightly file {args.location.split('/')[-1]}")
+                sys.stdout.flush()
+                with TqdmUpTo(unit='B', unit_scale=True, unit_divisor=4096, miniters=1) as t:
+                    urlretrieve(args.location, filename=outname, reporthook=t.update_to,
+                       data=None)
+                print(f"downloaded {outname}")
+
+        outdir = Path(args.datadir) / os.path.basename(args.location.split('/')[-1]).split(".")[0]
+
+        print(f"Extracting to {outdir}...")
+        sys.stdout.flush()
+        tar = tarfile.open(outname, "r:*")
+        tar.extractall(path=outdir)
+
+        # run it
+        print(f"Loading directory...{outdir}")
+        l = LoadPTF(avro_dir=outdir, maxfiles=1000000, clobber=args.clobber)
+        l.run()

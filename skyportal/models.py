@@ -105,6 +105,8 @@ class Source(Base):
 
     transient = sa.Column(sa.Boolean, default=False)
     varstar = sa.Column(sa.Boolean, default=False)
+    is_roid = sa.Column(sa.Boolean, default=False)
+
     score = sa.Column(sa.Float, nullable=True)
 
     ## pan-starrs
@@ -123,6 +125,8 @@ class Source(Base):
     simbad_class = sa.Column(sa.Unicode, nullable=True, )
     simbad_info = sa.Column(JSONB, nullable=True)
     gaia_info = sa.Column(JSONB, nullable=True)
+    tns_info = sa.Column(JSONB, nullable=True)
+    tns_name = sa.Column(sa.Unicode, nullable=True)
 
     groups = relationship('Group', secondary='group_sources', cascade='all')
     comments = relationship('Comment', back_populates='source', cascade='all',
