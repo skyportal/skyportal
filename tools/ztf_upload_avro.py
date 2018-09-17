@@ -3,10 +3,12 @@
 make db_clear
 make db_init
 PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py \
-      --adminuser=joshbloom@berkeley.edu
+      --adminuser=<google_email_address>
+
+PYTHONPATH=$PYTHONPATH:"." python tools/ztf_upload_avro.py \
+     <google_email_address> https://ztf.uw.edu/alerts/public/ztf_public_20180626.tar.gz
 
 """
-import datetime
 import os
 import io
 import gzip
@@ -17,7 +19,6 @@ import pandas as pd
 import copy
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing as mp
-import concurrent
 import itertools
 import requests
 import shutil
@@ -27,7 +28,7 @@ import json
 
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
-
+warnings.filterwarnings("ignore", category=UserWarning)
 
 from urllib.request import urlretrieve
 import sys
@@ -59,6 +60,7 @@ customSimbad = Simbad()
 customSimbad.add_votable_fields('otype', 'sp', 'pm', "v*")
 customGaia = Vizier(columns=["*", "+_r"], catalog="I/345/gaia2")
 
+
 class ZTFAvro():
 
     def __init__(self, fname, ztfpack, only_pure=True, verbose=True,
@@ -73,29 +75,10 @@ class ZTFAvro():
         if not os.path.exists(self.fname):
             print(f"Cannot find file {fname}")
         else:
-            if verbose: print(f"found {fname}")
+            if verbose:
+                print(f"found {fname}")
 
-        #self._parse_packets()
         self.save_packets()
-
-    def _parse_packets(self):
-        for packet in self._open_avro():
-            do_process = True
-            if self.only_pure and not self._is_alert_pure(packet):
-                do_process = False
-
-            print(do_process)
-            print(packet)
-            dflc = self._make_dataframe(packet)
-            print(dflc.head())
-            print(dflc.columns)
-            print(self._is_transient(dflc))
-            print(dflc[["jd", "magpsf", "sigmapsf", "fid", "diffmaglim"]])
-            for i, cutout in enumerate(['Science','Template','Difference']):
-                stamp = packet['cutout{}'.format(cutout)]['stampData']
-                f = open(f"ttt{cutout}.fits.gz", "wb")
-                f.write(stamp)
-                f.close()
 
     def save_packets(self):
 
@@ -166,15 +149,15 @@ class ZTFAvro():
                 print(f"packet id: {packet['objectId']}")
                 if new_source:
                     s.comments = [Comment(text=comment, source_id=packet["objectId"],
-                              user=self.ztfpack.group_admin_user,
-                              origin=f"{os.path.basename(self.fname)}")
-                              for comment in ["Added by ztf_upload_avro", \
+                                  user=self.ztfpack.group_admin_user,
+                                  origin=f"{os.path.basename(self.fname)}")
+                                  for comment in ["Added by ztf_upload_avro", \
                                               f"filename = {os.path.basename(self.fname)}"]]
                 else:
                     comment_list = [Comment(text=comment, source_id=packet["objectId"],
-                              user=self.ztfpack.group_admin_user,
-                              origin=f"{os.path.basename(self.fname)}")
-                              for comment in ["Added by ztf_upload_avro", \
+                                    user=self.ztfpack.group_admin_user,
+                                    origin=f"{os.path.basename(self.fname)}")
+                                    for comment in ["Added by ztf_upload_avro", \
                                               f"filename = {os.path.basename(self.fname)}"]]
 
             photdata = []
@@ -292,7 +275,6 @@ class ZTFAvro():
                                 source_id=packet["objectId"],
                                 origin=f"{os.path.basename(self.fname)}", **row)
                                 for j, row in enumerate(photdata)]
-                #s.photometry =
 
             # s.spectra = []
             source_is_varstar = source_is_varstar or any(varstarness)
@@ -355,10 +337,10 @@ class ZTFAvro():
                               .statement, DBSession().bind)
             if not s.varstar:
                 infos = [(x["altdata"]["ra"], x["altdata"]["dec"],
-                      x["mag"], x["e_mag"], x["score"], x["filter"]) for i, x in dat.iterrows()]
+                          x["mag"], x["e_mag"], x["score"], x["filter"]) for i, x in dat.iterrows()]
             else:
                 infos = [(x["altdata"]["ra"], x["altdata"]["dec"],
-                      x["var_mag"], x["var_e_mag"], x["score"], x["filter"]) for i, x in dat.iterrows()]
+                          x["var_mag"], x["var_e_mag"], x["score"], x["filter"]) for i, x in dat.iterrows()]
 
             ndet = len(dat[~pd.isnull(dat["mag"])])
             s.detect_photometry_count =ndet
@@ -407,11 +389,11 @@ class ZTFAvro():
 
             # TNS
             tns = self._tns_search(s.ra_dis, s.dec_dis)
-            s.tns_info  = tns
+            s.tns_info = tns
             if tns["Name"]:
                 s.tns_name = tns["Name"]
 
-            ## catalog search
+            # catalog search
             result_table = customSimbad.query_region(SkyCoord(f"{s.ra_dis}d {s.dec_dis}d", frame='icrs'), radius='0d0m3s')
             if result_table:
                 try:
@@ -425,15 +407,15 @@ class ZTFAvro():
 
             if s.simbad_class:
                 comments = [Comment(text=comment, source_id=packet["objectId"],
-                              user=self.ztfpack.group_admin_user, ctype="classification",
-                              origin=f"{os.path.basename(self.fname)}")
-                              for comment in [f"Simbad class = {s.simbad_class}"]]
+                            user=self.ztfpack.group_admin_user, ctype="classification",
+                            origin=f"{os.path.basename(self.fname)}")
+                            for comment in [f"Simbad class = {s.simbad_class}"]]
 
             result_table = customGaia.query_region(SkyCoord(ra=s.ra_dis, dec=s.dec_dis,
-                                       unit=(u.deg, u.deg),
-                                       frame='icrs'),
-                                       width="3s",
-                                       catalog=["I/345/gaia2"])
+                                                            unit=(u.deg, u.deg),
+                                                            frame='icrs'),
+                                                            width="3s",
+                                                            catalog=["I/345/gaia2"])
             if result_table:
                 try:
                     rj = result_table.pop().to_pandas().dropna(axis='columns').iloc[0].to_json()
@@ -595,17 +577,17 @@ class ZTFPack():
 class LoadPTF:
 
     def __init__(self, avro_dir=None, nproc=mp.cpu_count(), maxfiles=10,
-                 username="profjsb@gmail.com", groupname="Public ZTF", clobber=True):
+                 username="testuser@cesium-ml.org", groupname="Public ZTF", clobber=True):
 
         self.maxfiles = maxfiles
         self.avro_dir = Path(avro_dir)
         self.nproc = min(nproc, maxfiles)
         self.clobber = clobber
 
-        self.ztfpacks = [ZTFPack(username) for _ in range(1)]
+        self.username = username
 
-    def _worker(self, fname, zpack, clobber=True):
-        a = ZTFAvro(fname, zpack, clobber=clobber)
+    def _worker(self, fname, clobber=True):
+        _ = ZTFAvro(fname, ZTFPack(self.username), clobber=clobber)
         return fname
 
     def runp(self):
@@ -613,18 +595,17 @@ class LoadPTF:
         self.i = 0
         with ProcessPoolExecutor(max_workers=self.nproc) as executor:
             avro_files = list(self.avro_dir.glob("*.avro"))
+            print(f"Number of files: {len(avro_files)}")
             if self.maxfiles is not None and not isinstance(self.maxfiles, str):
                 avro_files = avro_files[:self.maxfiles]
                 print(f"running on {len(avro_files)} files")
 
-
             rez = {os.path.basename(avro):
-                   executor.submit(self._worker, avro, connection, clobber=self.clobber)
-                   for avro, connection
-                   in zip(avro_files, itertools.cycle(self.ztfpacks))}
+                   executor.submit(self._worker, avro, clobber=self.clobber)
+                   for avro
+                   in avro_files}
 
-            for future in concurrent.futures.as_completed(rez):
-                print(rez[future].result())
+        print("done")
 
     def run(self):
 
@@ -643,6 +624,7 @@ class LoadPTF:
 
         for r in rez:
                 print(r)
+
 
 class TqdmUpTo(tqdm):
     """
@@ -665,6 +647,7 @@ class TqdmUpTo(tqdm):
             self.total = tsize
         self.update(b * bsize - self.n)  # will also set self.n = b * bsize
 
+
 if __name__ == "__main__":
 
     from argparse import ArgumentParser
@@ -672,8 +655,9 @@ if __name__ == "__main__":
 
     parser.add_argument('email', help="email address of user to add sources to DB")
     parser.add_argument('location', help="location to extract")
-    parser.add_argument('-c','--clobber', action='store_true', default=False)
+    parser.add_argument('-c', '--clobber', action='store_true', default=False)
     parser.add_argument('--datadir', default='/tmp/ZTF')
+    parser.add_argument('--workers', default=15)
 
     args = parser.parse_args()
 
@@ -682,8 +666,10 @@ if __name__ == "__main__":
         sys.exit(1)
 
     if os.path.isdir(args.location):
-        l = LoadPTF(avro_dir=args.location, maxfiles=100000, clobber=args.clobber)
-        l.run()
+        l = LoadPTF(avro_dir=args.location, nproc=args.workers,
+                    maxfiles=100000, clobber=args.clobber)
+        l.runp()
+
     # this is a file
     elif args.location.split(".")[-1] in ["avro", "AVRO"]:
         z = ZTFPack(args.email)
@@ -703,7 +689,7 @@ if __name__ == "__main__":
                 sys.stdout.flush()
                 with TqdmUpTo(unit='B', unit_scale=True, unit_divisor=4096, miniters=1) as t:
                     urlretrieve(args.location, filename=outname, reporthook=t.update_to,
-                       data=None)
+                                data=None)
                 print(f"downloaded {outname}")
 
         outdir = Path(args.datadir) / os.path.basename(args.location.split('/')[-1]).split(".")[0]
@@ -715,5 +701,5 @@ if __name__ == "__main__":
 
         # run it
         print(f"Loading directory...{outdir}")
-        l = LoadPTF(avro_dir=outdir, maxfiles=1000000, clobber=args.clobber)
-        l.run()
+        l = LoadPTF(avro_dir=outdir, nproc=args.workers, maxfiles=1000000, clobber=args.clobber)
+        l.runp()
