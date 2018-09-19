@@ -10,7 +10,7 @@ const dec_to_hours = (deci) => {
   const deg = Math.floor(dec);
   const min = Math.floor((dec - deg) * 60);
   const sec = ((dec - deg - (min/60)) * 3600).toFixed(2);
-  var sign = "+";
+  let sign = "+";
   if (deci < 0) {
       sign = "-";
   }
