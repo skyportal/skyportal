@@ -8,7 +8,10 @@ class CommentEntry extends React.Component {
   constructor(props) {
     super(props);
 
-    this.state = { value: '' };
+    this.state = {
+      text: '',
+      attachment: ''
+    };
     this._handleSubmit = this._handleSubmit.bind(this);
     this._handleChange = this._handleChange.bind(this);
   }
@@ -17,25 +20,43 @@ class CommentEntry extends React.Component {
     const { addComment } = this.props;
 
     event.preventDefault();
-    addComment(this.state.value);
-    this.setState({ value: "" });
+    addComment(this.state);
+    this.fileInput.value = "";
+    this.setState({
+      text: "",
+      attachment: ""
+    });
   }
 
   _handleChange(event) {
-    this.setState({ value: event.target.value });
+    if (event.target.files) {
+      this.setState({ attachment: event.target.files[0] });
+    } else {
+      this.setState({ text: event.target.value });
+    }
   }
 
   render() {
     return (
       <form className={styles.commentEntry} onSubmit={this._handleSubmit}>
-        <label>
+        <div>
           <input
             type="text"
             name="comment"
-            value={this.state.value}
+            value={this.state.text}
             onChange={this._handleChange}
           />
-        </label>
+        </div>
+        <div>
+          <label>
+            Attachment &nbsp;
+          </label>
+          <input
+            ref={el => { this.fileInput = el; }}
+            type="file"
+            onChange={this._handleChange}
+          />
+        </div>
         <input type="submit" value="↵" />
       </form>
     );

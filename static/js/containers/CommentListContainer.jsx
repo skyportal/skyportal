@@ -30,8 +30,8 @@ const mapStateToProps = (state, ownProps) => (
 
 const mapDispatchToProps = (dispatch, ownProps) => (
   {
-    addComment: text => dispatch(
-      Action.addComment({ source_id: ownProps.source, text })
+    addComment: formData => dispatch(
+      Action.addComment({ source_id: ownProps.source, ...formData })
     )
   }
 );
