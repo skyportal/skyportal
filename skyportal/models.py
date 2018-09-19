@@ -217,7 +217,7 @@ class Instrument(Base):
 class Comment(Base):
     text = sa.Column(sa.String, nullable=False)
     ctype = sa.Column(sa.Enum('text', 'redshift', 'classification',
-                             name='comment_types', validate_strings=True, default="text"))
+                             name='comment_types', validate_strings=True))
 
     attachment_name = sa.Column(sa.String, nullable=True)
     attachment_type = sa.Column(sa.String, nullable=True)
