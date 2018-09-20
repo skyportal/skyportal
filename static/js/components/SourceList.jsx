@@ -82,7 +82,8 @@ Sources
                 {source.id}
               </Link>
             </td>
-            <td>{Number(source.ra_dis).toFixed(3)}</td><td>{Number(source.dec_dis.toFixed(4))}</td>
+            <td>{source.ra_dis && Number(source.ra_dis).toFixed(3)}</td>
+            <td>{source.dec_dis && Number(source.dec_dis.toFixed(4))}</td>
             <td>{source.varstar.toString()}</td>
             <td>{source.transient.toString()}</td>
             <td>{(source.transient == source.varstar).toString()}</td>
