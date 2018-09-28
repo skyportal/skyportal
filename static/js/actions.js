@@ -47,8 +47,8 @@ export function fetchSource(id) {
   return API.GET(`/api/sources/${id}`, FETCH_LOADED_SOURCE);
 }
 
-export function fetchSources() {
-  return API.GET('/api/sources', FETCH_SOURCES);
+export function fetchSources(page=1) {
+  return API.GET(`/api/sources/${page}/page`, FETCH_SOURCES);
 }
 
 export function fetchGroup(id) {

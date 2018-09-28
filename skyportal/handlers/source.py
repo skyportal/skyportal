@@ -8,8 +8,10 @@ from ..models import (DBSession, Comment, Instrument, Photometry, Source,
 
 class SourceHandler(BaseHandler):
     @auth_or_token
-    def get(self, source_id=None):
-        if source_id is not None:
+    def get(self, source_id_or_page_num=None, page_number_given=False):
+        sources_per_page = 100
+        if source_id_or_page_num is not None and not page_number_given:
+            source_id = source_id_or_page_num
             info = Source.get_if_owned_by(source_id, self.current_user,
                                           options=[joinedload(Source.comments)
                                                    .joinedload(Comment.user),
@@ -17,14 +19,16 @@ class SourceHandler(BaseHandler):
                                                    .joinedload(Thumbnail.photometry)
                                                    .joinedload(Photometry.instrument)
                                                    .joinedload(Instrument.telescope)])
-        else:
-            info = list(self.current_user.sources)
+        elif page_number_given:
+            page = int(source_id_or_page_num)
+            info = list(self.current_user.sources)[
+                ((page - 1) * sources_per_page):(page * sources_per_page)]
 
         if info is not None:
             return self.success(info)
         else:
             return self.error(f"Could not load source {source_id}",
-                              {"source_id": source_id})
+                              {"source_id": source_id_or_page_num})
 
     @permissions(['Manage sources'])
     def post(self):

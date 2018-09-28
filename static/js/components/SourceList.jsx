@@ -2,13 +2,16 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 
+import TabulatedSourceListNavigation from '../containers/TabulatedSourceListNavigation';
+
 
 const SourceList = ({ sources }) => (
   <div>
     <h2>
-Sources
+      Sources
     </h2>
 
+    <TabulatedSourceListNavigation />
     <table id="tab">
       <thead>
         <tr>
