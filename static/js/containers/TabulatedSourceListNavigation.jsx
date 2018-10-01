@@ -1,18 +1,24 @@
+import React from 'react';
 import { connect } from 'react-redux';
 
 import TabulatedSourceListNavigation from '../components/TabulatedSourceListNavigation';
 import * as Action from '../actions';
 
-
-const mapDispatchToProps = (dispatch, ownProps) => (
+const mapStateToProps = (state) => (
   {
-    getNextPage: (currentPage) => dispatch(
-      Action.fetchSources(currentPage + 1)
-    ),
-    getPreviousPage: (currentPage) => dispatch(
-      Action.fetchSources(currentPage - 1)
-    ),
+    pageNumber: state.sources.pageNumber
   }
 );
 
-export default connect(null, mapDispatchToProps)(TabulatedSourceListNavigation);
+const mapDispatchToProps = (dispatch, ownProps) => (
+  {
+    nextPage: (currentPage) => dispatch(
+      Action.fetchSources(currentPage + 1)
+    ),
+    previousPage: (currentPage) => dispatch(
+      Action.fetchSources(currentPage - 1)
+    )
+  }
+);
+
+export default connect(mapStateToProps, mapDispatchToProps)(TabulatedSourceListNavigation);

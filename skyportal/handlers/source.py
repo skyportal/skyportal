@@ -9,10 +9,11 @@ from ..models import (DBSession, Comment, Instrument, Photometry, Source,
 class SourceHandler(BaseHandler):
     @auth_or_token
     def get(self, source_id_or_page_num=None, page_number_given=False):
+        info = {}
         sources_per_page = 100
         if source_id_or_page_num is not None and not page_number_given:
             source_id = source_id_or_page_num
-            info = Source.get_if_owned_by(source_id, self.current_user,
+            info['sources'] = Source.get_if_owned_by(source_id, self.current_user,
                                           options=[joinedload(Source.comments)
                                                    .joinedload(Comment.user),
                                                    joinedload(Source.thumbnails)
@@ -21,10 +22,11 @@ class SourceHandler(BaseHandler):
                                                    .joinedload(Instrument.telescope)])
         elif page_number_given:
             page = int(source_id_or_page_num)
-            info = list(self.current_user.sources)[
+            info['sources'] = list(self.current_user.sources)[
                 ((page - 1) * sources_per_page):(page * sources_per_page)]
+            info['page_number'] = page
 
-        if info is not None:
+        if info['sources'] is not None:
             return self.success(info)
         else:
             return self.error(f"Could not load source {source_id}",

@@ -8,7 +8,7 @@ import * as Action from './actions';
 export function sourceReducer(state={ source: null, loadError: false }, action) {
   switch (action.type) {
     case Action.FETCH_LOADED_SOURCE_OK: {
-      const source = action.data;
+      const source = action.data.sources;
       return {
         ...state,
         ...source,
@@ -25,13 +25,15 @@ export function sourceReducer(state={ source: null, loadError: false }, action) 
   }
 }
 
-export function sourcesReducer(state={ latest: null }, action) {
+export function sourcesReducer(state={ latest: null, pageNumber: 1 }, action) {
   switch (action.type) {
     case Action.FETCH_SOURCES_OK: {
-      const sources = action.data;
+      const { sources } = action.data;
+      const pageNumber = action.data.page_number;
       return {
         ...state,
-        latest: sources
+        latest: sources,
+        pageNumber
       };
     }
     default:
