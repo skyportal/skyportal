@@ -139,5 +139,5 @@ export function deleteToken(tokenID) {
 }
 
 export function submitSourceFilterParams(formData) {
-  return API.POST(`/api/sources/filter`, FILTER_SOURCES, formData);
+  return API.POST(`/api/sources/filter`, FETCH_SOURCES, formData);
 }

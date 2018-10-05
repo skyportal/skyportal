@@ -61,13 +61,13 @@ class SearchBox extends React.Component {
               </tr>
               <tr>
                 <td colSpan="3">
-                  <label>Source ID/Name:  </label>
+                  <label>Source ID/Name (can be substring):  </label>
                   <input
                     type="text"
                     name="sourceID"
                     value={this.state.sourceID}
                     onChange={this.handleInputChange}
-                    size="8"
+                    size="6"
                   />
                 </td>
               </tr>
@@ -84,7 +84,7 @@ class SearchBox extends React.Component {
                     name="ra"
                     value={this.state.ra}
                     onChange={this.handleInputChange}
-                    size="8"
+                    size="6"
                   />
                 </td>
                 <td>
@@ -94,7 +94,7 @@ class SearchBox extends React.Component {
                     name="dec"
                     value={this.state.dec}
                     onChange={this.handleInputChange}
-                    size="8"
+                    size="6"
                   />
                 </td>
                 <td>
@@ -104,13 +104,18 @@ class SearchBox extends React.Component {
                     name="radius"
                     value={this.state.radius}
                     onChange={this.handleInputChange}
-                    size="8"
+                    size="6"
                   />
                 </td>
               </tr>
               <tr>
                 <td colSpan="3">
-                  <label><b>By Date Last Detected  </b></label>
+                  <label><b>By Time Last Detected </b></label>
+                </td>
+              </tr>
+              <tr>
+                <td colSpan="3">
+                  Required format: %Y-%m-%dT%H:%M:%S in UTC time, e.g. 2012-08-30T00:00:00
                 </td>
               </tr>
               <tr>
@@ -121,7 +126,7 @@ class SearchBox extends React.Component {
                     name="startDate"
                     value={this.state.startDate}
                     onChange={this.handleInputChange}
-                    size="8"
+                    size="6"
                   />
                 </td>
                 <td>
@@ -131,7 +136,7 @@ class SearchBox extends React.Component {
                     name="endDate"
                     value={this.state.endDate}
                     onChange={this.handleInputChange}
-                    size="8"
+                    size="6"
                   />
                 </td>
               </tr>
@@ -148,7 +153,7 @@ class SearchBox extends React.Component {
                     name="simbadClass"
                     value={this.state.simbadClass}
                     onChange={this.handleInputChange}
-                    size="8"
+                    size="6"
                   />
                 </td>
               </tr>
@@ -160,7 +165,7 @@ class SearchBox extends React.Component {
                     name="hasTNSname"
                     checked={this.state.hasTNSname}
                     onChange={this.handleInputChange}
-                    size="8"
+                    size="6"
                   />
                 </td>
               </tr>

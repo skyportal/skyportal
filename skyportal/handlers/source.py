@@ -1,5 +1,7 @@
 import tornado.web
 from sqlalchemy.orm import joinedload
+from sqlalchemy.dialects import postgresql
+import datetime
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.handlers import BaseHandler
 from ..models import (DBSession, Comment, Instrument, Photometry, Source,
@@ -62,3 +64,42 @@ class SourceHandler(BaseHandler):
         DBSession().commit()
 
         return self.success(action='cesium/FETCH_SOURCES')
+
+
+class FilterSourcesHandler(BaseHandler):
+    @auth_or_token
+    # def get(self, sourceID=None, ra=None, dec=None, radius=None,
+    #          startDate=None, endDate=None, simbadClass=None, hasTNSname=None):
+    def post(self):
+        data = self.get_json()
+        print("DATA:", data)
+        info = {}
+        q = Source.query
+
+        if data['sourceID']:
+            q = q.filter(Source.id.contains(data['sourceID'].strip()))
+        if data['ra'] and data['dec'] and data['radius']:
+            ra = float(data['ra'])
+            dec = float(data['dec'])
+            radius = float(data['radius'])
+            q = q.filter(Source.ra <= ra + radius)\
+                 .filter(Source.ra >= ra - radius)\
+                 .filter(Source.dec <= dec + radius)\
+                 .filter(Source.dec >= dec - radius)
+        if data['startDate'] and data['endDate']:
+            start_date = datetime.datetime.strptime(data['startDate'].strip(),
+                                                    '%Y-%m-%dT%H:%M:%S')
+            end_date = datetime.datetime.strptime(data['endDate'].strip(),
+                                                  '%Y-%m-%dT%H:%M:%S')
+            q = q.filter(Source.last_detected >= start_date).filter(
+                Source.last_detected <= end_date)
+        if data['simbadClass']:
+            q = q.filter(Source.simbad_class == data['simbadClass'])
+        if data['hasTNSname']:
+            q = q.filter(Source.tns_name.isnot(None))
+        sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
+                                          compile_kwargs={'literal_binds': True}))
+        print('\n\n', sql_str, '\n\n')
+        info['sources'] = [s for s in list(q) if s in self.current_user.sources]
+
+        return self.success(info)
