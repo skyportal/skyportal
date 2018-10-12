@@ -6,9 +6,11 @@ import * as Action from '../actions';
 
 const mapDispatchToProps = (dispatch, ownProps) => (
   {
-    filterSources: formState => dispatch(
-      Action.submitSourceFilterParams(formState)
-    ),
+    filterSources: formState => {
+      formState['pageNumber'] = ownProps.pageNumber;
+      console.log("searchBox formState upon clicking submit:", formState);
+      return dispatch(Action.submitSourceFilterParams(formState));
+    },
     fetchSources: formState => dispatch(
       Action.fetchSources()
     )

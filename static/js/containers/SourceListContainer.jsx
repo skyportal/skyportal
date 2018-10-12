@@ -16,7 +16,12 @@ class SourceListContainer extends React.Component {
 
   render() {
     if (this.props.sources) {
-      return <SourceList sources={this.props.sources} />;
+      return (
+        <SourceList
+          sources={this.props.sources}
+          pageNumber={this.props.pageNumber}
+        />
+      );
     } else {
       return "Loading sources...";
     }
@@ -25,16 +30,19 @@ class SourceListContainer extends React.Component {
 
 SourceListContainer.propTypes = {
   dispatch: PropTypes.func.isRequired,
-  sources: PropTypes.arrayOf(PropTypes.object)
+  sources: PropTypes.arrayOf(PropTypes.object),
+  pageNumber: PropTypes.number
 };
 
 SourceListContainer.defaultProps = {
-  sources: null
+  sources: null,
+  pageNumber: 1
 };
 
 const mapStateToProps = (state, ownProps) => (
   {
-    sources: state.sources.latest
+    sources: state.sources.latest,
+    pageNumber: state.sources.pageNumber
   }
 );
 

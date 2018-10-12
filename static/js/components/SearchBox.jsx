@@ -48,6 +48,7 @@ class SearchBox extends React.Component {
   }
 
   render() {
+    console.log("searchBox.props:", this.props);
     return (
       <div>
         <h4>Filter Sources</h4>
@@ -159,7 +160,7 @@ class SearchBox extends React.Component {
               </tr>
               <tr>
                 <td>
-                  <label><b>Has TNS Name  </b></label>
+                  <label><b>Must Have TNS Name: </b></label>
                   <input
                     type="checkbox"
                     name="hasTNSname"

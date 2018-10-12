@@ -4,12 +4,6 @@ import { connect } from 'react-redux';
 import TabulatedSourceListNavigation from '../components/TabulatedSourceListNavigation';
 import * as Action from '../actions';
 
-const mapStateToProps = (state) => (
-  {
-    pageNumber: state.sources.pageNumber
-  }
-);
-
 const mapDispatchToProps = (dispatch, ownProps) => (
   {
     nextPage: (currentPage) => dispatch(
@@ -21,4 +15,4 @@ const mapDispatchToProps = (dispatch, ownProps) => (
   }
 );
 
-export default connect(mapStateToProps, mapDispatchToProps)(TabulatedSourceListNavigation);
+export default connect(null, mapDispatchToProps)(TabulatedSourceListNavigation);

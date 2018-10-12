@@ -6,15 +6,15 @@ import TabulatedSourceListNavigation from '../containers/TabulatedSourceListNavi
 import SearchBox from '../containers/SearchBox';
 
 
-const SourceList = ({ sources }) => (
+const SourceList = ({ sources, pageNumber }) => (
   <div>
     <h2>
       Sources
     </h2>
 
-    <SearchBox />
+    <SearchBox pageNumber={pageNumber} />
     <br />
-    <TabulatedSourceListNavigation />
+    <TabulatedSourceListNavigation pageNumber={pageNumber} />
     <table id="tab">
       <thead>
         <tr>
@@ -112,8 +112,8 @@ const SourceList = ({ sources }) => (
 );
 
 SourceList.propTypes = {
-  sources: PropTypes.arrayOf(PropTypes.object).isRequired
+  sources: PropTypes.arrayOf(PropTypes.object).isRequired,
+  pageNumber: PropTypes.number.isRequired
 };
-
 
 export default SourceList;
