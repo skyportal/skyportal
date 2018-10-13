@@ -2,19 +2,16 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 
-import TabulatedSourceListNavigation from '../containers/TabulatedSourceListNavigation';
 import SearchBox from '../containers/SearchBox';
 
 
-const SourceList = ({ sources, pageNumber }) => (
+const SourceList = ({ sources, pageNumber, lastPage }) => (
   <div>
     <h2>
       Sources
     </h2>
 
-    <SearchBox pageNumber={pageNumber} />
-    <br />
-    <TabulatedSourceListNavigation pageNumber={pageNumber} />
+    <SearchBox pageNumber={pageNumber} lastPage={lastPage} />
     <table id="tab">
       <thead>
         <tr>
@@ -113,7 +110,8 @@ const SourceList = ({ sources, pageNumber }) => (
 
 SourceList.propTypes = {
   sources: PropTypes.arrayOf(PropTypes.object).isRequired,
-  pageNumber: PropTypes.number.isRequired
+  pageNumber: PropTypes.number.isRequired,
+  lastPage: PropTypes.number.isRequired
 };
 
 export default SourceList;

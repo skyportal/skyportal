@@ -19,6 +19,8 @@ class SearchBox extends React.Component {
     this.handleSubmit = this.handleSubmit.bind(this);
     this.handleReset = this.handleReset.bind(this);
     this.handleInputChange = this.handleInputChange.bind(this);
+    this.handleClickNextPage = this.handleClickNextPage.bind(this);
+    this.handleClickPreviousPage = this.handleClickPreviousPage.bind(this);
   }
 
   handleInputChange(event) {
@@ -47,8 +49,17 @@ class SearchBox extends React.Component {
     this.props.fetchSources();
   }
 
+  handleClickNextPage(event) {
+    event.preventDefault();
+    this.props.nextPage(this.state);
+  }
+
+  handleClickPreviousPage(event) {
+    event.preventDefault();
+    this.props.previousPage(this.state);
+  }
+
   render() {
-    console.log("searchBox.props:", this.props);
     return (
       <div>
         <h4>Filter Sources</h4>
@@ -182,6 +193,17 @@ class SearchBox extends React.Component {
               </tr>
             </tbody>
           </table>
+          <div>
+            {
+              !this.props.lastPage &&
+              <button type="button" onClick={this.handleClickNextPage}>View Next 100 Sources</button>
+            }
+            &nbsp;&nbsp;
+            {
+              this.props.pageNumber > 1 &&
+              <button type="button" onClick={this.handleClickPreviousPage}>View Previous 100 Sources</button>
+            }
+          </div>
         </form>
       </div>
     );
@@ -189,7 +211,11 @@ class SearchBox extends React.Component {
 }
 SearchBox.propTypes = {
   filterSources: PropTypes.func.isRequired,
-  fetchSources: PropTypes.func.isRequired
+  fetchSources: PropTypes.func.isRequired,
+  nextPage: PropTypes.func.isRequired,
+  previousPage: PropTypes.func.isRequired,
+  pageNumber: PropTypes.number.isRequired,
+  lastPage: PropTypes.bool.isRequired
 };
 
 export default SearchBox;

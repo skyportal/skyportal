@@ -20,6 +20,7 @@ class SourceListContainer extends React.Component {
         <SourceList
           sources={this.props.sources}
           pageNumber={this.props.pageNumber}
+          lastPage={this.props.lastPage}
         />
       );
     } else {
@@ -31,18 +32,21 @@ class SourceListContainer extends React.Component {
 SourceListContainer.propTypes = {
   dispatch: PropTypes.func.isRequired,
   sources: PropTypes.arrayOf(PropTypes.object),
-  pageNumber: PropTypes.number
+  pageNumber: PropTypes.number,
+  lastPage: PropTypes.bool
 };
 
 SourceListContainer.defaultProps = {
   sources: null,
-  pageNumber: 1
+  pageNumber: 1,
+  lastPage: false
 };
 
 const mapStateToProps = (state, ownProps) => (
   {
     sources: state.sources.latest,
-    pageNumber: state.sources.pageNumber
+    pageNumber: state.sources.pageNumber,
+    lastPage: state.sources.lastPage
   }
 );
 

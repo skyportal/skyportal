@@ -8,11 +8,13 @@ from ..models import (DBSession, Comment, Instrument, Photometry, Source,
                       Thumbnail)
 
 
+SOURCES_PER_PAGE = 100
+
+
 class SourceHandler(BaseHandler):
     @auth_or_token
     def get(self, source_id_or_page_num=None, page_number_given=False):
         info = {}
-        sources_per_page = 100
         if source_id_or_page_num is not None and not page_number_given:
             source_id = source_id_or_page_num
             info['sources'] = Source.get_if_owned_by(source_id, self.current_user,
@@ -25,7 +27,7 @@ class SourceHandler(BaseHandler):
         elif page_number_given:
             page = int(source_id_or_page_num)
             info['sources'] = list(self.current_user.sources)[
-                ((page - 1) * sources_per_page):(page * sources_per_page)]
+                ((page - 1) * SOURCES_PER_PAGE):(page * SOURCES_PER_PAGE)]
             info['page_number'] = page
 
         if info['sources'] is not None:
@@ -72,8 +74,9 @@ class FilterSourcesHandler(BaseHandler):
     #          startDate=None, endDate=None, simbadClass=None, hasTNSname=None):
     def post(self):
         data = self.get_json()
-        print("DATA:", data)
         info = {}
+        page = int(data['pageNumber'])
+        info['page_number'] = page
         q = Source.query
 
         if data['sourceID']:
@@ -99,7 +102,9 @@ class FilterSourcesHandler(BaseHandler):
             q = q.filter(Source.tns_name.isnot(None))
         sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
                                           compile_kwargs={'literal_binds': True}))
-        print('\n\n', sql_str, '\n\n')
-        info['sources'] = [s for s in list(q) if s in self.current_user.sources]
+        # TODO: Create materialized view with above SQL code
+        info['sources'] = [s for s in list(q) if s in self.current_user.sources][
+            ((page - 1) * SOURCES_PER_PAGE):(page * SOURCES_PER_PAGE)]
+        info['last_page'] = len(info['sources']) < 100
 
         return self.success(info)
