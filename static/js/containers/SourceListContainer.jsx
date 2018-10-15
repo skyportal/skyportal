@@ -9,18 +9,16 @@ import SourceList from '../components/SourceList';
 
 class SourceListContainer extends React.Component {
   componentDidMount() {
-    if (!this.props.sources) {
+    if (!this.props.sources.latest) {
       this.props.dispatch(Action.fetchSources());
     }
   }
 
   render() {
-    if (this.props.sources) {
+    if (this.props.sources.latest) {
       return (
         <SourceList
           sources={this.props.sources}
-          pageNumber={this.props.pageNumber}
-          lastPage={this.props.lastPage}
         />
       );
     } else {
@@ -31,22 +29,16 @@ class SourceListContainer extends React.Component {
 
 SourceListContainer.propTypes = {
   dispatch: PropTypes.func.isRequired,
-  sources: PropTypes.arrayOf(PropTypes.object),
-  pageNumber: PropTypes.number,
-  lastPage: PropTypes.bool
+  sources: PropTypes.object
 };
 
 SourceListContainer.defaultProps = {
-  sources: null,
-  pageNumber: 1,
-  lastPage: false
+  sources: null
 };
 
 const mapStateToProps = (state, ownProps) => (
   {
-    sources: state.sources.latest,
-    pageNumber: state.sources.pageNumber,
-    lastPage: state.sources.lastPage
+    sources: state.sources
   }
 );
 

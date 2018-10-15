@@ -27,18 +27,23 @@ export function sourceReducer(state={ source: null, loadError: false }, action) 
 
 export function sourcesReducer(state={ latest: null,
                                        pageNumber: 1,
-                                       lastPage: false },
+                                       lastPage: false,
+                                       totalMatches: null,
+                                       sourceNumberingStart: null,
+                                       sourcesNumberingEnd: null },
                                action) {
   switch (action.type) {
     case Action.FETCH_SOURCES_OK: {
-      const { sources } = action.data;
-      const pageNumber = action.data.page_number;
-      const lastPage = action.data.last_page;
+      const { sources, pageNumber, lastPage, totalMatches, sourceNumberingStart,
+              sourceNumberingEnd } = action.data;
       return {
         ...state,
         latest: sources,
         pageNumber,
-        lastPage
+        lastPage,
+        totalMatches,
+        sourceNumberingStart,
+        sourceNumberingEnd
       };
     }
     default:

@@ -26,11 +26,17 @@ class SourceHandler(BaseHandler):
                                                    .joinedload(Instrument.telescope)])
         elif page_number_given:
             page = int(source_id_or_page_num)
-            info['sources'] = list(self.current_user.sources)[
+            all_matches = list(self.current_user.sources)
+            info['totalMatches'] = len(all_matches)
+            info['sources'] = all_matches[
                 ((page - 1) * SOURCES_PER_PAGE):(page * SOURCES_PER_PAGE)]
-            info['page_number'] = page
+            info['pageNumber'] = page
+            info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
+            info['sourceNumberingEnd'] = min(info['totalMatches'],
+                                             page * SOURCES_PER_PAGE)
 
         if info['sources'] is not None:
+            info['lastPage'] = len(info['sources']) < SOURCES_PER_PAGE
             return self.success(info)
         else:
             return self.error(f"Could not load source {source_id}",
@@ -76,7 +82,7 @@ class FilterSourcesHandler(BaseHandler):
         data = self.get_json()
         info = {}
         page = int(data['pageNumber'])
-        info['page_number'] = page
+        info['pageNumber'] = page
         q = Source.query
 
         if data['sourceID']:
@@ -103,8 +109,13 @@ class FilterSourcesHandler(BaseHandler):
         sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
                                           compile_kwargs={'literal_binds': True}))
         # TODO: Create materialized view with above SQL code
-        info['sources'] = [s for s in list(q) if s in self.current_user.sources][
+        all_matches = list(q)
+        info['totalMatches'] = len(all_matches)
+        info['sources'] = [s for s in all_matches if s in self.current_user.sources][
             ((page - 1) * SOURCES_PER_PAGE):(page * SOURCES_PER_PAGE)]
-        info['last_page'] = len(info['sources']) < 100
+        info['lastPage'] = len(info['sources']) < SOURCES_PER_PAGE
+        info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
+        info['sourceNumberingEnd'] = min(info['totalMatches'],
+                                         page * SOURCES_PER_PAGE)
 
         return self.success(info)

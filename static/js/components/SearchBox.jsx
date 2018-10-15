@@ -194,13 +194,21 @@ class SearchBox extends React.Component {
             </tbody>
           </table>
           <div>
+            <i>
+              Displaying {this.props.sources.sourceNumberingStart}-
+              {this.props.sources.sourceNumberingEnd} of&nbsp;
+              {this.props.sources.totalMatches}&nbsp;
+              matching sources.
+            </i>
+          </div>
+          <div>
             {
-              !this.props.lastPage &&
+              !this.props.sources.lastPage &&
               <button type="button" onClick={this.handleClickNextPage}>View Next 100 Sources</button>
             }
             &nbsp;&nbsp;
             {
-              this.props.pageNumber > 1 &&
+              this.props.sources.pageNumber > 1 &&
               <button type="button" onClick={this.handleClickPreviousPage}>View Previous 100 Sources</button>
             }
           </div>
@@ -210,12 +218,11 @@ class SearchBox extends React.Component {
   }
 }
 SearchBox.propTypes = {
+  sources: PropTypes.object.isRequired,
   filterSources: PropTypes.func.isRequired,
   fetchSources: PropTypes.func.isRequired,
   nextPage: PropTypes.func.isRequired,
-  previousPage: PropTypes.func.isRequired,
-  pageNumber: PropTypes.number.isRequired,
-  lastPage: PropTypes.bool.isRequired
+  previousPage: PropTypes.func.isRequired
 };
 
 export default SearchBox;

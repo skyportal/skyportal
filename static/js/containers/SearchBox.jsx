@@ -8,19 +8,17 @@ const mapDispatchToProps = (dispatch, ownProps) => (
   {
     filterSources: formState => {
       formState['pageNumber'] = 1;
-      console.log("searchBox formState upon clicking submit:", formState);
       return dispatch(Action.submitSourceFilterParams(formState));
     },
     fetchSources: formState => dispatch(
       Action.fetchSources()
     ),
     nextPage: (formState) => {
-      formState['pageNumber'] = ownProps.pageNumber + 1;
-      console.log("searchBox formState on clicking nextPage:", formState);
+      formState['pageNumber'] = ownProps.sources.pageNumber + 1;
       return dispatch(Action.submitSourceFilterParams(formState));
     },
     previousPage: (formState) => {
-      formState['pageNumber'] = ownProps.pageNumber - 1;
+      formState['pageNumber'] = ownProps.sources.pageNumber - 1;
       return dispatch(Action.submitSourceFilterParams(formState));
     }
   }

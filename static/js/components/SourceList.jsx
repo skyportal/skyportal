@@ -5,13 +5,13 @@ import { Link } from 'react-router-dom';
 import SearchBox from '../containers/SearchBox';
 
 
-const SourceList = ({ sources, pageNumber, lastPage }) => (
+const SourceList = ({ sources }) => (
   <div>
     <h2>
       Sources
     </h2>
 
-    <SearchBox pageNumber={pageNumber} lastPage={lastPage} />
+    <SearchBox sources={sources} />
     <table id="tab">
       <thead>
         <tr>
@@ -80,7 +80,7 @@ const SourceList = ({ sources, pageNumber, lastPage }) => (
       <tbody>
 
         {
-          sources.map((source, idx) => (
+          sources.latest.map((source, idx) => (
             <tr key={source.id}>
               <td>{String(source.last_detected).split(".")[0]}&nbsp;&nbsp;</td>
               <td>
@@ -109,9 +109,7 @@ const SourceList = ({ sources, pageNumber, lastPage }) => (
 );
 
 SourceList.propTypes = {
-  sources: PropTypes.arrayOf(PropTypes.object).isRequired,
-  pageNumber: PropTypes.number.isRequired,
-  lastPage: PropTypes.number.isRequired
+  sources: PropTypes.object.isRequired
 };
 
 export default SourceList;
