@@ -34,9 +34,9 @@ class SourceHandler(BaseHandler):
             info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
             info['sourceNumberingEnd'] = min(info['totalMatches'],
                                              page * SOURCES_PER_PAGE)
+            info['lastPage'] = len(info['sources']) < SOURCES_PER_PAGE
 
         if info['sources'] is not None:
-            info['lastPage'] = len(info['sources']) < SOURCES_PER_PAGE
             return self.success(info)
         else:
             return self.error(f"Could not load source {source_id}",
