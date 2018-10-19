@@ -19,6 +19,3 @@ doc_reqs:
 
 html: | doc_reqs
 	export SPHINXOPTS=-W; make -C doc html
-
-test:
-	PYTHONPATH="." ./tools/test_frontend.py
