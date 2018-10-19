@@ -48,9 +48,9 @@ section_end "run.make.dependencies"
 
 
 section "install.geckodriver.and.selenium"
-wget https://github.com/mozilla/geckodriver/releases/download/v0.20.0/geckodriver-v0.20.0-linux64.tar.gz
-sudo tar -xzf geckodriver-v0.20.0-linux64.tar.gz -C /usr/local/bin
-rm geckodriver-v0.20.0-linux64.tar.gz
+wget https://github.com/mozilla/geckodriver/releases/download/v0.23.0/geckodriver-v0.23.0-linux64.tar.gz
+sudo tar -xzf geckodriver-v0.23.0-linux64.tar.gz -C /usr/local/bin
+rm geckodriver-v0.23.0-linux64.tar.gz
 which geckodriver
 geckodriver --version
 pip install --upgrade selenium
