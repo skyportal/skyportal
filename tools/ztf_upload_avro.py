@@ -577,7 +577,8 @@ class ZTFPack():
 class LoadPTF:
 
     def __init__(self, avro_dir=None, nproc=mp.cpu_count(), maxfiles=10,
-                 username="testuser@cesium-ml.org", groupname="Public ZTF", clobber=True):
+                 username="testuser@cesium-ml.org", groupname="Public ZTF",
+                 clobber=True, only_pure=True):
 
         self.maxfiles = maxfiles
         self.avro_dir = Path(avro_dir)
@@ -587,7 +588,8 @@ class LoadPTF:
         self.username = username
 
     def _worker(self, fname, clobber=True):
-        _ = ZTFAvro(fname, ZTFPack(self.username), clobber=clobber)
+        _ = ZTFAvro(fname, ZTFPack(self.username), clobber=clobber,
+                    only_pure=only_pure)
         return fname
 
     def runp(self):
@@ -657,7 +659,7 @@ if __name__ == "__main__":
     parser.add_argument('location', help="location to extract")
     parser.add_argument('-c', '--clobber', action='store_true', default=False)
     parser.add_argument('--datadir', default='/tmp/ZTF')
-    parser.add_argument('--workers', default=15)
+    parser.add_argument('--workers', default=1)
 
     args = parser.parse_args()
 
