@@ -197,8 +197,7 @@ class SearchBox extends React.Component {
             <i>
               Displaying {this.props.sources.sourceNumberingStart}-
               {this.props.sources.sourceNumberingEnd} of&nbsp;
-              {this.props.sources.totalMatches}&nbsp;
-              matching sources.
+              {this.props.sources.totalMatches} matching sources.
             </i>
           </div>
           <div>

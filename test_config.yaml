@@ -1,8 +1,19 @@
+app:
+    secret-key: abc01234  # This secret key can be any random string of
+                          # characters.
+                          #
+                          # You should re-generate this for your application
+                          # using:
+                          #
+                          # base64.b64encode(os.urandom(50)).decode('ascii')
+    factory: skyportal.app_server.make_app
+
 database:
   database: skyportal_test
   user: skyportal
   host: localhost
   port: 5432
+  password:
 
 server:
   auth:
