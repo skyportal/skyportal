@@ -35,6 +35,8 @@ class SourceHandler(BaseHandler):
             info['sourceNumberingEnd'] = min(info['totalMatches'],
                                              page * SOURCES_PER_PAGE)
             info['lastPage'] = len(info['sources']) < SOURCES_PER_PAGE
+            if info['totalMatches'] == 0:
+                info['sourceNumberingStart'] = 0
 
         if info['sources'] is not None:
             return self.success(info)
@@ -117,5 +119,7 @@ class FilterSourcesHandler(BaseHandler):
         info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
         info['sourceNumberingEnd'] = min(info['totalMatches'],
                                          page * SOURCES_PER_PAGE)
+        if info['totalMatches'] == 0:
+            info['sourceNumberingStart'] = 0
 
         return self.success(info)
