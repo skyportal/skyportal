@@ -4,7 +4,7 @@ from selenium.webdriver.common.by import By
 import time
 
 
-def test_front_page(driver, user, public_source, private_source):
+def test_source_list(driver, user, public_source, private_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     assert 'localhost' in driver.current_url
     driver.get('/')
@@ -17,7 +17,7 @@ def test_front_page(driver, user, public_source, private_source):
     driver.wait_for_xpath_missing('//button[text()="View Previous 100 Sources"]')
 
 
-def test_front_page_pagination(driver, user, public_sources_205):
+def test_source_list_pagination(driver, user, public_sources_205):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     assert 'localhost' in driver.current_url
     driver.get('/')
@@ -38,3 +38,12 @@ def test_front_page_pagination(driver, user, public_sources_205):
     prev_button.click()
     time.sleep(1)
     driver.wait_for_xpath_missing('//button[text()="View Previous 100 Sources"]')
+
+
+def test_group_list(driver, user, public_group):
+    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
+    assert 'localhost' in driver.current_url
+    driver.get('/')
+    driver.wait_for_xpath("//div[contains(@title,'connected')]")
+    driver.wait_for_xpath('//h2[contains(text(), "Groups")]')
+    driver.wait_for_xpath(f'//a[text()="{public_group.name}"]')
