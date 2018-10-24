@@ -21,7 +21,7 @@ import configureStore from '../store';
 import CustomMessageHandler from '../CustomMessageHandler';
 import CachedSource from '../containers/CachedSource';
 import GroupContainer from '../containers/GroupContainer';
-import SourceListContainer from '../containers/SourceListContainer';
+import HomePageContainer from '../containers/HomePageContainer';
 import Groups from '../containers/Groups';
 import Profile from '../containers/Profile';
 import NoMatchingRoute from './NoMatchingRoute';
@@ -50,7 +50,7 @@ class MainContent extends React.Component {
           <div className={styles.topBannerContent}>
             <Logo className={styles.logo} />
             <Link className={styles.title} to="/">
-SkyPortal ∝
+              SkyPortal ∝
             </Link>
             <div className={styles.websocket}>
               <WebSocket
@@ -71,7 +71,7 @@ SkyPortal ∝
           <Notifications />
 
           <Switch>
-            <PropsRoute exact path="/" component={SourceListContainer} />
+            <PropsRoute exact path="/" component={HomePageContainer} />
             {'See https://stackoverflow.com/a/35604855 for syntax'}
             <PropsRoute path="/source/:id" component={CachedSource} />
             <PropsRoute exact path="/groups/" component={Groups} />
@@ -88,7 +88,7 @@ SkyPortal ∝
             <a href="https://github.com/skyportal/skyportal">
               https://github.com/skyportal/skyportal
             </a>
-.
+            .
           </div>
         </div>
 

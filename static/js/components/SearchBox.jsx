@@ -193,24 +193,29 @@ class SearchBox extends React.Component {
               </tr>
             </tbody>
           </table>
-          <div>
-            <i>
-              Displaying {this.props.sources.sourceNumberingStart}-
-              {this.props.sources.sourceNumberingEnd} of&nbsp;
-              {this.props.sources.totalMatches} matching sources.
-            </i>
-          </div>
-          <div>
-            {
-              !this.props.sources.lastPage &&
-              <button type="button" onClick={this.handleClickNextPage}>View Next 100 Sources</button>
-            }
-            &nbsp;&nbsp;
-            {
-              this.props.sources.pageNumber > 1 &&
-              <button type="button" onClick={this.handleClickPreviousPage}>View Previous 100 Sources</button>
-            }
-          </div>
+          {
+            this.props.sources &&
+            <div>
+              <div>
+                <i>
+                  Displaying {this.props.sources.sourceNumberingStart}-
+                  {this.props.sources.sourceNumberingEnd} of&nbsp;
+                  {this.props.sources.totalMatches} matching sources.
+                </i>
+              </div>
+              <div>
+                {
+                  !this.props.sources.lastPage &&
+                  <button type="button" onClick={this.handleClickNextPage}>View Next 100 Sources</button>
+                }
+                &nbsp;&nbsp;
+                {
+                  this.props.sources.pageNumber > 1 &&
+                  <button type="button" onClick={this.handleClickPreviousPage}>View Previous 100 Sources</button>
+                }
+              </div>
+            </div>
+          }
         </form>
       </div>
     );

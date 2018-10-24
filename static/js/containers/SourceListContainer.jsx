@@ -16,11 +16,7 @@ class SourceListContainer extends React.Component {
 
   render() {
     if (this.props.sources.latest) {
-      return (
-        <SourceList
-          sources={this.props.sources}
-        />
-      );
+      return <SourceList sources={this.props.sources} />;
     } else {
       return "Loading sources...";
     }

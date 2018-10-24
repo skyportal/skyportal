@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import SearchBox from '../containers/SearchBox';
 
 
-const SourceList = ({ sources }) => (
+const SourceList = ({ sources, showTitle }) => (
   <div>
     <h2>
       Sources
@@ -80,7 +80,8 @@ const SourceList = ({ sources }) => (
       <tbody>
 
         {
-          sources.latest.map((source, idx) => (
+          (sources && sources.latest)
+          && sources.latest.map((source, idx) => (
             <tr key={source.id}>
               <td>{String(source.last_detected).split(".")[0]}&nbsp;&nbsp;</td>
               <td>
@@ -109,7 +110,11 @@ const SourceList = ({ sources }) => (
 );
 
 SourceList.propTypes = {
-  sources: PropTypes.object.isRequired
+  sources: PropTypes.object.isRequired,
+  showTitle: PropTypes.bool
+};
+SourceList.defaultProps = {
+  showTitle: true
 };
 
 export default SourceList;
