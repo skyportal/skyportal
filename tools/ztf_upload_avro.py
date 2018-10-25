@@ -584,12 +584,13 @@ class LoadPTF:
         self.avro_dir = Path(avro_dir)
         self.nproc = min(nproc, maxfiles)
         self.clobber = clobber
+        self.only_pure = only_pure
 
         self.username = username
 
-    def _worker(self, fname, clobber=True):
+    def _worker(self, fname, clobber=True, only_pure=True):
         _ = ZTFAvro(fname, ZTFPack(self.username), clobber=clobber,
-                    only_pure=only_pure)
+                    only_pure=self.only_pure)
         return fname
 
     def runp(self):
@@ -603,7 +604,8 @@ class LoadPTF:
                 print(f"running on {len(avro_files)} files")
 
             rez = {os.path.basename(avro):
-                   executor.submit(self._worker, avro, clobber=self.clobber)
+                   executor.submit(self._worker, avro, clobber=self.clobber,
+                                   only_pure=self.only_pure)
                    for avro
                    in avro_files}
 
@@ -660,6 +662,7 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--clobber', action='store_true', default=False)
     parser.add_argument('--datadir', default='/tmp/ZTF')
     parser.add_argument('--workers', default=1)
+    parser.add_argument('--only_pure', action='store_true', default=False)
 
     args = parser.parse_args()
 
@@ -669,7 +672,8 @@ if __name__ == "__main__":
 
     if os.path.isdir(args.location):
         l = LoadPTF(avro_dir=args.location, nproc=args.workers,
-                    maxfiles=100000, clobber=args.clobber)
+                    maxfiles=100000, clobber=args.clobber,
+                    only_pure=args.only_pure)
         l.runp()
 
     # this is a file
@@ -703,5 +707,6 @@ if __name__ == "__main__":
 
         # run it
         print(f"Loading directory...{outdir}")
-        l = LoadPTF(avro_dir=outdir, nproc=args.workers, maxfiles=1000000, clobber=args.clobber)
+        l = LoadPTF(avro_dir=outdir, nproc=args.workers, maxfiles=100,
+                    clobber=args.clobber, only_pure=args.only_pure)
         l.runp()
