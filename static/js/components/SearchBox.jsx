@@ -183,7 +183,7 @@ class SearchBox extends React.Component {
               </tr>
               <tr>
                 <td>
-                  <input type="submit" />
+                  <input type="submit" disabled={this.props.sources.queryInProgress} />
                 </td>
               </tr>
               <tr>

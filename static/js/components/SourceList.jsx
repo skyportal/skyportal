@@ -106,12 +106,12 @@ const SourceList = ({ sources, showTitle }) => (
               </tr>
             ))
           }
-          {
-            sources.queryInProgress &&
-            <div>Query in progress</div>
-          }
         </tbody>
       </table>
+    }
+    {
+      sources.queryInProgress &&
+      <div><br /><br /><i>Query in progress...</i></div>
     }
   </div>
 );

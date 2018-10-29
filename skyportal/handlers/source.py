@@ -34,7 +34,7 @@ class SourceHandler(BaseHandler):
             info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
             info['sourceNumberingEnd'] = min(info['totalMatches'],
                                              page * SOURCES_PER_PAGE)
-            info['lastPage'] = len(info['sources']) < SOURCES_PER_PAGE
+            info['lastPage'] = info['totalMatches'] <= page * SOURCES_PER_PAGE
             if info['totalMatches'] == 0:
                 info['sourceNumberingStart'] = 0
 
@@ -115,7 +115,7 @@ class FilterSourcesHandler(BaseHandler):
         info['totalMatches'] = len(all_matches)
         info['sources'] = [s for s in all_matches if s in self.current_user.sources][
             ((page - 1) * SOURCES_PER_PAGE):(page * SOURCES_PER_PAGE)]
-        info['lastPage'] = len(info['sources']) < SOURCES_PER_PAGE
+        info['lastPage'] = info['totalMatches'] <= page * SOURCES_PER_PAGE
         info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
         info['sourceNumberingEnd'] = min(info['totalMatches'],
                                          page * SOURCES_PER_PAGE)
