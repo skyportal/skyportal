@@ -13,8 +13,10 @@ def test_source_list(driver, user, public_source, private_source):
     driver.wait_for_xpath(f'//a[text()="{public_source.id}"]')
     driver.wait_for_xpath(f'//td[text()="{public_source.simbad_class}"]')
     driver.wait_for_xpath_missing(f'//a[text()="{private_source.id}"]')
-    driver.wait_for_xpath_missing('//button[text()="View Next 100 Sources"]')
-    driver.wait_for_xpath_missing('//button[text()="View Previous 100 Sources"]')
+    el = driver.wait_for_xpath('//button[text()="View Next 100 Sources"]')
+    assert not el.is_enabled()
+    el = driver.wait_for_xpath('//button[text()="View Previous 100 Sources"]')
+    assert not el.is_enabled()
 
 
 def test_source_list_pagination(driver, user, public_sources_205):
@@ -25,19 +27,21 @@ def test_source_list_pagination(driver, user, public_sources_205):
     driver.wait_for_xpath('//h2[contains(text(), "Sources")]')
     driver.wait_for_xpath(f'//td[text()="{public_sources_205[0].simbad_class}"]')
     next_button = driver.wait_for_xpath('//button[text()="View Next 100 Sources"]')
-    driver.wait_for_xpath_missing('//button[text()="View Previous 100 Sources"]')
-    next_button.click()
-    time.sleep(1)
+    assert next_button.is_enabled()
     prev_button = driver.wait_for_xpath('//button[text()="View Previous 100 Sources"]')
+    assert not prev_button.is_enabled()
     next_button.click()
     time.sleep(1)
-    driver.wait_for_xpath_missing('//button[text()="View Next 100 Sources"]')
+    assert prev_button.is_enabled()
+    next_button.click()
+    time.sleep(1)
+    assert not next_button.is_enabled()
     prev_button.click()
     time.sleep(1)
-    driver.wait_for_xpath('//button[text()="View Next 100 Sources"]')
+    assert next_button.is_enabled()
     prev_button.click()
     time.sleep(1)
-    driver.wait_for_xpath_missing('//button[text()="View Previous 100 Sources"]')
+    assert not prev_button.is_enabled()
 
 
 def test_group_list(driver, user, public_group):
