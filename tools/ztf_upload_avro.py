@@ -661,8 +661,9 @@ if __name__ == "__main__":
     parser.add_argument('location', help="location to extract")
     parser.add_argument('-c', '--clobber', action='store_true', default=False)
     parser.add_argument('--datadir', default='/tmp/ZTF')
-    parser.add_argument('--workers', default=1)
+    parser.add_argument('--workers', type=int, default=1)
     parser.add_argument('--only_pure', action='store_true', default=False)
+    parser.add_argument('--maxfiles', type=int, default=100000)
 
     args = parser.parse_args()
 
@@ -707,6 +708,6 @@ if __name__ == "__main__":
 
         # run it
         print(f"Loading directory...{outdir}")
-        l = LoadPTF(avro_dir=outdir, nproc=args.workers, maxfiles=100,
+        l = LoadPTF(avro_dir=outdir, nproc=args.workers, maxfiles=args.maxfiles,
                     clobber=args.clobber, only_pure=args.only_pure)
         l.runp()
