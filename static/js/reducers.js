@@ -33,12 +33,19 @@ export function sourcesReducer(state={ latest: null,
                                        sourcesNumberingEnd: null },
                                action) {
   switch (action.type) {
+    case Action.FETCH_SOURCES: {
+      return {
+        ...state,
+        queryInProgress: true
+      };
+    }
     case Action.FETCH_SOURCES_OK: {
       const { sources, pageNumber, lastPage, totalMatches, sourceNumberingStart,
               sourceNumberingEnd } = action.data;
       return {
         ...state,
         latest: sources,
+        queryInProgress: false,
         pageNumber,
         lastPage,
         totalMatches,
