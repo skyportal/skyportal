@@ -6,19 +6,18 @@ import * as Action from '../actions';
 
 const mapDispatchToProps = (dispatch, ownProps) => (
   {
-    filterSources: formState => {
-      formState['pageNumber'] = 1;
-      return dispatch(Action.submitSourceFilterParams(formState));
-    },
+    filterSources: formState => dispatch(
+      Action.submitSourceFilterParams(formState)
+    ),
     fetchSources: formState => dispatch(
       Action.fetchSources()
     ),
     nextPage: (formState) => {
-      formState['pageNumber'] = ownProps.sources.pageNumber + 1;
+      formState = { ...formState, pageNumber: ownProps.sources.pageNumber + 1 };
       return dispatch(Action.submitSourceFilterParams(formState));
     },
     previousPage: (formState) => {
-      formState['pageNumber'] = ownProps.sources.pageNumber - 1;
+      formState = { ...formState, pageNumber: ownProps.sources.pageNumber - 1 };
       return dispatch(Action.submitSourceFilterParams(formState));
     }
   }

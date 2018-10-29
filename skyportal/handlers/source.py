@@ -83,7 +83,7 @@ class FilterSourcesHandler(BaseHandler):
     def post(self):
         data = self.get_json()
         info = {}
-        page = int(data['pageNumber'])
+        page = int(data.get('pageNumber', 1))
         info['pageNumber'] = page
         q = Source.query
 

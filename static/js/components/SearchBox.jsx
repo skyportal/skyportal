@@ -185,38 +185,45 @@ class SearchBox extends React.Component {
                 <td>
                   <input type="submit" disabled={this.props.sources.queryInProgress} />
                 </td>
-              </tr>
-              <tr>
                 <td>
                   <button type="button" onClick={this.handleReset}>Reset</button>
                 </td>
               </tr>
             </tbody>
           </table>
+          <br />
           {
             this.props.sources &&
             <div>
-              <div>
+              <div style={{ display: "inline-block" }}>
+                <button
+                  type="button"
+                  onClick={this.handleClickPreviousPage}
+                  disabled={this.props.sources.pageNumber == 1}
+                >
+                  View Previous 100 Sources
+                </button>
+              </div>
+              <div style={{ display: "inline-block" }}>
                 <i>
                   Displaying {this.props.sources.sourceNumberingStart}-
                   {this.props.sources.sourceNumberingEnd} of&nbsp;
                   {this.props.sources.totalMatches} matching sources.
                 </i>
               </div>
-              <div>
-                {
-                  !this.props.sources.lastPage &&
-                  <button type="button" onClick={this.handleClickNextPage}>View Next 100 Sources</button>
-                }
-                &nbsp;&nbsp;
-                {
-                  this.props.sources.pageNumber > 1 &&
-                  <button type="button" onClick={this.handleClickPreviousPage}>View Previous 100 Sources</button>
-                }
+              <div style={{ display: "inline-block" }}>
+                <button
+                  type="button"
+                  onClick={this.handleClickNextPage}
+                  disabled={this.props.sources.lastPage}
+                >
+                  View Next 100 Sources
+                </button>
               </div>
             </div>
           }
         </form>
+        <br />
       </div>
     );
   }

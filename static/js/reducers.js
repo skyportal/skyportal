@@ -36,7 +36,7 @@ export function sourcesReducer(state={ latest: null,
     case Action.FETCH_SOURCES: {
       return {
         ...state,
-        queryInProgress: true
+        queryInProgress: (action.parameters.body.pageNumber === undefined)
       };
     }
     case Action.FETCH_SOURCES_OK: {
