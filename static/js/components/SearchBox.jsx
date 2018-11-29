@@ -90,7 +90,7 @@ class SearchBox extends React.Component {
               </tr>
               <tr>
                 <td>
-                  <label>RA:  </label>
+                  <label>RA (degrees):  </label>
                   <input
                     type="text"
                     name="ra"
@@ -100,7 +100,7 @@ class SearchBox extends React.Component {
                   />
                 </td>
                 <td>
-                  <label>Dec:  </label>
+                  <label>Dec (degrees):  </label>
                   <input
                     type="text"
                     name="dec"
@@ -110,7 +110,7 @@ class SearchBox extends React.Component {
                   />
                 </td>
                 <td>
-                  <label>Radius:  </label>
+                  <label>Radius (degrees):  </label>
                   <input
                     type="text"
                     name="radius"
