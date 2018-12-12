@@ -1,6 +1,7 @@
 import tornado.web
 from sqlalchemy.orm import joinedload
 from sqlalchemy.dialects import postgresql
+from sqlalchemy import func
 import datetime
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.handlers import BaseHandler
@@ -106,11 +107,12 @@ class FilterSourcesHandler(BaseHandler):
                                                   '%Y-%m-%dT%H:%M:%S')
             q = q.filter(Source.last_detected <= end_date)
         if data['simbadClass']:
-            q = q.filter(Source.simbad_class == data['simbadClass'])
+            q = q.filter(func.lower(Source.simbad_class) ==
+                         data['simbadClass'].lower())
         if data['hasTNSname']:
             q = q.filter(Source.tns_name.isnot(None))
-        sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
-                                          compile_kwargs={'literal_binds': True}))
+        #sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
+        #                                  compile_kwargs={'literal_binds': True}))
         # TODO: Create materialized view with above SQL code
         all_matches = list(q)
         info['totalMatches'] = len(all_matches)
