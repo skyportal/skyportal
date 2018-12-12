@@ -97,13 +97,14 @@ class FilterSourcesHandler(BaseHandler):
                  .filter(Source.ra >= ra - radius)\
                  .filter(Source.dec <= dec + radius)\
                  .filter(Source.dec >= dec - radius)
-        if data['startDate'] and data['endDate']:
+        if data['startDate']:
             start_date = datetime.datetime.strptime(data['startDate'].strip(),
                                                     '%Y-%m-%dT%H:%M:%S')
+            q = q.filter(Source.last_detected >= start_date)
+        if data['endDate']:
             end_date = datetime.datetime.strptime(data['endDate'].strip(),
                                                   '%Y-%m-%dT%H:%M:%S')
-            q = q.filter(Source.last_detected >= start_date).filter(
-                Source.last_detected <= end_date)
+            q = q.filter(Source.last_detected <= end_date)
         if data['simbadClass']:
             q = q.filter(Source.simbad_class == data['simbadClass'])
         if data['hasTNSname']:
