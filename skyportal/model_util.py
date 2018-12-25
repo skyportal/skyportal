@@ -16,12 +16,9 @@ from skyportal.models import (init_db, Base, DBSession, ACL, Comment,
 
 def create_indexes():
     for table in ['sources']:
-        DBSession().execute(text('CREATE INDEX ON :table (q3c_ang2ipix(ra, dec))'),
-                            {'table':table})
-        DBSession().execute(text('CLUSTER :table_q3c_ang2ipix_idx on :table'),
-                            {'table':table})
-        DBSession().execute(text('ANALYZE :table'),
-                            {'table':table})
+        DBSession().execute(text(f'CREATE INDEX ON {table} (q3c_ang2ipix(ra, dec))'))
+        DBSession().execute(text(f'CLUSTER {table}_q3c_ang2ipix_idx on {table}'))
+        DBSession().execute(text(f'ANALYZE {table}'))
     DBSession().commit()
 
 def add_super_user(username):
