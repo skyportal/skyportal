@@ -7,7 +7,7 @@ web:
     - db
 
 db:
-  image: postgres:9.6
+  build: postgres:9.6-q3c
   environment:
     - POSTGRES_USER=skyportal
     - POSTGRES_PASSWORD=

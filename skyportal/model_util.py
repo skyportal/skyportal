@@ -4,6 +4,7 @@ from pathlib import Path
 import shutil
 import numpy as np
 import pandas as pd
+from sqlalchemy import text
 
 from baselayer.app.env import load_env
 from baselayer.app.model_util import status, create_tables, drop_tables
@@ -13,6 +14,14 @@ from skyportal.models import (init_db, Base, DBSession, ACL, Comment,
                               Source, Spectrum, Telescope, Thumbnail, User,
                               Token)
 
+def create_indexes():
+    for table in ['sources']:
+        DBSession().execute(text('CREATE INDEX ON :table (q3c_ang2ipix(ra, dec))'),
+                        table)
+        DBSession().execute(text('CLUSTER :table_q3c_ang2ipix_idx on :table'),
+                        table)
+        DBSession().execute(text('ANALYZE :table'), table)
+    DBSession().commit()
 
 def add_super_user(username):
     """Initializes a super user with full permissions."""
