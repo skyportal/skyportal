@@ -1,5 +1,5 @@
 web:
-  image: skyportal/web
+  build: .
   ports:
     - "9000:5000"
     - "9001:5001"
@@ -7,8 +7,12 @@ web:
     - db
 
 db:
-  build: postgres:9.6-q3c
+  build: ./q3c
   environment:
     - POSTGRES_USER=skyportal
     - POSTGRES_PASSWORD=
     - POSTGRES_DB=skyportal
+  ports:
+    - "7777:5432"
+  command: [postgres, -c, 'log_statement=all']
+    
