@@ -216,7 +216,7 @@ class Spectrum(Base):
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, index=True)
     source = relationship('Source', back_populates='spectra', cascade='all')
-    jd = sa.Column(sa.DateTime, nullable=False)
+    jd = sa.Column(sa.Float, nullable=False)
     # TODO program?
     instrument_id = sa.Column(sa.ForeignKey('instruments.id',
                                             ondelete='CASCADE'),
