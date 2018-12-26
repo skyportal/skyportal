@@ -83,7 +83,7 @@ class Source(Base):
     # TODO should this column type be decimal? fixed-precison numeric
     ra = sa.Column(sa.Float)
     dec = sa.Column(sa.Float)
-    red_shift = sa.Column(sa.Float, nullable=True)
+    redshift = sa.Column(sa.Float, nullable=True)
 
     groups = relationship('Group', secondary='group_sources', cascade='all')
     comments = relationship('Comment', back_populates='source', cascade='all',
