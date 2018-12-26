@@ -187,11 +187,13 @@ User.comments = relationship('Comment', back_populates='user', cascade='all',
 
 class Photometry(Base):
     __tablename__ = 'photometry'
-    jd = sa.Column(sa.Float)  
+    jd = sa.Column(sa.Float, nullable=False)  
     mag = sa.Column(sa.Float)
     e_mag = sa.Column(sa.Float)
     lim_mag = sa.Column(sa.Float)
     filter = sa.Column(sa.String)  # TODO Enum?
+    ra = sa.Column(sa.Float)
+    dec = sa.Column(sa.Float)
 
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, index=True)

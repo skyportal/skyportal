@@ -15,7 +15,7 @@ from skyportal.models import (init_db, Base, DBSession, ACL, Comment,
                               Token)
 
 def create_indexes():
-    for table in ['sources']:
+    for table in ['sources', 'photometry']:
         DBSession().execute(text(f'CREATE INDEX ON {table} (q3c_ang2ipix(ra, dec))'))
         DBSession().execute(text(f'CLUSTER {table}_q3c_ang2ipix_idx on {table}'))
         DBSession().execute(text(f'ANALYZE {table}'))
