@@ -14,5 +14,5 @@ db:
     - POSTGRES_DB=skyportal
   ports:
     - "7777:5432"
-  command: [postgres, -c, 'log_statement=all']
+
     
