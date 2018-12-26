@@ -89,10 +89,9 @@ class Source(Base):
     comments = relationship('Comment', back_populates='source', cascade='all',
                             order_by="Comment.created_at")
     photometry = relationship('Photometry', back_populates='source',
-                              cascade='all',
-                              order_by="Photometry.observed_at")
+                              cascade='all', order_by="Photometry.jd")
     spectra = relationship('Spectrum', back_populates='source', cascade='all',
-                           order_by="Spectrum.observed_at")
+                           order_by="Spectrum.jd")
     thumbnails = relationship('Thumbnail', back_populates='source',
                               secondary='photometry', cascade='all')
 
@@ -188,9 +187,7 @@ User.comments = relationship('Comment', back_populates='user', cascade='all',
 
 class Photometry(Base):
     __tablename__ = 'photometry'
-    observed_at = sa.Column(sa.DateTime)
-    time_format = sa.Column(sa.String, default='iso')
-    time_scale = sa.Column(sa.String, default='tcb')
+    jd = sa.Column(sa.Float)  
     mag = sa.Column(sa.Float)
     e_mag = sa.Column(sa.Float)
     lim_mag = sa.Column(sa.Float)
@@ -217,7 +214,7 @@ class Spectrum(Base):
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, index=True)
     source = relationship('Source', back_populates='spectra', cascade='all')
-    observed_at = sa.Column(sa.DateTime, nullable=False)
+    jd = sa.Column(sa.DateTime, nullable=False)
     # TODO program?
     instrument_id = sa.Column(sa.ForeignKey('instruments.id',
                                             ondelete='CASCADE'),
@@ -226,14 +223,14 @@ class Spectrum(Base):
                               cascade='all')
 
     @classmethod
-    def from_ascii(cls, filename, source_id, instrument_id, observed_at):
+    def from_ascii(cls, filename, source_id, instrument_id, jd):
         data = np.loadtxt(filename)
         if data.shape[1] != 2:  # TODO support other formats
             raise ValueError(f"Expected 2 columns, got {data.shape[1]}")
 
         return cls(wavelengths=data[:, 0], fluxes=data[:, 1],
                    source_id=source_id, instrument_id=instrument_id,
-                   observed_at=observed_at)
+                   jd=jd)
 
 
 #def format_public_url(context):
