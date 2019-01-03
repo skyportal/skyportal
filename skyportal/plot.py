@@ -231,8 +231,6 @@ def spectroscopy_plot(source_id):
     """TODO normalization? should this be handled at data ingestion or plot-time?"""
     source = Source.query.get(source_id)
     spectra = Source.query.get(source_id).spectra
-    if len(spectra) == 0:
-        return None, None, None
 
     color_map = dict(zip([s.id for s in spectra], viridis(len(spectra))))
     data = pd.concat(
