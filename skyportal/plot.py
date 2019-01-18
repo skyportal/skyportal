@@ -11,6 +11,7 @@ from bokeh.palettes import viridis
 from bokeh.plotting import figure, ColumnDataSource
 from bokeh.util.compiler import bundle_all_models
 from bokeh.util.serialization import make_id
+from arrow.arrow import Arrow
 
 from skyportal.models import (DBSession, Source, Photometry,
                               Instrument, Telescope)
@@ -169,6 +170,10 @@ def photometry_plot(source_id):
                        .statement, DBSession().bind)
     if data.empty:
         return None, None, None
+
+    for col in data:
+        if not data[col].empty and type(data[col][0]) == Arrow:
+            data[col] = pd.Series([pd.Timestamp(el.isoformat()) for el in data[col]])
 
     varstar = data.iloc[0]["varstar"]
     if varstar:
