@@ -7,6 +7,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.dialects.postgresql import JSON, JSONB
+from sqlalchemy_utils import ArrowType
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
@@ -95,10 +96,10 @@ class Source(Base):
     redshift = sa.Column(sa.Float, nullable=True)
 
     altdata = sa.Column(JSONB, nullable=True)
-    created = sa.Column(sa.DateTime, nullable=False,
+    created = sa.Column(ArrowType, nullable=False,
                         server_default=sa.func.now())
 
-    last_detected = sa.Column(sa.DateTime, nullable=True)
+    last_detected = sa.Column(ArrowType, nullable=True)
     dist_nearest_source = sa.Column(sa.Float, nullable=True)
     mag_nearest_source = sa.Column(sa.Float, nullable=True)
     e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
@@ -238,7 +239,7 @@ User.comments = relationship('Comment', back_populates='user', cascade='all',
 
 class Photometry(Base):
     __tablename__ = 'photometry'
-    observed_at = sa.Column(sa.DateTime) # iso date
+    observed_at = sa.Column(ArrowType) # iso date
     mjd = sa.Column(sa.Float)  # mjd date
     time_format = sa.Column(sa.String, default='iso')
     time_scale = sa.Column(sa.String, default='utc')

@@ -2,11 +2,11 @@ import tornado.web
 from sqlalchemy.orm import joinedload
 from sqlalchemy.dialects import postgresql
 from sqlalchemy import func
-import datetime
+import arrow
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.handlers import BaseHandler
 from ..models import (DBSession, Comment, Instrument, Photometry, Source,
-                      Thumbnail)
+                      Thumbnail, GroupSource)
 
 
 SOURCES_PER_PAGE = 100
@@ -27,7 +27,12 @@ class SourceHandler(BaseHandler):
                                                    .joinedload(Instrument.telescope)])
         elif page_number_given:
             page = int(source_id_or_page_num)
-            all_matches = list(self.current_user.sources)
+            q = Source.query.filter(Source.id.in_(DBSession.query(
+                GroupSource.source_id).filter(GroupSource.group_id.in_(
+                    [g.id for g in self.current_user.groups]))))
+            sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
+                                              compile_kwargs={'literal_binds': True}))
+            all_matches = q.all()
             info['totalMatches'] = len(all_matches)
             info['sources'] = all_matches[
                 ((page - 1) * SOURCES_PER_PAGE):(page * SOURCES_PER_PAGE)]
@@ -86,7 +91,14 @@ class FilterSourcesHandler(BaseHandler):
         info = {}
         page = int(data.get('pageNumber', 1))
         info['pageNumber'] = page
-        q = Source.query
+        q = Source.query.filter(Source.id.in_(DBSession.query(
+                GroupSource.source_id).filter(GroupSource.group_id.in_(
+                    [g.id for g in self.current_user.groups]))))
+        sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
+                                          compile_kwargs={'literal_binds': True}))
+        mat_view_sql_str = ("CREATE MATERIALIZED VIEW IF NOT EXISTS "
+                            f"{self.current_user.username}_all_sources "
+                            f"as {sql_str}")
 
         if data['sourceID']:
             q = q.filter(Source.id.contains(data['sourceID'].strip()))
@@ -99,24 +111,26 @@ class FilterSourcesHandler(BaseHandler):
                  .filter(Source.dec <= dec + radius)\
                  .filter(Source.dec >= dec - radius)
         if data['startDate']:
-            start_date = datetime.datetime.strptime(data['startDate'].strip(),
-                                                    '%Y-%m-%dT%H:%M:%S')
+            start_date = arrow.get(data['startDate'].strip())
             q = q.filter(Source.last_detected >= start_date)
         if data['endDate']:
-            end_date = datetime.datetime.strptime(data['endDate'].strip(),
-                                                  '%Y-%m-%dT%H:%M:%S')
+            end_date = arrow.get(data['endDate'].strip())
             q = q.filter(Source.last_detected <= end_date)
         if data['simbadClass']:
             q = q.filter(func.lower(Source.simbad_class) ==
                          data['simbadClass'].lower())
         if data['hasTNSname']:
             q = q.filter(Source.tns_name.isnot(None))
-        #sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
-        #                                  compile_kwargs={'literal_binds': True}))
-        # TODO: Create materialized view with above SQL code
+
+        sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
+                                          compile_kwargs={'literal_binds': True}))
+        mat_view_sql_str = ("CREATE MATERIALIZED VIEW IF NOT EXISTS "
+                            f"{self.current_user.username}_all_sources "
+                            f"as {sql_str}")
+
         all_matches = list(q)
         info['totalMatches'] = len(all_matches)
-        info['sources'] = [s for s in all_matches if s in self.current_user.sources][
+        info['sources'] = all_matches[
             ((page - 1) * SOURCES_PER_PAGE):(page * SOURCES_PER_PAGE)]
         info['lastPage'] = info['totalMatches'] <= page * SOURCES_PER_PAGE
         info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
