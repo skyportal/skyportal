@@ -15,3 +15,4 @@ fastavro==0.21.7
 tqdm==4.23.2
 matplotlib==2.1.0
 astroquery==0.3.8
+sqlalchemy-utils
