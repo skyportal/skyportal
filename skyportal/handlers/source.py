@@ -3,10 +3,12 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.dialects import postgresql
 from sqlalchemy import func
 import arrow
+from sqlalchemy.engine.result import RowProxy
+
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.handlers import BaseHandler
 from ..models import (DBSession, Comment, Instrument, Photometry, Source,
-                      Thumbnail, GroupSource)
+                      Thumbnail, GroupSource, MatView)
 
 
 SOURCES_PER_PAGE = 100
@@ -32,10 +34,29 @@ class SourceHandler(BaseHandler):
                     [g.id for g in self.current_user.groups]))))
             sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
                                               compile_kwargs={'literal_binds': True}))
-            all_matches = q.all()
+            mv_name = (self.current_user.username.translate({
+                ord(ch): '_' for ch in "!#$%&'*+-/=?^_`{|}~(),:;<>@[\]."}) +
+                             "_all_sources")
+            mv_sql_str = ("CREATE MATERIALIZED VIEW IF NOT EXISTS "
+                          f"{mv_name} "
+                          f"as {sql_str}")
+            # mv_sql_str += " LIMIT 1000"
+            DBSession.execute(mv_sql_str)
+            mv = MatView.query.get(mv_name)
+            if not mv:
+                mv = MatView(id=mv_name, query_str=sql_str)
+                DBSession.add(mv)
+            else:
+                mv.last_used = arrow.now()
+            DBSession.commit()
+            q = DBSession.execute(f'SELECT * FROM {mv_name}')
+            all_matches = list(q)
             info['totalMatches'] = len(all_matches)
             info['sources'] = all_matches[
                 ((page - 1) * SOURCES_PER_PAGE):(page * SOURCES_PER_PAGE)]
+            if isinstance(info['sources'][0], RowProxy):
+                info['sources'] = [dict(el.items()) if isinstance(el, RowProxy)
+                                   else el for el in info['sources']]
             info['pageNumber'] = page
             info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
             info['sourceNumberingEnd'] = min(info['totalMatches'],
@@ -91,15 +112,19 @@ class FilterSourcesHandler(BaseHandler):
         info = {}
         page = int(data.get('pageNumber', 1))
         info['pageNumber'] = page
-        q = Source.query.filter(Source.id.in_(DBSession.query(
-                GroupSource.source_id).filter(GroupSource.group_id.in_(
-                    [g.id for g in self.current_user.groups]))))
-        sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
-                                          compile_kwargs={'literal_binds': True}))
-        mat_view_sql_str = ("CREATE MATERIALIZED VIEW IF NOT EXISTS "
-                            f"{self.current_user.username}_all_sources "
-                            f"as {sql_str}")
-
+        # q = Source.query.filter(Source.id.in_(DBSession.query(
+        #         GroupSource.source_id).filter(GroupSource.group_id.in_(
+        #             [g.id for g in self.current_user.groups]))))
+        # sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
+        #                                   compile_kwargs={'literal_binds': True}))
+        # mv_name = self.current_user.username.translate({
+        #     ord(ch): '_' for ch in "!#$%&'*+-/=?^_`{|}~(),:;<>@[\]."}) + "_all_sources"
+        # mv_sql_str = ("CREATE MATERIALIZED VIEW IF NOT EXISTS "
+        #                     f"{mv_name} "
+        #                     f"as {sql_str}")
+        # q = DBSession.execute(f'SELECT * FROM {mv_name}')
+        # all_matches = q.fetchall()
+        q = Source.query
         if data['sourceID']:
             q = q.filter(Source.id.contains(data['sourceID'].strip()))
         if data['ra'] and data['dec'] and data['radius']:
@@ -122,16 +147,37 @@ class FilterSourcesHandler(BaseHandler):
         if data['hasTNSname']:
             q = q.filter(Source.tns_name.isnot(None))
 
-        sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
-                                          compile_kwargs={'literal_binds': True}))
-        mat_view_sql_str = ("CREATE MATERIALIZED VIEW IF NOT EXISTS "
-                            f"{self.current_user.username}_all_sources "
-                            f"as {sql_str}")
+        mv_name = (self.current_user.username.translate({
+            ord(ch): '_' for ch in "!#$%&'*+-/=?^_`{|}~(),:;<>@[\]."}) + "_all_sources")
+        query_sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
+                                                compile_kwargs={'literal_binds': True}))
+        mv_query_sql_str = query_sql_str.replace('sources', mv_name)
+        try:
+            q = DBSession.execute(mv_query_sql_str)
+        except Exception as e:
+            DBSession.rollback()
+            if f'relation "{mv_name}" does not exist' in str(e):
+                q = Source.query.filter(Source.id.in_(DBSession.query(
+                    GroupSource.source_id).filter(GroupSource.group_id.in_(
+                        [g.id for g in self.current_user.groups]))))
+                sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
+                                                  compile_kwargs={'literal_binds': True}))
+                # sql_str += " LIMIT 1000"
+                mv_sql_str = ("CREATE MATERIALIZED VIEW IF NOT EXISTS "
+                              f"{mv_name} "
+                              f"as {sql_str}")
+                DBSession.execute(mv_sql_str)
+                q = DBSession.execute(mv_query_sql_str)
+            else:
+                raise(e)
 
-        all_matches = list(q)
+        all_matches = q.fetchall()
         info['totalMatches'] = len(all_matches)
         info['sources'] = all_matches[
             ((page - 1) * SOURCES_PER_PAGE):(page * SOURCES_PER_PAGE)]
+        if isinstance(info['sources'][0], RowProxy):
+            info['sources'] = [dict(el.items()) if isinstance(el, RowProxy)
+                               else el for el in info['sources']]
         info['lastPage'] = info['totalMatches'] <= page * SOURCES_PER_PAGE
         info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
         info['sourceNumberingEnd'] = min(info['totalMatches'],

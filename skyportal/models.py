@@ -333,3 +333,14 @@ class Thumbnail(Base):
     photometry = relationship('Photometry', back_populates='thumbnails', cascade='all')
     source = relationship('Source', back_populates='thumbnails', uselist=False,
                           secondary='photometry', cascade='all')
+
+
+class MatView(Base):
+    id = sa.Column(sa.String, primary_key=True)
+    created = sa.Column(ArrowType, nullable=False,
+                        server_default=sa.func.now())
+    last_used = sa.Column(ArrowType, nullable=False,
+                          server_default=sa.func.now())
+    last_refreshed = sa.Column(ArrowType, nullable=False,
+                               server_default=sa.func.now())
+    query_str = sa.Column(sa.String, nullable=False)
