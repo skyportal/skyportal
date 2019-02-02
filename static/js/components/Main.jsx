@@ -24,6 +24,7 @@ import GroupContainer from '../containers/GroupContainer';
 import SourceListContainer from '../containers/SourceListContainer';
 import Groups from '../containers/Groups';
 import Profile from '../containers/Profile';
+import UserInfo from '../containers/UserInfo';
 import NoMatchingRoute from './NoMatchingRoute';
 import ProfileDropdown from '../containers/ProfileDropdown';
 import Logo from '../containers/Logo';
@@ -77,6 +78,7 @@ SkyPortal ∝
             <PropsRoute exact path="/groups/" component={Groups} />
             <PropsRoute path="/group/:id" component={GroupContainer} />
             <PropsRoute path="/profile" component={Profile} />
+            <PropsRoute path="/user/:id" component={UserInfo} />
             <PropsRoute component={NoMatchingRoute} />
           </Switch>
 

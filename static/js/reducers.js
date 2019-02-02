@@ -63,6 +63,20 @@ export function groupsReducer(state={ latest: [], all: null }, action) {
   }
 }
 
+export function usersReducer(state={}, action) {
+  switch (action.type) {
+    case Action.FETCH_USER_OK: {
+      const { id, ...user_info } = action.data;
+      return {
+        ...state,
+        [id]: user_info
+      };
+    }
+    default:
+      return state;
+  }
+}
+
 export function profileReducer(state={ username: '', roles: [], acls: [], tokens: [] }, action) {
   switch (action.type) {
     case Action.FETCH_USER_PROFILE_OK:
@@ -120,7 +134,8 @@ const root = combineReducers({
   notifications: notificationsReducer,
   profile: profileReducer,
   plots: plotsReducer,
-  misc: miscReducer
+  misc: miscReducer,
+  users: usersReducer
 });
 
 export default root;

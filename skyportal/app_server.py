@@ -8,7 +8,8 @@ from skyportal.handlers import (SourceHandler, CommentHandler, GroupHandler,
                                 GroupUserHandler, PlotPhotometryHandler,
                                 PlotSpectroscopyHandler, ProfileHandler,
                                 BecomeUserHandler, LogoutHandler,
-                                PhotometryHandler, TokenHandler)
+                                PhotometryHandler, TokenHandler,
+                                UserInfoHandler)
 from skyportal import models, model_util
 
 
@@ -45,6 +46,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/profile', ProfileHandler),
         (r'/api/photometry(/.*)?', PhotometryHandler),
         (r'/api/tokens(/.*)?', TokenHandler),
+        (r'/api/user(/.*)?', UserInfoHandler),
         (r'/become_user(/.*)?', BecomeUserHandler),
         (r'/logout', LogoutHandler),
 
