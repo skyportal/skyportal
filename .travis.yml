@@ -76,6 +76,10 @@ before_install:
   - source .travis/travis_funcs.sh
 
 install:
+  # Workaround for invalid GPG keys for MongoDB, CouchDB, and git-lfs
+  - sudo rm -f /etc/apt/sources.list.d/mongodb*
+  - sudo rm -f /etc/apt/sources.list.d/couchdb*
+  - sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 762E3157
   - .travis/travis_install.sh
 
 before_script:
