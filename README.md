@@ -1,7 +1,19 @@
 # SkyPortal
 
-The SkyPortal web application consumes and displays events from the
-Zwicky Transient Facility.
+SkyPortal is a web application that interactively displays scientific
+datasets to astronomers for annotation, analysis, and discussion.  It
+is designed to be modular and extensible, so it can be customized for
+various scientific use-cases.
+
+The base version of SkyPortal was designed with the Zwicky Transient
+Facility, and eventually LSST, in mind.
+
+Please [read the documentation](http://skyportal.io/docs/) for more on
+installation, configuration, and development.
+
+SkyPortal builds on top
+of [baselayer](https://github.com/cesium-ml/baselayer), a scientific web
+application platform developed by the same team.
 
 ## Installation on a Mac
 
@@ -19,16 +31,6 @@ source skyportal_env/bin/activate
 ```
 brew install install supervisor nginx postgresql node geckodriver
 brew services start postgresql
-```
-
-- Install baselayer and dependencies
-
-```
-cd baselayer && git submodule update --init --remote
-make -C baselayer paths
-make -f baselayer/Makefile baselayer dependencies
-make -f baselayer/Makefile bundle
-rm -rf baselayer/node_modules
 ```
 
 - Create the database
@@ -77,6 +79,10 @@ Connect to the front-end at <a href="http://localhost:9000">http://localhost:900
 ## Developer notes
 
 ### Important Makefile targets
+
+General:
+
+- help : Describe make targets
 
 DB preparation:
 
