@@ -7,9 +7,10 @@ section "install.base.requirements"
 # Install v1.7 or newer of nginx to support 'if' statement for logging
 sudo apt-add-repository -y ppa:nginx/stable
 sudo apt update
-sudo apt install -y nginx
+sudo apt install -y nginx firefox
 
 nginx -v
+firefox --version
 
 pip install --upgrade pip
 hash -d pip  # find upgraded pip
@@ -48,9 +49,10 @@ section_end "run.make.dependencies"
 
 
 section "install.geckodriver.and.selenium"
-wget https://github.com/mozilla/geckodriver/releases/download/v0.20.0/geckodriver-v0.20.0-linux64.tar.gz
-sudo tar -xzf geckodriver-v0.20.0-linux64.tar.gz -C /usr/local/bin
-rm geckodriver-v0.20.0-linux64.tar.gz
+GECKO_VER=0.24.0
+wget https://github.com/mozilla/geckodriver/releases/download/v${GECKO_VER}/geckodriver-v${GECKO_VER}-linux64.tar.gz
+sudo tar -xzf geckodriver-v${GECKO_VER}-linux64.tar.gz -C /usr/local/bin
+rm geckodriver-v${GECKO_VER}-linux64.tar.gz
 which geckodriver
 geckodriver --version
 pip install --upgrade selenium

@@ -2,8 +2,7 @@
 ## Testing
 To execute the test suite:
 
-- Install ChromeDriver from [https://sites.google.com/a/chromium.org/chromedriver/home](https://sites.google.com/a/chromium.org/chromedriver/home)
-- Install Chrome or Chromium
+- Install geckodriver and Firefox
 - To run all tests: `make test`
 - To run a single test: `./tools/test_frontend.py skportal/tests/frontend/<test_file>.py::test_<specific_test>`
 
