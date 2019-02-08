@@ -1,19 +1,22 @@
-# SkyPortal
+<h1 align="center">
+  <br>
+  <img
+    src="https://github.com/skyportal/skyportal/raw/master/static/images/skyportal_logo.png"
+    alt="SkyPortal Logo"
+    width="100px"
+  />
+  <br>
+  SkyPortal
+  <br>
+</h1>
 
-SkyPortal is a web application that interactively displays scientific
-datasets to astronomers for annotation, analysis, and discussion.  It
-is designed to be modular and extensible, so it can be customized for
-various scientific use-cases.
+<h2 align="center">
+An Astronomical Data Platform
+</h2>
 
-The base version of SkyPortal was designed with the Zwicky Transient
-Facility, and eventually LSST, in mind.
-
-Please [read the documentation](http://skyportal.io/docs/) for more on
-installation, configuration, and development.
-
-SkyPortal builds on top
-of [baselayer](https://github.com/cesium-ml/baselayer), a scientific web
-application platform developed by the same team.
+<span style="font-size: 180%;">
+Please see the <a href="http://skyportal.io">project homepage</a> for more information.
+</span>
 
 ## Installation on a Mac
 
