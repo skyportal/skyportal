@@ -15,7 +15,7 @@ An Astronomical Data Platform
 </h2>
 
 <span style="font-size: 180%;">
-Please see the <a href="http://skyportal.io">project homepage</a> for more information.
+Please see the <a href="https://skyportal.io">project homepage</a> for more information.
 </span>
 
 ## Installation on a Mac
