@@ -48,6 +48,7 @@ class MainContent extends React.Component {
   }
 
   render() {
+    const { root } = this.props;
     return (
       <div className={styles.main}>
 
@@ -59,8 +60,8 @@ SkyPortal ∝
             </Link>
             <div className={styles.websocket}>
               <WebSocket
-                url={`ws://${this.props.root}websocket`}
-                auth_url={`${window.location.protocol}//${this.props.root}baselayer/socket_auth_token`}
+                url={`ws://${root}websocket`}
+                auth_url={`${window.location.protocol}//${root}baselayer/socket_auth_token`}
                 messageHandler={messageHandler}
                 dispatch={store.dispatch}
               />
