@@ -1,4 +1,5 @@
 # Developer notes
+
 ## Testing
 To execute the test suite:
 

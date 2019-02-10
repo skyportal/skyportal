@@ -5,10 +5,9 @@ Skyportal
    :maxdepth: 2
 
    setup
-   dev
    usage
-   api/api
-
+   dev
+   contributing
 
 .. Indices and tables
 .. ==================

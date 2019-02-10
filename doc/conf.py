@@ -70,12 +70,12 @@ author = 'The skyportal Team'
 # built documents.
 #
 
-#setup_lines = open('../skyportal/__init__.py').readlines()
 version = 'vUndefined'
-#for l in setup_lines:
-#    if l.startswith('__version__'):
-#        version = l.split("'")[1]
-#        break
+setup_lines = open('../skyportal/__init__.py').readlines()
+for l in setup_lines:
+    if l.startswith('__version__'):
+        version = l.split("'")[1]
+        break
 
 # The full version, including alpha/beta/rc tags.
 release = version
