@@ -18,6 +18,8 @@ An Astronomical Data Platform
 Please see the <a href="https://skyportal.io">project homepage</a> for more information.
 </span>
 
+<a href="https://github.com/openjournals/joss-reviews/issues/"><img src="http://joss.theoj.org/papers/28a83ab43ff3ca23cdd831e82877365a/status.svg"></a>
+
 ## Installation on a Mac
 
 - Clone the repo and start the virtual env:
