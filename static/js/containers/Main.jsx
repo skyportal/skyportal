@@ -17,18 +17,23 @@ import styles from './Main.css';
 // Store
 import configureStore from '../store';
 
-// Local
-import CustomMessageHandler from '../CustomMessageHandler';
-import CachedSource from '../containers/CachedSource';
-import GroupContainer from '../containers/GroupContainer';
-import SourceListContainer from '../containers/SourceListContainer';
-import Groups from '../containers/Groups';
-import Profile from '../containers/Profile';
-import NoMatchingRoute from './NoMatchingRoute';
-import ProfileDropdown from '../containers/ProfileDropdown';
-import Logo from '../containers/Logo';
+// Actions
 import * as Action from '../actions';
-import Responsive from './Responsive';
+
+// Message Handler
+import CustomMessageHandler from '../CustomMessageHandler';
+
+// Local
+import NoMatchingRoute from '../components/NoMatchingRoute';
+import Responsive from '../components/Responsive';
+
+import CachedSource from './CachedSource';
+import GroupContainer from './GroupContainer';
+import SourceListContainer from './SourceListContainer';
+import Groups from './Groups';
+import Profile from './Profile';
+import ProfileDropdown from './ProfileDropdown';
+import Logo from './Logo';
 
 
 const store = configureStore({});
