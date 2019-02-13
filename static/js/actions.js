@@ -35,6 +35,9 @@ export const DELETE_GROUP_USER_OK = 'skyportal/DELETE_GROUP_USER_OK';
 export const FETCH_USER_PROFILE = 'skyportal/FETCH_USER_PROFILE';
 export const FETCH_USER_PROFILE_OK = 'skyportal/FETCH_USER_PROFILE_OK';
 
+export const FETCH_SYSINFO = 'skyportal/FETCH_SYSINFO';
+export const FETCH_SYSINFO_OK = 'skyportal/FETCH_SYSINFO_OK';
+
 export const GENERATE_TOKEN = 'skyportal/GENERATE_TOKEN';
 export const GENERATE_TOKEN_OK = 'skyportal/GENERATE_TOKEN_OK';
 
@@ -67,8 +70,13 @@ export function fetchUserProfile() {
   return API.GET('/api/profile', FETCH_USER_PROFILE);
 }
 
+export function fetchSystemInfo() {
+  return API.GET('/api/sysinfo', FETCH_SYSINFO);
+}
+
 export function hydrate() {
   return (dispatch) => {
+    dispatch(fetchSystemInfo());
     dispatch(fetchUserProfile());
     dispatch(fetchGroups());
   };
