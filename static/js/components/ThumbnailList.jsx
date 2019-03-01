@@ -65,7 +65,8 @@ Thumbnail.propTypes = {
 const ThumbnailList = ({ ra, dec, thumbnails }) => {
   const thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'ps1'];
   // Sort thumbnails by order of appearance in `thumbnail_order`
-  thumbnails.sort((a, b) => (thumbnail_order.indexOf(a.type) > thumbnail_order.indexOf(b.type)));
+  thumbnails.sort((a, b) => (thumbnail_order.indexOf(a.type) <
+                             thumbnail_order.indexOf(b.type) ? -1 : 1));
 
   return (
     <div className={styles.ThumbnailList}>
