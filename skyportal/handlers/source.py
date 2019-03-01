@@ -94,11 +94,6 @@ class FilterSourcesHandler(BaseHandler):
         q = Source.query.filter(Source.id.in_(DBSession.query(
                 GroupSource.source_id).filter(GroupSource.group_id.in_(
                     [g.id for g in self.current_user.groups]))))
-        sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
-                                          compile_kwargs={'literal_binds': True}))
-        mat_view_sql_str = ("CREATE MATERIALIZED VIEW IF NOT EXISTS "
-                            f"{self.current_user.username}_all_sources "
-                            f"as {sql_str}")
 
         if data['sourceID']:
             q = q.filter(Source.id.contains(data['sourceID'].strip()))
@@ -121,12 +116,6 @@ class FilterSourcesHandler(BaseHandler):
                          data['simbadClass'].lower())
         if data['hasTNSname']:
             q = q.filter(Source.tns_name.isnot(None))
-
-        sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
-                                          compile_kwargs={'literal_binds': True}))
-        mat_view_sql_str = ("CREATE MATERIALIZED VIEW IF NOT EXISTS "
-                            f"{self.current_user.username}_all_sources "
-                            f"as {sql_str}")
 
         all_matches = list(q)
         info['totalMatches'] = len(all_matches)
