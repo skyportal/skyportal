@@ -31,7 +31,7 @@ const Thumbnail = ({ ra, dec, telescope, observed_at, name, url }) => {
       break;
   }
 
-  let thumbnailDivClassNames = classnames(styles.Thumbnail, { [styles.ps1]: name === "ps1" });
+  const thumbnailDivClassNames = classnames(styles.Thumbnail, { [styles.ps1]: name === "ps1" });
 
   return (
     <a href={link}>
@@ -43,7 +43,7 @@ const Thumbnail = ({ ra, dec, telescope, observed_at, name, url }) => {
         <br />
         <div className={styles.thumbnailimgdiv}>
           <img className={name === "ps1" && styles.ps1crosshairs} src={url} alt={alt} title={alt} />
-          {name === "ps1" &&
+          {(name === "ps1") &&
           <img className={styles.ps1crosshairs} src="/static/images/crosshairs.png" alt="" />
           }
         </div>
