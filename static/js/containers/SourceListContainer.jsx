@@ -9,13 +9,13 @@ import SourceList from '../components/SourceList';
 
 class SourceListContainer extends React.Component {
   componentDidMount() {
-    if (!this.props.sources) {
+    if (!this.props.sources.latest) {
       this.props.dispatch(Action.fetchSources());
     }
   }
 
   render() {
-    if (this.props.sources) {
+    if (this.props.sources.latest) {
       return <SourceList sources={this.props.sources} />;
     } else {
       return "Loading sources...";
@@ -25,7 +25,7 @@ class SourceListContainer extends React.Component {
 
 SourceListContainer.propTypes = {
   dispatch: PropTypes.func.isRequired,
-  sources: PropTypes.arrayOf(PropTypes.object)
+  sources: PropTypes.object
 };
 
 SourceListContainer.defaultProps = {
@@ -34,7 +34,7 @@ SourceListContainer.defaultProps = {
 
 const mapStateToProps = (state, ownProps) => (
   {
-    sources: state.sources.latest
+    sources: state.sources
   }
 );
 

@@ -6,6 +6,8 @@ import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import backref, relationship
+from sqlalchemy.dialects.postgresql import JSON, JSONB
+from sqlalchemy_utils import ArrowType
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
@@ -83,7 +85,49 @@ class Source(Base):
     # TODO should this column type be decimal? fixed-precison numeric
     ra = sa.Column(sa.Float)
     dec = sa.Column(sa.Float)
-    red_shift = sa.Column(sa.Float, nullable=True)
+
+    ra_dis = sa.Column(sa.Float)
+    dec_dis = sa.Column(sa.Float)
+
+    ra_err = sa.Column(sa.Float, nullable=True)
+    dec_err = sa.Column(sa.Float, nullable=True)
+
+    offset = sa.Column(sa.Float, default=0.0)
+    redshift = sa.Column(sa.Float, nullable=True)
+
+    altdata = sa.Column(JSONB, nullable=True)
+    created = sa.Column(ArrowType, nullable=False,
+                        server_default=sa.func.now())
+
+    last_detected = sa.Column(ArrowType, nullable=True)
+    dist_nearest_source = sa.Column(sa.Float, nullable=True)
+    mag_nearest_source = sa.Column(sa.Float, nullable=True)
+    e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
+
+    transient = sa.Column(sa.Boolean, default=False)
+    varstar = sa.Column(sa.Boolean, default=False)
+    is_roid = sa.Column(sa.Boolean, default=False)
+
+    score = sa.Column(sa.Float, nullable=True)
+
+    ## pan-starrs
+    sgmag1 = sa.Column(sa.Float, nullable=True)
+    srmag1 = sa.Column(sa.Float, nullable=True)
+    simag1 = sa.Column(sa.Float, nullable=True)
+    objectidps1 = sa.Column(sa.BigInteger, nullable=True)
+    sgscore1 = sa.Column(sa.Float, nullable=True)
+    distpsnr1 = sa.Column(sa.Float, nullable=True)
+
+    origin = sa.Column(sa.String, nullable=True)
+    modified = sa.Column(sa.DateTime, nullable=False,
+                         server_default=sa.func.now(),
+                         server_onupdate=sa.func.now())
+
+    simbad_class = sa.Column(sa.Unicode, nullable=True, )
+    simbad_info = sa.Column(JSONB, nullable=True)
+    gaia_info = sa.Column(JSONB, nullable=True)
+    tns_info = sa.Column(JSONB, nullable=True)
+    tns_name = sa.Column(sa.Unicode, nullable=True)
 
     groups = relationship('Group', secondary='group_sources', cascade='all')
     comments = relationship('Comment', back_populates='source', cascade='all',
@@ -91,6 +135,9 @@ class Source(Base):
     photometry = relationship('Photometry', back_populates='source',
                               cascade='all',
                               order_by="Photometry.observed_at")
+
+    detect_photometry_count = sa.Column(sa.Integer, nullable=True)
+
     spectra = relationship('Spectrum', back_populates='source', cascade='all',
                            order_by="Spectrum.observed_at")
     thumbnails = relationship('Thumbnail', back_populates='source',
@@ -109,7 +156,7 @@ class Source(Base):
     def get_sdss_url(self):
         """Construct URL for public Sloan Digital Sky Survey (SDSS) cutout."""
         return (f"http://skyservice.pha.jhu.edu/DR9/ImgCutout/getjpeg.aspx"
-                f"?ra={self.ra}&dec={self.dec}&scale=0.5&width=200&height=200"
+                f"?ra={self.ra}&dec={self.dec}&scale=0.3&width=200&height=200"
                 f"&opt=G&query=&Grid=on")
 
     def get_panstarrs_url(self):
@@ -122,7 +169,7 @@ class Source(Base):
         try:
             ps_query_url = (f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
                             f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
-                            f"&filter=r&filter=i&filetypes=stack&size=400")
+                            f"&filter=r&filter=i&filetypes=stack&size=250")
             response = requests.get(ps_query_url)
             match = re.search('src="//ps1images.stsci.edu.*?"', response.content.decode())
             return match.group().replace('src="', 'http:').replace('"', '')
@@ -170,10 +217,14 @@ class Instrument(Base):
 
 class Comment(Base):
     text = sa.Column(sa.String, nullable=False)
+    ctype = sa.Column(sa.Enum('text', 'redshift', 'classification',
+                             name='comment_types', validate_strings=True))
+
     attachment_name = sa.Column(sa.String, nullable=True)
     attachment_type = sa.Column(sa.String, nullable=True)
     attachment_bytes = sa.Column(sa.types.LargeBinary, nullable=True)
 
+    origin = sa.Column(sa.String, nullable=True)
     user_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
                         nullable=False, index=True)
     user = relationship('User', back_populates='comments', cascade='all')
@@ -188,13 +239,32 @@ User.comments = relationship('Comment', back_populates='user', cascade='all',
 
 class Photometry(Base):
     __tablename__ = 'photometry'
-    observed_at = sa.Column(sa.DateTime)
+    observed_at = sa.Column(ArrowType) # iso date
+    mjd = sa.Column(sa.Float)  # mjd date
     time_format = sa.Column(sa.String, default='iso')
-    time_scale = sa.Column(sa.String, default='tcb')
+    time_scale = sa.Column(sa.String, default='utc')
     mag = sa.Column(sa.Float)
     e_mag = sa.Column(sa.Float)
     lim_mag = sa.Column(sa.Float)
     filter = sa.Column(sa.String)  # TODO Enum?
+    isdiffpos = sa.Column(sa.Boolean, default=True)  # candidate from position?
+
+    var_mag = sa.Column(sa.Float, nullable=True)
+    var_e_mag = sa.Column(sa.Float, nullable=True)
+
+    dist_nearest_source = sa.Column(sa.Float, nullable=True)
+    mag_nearest_source = sa.Column(sa.Float, nullable=True)
+    e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
+
+    ## external values
+    score = sa.Column(sa.Float, nullable=True)  # RB
+    candid = sa.Column(sa.BigInteger, nullable=True)  # candidate ID
+    altdata = sa.Column(JSONB)
+
+    created = sa.Column(sa.DateTime, nullable=False,
+                        server_default=sa.func.now())
+
+    origin = sa.Column(sa.String, nullable=True)
 
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, index=True)
@@ -218,6 +288,7 @@ class Spectrum(Base):
                           nullable=False, index=True)
     source = relationship('Source', back_populates='spectra', cascade='all')
     observed_at = sa.Column(sa.DateTime, nullable=False)
+    origin = sa.Column(sa.String, nullable=True)
     # TODO program?
     instrument_id = sa.Column(sa.ForeignKey('instruments.id',
                                             ondelete='CASCADE'),
@@ -251,11 +322,12 @@ class Spectrum(Base):
 
 class Thumbnail(Base):
     # TODO delete file after deleting row
-    type = sa.Column(sa.Enum('new', 'ref', 'sub', 'sdss', 'ps1',
+    type = sa.Column(sa.Enum('new', 'ref', 'sub', 'sdss', 'ps1', "new_gz",
+                             'ref_gz', 'sub_gz',
                              name='thumbnail_types', validate_strings=True))
     file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     public_url = sa.Column(sa.String(), nullable=True, index=False, unique=False)
-
+    origin = sa.Column(sa.String, nullable=True)
     photometry_id = sa.Column(sa.ForeignKey('photometry.id', ondelete='CASCADE'),
                               nullable=False, index=True)
     photometry = relationship('Photometry', back_populates='thumbnails', cascade='all')

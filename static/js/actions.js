@@ -41,14 +41,17 @@ export const GENERATE_TOKEN_OK = 'skyportal/GENERATE_TOKEN_OK';
 export const DELETE_TOKEN = 'skyportal/DELETE_TOKEN';
 export const DELETE_TOKEN_OK = 'skyportal/DELETE_TOKEN_OK';
 
+export const FILTER_SOURCES = 'skyportal/FILTER_SOURCES';
+export const FILTER_SOURCES_OK = 'skyportal/FILTER_SOURCES_OK';
+
 export const ROTATE_LOGO = 'skyportal/ROTATE_LOGO';
 
 export function fetchSource(id) {
   return API.GET(`/api/sources/${id}`, FETCH_LOADED_SOURCE);
 }
 
-export function fetchSources() {
-  return API.GET('/api/sources', FETCH_SOURCES);
+export function fetchSources(page=1) {
+  return API.GET(`/api/sources/${page}/page`, FETCH_SOURCES);
 }
 
 export function fetchGroup(id) {
@@ -133,4 +136,8 @@ export function deleteToken(tokenID) {
     `/api/tokens/${tokenID}`,
     DELETE_TOKEN
   );
+}
+
+export function submitSourceFilterParams(formData) {
+  return API.POST(`/api/sources/filter`, FETCH_SOURCES, formData);
 }

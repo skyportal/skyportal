@@ -5,12 +5,13 @@ from bokeh.core.json_encoder import serialize_json
 from bokeh.core.properties import List, String
 from bokeh.document import Document
 from bokeh.layouts import row, column
-from bokeh.models import CustomJS, DatetimeTickFormatter, HoverTool, Range1d
+from bokeh.models import CustomJS, DatetimeTickFormatter, HoverTool, Range1d, Whisker
 from bokeh.models.widgets import CheckboxGroup, TextInput
 from bokeh.palettes import viridis
 from bokeh.plotting import figure, ColumnDataSource
 from bokeh.util.compiler import bundle_all_models
 from bokeh.util.serialization import make_id
+from arrow.arrow import Arrow
 
 from skyportal.models import (DBSession, Source, Photometry,
                               Instrument, Telescope)
@@ -159,35 +160,61 @@ def photometry_plot(source_id):
     (str, str)
         Returns (docs_json, render_items) json for the desired plot.
     """
-    color_map = {'ipr': 'yellow', 'rpr': 'red', 'g': 'green'}
+    color_map = {'ipr': 'yellow', 'rpr': 'red', 'g': 'green',
+                 '1': 'green', '2': 'red', '3': 'pink'}
 
     data = pd.read_sql(DBSession()
-                       .query(Photometry, Telescope.nickname.label('telescope'))
-                       .join(Instrument).join(Telescope)
+                       .query(Photometry, Telescope.nickname.label('telescope'), Source.varstar)
+                       .join(Instrument).join(Telescope).join(Source)
                        .filter(Photometry.source_id == source_id)
                        .statement, DBSession().bind)
     if data.empty:
         return None, None, None
 
+    for col in data:
+        if not data[col].empty and type(data[col][0]) == Arrow:
+            data[col] = pd.Series([pd.Timestamp(el.isoformat()) for el in data[col]])
+
+    varstar = data.iloc[0]["varstar"]
+    if varstar:
+        del data["mag"]
+        del data["e_mag"]
+        data.rename({"var_mag": "mag", "var_e_mag": "e_mag"}, axis='columns',
+                    inplace=True)
+
     for col in ['mag', 'e_mag', 'lim_mag']:
         # TODO remove magic number; where can this logic live?
         data.loc[np.abs(data[col]) > 90, col] = np.nan
+
     data['color'] = [color_map.get(f, 'black') for f in data['filter']]
+    data["upper"] = data["mag"] + data["e_mag"]
+    data["lower"] = data["mag"] - data["e_mag"]
+
+    # ZTF
+    data['filter'].replace({"1": "g", "2": "r", "3": "i"}, inplace=True)
+
     data['label'] = [f'{t} {f}-band'
                      for t, f in zip(data['telescope'], data['filter'])]
     data['observed'] = ~np.isnan(data.mag)
     split = data.groupby(('label', 'observed'))
+    del data["altdata"]
+
+    up_lim = np.nanmax(data['lim_mag']) + 0.1 if not varstar else \
+             np.nanmax(data['mag']) + 0.1
 
     plot = figure(
         plot_width=600,
         plot_height=300,
         active_drag='box_zoom',
         tools='box_zoom,wheel_zoom,pan,reset',
-        y_range=(np.nanmax(data['mag']) + 0.1,
-                 np.nanmin(data['mag']) - 0.1)
+        y_range=(up_lim,
+                 np.nanmin(data['mag']) - 0.5)
     )
     model_dict = {}
+    err_model_dict = {}
+
     for i, ((label, is_obs), df) in enumerate(split):
+
         key = ("" if is_obs else "un") + 'obs' + str(i // 2)
         model_dict[key] = plot.scatter(
             x='observed_at', y='mag' if is_obs else 'lim_mag',
@@ -196,13 +223,21 @@ def photometry_plot(source_id):
             fill_color='color' if is_obs else 'white',
             source=ColumnDataSource(df)
         )
+        model_dict[key + "w"] = plot.add_layout(Whisker(base="observed_at",
+                                upper = "upper", lower="lower",
+                                line_alpha=0.2,
+                                source=ColumnDataSource(df)
+                                ))
+        #plot.add_layout(err_model_dict[key + "w"])
+
     plot.xaxis.axis_label = 'Observation Date'
     plot.xaxis.formatter = DatetimeTickFormatter(hours=['%D'], days=['%D'],
                                                  months=['%D'], years=['%D'])
     plot.toolbar.logo = None
 
-    hover = HoverTool(tooltips=[('observed_at', '@observed_at{%D}'), ('mag', '@mag'),
-                                ('lim_mag', '@lim_mag'),
+    hover = HoverTool(tooltips=[('observed_at', '@observed_at{%D}'), ('mjd', '@mjd'),
+                                ('mag', '@mag{0.00}'), ('e_mag', '@e_mag{0.00}'),
+                                ('lim_mag', '@lim_mag'), ('score', '@score'),
                                 ('filter', '@filter')],
                       formatters={'observed_at': 'datetime'})
     plot.add_tools(hover)
@@ -219,6 +254,8 @@ def photometry_plot(source_id):
         for (let i = 0; i < toggle.labels.length; i++) {
             eval("obs" + i).visible = (toggle.active.includes(i))
             eval("unobs" + i).visible = (toggle.active.includes(i));
+            eval("obs" + i + "w").visible = (toggle.active.includes(i))
+            eval("unobs" + i + "w").visible = (toggle.active.includes(i));
         }
     """)
 
@@ -277,11 +314,11 @@ def spectroscopy_plot(source_id):
         active=[], width=80,
         colors=[c for w, c in SPEC_LINES.values()]
     )
-    z = TextInput(value=str(source.red_shift), title="z:")
+    z = TextInput(value=str(source.redshift), title="z:")
     v_exp = TextInput(value='0', title="v_exp:")
     for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
         el_data = pd.DataFrame({'wavelength': wavelengths})
-        el_data['x'] = el_data['wavelength'] * (1 + source.red_shift)
+        el_data['x'] = el_data['wavelength'] * (1 + source.redshift)
         model_dict[f'el{i}'] = plot.segment(x0='x', x1='x',
                                             # TODO change limits
                                             y0=0, y1=1e-13, color=color,

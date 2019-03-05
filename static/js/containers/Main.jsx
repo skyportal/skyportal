@@ -56,7 +56,7 @@ class MainContent extends React.Component {
           <div className={styles.topBannerContent}>
             <Logo className={styles.logo} />
             <Link className={styles.title} to="/">
-SkyPortal ∝
+              SkyPortal ∝
             </Link>
             <div className={styles.websocket}>
               <WebSocket
@@ -94,7 +94,7 @@ SkyPortal ∝
             <a href="https://github.com/skyportal/skyportal">
               https://github.com/skyportal/skyportal
             </a>
-.
+            .
           </div>
         </div>
 

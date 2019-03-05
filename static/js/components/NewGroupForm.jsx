@@ -34,7 +34,7 @@ class NewGroupForm extends React.Component {
     return (
       <div className={styles.newGroupFormDiv}>
         <h3>
-Create New Group
+          Create New Group
         </h3>
         <form className={styles.newGroupForm} onSubmit={this.handleSubmit}>
           <table>
@@ -42,7 +42,7 @@ Create New Group
               <tr>
                 <td>
                   <label>
-Group Name:
+                    Group Name:
                     {' '}
                   </label>
                 </td>
@@ -58,7 +58,7 @@ Group Name:
               <tr>
                 <td>
                   <label>
-Group Admins (comma-separated email addresses):
+                    Group Admins (comma-separated email addresses):
                     {' '}
                   </label>
                 </td>
