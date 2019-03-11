@@ -17,7 +17,7 @@ hash -d pip  # find upgraded pip
 section_end "install.base.requirements"
 
 section "install.baselayer.requirements"
-npm -g install npm@4.2.0
+npm -g install npm@next
 npm --version
 node --version
 
