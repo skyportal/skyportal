@@ -1,6 +1,18 @@
-.DEFAULT_GOAL := run
+SHELL = /bin/bash
 
--include baselayer/Makefile
+BOLD=\033[1m
+NORMAL=\033[0m
+
+help:
+	@VER=$(shell cat skyportal/__init__.py | grep -o -P "(?<=__version__ = .)[0-9a-zA-Z\.]*") && \
+	echo -e "Welcome to $(BOLD)SkyPortal v$${VER}$(NORMAL) (https://skyportal.io)"
+	@echo
+	@echo -e "  To $(BOLD)start$(NORMAL) the web application, do \`make run\`."
+	@echo -e "  To $(BOLD)customize$(NORMAL) the configuration, edit \`config.yaml.defaults\`."
+	@echo
+	@echo Please choose one of the following make targets:
+	@echo
+	@$(MAKE) --no-print-directory -C . -f baselayer/Makefile help
 
 baselayer/Makefile:
 	git submodule update --init --remote
@@ -19,3 +31,9 @@ doc_reqs:
 
 html: | doc_reqs
 	export SPHINXOPTS=-W; make -C doc html
+
+# https://www.gnu.org/software/make/manual/html_node/Overriding-Makefiles.html
+%: baselayer/Makefile force
+	@$(MAKE) --no-print-directory -C . -f baselayer/Makefile $@
+
+.PHONY: Makefile force
