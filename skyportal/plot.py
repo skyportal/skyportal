@@ -196,7 +196,7 @@ def photometry_plot(source_id):
     data['label'] = [f'{t} {f}-band'
                      for t, f in zip(data['telescope'], data['filter'])]
     data['observed'] = ~np.isnan(data.mag)
-    split = data.groupby(('label', 'observed'))
+    split = data.groupby(['label', 'observed'])
     del data["altdata"]
 
     up_lim = np.nanmax(data['lim_mag']) + 0.1 if not varstar else \

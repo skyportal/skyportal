@@ -6,7 +6,6 @@ joblib>=0.11
 bokeh==0.12.9
 pytest-randomly
 factory-boy==2.8.1
-pytest-factoryboy==1.3.1
 astropy==3.0.3
 tornado==4.5.3
 aplpy==1.1.1
