@@ -3,7 +3,9 @@ from sqlalchemy.orm import joinedload
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.handlers import BaseHandler
 from ..models import (DBSession, Comment, Instrument, Photometry, Source,
-                      Thumbnail)
+                      Thumbnail, Token, User)
+
+from functools import reduce
 
 
 class SourceHandler(BaseHandler):
@@ -18,10 +20,15 @@ class SourceHandler(BaseHandler):
                                                    .joinedload(Photometry.instrument)
                                                    .joinedload(Instrument.telescope)])
         else:
-            info = list(self.current_user.sources)
+            if isinstance(self.current_user, Token):
+                token = self.current_user
+                sources = reduce(set.union,
+                                 (set(group.sources) for group in token.groups))
+            else:
+                sources = self.current_user.sources
 
-        if info is not None:
-            return self.success(info)
+        if sources is not None:
+            return self.success(list(sources))
         else:
             return self.error(f"Could not load source {source_id}",
                               {"source_id": source_id})

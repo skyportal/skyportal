@@ -2,6 +2,7 @@
 log/
 .cache
 static/build
+doc/_build
 run/
 ghostdriver.log
 \#*
