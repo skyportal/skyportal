@@ -12,13 +12,14 @@ class SourceHandler(BaseHandler):
     @auth_or_token
     def get(self, source_id=None):
         if source_id is not None:
-            info = Source.get_if_owned_by(source_id, self.current_user,
-                                          options=[joinedload(Source.comments)
-                                                   .joinedload(Comment.user),
-                                                   joinedload(Source.thumbnails)
-                                                   .joinedload(Thumbnail.photometry)
-                                                   .joinedload(Photometry.instrument)
-                                                   .joinedload(Instrument.telescope)])
+            source = Source.get_if_owned_by(source_id, self.current_user,
+                                            options=[joinedload(Source.comments)
+                                                     .joinedload(Comment.user),
+                                                     joinedload(Source.thumbnails)
+                                                     .joinedload(Thumbnail.photometry)
+                                                     .joinedload(Photometry.instrument)
+                                                     .joinedload(Instrument.telescope)])
+            return self.success(source)
         else:
             if isinstance(self.current_user, Token):
                 token = self.current_user
