@@ -3,10 +3,12 @@ SHELL = /bin/bash
 BOLD=\033[1m
 NORMAL=\033[0m
 
+VER := $(shell cat skyportal/__init__.py | grep -o -P "(?<=__version__ = .)[0-9a-zA-Z\.]*")
+BANNER := $(shell echo -e "Welcome to $(BOLD)SkyPortal v$(VER)$(NORMAL) (https://skyportal.io)")
+$(info $(BANNER))
+$(info $())
+
 help:
-	@VER=$(shell cat skyportal/__init__.py | grep -o -P "(?<=__version__ = .)[0-9a-zA-Z\.]*") && \
-	echo -e "Welcome to $(BOLD)SkyPortal v$${VER}$(NORMAL) (https://skyportal.io)"
-	@echo
 	@echo -e "  To $(BOLD)start$(NORMAL) the web application, do \`make run\`."
 	@echo -e "  To $(BOLD)customize$(NORMAL) the configuration, edit \`config.yaml.defaults\`."
 	@echo
