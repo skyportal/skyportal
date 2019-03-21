@@ -26,6 +26,10 @@ class SourceHandler(BaseHandler):
                 sources = reduce(set.union,
                                  (set(group.sources) for group in token.groups))
             else:
+                if DBSession.query(Source).first() is None:
+                    return self.success('The sources table is empty.  Please refer'
+                                        ' to the documentation for help with '
+                                        'initializing the database.')
                 sources = self.current_user.sources
 
         if sources is not None:
