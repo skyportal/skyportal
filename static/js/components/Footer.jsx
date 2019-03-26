@@ -19,7 +19,7 @@ Footer.propTypes = {
   version: PropTypes.string
 };
 Footer.defaultProps = {
-  version: '_unknown_'
+  version: '0.0.0'
 };
 
 export default Footer;

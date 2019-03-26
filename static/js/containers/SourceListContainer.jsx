@@ -5,6 +5,7 @@ import { connect } from 'react-redux';
 import * as Action from '../actions';
 
 import SourceList from '../components/SourceList';
+import UninitializedDBMessage from '../components/UninitializedDBMessage';
 
 
 class SourceListContainer extends React.Component {
@@ -16,7 +17,7 @@ class SourceListContainer extends React.Component {
 
   render() {
     if (this.props.sourcesTableEmpty) {
-      return "The sources table is empty.";
+      return <UninitializedDBMessage />;
     }
     if (this.props.sources) {
       return <SourceList sources={this.props.sources} />;
