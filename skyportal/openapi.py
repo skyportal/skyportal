@@ -81,8 +81,6 @@ def spec_from_handlers(handlers):
             parameters = list(inspect.signature(method).parameters.keys())[1:]
             parameters = parameters + (path_parameters - len(parameters)) * ['',]
 
-            print(spec)
-
             multiple_spec = spec.pop('multiple', {})
             single_spec = spec.pop('single', {})
             other_spec = spec
