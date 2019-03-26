@@ -5,6 +5,7 @@
     top: 0;
     left: 0;
     min-height: 100%;
+    padding-bottom: 5em;
 }
 
 .topBanner {
@@ -50,32 +51,4 @@
     text-decoration: none;
     color: gray;
     font-weight: bold;
-}
-
-.footer {
-    position: absolute;
-    bottom: 0;
-    background: #38B0DE;
-    width: 100%;
-    zIndex: -1000;
-    text-align: center;
-    vertical-align: middle;
-    height: 5em;
-    color: white;
-    font-size: 110%;
-    border-top: .25em solid lightgray;
-}
-
-.footerContent {
-    position: relative;
-    top: 50%;
-    transform: translate(0%, -50%);
-    padding-left: 1em;
-    padding-right: 1em;
-}
-
-.footer a {
-    color: white;
-    font-weight: bold;
-    text-decoration: none;
 }
