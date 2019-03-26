@@ -15,6 +15,9 @@ class SourceListContainer extends React.Component {
   }
 
   render() {
+    if (this.props.sourcesTableEmpty) {
+      return "The sources table is empty.";
+    }
     if (this.props.sources) {
       return <SourceList sources={this.props.sources} />;
     } else {
@@ -25,16 +28,19 @@ class SourceListContainer extends React.Component {
 
 SourceListContainer.propTypes = {
   dispatch: PropTypes.func.isRequired,
-  sources: PropTypes.arrayOf(PropTypes.object)
+  sources: PropTypes.arrayOf(PropTypes.object),
+  sourcesTableEmpty: PropTypes.bool
 };
 
 SourceListContainer.defaultProps = {
-  sources: null
+  sources: null,
+  sourcesTableEmpty: false
 };
 
 const mapStateToProps = (state, ownProps) => (
   {
-    sources: state.sources.latest
+    sources: state.sources.latest,
+    sourcesTableEmpty: state.sysinfo.sources_table_empty
   }
 );
 

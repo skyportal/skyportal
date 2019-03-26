@@ -12,3 +12,4 @@ from .logout import LogoutHandler
 from .become_user import BecomeUserHandler
 from .photometry import PhotometryHandler
 from .token import TokenHandler
+from .sysinfo import SysInfoHandler
