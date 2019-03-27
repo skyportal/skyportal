@@ -176,7 +176,7 @@ def photometry_plot(source_id):
     data['label'] = [f'{t} {f}-band'
                      for t, f in zip(data['telescope'], data['filter'])]
     data['observed'] = ~np.isnan(data.mag)
-    split = data.groupby(('label', 'observed'))
+    split = data.groupby(['label', 'observed'])
 
     plot = figure(
         plot_width=600,

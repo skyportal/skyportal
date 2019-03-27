@@ -62,7 +62,7 @@ rules:
   react/destructuring-assignment: 1
   react/jsx-one-expression-per-line: 1
   react/jsx-wrap-multilines: 1
-  operator-linebreak: 1
+  operator-linebreak: [1, after]
   lines-between-class-members: 1
   react/no-access-state-in-setstate: 1
   implicit-arrow-linebreak: 1

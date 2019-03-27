@@ -5,6 +5,7 @@ from os.path import join as pjoin
 import time
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+import requests
 
 from skyportal.models import Source, DBSession
 from skyportal.model_util import create_token
@@ -74,9 +75,8 @@ def test_download_comment_attachment(driver, user, public_source):
 
 def test_token_user_retrieving_source(driver, public_group, public_source):
     auth_token = create_token(public_group.id, ['Manage sources'])
-    response = driver.request(
-        'GET', f'{driver.server_url}/api/sources/{public_source.id}',
-        json={'token': auth_token}).json()
+    response = requests.get(f'{driver.server_url}/api/sources/{public_source.id}',
+                            headers={'Authorization': f'token {auth_token}'}).json()
     assert response['status'] == 'success'
     assert all(k in response['data'] for k in ['ra', 'dec', 'red_shift',
                                                'created_at', 'id'])

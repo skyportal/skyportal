@@ -11,3 +11,33 @@ Access to resources in Skyportal is controlled in two ways:
 - Groups membership can be managed on the `/groups/` page  # TODO not fully implemented
 ## Connecting streams and groups
 - Not yet implemented
+## Important Makefile targets
+
+General:
+
+- help : Describe make targets
+
+DB preparation:
+
+- db_init : Create database
+- db_clear : Drop and re-create DB
+
+Launching:
+
+- run : Launch the web application
+- log : Tail all log files
+
+Testing:
+
+- test : Launch web app & execute frontend tests
+- test_headless : (Linux only) The above, but without a visible
+                  browser
+
+Development:
+
+- lint : Run ESLint on all files.  Installs ESLint if necessary.
+- lint-unix : Same as above, but outputs in a format that most text
+              editors can parse
+- lint-githook : Install a Git pre-commit hook that lints staged
+                 chunks (this is done automatically when you lint
+                 for the first time).
