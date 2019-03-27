@@ -7,6 +7,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 import requests
 
+from skyportal.models import Source, DBSession
 from skyportal.model_util import create_token
 from baselayer.app.config import load_config
 

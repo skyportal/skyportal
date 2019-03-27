@@ -34,6 +34,7 @@ import Groups from './Groups';
 import Profile from './Profile';
 import ProfileDropdown from './ProfileDropdown';
 import Logo from './Logo';
+import Footer from './Footer';
 
 
 const store = configureStore({});
@@ -88,15 +89,7 @@ class MainContent extends React.Component {
 
         </div>
 
-        <div className={styles.footer}>
-          <div className={styles.footerContent}>
-            This is a first proof of concept. Please file issues at&nbsp;
-            <a href="https://github.com/skyportal/skyportal">
-              https://github.com/skyportal/skyportal
-            </a>
-            .
-          </div>
-        </div>
+        <Footer />
 
       </div>
     );
