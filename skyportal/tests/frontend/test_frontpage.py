@@ -2,6 +2,8 @@ import pytest
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 
+import skyportal
+
 
 def test_front_page(driver, user, public_source, private_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
@@ -10,3 +12,4 @@ def test_front_page(driver, user, public_source, private_source):
     driver.wait_for_xpath('//h2[contains(text(), "Sources")]')
     driver.wait_for_xpath(f'//a[text()="{public_source.id}"]')
     driver.wait_for_xpath_missing('//a[text()="{private_source.id}"]')
+    driver.wait_for_xpath(f"//div[contains(.,'SkyPortal v{skyportal.__version__}')]")
