@@ -9,4 +9,5 @@ def test_remote(driver):
     # (c.f. `test_pipeline_sequentially` from `cesium_web`)
     driver.get("/")
     assert 'localhost' in driver.current_url
-    driver.wait_for_xpath('//h2[contains(text(), "Sources")]')
+    driver.wait_for_xpath('//div[contains(., "Welcome to SkyPortal. '
+                          'The Sources table is currently empty.")]')
