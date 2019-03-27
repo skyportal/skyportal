@@ -6,7 +6,8 @@ import arrow
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.handlers import BaseHandler
 from ..models import (DBSession, Comment, Instrument, Photometry, Source,
-                      Thumbnail, GroupSource)
+                      Thumbnail, GroupSource, Token, User)
+from functools import reduce
 
 
 SOURCES_PER_PAGE = 100
@@ -43,6 +44,13 @@ class SourceHandler(BaseHandler):
             info['lastPage'] = info['totalMatches'] <= page * SOURCES_PER_PAGE
             if info['totalMatches'] == 0:
                 info['sourceNumberingStart'] = 0
+        else:
+            if isinstance(self.current_user, Token):
+                token = self.current_user
+                sources = reduce(set.union,
+                                 (set(group.sources) for group in token.groups))
+            else:
+                sources = self.current_user.sources
 
         if info['sources'] is not None:
             return self.success(info)

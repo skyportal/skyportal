@@ -9,6 +9,7 @@ from baselayer.app.config import load_config
 from baselayer.app.test_util import (driver, MyCustomWebDriver,
                                      set_server_url, reset_state)
 from skyportal.tests.fixtures import TMP_DIR, SourceFactory, GroupFactory, UserFactory
+from skyportal.model_util import create_token
 
 
 print('Loading test configuration from _test_config.yaml')
@@ -49,3 +50,8 @@ def user(public_group):
 def super_admin_user(public_group):
     return UserFactory(groups=[public_group],
                        roles=[models.Role.query.get('Super admin')])
+
+@pytest.fixture()
+def token(public_group, permissions=[]):
+    token_id = create_token(public_group.id, permissions)
+    return token_id

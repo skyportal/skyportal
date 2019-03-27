@@ -2,8 +2,9 @@
 log/
 .cache
 static/build
+doc/_build
 run/
-ghostdriver.log
+geckodriver.log
 \#*
 *~
 *.swp
@@ -14,3 +15,5 @@ node_modules/
 *.pyc
 config.yaml
 static/thumbnails
+*.lock
+*.dirlock
