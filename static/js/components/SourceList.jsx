@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import SearchBox from '../containers/SearchBox';
 
 
-const SourceList = ({ sources, showTitle }) => (
+const SourceList = ({ sources }) => (
   <div>
     <h2>
       Sources
@@ -80,19 +80,17 @@ const SourceList = ({ sources, showTitle }) => (
           </tr>
         </thead>
         <tbody>
-
           {
-            (sources && sources.latest)
-            && sources.latest.map((source, idx) => (
+            sources.latest && sources.latest.map((source, idx) => (
               <tr key={source.id}>
-                <td>{String(source.last_detected).split(".")[0]}&nbsp;&nbsp;</td>
+                <td>{source.last_detected && String(source.last_detected).split(".")[0]}&nbsp;&nbsp;</td>
                 <td>
                   <Link to={`/source/${source.id}`}>
                     {source.id}
                   </Link>
                 </td>
-                <td>{source.ra_dis && Number(source.ra_dis).toFixed(3)}</td>
-                <td>{source.dec_dis && Number(source.dec_dis.toFixed(4))}</td>
+                <td>{source.ra && Number(source.ra).toFixed(3)}</td>
+                <td>{source.dec && Number(source.dec.toFixed(4))}</td>
                 <td>{source.varstar.toString()}</td>
                 <td>{source.transient.toString()}</td>
                 <td>{(source.transient == source.varstar).toString()}</td>
@@ -117,11 +115,8 @@ const SourceList = ({ sources, showTitle }) => (
 );
 
 SourceList.propTypes = {
-  sources: PropTypes.object.isRequired,
-  showTitle: PropTypes.bool
+  sources: PropTypes.object.isRequired
 };
-SourceList.defaultProps = {
-  showTitle: true
-};
+
 
 export default SourceList;

@@ -29,7 +29,7 @@ class SourceListContainer extends React.Component {
 
 SourceListContainer.propTypes = {
   dispatch: PropTypes.func.isRequired,
-  sources: PropTypes.arrayOf(PropTypes.object),
+  sources: PropTypes.object,
   sourcesTableEmpty: PropTypes.bool
 };
 
@@ -40,7 +40,7 @@ SourceListContainer.defaultProps = {
 
 const mapStateToProps = (state, ownProps) => (
   {
-    sources: state.sources.latest,
+    sources: state.sources,
     sourcesTableEmpty: state.sysinfo.sources_table_empty
   }
 );
