@@ -80,12 +80,3 @@ def test_token_user_retrieving_source(driver, public_group, public_source):
     assert response['status'] == 'success'
     assert all(k in response['data'] for k in ['ra', 'dec', 'red_shift',
                                                'created_at', 'id'])
-
-
-def test_empty_db_message(driver):
-    Source.query.delete()
-    DBSession.commit()
-    driver.get("/")
-    assert 'localhost' in driver.current_url
-    driver.wait_for_xpath('//div[contains(., "Welcome to SkyPortal. '
-                          'The Sources table is currently empty.")]')
