@@ -39,6 +39,15 @@ export function sourcesReducer(state={ latest: null }, action) {
   }
 }
 
+export function sysinfoReducer(state={}, action) {
+  switch (action.type) {
+    case Action.FETCH_SYSINFO_OK:
+      return action.data;
+    default:
+      return state;
+  }
+}
+
 export function groupReducer(state={}, action) {
   switch (action.type) {
     case Action.FETCH_GROUP_OK:
@@ -120,6 +129,7 @@ const root = combineReducers({
   notifications: notificationsReducer,
   profile: profileReducer,
   plots: plotsReducer,
+  sysinfo: sysinfoReducer,
   misc: miscReducer
 });
 
