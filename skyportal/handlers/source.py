@@ -1,6 +1,5 @@
 import tornado.web
 from sqlalchemy.orm import joinedload
-from sqlalchemy.dialects import postgresql
 from sqlalchemy import func
 import arrow
 from baselayer.app.access import permissions, auth_or_token
@@ -31,8 +30,6 @@ class SourceHandler(BaseHandler):
             q = Source.query.filter(Source.id.in_(DBSession.query(
                 GroupSource.source_id).filter(GroupSource.group_id.in_(
                     [g.id for g in self.current_user.groups]))))
-            sql_str = str(q.statement.compile(dialect=postgresql.dialect(),
-                                              compile_kwargs={'literal_binds': True}))
             all_matches = q.all()
             info['totalMatches'] = len(all_matches)
             info['sources'] = all_matches[
@@ -92,8 +89,6 @@ class SourceHandler(BaseHandler):
 
 class FilterSourcesHandler(BaseHandler):
     @auth_or_token
-    # def get(self, sourceID=None, ra=None, dec=None, radius=None,
-    #          startDate=None, endDate=None, simbadClass=None, hasTNSname=None):
     def post(self):
         data = self.get_json()
         info = {}

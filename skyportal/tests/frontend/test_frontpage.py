@@ -55,16 +55,6 @@ def test_source_filtering_and_pagination(driver, user, public_sources_205):
     assert not next_button.is_enabled()
 
 
-def test_group_list(driver, user, public_group):
-    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
-    assert 'localhost' in driver.current_url
-    driver.get('/')
-    driver.wait_for_xpath("//div[contains(@title,'connected')]")
-    driver.wait_for_xpath('//h2[contains(text(), "Groups")]')
-    driver.wait_for_xpath(f'//a[text()="{public_group.name}"]')
-    driver.wait_for_xpath_missing('//a[text()="{private_source.id}"]')
-
-
 def test_skyportal_version_displayed(driver):
     driver.get('/')
     driver.wait_for_xpath(f"//div[contains(.,'SkyPortal v{skyportal.__version__}')]")
