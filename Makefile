@@ -35,7 +35,7 @@ html: | doc_reqs
 	export SPHINXOPTS=-W; make -C doc html
 
 load_demo_data: | dependencies
-	@PYTHONPATH=. python skyportal/model_util.py
+	@PYTHONPATH=. python tools/load_demo_data.py
 
 # https://www.gnu.org/software/make/manual/html_node/Overriding-Makefiles.html
 %: baselayer/Makefile force
