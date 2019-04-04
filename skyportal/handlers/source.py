@@ -21,15 +21,15 @@ class SourceHandler(BaseHandler):
               required: false
               schema:
                 type: integer
-                required: false
           responses:
             200:
               content:
                 application/json:
-                  schema:
-                    oneOf:
-                      - SingleSource
-                      - Error
+                  schema: SingleSource
+            400:
+              content:
+                application/json:
+                  schema: Error
         multiple:
           description: Retrieve all sources
           responses:
