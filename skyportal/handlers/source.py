@@ -36,10 +36,11 @@ class SourceHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema:
-                    oneOf:
-                      - ArrayOfSources
-                      - Error
+                  schema: ArrayOfSources
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
         if source_id is not None:
             source = Source.get_if_owned_by(source_id, self.current_user,
