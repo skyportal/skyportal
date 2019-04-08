@@ -44,6 +44,7 @@ section_end "init.db"
 
 section "run.make.dependencies"
 make dependencies
+pip install -r requirements.docs.txt
 pip list --format=columns
 section_end "run.make.dependencies"
 
