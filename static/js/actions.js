@@ -70,7 +70,7 @@ export function fetchGroups() {
 }
 
 export function fetchUserProfile() {
-  return API.GET('/api/profile', FETCH_USER_PROFILE);
+  return API.GET('/api/internal/profile', FETCH_USER_PROFILE);
 }
 
 export function fetchSystemInfo() {
@@ -119,7 +119,7 @@ export function addNewGroup(form_data) {
 }
 
 export function createToken(form_data) {
-  return API.POST('/api/tokens', GENERATE_TOKEN, form_data);
+  return API.POST('/api/internal/tokens', GENERATE_TOKEN, form_data);
 }
 
 export function addGroupUser({ username, admin, group_id }) {
@@ -141,7 +141,7 @@ export function deleteGroupUser({ username, group_id }) {
 export function deleteToken(tokenID) {
   console.log('called Actions.deleteToken');
   return API.DELETE(
-    `/api/tokens/${tokenID}`,
+    `/api/internal/tokens/${tokenID}`,
     DELETE_TOKEN
   );
 }

@@ -45,7 +45,7 @@
 ## Configuration
 - Copy `config.yaml.defaults` to `config.yaml` and customize.
 - Create admin user: `from skyportal.model_util import add_super_user; add_super_user('testuser@cesium-ml.org')`
-- Optionally, add test data into the database: `python skyportal/model_util.py` (also initializes `testuser@cesium-ml.org` as an admin)
+- Optionally, add test data into the database: `make load_demo_data` (also initializes `testuser@cesium-ml.org` as an admin)
 - If you want other users to be able to access the server:
   - #TODO Serve on 127.0.0.1 instead of 0.0.0.0 unless debug login is disabled?
   - Provide Google auth credentials, obtained as described in the config file.

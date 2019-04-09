@@ -59,7 +59,7 @@ Redshift:
             title="Photometry"
             mobileProps={{ folded: true }}
           >
-            <PlotContainer className={styles.plot} url={`/api/plot/photometry/${id}`} />
+            <PlotContainer className={styles.plot} url={`/api/internal/plot/photometry/${id}`} />
           </Responsive>
 
           <Responsive
@@ -68,7 +68,7 @@ Redshift:
             mobileProps={{ folded: true }}
           >
 
-            <PlotContainer className={styles.plot} url={`/api/plot/spectroscopy/${id}`} />
+            <PlotContainer className={styles.plot} url={`/api/internal/plot/spectroscopy/${id}`} />
           </Responsive>
 
           { /* TODO 1) check for dead links; 2) simplify link formatting if possible */ }

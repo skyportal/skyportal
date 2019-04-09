@@ -41,14 +41,16 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/sources(/.*)?', SourceHandler),
         (r'/api/groups/(.*)/users/(.*)?', GroupUserHandler),
         (r'/api/groups(/.*)?', GroupHandler),
-        (r'/api/plot/photometry/(.*)', PlotPhotometryHandler),
-        (r'/api/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
         (r'/api/comment(/[0-9]+)?', CommentHandler),
         (r'/api/comment(/[0-9]+)/(download_attachment)', CommentHandler),
-        (r'/api/profile', ProfileHandler),
         (r'/api/photometry(/.*)?', PhotometryHandler),
-        (r'/api/tokens(/.*)?', TokenHandler),
         (r'/api/sysinfo', SysInfoHandler),
+
+        (r'/api/internal/tokens(/.*)?', TokenHandler),
+        (r'/api/internal/profile', ProfileHandler),
+        (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
+        (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
+
         (r'/become_user(/.*)?', BecomeUserHandler),
         (r'/logout', LogoutHandler),
 
