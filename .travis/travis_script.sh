@@ -18,6 +18,7 @@ section_end "Tests"
 
 section "Build.docs"
 
+make api-docs
 make html
 
 section_end "Build.docs"
