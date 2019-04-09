@@ -44,6 +44,9 @@ export const GENERATE_TOKEN_OK = 'skyportal/GENERATE_TOKEN_OK';
 export const DELETE_TOKEN = 'skyportal/DELETE_TOKEN';
 export const DELETE_TOKEN_OK = 'skyportal/DELETE_TOKEN_OK';
 
+export const FETCH_USER = 'skyportal/FETCH_USER';
+export const FETCH_USER_OK = 'skyportal/FETCH_USER_OK';
+
 export const ROTATE_LOGO = 'skyportal/ROTATE_LOGO';
 
 export function fetchSource(id) {
@@ -56,6 +59,10 @@ export function fetchSources() {
 
 export function fetchGroup(id) {
   return API.GET(`/api/groups/${id}`, FETCH_GROUP);
+}
+
+export function fetchUser(id) {
+  return API.GET(`/api/user/${id}`, FETCH_USER);
 }
 
 export function fetchPlotData(url) {
