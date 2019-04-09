@@ -37,6 +37,9 @@ html: | doc_reqs
 load_demo_data: | dependencies
 	@PYTHONPATH=. python tools/load_demo_data.py
 
+api-docs: | doc_reqs
+	@PYTHONPATH=. python tools/openapi/build-spec.py
+
 # https://www.gnu.org/software/make/manual/html_node/Overriding-Makefiles.html
 %: baselayer/Makefile force
 	@$(MAKE) --no-print-directory -C . -f baselayer/Makefile $@
