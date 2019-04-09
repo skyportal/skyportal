@@ -1,5 +1,6 @@
 from . import __version__
 
+from tornado.routing import URLSpec
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
 from . import schema
@@ -66,6 +67,8 @@ def spec_from_handlers(handlers):
     import re
 
     HTTP_METHODS = ("get", "put", "post", "delete", "options", "head", "patch")
+    handlers = [handler for handler in handlers if not
+                isinstance(handler, URLSpec) and len(handler) == 2]
     for (endpoint, handler) in handlers:
         for http_method in HTTP_METHODS:
             method = getattr(handler, http_method)
