@@ -19,12 +19,18 @@ help:
 baselayer/Makefile:
 	git submodule update --init --remote
 
-docker-images:
-	# Add --no-cache flag to rebuild from scratch
+docker-images: docker-local
+	@# Add --no-cache flag to rebuild from scratch
 	cd baselayer && git submodule update --init --remote
 	docker build -t skyportal/web . && docker push skyportal/web
 
 docker-local:
+	@echo "!! WARNING !! The current directory will be bundled inside of"
+	@echo "              the Docker image.  Make sure you have no passwords"
+	@echo "              or tokens in configuration files before continuing!"
+	@echo
+	@echo "Press enter to confirm that you want to continue."
+	@read
 	cd baselayer && git submodule update --init --remote
 	docker build -t skyportal/web .
 
