@@ -39,6 +39,7 @@ load_demo_data: | dependencies
 
 api-docs: | doc_reqs
 	@PYTHONPATH=. python tools/openapi/build-spec.py
+	npx redoc-cli bundle openapi.json
 
 # https://www.gnu.org/software/make/manual/html_node/Overriding-Makefiles.html
 %: baselayer/Makefile force
