@@ -18,7 +18,6 @@ section_end "Tests"
 
 section "Build.docs"
 
-npx redoc-cli --version
 make api-docs
 make html
 
