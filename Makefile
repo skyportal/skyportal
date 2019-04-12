@@ -31,15 +31,17 @@ docker-local:
 doc_reqs:
 	pip install -q -r requirements.docs.txt
 
-html: | doc_reqs
+api-docs: | doc_reqs
+	@PYTHONPATH=. python tools/openapi/build-spec.py
+	npx redoc-cli@0.8.3 bundle openapi.json
+	mkdir -p doc/_build/html
+	mv redoc-static.html doc/openapi.html
+
+docs: | doc_reqs api-docs
 	export SPHINXOPTS=-W; make -C doc html
 
 load_demo_data: | dependencies
 	@PYTHONPATH=. python tools/load_demo_data.py
-
-api-docs: | doc_reqs
-	@PYTHONPATH=. python tools/openapi/build-spec.py
-	npx redoc-cli@0.8.3 bundle openapi.json
 
 # https://www.gnu.org/software/make/manual/html_node/Overriding-Makefiles.html
 %: baselayer/Makefile force
