@@ -67,10 +67,10 @@ if __name__ == "__main__":
         DBSession().add_all([i1, i2])
 
     with status("Creating dummy sources"):
-        SOURCES = [{'id': '14gqr', 'ra': 353.36647, 'dec': 33.646149, 'red_shift': 0.063,
+        SOURCES = [{'id': '14gqr', 'ra': 353.36647, 'dec': 33.646149, 'redshift': 0.063,
                     'comments': ["No source at transient location to R>26 in LRIS imaging",
                                  "Strong calcium lines have emerged."]},
-                   {'id': '16fil', 'ra': 322.718872, 'dec': 27.574113, 'red_shift': 0.0,
+                   {'id': '16fil', 'ra': 322.718872, 'dec': 27.574113, 'redshift': 0.0,
                     'comments': ["Frogs in the pond", "The eagle has landed"]}]
 
         (basedir/'static/thumbnails').mkdir(parents=True, exist_ok=True)
