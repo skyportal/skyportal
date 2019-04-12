@@ -58,7 +58,10 @@ def spec_from_handlers(handlers):
         ]
     )
 
-    token_scheme = {"type": "apiKey", "in": "query", "name": "token"}
+    token_scheme = {
+        "type": "apiKey", "in": "header", "name": "Authorization",
+        "description": "Header should be in the format 'token abcd-efgh-0000-1234'"
+    }
     openapi_spec.components.security_scheme("token", token_scheme)
 
     schema.register_components(openapi_spec)
