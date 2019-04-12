@@ -35,6 +35,7 @@ import Profile from './Profile';
 import ProfileDropdown from './ProfileDropdown';
 import Logo from './Logo';
 import Footer from './Footer';
+import UserInfo from './UserInfo';
 
 
 const store = configureStore({});
@@ -84,6 +85,7 @@ class MainContent extends React.Component {
             <PropsRoute exact path="/groups/" component={Groups} />
             <PropsRoute path="/group/:id" component={GroupContainer} />
             <PropsRoute path="/profile" component={Profile} />
+            <PropsRoute path="/user/:id" component={UserInfo} />
             <PropsRoute component={NoMatchingRoute} />
           </Switch>
 

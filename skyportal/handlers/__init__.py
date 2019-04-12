@@ -13,3 +13,5 @@ from .become_user import BecomeUserHandler
 from .photometry import PhotometryHandler
 from .token import TokenHandler
 from .sysinfo import SysInfoHandler
+from .userinfo import UserInfoHandler
+

@@ -35,7 +35,7 @@ Group Name:
           {
             this.props.users.map((user, idx) => (
               <li key={user.id}>
-                <Link to={`/users/${user.id}`}>
+                <Link to={`/user/${user.id}`}>
                   {user.username}
                 </Link>&nbsp;&nbsp;
                 {
