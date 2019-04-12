@@ -5,10 +5,18 @@ import uuid
 import time
 
 
-def test_user_info(driver, user):
+def test_user_info(driver, super_admin_user):
+    user = super_admin_user
     driver.get(f'/become_user/{user.id}')
     driver.get(f'/user/{user.id}')
     driver.wait_for_xpath(f'//div[contains(.,"{user.username}")]')
-    driver.wait_for_xpath('//li[contains(.,"<b>created_at:</b>")]')
+    pg_src = driver.page_source
+    assert 'created_at:' in pg_src
     for acl in user.acls:
-        driver.wait_for_xpath(f'//li[contains(.,"{acl}")]')
+        assert acl.id in pg_src
+
+
+def test_user_info_forbidden(driver, user):
+    driver.get(f'/become_user/{user.id}')
+    driver.get(f'/user/{user.id}')
+    driver.wait_for_xpath('//div[contains(.,"Forbidden")]')
