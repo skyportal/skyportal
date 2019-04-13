@@ -7,7 +7,7 @@ if [[ $TRAVIS_PULL_REQUEST == false && \
 then
     pip install doctr
     doctr deploy . --deploy-repo "skyportal/docs"
+    doctr deploy . --built-docs redoc-static.html
 else
     echo "-- will only push docs from master --"
 fi
-

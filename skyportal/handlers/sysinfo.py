@@ -9,6 +9,25 @@ import tornado.web
 class SysInfoHandler(BaseHandler):
     @auth_or_token
     def get(self):
+        """
+        ---
+        description: Retrieve system info
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - Success
+                    - type: object
+                      properties:
+                        sources_table_empty:
+                          type: boolean
+                          description: Boolean indicating whether sources table is empty
+                        skyportal_version:
+                          type: string
+                          description: Current SkyPortal version
+        """
         info = {
             'sources_table_empty': DBSession.query(Source).first() is None,
             'skyportal_version':skyportal.__version__

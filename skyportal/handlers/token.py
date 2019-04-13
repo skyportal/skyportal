@@ -9,6 +9,19 @@ import tornado.web
 class TokenHandler(BaseHandler):
     @tornado.web.authenticated
     def post(self):
+        """
+        ---
+        description: Generate new token
+        parameters:
+          - in: path
+            name: token
+            schema: Token
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
         data = self.get_json()
 
         user = (User.query.filter(User.username == self.current_user.username)
@@ -25,6 +38,25 @@ class TokenHandler(BaseHandler):
 
     @auth_or_token
     def delete(self, token_id):
+        """
+        ---
+        description: Delete a token
+        parameters:
+          - in: path
+            name: token_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         t = Token.get_if_owned_by(token_id, self.current_user)
         if t is not None:
             DBSession.delete(t)

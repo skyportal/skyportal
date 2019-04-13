@@ -1,0 +1,1 @@
+git+https://github.com/stefanv/apispec@schema_combinations#egg-package=apispec

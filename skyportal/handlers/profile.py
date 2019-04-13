@@ -8,6 +8,15 @@ import tornado.web
 class ProfileHandler(BaseHandler):
     @auth_or_token
     def get(self):
+        """
+        ---
+        description: Retrieve user profile
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleUser
+        """
         user = (User.query.filter(User.username == self.current_user.username)
                     .first())
         user_roles = [role.id for role in user.roles]

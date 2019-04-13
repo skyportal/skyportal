@@ -6,6 +6,7 @@ Skyportal
 
    setup
    usage
+   api
    dev
    contributing
 

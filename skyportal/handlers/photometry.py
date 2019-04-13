@@ -9,6 +9,26 @@ from ..models import DBSession, Photometry, Comment
 class PhotometryHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
+        """
+        ---
+        description: Upload photometry
+        parameters:
+          - in: path
+            name: photometry
+            schema: Photometry
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - Success
+                    - type: object
+                      properties:
+                        ids:
+                          type: array
+                          description: List of new photometry IDs
+        """
         data = self.get_json()
 
         # TODO where do we get the instrument info?
