@@ -33,7 +33,7 @@ doc_reqs:
 
 api-docs: | doc_reqs
 	@PYTHONPATH=. python tools/openapi/build-spec.py
-	npx redoc-cli@0.8.3 bundle openapi.json
+	npx redoc-cli@0.8.3 bundle openapi.json && rm -f openapi.{yml,json}
 	mkdir -p doc/_build/html
 	mv redoc-static.html doc/openapi.html
 
