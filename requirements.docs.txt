@@ -3,6 +3,3 @@ recommonmark
 numpydoc
 sphinx-rtd-theme
 notedown
-apispec
-marshmallow-sqlalchemy
-marshmallow-enum
