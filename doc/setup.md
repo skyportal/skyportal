@@ -51,7 +51,7 @@ brew install geckodriver
 1. Install dependencies
 
 ```
-sudo apt install nginx supervisor postgresql libpq-dev npm nodejs-legacy
+sudo apt install nginx supervisor postgresql libpq-dev nodejs
 ```
 
 2. Configure your database permissions.
