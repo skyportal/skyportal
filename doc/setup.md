@@ -56,12 +56,13 @@ sudo apt install nginx supervisor postgresql libpq-dev nodejs
 
 2. Configure your database permissions.
 
-At the end of `pg_hba.conf` (typically located in `/etc/postgresql/<postgres-version>/main`), add the following lines:
+In `pg_hba.conf` (typically located in
+`/etc/postgresql/<postgres-version>/main`), insert the following lines
+*before* any other `host` lines:
 
 ```
-local all postgres peer
-local skyportal skyportal trust
-local skyportal_test skyportal trust
+host skyportal skyportal 127.0.0.1/32 trust
+host skyportal_test skyportal 127.0.0.1/32 trust
 ```
 
 Restart PostgreSQL:
