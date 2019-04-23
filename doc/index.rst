@@ -4,8 +4,10 @@ Skyportal
 .. toctree::
    :maxdepth: 2
 
+   about
    setup
    usage
+   api
    dev
    contributing
 
@@ -15,4 +17,3 @@ Skyportal
 .. * :ref:`genindex`
 .. * :ref:`modindex`
 .. * :ref:`search`
-

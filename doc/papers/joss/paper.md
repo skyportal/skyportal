@@ -56,10 +56,14 @@ authentication (via OAuth, Google, etc.), websockets (to communicate between the
 Python backend and the JavaScript frontend), and the scaffolding for
 managing microservices and routing incoming requests via Nginx.
 
+![SkyPortal architecture. Each technological component is chosen to be efficient and scalable, and is applied exactly for the purpose it was built.](architecture.png)
+
 The application has a Python backend (running the Tornado web server),
 with a React & Redux frontend.  [React](https://reactjs.org/) was chosen because of its clean
 component design, and [Redux](https://redux.js.org/) provides the application logic that
 renders these components appropriately, given the application state.
+
+![Frontend architecture. Components are rendered by React, and application logic is driven by Redux.](frontend.png)
 
 For machine users, SkyPortal provides a token-based API, meaning that
 all of its data can be queried and modified by scripts without using

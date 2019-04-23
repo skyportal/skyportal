@@ -19,19 +19,31 @@ help:
 baselayer/Makefile:
 	git submodule update --init --remote
 
-docker-images:
-	# Add --no-cache flag to rebuild from scratch
+docker-images: docker-local
+	@# Add --no-cache flag to rebuild from scratch
 	cd baselayer && git submodule update --init --remote
 	docker build -t skyportal/web . && docker push skyportal/web
 
 docker-local:
+	@echo "!! WARNING !! The current directory will be bundled inside of"
+	@echo "              the Docker image.  Make sure you have no passwords"
+	@echo "              or tokens in configuration files before continuing!"
+	@echo
+	@echo "Press enter to confirm that you want to continue."
+	@read
 	cd baselayer && git submodule update --init --remote
 	docker build -t skyportal/web .
 
 doc_reqs:
 	pip install -q -r requirements.docs.txt
 
-html: | doc_reqs
+api-docs: | doc_reqs
+	@PYTHONPATH=. python tools/openapi/build-spec.py
+	npx redoc-cli@0.8.3 bundle openapi.json && rm -f openapi.{yml,json}
+	mkdir -p doc/_build/html
+	mv redoc-static.html doc/openapi.html
+
+docs: | doc_reqs api-docs
 	export SPHINXOPTS=-W; make -C doc html
 
 load_demo_data: | dependencies

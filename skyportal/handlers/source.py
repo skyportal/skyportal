@@ -15,6 +15,42 @@ SOURCES_PER_PAGE = 100
 class SourceHandler(BaseHandler):
     @auth_or_token
     def get(self, source_id_or_page_num=None, page_number_given=False):
+        """
+        ---
+        single:
+          description: Retrieve a source
+          parameters:
+            - in: path
+              name: source_id_or_page_num
+              required: false
+              schema:
+                type: integer
+            - in: path
+              name: page_number_given
+              required: false
+              schema:
+                type: boolean
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleSource
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all sources
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfSources
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
         info = {}
         if source_id_or_page_num is not None and not page_number_given:
             source_id = source_id_or_page_num
@@ -57,6 +93,26 @@ class SourceHandler(BaseHandler):
 
     @permissions(['Manage sources'])
     def post(self):
+        """
+        ---
+        description: Upload a source
+        parameters:
+          - in: path
+            name: source
+            schema: Source
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - Success
+                    - type: object
+                      properties:
+                        id:
+                          type: integer
+                          description: New source ID
+        """
         data = self.get_json()
 
         s = Source(ra=data['sourceRA'], dec=data['sourceDec'],
@@ -68,6 +124,19 @@ class SourceHandler(BaseHandler):
 
     @permissions(['Manage sources'])
     def put(self, source_id):
+        """
+        ---
+        description: Update a source
+        parameters:
+          - in: path
+            name: source
+            schema: Source
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
         data = self.get_json()
 
         s = Source.query.get(source_id)
@@ -80,6 +149,20 @@ class SourceHandler(BaseHandler):
 
     @permissions(['Manage sources'])
     def delete(self, source_id):
+        """
+        ---
+        description: Delete a source
+        parameters:
+          - in: path
+            name: source
+            schema:
+              Source
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
         s = Source.query.get(source_id)
         DBSession().delete(s)
         DBSession().commit()

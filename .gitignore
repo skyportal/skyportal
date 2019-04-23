@@ -3,6 +3,7 @@ log/
 .cache
 static/build
 doc/_build
+doc/openapi.html
 run/
 geckodriver.log
 \#*
@@ -17,3 +18,4 @@ config.yaml
 static/thumbnails
 *.lock
 *.dirlock
+package-lock.json

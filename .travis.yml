@@ -85,4 +85,7 @@ install:
 
 script: .travis/travis_script.sh
 
-after_success: .travis/deploy_docs.sh
+after_success:
+  # ESLint gets called when we try to commit the docs
+  - rm .git/hooks/pre-commit
+  - .travis/deploy_docs.sh

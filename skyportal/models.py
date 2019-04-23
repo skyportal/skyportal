@@ -5,12 +5,14 @@ import numpy as np
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import backref, relationship, mapper
 from sqlalchemy.dialects.postgresql import JSON, JSONB
 from sqlalchemy_utils import ArrowType
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
+
+from . import schema
 
 
 def is_owned_by(self, user_or_token):
@@ -333,3 +335,6 @@ class Thumbnail(Base):
     photometry = relationship('Photometry', back_populates='thumbnails', cascade='all')
     source = relationship('Source', back_populates='thumbnails', uselist=False,
                           secondary='photometry', cascade='all')
+
+
+schema.setup_schema()
