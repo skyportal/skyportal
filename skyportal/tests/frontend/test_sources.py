@@ -78,5 +78,6 @@ def test_token_user_retrieving_source(driver, public_group, public_source):
     response = requests.get(f'{driver.server_url}/api/sources/{public_source.id}',
                             headers={'Authorization': f'token {auth_token}'}).json()
     assert response['status'] == 'success'
-    assert all(k in response['data'] for k in ['ra', 'dec', 'red_shift',
-                                               'created_at', 'id'])
+    print(response['data'])
+    assert all(k in response['data']['sources'] for k in ['ra', 'dec', 'redshift',
+                                                          'created', 'id'])

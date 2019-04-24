@@ -26,7 +26,7 @@ function API(endpoint, actionType, method='GET', body={}, otherArgs={}) {
           )
         );
       }
-      dispatch({ type: API_CALL, parameters });
+      dispatch({ type: actionType, parameters });
       try {
         const response = await fetch(endpoint, fetchInit);
         if (response.status !== 200) {

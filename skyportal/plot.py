@@ -11,6 +11,7 @@ from bokeh.palettes import viridis
 from bokeh.plotting import figure, ColumnDataSource
 from bokeh.util.compiler import bundle_all_models
 from bokeh.util.serialization import make_id
+from arrow.arrow import Arrow
 
 from skyportal.models import (DBSession, Source, Photometry,
                               Instrument, Telescope)
@@ -78,20 +79,16 @@ class CheckboxWithLegendGroup(CheckboxGroup):
     __implementation__ = """
 import {empty, input, label, div} from "core/dom"
 import * as p from "core/properties"
-
 import {CheckboxGroup, CheckboxGroupView} from "models/widgets/checkbox_group"
-
 export class CheckboxWithLegendGroupView extends CheckboxGroupView
   render: () ->
     super()
     empty(@el)
-
     active = @model.active
     colors = @model.colors
     for text, i in @model.labels
       inputEl = input({type: "checkbox", value: "#{i}"})
       inputEl.addEventListener("change", () => @change_input())
-
       if @model.disabled then inputEl.disabled = true
       if i in active then inputEl.checked = true
       attrs = {
@@ -104,13 +101,10 @@ export class CheckboxWithLegendGroupView extends CheckboxGroupView
       else
         divEl = div({class: "bk-bs-checkbox"}, labelEl)
         @el.appendChild(divEl)
-
     return @
-
 export class CheckboxWithLegendGroup extends CheckboxGroup
   type: "CheckboxWithLegendGroup"
   default_view: CheckboxWithLegendGroupView
-
   @define {
     colors:   [ p.Array, []    ]
   }
@@ -120,12 +114,10 @@ export class CheckboxWithLegendGroup extends CheckboxGroup
 # TODO replace with (script, div) method
 def _plot_to_json(plot):
     """Convert plot to JSON objects necessary for rendering with `bokehJS`.
-
     Parameters
     ----------
     plot : bokeh.plotting.figure.Figure
         Bokeh plot object to be rendered.
-
     Returns
     -------
     (str, str)
@@ -148,12 +140,10 @@ def _plot_to_json(plot):
 # TODO make async so that thread isn't blocked
 def photometry_plot(source_id):
     """Create scatter plot of photometry for source.
-
     Parameters
     ----------
     source_id : int
         ID of source to be plotted.
-
     Returns
     -------
     (str, str)
@@ -168,6 +158,10 @@ def photometry_plot(source_id):
                        .statement, DBSession().bind)
     if data.empty:
         return None, None, None
+
+    for col in data:
+        if not data[col].empty and type(data[col][0]) == Arrow:
+            data[col] = pd.Series([pd.Timestamp(el.isoformat()) for el in data[col]])
 
     for col in ['mag', 'e_mag', 'lim_mag']:
         # TODO remove magic number; where can this logic live?
@@ -277,11 +271,11 @@ def spectroscopy_plot(source_id):
         active=[], width=80,
         colors=[c for w, c in SPEC_LINES.values()]
     )
-    z = TextInput(value=str(source.red_shift), title="z:")
+    z = TextInput(value=str(source.redshift), title="z:")
     v_exp = TextInput(value='0', title="v_exp:")
     for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
         el_data = pd.DataFrame({'wavelength': wavelengths})
-        el_data['x'] = el_data['wavelength'] * (1 + source.red_shift)
+        el_data['x'] = el_data['wavelength'] * (1 + source.redshift)
         model_dict[f'el{i}'] = plot.segment(x0='x', x1='x',
                                             # TODO change limits
                                             y0=0, y1=1e-13, color=color,

@@ -3,7 +3,7 @@ from baselayer.app.handlers import (BaseHandler, MainPageHandler,
                                     LogoutHandler)
 from baselayer.app.custom_exceptions import AccessError
 
-from .source import SourceHandler
+from .source import SourceHandler, FilterSourcesHandler
 from .comment import CommentHandler
 from .group import GroupHandler, GroupUserHandler
 from .plot import PlotPhotometryHandler, PlotSpectroscopyHandler

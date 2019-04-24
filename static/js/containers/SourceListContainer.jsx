@@ -10,7 +10,7 @@ import UninitializedDBMessage from '../components/UninitializedDBMessage';
 
 class SourceListContainer extends React.Component {
   componentDidMount() {
-    if (!this.props.sources) {
+    if (!this.props.sources.latest) {
       this.props.dispatch(Action.fetchSources());
     }
   }
@@ -29,7 +29,7 @@ class SourceListContainer extends React.Component {
 
 SourceListContainer.propTypes = {
   dispatch: PropTypes.func.isRequired,
-  sources: PropTypes.arrayOf(PropTypes.object),
+  sources: PropTypes.object,
   sourcesTableEmpty: PropTypes.bool
 };
 
@@ -40,7 +40,7 @@ SourceListContainer.defaultProps = {
 
 const mapStateToProps = (state, ownProps) => (
   {
-    sources: state.sources.latest,
+    sources: state.sources,
     sourcesTableEmpty: state.sysinfo.sources_table_empty
   }
 );

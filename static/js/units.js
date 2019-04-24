@@ -5,11 +5,17 @@ const ra_to_hours = (ra) => {
   return `${ra_h}:${ra_m}:${ra_s.toFixed(2)}`;
 };
 
-const dec_to_hours = (dec) => {
-  const dec_arch = Math.floor(dec);
-  const dec_arcm = Math.floor((dec % 1) * 60);
-  const dec_arcs = (((dec % 1) * 60) % 1) * 60;
-  return `${dec_arch}:${dec_arcm}:${dec_arcs.toFixed(1)}`;
+const dec_to_hours = (deci) => {
+  const dec = Math.abs(deci);
+  const deg = Math.floor(dec);
+  const min = Math.floor((dec - deg) * 60);
+  const sec = ((dec - deg - (min/60)) * 3600).toFixed(2);
+  let sign = "+";
+  if (deci < 0) {
+      sign = "-";
+  }
+
+  return `${sign}${deg}:${min}:${sec}`;
 };
 
 export { ra_to_hours, dec_to_hours };

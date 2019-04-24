@@ -75,7 +75,8 @@ class SourceFactory(factory.alchemy.SQLAlchemyModelFactory):
     id = factory.LazyFunction(lambda: str(uuid.uuid4()))
     ra = 0.0
     dec = 0.0
-    red_shift = 0.0
+    redshift = 0.0
+    simbad_class = 'RRLyr'
 
     @factory.post_generation
     def add_phot_spec(source, create, value, *args, **kwargs):

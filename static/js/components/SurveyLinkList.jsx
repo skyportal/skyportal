@@ -30,24 +30,28 @@ const SurveyLinkList = ({ ra, dec, id }) => {
   return (
     <div className={styles.SurveyLinkList}>
       <SurveyLink
+        name="Gaia DR2"
+        url={`http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=I/345/gaia2&-out.add=_r&-out.add=2C_DEJ&-sort=_r&-to=&-out.max=20&-meta.ucd=2&-meta.foot=1&-c=${ra_hrs}+${dec_hrs}&-c.rs=10`}
+      />
+      <SurveyLink
         name="NED"
-        url={`http://nedwww.ipac.caltech.edu/cgi-bin/nph-objsearch?lon=${ra}sd&lat=${dec}sd&radius=1.0&search_type=Near+Position+Search`}
+        url={`http://nedwww.ipac.caltech.edu/cgi-bin/nph-objsearch?lon=${ra}d&lat=${dec}d&radius=1.0&search_type=Near+Position+Search`}
       />
       <SurveyLink
         name="TNS"
-        url={`https://wis-tns.weizmann.ac.il/search?&ra=${ra}s&decl=${dec}s&radius=10&coords_unit=arcsec`}
+        url={`https://wis-tns.weizmann.ac.il/search?&ra=${ra}&decl=${dec}&radius=10&coords_unit=arcsec`}
       />
       <SurveyLink
         name="SNEx"
-        url={`http://secure.lcogt.net/user/supernova/dev/cgi-bin/view_object.cgi?name=iPTF${id}s&ra=${ra}s&dec=${dec}s`}
+        url={`http://secure.lcogt.net/user/supernova/dev/cgi-bin/view_object.cgi?name=iPTF${id}s&ra=${ra}&dec=${dec}`}
       />
       <SurveyLink
         name="SIMBAD"
-        url={`http://simbad.u-strasbg.fr/simbad/sim-coo?protocol=html&NbIdent=us=30&Radius.unit=arcsec&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&Coord=${ra}sd+${dec}sd`}
+        url={`http://simbad.u-strasbg.fr/simbad/sim-coo?protocol=html&NbIdent=us=30&Radius.unit=arcsec&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&Coord=${ra}d+${dec}d`}
       />
       <SurveyLink
         name="VizieR"
-        url={`http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=&-out.add=_r&-out.add=2C_DEJ&-sort=_r&-to=&-out.max=20&-meta.ucd=2&-meta.foot=1&-c=${ra_hrs}s+${dec_hrs}s&-c.rs=10`}
+        url={`http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=&-out.add=_r&-out.add=2C_DEJ&-sort=_r&-to=&-out.max=20&-meta.ucd=2&-meta.foot=1&-c=${ra_hrs}+${dec_hrs}&-c.rs=10`}
       />
       <SurveyLink
         name="HEASARC"
@@ -93,7 +97,7 @@ const SurveyLinkList = ({ ra, dec, id }) => {
       />
       <SurveyLink
         name="VLT"
-        url={`http://archive.eso.org/wdb/wdb/eso/eso_archive_main/query?ra=${ra_hrs}s&dec=${dec_hrs}s&amp;deg_or_hour=hours&box=00+10+00&max_rows_returned=500`}
+        url={`http://archive.eso.org/wdb/wdb/eso/eso_archive_main/query?ra=${ra_hrs}&dec=${dec_hrs}&amp;deg_or_hour=hours&box=00+10+00&max_rows_returned=500`}
       />
       <SurveyLink
         name="FIRST"

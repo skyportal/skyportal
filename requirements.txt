@@ -7,6 +7,13 @@ bokeh==0.12.9
 pytest-randomly==2.1.1
 factory-boy==2.11.1
 astropy==3.0.3
+aplpy==1.1.1
+avro-python3==1.8.2
+fastavro==0.21.7
+tqdm==4.23.2
+matplotlib==2.1.0
+astroquery==0.3.8
+sqlalchemy-utils
 apispec
 marshmallow-sqlalchemy
 marshmallow-enum
