@@ -116,7 +116,7 @@ class SourceHandler(BaseHandler):
         data = self.get_json()
 
         s = Source(ra=data['sourceRA'], dec=data['sourceDec'],
-                   redshift=data.get('sourceRedShift'))
+                   redshift=data.get('redshift'))
         DBSession().add(s)
         DBSession().commit()
 
@@ -138,11 +138,11 @@ class SourceHandler(BaseHandler):
                 schema: Success
         """
         data = self.get_json()
+        data['id'] = source_id
 
-        s = Source.query.get(source_id)
-        s.ra = data['sourceRA']
-        s.dec = data['sourceDec']
-        s.redshift = data.get('sourceRedShift')
+        source = Source.query.get(source_id)
+        schema = source.__schema__()
+        schema.load(data)
         DBSession().commit()
 
         return self.success(action='cesium/FETCH_SOURCES')

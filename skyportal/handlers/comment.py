@@ -91,10 +91,12 @@ class CommentHandler(BaseHandler):
                 schema: Success
         """
         data = self.get_json()
+        data['id'] = comment_id
 
         # TODO: Check ownership
         comment = Comment.query.get(comment_id)
-        comment.text = data['text']
+        schema = comment.__schema__()
+        schema.load(data)
 
         DBSession().commit()
 

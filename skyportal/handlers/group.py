@@ -90,7 +90,7 @@ class GroupHandler(BaseHandler):
         group_admins = list(User.query.filter(User.username.in_(
             group_admin_emails)))
 
-        g = Group(name=data['groupName'])
+        g = Group(name=data['name'])
         DBSession().add_all([
             GroupUser(group=g, user=user, admin=True) for user in
             [self.current_user] + group_admins])
@@ -115,9 +115,11 @@ class GroupHandler(BaseHandler):
                 schema: Success
         """
         data = self.get_json()
+        data['id'] = group_id
 
         g = Group.query.get(group_id)
-        g.name = data['groupName']
+        schema = g.__schema__()
+        schema.load(data)
         DBSession().commit()
 
         return self.success(action='skyportal/FETCH_GROUPS')
