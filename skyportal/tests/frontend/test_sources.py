@@ -78,6 +78,20 @@ def test_token_user_retrieving_source(driver, public_group, public_source):
     response = requests.get(f'{driver.server_url}/api/sources/{public_source.id}',
                             headers={'Authorization': f'token {auth_token}'}).json()
     assert response['status'] == 'success'
-    print(response['data'])
+    assert all(k in response['data']['sources'] for k in ['ra', 'dec', 'redshift',
+                                                          'created', 'id'])
+
+
+def test_token_user_update_source(driver, public_group, public_source):
+    auth_token = create_token(public_group.id, ['Manage sources'])
+    response = requests.put(f'{driver.server_url}/api/sources/{public_source.id}',
+                            json={'ra': 234.22,
+                                  'dec': -22.33,
+                                  'redshift': 3,
+                                  'transient': False,
+                                  'ra_dis': 2.3
+                            },
+                            headers={'Authorization': f'token {auth_token}'}).json()
+    assert response['status'] == 'success'
     assert all(k in response['data']['sources'] for k in ['ra', 'dec', 'redshift',
                                                           'created', 'id'])
