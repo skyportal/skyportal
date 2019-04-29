@@ -2,11 +2,12 @@ import tornado.web
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func
 import arrow
+from functools import reduce
+from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.handlers import BaseHandler
 from ..models import (DBSession, Comment, Instrument, Photometry, Source,
                       Thumbnail, GroupSource, Token, User)
-from functools import reduce
 
 
 SOURCES_PER_PAGE = 100
@@ -136,13 +137,20 @@ class SourceHandler(BaseHandler):
             content:
               application/json:
                 schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
         """
         data = self.get_json()
         data['id'] = source_id
 
-        source = Source.query.get(source_id)
-        schema = source.__schema__()
-        schema.load(data)
+        schema = Source.__schema__()
+        try:
+            schema.load(data)
+        except ValidationError as e:
+            return self.error('Invalid/missing parameters: '
+                              f'{e.normalized_messages()}')
         DBSession().commit()
 
         return self.success(action='cesium/FETCH_SOURCES')

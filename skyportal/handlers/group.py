@@ -1,5 +1,6 @@
 import tornado.web
 from sqlalchemy.orm import joinedload
+from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.handlers.base import BaseHandler
 from ..models import DBSession, Group, GroupUser, User
@@ -113,13 +114,20 @@ class GroupHandler(BaseHandler):
             content:
               application/json:
                 schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
         """
         data = self.get_json()
         data['id'] = group_id
 
-        g = Group.query.get(group_id)
-        schema = g.__schema__()
-        schema.load(data)
+        schema = Group.__schema__()
+        try:
+            schema.load(data)
+        except ValidationError as e:
+            return self.error('Invalid/missing parameters: '
+                              f'{e.normalized_messages()}')
         DBSession().commit()
 
         return self.success(action='skyportal/FETCH_GROUPS')
