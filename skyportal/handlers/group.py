@@ -41,7 +41,8 @@ class GroupHandler(BaseHandler):
                   schema: Error
         """
         if group_id is not None:
-            if 'Super admin' in [role.id for role in self.current_user.roles]:
+            if (hasattr(self.current_user, 'roles') and
+                'Super admin' in [role.id for role in self.current_user.roles]):
                 info = Group.query.options(joinedload(Group.users)).options(
                     joinedload(Group.group_users)).get(group_id)
             else:

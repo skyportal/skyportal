@@ -6,6 +6,7 @@ import time
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 import requests
+import numpy.testing as npt
 
 from skyportal.models import Source, DBSession
 from skyportal.model_util import create_token
@@ -93,5 +94,9 @@ def test_token_user_update_source(driver, public_group, public_source):
                             },
                             headers={'Authorization': f'token {auth_token}'}).json()
     assert response['status'] == 'success'
-    assert all(k in response['data']['sources'] for k in ['ra', 'dec', 'redshift',
-                                                          'created', 'id'])
+
+    response = requests.get(f'{driver.server_url}/api/sources/{public_source.id}',
+                            headers={'Authorization': f'token {auth_token}'}).json()
+    assert response['status'] == 'success'
+    npt.assert_almost_equal(response['data']['sources']['ra'], 234.22)
+    npt.assert_almost_equal(response['data']['sources']['redshift'], 3.0)
