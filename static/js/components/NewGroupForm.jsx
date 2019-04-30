@@ -8,7 +8,7 @@ class NewGroupForm extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      groupName: "",
+      name: "",
       groupAdmins: ""
     };
     this.handleSubmit = this.handleSubmit.bind(this);
@@ -19,7 +19,7 @@ class NewGroupForm extends React.Component {
     event.preventDefault();
     this.props.addNewGroup(this.state);
     this.setState({
-      groupName: "",
+      name: "",
       groupAdmins: ""
     });
   }
@@ -49,8 +49,8 @@ class NewGroupForm extends React.Component {
                 <td>
                   <input
                     type="text"
-                    name="groupName"
-                    value={this.state.groupName}
+                    name="name"
+                    value={this.state.name}
                     onChange={this.handleChange}
                   />
                 </td>

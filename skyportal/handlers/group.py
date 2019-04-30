@@ -1,5 +1,6 @@
 import tornado.web
 from sqlalchemy.orm import joinedload
+from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from .base import BaseHandler
 from ..models import DBSession, Group, GroupUser, User
@@ -41,7 +42,8 @@ class GroupHandler(BaseHandler):
         """
         info = {}
         if group_id is not None:
-            if 'Super admin' in [role.id for role in self.current_user.roles]:
+            if (hasattr(self.current_user, 'roles') and
+                'Super admin' in [role.id for role in self.current_user.roles]):
                 group = Group.query.options(joinedload(Group.users)).options(
                     joinedload(Group.group_users)).get(group_id)
             else:
@@ -91,7 +93,7 @@ class GroupHandler(BaseHandler):
         group_admins = list(User.query.filter(User.username.in_(
             group_admin_emails)))
 
-        g = Group(name=data['groupName'])
+        g = Group(name=data['name'])
         DBSession().add_all([
             GroupUser(group=g, user=user, admin=True) for user in
             [self.current_user] + group_admins])
@@ -114,11 +116,20 @@ class GroupHandler(BaseHandler):
             content:
               application/json:
                 schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
         """
         data = self.get_json()
+        data['id'] = group_id
 
-        g = Group.query.get(group_id)
-        g.name = data['groupName']
+        schema = Group.__schema__()
+        try:
+            schema.load(data)
+        except ValidationError as e:
+            return self.error('Invalid/missing parameters: '
+                              f'{e.normalized_messages()}')
         DBSession().commit()
 
         return self.success(action='skyportal/FETCH_GROUPS')

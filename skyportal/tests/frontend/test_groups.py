@@ -3,6 +3,9 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 import uuid
 import time
+import requests
+
+from skyportal.model_util import create_token
 
 
 def test_public_groups_list(driver, user, public_group):
@@ -27,7 +30,7 @@ def test_add_new_group(driver, super_admin_user, user):
     driver.get('/')
     driver.refresh()
     driver.get('/groups')
-    driver.wait_for_xpath('//input[@name="groupName"]').send_keys(test_proj_name)
+    driver.wait_for_xpath('//input[@name="name"]').send_keys(test_proj_name)
     driver.wait_for_xpath('//input[@name="groupAdmins"]').send_keys(user.username)
     driver.save_screenshot('/tmp/screenshot1.png')
     driver.wait_for_xpath('//input[@value="Create Group"]').click()
@@ -77,3 +80,20 @@ def test_delete_group_user(driver, super_admin_user, user, public_group):
     time.sleep(0.5)
     assert len(driver.find_elements_by_xpath(
         f'//a[contains(.,"{user.username}")]')) == 0
+
+
+def test_token_user_update_group(driver, super_admin_user, public_group):
+    auth_token = create_token(public_group.id, ['Manage groups'])
+    response = requests.put(
+        f'{driver.server_url}/api/groups/{public_group.id}',
+        json={'name': 'new name'},
+        headers={'Authorization': f'token {auth_token}'}
+    ).json()
+    assert response['status'] == 'success'
+
+    response = requests.get(
+        f'{driver.server_url}/api/groups/{public_group.id}',
+        headers={'Authorization': f'token {auth_token}'}
+    ).json()
+    assert response['status'] == 'success'
+    assert response['data']['name'] == 'new name'
