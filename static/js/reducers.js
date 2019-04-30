@@ -69,8 +69,10 @@ export function sysinfoReducer(state={}, action) {
 
 export function groupReducer(state={}, action) {
   switch (action.type) {
-    case Action.FETCH_GROUP_OK:
-      return action.data;
+    case Action.FETCH_GROUP_OK: {
+      const { group } = action.data;
+      return group;
+    }
     default:
       return state;
   }
@@ -94,7 +96,7 @@ export function groupsReducer(state={ latest: [], all: null }, action) {
 export function usersReducer(state={}, action) {
   switch (action.type) {
     case Action.FETCH_USER_OK: {
-      const { id, ...user_info } = action.data;
+      const { id, ...user_info } = action.data['user'];
       return {
         ...state,
         [id]: user_info

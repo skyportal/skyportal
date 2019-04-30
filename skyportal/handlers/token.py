@@ -1,4 +1,4 @@
-from baselayer.app.handlers.base import BaseHandler
+from .base import BaseHandler
 from baselayer.app.access import permissions, auth_or_token
 from ..models import User, Token, DBSession
 from ..model_util import create_token
@@ -34,7 +34,7 @@ class TokenHandler(BaseHandler):
                                 permissions=token_acls,
                                 created_by_id=user.id,
                                 description=data['description'])
-        return self.success(token_id, 'skyportal/FETCH_USER_PROFILE')
+        return self.success(data=token_id, action='skyportal/FETCH_USER_PROFILE')
 
     @auth_or_token
     def delete(self, token_id):

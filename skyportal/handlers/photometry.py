@@ -2,7 +2,7 @@ import tornado.web
 from astropy.time import Time
 from sqlalchemy.orm import joinedload
 from baselayer.app.access import permissions, auth_or_token
-from baselayer.app.handlers.base import BaseHandler
+from .base import BaseHandler
 from ..models import DBSession, Photometry, Comment
 
 
@@ -62,7 +62,7 @@ class PhotometryHandler(BaseHandler):
             DBSession().add(p)
         DBSession().commit()
 
-        return self.success({"ids": ids})
+        return self.success(data={"ids": ids})
 
     """TODO any need for get/put/delete?
     @auth_or_token

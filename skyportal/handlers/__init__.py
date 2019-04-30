@@ -1,4 +1,4 @@
-from baselayer.app.handlers import (BaseHandler, MainPageHandler,
+from baselayer.app.handlers import (MainPageHandler,
                                     SocketAuthTokenHandler, ProfileHandler,
                                     LogoutHandler)
 from baselayer.app.custom_exceptions import AccessError
@@ -14,4 +14,4 @@ from .photometry import PhotometryHandler
 from .token import TokenHandler
 from .sysinfo import SysInfoHandler
 from .userinfo import UserInfoHandler
-
+from .base import BaseHandler

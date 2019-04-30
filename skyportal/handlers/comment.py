@@ -1,7 +1,7 @@
 import tornado.web
 import base64
 from baselayer.app.access import permissions, auth_or_token
-from baselayer.app.handlers.base import BaseHandler
+from .base import BaseHandler
 from ..models import DBSession, Source, User, Comment, Role
 
 

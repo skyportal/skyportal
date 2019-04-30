@@ -1,4 +1,4 @@
-from baselayer.app.handlers.base import BaseHandler
+from .base import BaseHandler
 from baselayer.app.access import auth_or_token
 from .. import plot
 
@@ -13,9 +13,9 @@ class PlotPhotometryHandler(BaseHandler):
         if docs_json is None:
             self.error(f"Note: no photometry available for source {source_id}")
         else:
-            self.success({'docs_json': docs_json, 'render_items': render_items,
-                          'custom_model_js': custom_model_js,
-                          'url': self.request.path})
+            self.success(data={'docs_json': docs_json, 'render_items': render_items,
+                               'custom_model_js': custom_model_js,
+                               'url': self.request.path})
 
 
 class PlotSpectroscopyHandler(BaseHandler):
@@ -25,6 +25,6 @@ class PlotSpectroscopyHandler(BaseHandler):
         if docs_json is None:
             self.error(f"Note: no spectroscopy available for source {source_id}")
         else:
-            self.success({'docs_json': docs_json, 'render_items': render_items,
-                          'custom_model_js': custom_model_js,
-                          'url': self.request.path})
+            self.success(data={'docs_json': docs_json, 'render_items': render_items,
+                               'custom_model_js': custom_model_js,
+                               'url': self.request.path})

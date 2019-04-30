@@ -1,4 +1,4 @@
-from baselayer.app.handlers.base import BaseHandler
+from .base import BaseHandler
 from baselayer.app.access import auth_or_token
 
 import tornado.web
