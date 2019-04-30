@@ -23,7 +23,6 @@ def test_token_user_post_photometry_data(driver, public_group, public_source):
                              },
                              headers={'Authorization': f'token {auth_token}'}
     ).json()
-    print(response)
     assert response['status'] == 'success'
 
 
@@ -44,5 +43,4 @@ def test_token_user_post_photometry_data_series(driver, public_group, public_sou
               'filter': 'V'},
         headers={'Authorization': f'token {auth_token}'}
     ).json()
-    print(response)
     assert response['status'] == 'success'

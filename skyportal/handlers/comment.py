@@ -1,5 +1,6 @@
 import tornado.web
 import base64
+from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.handlers.base import BaseHandler
 from ..models import DBSession, Source, User, Comment, Role
@@ -89,12 +90,21 @@ class CommentHandler(BaseHandler):
             content:
               application/json:
                 schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
         """
         data = self.get_json()
+        data['id'] = comment_id
 
         # TODO: Check ownership
-        comment = Comment.query.get(comment_id)
-        comment.text = data['text']
+        schema = Comment.__schema__()
+        try:
+            schema.load(data)
+        except ValidationError as e:
+            return self.error('Invalid/missing parameters: '
+                              f'{e.normalized_messages()}')
 
         DBSession().commit()
 
