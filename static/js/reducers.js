@@ -96,7 +96,7 @@ export function groupsReducer(state={ latest: [], all: null }, action) {
 export function usersReducer(state={}, action) {
   switch (action.type) {
     case Action.FETCH_USER_OK: {
-      const { id, ...user_info } = action.data['user'];
+      const { id, ...user_info } = action.data.user;
       return {
         ...state,
         [id]: user_info
