@@ -74,3 +74,9 @@ def upload_data_token(public_group):
 def manage_groups_token(public_group):
     token_id = create_token(public_group.id, permissions=['Manage groups'])
     return token_id
+
+
+@pytest.fixture()
+def manage_users_token(public_group):
+    token_id = create_token(public_group.id, permissions=['Manage users'])
+    return token_id
