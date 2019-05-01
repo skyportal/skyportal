@@ -51,12 +51,26 @@ def super_admin_user(public_group):
     return UserFactory(groups=[public_group],
                        roles=[models.Role.query.get('Super admin')])
 
+
 @pytest.fixture()
 def view_only_token(public_group):
     token_id = create_token(public_group.id, permissions=[])
     return token_id
 
+
 @pytest.fixture()
 def manage_sources_token(public_group):
     token_id = create_token(public_group.id, permissions=['Manage sources'])
+    return token_id
+
+
+@pytest.fixture()
+def upload_data_token(public_group):
+    token_id = create_token(public_group.id, permissions=['Upload data'])
+    return token_id
+
+
+@pytest.fixture()
+def manage_groups_token(public_group):
+    token_id = create_token(public_group.id, permissions=['Manage groups'])
     return token_id
