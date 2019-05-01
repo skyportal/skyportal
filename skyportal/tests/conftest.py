@@ -52,6 +52,11 @@ def super_admin_user(public_group):
                        roles=[models.Role.query.get('Super admin')])
 
 @pytest.fixture()
-def token(public_group, permissions=[]):
-    token_id = create_token(public_group.id, permissions)
+def view_only_token(public_group):
+    token_id = create_token(public_group.id, permissions=[])
+    return token_id
+
+@pytest.fixture()
+def manage_sources_token(public_group):
+    token_id = create_token(public_group.id, permissions=['Manage sources'])
     return token_id
