@@ -1,4 +1,4 @@
-from baselayer.app.handlers.base import BaseHandler
+from .base import BaseHandler
 from baselayer.app.access import permissions
 from ..models import User
 
@@ -10,6 +10,6 @@ class UserInfoHandler(BaseHandler):
     def get(self, user_id=None):
         user = User.query.get(user_id)
         if user is None:
-            return self.success({'id': user_id, 'username': 'Not found'})
+            return self.success(data={'id': user_id, 'username': 'Not found'})
         else:
-            return self.success(user)
+            return self.success(data={'user': user})

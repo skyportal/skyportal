@@ -2,7 +2,7 @@ import tornado.web
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
-from baselayer.app.handlers.base import BaseHandler
+from .base import BaseHandler
 from ..models import DBSession, Group, GroupUser, User
 
 
@@ -40,27 +40,28 @@ class GroupHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        info = {}
         if group_id is not None:
             if (hasattr(self.current_user, 'roles') and
                 'Super admin' in [role.id for role in self.current_user.roles]):
-                info = Group.query.options(joinedload(Group.users)).options(
+                group = Group.query.options(joinedload(Group.users)).options(
                     joinedload(Group.group_users)).get(group_id)
             else:
-                info = Group.get_if_owned_by(
+                group = Group.get_if_owned_by(
                     group_id, self.current_user,
                     options=[joinedload(Group.users),
                              joinedload(Group.group_users)])
+            info['group'] = group
         else:
-            info = {}
             info['user_groups'] = list(self.current_user.groups)
             info['all_groups'] = (list(Group.query) if 'Super admin' in
                                   [role.id for role in self.current_user.roles]
                                   else None)
         if info is not None:
-            return self.success(info)
+            return self.success(data=info)
         else:
             return self.error(f"Could not load group {group_id}",
-                              {"group_id": group_id})
+                              data={"group_id": group_id})
 
     @permissions(['Manage groups'])
     def post(self):
@@ -99,7 +100,7 @@ class GroupHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(action='skyportal/FETCH_GROUPS')
-        return self.success({"id": g.id})
+        return self.success(data={"id": g.id})
 
     @permissions(['Manage groups'])
     def put(self, group_id):
@@ -213,8 +214,8 @@ class GroupUserHandler(BaseHandler):
 
         self.push_all(action='skyportal/REFRESH_GROUP',
                       payload={'group_id': gu.group_id})
-        return self.success({'group_id': gu.group_id, 'user_id': gu.user_id,
-                             'admin': gu.admin})
+        return self.success(data={'group_id': gu.group_id, 'user_id': gu.user_id,
+                                  'admin': gu.admin})
 
     @permissions(['Manage groups'])
     def delete(self, group_id, username):

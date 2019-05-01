@@ -96,4 +96,4 @@ def test_token_user_update_group(driver, super_admin_user, public_group):
         headers={'Authorization': f'token {auth_token}'}
     ).json()
     assert response['status'] == 'success'
-    assert response['data']['name'] == 'new name'
+    assert response['data']['group']['name'] == 'new name'

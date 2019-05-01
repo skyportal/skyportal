@@ -1,4 +1,4 @@
-from baselayer.app.handlers.base import BaseHandler
+from .base import BaseHandler
 from baselayer.app.access import permissions
 from baselayer.app.models import ACL
 from ..models import User

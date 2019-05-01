@@ -1,4 +1,4 @@
-from baselayer.app.handlers.base import BaseHandler
+from .base import BaseHandler
 from baselayer.app.access import auth_or_token
 from ..models import User
 
@@ -26,7 +26,7 @@ class ProfileHandler(BaseHandler):
                         'acls': [acl.id for acl in token.acls],
                         'created_at': token.created_at}
                        for token in user.tokens]
-        return self.success({'username': self.current_user.username,
-                             'roles': user_roles,
-                             'acls': user_acls,
-                             'tokens': user_tokens})
+        return self.success(data={'username': self.current_user.username,
+                                  'roles': user_roles,
+                                  'acls': user_acls,
+                                  'tokens': user_tokens})

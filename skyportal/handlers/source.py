@@ -5,7 +5,7 @@ import arrow
 from functools import reduce
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
-from baselayer.app.handlers import BaseHandler
+from .base import BaseHandler
 from ..models import (DBSession, Comment, Instrument, Photometry, Source,
                       Thumbnail, GroupSource, Token, User)
 
@@ -81,16 +81,16 @@ class SourceHandler(BaseHandler):
         else:
             if isinstance(self.current_user, Token):
                 token = self.current_user
-                sources = reduce(set.union,
-                                 (set(group.sources) for group in token.groups))
+                info['sources'] = list(reduce(
+                    set.union, (set(group.sources) for group in token.groups)))
             else:
-                sources = self.current_user.sources
+                info['sources'] = self.current_user.sources
 
         if info['sources'] is not None:
-            return self.success(info)
+            return self.success(data=info)
         else:
             return self.error(f"Could not load source {source_id}",
-                              {"source_id": source_id_or_page_num})
+                              data={"source_id": source_id_or_page_num})
 
     @permissions(['Manage sources'])
     def post(self):
@@ -121,7 +121,7 @@ class SourceHandler(BaseHandler):
         DBSession().add(s)
         DBSession().commit()
 
-        return self.success({"id": s.id}, 'cesium/FETCH_SOURCES')
+        return self.success(data={"id": s.id}, action='cesium/FETCH_SOURCES')
 
     @permissions(['Manage sources'])
     def put(self, source_id):
@@ -222,4 +222,4 @@ class FilterSourcesHandler(BaseHandler):
         if info['totalMatches'] == 0:
             info['sourceNumberingStart'] = 0
 
-        return self.success(info)
+        return self.success(data=info)

@@ -1,7 +1,7 @@
 import tornado.web
 from sqlalchemy.orm import joinedload
 from baselayer.app.access import permissions, auth_or_token
-from baselayer.app.handlers.base import BaseHandler
+from .base import BaseHandler
 from ..models import DBSession, Spectrum, Comment
 
 
@@ -20,7 +20,7 @@ class SpectrumHandler(BaseHandler):
         DBSession().add(p)
         DBSession().commit()
 
-        return self.success({"id": s.id}, 'cesium/FETCH_SOURCES')
+        return self.success(data={"id": s.id}, action='cesium/FETCH_SOURCES')
 
     """TODO any need for get/put/delete?
     @auth_or_token
