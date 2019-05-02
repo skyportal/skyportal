@@ -228,8 +228,11 @@ class Comment(Base):
 
     origin = sa.Column(sa.String, nullable=True)
     user_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
-                        nullable=False, index=True)
+                        nullable=True, index=True)
     user = relationship('User', back_populates='comments', cascade='all')
+    token_id = sa.Column(sa.ForeignKey('tokens.id', ondelete='CASCADE'),
+                         nullable=True, index=True)
+    token = relationship('Token', back_populates='comments', cascade='all')
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, index=True)
     source = relationship('Source', back_populates='comments', cascade='all')
@@ -237,7 +240,8 @@ class Comment(Base):
 
 User.comments = relationship('Comment', back_populates='user', cascade='all',
                              order_by="Comment.created_at")
-
+Token.comments = relationship('Comment', back_populates='token', cascade='all',
+                              order_by="Comment.created_at")
 
 class Photometry(Base):
     __tablename__ = 'photometry'
