@@ -80,3 +80,9 @@ def manage_groups_token(public_group):
 def manage_users_token(public_group):
     token_id = create_token(public_group.id, permissions=['Manage users'])
     return token_id
+
+
+@pytest.fixture()
+def comment_token(public_group):
+    token_id = create_token(public_group.id, permissions=['Comment'])
+    return token_id
