@@ -55,13 +55,13 @@ class SourceHandler(BaseHandler):
         info = {}
         if source_id_or_page_num is not None and not page_number_given:
             source_id = source_id_or_page_num
-            info['sources'] = Source.get_if_owned_by(source_id, self.current_user,
-                                          options=[joinedload(Source.comments)
-                                                   .joinedload(Comment.user),
-                                                   joinedload(Source.thumbnails)
-                                                   .joinedload(Thumbnail.photometry)
-                                                   .joinedload(Photometry.instrument)
-                                                   .joinedload(Instrument.telescope)])
+            info['sources'] = Source.get_if_owned_by(
+                source_id, self.current_user,
+                options=[joinedload(Source.comments),
+                         joinedload(Source.thumbnails)
+                         .joinedload(Thumbnail.photometry)
+                         .joinedload(Photometry.instrument)
+                         .joinedload(Instrument.telescope)])
         elif page_number_given:
             page = int(source_id_or_page_num)
             q = Source.query.filter(Source.id.in_(DBSession.query(

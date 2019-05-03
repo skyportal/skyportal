@@ -65,12 +65,12 @@ class CommentHandler(BaseHandler):
         else:
             attachment_bytes, attachment_name = None, None
 
-        author_field = ('user' if hasattr(self.current_user, 'username')
-                        else 'token')
+        author = (self.current_user.username if hasattr(self.current_user, 'username')
+                  else self.current_user.id)
         comment = Comment(text=data['text'],
                           source_id=source_id, attachment_bytes=attachment_bytes,
                           attachment_name=attachment_name,
-                          **{author_field: self.current_user})
+                          author=author)
 
         DBSession().add(comment)
         DBSession().commit()
