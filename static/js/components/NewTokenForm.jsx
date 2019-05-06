@@ -7,7 +7,7 @@ class CreateTokenForm extends React.Component {
     super(props);
     this.state = {
       group_id: "",
-      description: ""
+      name: ""
     };
 
     this.handleSubmit = this.handleSubmit.bind(this);
@@ -25,7 +25,7 @@ class CreateTokenForm extends React.Component {
     });
     this.setState({
       group_id: "",
-      description: "",
+      name: "",
       ...acls_state
     });
   }
@@ -80,13 +80,13 @@ class CreateTokenForm extends React.Component {
               </tr>
               <tr>
                 <td>
-                  <label>Token description: </label>
+                  <label>Token name: </label>
                 </td>
                 <td>
                   <input
                     type="text"
-                    name="description"
-                    value={this.state.description}
+                    name="name"
+                    value={this.state.name}
                     onChange={this.handleChange}
                   />
                 </td>

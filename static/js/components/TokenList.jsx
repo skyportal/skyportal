@@ -19,7 +19,7 @@ const TokenList = (props) => {
               <b>Value</b>&nbsp;&nbsp;
             </td>
             <td>
-              <b>Description</b>&nbsp;&nbsp;
+              <b>Name</b>&nbsp;&nbsp;
             </td>
             <td>
               <b>ACLS</b>&nbsp;&nbsp;
@@ -41,7 +41,7 @@ const TokenList = (props) => {
                   </button>&nbsp;&nbsp;
                 </td>
                 <td>
-                  {token.description}&nbsp;&nbsp;
+                  {token.name}&nbsp;&nbsp;
                 </td>
                 <td>
                   {token.acls.join(', ')}&nbsp;&nbsp;

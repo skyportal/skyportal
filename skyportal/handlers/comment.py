@@ -66,7 +66,7 @@ class CommentHandler(BaseHandler):
             attachment_bytes, attachment_name = None, None
 
         author = (self.current_user.username if hasattr(self.current_user, 'username')
-                  else self.current_user.id)
+                  else self.current_user.name)
         comment = Comment(text=data['text'],
                           source_id=source_id, attachment_bytes=attachment_bytes,
                           attachment_name=attachment_name,
