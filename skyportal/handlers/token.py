@@ -34,7 +34,8 @@ class TokenHandler(BaseHandler):
                                 permissions=token_acls,
                                 created_by_id=user.id,
                                 name=data['name'])
-        return self.success(data=token_id, action='skyportal/FETCH_USER_PROFILE')
+        return self.success(data={'token_id': token_id},
+                            action='skyportal/FETCH_USER_PROFILE')
 
     @auth_or_token
     def delete(self, token_id):
