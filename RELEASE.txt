@@ -1,0 +1,13 @@
+How to make a new release of ``SkyPortal``
+==========================================
+
+- Edit the version number in ``skyportal/__init__.py`` and commit
+
+- Add the version number as a tag in git::
+
+   git tag -a vX.Y.Z -m "Description of release"
+
+
+- Push the tag to github to create a new release::
+
+   git push origin --tags
