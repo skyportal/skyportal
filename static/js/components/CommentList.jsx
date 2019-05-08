@@ -8,19 +8,13 @@ import CommentEntry from './CommentEntry';
 
 const CommentList = ({ source_id, comments, addComment }) => {
   comments = comments || [];
-  const items = comments.map(({ id, user, created_at, text, attachment_name,
-                                attachment_bytes }) => {
-    const [username, domain] = user.username.split('@', 2);
-    return (
+  const items = comments.map(
+    ({ id, author, created_at, text, attachment_name, attachment_bytes }) => (
       <span key={id} className={styles.comment}>
         <div className={styles.commentHeader}>
           <span className={styles.commentUser}>
             <span className={styles.commentUserName}>
-              {username}
-            </span>
-            <span className={styles.commentUserDomain}>
-@
-              {domain}
+              {author}
             </span>
           </span>
           &nbsp;
@@ -40,8 +34,8 @@ const CommentList = ({ source_id, comments, addComment }) => {
         </div>
         }
       </span>
-    );
-  });
+    )
+  );
   return (
     <div className={styles.comments}>
       {items}

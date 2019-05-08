@@ -80,20 +80,3 @@ def test_delete_group_user(driver, super_admin_user, user, public_group):
     time.sleep(0.5)
     assert len(driver.find_elements_by_xpath(
         f'//a[contains(.,"{user.username}")]')) == 0
-
-
-def test_token_user_update_group(driver, super_admin_user, public_group):
-    auth_token = create_token(public_group.id, ['Manage groups'])
-    response = requests.put(
-        f'{driver.server_url}/api/groups/{public_group.id}',
-        json={'name': 'new name'},
-        headers={'Authorization': f'token {auth_token}'}
-    ).json()
-    assert response['status'] == 'success'
-
-    response = requests.get(
-        f'{driver.server_url}/api/groups/{public_group.id}',
-        headers={'Authorization': f'token {auth_token}'}
-    ).json()
-    assert response['status'] == 'success'
-    assert response['data']['group']['name'] == 'new name'

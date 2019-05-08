@@ -32,7 +32,7 @@ class CommentHandler(BaseHandler):
             self.write(base64.b64decode(comment.attachment_bytes))
         else:
             # TODO: Ensure that it's okay for anyone to read any comment
-            return self.success(data=comment)
+            return self.success(data={'comment': comment})
 
     @permissions(['Comment'])
     def post(self):
@@ -65,16 +65,19 @@ class CommentHandler(BaseHandler):
         else:
             attachment_bytes, attachment_name = None, None
 
-        comment = Comment(user=self.current_user, text=data['text'],
+        author = (self.current_user.username if hasattr(self.current_user, 'username')
+                  else self.current_user.name)
+        comment = Comment(text=data['text'],
                           source_id=source_id, attachment_bytes=attachment_bytes,
-                          attachment_name=attachment_name)
+                          attachment_name=attachment_name,
+                          author=author)
 
         DBSession().add(comment)
         DBSession().commit()
 
         self.push_all(action='skyportal/REFRESH_SOURCE',
                       payload={'source_id': comment.source_id})
-        return self.success()
+        return self.success(data={'comment_id': comment.id})
 
     @permissions(['Comment'])
     def put(self, comment_id):

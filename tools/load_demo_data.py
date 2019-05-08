@@ -78,7 +78,7 @@ if __name__ == "__main__":
             comments = source_info.pop('comments')
 
             s = Source(**source_info, groups=[g])
-            s.comments = [Comment(text=comment, user=group_admin_user)
+            s.comments = [Comment(text=comment, author=group_admin_user.username)
                           for comment in comments]
 
             phot_file = os.path.join(os.path.dirname(os.path.dirname(__file__)),

@@ -227,16 +227,10 @@ class Comment(Base):
     attachment_bytes = sa.Column(sa.types.LargeBinary, nullable=True)
 
     origin = sa.Column(sa.String, nullable=True)
-    user_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
-                        nullable=False, index=True)
-    user = relationship('User', back_populates='comments', cascade='all')
+    author = sa.Column(sa.String, nullable=False)
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, index=True)
     source = relationship('Source', back_populates='comments', cascade='all')
-
-
-User.comments = relationship('Comment', back_populates='user', cascade='all',
-                             order_by="Comment.created_at")
 
 
 class Photometry(Base):
