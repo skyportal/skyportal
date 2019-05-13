@@ -14,9 +14,11 @@
 An Astronomical Data Platform
 </h2>
 
-<span style="font-size: 180%;">
-Please see the <a href="https://skyportal.io">project homepage</a> for more information.
-</span>
+<p>
+  <span style="font-size: 180%;">
+  Please see the <a href="https://skyportal.io">project homepage</a> for more information.
+  </span>
+</p>
 
 <p>
   <a style="border-width:0" href="https://doi.org/10.21105/joss.01247">
@@ -24,10 +26,6 @@ Please see the <a href="https://skyportal.io">project homepage</a> for more info
   </a>
 </p>
 
-## Installation
+## Installation & Usage
 
-Please see <a href="https://skyportal.io/docs/setup.html#installation">installation docs on the website</a>.
-
-## Usage
-
-Please see <a href="https://skyportal.io/docs/usage.html">usage docs on the website</a>.
+Please refer to the <a href="https://skyportal.io/docs">project documentation</a>.
