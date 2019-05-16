@@ -100,8 +100,12 @@ class Source(Base):
     altdata = sa.Column(JSONB, nullable=True)
     created = sa.Column(ArrowType, nullable=False,
                         server_default=sa.func.now())
-
+    modified = sa.Column(sa.DateTime, nullable=False,
+                         server_default=sa.func.now(),
+                         server_onupdate=sa.func.now())
     last_detected = sa.Column(ArrowType, nullable=True)
+    origin = sa.Column(sa.String, nullable=True)
+
     dist_nearest_source = sa.Column(sa.Float, nullable=True)
     mag_nearest_source = sa.Column(sa.Float, nullable=True)
     e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
@@ -112,24 +116,7 @@ class Source(Base):
 
     score = sa.Column(sa.Float, nullable=True)
 
-    ## pan-starrs
-    sgmag1 = sa.Column(sa.Float, nullable=True)
-    srmag1 = sa.Column(sa.Float, nullable=True)
-    simag1 = sa.Column(sa.Float, nullable=True)
-    objectidps1 = sa.Column(sa.BigInteger, nullable=True)
-    sgscore1 = sa.Column(sa.Float, nullable=True)
-    distpsnr1 = sa.Column(sa.Float, nullable=True)
-
-    origin = sa.Column(sa.String, nullable=True)
-    modified = sa.Column(sa.DateTime, nullable=False,
-                         server_default=sa.func.now(),
-                         server_onupdate=sa.func.now())
-
-    simbad_class = sa.Column(sa.Unicode, nullable=True, )
-    simbad_info = sa.Column(JSONB, nullable=True)
-    gaia_info = sa.Column(JSONB, nullable=True)
-    tns_info = sa.Column(JSONB, nullable=True)
-    tns_name = sa.Column(sa.Unicode, nullable=True)
+    other_metadata = sa.Column(JSONB, nullable=True)
 
     groups = relationship('Group', secondary='group_sources', cascade='all')
     comments = relationship('Comment', back_populates='source', cascade='all',

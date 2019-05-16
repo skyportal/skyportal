@@ -206,8 +206,8 @@ class FilterSourcesHandler(BaseHandler):
             end_date = arrow.get(data['endDate'].strip())
             q = q.filter(Source.last_detected <= end_date)
         if data['simbadClass']:
-            q = q.filter(func.lower(Source.simbad_class) ==
-                         data['simbadClass'].lower())
+            q = q.filter(func.lower(Source.other_metadata['simbad_class'].astext)
+                         == data['simbadClass'].lower())
         if data['hasTNSname']:
             q = q.filter(Source.tns_name.isnot(None))
 

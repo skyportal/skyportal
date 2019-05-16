@@ -112,19 +112,20 @@ class ZTFAvro():
                            'dist_nearest_source': packet["candidate"].get("distnr"),
                            'mag_nearest_source': packet["candidate"].get("magnr"),
                            'e_mag_nearest_source': packet["candidate"].get("sigmagnr"),
-                           'sgmag1': packet["candidate"].get("sgmag1"),
-                           'srmag1': packet["candidate"].get("srmag1"),
-                           'simag1': packet["candidate"].get("simag1"),
-                           'objectidps1': packet["candidate"].get("objectidps1"),
-                           'sgscore1': packet["candidate"].get("sgscore1"),
-                           'distpsnr1': packet["candidate"].get("distpsnr1"),
-                           'score': packet['candidate']['rb']
-                           }
+                           'score': packet['candidate']['rb']}
+
+            other_metadata = {'sgmag1': packet["candidate"].get("sgmag1"),
+                              'srmag1': packet["candidate"].get("srmag1"),
+                              'simag1': packet["candidate"].get("simag1"),
+                              'objectidps1': packet["candidate"].get("objectidps1"),
+                              'sgscore1': packet["candidate"].get("sgscore1"),
+                              'distpsnr1': packet["candidate"].get("distpsnr1")}
 
             if s is None:
                 s = Source(**source_info,
                            origin=f"{os.path.basename(self.fname)}",
-                           groups=[self.ztfpack.g])
+                           groups=[self.ztfpack.g],
+                           other_metadata=other_metadata)
                 source_is_varstar = False
                 new_source = True
             else:
@@ -389,27 +390,27 @@ class ZTFAvro():
 
             # TNS
             tns = self._tns_search(s.ra_dis, s.dec_dis)
-            s.tns_info = tns
+            s.other_metadata['tns_info'] = tns
             if tns["Name"]:
-                s.tns_name = tns["Name"]
+                s.other_metadata['tns_name'] = tns["Name"]
 
             # catalog search
             result_table = customSimbad.query_region(SkyCoord(f"{s.ra_dis}d {s.dec_dis}d", frame='icrs'), radius='0d0m3s')
             if result_table:
                 try:
-                    s.simbad_class = result_table["OTYPE"][0].decode("utf-8", "ignore")
+                    s.other_metadata['simbad_class'] = result_table["OTYPE"][0].decode("utf-8", "ignore")
 
                     altdata = dict()
                     rj = result_table.to_pandas().dropna(axis='columns').iloc[0].to_json()
-                    s.simbad_info = rj
+                    s.other_metadata['simbad_info'] = rj
                 except:
                     pass
 
-            if s.simbad_class:
+            if s.other_metadata['simbad_class'].astext:
                 comments = [Comment(text=comment, source_id=packet["objectId"],
                             user=self.ztfpack.group_admin_user, ctype="classification",
                             origin=f"{os.path.basename(self.fname)}")
-                            for comment in [f"Simbad class = {s.simbad_class}"]]
+                            for comment in [f"Simbad class = {s.other_metadata['simbad_class'].astext}"]]
 
             result_table = customGaia.query_region(SkyCoord(ra=s.ra_dis, dec=s.dec_dis,
                                                             unit=(u.deg, u.deg),
@@ -419,7 +420,7 @@ class ZTFAvro():
             if result_table:
                 try:
                     rj = result_table.pop().to_pandas().dropna(axis='columns').iloc[0].to_json()
-                    s.gaia_info = rj
+                    s.other_metadata['gaia_info'] = rj
                 except:
                     pass
 

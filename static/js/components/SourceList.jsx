@@ -95,12 +95,12 @@ const SourceList = ({ sources }) => (
                 <td>{source.transient.toString()}</td>
                 <td>{(source.transient == source.varstar).toString()}</td>
                 <td>{source.is_roid.toString()}</td>
-                <td>{source.gaia_info && Number(JSON.parse(source.gaia_info)["Gmag"]).toFixed(2)}</td>
-                <td>{source.gaia_info && JSON.parse(source.gaia_info)["Teff"] && Number(JSON.parse(source.gaia_info)["Teff"]).toFixed(1)}</td>
+                <td>{source.other_metadata.gaia_info && Number(JSON.parse(source.other_metadata.gaia_info)["Gmag"]).toFixed(2)}</td>
+                <td>{source.other_metadata.gaia_info && JSON.parse(source.other_metadata.gaia_info)["Teff"] && Number(JSON.parse(source.other_metadata.gaia_info)["Teff"]).toFixed(1)}</td>
                 <td>{Number(source.score).toFixed(2)}</td>
                 <td>{source.detect_photometry_count}</td>
-                <td>{source.simbad_class}</td>
-                <td>{source.tns_name}</td>
+                <td>{source.other_metadata.simbad_class}</td>
+                <td>{source.other_metadata.tns_name}</td>
               </tr>
             ))
           }
