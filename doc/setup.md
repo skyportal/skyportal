@@ -79,7 +79,9 @@ sudo service postgresql restart
 
 ## Launch
 
-1. Initialize the database with `make db_init` (this only needs to happen once).
+1. Initialize the database with `make db_init` (this only needs to
+   happen once).
+2. Copy `config.yaml.defaults` to `config.yaml`.
 2. If you want some test data to play with, run `make load_demo_data`.
 3. Run `make log` to monitor the service and, in a separate window, `make run` to start the server.
 
@@ -87,12 +89,11 @@ Direct your browser to http://localhost:5000.
 
 ## Additional Configuration
 
-The configuration file lives in `config.yaml`; start by copying
-`config.yaml.defaults` to `config.yaml`.  The configuration file is
-meant to be self-documenting.
+The configuration file lives in `config.yaml`, and is meant to be
+self-documenting.  Please modify as you see fit.
 
-Load the file into an editor, and change `app:secret-key` to a unique
-value.
+**Before deploying this on a public server** change `app:secret-key`
+to a unique value.
 
 ### Authentication
 
