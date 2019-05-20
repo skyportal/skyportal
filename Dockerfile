@@ -1,11 +1,11 @@
-FROM ubuntu:17.10
+FROM ubuntu:18.04
 
 RUN apt-get update && \
     apt-get install -y curl build-essential software-properties-common && \
     curl -sL https://deb.nodesource.com/setup_8.x | bash - && \
     apt-get update && \
     apt-get -y upgrade && \
-    apt-get install -y python3.6 python3.6-venv python3.6-dev \
+    apt-get install -y python3 python3-venv python3-dev \
                        libpq-dev supervisor \
                        git nginx nodejs postgresql-client && \
     apt-get clean && \
