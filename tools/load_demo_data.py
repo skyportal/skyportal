@@ -68,11 +68,11 @@ if __name__ == "__main__":
 
     with status("Creating dummy sources"):
         SOURCES = [{'id': '14gqr', 'ra': 353.36647, 'dec': 33.646149, 'redshift': 0.063,
-                    'other_metadata': {'simbad_class': 'RRLyr'},
+                    'external_metadata': {'simbad': {'class': 'RRLyr'}},
                     'comments': ["No source at transient location to R>26 in LRIS imaging",
                                  "Strong calcium lines have emerged."]},
                    {'id': '16fil', 'ra': 322.718872, 'dec': 27.574113, 'redshift': 0.0,
-                    'other_metadata': {'simbad_class': 'Mira'},
+                    'external_metadata': {'simbad': {'class': 'Mira'}},
                     'comments': ["Frogs in the pond", "The eagle has landed"]}]
 
         (basedir/'static/thumbnails').mkdir(parents=True, exist_ok=True)

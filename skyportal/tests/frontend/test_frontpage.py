@@ -9,7 +9,7 @@ import skyportal
 def test_source_list(driver, user, public_source, private_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     assert 'localhost' in driver.current_url
-    simbad_class = public_source.other_metadata['simbad_class']
+    simbad_class = public_source.external_metadata['simbad']['class']
     driver.get('/')
     driver.wait_for_xpath("//div[contains(@title,'connected')]")
     driver.wait_for_xpath('//h2[contains(text(), "Sources")]')
@@ -25,7 +25,7 @@ def test_source_list(driver, user, public_source, private_source):
 def test_source_filtering_and_pagination(driver, user, public_sources_205):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     assert 'localhost' in driver.current_url
-    simbad_class = public_sources_205[0].other_metadata['simbad_class']
+    simbad_class = public_sources_205[0].external_metadata['simbad']['class']
     driver.get('/')
     driver.wait_for_xpath("//div[contains(@title,'connected')]")
     driver.wait_for_xpath('//h2[contains(text(), "Sources")]')

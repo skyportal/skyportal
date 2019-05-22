@@ -95,12 +95,12 @@ const SourceList = ({ sources }) => (
                 <td>{source.transient.toString()}</td>
                 <td>{(source.transient == source.varstar).toString()}</td>
                 <td>{source.is_roid.toString()}</td>
-                <td>{source.other_metadata.gaia_info && Number(JSON.parse(source.other_metadata.gaia_info)["Gmag"]).toFixed(2)}</td>
-                <td>{source.other_metadata.gaia_info && JSON.parse(source.other_metadata.gaia_info)["Teff"] && Number(JSON.parse(source.other_metadata.gaia_info)["Teff"]).toFixed(1)}</td>
+                <td>{source.external_metadata.gaia && Number(JSON.parse(source.external_metadata.gaia.info)["Gmag"]).toFixed(2)}</td>
+                <td>{source.external_metadata.gaia && JSON.parse(source.external_metadata.gaia.info)["Teff"] && Number(JSON.parse(source.external_metadata.gaia.info)["Teff"]).toFixed(1)}</td>
                 <td>{Number(source.score).toFixed(2)}</td>
                 <td>{source.detect_photometry_count}</td>
-                <td>{source.other_metadata.simbad_class}</td>
-                <td>{source.other_metadata.tns_name}</td>
+                <td>{source.external_metadata.simbad && source.external_metadata.simbad.class}</td>
+                <td>{source.external_metadata.tns && source.external_metadata.tns.name}</td>
               </tr>
             ))
           }

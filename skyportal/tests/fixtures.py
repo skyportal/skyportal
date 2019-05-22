@@ -76,7 +76,7 @@ class SourceFactory(factory.alchemy.SQLAlchemyModelFactory):
     ra = 0.0
     dec = 0.0
     redshift = 0.0
-    other_metadata = {'simbad_class': 'RRLyr'}
+    external_metadata = {'simbad': {'class': 'RRLyr'}}
 
     @factory.post_generation
     def add_phot_spec(source, create, value, *args, **kwargs):

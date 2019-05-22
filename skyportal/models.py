@@ -116,7 +116,7 @@ class Source(Base):
 
     score = sa.Column(sa.Float, nullable=True)
 
-    other_metadata = sa.Column(JSONB, nullable=True)
+    external_metadata = sa.Column(JSONB, nullable=True)
 
     groups = relationship('Group', secondary='group_sources', cascade='all')
     comments = relationship('Comment', back_populates='source', cascade='all',
