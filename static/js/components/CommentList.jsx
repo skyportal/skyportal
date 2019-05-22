@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import moment from 'moment-timezone'
+import moment from 'moment-timezone';
 
 import styles from './CommentList.css';
 import CommentEntry from './CommentEntry';
