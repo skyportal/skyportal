@@ -62,7 +62,7 @@ class MainContent extends React.Component {
             </Link>
             <div className={styles.websocket}>
               <WebSocket
-                url={`ws://${root}websocket`}
+                url={`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${root}websocket`}
                 auth_url={`${window.location.protocol}//${root}baselayer/socket_auth_token`}
                 messageHandler={messageHandler}
                 dispatch={store.dispatch}
