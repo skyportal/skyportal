@@ -19,7 +19,7 @@ const CommentList = ({ source_id, comments, addComment }) => {
           </span>
           &nbsp;
           <span className={styles.commentTime}>
-            {moment(created_at).calendar()}
+            {moment(created_at).add(new Date().getTimezoneOffset(), 'm').calendar()}
           </span>
         </div>
         <div className={styles.commentMessage}>
