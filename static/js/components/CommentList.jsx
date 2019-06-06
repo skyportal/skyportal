@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import moment from 'moment';
+import moment from 'moment-timezone';
 
 import styles from './CommentList.css';
 import CommentEntry from './CommentEntry';
@@ -19,7 +19,7 @@ const CommentList = ({ source_id, comments, addComment }) => {
           </span>
           &nbsp;
           <span className={styles.commentTime}>
-            {moment(created_at).calendar()}
+            {moment(created_at).tz(Intl.DateTimeFormat().resolvedOptions().timeZone).calendar()}
           </span>
         </div>
         <div className={styles.commentMessage}>

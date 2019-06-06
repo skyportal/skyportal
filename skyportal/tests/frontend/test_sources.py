@@ -3,6 +3,7 @@ import uuid
 import os
 from os.path import join as pjoin
 import time
+from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 import requests
@@ -32,7 +33,18 @@ def test_comments(driver, user, public_source):
     comment_text = 'Test comment'
     comment_box.send_keys(comment_text)
     driver.find_element_by_css_selector('[type=submit]').click()
+    comment_time = datetime.now()
     driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+    driver.wait_for_xpath('//span[contains(@class,"commentTime")]')
+    timestamp_text = driver.find_element(By.XPATH, 
+                        '//span[contains(@class,"commentTime")]').text
+    day_text, time_text = timestamp_text.split(" at ", 2)
+    timestamp = datetime.strptime(time_text, '%I:%M %p')
+    day = datetime.today()
+    if day_text == 'Yesterday':
+        day = day.AddDays(-1)
+    timestamp = datetime.combine(day, timestamp.time())
+    assert((comment_time - timestamp).total_seconds() < 30)
 
 
 def test_upload_comment_attachment(driver, user, public_source):
