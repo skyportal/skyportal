@@ -2,3 +2,7 @@
 	path = baselayer
 	url = https://github.com/cesium-ml/baselayer.git
 	branch = master
+[submodule "alert_stream"]
+	path = alert_stream
+	url = https://github.com/lsst-dm/alert_stream.git
+	branch = master
