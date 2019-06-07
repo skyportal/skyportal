@@ -92,7 +92,7 @@ class SourceHandler(BaseHandler):
             return self.error(f"Could not load source {source_id}",
                               data={"source_id": source_id_or_page_num})
 
-    @permissions(['Manage sources'])
+    @permissions(['Upload data'])
     def post(self):
         """
         ---
