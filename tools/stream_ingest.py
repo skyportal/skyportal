@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
-"""Consumes stream for printing all messages to the console.
-
-Note that consumers with the same group ID share a stream.
-To run multiple consumers each printing all messages,
+"""Note that consumers with the same group ID share a stream.
+To run multiple consumers each ingesting all messages,
 each consumer needs a different group.
 """
 
