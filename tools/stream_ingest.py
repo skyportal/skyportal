@@ -11,7 +11,15 @@ import argparse
 import sys
 import os
 import requests
+
 from lsst.alert.stream import alertConsumer
+import baselayer
+from baselayer.app.config import load_config
+from skyportal.models import init_db, Token
+from skyportal.model_util import create_token
+
+
+conn = init_db(**load_config()['database'])
 
 
 def msg_text(message):
@@ -41,8 +49,11 @@ def write_stamp_file(stamp_dict, output_dir):
 
 
 def post_to_skyportal(data):
-    print('data:\n\n', data)
-    token = '162e21d8-aab8-426a-89aa-5e46be70f515'
+    token = Token.query.filter(Token.name=='alert_stream_token').first()
+    if not token:
+        token = create_token(1, ['Upload data'], name='alert_stream_token')
+    else:
+        token = token.id
     headers = {'Authorization': f'token {token}'}
     r = requests.post('http://localhost:5000/api/sources',
                       headers=headers,
@@ -50,7 +61,7 @@ def post_to_skyportal(data):
                             'dec': data['diaSource']['decl'],
                             'id': str(data['alertId']),
                             'group_ids': [1]})
-    print("\n\nRESPONSE:\n\n", r.json(), "\n\n")
+    print(data['alertId'], r.json())
 
 
 def alert_filter(alert, stampdir=None):
@@ -109,7 +120,6 @@ def main():
                     if msg_count % args.interval == 0:
                         # Apply filter to each alert
                         alert_filter(msg, args.stampDir)
-                        print('\n\n\n\n\nMSG:\n\n\n', msg, '\n\n\n\n\n')
 
             except alertConsumer.EopError as e:
                 # Write when reaching end of partition
