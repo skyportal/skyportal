@@ -1,0 +1,31 @@
+version: '3.1'
+
+services:
+  stream_producer:
+    image: alert_stream
+    volumes:
+      - ./alert_stream/data:/home/alert_stream/data:ro
+    networks:
+      - default
+    command: python bin/sendAlertStream.py kafka:29092 my-stream
+
+  stream_filter:
+    image: alert_stream
+    volumes:
+      - ./alert_stream/data:/home/alert_stream/data:ro
+    networks:
+      - default
+    command: python bin/filterStream.py kafka:29092 my-stream 1
+
+  stream_printer:
+    image: alert_stream
+    volumes:
+      - ./alert_stream/data:/home/alert_stream/data:ro
+    networks:
+      - default
+    command: python bin/printStream.py kafka:29092 Filter001 1
+
+
+networks:
+  default:
+    external: false
