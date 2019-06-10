@@ -58,7 +58,7 @@ const SurveyLinkList = ({ ra, dec, id }) => {
       />
       <SurveyLink
         name="DECam"
-        url={`http://legacysurvey.org/viewer?ra=${ra}&dec=${dec}&zoom=14&layer=decals-dr2`}
+        url={`http://legacysurvey.org/viewer?ra=${ra}&dec=${dec}&zoom=14`}
       />
       <SurveyLink
         name="SkyView"
