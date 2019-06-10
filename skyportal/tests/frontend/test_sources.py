@@ -36,7 +36,7 @@ def test_comments(driver, user, public_source):
     comment_time = datetime.now()
     driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     driver.wait_for_xpath('//span[contains(@class,"commentTime")]')
-    timestamp_text = driver.find_element(By.XPATH, 
+    timestamp_text = driver.find_element(By.XPATH,
                         '//span[contains(@class,"commentTime")]').text
     day_text, time_text = timestamp_text.split(" at ", 2)
     timestamp = datetime.strptime(time_text, '%I:%M %p')
@@ -44,7 +44,7 @@ def test_comments(driver, user, public_source):
     if day_text == 'Yesterday':
         day = day.AddDays(-1)
     timestamp = datetime.combine(day, timestamp.time())
-    assert((comment_time - timestamp).total_seconds() < 30)
+    assert((comment_time - timestamp).total_seconds() < 60)
 
 
 def test_upload_comment_attachment(driver, user, public_source):
