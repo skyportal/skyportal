@@ -131,7 +131,8 @@ class SourceHandler(BaseHandler):
         DBSession.add(s)
         DBSession().commit()
 
-        return self.success(data={"id": s.id}, action='skyportal/FETCH_SOURCES')
+        self.push_all(action='skyportal/FETCH_SOURCES')
+        return self.success(data={"id": s.id})
 
     @permissions(['Manage sources'])
     def put(self, source_id):
