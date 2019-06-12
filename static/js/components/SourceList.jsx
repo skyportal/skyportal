@@ -109,7 +109,7 @@ const SourceList = ({ sources }) => (
     }
     {
       sources.queryInProgress &&
-      <div><br /><br /><i>Query in progress...</i></div>
+      <div><br /><br /><i>Fetching results...</i></div>
     }
   </div>
 );

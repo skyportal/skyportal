@@ -36,6 +36,10 @@ const CustomMessageHandler = (dispatch, getState) => (
         dispatch(Action.fetchUserProfile());
         break;
       }
+      case Action.FETCH_SOURCES: {
+        dispatch(Action.fetchSources());
+        break;
+      }
       default:
         // eslint-disable-next-line no-console
         console.log('Unknown message received through flow:', message);
