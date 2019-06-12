@@ -3,7 +3,7 @@ from astropy.time import Time
 from sqlalchemy.orm import joinedload
 from baselayer.app.access import permissions, auth_or_token
 from .base import BaseHandler
-from ..models import DBSession, Photometry, Comment
+from ..models import DBSession, Photometry, Comment, Instrument, Source
 
 
 class PhotometryHandler(BaseHandler):
@@ -41,6 +41,12 @@ class PhotometryHandler(BaseHandler):
             data['mag'] = [data['mag']]
             data['e_mag'] = [data['e_mag']]
         ids = []
+        instrument = Instrument.query.get(data['instrumentID'])
+        if not instrument:
+            raise Exception('Invalid instrument ID') # TODO: handle invalid instrument ID
+        source = Source.query.get(data['sourceID'])
+        if not source:
+            raise Exception('Invalid source ID') # TODO: handle invalid source ID
         for i in range(len(data['mag'])):
             if not (data['timeScale'] == 'tcb' and data['timeFormat'] == 'iso'):
                 t = Time(data['obsTime'][i],
@@ -49,17 +55,17 @@ class PhotometryHandler(BaseHandler):
                 obs_time = t.tcb.iso
             else:
                 obs_time = data['obsTime'][i]
-            p = Photometry(source_id=data['sourceID'],
+            p = Photometry(source=source,
                            observed_at=obs_time,
                            mag=data['mag'][i],
                            e_mag=data['e_mag'][i],
                            time_scale='tcb',
                            time_format='iso',
-                           instrument_id=data['instrumentID'],
+                           instrument=instrument,
                            lim_mag=data['lim_mag'],
                            filter=data['filter'])
-            ids.append(p.id)
             DBSession().add(p)
+            ids.append(p.id)
         DBSession().commit()
 
         return self.success(data={"ids": ids})
