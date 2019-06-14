@@ -37,7 +37,14 @@ const CustomMessageHandler = (dispatch, getState) => (
         break;
       }
       case Action.FETCH_SOURCES: {
-        dispatch(Action.fetchSources());
+        // Check if user is on front page, and if so, re-submit current search
+        if (window.location.href.endsWith(`${window.location.host}/`) ||
+            window.location.href.endsWith(window.location.host) ||
+            window.location.href.includes(`${window.location.host}/?`)) {
+          document.getElementById("sourceFilterFormSubmitButton").click();
+        } else {
+          dispatch(Action.fetchSources());
+        }
         break;
       }
       default:

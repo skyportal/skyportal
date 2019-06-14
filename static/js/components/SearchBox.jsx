@@ -63,7 +63,7 @@ class SearchBox extends React.Component {
     return (
       <div>
         <h4>Filter Sources</h4>
-        <form onSubmit={this.handleSubmit}>
+        <form id="sourceFilterForm" onSubmit={this.handleSubmit}>
           <table>
             <tbody>
               <tr>
@@ -183,7 +183,7 @@ class SearchBox extends React.Component {
               </tr>
               <tr>
                 <td>
-                  <input type="submit" disabled={this.props.sources.queryInProgress} />
+                  <input type="submit" id="sourceFilterFormSubmitButton" disabled={this.props.sources.queryInProgress} />
                 </td>
                 <td>
                   <button type="button" onClick={this.handleReset}>Reset</button>
