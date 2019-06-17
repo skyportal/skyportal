@@ -51,14 +51,23 @@ const Plot = (props) => {
   if (error) {
     return (
       <b>
-Error: Could not fetch plotting data
+        Error: Could not fetch plotting data
       </b>
     );
   }
   if (!plotData) {
     return (
       <b>
-Please wait while we load your plotting data...
+        Please wait while we load your plotting data...
+      </b>
+    );
+  }
+  if (!plotData.docs_json) {
+    return (
+      <b>
+        <i>
+          No data to plot.
+        </i>
       </b>
     );
   }
@@ -79,7 +88,7 @@ Please wait while we load your plotting data...
             );
           }
         }
-          }
+      }
     />
   );
 };

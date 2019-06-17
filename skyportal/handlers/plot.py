@@ -11,7 +11,7 @@ class PlotPhotometryHandler(BaseHandler):
     def get(self, source_id):
         docs_json, render_items, custom_model_js = plot.photometry_plot(source_id)
         if docs_json is None:
-            self.error(f"Note: no photometry available for source {source_id}")
+            self.success(data={'docs_json': None, 'url': self.request.path})
         else:
             self.success(data={'docs_json': docs_json, 'render_items': render_items,
                                'custom_model_js': custom_model_js,
@@ -23,7 +23,7 @@ class PlotSpectroscopyHandler(BaseHandler):
     def get(self, source_id):
         docs_json, render_items, custom_model_js = plot.spectroscopy_plot(source_id)
         if docs_json is None:
-            self.error(f"Note: no spectroscopy available for source {source_id}")
+            self.success(data={'docs_json': None, 'url': self.request.path})
         else:
             self.success(data={'docs_json': docs_json, 'render_items': render_items,
                                'custom_model_js': custom_model_js,
