@@ -8,6 +8,8 @@ from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import backref, relationship, mapper
 from sqlalchemy.dialects.postgresql import JSON, JSONB
 from sqlalchemy_utils import ArrowType
+from sqlalchemy import Index
+from sqlalchemy import func
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
@@ -178,6 +180,10 @@ class Source(Base):
         except (ValueError, ConnectionError) as e:
             return None
 
+    q3c = Index('q3c_ang2ipix_idx', func.q3c_ang2ipix(ra, dec))
+
+
+
 
 GroupSource = join_model('group_sources', Group, Source)
 """User.sources defines the logic for whether a user has access to a source;
@@ -242,7 +248,7 @@ class Photometry(Base):
     mag = sa.Column(sa.Float)
     e_mag = sa.Column(sa.Float)
     lim_mag = sa.Column(sa.Float)
-    
+
     ra = sa.Column(sa.Float)
     dec = sa.Column(sa.Float)
 
