@@ -10,15 +10,19 @@ const logger = createLogger({
 });
 
 
+// Compose function that hooks up the Chrome/FF developer plugin
+// https://github.com/zalmoxisus/redux-devtools-extension
+
+// eslint-disable-next-line no-underscore-dangle
+const composeWithDevTools = (window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ ||
+                             compose);
+
 export default function configureStore(preloadedState) {
   return createStore(
     rootReducer,
     preloadedState,
-    compose(
-      applyMiddleware(thunk, logger),
-      // Enable the Chrome developer plugin
-      // https://github.com/zalmoxisus/redux-devtools-extension
-      window.devToolsExtension ? window.devToolsExtension() : f => f,
+    composeWithDevTools(
+      applyMiddleware(thunk, logger)
     )
   );
 }
