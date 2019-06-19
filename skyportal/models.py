@@ -180,7 +180,7 @@ class Source(Base):
         except (ValueError, ConnectionError) as e:
             return None
 
-    q3c = Index('q3c_ang2ipix_idx', func.q3c_ang2ipix(ra, dec))
+    q3c = Index('q3c_ang2ipix_sources_idx', func.q3c_ang2ipix(ra, dec))
 
 
 
@@ -281,7 +281,7 @@ class Photometry(Base):
     instrument = relationship('Instrument', back_populates='photometry',
                               cascade='all')
     thumbnails = relationship('Thumbnail', cascade='all')
-    q3c = Index('q3c_ang2ipix_idx', func.q3c_ang2ipix(ra, dec))
+    q3c = Index('q3c_ang2ipix_photometry_idx', func.q3c_ang2ipix(ra, dec))
 
 
 class Spectrum(Base):
