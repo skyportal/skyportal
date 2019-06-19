@@ -245,8 +245,13 @@ class Photometry(Base):
     mjd = sa.Column(sa.Float)  # mjd date
     time_format = sa.Column(sa.String, default='iso')
     time_scale = sa.Column(sa.String, default='utc')
-    mag = sa.Column(sa.Float)
-    e_mag = sa.Column(sa.Float)
+
+    flux = sa.Column(sa.Float)
+    fluxerr = sa.Column(sa.Float)
+
+    zp = sa.Column(sa.Float)
+    zpsys = sa.Column(sa.Text) # should be enum 
+
     lim_mag = sa.Column(sa.Float)
 
     ra = sa.Column(sa.Float)
