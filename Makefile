@@ -37,6 +37,10 @@ docker-local: ## Build docker images locally
 	cd baselayer && git submodule update --init --remote
 	docker build -t skyportal/web .
 
+db_init: 
+	@$(MAKE) --no-print-directory -C . -f baselayer/Makefile $@
+	@PYTHONPATH=. tools/db_init.py
+
 doc_reqs:
 	pip install -q -r requirements.docs.txt
 
