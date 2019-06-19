@@ -122,11 +122,11 @@ with status(f'Checking database extensions..'):
 
                 pwd = os.getcwd()
                 os.chdir(q3cpath / 'q3c-1.8.0')
-                run(f'{sudo} make', check=True)
-                run(f'{sudo} make install', check=True)
+                run(f'make', check=True)
+                run(f'make install', check=True)
                 os.chdir(pwd)
 
-                run(f'psql {flags} -c "CREATE EXTENSION Q3C"', check=True)
+                run(f'{sudo} psql {flags} -c "CREATE EXTENSION Q3C"', check=True)
 
 
 
