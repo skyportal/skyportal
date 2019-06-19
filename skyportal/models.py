@@ -85,14 +85,14 @@ User.groups = relationship('Group', secondary='group_users', cascade='all',
 class Source(Base):
     id = sa.Column(sa.String, primary_key=True)
     # TODO should this column type be decimal? fixed-precison numeric
-    ra = sa.Column(sa.Float)
-    dec = sa.Column(sa.Float)
+    ra = sa.Column(psql.DOUBLE_PRECISION)
+    dec = sa.Column(psql.DOUBLE_PRECISION)
 
-    ra_dis = sa.Column(sa.Float)
-    dec_dis = sa.Column(sa.Float)
+    ra_dis = sa.Column(psql.DOUBLE_PRECISION)
+    dec_dis = sa.Column(psql.DOUBLE_PRECISION)
 
-    ra_err = sa.Column(sa.Float, nullable=True)
-    dec_err = sa.Column(sa.Float, nullable=True)
+    ra_err = sa.Column(psql.DOUBLE_PRECISION, nullable=True)
+    dec_err = sa.Column(psql.DOUBLE_PRECISION, nullable=True)
 
     offset = sa.Column(sa.Float, default=0.0)
     redshift = sa.Column(sa.Float, nullable=True)
@@ -243,8 +243,11 @@ class Photometry(Base):
     e_mag = sa.Column(sa.Float)
     lim_mag = sa.Column(sa.Float)
     
-    ra = sa.Column(sa.Float)
-    dec = sa.Column(sa.Float)
+    ra = sa.Column(psql.DOUBLE_PRECISION)
+    dec = sa.Column(psql.DOUBLE_PRECISION)
+
+    ra_err = sa.Column(psql.DOUBLE_PRECISION)
+    dec_err = sa.Column(psql.DOUBLE_PRECISION)
 
     filter = sa.Column(sa.String)  # TODO Enum?
     isdiffpos = sa.Column(sa.Boolean, default=True)  # candidate from position?
