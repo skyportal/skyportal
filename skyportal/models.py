@@ -281,6 +281,7 @@ class Photometry(Base):
     instrument = relationship('Instrument', back_populates='photometry',
                               cascade='all')
     thumbnails = relationship('Thumbnail', cascade='all')
+    q3c = Index('q3c_ang2ipix_idx', func.q3c_ang2ipix(ra, dec))
 
 
 class Spectrum(Base):
