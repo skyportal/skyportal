@@ -65,6 +65,7 @@ class PhotometryHandler(BaseHandler):
                            lim_mag=data['lim_mag'],
                            filter=data['filter'])
             DBSession().add(p)
+            DBSession().flush()
             ids.append(p.id)
         DBSession().commit()
 
