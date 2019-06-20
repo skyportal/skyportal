@@ -56,7 +56,7 @@ load_demo_data: | dependencies
 
 alert_stream_demo: ## Create & spin up alert stream containers & consumer script
 alert_stream_demo: | dependencies
-	if ! [ -d ./alert_stream/sample-avro-alert ]; then git clone https://github.com/lsst-dm/sample-avro-alert.git ./alert_stream/sample-avro-alert; fi && docker-compose -p alert_stream -f kafka_zookeeper_docker-compose.yml up -d && docker build -f alert_stream/Dockerfile -t "alert_stream" ./alert_stream && docker-compose -p alert_stream -f alert_stream_docker-compose.yml up -d && PYTHONPATH=./alert_stream/python:./alert_stream/sample-avro-alert/python:. python tools/stream_ingest.py 127.0.0.1:9092 Filter001 1 --group=my-stream
+	if ! [ -d ./alert_stream/sample-avro-alert ]; then git clone https://github.com/lsst-dm/sample-avro-alert.git ./alert_stream/sample-avro-alert; fi && docker-compose -p alert_stream -f kafka_zookeeper_docker-compose.yml up -d && docker build -f alert_stream/Dockerfile -t "alert_stream" ./alert_stream && docker-compose -p alert_stream -f alert_stream_docker-compose.yml up -d && PYTHONPATH=./alert_stream/python:./alert_stream/sample-avro-alert/python:. python tools/stream_ingest.py 127.0.0.1:9092 Filter001 1 --group=my-stream --stampDir=./static/thumbnails
 
 # https://www.gnu.org/software/make/manual/html_node/Overriding-Makefiles.html
 %: baselayer/Makefile force
