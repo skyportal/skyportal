@@ -57,7 +57,7 @@ export function fetchSource(id) {
 }
 
 export function fetchSources(page=1) {
-  return API.GET(`/api/sources/${page}/page`, FETCH_SOURCES);
+  return API.GET(`/api/sources?page=${page}`, FETCH_SOURCES);
 }
 
 export function fetchGroup(id) {

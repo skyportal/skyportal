@@ -15,22 +15,17 @@ SOURCES_PER_PAGE = 100
 
 class SourceHandler(BaseHandler):
     @auth_or_token
-    def get(self, source_id_or_page_num=None, page_number_given=False):
+    def get(self, source_id=None):
         """
         ---
         single:
           description: Retrieve a source
           parameters:
             - in: path
-              name: source_id_or_page_num
+              name: source_id
               required: false
               schema:
                 type: integer
-            - in: path
-              name: page_number_given
-              required: false
-              schema:
-                type: boolean
           responses:
             200:
               content:
@@ -42,10 +37,16 @@ class SourceHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all sources
+          parameters:
+            - in: query
+              name: page
+              schema:
+                type: integer
+              description: Queries are limited to 100 per page. This selects the page to download.
           responses:
             200:
               content:
-                application/json:
+               application/json:
                   schema: ArrayOfSources
             400:
               content:
@@ -53,8 +54,8 @@ class SourceHandler(BaseHandler):
                   schema: Error
         """
         info = {}
-        if source_id_or_page_num is not None and not page_number_given:
-            source_id = source_id_or_page_num
+        page_number = self.get_query_argument('page', None)
+        if source_id:
             info['sources'] = Source.get_if_owned_by(
                 source_id, self.current_user,
                 options=[joinedload(Source.comments),
@@ -62,8 +63,8 @@ class SourceHandler(BaseHandler):
                          .joinedload(Thumbnail.photometry)
                          .joinedload(Photometry.instrument)
                          .joinedload(Instrument.telescope)])
-        elif page_number_given:
-            page = int(source_id_or_page_num)
+        elif page_number:
+            page = int(page_number)
             q = Source.query.filter(Source.id.in_(DBSession.query(
                 GroupSource.source_id).filter(GroupSource.group_id.in_(
                     [g.id for g in self.current_user.groups]))))
