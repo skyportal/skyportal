@@ -37,10 +37,16 @@ class SourceHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all sources
+          parameters:
+            - in: query
+              name: page
+              schema:
+                type: integer
+              description: Queries are limited to 100 per page. This selects the page to download.
           responses:
             200:
               content:
-                application/json:
+               application/json:
                   schema: ArrayOfSources
             400:
               content:
