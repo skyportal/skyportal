@@ -24,12 +24,11 @@ class SysInfoHandler(BaseHandler):
                         sources_table_empty:
                           type: boolean
                           description: Boolean indicating whether sources table is empty
-                        skyportal_version:
+                        version:
                           type: string
                           description: Current SkyPortal version
         """
         info = {
             'sources_table_empty': DBSession.query(Source).first() is None,
-            'skyportal_version': skyportal.__version__
         }
         return self.success(data=info)
