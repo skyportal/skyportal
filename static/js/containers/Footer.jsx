@@ -5,7 +5,7 @@ import Footer from '../components/Footer';
 
 const mapStateToProps = (state, ownProps) => (
   {
-    version: state.sysinfo.skyportal_version
+    version: state.sysinfo.version
   }
 );
 
