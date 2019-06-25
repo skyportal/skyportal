@@ -109,17 +109,5 @@ with status(f'Checking database extensions..'):
         q3c_installed = 'q3c' in out
 
         if not q3c_installed:
-
-            pwd = os.getcwd()
-            q3cpath = Path(__file__).parent / '../q3c'
-            os.chdir(q3cpath)
-            makeres = run(f'make')
-            print(makeres.stdout)
-            print(makeres.stderr)
-            makeres = run(f'make install')
-            print(makeres.stdout)
-            print(makeres.stderr)
-            os.chdir(pwd)
-
-            run(f'{sudo} psql {flags} -c "CREATE EXTENSION Q3C"', check=True)
-
+            print('q3c is not installed in your postgres backend. Please install q3c.')
+            sys.exit(1)
