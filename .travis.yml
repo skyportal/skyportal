@@ -46,6 +46,7 @@ cache:
     - $HOME/.local
     - node_modules
 addons:
+  postgresql: "10"
   apt:
     packages:
     - ccache
@@ -55,7 +56,10 @@ addons:
     - unzip
     - libnss3
     - libgconf-2-4
-    - postgresql-q3c
+    - postgresql-10
+    - postgresql-client-10
+    - postgresql-contrib
+    - postgresql-10-q3c
   firefox: latest
 services:
   - xvfb
