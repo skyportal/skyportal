@@ -109,24 +109,13 @@ with status(f'Checking database extensions..'):
         q3c_installed = 'q3c' in out
 
         if not q3c_installed:
-            r = requests.get(q3c_url)
 
-            with tempfile.NamedTemporaryFile() as f:
-                f.write(r.content)
-                f.seek(0)
-                q3cpath = Path(f'/tmp/{uuid4().hex}')
-                q3cpath.mkdir(exist_ok=True, parents=True)
+            pwd = os.getcwd()
+            q3cpath = Path(__file__).parent / '../q3c'
+            os.chdir(q3cpath)
+            run(f'make', check=True)
+            run(f'make install', check=True)
+            os.chdir(pwd)
 
-                with tarfile.open(f.name) as tar:
-                    tar.extractall(q3cpath)
-
-                pwd = os.getcwd()
-                os.chdir(q3cpath / 'q3c-1.8.0')
-                run(f'make', check=True)
-                run(f'make install', check=True)
-                os.chdir(pwd)
-
-                run(f'{sudo} psql {flags} -c "CREATE EXTENSION Q3C"', check=True)
-
-
+            run(f'{sudo} psql {flags} -c "CREATE EXTENSION Q3C"', check=True)
 
