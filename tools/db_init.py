@@ -93,6 +93,26 @@ def test_db(database):
 
         sys.exit(1)
 
+with status(f'Creating database extensions..'):
+
+    plat = run('uname').stdout
+    if b'Darwin' in plat:
+        sudo = ''
+    else:
+        sudo = 'sudo -u postgres'
+
+
+    for current_db in all_dbs:
+        # create q3c extension
+        result = run(f'{sudo} psql {flags} -c "CREATE EXTENSION q3c"')
+        out = str(result.stdout)
+        err = str(result.stderr)
+        q3c_created = 'CREATE EXTENSION' in out
+        if not q3c_created:
+            print('could not create q3c extension. please check user permissions.')
+            print(out, err)
+            sys.exit(1)
+
 with status(f'Checking database extensions..'):
 
     plat = run('uname').stdout
