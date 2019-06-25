@@ -2,3 +2,6 @@
 	path = baselayer
 	url = https://github.com/cesium-ml/baselayer.git
 	branch = master
+[submodule "q3c"]
+	path = q3c
+	url = git@github.com:segasai/q3c.git
