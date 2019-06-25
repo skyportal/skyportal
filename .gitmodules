@@ -4,5 +4,5 @@
 	branch = master
 [submodule "q3c"]
 	path = q3c
-	url = https://github.com/cesium-ml/baselayer.git
+	url = https://github.com/segasai/q3c.git
 	tag = v1.8.0
