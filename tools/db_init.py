@@ -93,6 +93,12 @@ def test_db(database):
 
         sys.exit(1)
 
+with status('Making skyportal postgres user superuser..'):
+    # make skyportal user superuser to add extensions
+    result = run("sudo su postgres -c \"psql -c 'ALTER ROLE skyportal SUPERUSER'\"")
+    print(str(result.stdout), str(result.stderr))
+
+
 with status(f'Creating database extensions..'):
 
     plat = run('uname').stdout
@@ -100,7 +106,6 @@ with status(f'Creating database extensions..'):
         sudo = ''
     else:
         sudo = 'sudo -u postgres'
-
 
     for current_db in all_dbs:
         # create q3c extension
