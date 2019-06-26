@@ -93,10 +93,10 @@ def test_db(database):
 
         sys.exit(1)
 
-with status('Making skyportal postgres user superuser..'):
-    # make skyportal user superuser to add extensions
-    result = run("sudo su postgres -c \"psql -c 'ALTER ROLE skyportal SUPERUSER'\"")
-    print(str(result.stdout), str(result.stderr))
+# with status('Making skyportal postgres user superuser..'):
+#     # make skyportal user superuser to add extensions
+#     result = run("sudo su postgres -c \"psql -c 'ALTER ROLE skyportal SUPERUSER'\"")
+#     print(str(result.stdout), str(result.stderr))
 
 
 with status(f'Creating database extensions..'):
@@ -113,10 +113,11 @@ with status(f'Creating database extensions..'):
         out = str(result.stdout)
         err = str(result.stderr)
         q3c_created = 'CREATE EXTENSION' in out
-        if not q3c_created:
-            print('could not create q3c extension. please check user permissions.')
+        if q3c_created:
+            print('q3c extension successfully created.')
             print(out, err)
-            sys.exit(1)
+        elif 'extension "q3c" already exists' in out:
+            pass
 
 with status(f'Checking database extensions..'):
 
