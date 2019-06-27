@@ -59,7 +59,9 @@ addons:
     - postgresql-10
     - postgresql-client-10
     - postgresql-contrib
-    - postgresql-10-q3c
+    - postgresql-server-dev-10
+    - postgresql-common
+#    - postgresql-10-q3c
   firefox: latest
 services:
   - xvfb

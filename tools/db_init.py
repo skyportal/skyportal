@@ -98,6 +98,19 @@ def test_db(database):
 #     result = run("sudo su postgres -c \"psql -c 'ALTER ROLE skyportal SUPERUSER'\"")
 #     print(str(result.stdout), str(result.stderr))
 
+with status('Clone q3c and run installation commands...'):
+    pwd = os.getcwd()
+    q3cpath = Path(__file__).parent / '../q3c'
+    run(f'git clone https://github.com/segasai/q3c.git {q3cpath}')
+    os.chdir(q3cpath)
+    makeres = run(f'make')
+    print(makeres.stdout)
+    print(makeres.stderr)
+    makeres = run(f'sudo make install')
+    print(makeres.stdout)
+    print(makeres.stderr)
+    os.chdir(pwd)
+
 
 with status(f'Creating database extensions..'):
 
@@ -117,6 +130,7 @@ with status(f'Creating database extensions..'):
             print('q3c extension successfully created.')
             print(out, err)
         elif 'extension "q3c" already exists' in out:
+            print('q3c already exists...')
             pass
 
 with status(f'Checking database extensions..'):
