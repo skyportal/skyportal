@@ -7,11 +7,9 @@ import requests
 
 import baselayer
 from baselayer.app.config import load_config
+from baselayer.app.model_util import clear_tables
 from skyportal.models import init_db, Token, Source, Telescope, Instrument, Photometry, DBSession
-from skyportal.model_util import create_token
-
-
-conn = init_db(**load_config()['database'])
+from skyportal.model_util import create_token, load_demo_data
 
 
 def test_stream_ingest():
@@ -20,17 +18,9 @@ def test_stream_ingest():
         os.path.abspath(inspect.getsourcefile(lambda:0)))))
     print(skyportal_root)
     os.chdir(skyportal_root)
-    print("\n\n", os.getcwd(), "\n\n")
-    db_proc = subprocess.run('make load_demo_data',
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE,
-                             shell=True)
-    print('\n\nmake load_demo_data output:\n\n', str(db_proc.stdout), str(db_proc.stderr), '\n\n')
-    run_proc = subprocess.Popen("make run",
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                shell=True)
-    time.sleep(10)
+    print("\n\ncwd:", os.getcwd(), "\n\n")
+    cfg = load_config([os.path.join(skyportal_root, 'test_config.yaml')])
+    load_demo_data(cfg)
     # Retrieve or generate token for SkyPortal API auth
     token = Token.query.filter(Token.name == 'alert_stream_token').first()
     if not token:
@@ -48,21 +38,22 @@ def test_stream_ingest():
 
     for i in range(30):
         out = str(proc.stdout.readline())
-        app_out = str(run_proc.stdout.readline())
         r = requests.get('http://localhost:5000/api/sources',
                          headers={'Authorization': f'token {token}'})
         n_sources = len(r.json()['data']['sources'])
         if n_sources > 2:
             print("\n\n\n\nYES!!!!!!!!!!\n\n\n\n")
-            run_proc.terminate()
             proc.terminate()
+            clear_tables()
             break
         else:
-            print("\n\n\nNot yet...", out, '\n', app_out, "\n\n\n")
+            print("\n\n\nNot yet...", out, "\n\n\n")
             time.sleep(2)
     else:
         print('Stream ingestion test failed - no ouput indicating success.')
         print(out)
+        proc.terminate()
+        clear_tables()
         raise Exception('test failed...')
 
 
