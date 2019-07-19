@@ -122,7 +122,7 @@ class SourceHandler(BaseHandler):
         DBSession().add(s)
         DBSession().commit()
 
-        return self.success(data={"id": s.id}, action='cesium/FETCH_SOURCES')
+        return self.success(data={"id": s.id}, action='skyportal/FETCH_SOURCES')
 
     @permissions(['Manage sources'])
     def put(self, source_id):
@@ -154,7 +154,8 @@ class SourceHandler(BaseHandler):
                               f'{e.normalized_messages()}')
         DBSession().commit()
 
-        return self.success(action='cesium/FETCH_SOURCES')
+        return self.success(action='skyportal/REFRESH_SOURCE',
+                            payload={'source_id': source_id})
 
     @permissions(['Manage sources'])
     def delete(self, source_id):
@@ -176,7 +177,7 @@ class SourceHandler(BaseHandler):
         DBSession().delete(s)
         DBSession().commit()
 
-        return self.success(action='cesium/FETCH_SOURCES')
+        return self.success(action='skyportal/FETCH_SOURCES')
 
 
 class FilterSourcesHandler(BaseHandler):

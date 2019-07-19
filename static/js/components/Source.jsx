@@ -12,7 +12,7 @@ import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 
 
-const Source = ({ ra, dec, redshift, thumbnails, id }) => {
+const Source = ({ ra, dec, redshift, thumbnails, id, score, updateScore }) => {
   if (id === undefined) {
     return (
       <div>
@@ -84,6 +84,15 @@ Redshift:
         </div>
 
         <div className={styles.rightColumn}>
+          <div>
+            <input
+              type="checkbox"
+              id="highPriorityCheckbox"
+              checked={Boolean(score)}
+              onClick={(event) => updateScore(id, +event.target.checked)}
+            />
+            &nbsp;High Priority
+          </div>
 
           <Responsive
             element={FoldBox}
@@ -106,7 +115,9 @@ Source.propTypes = {
   dec: PropTypes.number.isRequired,
   redshift: PropTypes.number,
   id: PropTypes.string.isRequired,
-  thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired
+  thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired,
+  score: PropTypes.number.isRequired,
+  updateScore: PropTypes.func.isRequired
 };
 
 Source.defaultProps = {

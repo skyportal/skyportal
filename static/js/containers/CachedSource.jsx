@@ -38,7 +38,12 @@ Loading...
         </div>
       );
     } else {
-      return <Source {...this.props.source} />;
+      return (
+        <Source
+          updateScore={this.props.updateScore}
+          {...this.props.source}
+        />
+      );
     }
   }
 }
@@ -51,7 +56,8 @@ CachedSource.propTypes = {
   source: PropTypes.shape({
     id: PropTypes.string
   }).isRequired,
-  loadError: PropTypes.bool.isRequired
+  loadError: PropTypes.bool.isRequired,
+  updateScore: PropTypes.func.isRequired
 };
 
 const mapStateToProps = (state, ownProps) => (
@@ -61,4 +67,13 @@ const mapStateToProps = (state, ownProps) => (
   }
 );
 
-export default connect(mapStateToProps)(CachedSource);
+const mapDispatchToProps = (dispatch, ownProps) => (
+  {
+    updateScore: (id, value) => dispatch(
+      Action.updateScore({ source_id: id, value })
+    ),
+    dispatch
+  }
+);
+
+export default connect(mapStateToProps, mapDispatchToProps)(CachedSource);

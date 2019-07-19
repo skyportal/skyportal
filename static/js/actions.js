@@ -50,6 +50,9 @@ export const FILTER_SOURCES_OK = 'skyportal/FILTER_SOURCES_OK';
 export const FETCH_USER = 'skyportal/FETCH_USER';
 export const FETCH_USER_OK = 'skyportal/FETCH_USER_OK';
 
+export const UPDATE_SCORE = 'skyportal/UPDATE_SCORE';
+export const UPDATE_SCORE_OK = 'skyportal/UPDATE_SCORE_OK';
+
 export const ROTATE_LOGO = 'skyportal/ROTATE_LOGO';
 
 export function fetchSource(id) {
@@ -123,6 +126,10 @@ export function addComment(form) {
 
 export function addNewGroup(form_data) {
   return API.POST('/api/groups', ADD_GROUP, form_data);
+}
+
+export function updateScore({ source_id, value }) {
+  return API.PUT(`/api/sources/${source_id}`, UPDATE_SCORE, { score: value });
 }
 
 export function createToken(form_data) {
