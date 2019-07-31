@@ -1,24 +1,24 @@
 import { connect } from 'react-redux';
 
 import SearchBox from '../components/SearchBox';
-import * as Action from '../actions';
+import * as fetchSourcesActions from '../ducks/fetchSources';
 
 
 const mapDispatchToProps = (dispatch, ownProps) => (
   {
     filterSources: formState => dispatch(
-      Action.submitSourceFilterParams(formState)
+      fetchSourcesActions.submitSourceFilterParams(formState)
     ),
     fetchSources: formState => dispatch(
-      Action.fetchSources()
+      fetchSourcesActions.fetchSources()
     ),
     nextPage: (formState) => {
       formState = { ...formState, pageNumber: ownProps.sources.pageNumber + 1 };
-      return dispatch(Action.submitSourceFilterParams(formState));
+      return dispatch(fetchSourcesActions.submitSourceFilterParams(formState));
     },
     previousPage: (formState) => {
       formState = { ...formState, pageNumber: ownProps.sources.pageNumber - 1 };
-      return dispatch(Action.submitSourceFilterParams(formState));
+      return dispatch(fetchSourcesActions.submitSourceFilterParams(formState));
     }
   }
 );

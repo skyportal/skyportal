@@ -2,6 +2,8 @@ import { combineReducers } from 'redux';
 
 import { reducer as notificationsReducer } from 'baselayer/components/Notifications';
 
+import sourcesReducer from './ducks/fetchSources';
+
 import * as Action from './actions';
 
 // Reducer for currently displayed source
@@ -20,39 +22,6 @@ export function sourceReducer(state={ source: null, loadError: false }, action) 
         ...state,
         loadError: true
       };
-    default:
-      return state;
-  }
-}
-
-export function sourcesReducer(state={ latest: null,
-                                       pageNumber: 1,
-                                       lastPage: false,
-                                       totalMatches: null,
-                                       sourceNumberingStart: null,
-                                       sourcesNumberingEnd: null },
-                               action) {
-  switch (action.type) {
-    case Action.FETCH_SOURCES: {
-      return {
-        ...state,
-        queryInProgress: (action.parameters.body.pageNumber === undefined)
-      };
-    }
-    case Action.FETCH_SOURCES_OK: {
-      const { sources, pageNumber, lastPage, totalMatches, sourceNumberingStart,
-              sourceNumberingEnd } = action.data;
-      return {
-        ...state,
-        latest: sources,
-        queryInProgress: false,
-        pageNumber,
-        lastPage,
-        totalMatches,
-        sourceNumberingStart,
-        sourceNumberingEnd
-      };
-    }
     default:
       return state;
   }

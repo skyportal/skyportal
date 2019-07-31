@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
-import * as Action from '../actions';
+import * as fetchSourcesActions from '../ducks/fetchSources';
 
 import SourceList from '../components/SourceList';
 import UninitializedDBMessage from '../components/UninitializedDBMessage';
@@ -11,7 +11,7 @@ import UninitializedDBMessage from '../components/UninitializedDBMessage';
 class SourceListContainer extends React.Component {
   componentDidMount() {
     if (!this.props.sources.latest) {
-      this.props.dispatch(Action.fetchSources());
+      this.props.dispatch(fetchSourcesActions.fetchSources());
     }
   }
 

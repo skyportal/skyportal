@@ -1,8 +1,5 @@
 import * as API from './API';
 
-export const FETCH_SOURCES = 'skyportal/FETCH_SOURCES';
-export const FETCH_SOURCES_OK = 'skyportal/FETCH_SOURCES_OK';
-
 export const REFRESH_SOURCE = 'skyportal/REFRESH_SOURCE';
 export const REFRESH_GROUP = 'skyportal/REFRESH_GROUP';
 
@@ -54,10 +51,6 @@ export const ROTATE_LOGO = 'skyportal/ROTATE_LOGO';
 
 export function fetchSource(id) {
   return API.GET(`/api/sources/${id}`, FETCH_LOADED_SOURCE);
-}
-
-export function fetchSources(page=1) {
-  return API.GET(`/api/sources?page=${page}`, FETCH_SOURCES);
 }
 
 export function fetchGroup(id) {
@@ -151,8 +144,4 @@ export function deleteToken(tokenID) {
     `/api/internal/tokens/${tokenID}`,
     DELETE_TOKEN
   );
-}
-
-export function submitSourceFilterParams(formData) {
-  return API.POST(`/api/sources/filter`, FETCH_SOURCES, formData);
 }
