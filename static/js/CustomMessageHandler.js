@@ -1,5 +1,6 @@
 import MessageHandler from 'baselayer/MessageHandler';
 import * as Action from './actions';
+import * as fetchSourceActions from './ducks/fetchSource';
 
 
 const CustomMessageHandler = (dispatch, getState) => (
@@ -15,7 +16,7 @@ const CustomMessageHandler = (dispatch, getState) => (
         const loaded_source_id = state.source ? state.source.id : null;
 
         if (loaded_source_id === payload.source_id) {
-          dispatch(Action.fetchSource(loaded_source_id));
+          dispatch(fetchSourceActions.fetchSource(loaded_source_id));
         }
         break;
       }

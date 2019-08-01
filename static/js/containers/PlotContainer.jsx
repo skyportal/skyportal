@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
 import Plot from '../components/Plot';
-import * as Actions from '../actions';
+import * as Actions from '../ducks/fetchSourcePlots';
 
 
 class PlotContainer extends Component {

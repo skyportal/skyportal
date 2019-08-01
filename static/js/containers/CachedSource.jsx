@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
 import Source from '../components/Source';
-import * as Action from '../actions';
+import * as Action from '../ducks/fetchSource';
 
 
 class CachedSource extends React.Component {

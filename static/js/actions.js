@@ -3,14 +3,6 @@ import * as API from './API';
 export const REFRESH_SOURCE = 'skyportal/REFRESH_SOURCE';
 export const REFRESH_GROUP = 'skyportal/REFRESH_GROUP';
 
-export const FETCH_LOADED_SOURCE = 'skyportal/FETCH_LOADED_SOURCE';
-export const FETCH_LOADED_SOURCE_OK = 'skyportal/FETCH_LOADED_SOURCE_OK';
-export const FETCH_LOADED_SOURCE_FAIL = 'skyportal/FETCH_LOADED_SOURCE_FAIL';
-
-export const FETCH_SOURCE_PLOT = 'skyportal/FETCH_SOURCE_PLOT';
-export const FETCH_SOURCE_PLOT_OK = 'skyportal/FETCH_SOURCE_PLOT_OK';
-export const FETCH_SOURCE_PLOT_FAIL = 'skyportal/FETCH_SOURCE_PLOT_FAIL';
-
 export const FETCH_GROUPS = 'skyportal/FETCH_GROUPS';
 export const FETCH_GROUPS_OK = 'skyportal/FETCH_GROUPS_OK';
 
@@ -49,20 +41,12 @@ export const FETCH_USER_OK = 'skyportal/FETCH_USER_OK';
 
 export const ROTATE_LOGO = 'skyportal/ROTATE_LOGO';
 
-export function fetchSource(id) {
-  return API.GET(`/api/sources/${id}`, FETCH_LOADED_SOURCE);
-}
-
 export function fetchGroup(id) {
   return API.GET(`/api/groups/${id}`, FETCH_GROUP);
 }
 
 export function fetchUser(id) {
   return API.GET(`/api/user/${id}`, FETCH_USER);
-}
-
-export function fetchPlotData(url) {
-  return API.GET(url, FETCH_SOURCE_PLOT);
 }
 
 export function fetchGroups() {

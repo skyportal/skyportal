@@ -3,29 +3,10 @@ import { combineReducers } from 'redux';
 import { reducer as notificationsReducer } from 'baselayer/components/Notifications';
 
 import sourcesReducer from './ducks/fetchSources';
+import sourceReducer from './ducks/fetchSource';
+import plotsReducer from './ducks/fetchSourcePlots';
 
 import * as Action from './actions';
-
-// Reducer for currently displayed source
-export function sourceReducer(state={ source: null, loadError: false }, action) {
-  switch (action.type) {
-    case Action.FETCH_LOADED_SOURCE_OK: {
-      const source = action.data.sources;
-      return {
-        ...state,
-        ...source,
-        loadError: false
-      };
-    }
-    case Action.FETCH_LOADED_SOURCE_FAIL:
-      return {
-        ...state,
-        loadError: true
-      };
-    default:
-      return state;
-  }
-}
 
 export function sysinfoReducer(state={}, action) {
   switch (action.type) {
@@ -80,33 +61,6 @@ export function profileReducer(state={ username: '', roles: [], acls: [], tokens
   switch (action.type) {
     case Action.FETCH_USER_PROFILE_OK:
       return action.data;
-    default:
-      return state;
-  }
-}
-
-export function plotsReducer(state={ plotData: {}, plotIDList: [] }, action) {
-  switch (action.type) {
-    case Action.FETCH_SOURCE_PLOT_OK: {
-      const plotData = { ...state.plotData };
-      const plotIDList = state.plotIDList.slice();
-
-      const { url, ...incomingData } = action.data;
-      plotIDList.unshift(url);
-      plotData[url] = incomingData;
-      if (plotIDList.length >= 40) {
-        plotIDList.length = 40;
-        Object.keys(plotData).forEach((ID) => {
-          if (!plotIDList.includes(ID)) {
-            delete plotData[ID];
-          }
-        });
-      }
-      return {
-        plotData,
-        plotIDList
-      };
-    }
     default:
       return state;
   }
