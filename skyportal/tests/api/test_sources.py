@@ -46,3 +46,23 @@ def test_cannot_update_source_without_permission(view_only_token, public_source)
                        token=view_only_token)
     assert status == 400
     assert data['status'] == 'error'
+
+
+def test_token_user_post_new_source(upload_data_token, view_only_token, public_group):
+    status, data = api('POST', 'sources',
+                       data={'id': 'testID',
+                             'ra': 234.22,
+                             'dec': -22.33,
+                             'redshift': 3,
+                             'transient': False,
+                             'ra_dis': 2.3,
+                             'group_ids': [public_group.id]},
+                       token=upload_data_token)
+    assert status == 200
+    assert data['data']['id'] == 'testID'
+
+    status, data = api('GET', 'sources/testID',
+                       token=view_only_token)
+    assert status == 200
+    assert data['data']['sources']['id'] == 'testID'
+    npt.assert_almost_equal(data['data']['sources']['ra'], 234.22)
