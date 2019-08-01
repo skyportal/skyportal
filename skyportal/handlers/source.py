@@ -7,7 +7,7 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from .base import BaseHandler
 from ..models import (DBSession, Comment, Instrument, Photometry, Source,
-                      Thumbnail, GroupSource, Token, User)
+                      Thumbnail, GroupSource, Token, User, Group)
 
 
 SOURCES_PER_PAGE = 100
@@ -37,16 +37,10 @@ class SourceHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all sources
-          parameters:
-            - in: query
-              name: page
-              schema:
-                type: integer
-              description: Queries are limited to 100 per page. This selects the page to download.
           responses:
             200:
               content:
-               application/json:
+                application/json:
                   schema: ArrayOfSources
             400:
               content:
@@ -93,7 +87,7 @@ class SourceHandler(BaseHandler):
             return self.error(f"Could not load source {source_id}",
                               data={"source_id": source_id_or_page_num})
 
-    @permissions(['Manage sources'])
+    @permissions(['Upload data'])
     def post(self):
         """
         ---
@@ -116,13 +110,24 @@ class SourceHandler(BaseHandler):
                           description: New source ID
         """
         data = self.get_json()
-
-        s = Source(ra=data['sourceRA'], dec=data['sourceDec'],
-                   redshift=data.get('redshift'))
-        DBSession().add(s)
+        schema = Source.__schema__()
+        try:
+            group_ids = data.pop('group_ids')
+        except KeyError:
+            group_ids = []
+        try:
+            s = schema.load(data)
+        except ValidationError as e:
+            return self.error('Invalid/missing parameters: '
+                              f'{e.normalized_messages()}')
+        if group_ids:
+            groups = Group.query.filter(Group.id.in_(group_ids)).all()
+            s.groups = groups
+        DBSession.add(s)
         DBSession().commit()
 
-        return self.success(data={"id": s.id}, action='cesium/FETCH_SOURCES')
+        self.push_all(action='skyportal/FETCH_SOURCES')
+        return self.success(data={"id": s.id})
 
     @permissions(['Manage sources'])
     def put(self, source_id):
@@ -154,7 +159,7 @@ class SourceHandler(BaseHandler):
                               f'{e.normalized_messages()}')
         DBSession().commit()
 
-        return self.success(action='cesium/FETCH_SOURCES')
+        return self.success(action='skyportal/FETCH_SOURCES')
 
     @permissions(['Manage sources'])
     def delete(self, source_id):
@@ -176,7 +181,7 @@ class SourceHandler(BaseHandler):
         DBSession().delete(s)
         DBSession().commit()
 
-        return self.success(action='cesium/FETCH_SOURCES')
+        return self.success(action='skyportal/FETCH_SOURCES')
 
 
 class FilterSourcesHandler(BaseHandler):

@@ -17,7 +17,7 @@ const CommentListContainer = ({ source, addComment }) => (
 CommentListContainer.propTypes = {
   source: PropTypes.shape({
     comments: PropTypes.arrayOf(PropTypes.object),
-    source_id: PropTypes.string
+    id: PropTypes.string
   }).isRequired,
   addComment: PropTypes.func.isRequired
 };
