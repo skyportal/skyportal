@@ -114,15 +114,14 @@ class SourceHandler(BaseHandler):
         try:
             group_ids = data.pop('group_ids')
         except KeyError:
-            group_ids = []
+            return self.error("Missing required fields: group_ids is a required field.")
         try:
             s = schema.load(data)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
-        if group_ids:
-            groups = Group.query.filter(Group.id.in_(group_ids)).all()
-            s.groups = groups
+        groups = Group.query.filter(Group.id.in_(group_ids)).all()
+        s.groups = groups
         DBSession.add(s)
         DBSession().commit()
 
