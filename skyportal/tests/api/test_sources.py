@@ -68,15 +68,19 @@ def test_token_user_post_new_source(upload_data_token, view_only_token, public_g
     npt.assert_almost_equal(data['data']['sources']['ra'], 234.22)
 
 
-def test_cannot_add_source_without_group_id(upload_data_token, view_only_token,
-                                            public_group):
+def test_add_source_without_group_id(upload_data_token, view_only_token,
+                                     public_group):
     status, data = api('POST', 'sources',
-                       data={'id': 'testID',
+                       data={'id': 'testID2',
                              'ra': 234.22,
                              'dec': -22.33,
                              'redshift': 3,
                              'transient': False,
                              'ra_dis': 2.3},
                        token=upload_data_token)
-    assert status == 400
-    assert data['message'] == 'Missing required fields: group_ids is a required field.'
+    assert status == 200
+    status, data = api('GET', 'sources/testID2',
+                       token=view_only_token)
+    assert status == 200
+    assert data['data']['sources']['id'] == 'testID2'
+    npt.assert_almost_equal(data['data']['sources']['ra'], 234.22)
