@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
-import * as sourceActions from '../ducks/fetchSource';
+import * as sourceActions from '../ducks/source';
 import CommentList from '../components/CommentList';
 
 

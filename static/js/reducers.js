@@ -3,7 +3,7 @@ import { combineReducers } from 'redux';
 import { reducer as notificationsReducer } from 'baselayer/components/Notifications';
 
 import sourcesReducer from './ducks/fetchSources';
-import sourceReducer from './ducks/fetchSource';
+import sourceReducer from './ducks/source';
 import plotsReducer from './ducks/fetchSourcePlots';
 import groupReducer from './ducks/fetchGroup';
 import groupsReducer from './ducks/fetchGroups';

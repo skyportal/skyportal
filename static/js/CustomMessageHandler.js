@@ -1,6 +1,6 @@
 import MessageHandler from 'baselayer/MessageHandler';
 import * as Action from './actions';
-import * as fetchSourceActions from './ducks/fetchSource';
+import * as sourceActions from './ducks/source';
 import * as fetchGroupActions from './ducks/fetchGroup';
 import * as fetchGroupsActions from './ducks/fetchGroups';
 
@@ -13,12 +13,12 @@ const CustomMessageHandler = (dispatch, getState) => (
     console.log('WebSocket', action, payload);
 
     switch (action) {
-      case fetchSourceActions.REFRESH_SOURCE: {
+      case sourceActions.REFRESH_SOURCE: {
         const state = getState();
         const loaded_source_id = state.source ? state.source.id : null;
 
         if (loaded_source_id === payload.source_id) {
-          dispatch(fetchSourceActions.fetchSource(loaded_source_id));
+          dispatch(sourceActions.fetchSource(loaded_source_id));
         }
         break;
       }
