@@ -1,13 +1,5 @@
 import * as API from './API';
-
-export const REFRESH_SOURCE = 'skyportal/REFRESH_SOURCE';
-export const REFRESH_GROUP = 'skyportal/REFRESH_GROUP';
-
-export const FETCH_GROUPS = 'skyportal/FETCH_GROUPS';
-export const FETCH_GROUPS_OK = 'skyportal/FETCH_GROUPS_OK';
-
-export const FETCH_GROUP = 'skyportal/FETCH_GROUP';
-export const FETCH_GROUP_OK = 'skyportal/FETCH_GROUP_OK';
+import * as fetchGroupsActions from './ducks/fetchGroups';
 
 export const ADD_COMMENT = 'skyportal/ADD_COMMENT';
 export const ADD_COMMENT_OK = 'skyportal/ADD_COMMENT_OK';
@@ -41,16 +33,9 @@ export const FETCH_USER_OK = 'skyportal/FETCH_USER_OK';
 
 export const ROTATE_LOGO = 'skyportal/ROTATE_LOGO';
 
-export function fetchGroup(id) {
-  return API.GET(`/api/groups/${id}`, FETCH_GROUP);
-}
 
 export function fetchUser(id) {
   return API.GET(`/api/user/${id}`, FETCH_USER);
-}
-
-export function fetchGroups() {
-  return API.GET('/api/groups', FETCH_GROUPS);
 }
 
 export function fetchUserProfile() {
@@ -65,7 +50,7 @@ export function hydrate() {
   return (dispatch) => {
     dispatch(fetchSystemInfo());
     dispatch(fetchUserProfile());
-    dispatch(fetchGroups());
+    dispatch(fetchGroupsActions.fetchGroups());
   };
 }
 

@@ -1,5 +1,6 @@
 import * as API from '../API';
 
+export const REFRESH_SOURCE = 'skyportal/REFRESH_SOURCE';
 
 export const FETCH_LOADED_SOURCE = 'skyportal/FETCH_LOADED_SOURCE';
 export const FETCH_LOADED_SOURCE_OK = 'skyportal/FETCH_LOADED_SOURCE_OK';

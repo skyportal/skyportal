@@ -1,6 +1,8 @@
 import MessageHandler from 'baselayer/MessageHandler';
 import * as Action from './actions';
 import * as fetchSourceActions from './ducks/fetchSource';
+import * as fetchGroupActions from './ducks/fetchGroup';
+import * as fetchGroupsActions from './ducks/fetchGroups';
 
 
 const CustomMessageHandler = (dispatch, getState) => (
@@ -11,7 +13,7 @@ const CustomMessageHandler = (dispatch, getState) => (
     console.log('WebSocket', action, payload);
 
     switch (action) {
-      case Action.REFRESH_SOURCE: {
+      case fetchSourceActions.REFRESH_SOURCE: {
         const state = getState();
         const loaded_source_id = state.source ? state.source.id : null;
 
@@ -20,17 +22,17 @@ const CustomMessageHandler = (dispatch, getState) => (
         }
         break;
       }
-      case Action.REFRESH_GROUP: {
+      case fetchGroupActions.REFRESH_GROUP: {
         const state = getState();
         const loaded_group_id = state.group ? state.group.id : null;
 
         if (loaded_group_id === payload.group_id) {
-          dispatch(Action.fetchGroup(loaded_group_id));
+          dispatch(fetchGroupActions.fetchGroup(loaded_group_id));
         }
         break;
       }
-      case Action.FETCH_GROUPS: {
-        dispatch(Action.fetchGroups());
+      case fetchGroupsActions.FETCH_GROUPS: {
+        dispatch(fetchGroupsActions.fetchGroups());
         break;
       }
       case Action.FETCH_USER_PROFILE: {

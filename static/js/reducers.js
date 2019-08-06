@@ -5,6 +5,8 @@ import { reducer as notificationsReducer } from 'baselayer/components/Notificati
 import sourcesReducer from './ducks/fetchSources';
 import sourceReducer from './ducks/fetchSource';
 import plotsReducer from './ducks/fetchSourcePlots';
+import groupReducer from './ducks/fetchGroup';
+import groupsReducer from './ducks/fetchGroups';
 
 import * as Action from './actions';
 
@@ -12,32 +14,6 @@ export function sysinfoReducer(state={}, action) {
   switch (action.type) {
     case Action.FETCH_SYSINFO_OK:
       return action.data;
-    default:
-      return state;
-  }
-}
-
-export function groupReducer(state={}, action) {
-  switch (action.type) {
-    case Action.FETCH_GROUP_OK: {
-      const { group } = action.data;
-      return group;
-    }
-    default:
-      return state;
-  }
-}
-
-export function groupsReducer(state={ latest: [], all: null }, action) {
-  switch (action.type) {
-    case Action.FETCH_GROUPS_OK: {
-      const { user_groups, all_groups } = action.data;
-      return {
-        ...state,
-        latest: user_groups,
-        all: all_groups
-      };
-    }
     default:
       return state;
   }
