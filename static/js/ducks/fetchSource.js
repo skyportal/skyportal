@@ -6,6 +6,33 @@ export const FETCH_LOADED_SOURCE = 'skyportal/FETCH_LOADED_SOURCE';
 export const FETCH_LOADED_SOURCE_OK = 'skyportal/FETCH_LOADED_SOURCE_OK';
 export const FETCH_LOADED_SOURCE_FAIL = 'skyportal/FETCH_LOADED_SOURCE_FAIL';
 
+export const ADD_COMMENT = 'skyportal/ADD_COMMENT';
+export const ADD_COMMENT_OK = 'skyportal/ADD_COMMENT_OK';
+
+export function addComment(form) {
+  function fileReaderPromise(file) {
+    return new Promise((resolve) => {
+      const filereader = new FileReader();
+      filereader.readAsDataURL(file);
+      filereader.onloadend = () => resolve(
+        { body: filereader.result, name: file.name }
+      );
+    });
+  }
+  if (form.attachment) {
+    return (dispatch) => {
+      fileReaderPromise(form.attachment)
+        .then(fileData => {
+          form.attachment = fileData;
+          dispatch(API.POST(`/api/comment`, ADD_COMMENT, form));
+        });
+    };
+  } else {
+    return API.POST(`/api/comment`, ADD_COMMENT, form);
+  }
+}
+
+
 export function fetchSource(id) {
   return API.GET(`/api/sources/${id}`, FETCH_LOADED_SOURCE);
 }

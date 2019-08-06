@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
-import * as Action from '../actions';
+import * as sourceActions from '../ducks/fetchSource';
 import CommentList from '../components/CommentList';
 
 
@@ -31,7 +31,7 @@ const mapStateToProps = (state, ownProps) => (
 const mapDispatchToProps = (dispatch, ownProps) => (
   {
     addComment: formData => dispatch(
-      Action.addComment({ source_id: ownProps.source, ...formData })
+      sourceActions.addComment({ source_id: ownProps.source, ...formData })
     )
   }
 );

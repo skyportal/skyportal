@@ -1,9 +1,6 @@
 import * as API from './API';
 import * as fetchGroupsActions from './ducks/fetchGroups';
 
-export const ADD_COMMENT = 'skyportal/ADD_COMMENT';
-export const ADD_COMMENT_OK = 'skyportal/ADD_COMMENT_OK';
-
 export const ADD_GROUP = 'skyportal/ADD_GROUP';
 export const ADD_GROUP_OK = 'skyportal/ADD_GROUP_OK';
 
@@ -58,29 +55,6 @@ export function rotateLogo() {
   return {
     type: ROTATE_LOGO
   };
-}
-
-export function addComment(form) {
-  function fileReaderPromise(file) {
-    return new Promise((resolve) => {
-      const filereader = new FileReader();
-      filereader.readAsDataURL(file);
-      filereader.onloadend = () => resolve(
-        { body: filereader.result, name: file.name }
-      );
-    });
-  }
-  if (form.attachment) {
-    return (dispatch) => {
-      fileReaderPromise(form.attachment)
-        .then(fileData => {
-          form.attachment = fileData;
-          dispatch(API.POST(`/api/comment`, ADD_COMMENT, form));
-        });
-    };
-  } else {
-    return API.POST(`/api/comment`, ADD_COMMENT, form);
-  }
 }
 
 export function addNewGroup(form_data) {
