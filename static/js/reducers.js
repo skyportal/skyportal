@@ -6,7 +6,7 @@ import sourcesReducer from './ducks/fetchSources';
 import sourceReducer from './ducks/source';
 import plotsReducer from './ducks/fetchSourcePlots';
 import groupReducer from './ducks/fetchGroup';
-import groupsReducer from './ducks/fetchGroups';
+import groupsReducer from './ducks/groups';
 
 import * as Action from './actions';
 

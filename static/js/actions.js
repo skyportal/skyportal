@@ -1,5 +1,5 @@
 import * as API from './API';
-import * as fetchGroupsActions from './ducks/fetchGroups';
+import * as groupsActions from './ducks/groups';
 
 export const ADD_GROUP = 'skyportal/ADD_GROUP';
 export const ADD_GROUP_OK = 'skyportal/ADD_GROUP_OK';
@@ -47,7 +47,7 @@ export function hydrate() {
   return (dispatch) => {
     dispatch(fetchSystemInfo());
     dispatch(fetchUserProfile());
-    dispatch(fetchGroupsActions.fetchGroups());
+    dispatch(groupsActions.fetchGroups());
   };
 }
 

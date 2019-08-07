@@ -2,7 +2,7 @@ import MessageHandler from 'baselayer/MessageHandler';
 import * as Action from './actions';
 import * as sourceActions from './ducks/source';
 import * as fetchGroupActions from './ducks/fetchGroup';
-import * as fetchGroupsActions from './ducks/fetchGroups';
+import * as groupsActions from './ducks/groups';
 
 
 const CustomMessageHandler = (dispatch, getState) => (
@@ -31,8 +31,8 @@ const CustomMessageHandler = (dispatch, getState) => (
         }
         break;
       }
-      case fetchGroupsActions.FETCH_GROUPS: {
-        dispatch(fetchGroupsActions.fetchGroups());
+      case groupsActions.FETCH_GROUPS: {
+        dispatch(groupsActions.fetchGroups());
         break;
       }
       case Action.FETCH_USER_PROFILE: {
