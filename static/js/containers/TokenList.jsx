@@ -1,7 +1,7 @@
 import { connect } from 'react-redux';
 
 import TokenList from '../components/TokenList';
-import * as Action from '../actions';
+import * as Action from '../ducks/groups';
 
 
 const mapDispatchToProps = (dispatch, ownProps) => (

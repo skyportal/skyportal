@@ -5,12 +5,12 @@ export const FETCH_SOURCES = 'skyportal/FETCH_SOURCES';
 export const FETCH_SOURCES_OK = 'skyportal/FETCH_SOURCES_OK';
 
 export default function reducer(state={ latest: null,
-                                       pageNumber: 1,
-                                       lastPage: false,
-                                       totalMatches: null,
-                                       sourceNumberingStart: null,
-                                       sourcesNumberingEnd: null },
-                               action) {
+                                        pageNumber: 1,
+                                        lastPage: false,
+                                        totalMatches: null,
+                                        sourceNumberingStart: null,
+                                        sourcesNumberingEnd: null },
+                                action) {
   switch (action.type) {
     case FETCH_SOURCES: {
       return {

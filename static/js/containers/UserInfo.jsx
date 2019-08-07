@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
-import * as Action from '../actions';
+import * as Action from '../ducks/user';
 import UserInfoComponent from '../components/UserInfo';
 
 

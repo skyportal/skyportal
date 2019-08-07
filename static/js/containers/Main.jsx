@@ -19,6 +19,7 @@ import configureStore from '../store';
 
 // Actions
 import * as Action from '../actions';
+import * as rotateLogoActions from '../ducks/rotatelogo';
 
 // Message Handler
 import CustomMessageHandler from '../CustomMessageHandler';
@@ -46,7 +47,7 @@ const messageHandler = (
 class MainContent extends React.Component {
   async componentDidMount() {
     await store.dispatch(Action.hydrate());
-    store.dispatch(Action.rotateLogo());
+    store.dispatch(rotateLogoActions.rotateLogo());
   }
 
   render() {

@@ -1,7 +1,7 @@
 import { connect } from 'react-redux';
 
 import NewGroupUserForm from '../components/NewGroupUserForm';
-import * as Action from '../actions';
+import * as Action from '../ducks/groups';
 
 
 const mapDispatchToProps = (dispatch, ownProps) => (

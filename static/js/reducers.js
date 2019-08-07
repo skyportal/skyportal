@@ -7,53 +7,11 @@ import sourceReducer from './ducks/source';
 import plotsReducer from './ducks/fetchSourcePlots';
 import groupReducer from './ducks/fetchGroup';
 import groupsReducer from './ducks/groups';
+import profileReducer from './ducks/userProfile';
+import usersReducer from './ducks/user';
+import sysinfoReducer from './ducks/sysinfo';
+import rotateLogoReducer from './ducks/rotatelogo';
 
-import * as Action from './actions';
-
-export function sysinfoReducer(state={}, action) {
-  switch (action.type) {
-    case Action.FETCH_SYSINFO_OK:
-      return action.data;
-    default:
-      return state;
-  }
-}
-
-export function usersReducer(state={}, action) {
-  switch (action.type) {
-    case Action.FETCH_USER_OK: {
-      const { id, ...user_info } = action.data.user;
-      return {
-        ...state,
-        [id]: user_info
-      };
-    }
-    default:
-      return state;
-  }
-}
-
-export function profileReducer(state={ username: '', roles: [], acls: [], tokens: [] }, action) {
-  switch (action.type) {
-    case Action.FETCH_USER_PROFILE_OK:
-      return action.data;
-    default:
-      return state;
-  }
-}
-
-export function miscReducer(state={ rotateLogo: false }, action) {
-  switch (action.type) {
-    case Action.ROTATE_LOGO: {
-      return {
-        ...state,
-        rotateLogo: true
-      };
-    }
-    default:
-      return state;
-  }
-}
 
 const root = combineReducers({
   source: sourceReducer,
@@ -63,7 +21,7 @@ const root = combineReducers({
   notifications: notificationsReducer,
   profile: profileReducer,
   plots: plotsReducer,
-  misc: miscReducer,
+  misc: rotateLogoReducer,
   users: usersReducer,
   sysinfo: sysinfoReducer
 });

@@ -1,6 +1,6 @@
 import { connect } from 'react-redux';
 
-import * as Action from '../actions';
+import * as Action from '../ducks/groups';
 import NewGroupForm from '../components/NewGroupForm';
 
 
