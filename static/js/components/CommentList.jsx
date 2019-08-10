@@ -6,7 +6,7 @@ import styles from './CommentList.css';
 import CommentEntry from './CommentEntry';
 
 
-const CommentList = ({ source_id, comments, addComment }) => {
+const CommentList = ({ source_id, comments, addComment, userProfile, deleteComment }) => {
   comments = comments || [];
   const items = comments.map(
     ({ id, author, created_at, text, attachment_name, attachment_bytes }) => (
@@ -25,14 +25,19 @@ const CommentList = ({ source_id, comments, addComment }) => {
         <div className={styles.commentMessage}>
           {text}
         </div>
-        {attachment_name &&
+        {userProfile.roles.includes("Super admin") || userProfile.username === author ? (
+          <a href="#" onClick={() => deleteComment(id)} className={styles.commentDelete}>
+          Delete Comment
+          </a>
+        ) : null }
+        {attachment_name && (
         <div>
           Attachment:&nbsp;
           <a href={`/api/comment/${id}/download_attachment`}>
             {attachment_name}
           </a>
         </div>
-        }
+        )}
       </span>
     )
   );
@@ -55,7 +60,10 @@ CommentList.propTypes = {
     created_at: PropTypes.string.isRequired,
     text: PropTypes.string.isRequired
   })).isRequired,
-  addComment: PropTypes.func.isRequired
+  addComment: PropTypes.func.isRequired,
+  userProfile: PropTypes.shape({ username: PropTypes.string,
+    roles: PropTypes.array }).isRequired,
+  deleteComment: PropTypes.func.isRequired
 };
 
 export default CommentList;

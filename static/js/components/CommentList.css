@@ -32,3 +32,8 @@
     font-size: 80%;
     padding-right: 0.5em;
 }
+
+.commentDelete {
+    color: lightgray;
+    font-size: 70%;
+}
