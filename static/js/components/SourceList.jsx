@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 
-import SearchBox from '../containers/SearchBox';
+import SearchBox from './SearchBox';
 
 
 const SourceList = ({ sources }) => (

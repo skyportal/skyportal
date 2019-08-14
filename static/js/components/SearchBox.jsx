@@ -1,5 +1,8 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { connect } from 'react-redux';
+
+import * as Actions from '../ducks/fetchSources';
 
 
 class SearchBox extends React.Component {
@@ -236,4 +239,23 @@ SearchBox.propTypes = {
   previousPage: PropTypes.func.isRequired
 };
 
-export default SearchBox;
+const mapDispatchToProps = (dispatch, ownProps) => (
+  {
+    filterSources: formState => dispatch(
+      Actions.submitSourceFilterParams(formState)
+    ),
+    fetchSources: formState => dispatch(
+      Actions.fetchSources()
+    ),
+    nextPage: (formState) => {
+      formState = { ...formState, pageNumber: ownProps.sources.pageNumber + 1 };
+      return dispatch(Actions.submitSourceFilterParams(formState));
+    },
+    previousPage: (formState) => {
+      formState = { ...formState, pageNumber: ownProps.sources.pageNumber - 1 };
+      return dispatch(Actions.submitSourceFilterParams(formState));
+    }
+  }
+);
+
+export default connect(null, mapDispatchToProps)(SearchBox);

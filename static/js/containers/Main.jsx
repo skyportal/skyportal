@@ -18,7 +18,7 @@ import styles from './Main.css';
 import configureStore from '../store';
 
 // Actions
-import * as Action from '../actions';
+import hydrate from '../actions';
 import * as rotateLogoActions from '../ducks/rotatelogo';
 
 // Message Handler
@@ -46,7 +46,7 @@ const messageHandler = (
 
 class MainContent extends React.Component {
   async componentDidMount() {
-    await store.dispatch(Action.hydrate());
+    await store.dispatch(hydrate());
     store.dispatch(rotateLogoActions.rotateLogo());
   }
 
