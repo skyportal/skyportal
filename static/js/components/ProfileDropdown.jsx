@@ -29,7 +29,7 @@ class ProfileDropdown extends Component {
           <DropdownTrigger>
             { this.props.profile.username }
             {' '}
-&nbsp;▾
+            &nbsp;▾
           </DropdownTrigger>
 
           <DropdownContent>
