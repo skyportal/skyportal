@@ -33,7 +33,7 @@ import Group from '../components/Group';
 import SourceList from '../components/SourceList';
 import Groups from '../components/Groups';
 import Profile from '../components/Profile';
-import ProfileDropdown from './ProfileDropdown';
+import ProfileDropdown from '../components/ProfileDropdown';
 import Logo from './Logo';
 import Footer from './Footer';
 import UserInfo from './UserInfo';

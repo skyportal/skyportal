@@ -1,5 +1,4 @@
 import MessageHandler from 'baselayer/MessageHandler';
-import * as Action from './actions';
 import * as sourceActions from './ducks/source';
 import * as fetchGroupActions from './ducks/fetchGroup';
 import * as groupsActions from './ducks/groups';
