@@ -37,7 +37,7 @@ const CustomMessageHandler = (dispatch, getState) => (
         dispatch(groupsActions.fetchGroups());
         break;
       }
-      case Action.FETCH_USER_PROFILE: {
+      case userProfileActions.FETCH_USER_PROFILE: {
         dispatch(userProfileActions.fetchUserProfile());
         break;
       }

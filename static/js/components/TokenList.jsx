@@ -1,13 +1,19 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { useDispatch } from 'react-redux';
+
+import * as Action from '../ducks/groups';
 
 
-const TokenList = (props) => {
-  if (!props.tokens) {
+const TokenList = ({ tokens }) => {
+  const dispatch = useDispatch();
+  if (!tokens) {
     return <div />;
   }
 
-  const { deleteToken } = props;
+  const deleteToken = (token_id) => {
+    dispatch(Action.deleteToken(token_id));
+  };
 
   return (
     <div>
@@ -32,7 +38,7 @@ const TokenList = (props) => {
             </td>
           </tr>
           {
-            props.tokens.map(token => (
+            tokens.map(token => (
               <tr key={token.id}>
                 <td>
                   <input type="text" id={token.id} value={token.id} readOnly />&nbsp;
@@ -61,8 +67,7 @@ const TokenList = (props) => {
   );
 };
 TokenList.propTypes = {
-  tokens: PropTypes.arrayOf(PropTypes.object).isRequired,
-  deleteToken: PropTypes.func.isRequired
+  tokens: PropTypes.arrayOf(PropTypes.object).isRequired
 };
 
 const copyToken = (elementID) => {
