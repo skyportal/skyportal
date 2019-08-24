@@ -22,7 +22,7 @@ const SourceList = () => {
     if (!sources.latest) {
       dispatch(fetchSourcesActions.fetchSources());
     }
-  });
+  }, []);
 
   if (sourcesTableEmpty) {
     return <UninitializedDBMessage />;

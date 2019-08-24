@@ -28,7 +28,7 @@ import CustomMessageHandler from '../CustomMessageHandler';
 import NoMatchingRoute from '../components/NoMatchingRoute';
 import Responsive from '../components/Responsive';
 
-import CachedSource from './CachedSource';
+import Source from '../components/Source';
 import GroupContainer from './GroupContainer';
 import SourceList from '../components/SourceList';
 import Groups from '../components/Groups';
@@ -82,7 +82,7 @@ class MainContent extends React.Component {
           <Switch>
             <PropsRoute exact path="/" component={SourceList} />
             {'See https://stackoverflow.com/a/35604855 for syntax'}
-            <PropsRoute path="/source/:id" component={CachedSource} />
+            <PropsRoute path="/source/:id" component={Source} />
             <PropsRoute exact path="/groups/" component={Groups} />
             <PropsRoute path="/group/:id" component={GroupContainer} />
             <PropsRoute path="/profile" component={Profile} />
