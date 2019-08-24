@@ -4,7 +4,7 @@ const path = require('path');
 const config = {
   entry: [
     'babel-polyfill',
-    path.resolve(__dirname, 'static/js/containers/Main.jsx')
+    path.resolve(__dirname, 'static/js/components/Main.jsx')
   ],
   output: {
     path: path.resolve(__dirname, 'static/build'),

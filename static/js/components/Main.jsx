@@ -25,18 +25,18 @@ import * as rotateLogoActions from '../ducks/rotatelogo';
 import CustomMessageHandler from '../CustomMessageHandler';
 
 // Local
-import NoMatchingRoute from '../components/NoMatchingRoute';
-import Responsive from '../components/Responsive';
+import NoMatchingRoute from './NoMatchingRoute';
+import Responsive from './Responsive';
 
-import Source from '../components/Source';
-import Group from '../components/Group';
-import SourceList from '../components/SourceList';
-import Groups from '../components/Groups';
-import Profile from '../components/Profile';
-import ProfileDropdown from '../components/ProfileDropdown';
-import Logo from '../components/Logo';
-import Footer from '../components/Footer';
-import UserInfo from '../components/UserInfo';
+import Source from './Source';
+import Group from './Group';
+import SourceList from './SourceList';
+import Groups from './Groups';
+import Profile from './Profile';
+import ProfileDropdown from './ProfileDropdown';
+import Logo from './Logo';
+import Footer from './Footer';
+import UserInfo from './UserInfo';
 
 
 const store = configureStore({});
