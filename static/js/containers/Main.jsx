@@ -30,7 +30,7 @@ import Responsive from '../components/Responsive';
 
 import CachedSource from './CachedSource';
 import GroupContainer from './GroupContainer';
-import SourceListContainer from './SourceListContainer';
+import SourceList from '../components/SourceList';
 import Groups from './Groups';
 import Profile from './Profile';
 import ProfileDropdown from './ProfileDropdown';
@@ -80,7 +80,7 @@ class MainContent extends React.Component {
           <Notifications />
 
           <Switch>
-            <PropsRoute exact path="/" component={SourceListContainer} />
+            <PropsRoute exact path="/" component={SourceList} />
             {'See https://stackoverflow.com/a/35604855 for syntax'}
             <PropsRoute path="/source/:id" component={CachedSource} />
             <PropsRoute exact path="/groups/" component={Groups} />

@@ -31,7 +31,7 @@ const SearchBox = ({ sources }) => {
 
   const handleSubmit = event => {
     event.preventDefault();
-    dispatch(Actions.filterSources(formState));
+    dispatch(Actions.submitSourceFilterParams(formState));
   };
 
   const handleReset = event => {
