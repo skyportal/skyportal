@@ -31,7 +31,7 @@ import Responsive from '../components/Responsive';
 import CachedSource from './CachedSource';
 import GroupContainer from './GroupContainer';
 import SourceList from '../components/SourceList';
-import Groups from './Groups';
+import Groups from '../components/Groups';
 import Profile from './Profile';
 import ProfileDropdown from './ProfileDropdown';
 import Logo from './Logo';

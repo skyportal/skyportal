@@ -1,17 +1,17 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-import SourceListContainer from '../containers/SourceListContainer';
-import GroupList from '../containers/GroupListContainer';
+import SourceList from './SourceList';
+import GroupList from './GroupList';
 
 
-const HomePage = (props) => (
+const HomePage = ({ groups }) => (
   <div>
     <div style={{ float: "left" }}>
-      <SourceListContainer />
+      <SourceList />
     </div>
     <div style={{ float: "left" }}>
-      <GroupList title="My Groups" groups={props.groups} />
+      <GroupList title="My Groups" groups={groups} />
     </div>
   </div>
 );
