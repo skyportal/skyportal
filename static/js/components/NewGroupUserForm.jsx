@@ -1,55 +1,61 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
+import { useDispatch } from 'react-redux';
 
+import * as Action from '../ducks/groups';
 
-class NewGroupUserForm extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
+const NewGroupUserForm = ({ group_id }) => {
+  const dispatch = useDispatch();
+  const [formState, setState] = useState({
+    newUserEmail: "",
+    admin: false
+  });
+
+  const handleChange = (event) => {
+    setState({
+      ...formState,
+      newUserEmail: event.target.value
+    });
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    dispatch(Action.addGroupUser({
+      username: formState.newUserEmail,
+      admin: formState.admin,
+      group_id
+    }));
+    setState({
       newUserEmail: "",
       admin: false
-    };
+    });
+  };
 
-    this.handleChange = this.handleChange.bind(this);
-    this.handleSubmit = this.handleSubmit.bind(this);
-    this.toggleAdmin = this.toggleAdmin.bind(this);
-  }
+  const toggleAdmin = (event) => {
+    setState({
+      ...formState,
+      admin: event.target.checked
+    });
+  };
 
-  handleChange(event) {
-    this.setState({ newUserEmail: event.target.value });
-  }
-
-  handleSubmit(event) {
-    event.preventDefault();
-    this.props.addGroupUser(this.state.newUserEmail, this.state.admin);
-    this.setState({ newUserEmail: "" });
-  }
-
-  toggleAdmin(event) {
-    this.setState({ admin: event.target.checked });
-  }
-
-  render() {
-    return (
-      <div>
-        <input
-          type="text"
-          id="newUserEmail"
-          value={this.state.newUserEmail}
-          onChange={this.handleChange}
-        />
-        &nbsp;
-        <input type="checkbox" onChange={this.toggleAdmin} />
-Group Admin
-        &nbsp;&nbsp;
-        <input type="submit" onClick={this.handleSubmit} value="Add user" />
-      </div>
-    );
-  }
-}
-
+  return (
+    <div>
+      <input
+        type="text"
+        id="newUserEmail"
+        value={formState.newUserEmail}
+        onChange={handleChange}
+      />
+      &nbsp;
+      <input type="checkbox" checked={formState.admin} onChange={toggleAdmin} />
+      Group Admin
+      &nbsp;&nbsp;
+      <input type="submit" onClick={handleSubmit} value="Add user" />
+    </div>
+  );
+};
 NewGroupUserForm.propTypes = {
-  addGroupUser: PropTypes.func.isRequired
+  group_id: PropTypes.number.isRequired
 };
 
 export default NewGroupUserForm;

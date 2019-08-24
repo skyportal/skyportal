@@ -6,8 +6,10 @@ import { useSelector } from 'react-redux';
 import SourceList from './SourceList';
 
 
-const GroupList = ({ title, listSources }) => {
-  const groups = useSelector(state => state.groups.latest);
+const GroupList = ({ title, listSources, groups }) => {
+  if (!groups || groups.length === 0) {
+    groups = useSelector(state => state.groups.latest);
+  }
   return (
     <div>
       <h2>
@@ -35,10 +37,12 @@ const GroupList = ({ title, listSources }) => {
 
 GroupList.propTypes = {
   title: PropTypes.string.isRequired,
-  listSources: PropTypes.bool
+  listSources: PropTypes.bool,
+  groups: PropTypes.arrayOf(PropTypes.object)
 };
 GroupList.defaultProps = {
-  listSources: false
+  listSources: false,
+  groups: []
 };
 
 

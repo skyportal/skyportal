@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { useSelector, useDispatch } from 'react-redux';
 
 import * as Action from '../ducks/source';
-import PlotContainer from '../containers/PlotContainer';
+import Plot from './Plot';
 import CommentList from './CommentList';
 import ThumbnailList from './ThumbnailList';
 import SurveyLinkList from './SurveyLinkList';
@@ -86,7 +86,7 @@ const Source = ({ route }) => {
             title="Photometry"
             mobileProps={{ folded: true }}
           >
-            <PlotContainer className={styles.plot} url={`/api/internal/plot/photometry/${source.id}`} />
+            <Plot className={styles.plot} url={`/api/internal/plot/photometry/${source.id}`} />
           </Responsive>
 
           <Responsive
@@ -95,7 +95,7 @@ const Source = ({ route }) => {
             mobileProps={{ folded: true }}
           >
 
-            <PlotContainer className={styles.plot} url={`/api/internal/plot/spectroscopy/${source.id}`} />
+            <Plot className={styles.plot} url={`/api/internal/plot/spectroscopy/${source.id}`} />
           </Responsive>
 
           { /* TODO 1) check for dead links; 2) simplify link formatting if possible */ }

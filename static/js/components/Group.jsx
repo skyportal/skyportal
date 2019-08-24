@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import * as fetchGroupActions from '../ducks/fetchGroup';
 import * as groupsActions from '../ducks/groups';
-import NewGroupUserForm from '../containers/NewGroupUserForm';
+import NewGroupUserForm from './NewGroupUserForm';
 import styles from "./Group.css";
 
 
@@ -56,10 +56,10 @@ const Group = ({ route }) => {
                   <input
                     type="submit"
                     onClick={() => dispatch(
-                        groupsActions.deleteGroupUser(
-                          { username: user.username,
-                            group_id: group.id }
-                        )
+                      groupsActions.deleteGroupUser(
+                        { username: user.username,
+                          group_id: group.id }
+                      )
                     )}
                     value="Remove from group"
                   />
