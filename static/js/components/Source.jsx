@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 
 import PlotContainer from '../containers/PlotContainer';
-import CommentListContainer from '../containers/CommentListContainer';
+import CommentList from './CommentList';
 import ThumbnailList from './ThumbnailList';
 import SurveyLinkList from './SurveyLinkList';
 import { ra_to_hours, dec_to_hours } from '../units';
@@ -91,7 +91,7 @@ Redshift:
             mobileProps={{ folded: true }}
             className={styles.comments}
           >
-            <CommentListContainer source={id} />
+            <CommentList />
           </Responsive>
 
         </div>
