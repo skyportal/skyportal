@@ -34,9 +34,9 @@ import SourceList from '../components/SourceList';
 import Groups from '../components/Groups';
 import Profile from '../components/Profile';
 import ProfileDropdown from '../components/ProfileDropdown';
-import Logo from './Logo';
-import Footer from './Footer';
-import UserInfo from './UserInfo';
+import Logo from '../components/Logo';
+import Footer from '../components/Footer';
+import UserInfo from '../components/UserInfo';
 
 
 const store = configureStore({});
