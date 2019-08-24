@@ -29,7 +29,7 @@ import NoMatchingRoute from '../components/NoMatchingRoute';
 import Responsive from '../components/Responsive';
 
 import Source from '../components/Source';
-import GroupContainer from './GroupContainer';
+import Group from '../components/Group';
 import SourceList from '../components/SourceList';
 import Groups from '../components/Groups';
 import Profile from './Profile';
@@ -84,7 +84,7 @@ class MainContent extends React.Component {
             {'See https://stackoverflow.com/a/35604855 for syntax'}
             <PropsRoute path="/source/:id" component={Source} />
             <PropsRoute exact path="/groups/" component={Groups} />
-            <PropsRoute path="/group/:id" component={GroupContainer} />
+            <PropsRoute path="/group/:id" component={Group} />
             <PropsRoute path="/profile" component={Profile} />
             <PropsRoute path="/user/:id" component={UserInfo} />
             <PropsRoute component={NoMatchingRoute} />
