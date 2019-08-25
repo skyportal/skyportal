@@ -43,8 +43,7 @@ const Responsive = ({
             children
           );
         }
-      }
-      }
+      }}
     </MediaQuery>
   );
 };

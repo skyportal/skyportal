@@ -36,13 +36,14 @@ const CommentList = () => {
         <div className={styles.commentMessage}>
           {text}
         </div>
-        {attachment_name &&
-        <div>
-          Attachment:&nbsp;
-          <a href={`/api/comment/${id}/download_attachment`}>
-            {attachment_name}
-          </a>
-        </div>
+        {
+          attachment_name &&
+          <div>
+            Attachment:&nbsp;
+            <a href={`/api/comment/${id}/download_attachment`}>
+              {attachment_name}
+            </a>
+          </div>
         }
       </span>
     )
