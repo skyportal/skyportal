@@ -147,21 +147,21 @@ class Source(Base):
 
     def add_linked_thumbnails(self):
         sdss_thumb = Thumbnail(photometry=self.photometry[0],
-                               public_url=self.get_sdss_url(),
+                               public_url=self.sdss_url(),
                                type='sdss')
         dr8_thumb = Thumbnail(photometry=self.photometry[0],
-                              public_url=self.get_desi_dr8_url(),
+                              public_url=self.desi_dr8_url(),
                               type='dr8')
         DBSession().add_all([sdss_thumb, dr8_thumb])
         DBSession().commit()
 
-    def get_sdss_url(self):
+    def sdss_url(self):
         """Construct URL for public Sloan Digital Sky Survey (SDSS) cutout."""
         return (f"http://skyservice.pha.jhu.edu/DR9/ImgCutout/getjpeg.aspx"
                 f"?ra={self.ra}&dec={self.dec}&scale=0.3&width=200&height=200"
                 f"&opt=G&query=&Grid=on")
 
-    def get_desi_dr8_url(self):
+    def desi_dr8_url(self):
         """Construct URL for public DESI DR8 cutout."""
         return (f"http://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
                 f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz")
