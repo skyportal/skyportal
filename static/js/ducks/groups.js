@@ -13,11 +13,6 @@ export const ADD_GROUP_USER_OK = 'skyportal/ADD_GROUP_USER_OK';
 export const DELETE_GROUP_USER = 'skyportal/DELETE_GROUP_USER';
 export const DELETE_GROUP_USER_OK = 'skyportal/DELETE_GROUP_USER_OK';
 
-export const GENERATE_TOKEN = 'skyportal/GENERATE_TOKEN';
-export const GENERATE_TOKEN_OK = 'skyportal/GENERATE_TOKEN_OK';
-
-export const DELETE_TOKEN = 'skyportal/DELETE_TOKEN';
-export const DELETE_TOKEN_OK = 'skyportal/DELETE_TOKEN_OK';
 
 export function fetchGroups() {
   return API.GET('/api/groups', FETCH_GROUPS);
@@ -25,10 +20,6 @@ export function fetchGroups() {
 
 export function addNewGroup(form_data) {
   return API.POST('/api/groups', ADD_GROUP, form_data);
-}
-
-export function createToken(form_data) {
-  return API.POST('/api/internal/tokens', GENERATE_TOKEN, form_data);
 }
 
 export function addGroupUser({ username, admin, group_id }) {
@@ -47,12 +38,6 @@ export function deleteGroupUser({ username, group_id }) {
   );
 }
 
-export function deleteToken(tokenID) {
-  return API.DELETE(
-    `/api/internal/tokens/${tokenID}`,
-    DELETE_TOKEN
-  );
-}
 
 export default function reducer(state={ latest: [], all: null }, action) {
   switch (action.type) {

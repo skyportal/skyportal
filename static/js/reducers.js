@@ -9,8 +9,8 @@ import groupReducer from './ducks/fetchGroup';
 import groupsReducer from './ducks/groups';
 import profileReducer from './ducks/userProfile';
 import usersReducer from './ducks/user';
-import sysinfoReducer from './ducks/sysinfo';
-import rotateLogoReducer from './ducks/rotatelogo';
+import sysInfoReducer from './ducks/sysInfo';
+import rotateLogoReducer from './ducks/rotateLogo';
 
 
 const root = combineReducers({
@@ -23,7 +23,7 @@ const root = combineReducers({
   plots: plotsReducer,
   misc: rotateLogoReducer,
   users: usersReducer,
-  sysinfo: sysinfoReducer
+  sysinfo: sysInfoReducer
 });
 
 export default root;

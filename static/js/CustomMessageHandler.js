@@ -3,7 +3,6 @@ import * as sourceActions from './ducks/source';
 import * as fetchGroupActions from './ducks/fetchGroup';
 import * as groupsActions from './ducks/groups';
 import * as userProfileActions from './ducks/userProfile';
-import * as fetchSources from './ducks/fetchSources';
 
 
 const CustomMessageHandler = (dispatch, getState) => (
