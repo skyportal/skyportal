@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 
-import * as fetchGroupActions from '../ducks/fetchGroup';
+import * as groupActions from '../ducks/group';
 import * as groupsActions from '../ducks/groups';
 import NewGroupUserForm from './NewGroupUserForm';
 import styles from "./Group.css";
@@ -11,11 +11,11 @@ import styles from "./Group.css";
 
 const Group = ({ route }) => {
   const dispatch = useDispatch();
-  const currentUser = useSelector(state => state.profile);
-  const group = useSelector(state => state.group);
+  const currentUser = useSelector((state) => state.profile);
+  const group = useSelector((state) => state.group);
 
   useEffect(() => {
-    dispatch(fetchGroupActions.fetchGroup(route.id));
+    dispatch(groupActions.fetchGroup(route.id));
   }, []);
 
   if (group.id === undefined) {
@@ -40,7 +40,7 @@ const Group = ({ route }) => {
                 {user.username}
               </Link>&nbsp;&nbsp;
               {
-                group.group_users.filter(group_user => group_user.user_id === user.id)[0].admin &&
+                group.group_users.filter((group_user) => group_user.user_id === user.id)[0].admin &&
                 (
                   <div style={{ display: "inline-block" }}>
                     <span className={styles.badge}>

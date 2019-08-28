@@ -2,8 +2,14 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { useDispatch } from 'react-redux';
 
-import * as Action from '../ducks/userProfile';
+import * as Action from '../ducks/profile';
 
+
+const copyToken = (elementID) => {
+  const el = document.getElementById(elementID);
+  el.select();
+  document.execCommand("copy");
+};
 
 const TokenList = ({ tokens }) => {
   const dispatch = useDispatch();
@@ -17,28 +23,40 @@ const TokenList = ({ tokens }) => {
 
   return (
     <div>
-      <h3>My Tokens</h3>
+      <h3>
+        My Tokens
+      </h3>
       <table>
         <tbody>
           <tr>
             <td>
-              <b>Value</b>&nbsp;&nbsp;
+              <b>
+                Value
+              </b>&nbsp;&nbsp;
             </td>
             <td>
-              <b>Name</b>&nbsp;&nbsp;
+              <b>
+                Name
+              </b>&nbsp;&nbsp;
             </td>
             <td>
-              <b>ACLS</b>&nbsp;&nbsp;
+              <b>
+                ACLS
+              </b>&nbsp;&nbsp;
             </td>
             <td>
-              <b>Created</b>&nbsp;&nbsp;
+              <b>
+                Created
+              </b>&nbsp;&nbsp;
             </td>
             <td>
-              <b>Delete</b>
+              <b>
+                Delete
+              </b>
             </td>
           </tr>
           {
-            tokens.map(token => (
+            tokens.map((token) => (
               <tr key={token.id}>
                 <td>
                   <input type="text" id={token.id} value={token.id} readOnly />&nbsp;
@@ -56,7 +74,9 @@ const TokenList = ({ tokens }) => {
                   {token.created_at}&nbsp;&nbsp;
                 </td>
                 <td>
-                  <a href="#" onClick={() => deleteToken(token.id)}>Delete</a>
+                  <a href="#top" onClick={() => deleteToken(token.id)}>
+                    Delete
+                  </a>
                 </td>
               </tr>
             ))
@@ -68,12 +88,6 @@ const TokenList = ({ tokens }) => {
 };
 TokenList.propTypes = {
   tokens: PropTypes.arrayOf(PropTypes.object).isRequired
-};
-
-const copyToken = (elementID) => {
-  const el = document.getElementById(elementID);
-  el.select();
-  document.execCommand("copy");
 };
 
 export default TokenList;

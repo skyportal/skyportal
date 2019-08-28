@@ -1,26 +1,25 @@
 import React, { useEffect } from 'react';
-import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 
 import SearchBox from './SearchBox';
-import * as fetchSourcesActions from '../ducks/fetchSources';
+import * as sourcesActions from '../ducks/sources';
 import UninitializedDBMessage from './UninitializedDBMessage';
 
 
 const SourceList = () => {
   const sources = useSelector(
-    state => state.sources
+    (state) => state.sources
   );
   const sourcesTableEmpty = useSelector(
-    state => state.sysinfo.sources_table_empty
+    (state) => state.sysInfo.sources_table_empty
   );
 
   const dispatch = useDispatch();
 
   useEffect(() => {
     if (!sources.latest) {
-      dispatch(fetchSourcesActions.fetchSources());
+      dispatch(sourcesActions.fetchSources());
     }
   }, []);
 
@@ -36,7 +35,7 @@ const SourceList = () => {
 
         <SearchBox sources={sources} />
         {
-          !sources.queryInProgress &&
+          !sources.queryInProgress && (
           <table id="tab">
             <thead>
               <tr>
@@ -86,16 +85,24 @@ const SourceList = () => {
                   Gmag
                 </th>
                 <th>
-                  T<sub>eff</sub>
+                  T
+                  <sub>
+eff
+                  </sub>
                 </th>
                 <th>
                   Score
                 </th>
                 <th>
-                  N<br />detections
+                  N
+                  <br />
+detections
                 </th>
                 <th>
-                  Simbad <br />Class
+                  Simbad
+                  {' '}
+                  <br />
+Class
                 </th>
                 <th>
                   TNS Name
@@ -106,33 +113,67 @@ const SourceList = () => {
               {
                 sources.latest && sources.latest.map((source, idx) => (
                   <tr key={source.id}>
-                    <td>{source.last_detected && String(source.last_detected).split(".")[0]}&nbsp;&nbsp;</td>
+                    <td>
+                      {source.last_detected && String(source.last_detected).split(".")[0]}
+                    </td>
                     <td>
                       <Link to={`/source/${source.id}`}>
                         {source.id}
                       </Link>
                     </td>
-                    <td>{source.ra && Number(source.ra).toFixed(3)}</td>
-                    <td>{source.dec && Number(source.dec.toFixed(4))}</td>
-                    <td>{source.varstar.toString()}</td>
-                    <td>{source.transient.toString()}</td>
-                    <td>{(source.transient == source.varstar).toString()}</td>
-                    <td>{source.is_roid.toString()}</td>
-                    <td>{source.gaia_info && Number(JSON.parse(source.gaia_info)["Gmag"]).toFixed(2)}</td>
-                    <td>{source.gaia_info && JSON.parse(source.gaia_info)["Teff"] && Number(JSON.parse(source.gaia_info)["Teff"]).toFixed(1)}</td>
-                    <td>{Number(source.score).toFixed(2)}</td>
-                    <td>{source.detect_photometry_count}</td>
-                    <td>{source.simbad_class}</td>
-                    <td>{source.tns_name}</td>
+                    <td>
+                      {source.ra && Number(source.ra).toFixed(3)}
+                    </td>
+                    <td>
+                      {source.dec && Number(source.dec.toFixed(4))}
+                    </td>
+                    <td>
+                      {source.varstar.toString()}
+                    </td>
+                    <td>
+                      {source.transient.toString()}
+                    </td>
+                    <td>
+                      {(source.transient === source.varstar).toString()}
+                    </td>
+                    <td>
+                      {source.is_roid.toString()}
+                    </td>
+                    <td>
+                      {source.gaia_info && Number(JSON.parse(source.gaia_info).Gmag).toFixed(2)}
+                    </td>
+                    <td>
+                      {source.gaia_info && JSON.parse(source.gaia_info).Teff && Number(JSON.parse(source.gaia_info).Teff).toFixed(1)}
+                    </td>
+                    <td>
+                      {Number(source.score).toFixed(2)}
+                    </td>
+                    <td>
+                      {source.detect_photometry_count}
+                    </td>
+                    <td>
+                      {source.simbad_class}
+                    </td>
+                    <td>
+                      {source.tns_name}
+                    </td>
                   </tr>
                 ))
               }
             </tbody>
           </table>
+          )
         }
         {
-          sources.queryInProgress &&
-          <div><br /><br /><i>Query in progress...</i></div>
+          sources.queryInProgress && (
+          <div>
+            <br />
+            <br />
+            <i>
+Query in progress...
+            </i>
+          </div>
+          )
         }
       </div>
     );

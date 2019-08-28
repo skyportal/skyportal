@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import styles from './Logo.css';
 
 const Logo = () => {
-  const rotateLogo = useSelector(state => state.misc.rotateLogo);
+  const rotateLogo = useSelector((state) => state.logo.rotateLogo);
   return (
     <img
       alt="SkyPortal logo"

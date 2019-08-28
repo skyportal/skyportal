@@ -71,7 +71,7 @@ const ThumbnailList = ({ ra, dec, thumbnails }) => {
 
   return (
     <div className={styles.ThumbnailList}>
-      {thumbnails.map(t => (
+      {thumbnails.map((t) => (
         <Thumbnail
           key={`thumb_${t.type}`}
           ra={ra}

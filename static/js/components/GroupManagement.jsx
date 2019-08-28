@@ -4,7 +4,7 @@ import NewGroupForm from './NewGroupForm';
 import SuperAdminGroupList from './SuperAdminGroupList';
 
 
-const GroupManagement = props => (
+const GroupManagement = (props) => (
   <div>
     <NewGroupForm />
     <SuperAdminGroupList title="All Groups" />

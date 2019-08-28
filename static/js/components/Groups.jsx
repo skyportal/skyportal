@@ -6,7 +6,7 @@ import GroupList from './GroupList';
 
 
 const Groups = (props) => {
-  const roles = useSelector(state => state.profile.roles);
+  const roles = useSelector((state) => state.profile.roles);
   return (
     <div>
       {roles.includes("Super admin") && <GroupManagement />}

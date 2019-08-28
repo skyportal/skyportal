@@ -6,7 +6,7 @@ import GroupList from './GroupList';
 
 
 const HomePage = (props) => {
-  const groups = useSelector(state => state.groups.latest);
+  const groups = useSelector((state) => state.groups.latest);
   return (
     <div>
       <div style={{ float: "left" }}>

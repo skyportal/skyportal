@@ -1,5 +1,4 @@
 import React from 'react';
-import PropTypes from 'prop-types';
 import moment from 'moment-timezone';
 import { useSelector, useDispatch } from 'react-redux';
 
@@ -10,11 +9,9 @@ import CommentEntry from './CommentEntry';
 
 const CommentList = () => {
   const dispatch = useDispatch();
-  const source = useSelector(
-    state => state.source
-  );
+  const source = useSelector((state) => state.source);
   let { comments } = source;
-  const addComment = formData => dispatch(
+  const addComment = (formData) => dispatch(
     sourceActions.addComment({ source_id: source.id, ...formData })
   );
 
@@ -37,13 +34,14 @@ const CommentList = () => {
           {text}
         </div>
         {
-          attachment_name &&
+          attachment_name && (
           <div>
             Attachment:&nbsp;
             <a href={`/api/comment/${id}/download_attachment`}>
               {attachment_name}
             </a>
           </div>
+          )
         }
       </span>
     )

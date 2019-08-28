@@ -19,7 +19,7 @@ import configureStore from '../store';
 
 // Actions
 import hydrate from '../actions';
-import * as rotateLogoActions from '../ducks/rotateLogo';
+import * as rotateLogoActions from '../ducks/logo';
 
 // Message Handler
 import CustomMessageHandler from '../CustomMessageHandler';

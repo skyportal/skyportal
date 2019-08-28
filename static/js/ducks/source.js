@@ -22,7 +22,7 @@ export function addComment(form) {
   if (form.attachment) {
     return (dispatch) => {
       fileReaderPromise(form.attachment)
-        .then(fileData => {
+        .then((fileData) => {
           form.attachment = fileData;
           dispatch(API.POST(`/api/comment`, ADD_COMMENT, form));
         });
@@ -31,7 +31,6 @@ export function addComment(form) {
     return API.POST(`/api/comment`, ADD_COMMENT, form);
   }
 }
-
 
 export function fetchSource(id) {
   return API.GET(`/api/sources/${id}`, FETCH_LOADED_SOURCE);

@@ -6,7 +6,7 @@ import GroupList from './GroupList';
 
 
 const SuperAdminGroupList = ({ title }) => {
-  const groups = useSelector(state => state.groups.all);
+  const groups = useSelector((state) => state.groups.all);
   return <GroupList groups={groups} title={title} />;
 };
 SuperAdminGroupList.propTypes = {

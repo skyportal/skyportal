@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useSelector, useDispatch } from 'react-redux';
 
-import * as Actions from '../ducks/fetchSourcePlots';
+import * as Actions from '../ducks/plots';
 
 // These imports are necessary to initialize Bokeh + its extensions
 
@@ -51,7 +51,7 @@ function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
 
 const Plot = (props) => {
   const dispatch = useDispatch();
-  const plots = useSelector(state => state.plots);
+  const plots = useSelector((state) => state.plots);
   const [error, setError] = useState(false);
   const [fetchingPlotIDs, setFetchingPlotIDs] = useState([]);
 

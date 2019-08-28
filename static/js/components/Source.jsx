@@ -16,7 +16,7 @@ import FoldBox from "./FoldBox";
 
 const Source = ({ route }) => {
   const dispatch = useDispatch();
-  const source = useSelector(state => state.source);
+  const source = useSelector((state) => state.source);
   const isCached = () => {
     const cachedSourceID = source ? source.id : null;
     return route.id === cachedSourceID;
@@ -80,7 +80,8 @@ const Source = ({ route }) => {
           <br />
           <ThumbnailList ra={source.ra} dec={source.dec} thumbnails={source.thumbnails} />
 
-          <br /><br />
+          <br />
+          <br />
           <Responsive
             element={FoldBox}
             title="Photometry"

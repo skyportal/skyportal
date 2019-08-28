@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useDispatch } from 'react-redux';
 
-import * as Action from '../ducks/userProfile';
+import * as Action from '../ducks/profile';
 
 
 const CreateTokenForm = ({ profile, groups }) => {
@@ -42,14 +42,18 @@ const CreateTokenForm = ({ profile, groups }) => {
   }
   return (
     <div>
-      <h3>Generate New Token for Command-Line Authentication</h3>
+      <h3>
+Generate New Token for Command-Line Authentication
+      </h3>
       <form onSubmit={handleSubmit}>
         <table>
           <tbody>
             <tr>
-              <td>Select Token ACLs:</td>
               <td>
-                {profile.acls.map(acl => (
+Select Token ACLs:
+              </td>
+              <td>
+                {profile.acls.map((acl) => (
                   <label key={acl}>
                     <input
                       key={acl}
@@ -64,7 +68,9 @@ const CreateTokenForm = ({ profile, groups }) => {
               </td>
             </tr>
             <tr>
-              <td>Select Token Group:</td>
+              <td>
+Select Token Group:
+              </td>
               <td>
                 <select
                   name="group_id"
@@ -72,14 +78,20 @@ const CreateTokenForm = ({ profile, groups }) => {
                   onChange={handleChange}
                 >
                   <option value="" />
-                  {groups.map(group =>
-                    <option value={group.id} key={group.id}>{group.name}</option>)}
+                  {groups.map((group) => (
+                    <option value={group.id} key={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
                 </select>
               </td>
             </tr>
             <tr>
               <td>
-                <label>Token name: </label>
+                <label>
+Token name:
+                  {' '}
+                </label>
               </td>
               <td>
                 <input

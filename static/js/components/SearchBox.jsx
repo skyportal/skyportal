@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useDispatch } from 'react-redux';
 
-import * as Actions from '../ducks/fetchSources';
+import * as Actions from '../ducks/sources';
 
 
 const SearchBox = ({ sources }) => {
@@ -19,22 +19,22 @@ const SearchBox = ({ sources }) => {
     hasTNSname: false
   });
 
-  const handleInputChange = event => {
+  const handleInputChange = (event) => {
     const newState = {};
     newState[event.target.name] = event.target.type === 'checkbox' ?
-                                  event.target.checked : event.target.value;
+      event.target.checked : event.target.value;
     setFormState({
       ...formState,
       ...newState
     });
   };
 
-  const handleSubmit = event => {
+  const handleSubmit = (event) => {
     event.preventDefault();
     dispatch(Actions.submitSourceFilterParams(formState));
   };
 
-  const handleReset = event => {
+  const handleReset = (event) => {
     setFormState({
       sourceID: "",
       ra: "",
@@ -48,13 +48,13 @@ const SearchBox = ({ sources }) => {
     dispatch(Actions.fetchSources());
   };
 
-  const handleClickNextPage = event => {
+  const handleClickNextPage = (event) => {
     event.preventDefault();
     const vals = { ...formState, pageNumber: sources.pageNumber + 1 };
     dispatch(Actions.submitSourceFilterParams(vals));
   };
 
-  const handleClickPreviousPage = event => {
+  const handleClickPreviousPage = (event) => {
     event.preventDefault();
     const vals = { ...formState, pageNumber: sources.pageNumber - 1 };
     dispatch(Actions.submitSourceFilterParams(vals));
@@ -62,67 +62,87 @@ const SearchBox = ({ sources }) => {
 
   return (
     <div>
-      <h4>Filter Sources</h4>
+      <h4>
+Filter Sources
+      </h4>
       <form onSubmit={handleSubmit}>
         <table>
           <tbody>
             <tr>
               <td colSpan="3">
-                <label><b>By Name/ID  </b></label>
+                <b>
+                  By Name/ID
+                </b>
               </td>
             </tr>
             <tr>
               <td colSpan="3">
-                <label>Source ID/Name (can be substring):  </label>
-                <input
-                  type="text"
-                  name="sourceID"
-                  value={formState.sourceID}
-                  onChange={handleInputChange}
-                  size="6"
-                />
+                <label>
+                  Source ID/Name (can be substring):
+                  <input
+                    type="text"
+                    name="sourceID"
+                    value={formState.sourceID}
+                    onChange={handleInputChange}
+                    size="6"
+                  />
+                </label>
               </td>
             </tr>
             <tr>
               <td colSpan="3">
-                <label><b>By Position  </b></label>
+                <b>
+By Position
+                  {' '}
+                </b>
               </td>
             </tr>
             <tr>
               <td>
-                <label>RA (degrees):  </label>
-                <input
-                  type="text"
-                  name="ra"
-                  value={formState.ra}
-                  onChange={handleInputChange}
-                  size="6"
-                />
+                <label>
+                  RA (degrees):
+                  <input
+                    type="text"
+                    name="ra"
+                    value={formState.ra}
+                    onChange={handleInputChange}
+                    size="6"
+                  />
+                </label>
               </td>
               <td>
-                <label>Dec (degrees):  </label>
-                <input
-                  type="text"
-                  name="dec"
-                  value={formState.dec}
-                  onChange={handleInputChange}
-                  size="6"
-                />
+                <label>
+                  Dec (degrees):
+                  <input
+                    type="text"
+                    name="dec"
+                    value={formState.dec}
+                    onChange={handleInputChange}
+                    size="6"
+                  />
+                </label>
               </td>
               <td>
-                <label>Radius (degrees):  </label>
-                <input
-                  type="text"
-                  name="radius"
-                  value={formState.radius}
-                  onChange={handleInputChange}
-                  size="6"
-                />
+                <label>
+Radius (degrees):
+                  <input
+                    type="text"
+                    name="radius"
+                    value={formState.radius}
+                    onChange={handleInputChange}
+                    size="6"
+                  />
+                </label>
               </td>
             </tr>
             <tr>
               <td colSpan="3">
-                <label><b>By Time Last Detected </b></label>
+                <label>
+                  <b>
+By Time Last Detected
+                    {' '}
+                  </b>
+                </label>
               </td>
             </tr>
             <tr>
@@ -132,7 +152,10 @@ const SearchBox = ({ sources }) => {
             </tr>
             <tr>
               <td>
-                <label>Start Date:  </label>
+                <label>
+Start Date:
+                  {' '}
+                </label>
                 <input
                   type="text"
                   name="startDate"
@@ -142,7 +165,10 @@ const SearchBox = ({ sources }) => {
                 />
               </td>
               <td>
-                <label>End Date:  </label>
+                <label>
+End Date:
+                  {' '}
+                </label>
                 <input
                   type="text"
                   name="endDate"
@@ -154,12 +180,20 @@ const SearchBox = ({ sources }) => {
             </tr>
             <tr>
               <td>
-                <label><b>By Simbad Class  </b></label>
+                <label>
+                  <b>
+By Simbad Class
+                    {' '}
+                  </b>
+                </label>
               </td>
             </tr>
             <tr>
               <td>
-                <label>Class:  </label>
+                <label>
+Class:
+                  {' '}
+                </label>
                 <input
                   type="text"
                   name="simbadClass"
@@ -171,7 +205,12 @@ const SearchBox = ({ sources }) => {
             </tr>
             <tr>
               <td>
-                <label><b>Must Have TNS Name: </b></label>
+                <label>
+                  <b>
+Must Have TNS Name:
+                    {' '}
+                  </b>
+                </label>
                 <input
                   type="checkbox"
                   name="hasTNSname"
@@ -186,29 +225,38 @@ const SearchBox = ({ sources }) => {
                 <input type="submit" disabled={sources.queryInProgress} />
               </td>
               <td>
-                <button type="button" onClick={handleReset}>Reset</button>
+                <button type="button" onClick={handleReset}>
+Reset
+                </button>
               </td>
             </tr>
           </tbody>
         </table>
         <br />
         {
-          sources &&
+          sources && (
           <div>
             <div style={{ display: "inline-block" }}>
               <button
                 type="button"
                 onClick={handleClickPreviousPage}
-                disabled={sources.pageNumber == 1}
+                disabled={sources.pageNumber === 1}
               >
                 View Previous 100 Sources
               </button>
             </div>
             <div style={{ display: "inline-block" }}>
               <i>
-                Displaying {sources.sourceNumberingStart}-
-                {sources.sourceNumberingEnd} of&nbsp;
-                {sources.totalMatches} matching sources.
+                Displaying
+                {' '}
+                {sources.sourceNumberingStart}
+-
+                {sources.sourceNumberingEnd}
+                {' '}
+of&nbsp;
+                {sources.totalMatches}
+                {' '}
+matching sources.
               </i>
             </div>
             <div style={{ display: "inline-block" }}>
@@ -221,6 +269,7 @@ const SearchBox = ({ sources }) => {
               </button>
             </div>
           </div>
+          )
         }
       </form>
       <br />

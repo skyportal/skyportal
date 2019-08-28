@@ -1,6 +1,5 @@
 import React, { useRef } from 'react';
 import { useSelector } from 'react-redux';
-import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import Dropdown, { DropdownTrigger, DropdownContent } from 'react-simple-dropdown';
 
@@ -9,7 +8,7 @@ import Responsive from "./Responsive";
 
 
 const ProfileDropdown = (props) => {
-  const profile = useSelector(state => state.profile);
+  const profile = useSelector((state) => state.profile);
   const dropdown = useRef(null);
 
   const collapseDropdown = () => {
@@ -32,7 +31,7 @@ const ProfileDropdown = (props) => {
 
         <DropdownContent>
 
-          <Link to="/profile">
+          <Link to="/profile" role="link">
             <div className={styles.entry} onClick={collapseDropdown}>
               Profile
             </div>
@@ -40,7 +39,7 @@ const ProfileDropdown = (props) => {
 
           <div className={styles.rule} />
 
-          <Link to="/groups">
+          <Link to="/groups" role="link">
             <div className={styles.entry} onClick={collapseDropdown}>
               Groups
             </div>

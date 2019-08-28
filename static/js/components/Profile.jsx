@@ -6,13 +6,19 @@ import TokenList from './TokenList';
 
 
 const Profile = (props) => {
-  const profile = useSelector(state => state.profile);
-  const groups = useSelector(state => state.groups.latest);
+  const profile = useSelector((state) => state.profile);
+  const groups = useSelector((state) => state.groups.latest);
   return (
     <div>
-      <div>Username: {profile.username}</div>
+      <div>
+Username:
+        {profile.username}
+      </div>
       <br />
-      <div>User roles: {profile.roles}</div>
+      <div>
+User roles:
+        {profile.roles}
+      </div>
       <br />
       <NewTokenForm
         profile={profile}
@@ -21,7 +27,7 @@ const Profile = (props) => {
       <br />
       <TokenList tokens={profile.tokens} />
     </div>
-    );
+  );
 };
 
 export default Profile;
