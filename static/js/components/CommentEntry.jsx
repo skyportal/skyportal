@@ -50,12 +50,12 @@ class CommentEntry extends React.Component {
         <div>
           <label>
             Attachment &nbsp;
+            <input
+              ref={(el) => { this.fileInput = el; }}
+              type="file"
+              onChange={this._handleChange}
+            />
           </label>
-          <input
-            ref={el => { this.fileInput = el; }}
-            type="file"
-            onChange={this._handleChange}
-          />
         </div>
         <input type="submit" value="↵" />
       </form>

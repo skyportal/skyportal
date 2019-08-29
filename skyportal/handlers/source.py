@@ -91,7 +91,7 @@ class SourceHandler(BaseHandler):
     def post(self):
         """
         ---
-        description: Upload a source
+        description: Upload a source. If group_ids is not specified, the user or token's groups will be used.
         parameters:
           - in: path
             name: source
@@ -111,18 +111,27 @@ class SourceHandler(BaseHandler):
         """
         data = self.get_json()
         schema = Source.__schema__()
+        user_group_ids = [g.id for g in self.current_user.groups]
+        if not user_group_ids:
+            return self.error("You must belong to one or more groups before "
+                              "you can add sources.")
         try:
-            group_ids = data.pop('group_ids')
+            group_ids = [id for id in data.pop('group_ids') if id in user_group_ids]
         except KeyError:
-            group_ids = []
+            group_ids = user_group_ids
+        if not group_ids:
+            return self.error("Invalid group_ids field. Please specify at least "
+                              "one valid group ID that you belong to.")
         try:
             s = schema.load(data)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
-        if group_ids:
-            groups = Group.query.filter(Group.id.in_(group_ids)).all()
-            s.groups = groups
+        groups = Group.query.filter(Group.id.in_(group_ids)).all()
+        if not groups:
+            return self.error("Invalid group_ids field. Please specify at least "
+                              "one valid group ID that you belong to.")
+        s.groups = groups
         DBSession.add(s)
         DBSession().commit()
 

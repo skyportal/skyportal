@@ -7,4 +7,4 @@ def test_sysinfo(view_only_token):
     assert status == 200
     assert data['status'] == 'success'
     assert isinstance(data['data']['sources_table_empty'], bool)
-    assert data['data']['skyportal_version'] == skyportal.__version__
+    assert data['data']['version'] == skyportal.__version__

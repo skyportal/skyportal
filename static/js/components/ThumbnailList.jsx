@@ -43,8 +43,9 @@ const Thumbnail = ({ ra, dec, telescope, observed_at, name, url }) => {
         <br />
         <div className={styles.thumbnailimgdiv}>
           <img className={name === "ps1" && styles.ps1crosshairs} src={url} alt={alt} title={alt} />
-          {(name === "ps1") &&
-          <img className={styles.ps1crosshairs} src="/static/images/crosshairs.png" alt="" />
+          {
+            (name === "ps1") &&
+            <img className={styles.ps1crosshairs} src="/static/images/crosshairs.png" alt="" />
           }
         </div>
       </div>
@@ -70,7 +71,7 @@ const ThumbnailList = ({ ra, dec, thumbnails }) => {
 
   return (
     <div className={styles.ThumbnailList}>
-      {thumbnails.map(t => (
+      {thumbnails.map((t) => (
         <Thumbnail
           key={`thumb_${t.type}`}
           ra={ra}

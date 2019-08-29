@@ -1,5 +1,9 @@
 import MessageHandler from 'baselayer/MessageHandler';
-import * as Action from './actions';
+import * as sourceActions from './ducks/source';
+import * as groupActions from './ducks/group';
+import * as groupsActions from './ducks/groups';
+import * as profileActions from './ducks/profile';
+import * as sourcesActions from './ducks/sources';
 
 
 const CustomMessageHandler = (dispatch, getState) => (
@@ -10,40 +14,40 @@ const CustomMessageHandler = (dispatch, getState) => (
     console.log('WebSocket', action, payload);
 
     switch (action) {
-      case Action.REFRESH_SOURCE: {
+      case sourceActions.REFRESH_SOURCE: {
         const state = getState();
         const loaded_source_id = state.source ? state.source.id : null;
 
         if (loaded_source_id === payload.source_id) {
-          dispatch(Action.fetchSource(loaded_source_id));
+          dispatch(sourceActions.fetchSource(loaded_source_id));
         }
         break;
       }
-      case Action.REFRESH_GROUP: {
+      case groupActions.REFRESH_GROUP: {
         const state = getState();
         const loaded_group_id = state.group ? state.group.id : null;
 
         if (loaded_group_id === payload.group_id) {
-          dispatch(Action.fetchGroup(loaded_group_id));
+          dispatch(groupActions.fetchGroup(loaded_group_id));
         }
         break;
       }
-      case Action.FETCH_GROUPS: {
-        dispatch(Action.fetchGroups());
+      case groupsActions.FETCH_GROUPS: {
+        dispatch(groupsActions.fetchGroups());
         break;
       }
-      case Action.FETCH_USER_PROFILE: {
-        dispatch(Action.fetchUserProfile());
+      case profileActions.FETCH_USER_PROFILE: {
+        dispatch(profileActions.fetchUserProfile());
         break;
       }
-      case Action.FETCH_SOURCES: {
+      case sourcesActions.FETCH_SOURCES: {
         // Check if user is on front page, and if so, re-submit current search
         if (window.location.href.endsWith(`${window.location.host}/`) ||
             window.location.href.endsWith(window.location.host) ||
             window.location.href.includes(`${window.location.host}/?`)) {
           document.getElementById("sourceFilterFormSubmitButton").click();
         } else {
-          dispatch(Action.fetchSources());
+          dispatch(sourcesActions.fetchSources());
         }
         break;
       }
