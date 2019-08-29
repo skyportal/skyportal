@@ -147,36 +147,26 @@ class Source(Base):
 
     def add_linked_thumbnails(self):
         sdss_thumb = Thumbnail(photometry=self.photometry[0],
-                               public_url=self.get_sdss_url(),
+                               public_url=self.sdss_url,
                                type='sdss')
-        ps1_thumb = Thumbnail(photometry=self.photometry[0],
-                              public_url=self.get_panstarrs_url(),
-                              type='ps1')
-        DBSession().add_all([sdss_thumb, ps1_thumb])
+        dr8_thumb = Thumbnail(photometry=self.photometry[0],
+                              public_url=self.desi_dr8_url,
+                              type='dr8')
+        DBSession().add_all([sdss_thumb, dr8_thumb])
         DBSession().commit()
 
-    def get_sdss_url(self):
+    @property
+    def sdss_url(self):
         """Construct URL for public Sloan Digital Sky Survey (SDSS) cutout."""
         return (f"http://skyservice.pha.jhu.edu/DR9/ImgCutout/getjpeg.aspx"
                 f"?ra={self.ra}&dec={self.dec}&scale=0.3&width=200&height=200"
                 f"&opt=G&query=&Grid=on")
 
-    def get_panstarrs_url(self):
-        """Construct URL for public PanSTARRS-1 (PS1) cutout.
-
-        The cutout service doesn't allow directly querying for an image; the
-        best we can do is request a page that contains a link to the image we
-        want (in this case a combination of the green/blue/red filters).
-        """
-        try:
-            ps_query_url = (f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
-                            f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
-                            f"&filter=r&filter=i&filetypes=stack&size=250")
-            response = requests.get(ps_query_url)
-            match = re.search('src="//ps1images.stsci.edu.*?"', response.content.decode())
-            return match.group().replace('src="', 'http:').replace('"', '')
-        except (ValueError, ConnectionError) as e:
-            return None
+    @property
+    def desi_dr8_url(self):
+        """Construct URL for public DESI DR8 cutout."""
+        return (f"http://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
+                f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz")
 
 
 GroupSource = join_model('group_sources', Group, Source)
@@ -318,7 +308,7 @@ class Spectrum(Base):
 
 class Thumbnail(Base):
     # TODO delete file after deleting row
-    type = sa.Column(sa.Enum('new', 'ref', 'sub', 'sdss', 'ps1', "new_gz",
+    type = sa.Column(sa.Enum('new', 'ref', 'sub', 'sdss', 'dr8', "new_gz",
                              'ref_gz', 'sub_gz',
                              name='thumbnail_types', validate_strings=True))
     file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
