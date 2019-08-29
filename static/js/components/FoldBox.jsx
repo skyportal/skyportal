@@ -10,7 +10,8 @@ class FoldBox extends Component {
   }
 
   toggleFold() {
-    this.setState({ folded: !this.state.folded });
+    const folded = !this.state.folded;
+    this.setState({ folded });
   }
 
   render() {

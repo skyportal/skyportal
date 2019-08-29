@@ -1,18 +1,18 @@
 import React from 'react';
-import PropTypes from 'prop-types';
+import { useSelector } from 'react-redux';
 
-import GroupManagement from '../containers/GroupManagement';
-import GroupList from '../containers/GroupListContainer';
+import GroupManagement from './GroupManagement';
+import GroupList from './GroupList';
 
 
-const Groups = props => (
-  <div>
-    {props.profile.roles.includes("Super admin") && <GroupManagement />}
-    <GroupList title="My Groups" />
-  </div>
-);
-Groups.propTypes = {
-  profile: PropTypes.object.isRequired
+const Groups = (props) => {
+  const roles = useSelector((state) => state.profile.roles);
+  return (
+    <div>
+      {roles.includes("Super admin") && <GroupManagement />}
+      <GroupList title="My Groups" />
+    </div>
+  );
 };
 
 export default Groups;

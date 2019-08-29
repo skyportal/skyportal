@@ -11,7 +11,6 @@ settings:
 
 rules:
   array-callback-return: 1
-  arrow-parens: 1
   camelcase: off
   class-methods-use-this: 1
   comma-dangle: [1, only-multiline]
@@ -67,3 +66,4 @@ rules:
   react/no-access-state-in-setstate: 1
   implicit-arrow-linebreak: 1
   jsx-a11y/label-has-associated-control: 1
+  jsx-a11y/control-has-associated-label: 0
