@@ -1,9 +1,10 @@
 import tornado.web
 from astropy.time import Time
 from sqlalchemy.orm import joinedload
+from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from .base import BaseHandler
-from ..models import DBSession, Photometry, Comment
+from ..models import DBSession, Photometry, Comment, Instrument, Source
 
 
 class PhotometryHandler(BaseHandler):
@@ -33,62 +34,74 @@ class PhotometryHandler(BaseHandler):
 
         # TODO where do we get the instrument info?
         # TODO should filters be a table/plaintext/limited set of strings?
-        if 'timeFormat' not in data or 'timeScale' not in data:
-            return self.error('Time scale (\'timeScale\') and time format '
-                              '(\'timeFormat\') are required parameters.')
+        if 'time_format' not in data or 'time_scale' not in data:
+            return self.error('Time scale (\'time_scale\') and time format '
+                              '(\'time_format\') are required parameters.')
         if not isinstance(data['mag'], (list, tuple)):
-            data['obsTime'] = [data['obsTime']]
+            data['time'] = [data['time']]
             data['mag'] = [data['mag']]
             data['e_mag'] = [data['e_mag']]
         ids = []
+        instrument = Instrument.query.get(data['instrument_id'])
+        if not instrument:
+            raise Exception('Invalid instrument ID') # TODO: handle invalid instrument ID
+        source = Source.query.get(data['source_id'])
+        if not source:
+            raise Exception('Invalid source ID') # TODO: handle invalid source ID
         for i in range(len(data['mag'])):
-            if not (data['timeScale'] == 'tcb' and data['timeFormat'] == 'iso'):
-                t = Time(data['obsTime'][i],
-                         format=data['timeFormat'],
-                         scale=data['timeScale'])
-                obs_time = t.tcb.iso
+            if not (data['time_scale'] == 'tcb' and data['time_format'] == 'iso'):
+                t = Time(data['time'][i],
+                         format=data['time_format'],
+                         scale=data['time_scale'])
+                time = t.tcb.iso
             else:
-                obs_time = data['obsTime'][i]
-            p = Photometry(source_id=data['sourceID'],
-                           observed_at=obs_time,
+                time = data['time'][i]
+            p = Photometry(source=source,
+                           observed_at=time,
                            mag=data['mag'][i],
                            e_mag=data['e_mag'][i],
                            time_scale='tcb',
                            time_format='iso',
-                           instrument_id=data['instrumentID'],
+                           instrument=instrument,
                            lim_mag=data['lim_mag'],
                            filter=data['filter'])
-            ids.append(p.id)
             DBSession().add(p)
+            DBSession().flush()
+            ids.append(p.id)
         DBSession().commit()
 
         return self.success(data={"ids": ids})
 
-    """TODO any need for get/put/delete?
     @auth_or_token
-    def get(self, source_id=None):
-        if source_id is not None:
-            info = Photometry.get_if_owned_by(source_id, self.current_user,
-                                          options=joinedload(Photometry.comments)
-                                                  .joinedload(Comment.user))
-        else:
-            info = list(self.current_user.sources)
+    def get(self, photometry_id):
+        info = {}
+        info['photometry'] = Photometry.query.get(photometry_id)
 
-        if info is not None:
-            return self.success(info)
+        if info['photometry'] is not None:
+            return self.success(data=info)
         else:
-            return self.error(f"Could not load source {source_id}",
-                              {"source_id": source_id})
+            return self.error(f"Could not load photometry {photometry_id}",
+                              {"photometry_id": photometry_id})
 
-    def put(self, source_id):
+    @permissions(['Manage sources'])
+    def put(self, photometry_id):
         data = self.get_json()
+        data['id'] = photometry_id
 
-        return self.success(action='cesium/FETCH_SOURCES')
-
-    def delete(self, source_id):
-        s = Photometry.query.get(source_id)
-        DBSession().delete(s)
+        schema = Photometry.__schema__()
+        try:
+            schema.load(data)
+        except ValidationError as e:
+            return self.error('Invalid/missing parameters: '
+                              f'{e.normalized_messages()}')
         DBSession().commit()
 
-    return self.success(action='cesium/FETCH_SOURCES')
-    """
+        return self.success()
+
+    @permissions(['Manage sources'])
+    def delete(self, photometry_id):
+        p = Photometry.query.get(photometry_id)
+        DBSession().delete(p)
+        DBSession().commit()
+
+        return self.success()
