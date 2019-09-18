@@ -14,7 +14,7 @@ tqdm==4.23.2
 matplotlib==2.1.0
 astroquery==0.3.8
 sqlalchemy-utils
-apispec
+apispec==2.0.2
 marshmallow==3.0.0rc5
-marshmallow-sqlalchemy
-marshmallow-enum
+marshmallow-sqlalchemy==0.17.0
+marshmallow-enum==1.4.1
