@@ -41,6 +41,23 @@ def test_add_new_group(driver, super_admin_user, user):
         raise
 
 
+def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
+    test_proj_name = str(uuid.uuid4())
+    driver.get(f'/become_user/{super_admin_user.id}')  # TODO decorator/context manager?
+    driver.get('/')
+    driver.refresh()
+    driver.get('/groups')
+    driver.wait_for_xpath('//input[@name="name"]').send_keys(test_proj_name)
+    driver.wait_for_xpath('//input[@name="groupAdmins"]').send_keys(super_admin_user.username)
+    driver.save_screenshot('/tmp/screenshot1.png')
+    driver.wait_for_xpath('//input[@value="Create Group"]').click()
+    try:
+        driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
+    except:
+        driver.save_screenshot('/tmp/screenshot2.png')
+        raise
+
+
 def test_add_new_group_user_admin(driver, super_admin_user, user, public_group):
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/groups')
