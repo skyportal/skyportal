@@ -81,7 +81,7 @@ class PhotometryHandler(BaseHandler):
             return self.success(data=info)
         else:
             return self.error(f"Could not load photometry {photometry_id}",
-                              {"photometry_id": photometry_id})
+                              data={"photometry_id": photometry_id})
 
     @permissions(['Manage sources'])
     def put(self, photometry_id):

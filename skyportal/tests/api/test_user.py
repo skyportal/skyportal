@@ -1,12 +1,12 @@
 from skyportal.tests import api
 
 
-def test_user_info(manage_users_token):
-    status, data = api('GET', 'user/1', token=manage_users_token)
+def test_user_info(manage_users_token, user):
+    status, data = api('GET', f'user/{user.id}', token=manage_users_token)
     assert status == 200
-    assert data['data']['user']['id'] == 1
+    assert data['data']['user']['id'] == user.id
 
 
-def test_user_info_access_denied(view_only_token):
-    status, data = api('GET', 'user/1', token=view_only_token)
+def test_user_info_access_denied(view_only_token, user):
+    status, data = api('GET', f'user/{user.id}', token=view_only_token)
     assert status == 400

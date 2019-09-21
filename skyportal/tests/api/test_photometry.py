@@ -29,7 +29,6 @@ def test_token_user_post_get_photometry_data(upload_data_token, public_source):
     assert data['data']['photometry']['mag'] == 12.24
 
 
-
 def test_token_user_post_photometry_data_series(upload_data_token, public_source):
     status, data = api(
         'POST',
@@ -113,3 +112,42 @@ def test_token_user_update_photometry(upload_data_token,
         f'photometry/{photometry_id}',
         token=upload_data_token)
     assert data['data']['photometry']['mag'] == 11.0
+
+
+def test_delete_photometry_data(upload_data_token, manage_sources_token,
+                                public_source):
+    status, data = api('POST', 'photometry',
+                       data={'source_id': str(public_source.id),
+                             'time': str(datetime.datetime.now()),
+                             'time_format': 'iso',
+                             'time_scale': 'utc',
+                             'instrument_id': 1,
+                             'mag': 12.24,
+                             'e_mag': 0.031,
+                             'lim_mag': 14.1,
+                             'filter': 'V'
+                       },
+                       token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    photometry_id = data['data']['ids'][0]
+    status, data = api(
+        'GET',
+        f'photometry/{photometry_id}',
+        token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['photometry']['mag'] == 12.24
+
+    status, data = api(
+        'DELETE',
+        f'photometry/{photometry_id}',
+        token=manage_sources_token)
+    assert status == 200
+
+    status, data = api(
+        'GET',
+        f'photometry/{photometry_id}',
+        token=upload_data_token)
+    assert status == 400

@@ -37,7 +37,7 @@ class SpectrumHandler(BaseHandler):
             return self.success(data=info)
         else:
             return self.error(f"Could not load spectrum {spectrum_id}",
-                              {"spectrum_id": spectrum_id})
+                              data={"spectrum_id": spectrum_id})
 
     @permissions(['Manage sources'])
     def put(self, spectrum_id):
