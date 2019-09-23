@@ -92,11 +92,12 @@ class GroupHandler(BaseHandler):
 
         group_admins = list(User.query.filter(User.username.in_(
             group_admin_emails)))
+        if self.current_user not in group_admins:
+            group_admins.append(self.current_user)
 
         g = Group(name=data['name'])
-        DBSession().add_all([
-            GroupUser(group=g, user=user, admin=True) for user in
-            [self.current_user] + group_admins])
+        DBSession().add_all(
+            [GroupUser(group=g, user=user, admin=True) for user in group_admins])
         DBSession().commit()
 
         self.push_all(action='skyportal/FETCH_GROUPS')
