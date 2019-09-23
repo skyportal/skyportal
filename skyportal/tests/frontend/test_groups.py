@@ -97,3 +97,12 @@ def test_delete_group_user(driver, super_admin_user, user, public_group):
     time.sleep(0.5)
     assert len(driver.find_elements_by_xpath(
         f'//a[contains(.,"{user.username}")]')) == 0
+
+
+def test_delete_group(driver, super_admin_user, user, public_group):
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/groups')
+    driver.wait_for_xpath('//h2[text()="All Groups"]')
+    driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]').click()
+    driver.wait_for_xpath('//input[@value="Delete Group"]').click()
+    driver.wait_for_xpath('//div[contains(.,"Group not found")]')
