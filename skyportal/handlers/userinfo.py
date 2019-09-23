@@ -9,8 +9,8 @@ import tornado.web
 class UserInfoHandler(BaseHandler):
     @permissions(['Manage users'])
     def get(self, user_id=None):
-        user = User.query.options(joinedload(User.acls)).get(user_id)
+        user = User.query.options(joinedload(User.acls)).get(int(user_id))
         if user is None:
-            return self.success(data={'id': user_id, 'username': 'Not found'})
+            return self.error('Invalid user ID.', data={'id': user_id})
         else:
             return self.success(data={'user': user})
