@@ -59,19 +59,19 @@ const TokenList = ({ tokens }) => {
             tokens.map((token) => (
               <tr key={token.id}>
                 <td>
-                  <input type="text" id={token.id} value={token.id} readOnly />&nbsp;
+                  <input type="text" id={token.id} value={token.id} readOnly />
                   <button type="button" onClick={() => copyToken(token.id)}>
                     Copy to Clipboard
-                  </button>&nbsp;&nbsp;
+                  </button>
                 </td>
                 <td>
-                  {token.name}&nbsp;&nbsp;
+                  {token.name}
                 </td>
                 <td>
-                  {token.acls.join(', ')}&nbsp;&nbsp;
+                  {token.acls.join(', ')}
                 </td>
                 <td>
-                  {token.created_at}&nbsp;&nbsp;
+                  {token.created_at}
                 </td>
                 <td>
                   <a href="#top" onClick={() => deleteToken(token.id)}>

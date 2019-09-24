@@ -100,8 +100,7 @@ class PhotometryHandler(BaseHandler):
 
     @permissions(['Manage sources'])
     def delete(self, photometry_id):
-        p = Photometry.query.get(photometry_id)
-        DBSession().delete(p)
+        DBSession.query(Photometry).filter(Photometry.id == int(photometry_id)).delete()
         DBSession().commit()
 
         return self.success()

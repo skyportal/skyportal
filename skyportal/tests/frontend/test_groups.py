@@ -2,7 +2,6 @@ import pytest
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 import uuid
-import time
 import requests
 
 from skyportal.model_util import create_token
@@ -64,7 +63,6 @@ def test_add_new_group_user_admin(driver, super_admin_user, user, public_group):
     driver.wait_for_xpath('//h2[text()="All Groups"]')
     driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]').click()
     driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../input').click()
-    time.sleep(0.5)
     driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(user.username)
     driver.wait_for_xpath('//input[@type="checkbox"]').click()
     driver.wait_for_xpath('//input[@value="Add user"]').click()
@@ -80,7 +78,6 @@ def test_add_new_group_user_nonadmin(driver, super_admin_user, user, public_grou
     driver.wait_for_xpath('//h2[text()="All Groups"]')
     driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]').click()
     driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../input').click()
-    time.sleep(0.5)
     driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(user.username)
     driver.wait_for_xpath('//input[@value="Add user"]').click()
     driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
@@ -94,6 +91,14 @@ def test_delete_group_user(driver, super_admin_user, user, public_group):
     driver.wait_for_xpath('//h2[text()="All Groups"]')
     driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]').click()
     driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../input').click()
-    time.sleep(0.5)
     assert len(driver.find_elements_by_xpath(
         f'//a[contains(.,"{user.username}")]')) == 0
+
+
+def test_delete_group(driver, super_admin_user, user, public_group):
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/groups')
+    driver.wait_for_xpath('//h2[text()="All Groups"]')
+    driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]').click()
+    driver.wait_for_xpath('//input[@value="Delete Group"]').click()
+    driver.wait_for_xpath('//div[contains(.,"Group not found")]')

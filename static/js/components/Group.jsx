@@ -18,7 +18,7 @@ const Group = ({ route }) => {
     dispatch(groupActions.fetchGroup(route.id));
   }, []);
 
-  if (group.id === undefined) {
+  if (!group || group.id === undefined) {
     return (
       <div>
         Group not found
@@ -56,10 +56,10 @@ const Group = ({ route }) => {
                   <input
                     type="submit"
                     onClick={() => dispatch(
-                      groupsActions.deleteGroupUser(
-                        { username: user.username,
-                          group_id: group.id }
-                      )
+                        groupsActions.deleteGroupUser(
+                          { username: user.username,
+                            group_id: group.id }
+                        )
                     )}
                     value="Remove from group"
                   />
@@ -72,6 +72,22 @@ const Group = ({ route }) => {
       {
         (currentUser.roles.includes('Super admin') ||
          currentUser.roles.includes('Group admin')) && <NewGroupUserForm group_id={group.id} />
+      }
+      <br />
+      <br />
+      <br />
+      {
+        (currentUser.roles.includes('Super admin') ||
+         currentUser.roles.includes('Group admin')) &&
+        (
+          <input
+            type="submit"
+            onClick={() => dispatch(
+                groupsActions.deleteGroup(group.id)
+            )}
+            value="Delete Group"
+          />
+        )
       }
     </div>
   );

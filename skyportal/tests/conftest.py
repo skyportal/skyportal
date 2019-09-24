@@ -86,3 +86,9 @@ def manage_users_token(public_group):
 def comment_token(public_group):
     token_id = create_token(public_group.id, permissions=['Comment'])
     return token_id
+
+
+@pytest.fixture()
+def view_only_token_created_by_fulluser(public_group, user):
+    token_id = create_token(public_group.id, permissions=[], created_by_id=user.id)
+    return token_id
