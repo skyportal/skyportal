@@ -45,12 +45,14 @@ class GroupHandler(BaseHandler):
             if (hasattr(self.current_user, 'roles') and
                 'Super admin' in [role.id for role in self.current_user.roles]):
                 group = Group.query.options(joinedload(Group.users)).options(
-                    joinedload(Group.group_users)).get(group_id)
+                    joinedload(Group.group_users)).options(
+                        joinedload(Group.sources)).get(group_id)
             else:
                 group = Group.get_if_owned_by(
                     group_id, self.current_user,
                     options=[joinedload(Group.users),
-                             joinedload(Group.group_users)])
+                             joinedload(Group.group_users),
+                             joinedload(Group.sources)])
             info['group'] = group
         else:
             info['user_groups'] = list(self.current_user.groups)
