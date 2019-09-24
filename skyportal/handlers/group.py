@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from .base import BaseHandler
-from ..models import DBSession, Group, GroupUser, User
+from ..models import DBSession, Group, GroupUser, User, Token, Source
 
 
 class GroupHandler(BaseHandler):
@@ -88,16 +88,24 @@ class GroupHandler(BaseHandler):
                           description: New group ID
         """
         data = self.get_json()
-        group_admin_emails = [username.strip() for username in
-                              data['groupAdmins'].split(',')
-                              if username.strip() != '']
 
+        group_admin_emails = [e.strip() for e in data.get('group_admins', [])
+                              if e.strip()]
         group_admins = list(User.query.filter(User.username.in_(
             group_admin_emails)))
-        if self.current_user not in group_admins:
+        if self.current_user not in group_admins and not isinstance(self.current_user, Token):
             group_admins.append(self.current_user)
 
-        g = Group(name=data['name'])
+        group_tokens = [t.strip() for t in data.get('group_tokens', [])
+                        if t.strip()]
+        group_tokens = list(Token.query.filter(Token.id.in_(group_tokens)))
+        if isinstance(self.current_user, Token) and self.current_user not in group_tokens:
+            group_tokens.append(self.current_user)
+
+        source_ids = [s.strip() for s in data.get('source_ids', []) if s.strip()]
+        sources = list(Source.query.filter(Source.id.in_(source_ids)))
+
+        g = Group(name=data['name'], tokens=group_tokens, sources=sources)
         DBSession().add_all(
             [GroupUser(group=g, user=user, admin=True) for user in group_admins])
         DBSession().commit()
