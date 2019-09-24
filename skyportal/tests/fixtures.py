@@ -4,7 +4,7 @@ import uuid
 import numpy as np
 from skyportal.models import (DBSession, User, Source, Group, GroupUser,
                               GroupSource, Photometry, Spectrum, Instrument,
-                              Telescope)
+                              Telescope, Comment)
 from tempfile import mkdtemp
 
 import factory
@@ -28,6 +28,15 @@ class TelescopeFactory(factory.alchemy.SQLAlchemyModelFactory):
     lon = 0.0
     elevation = 0.0
     diameter = 1.0
+
+
+class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Comment
+
+    text = f'Test comment {str(uuid.uuid4())}'
+    ctype = 'text'
+    author = 'test factory'
 
 
 class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -90,6 +99,7 @@ class SourceFactory(factory.alchemy.SQLAlchemyModelFactory):
                                               e_mag=99., lim_mag=30.,
                                               instrument=instrument,
                                               filter=filter))
+            DBSession().add(CommentFactory(source_id=source.id))
         DBSession().add(SpectrumFactory(source_id=source.id,
                                         instrument=instruments[0]))
         DBSession().commit()

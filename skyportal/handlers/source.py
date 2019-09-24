@@ -186,8 +186,7 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        s = Source.query.get(source_id)
-        DBSession().delete(s)
+        DBSession.query(Source).filter(Source.id == source_id).delete()
         DBSession().commit()
 
         return self.success(action='skyportal/FETCH_SOURCES')
