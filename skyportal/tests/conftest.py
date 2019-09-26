@@ -47,6 +47,12 @@ def user(public_group):
 
 
 @pytest.fixture()
+def view_only_user(public_group):
+    return UserFactory(groups=[public_group],
+                       roles=[models.Role.query.get('View only')])
+
+
+@pytest.fixture()
 def super_admin_user(public_group):
     return UserFactory(groups=[public_group],
                        roles=[models.Role.query.get('Super admin')])
