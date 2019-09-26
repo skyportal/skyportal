@@ -14,19 +14,20 @@ def test_add_token(driver, user, public_group):
     group_select.select_by_value(str(public_group.id))
     driver.wait_for_xpath('//input[@name="name"]').send_keys(token_name)
     driver.wait_for_xpath('//input[@value="Generate Token"]').click()
-    driver.refresh()
     driver.wait_for_xpath(f'//td[contains(.,"{token_name}")]')
 
 
 def test_delete_token(driver, user, public_group,
                       view_only_token_created_by_fulluser):
+    token_id = view_only_token_created_by_fulluser
     driver.get(f'/become_user/{user.id}')
     driver.get('/profile')
     driver.wait_for_xpath(f'//input[@value="{view_only_token_created_by_fulluser}"]')
     driver.wait_for_xpath('//a[contains(text(),"Delete")]').click()
-    driver.refresh()
+    driver.wait_for_xpath(f'//div[contains(text(),"Token {token_id} deleted.")]')
     try:
-        driver.wait_for_xpath(f'//input[@value="{view_only_token_created_by_fulluser}"]')
+        driver.wait_for_xpath(f'//input[@value="{token_id}"]',
+                              timeout=0)
     except:
         pass
     else:

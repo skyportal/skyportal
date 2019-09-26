@@ -63,6 +63,9 @@ class TokenHandler(BaseHandler):
             DBSession.delete(t)
             DBSession.commit()
 
+            self.push(action='baselayer/SHOW_NOTIFICATION',
+                      payload={'note': f'Token {token_id} deleted.',
+                               'type': 'info'})
             return self.success(action='skyportal/FETCH_USER_PROFILE')
         else:
             return self.error('Either the specified token does not exist, '
