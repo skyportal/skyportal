@@ -104,8 +104,6 @@ class Source(Base):
     redshift = sa.Column(sa.Float, nullable=True)
 
     altdata = sa.Column(JSONB, nullable=True)
-    created = sa.Column(ArrowType, nullable=False,
-                        server_default=sa.func.now())
 
     last_detected = sa.Column(ArrowType, nullable=True)
     dist_nearest_source = sa.Column(sa.Float, nullable=True)
@@ -260,9 +258,6 @@ class Photometry(Base):
     score = sa.Column(sa.Float, nullable=True)  # RB
     candid = sa.Column(sa.BigInteger, nullable=True)  # candidate ID
     altdata = sa.Column(JSONB)
-
-    created = sa.Column(sa.DateTime, nullable=False,
-                        server_default=sa.func.now())
 
     origin = sa.Column(sa.String, nullable=True)
 
