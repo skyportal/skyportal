@@ -25,4 +25,4 @@ def test_delete_token(driver, user, public_group,
     driver.wait_for_xpath(f'//input[@value="{view_only_token_created_by_fulluser}"]')
     driver.wait_for_xpath('//a[contains(text(),"Delete")]').click()
     driver.wait_for_xpath(f'//div[contains(text(),"Token {token_id} deleted.")]')
-    driver.wait_for_xpath_missing(f'//input[@value="{token_id}"]')
+    driver.wait_for_xpath_to_disappear(f'//input[@value="{token_id}"]')
