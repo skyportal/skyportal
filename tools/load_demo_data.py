@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 import shutil
 import pandas as pd
-from requests.exceptions import ConnectionError
 
 from baselayer.app.env import load_env
 from baselayer.app.model_util import status, create_tables, drop_tables

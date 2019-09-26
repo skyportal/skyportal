@@ -43,7 +43,8 @@ def setup_permissions():
     role_acls = {
         'Super admin': all_acl_ids,
         'Group admin': ['Comment', 'Manage sources', 'Upload data'],
-        'Full user': ['Comment', 'Upload data']
+        'Full user': ['Comment', 'Upload data'],
+        'View only': []
     }
 
     for r, acl_ids in role_acls.items():
@@ -105,10 +106,12 @@ def load_demo_data(cfg):
         )
         full_user = User(username='fulluser@cesium-ml.org',
                          role_ids=['Full user'], groups=[g])
+        view_only_user = User(username='viewonlyuser@cesium-ml.org',
+                              role_ids=['View only'], groups=[g])
         DBSession().add_all([super_admin_user, group_admin_user,
-                             full_user])
+                             full_user, view_only_user])
 
-        for u in [super_admin_user, group_admin_user, full_user]:
+        for u in [super_admin_user, group_admin_user, full_user, view_only_user]:
             DBSession().add(TornadoStorage.user.create_social_auth(u, u.username,
                                                                    'google-oauth2'))
 
@@ -168,9 +171,4 @@ def load_demo_data(cfg):
                 DBSession().add(t)
                 shutil.copy(basedir/f'skyportal/tests/data/{fname}', basedir/'static/thumbnails/')
 
-            try:
-                s.add_linked_thumbnails()
-            except ConnectionError as e:
-                print(str(e))
-                # raise e
-                pass
+            s.add_linked_thumbnails()
