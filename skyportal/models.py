@@ -42,23 +42,27 @@ class NumpyArray(sa.types.TypeDecorator):
 class Group(Base):
     name = sa.Column(sa.String, unique=True, nullable=False)
 
-    sources = relationship('Source', secondary='group_sources', cascade='all')
-    streams = relationship('Stream', secondary='stream_groups', cascade='all',
+    sources = relationship('Source', secondary='group_sources')
+    streams = relationship('Stream', secondary='stream_groups',
                            back_populates='groups')
     group_users = relationship('GroupUser', back_populates='group',
-                               cascade='all', passive_deletes=True)
-    users = relationship('User', secondary='group_users', cascade='all',
+                               cascade='save-update, merge, refresh-expire, expunge',
+                               passive_deletes=True)
+    users = relationship('User', secondary='group_users',
                          back_populates='groups')
     group_tokens = relationship('GroupToken', back_populates='group',
-                               cascade='all', passive_deletes=True)
-    tokens = relationship('Token', secondary='group_tokens', cascade='all',
+                                cascade='save-update, merge, refresh-expire, expunge',
+                                passive_deletes=True)
+    tokens = relationship('Token', secondary='group_tokens',
                           back_populates='groups')
 
 
 GroupToken = join_model('group_tokens', Group, Token)
-Token.groups = relationship('Group', secondary='group_tokens', cascade='all',
+Token.groups = relationship('Group', secondary='group_tokens',
                             back_populates='tokens')
-Token.group_tokens = relationship('GroupToken', back_populates='token', cascade='all')
+Token.group_tokens = relationship('GroupToken', back_populates='token',
+                                  cascade='save-update, merge, refresh-expire, expunge',
+                                  passive_deletes=True)
 
 GroupUser = join_model('group_users', Group, User)
 GroupUser.admin = sa.Column(sa.Boolean, nullable=False, default=False)
@@ -70,15 +74,17 @@ class Stream(Base):
     username = sa.Column(sa.String)
     password = sa.Column(sa.String)
 
-    groups = relationship('Group', secondary='stream_groups', cascade='all',
+    groups = relationship('Group', secondary='stream_groups',
                           back_populates='streams')
 
 
 StreamGroup = join_model('stream_groups', Stream, Group)
 
 
-User.group_users = relationship('GroupUser', back_populates='user', cascade='all')
-User.groups = relationship('Group', secondary='group_users', cascade='all',
+User.group_users = relationship('GroupUser', back_populates='user',
+                                cascade='save-update, merge, refresh-expire, expunge',
+                                passive_deletes=True)
+User.groups = relationship('Group', secondary='group_users',
                            back_populates='users')
 
 
@@ -131,52 +137,52 @@ class Source(Base):
     tns_info = sa.Column(JSONB, nullable=True)
     tns_name = sa.Column(sa.Unicode, nullable=True)
 
-    groups = relationship('Group', secondary='group_sources', cascade='all')
-    comments = relationship('Comment', back_populates='source', cascade='all',
+    groups = relationship('Group', secondary='group_sources')
+    comments = relationship('Comment', back_populates='source',
+                            cascade='save-update, merge, refresh-expire, expunge',
+                            passive_deletes=True,
                             order_by="Comment.created_at")
     photometry = relationship('Photometry', back_populates='source',
-                              cascade='all',
+                              cascade='save-update, merge, refresh-expire, expunge',
+                              single_parent=True,
+                              passive_deletes=True,
                               order_by="Photometry.observed_at")
 
     detect_photometry_count = sa.Column(sa.Integer, nullable=True)
 
-    spectra = relationship('Spectrum', back_populates='source', cascade='all',
+    spectra = relationship('Spectrum', back_populates='source',
+                           cascade='save-update, merge, refresh-expire, expunge',
+                           single_parent=True,
+                           passive_deletes=True,
                            order_by="Spectrum.observed_at")
     thumbnails = relationship('Thumbnail', back_populates='source',
-                              secondary='photometry', cascade='all')
+                              secondary='photometry',
+                              cascade='save-update, merge, refresh-expire, expunge',
+                              passive_deletes=True,
+                              single_parent=True)
 
     def add_linked_thumbnails(self):
         sdss_thumb = Thumbnail(photometry=self.photometry[0],
-                               public_url=self.get_sdss_url(),
+                               public_url=self.sdss_url,
                                type='sdss')
-        ps1_thumb = Thumbnail(photometry=self.photometry[0],
-                              public_url=self.get_panstarrs_url(),
-                              type='ps1')
-        DBSession().add_all([sdss_thumb, ps1_thumb])
+        dr8_thumb = Thumbnail(photometry=self.photometry[0],
+                              public_url=self.desi_dr8_url,
+                              type='dr8')
+        DBSession().add_all([sdss_thumb, dr8_thumb])
         DBSession().commit()
 
-    def get_sdss_url(self):
+    @property
+    def sdss_url(self):
         """Construct URL for public Sloan Digital Sky Survey (SDSS) cutout."""
         return (f"http://skyservice.pha.jhu.edu/DR9/ImgCutout/getjpeg.aspx"
                 f"?ra={self.ra}&dec={self.dec}&scale=0.3&width=200&height=200"
                 f"&opt=G&query=&Grid=on")
 
-    def get_panstarrs_url(self):
-        """Construct URL for public PanSTARRS-1 (PS1) cutout.
-
-        The cutout service doesn't allow directly querying for an image; the
-        best we can do is request a page that contains a link to the image we
-        want (in this case a combination of the green/blue/red filters).
-        """
-        try:
-            ps_query_url = (f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
-                            f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
-                            f"&filter=r&filter=i&filetypes=stack&size=250")
-            response = requests.get(ps_query_url)
-            match = re.search('src="//ps1images.stsci.edu.*?"', response.content.decode())
-            return match.group().replace('src="', 'http:').replace('"', '')
-        except (ValueError, ConnectionError) as e:
-            return None
+    @property
+    def desi_dr8_url(self):
+        """Construct URL for public DESI DR8 cutout."""
+        return (f"http://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
+                f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz")
 
 
 GroupSource = join_model('group_sources', Group, Source)
@@ -198,7 +204,8 @@ class Telescope(Base):
     diameter = sa.Column(sa.Float, nullable=False)
 
     instruments = relationship('Instrument', back_populates='telescope',
-                               cascade='all')
+                               cascade='save-update, merge, refresh-expire, expunge',
+                               passive_deletes=True)
 
 
 class Instrument(Base):
@@ -209,12 +216,9 @@ class Instrument(Base):
     telescope_id = sa.Column(sa.ForeignKey('telescopes.id',
                                            ondelete='CASCADE'),
                              nullable=False, index=True)
-    telescope = relationship('Telescope', back_populates='instruments',
-                             cascade='all')
-    photometry = relationship('Photometry', back_populates='instrument',
-                              cascade='all')
-    spectra = relationship('Spectrum', back_populates='instrument',
-                           cascade='all')
+    telescope = relationship('Telescope', back_populates='instruments')
+    photometry = relationship('Photometry', back_populates='instrument')
+    spectra = relationship('Spectrum', back_populates='instrument')
 
 
 class Comment(Base):
@@ -230,7 +234,7 @@ class Comment(Base):
     author = sa.Column(sa.String, nullable=False)
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, index=True)
-    source = relationship('Source', back_populates='comments', cascade='all')
+    source = relationship('Source', back_populates='comments')
 
 
 class Photometry(Base):
@@ -264,13 +268,11 @@ class Photometry(Base):
 
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, index=True)
-    source = relationship('Source', back_populates='photometry', cascade='all')
-    instrument_id = sa.Column(sa.ForeignKey('instruments.id',
-                                            ondelete='CASCADE'),
+    source = relationship('Source', back_populates='photometry')
+    instrument_id = sa.Column(sa.ForeignKey('instruments.id'),
                               nullable=False, index=True)
-    instrument = relationship('Instrument', back_populates='photometry',
-                              cascade='all')
-    thumbnails = relationship('Thumbnail', cascade='all')
+    instrument = relationship('Instrument', back_populates='photometry')
+    thumbnails = relationship('Thumbnail', passive_deletes=True)
 
 
 class Spectrum(Base):
@@ -282,15 +284,14 @@ class Spectrum(Base):
 
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, index=True)
-    source = relationship('Source', back_populates='spectra', cascade='all')
+    source = relationship('Source', back_populates='spectra')
     observed_at = sa.Column(sa.DateTime, nullable=False)
     origin = sa.Column(sa.String, nullable=True)
     # TODO program?
     instrument_id = sa.Column(sa.ForeignKey('instruments.id',
                                             ondelete='CASCADE'),
                               nullable=False, index=True)
-    instrument = relationship('Instrument', back_populates='spectra',
-                              cascade='all')
+    instrument = relationship('Instrument', back_populates='spectra')
 
     @classmethod
     def from_ascii(cls, filename, source_id, instrument_id, observed_at):
@@ -318,7 +319,7 @@ class Spectrum(Base):
 
 class Thumbnail(Base):
     # TODO delete file after deleting row
-    type = sa.Column(sa.Enum('new', 'ref', 'sub', 'sdss', 'ps1', "new_gz",
+    type = sa.Column(sa.Enum('new', 'ref', 'sub', 'sdss', 'dr8', "new_gz",
                              'ref_gz', 'sub_gz',
                              name='thumbnail_types', validate_strings=True))
     file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
@@ -326,9 +327,10 @@ class Thumbnail(Base):
     origin = sa.Column(sa.String, nullable=True)
     photometry_id = sa.Column(sa.ForeignKey('photometry.id', ondelete='CASCADE'),
                               nullable=False, index=True)
-    photometry = relationship('Photometry', back_populates='thumbnails', cascade='all')
+    photometry = relationship('Photometry', back_populates='thumbnails')
     source = relationship('Source', back_populates='thumbnails', uselist=False,
-                          secondary='photometry', cascade='all')
+                          secondary='photometry',
+                          single_parent=True)
 
 
 schema.setup_schema()

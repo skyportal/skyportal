@@ -1,5 +1,7 @@
 import numpy.testing as npt
+import uuid
 from skyportal.tests import api
+from skyportal.models import DBSession, Group
 
 
 def test_source_list(view_only_token):
@@ -84,3 +86,114 @@ def test_add_source_without_group_id(upload_data_token, view_only_token,
     assert status == 200
     assert data['data']['sources']['id'] == 'testID2'
     npt.assert_almost_equal(data['data']['sources']['ra'], 234.22)
+
+
+def test_delete_source_cascade_photometry(manage_sources_token, public_source):
+    photometry_ids = [phot.id for phot in public_source.photometry]
+    assert len(photometry_ids) > 0
+    for photometry_id in photometry_ids:
+        status, data = api(
+            'GET',
+            f'photometry/{photometry_id}',
+            token=manage_sources_token)
+        assert status == 200
+
+    status, data = api('DELETE', f'sources/{public_source.id}',
+                       token=manage_sources_token)
+    assert status == 200
+
+    status, data = api('GET', f'sources/{public_source.id}',
+                       token=manage_sources_token)
+    assert status == 400
+
+    for photometry_id in photometry_ids:
+        status, data = api(
+            'GET',
+            f'photometry/{photometry_id}',
+            token=manage_sources_token)
+        assert status == 400
+
+
+def test_delete_source_cascade_spectra(manage_sources_token, public_source):
+    spec_ids = [spec.id for spec in public_source.spectra]
+    assert len(spec_ids) > 0
+    for spec_id in spec_ids:
+        status, data = api(
+            'GET',
+            f'spectrum/{spec_id}',
+            token=manage_sources_token)
+        assert status == 200
+
+    status, data = api('DELETE', f'sources/{public_source.id}',
+                       token=manage_sources_token)
+    assert status == 200
+
+    status, data = api('GET', f'sources/{public_source.id}',
+                       token=manage_sources_token)
+    assert status == 400
+
+    for spec_id in spec_ids:
+        status, data = api(
+            'GET',
+            f'spectrum/{spec_id}',
+            token=manage_sources_token)
+        assert status == 400
+
+
+def test_delete_source_cascade_comments(manage_sources_token, public_source):
+    comment_ids = [comment.id for comment in public_source.comments]
+    assert len(comment_ids) > 0
+    for comment_id in comment_ids:
+        status, data = api(
+            'GET',
+            f'comment/{comment_id}',
+            token=manage_sources_token)
+        assert status == 200
+
+    status, data = api('DELETE', f'sources/{public_source.id}',
+                       token=manage_sources_token)
+    assert status == 200
+
+    status, data = api('GET', f'sources/{public_source.id}',
+                       token=manage_sources_token)
+    assert status == 400
+
+    for comment_id in comment_ids:
+        status, data = api(
+            'GET',
+            f'comment/{comment_id}',
+            token=manage_sources_token)
+        assert status == 400
+
+
+def test_delete_source_cascade_groupsource(upload_data_token,
+                                           manage_sources_token, public_group):
+    source_id = str(uuid.uuid4())
+    print(public_group.id)
+    assert len(public_group.sources) == 0
+
+    status, data = api('POST', 'sources',
+                       data={'id': source_id,
+                             'ra': 234.22,
+                             'dec': -22.33,
+                             'redshift': 3,
+                             'transient': False,
+                             'ra_dis': 2.3,
+                             'group_ids': [public_group.id]},
+                       token=upload_data_token)
+    assert status == 200
+
+    status, data = api('GET', f'groups/{public_group.id}',
+                       token=manage_sources_token)
+    assert len(data['data']['group']['sources']) == 1
+
+    status, data = api('DELETE', f'sources/{source_id}',
+                       token=manage_sources_token)
+    assert status == 200
+    status, data = api('GET', f'sources/{source_id}',
+                       token=manage_sources_token)
+    assert status == 400
+
+    status, data = api('GET', f'groups/{public_group.id}',
+                       token=manage_sources_token)
+    assert len(data['data']['group']['sources']) == 0

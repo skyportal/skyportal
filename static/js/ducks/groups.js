@@ -7,6 +7,9 @@ export const FETCH_GROUPS_OK = 'skyportal/FETCH_GROUPS_OK';
 export const ADD_GROUP = 'skyportal/ADD_GROUP';
 export const ADD_GROUP_OK = 'skyportal/ADD_GROUP_OK';
 
+export const DELETE_GROUP = 'skyportal/DELETE_GROUP';
+export const DELETE_GROUP_OK = 'skyportal/DELETE_GROUP_OK';
+
 export const ADD_GROUP_USER = 'skyportal/ADD_GROUP_USER';
 export const ADD_GROUP_USER_OK = 'skyportal/ADD_GROUP_USER_OK';
 
@@ -20,6 +23,10 @@ export function fetchGroups() {
 
 export function addNewGroup(form_data) {
   return API.POST('/api/groups', ADD_GROUP, form_data);
+}
+
+export function deleteGroup(group_id) {
+  return API.DELETE(`/api/groups/${group_id}`, DELETE_GROUP);
 }
 
 export function addGroupUser({ username, admin, group_id }) {

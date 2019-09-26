@@ -43,7 +43,7 @@ const SurveyLinkList = ({ ra, dec, id }) => {
       />
       <SurveyLink
         name="SNEx"
-        url={`http://secure.lcogt.net/user/supernova/dev/cgi-bin/view_object.cgi?name=iPTF${id}s&ra=${ra}&dec=${dec}`}
+        url={`http://secure.lcogt.net/user/supernova/dev/cgi-bin/view_object.cgi?name=iPTF${id}&ra=${ra}&dec=${dec}`}
       />
       <SurveyLink
         name="SIMBAD"
@@ -58,15 +58,15 @@ const SurveyLinkList = ({ ra, dec, id }) => {
       />
       <SurveyLink
         name="DECam"
-        url={`http://legacysurvey.org/viewer?ra=${ra}s&dec=${dec}s&zoom=14&layer=decals-dr2`}
+        url={`http://legacysurvey.org/viewer?ra=${ra}&dec=${dec}&zoom=14`}
       />
       <SurveyLink
         name="SkyView"
-        url={`http://skyview.gsfc.nasa.gov/cgi-bin/runquery.pl?survey=RST+(1.4+Ghz)%%2CNVSS%%2C2MASS-K%%2C2MASS-J%%2CGALEX+NEAR+UV%%2CGALEX+FAR+UV%%2CRASS-CNT+Broad&position=${ra}s%%2C${dec}s`}
+        url={`http://skyview.gsfc.nasa.gov/cgi-bin/runquery.pl?survey=RST+(1.4+Ghz)%%2CNVSS%%2C2MASS-K%%2C2MASS-J%%2CGALEX+NEAR+UV%%2CGALEX+FAR+UV%%2CRASS-CNT+Broad&position=${ra}%%2C${dec}`}
       />
       <SurveyLink
         name="PyMP"
-        url={`http://dotastro.org/PyMPC/PyMPC/?in_1=${ra_hrs}s&in_2=${dec_hrs}s&in_3=${thumbnail_timestamp}s&in_4=50`}
+        url={`http://dotastro.org/PyMPC/PyMPC/?in_1=${ra_hrs}&in_2=${dec_hrs}&in_3=${thumbnail_timestamp}&in_4=50`}
       />
       <SurveyLink
         name="MPChecker"
@@ -77,19 +77,19 @@ const SurveyLinkList = ({ ra, dec, id }) => {
       />
       <SurveyLink
         name="CFHT"
-        url={`http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/cadcbin/megapipe/imc.pl?lang=en&object=&size=256&ra=${ra}s&dec=${dec}s`}
+        url={`http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/cadcbin/megapipe/imc.pl?lang=en&object=&size=256&ra=${ra}&dec=${dec}`}
       />
       <SurveyLink
         name="IPAC"
-        url={`http://irsa.ipac.caltech.edu/applications/ptf/#id=Hydra_ptf_ptf_image_pos&RequestClass=ServerRequest&DoSearch=true&intersect=CENTER&subsize=0.13888889000000001&mcenter=all&dpLevel=l1,l2&UserTargetWorldPt=${ra}s;${dec}s;EQ_J2000&SimpleTargetPanel.field.resolvedBy=ned&ptfField=&ccdId=&projectId=ptf&searchName=age_pos&shortDesc=Search%%20by%%20Position&isBookmarkAble=true&isDrillDownRoot=true&isSearchResult=true`}
+        url={`http://irsa.ipac.caltech.edu/applications/ptf/#id=Hydra_ptf_ptf_image_pos&RequestClass=ServerRequest&DoSearch=true&intersect=CENTER&subsize=0.13888889000000001&mcenter=all&dpLevel=l1,l2&UserTargetWorldPt=${ra};${dec};EQ_J2000&SimpleTargetPanel.field.resolvedBy=ned&ptfField=&ccdId=&projectId=ptf&searchName=age_pos&shortDesc=Search%%20by%%20Position&isBookmarkAble=true&isDrillDownRoot=true&isSearchResult=true`}
       />
       <SurveyLink
         name="DSS"
-        url={`http://archive.stsci.edu/cgi-bin/dss_search?h=5.0&w=5.0&f=fits&v=poss2ukstu_red&r=${ra}sd&d=${dec}sd&e=J2000&c=none`}
+        url={`http://archive.stsci.edu/cgi-bin/dss_search?h=5.0&w=5.0&f=fits&v=poss2ukstu_red&r=${ra}d&d=${dec}d&e=J2000&c=none`}
       />
       <SurveyLink
         name="WISE"
-        url={`http://irsa.ipac.caltech.edu/applications/wise/#id=Hydra_wise_wise_1&RequestClass=ServerRequest&DoSearch=true&intersect=CENTER&subsize=0.16666666800000002&mcenter=all&schema=allsky-4band&dpLevel=3a&band=1,2,3,4&UserTargetWorldPt=${ra}s;${dec}s;EQ_J2000&SimpleTargetPanel.field.resolvedBy=nedthensimbad&preliminary_data=no&coaddId=&projectId=earchName=wise_1&shortDesc=Position&isBookmarkAble=true&isDrillDownRoot=true&isSearchResult=true`}
+        url={`http://irsa.ipac.caltech.edu/applications/wise/#id=Hydra_wise_wise_1&RequestClass=ServerRequest&DoSearch=true&intersect=CENTER&subsize=0.16666666800000002&mcenter=all&schema=allsky-4band&dpLevel=3a&band=1,2,3,4&UserTargetWorldPt=${ra};${dec};EQ_J2000&SimpleTargetPanel.field.resolvedBy=nedthensimbad&preliminary_data=no&coaddId=&projectId=earchName=wise_1&shortDesc=Position&isBookmarkAble=true&isDrillDownRoot=true&isSearchResult=true`}
       />
       <SurveyLink
         name="Subaru"
@@ -110,7 +110,7 @@ const SurveyLinkList = ({ ra, dec, id }) => {
       />
       <SurveyLink
         name="ADS"
-        url={`http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?db_key=AST&db_key=PRE&qform=AST&arxiv_sel=astro-ph&arxiv_sel=cond-mat&arxiv_sel=cs&arxiv_sel=gr-qc&arxiv_sel=hep-ex&arxiv_sel=hep-lat&arxiv_sel=hep-ph&arxiv_sel=hep-th&arxiv_sel=math&arxiv_sel=math-ph&arxiv_sel=nlin&arxiv_sel=nucl-ex&arxiv_sel=nucl-th&arxiv_sel=physics&arxiv_sel=quant-ph&arxiv_sel=q-bio&sim_query=YES&ned_query=YES&adsobj_query=YES&aut_logic=OR&obj_logic=OR&author=&object=iptf${id}s%%0D%%0Aptf${id}s%%0D%%0A${ra}s+${dec > 0 ? '%2B' : ''}s${dec}s&start_mon=&start_year=&end_mon=&end_year=&ttl_logic=OR&title=&txt_logic=OR&text=&nr_to_return=200&start_nr=1&jou_pick=ALL&ref_stems=&data_and=ALL&group_and=ALL&start_entry_day=&start_entry_mon=&start_entry_year=&end_entry_day=&end_entry_mon=&end_entry_year=&min_score=&sort=SCORE&data_type=SHORT&aut_syn=YES&ttl_syn=YES&txt_syn=YES&aut_wt=1.0&obj_wt=1.0&ttl_wt=0.3&txt_wt=3.0&aut_wgt=YES&obj_wgt=YES&ttl_wgt=YES&txt_wgt=YES&ttl_sco=YES&txt_sco=YES&version=1`}
+        url={`http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?db_key=AST&db_key=PRE&qform=AST&arxiv_sel=astro-ph&arxiv_sel=cond-mat&arxiv_sel=cs&arxiv_sel=gr-qc&arxiv_sel=hep-ex&arxiv_sel=hep-lat&arxiv_sel=hep-ph&arxiv_sel=hep-th&arxiv_sel=math&arxiv_sel=math-ph&arxiv_sel=nlin&arxiv_sel=nucl-ex&arxiv_sel=nucl-th&arxiv_sel=physics&arxiv_sel=quant-ph&arxiv_sel=q-bio&sim_query=YES&ned_query=YES&adsobj_query=YES&aut_logic=OR&obj_logic=OR&author=&object=iptf${id}%%0D%%0Aptf${id}%%0D%%0A${ra}+${dec > 0 ? '%2B' : ''}${dec}&start_mon=&start_year=&end_mon=&end_year=&ttl_logic=OR&title=&txt_logic=OR&text=&nr_to_return=200&start_nr=1&jou_pick=ALL&ref_stems=&data_and=ALL&group_and=ALL&start_entry_day=&start_entry_mon=&start_entry_year=&end_entry_day=&end_entry_mon=&end_entry_year=&min_score=&sort=SCORE&data_type=SHORT&aut_syn=YES&ttl_syn=YES&txt_syn=YES&aut_wt=1.0&obj_wt=1.0&ttl_wt=0.3&txt_wt=3.0&aut_wgt=YES&obj_wgt=YES&ttl_wgt=YES&txt_wgt=YES&ttl_sco=YES&txt_sco=YES&version=1`}
       />
     </div>
   );

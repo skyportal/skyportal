@@ -13,5 +13,6 @@ from .become_user import BecomeUserHandler
 from .photometry import PhotometryHandler
 from .token import TokenHandler
 from .sysinfo import SysInfoHandler
-from .userinfo import UserInfoHandler
+from .user import UserHandler
+from .spectrum import SpectrumHandler
 from .base import BaseHandler

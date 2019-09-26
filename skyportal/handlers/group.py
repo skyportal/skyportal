@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from .base import BaseHandler
-from ..models import DBSession, Group, GroupUser, User
+from ..models import DBSession, Group, GroupUser, User, Token, Source
 
 
 class GroupHandler(BaseHandler):
@@ -45,12 +45,14 @@ class GroupHandler(BaseHandler):
             if (hasattr(self.current_user, 'roles') and
                 'Super admin' in [role.id for role in self.current_user.roles]):
                 group = Group.query.options(joinedload(Group.users)).options(
-                    joinedload(Group.group_users)).get(group_id)
+                    joinedload(Group.group_users)).options(
+                        joinedload(Group.sources)).get(group_id)
             else:
                 group = Group.get_if_owned_by(
                     group_id, self.current_user,
                     options=[joinedload(Group.users),
-                             joinedload(Group.group_users)])
+                             joinedload(Group.group_users),
+                             joinedload(Group.sources)])
             info['group'] = group
         else:
             info['user_groups'] = list(self.current_user.groups)
@@ -86,17 +88,26 @@ class GroupHandler(BaseHandler):
                           description: New group ID
         """
         data = self.get_json()
-        group_admin_emails = [username.strip() for username in
-                              data['groupAdmins'].split(',')
-                              if username.strip() != '']
 
+        group_admin_emails = [e.strip() for e in data.get('group_admins', [])
+                              if e.strip()]
         group_admins = list(User.query.filter(User.username.in_(
             group_admin_emails)))
+        if self.current_user not in group_admins and not isinstance(self.current_user, Token):
+            group_admins.append(self.current_user)
 
-        g = Group(name=data['name'])
-        DBSession().add_all([
-            GroupUser(group=g, user=user, admin=True) for user in
-            [self.current_user] + group_admins])
+        group_tokens = [t.strip() for t in data.get('group_tokens', [])
+                        if t.strip()]
+        group_tokens = list(Token.query.filter(Token.id.in_(group_tokens)))
+        if isinstance(self.current_user, Token) and self.current_user not in group_tokens:
+            group_tokens.append(self.current_user)
+
+        source_ids = [s.strip() for s in data.get('source_ids', []) if s.strip()]
+        sources = list(Source.query.filter(Source.id.in_(source_ids)))
+
+        g = Group(name=data['name'], tokens=group_tokens, sources=sources)
+        DBSession().add_all(
+            [GroupUser(group=g, user=user, admin=True) for user in group_admins])
         DBSession().commit()
 
         self.push_all(action='skyportal/FETCH_GROUPS')
@@ -155,7 +166,9 @@ class GroupHandler(BaseHandler):
         DBSession().delete(g)
         DBSession().commit()
 
-        return self.success(action='skyportal/FETCH_GROUPS')
+        self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': int(group_id)})
+        self.push_all(action='skyportal/FETCH_GROUPS')
+        return self.success()
 
 
 class GroupUserHandler(BaseHandler):

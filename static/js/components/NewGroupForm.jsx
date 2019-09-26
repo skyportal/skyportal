@@ -9,7 +9,7 @@ const NewGroupForm = (props) => {
   const dispatch = useDispatch();
   const [formState, setState] = useState({
     name: "",
-    groupAdmins: ""
+    group_admins: []
   });
 
   const handleSubmit = (event) => {
@@ -17,13 +17,14 @@ const NewGroupForm = (props) => {
     dispatch(Action.addNewGroup(formState));
     setState({
       name: "",
-      groupAdmins: ""
+      group_admins: []
     });
   };
 
   const handleChange = (event) => {
     const newState = {};
-    newState[event.target.name] = event.target.value;
+    newState[event.target.name] = (event.target.name === "groupAdmins" ?
+                                   event.target.value.split(",") : event.target.value);
     setState({
       ...formState,
       ...newState
@@ -65,7 +66,7 @@ const NewGroupForm = (props) => {
                 <input
                   type="text"
                   name="groupAdmins"
-                  value={formState.groupAdmins}
+                  value={formState.group_admins}
                   onChange={handleChange}
                 />
               </td>
