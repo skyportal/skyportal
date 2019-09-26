@@ -11,7 +11,7 @@ const Footer = () => {
       <div className={styles.footerContent}>
         SkyPortal v
         {version}
-. Please file issues at&nbsp;
+        . Please file issues at&nbsp;
         <a href="https://github.com/skyportal/skyportal">
           https://github.com/skyportal/skyportal
         </a>

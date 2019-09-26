@@ -10,6 +10,7 @@ import CommentEntry from './CommentEntry';
 const CommentList = () => {
   const dispatch = useDispatch();
   const source = useSelector((state) => state.source);
+  const acls = useSelector((state) => state.profile.acls);
   let { comments } = source;
   const addComment = (formData) => dispatch(
     sourceActions.addComment({ source_id: source.id, ...formData })
@@ -50,7 +51,10 @@ const CommentList = () => {
     <div className={styles.comments}>
       {items}
       <br />
-      <CommentEntry addComment={addComment} />
+      {
+        (acls.indexOf('Comment') >= 0) &&
+        <CommentEntry addComment={addComment} />
+      }
     </div>
   );
 };

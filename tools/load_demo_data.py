@@ -45,10 +45,12 @@ if __name__ == "__main__":
         )
         full_user = User(username='fulluser@cesium-ml.org',
                          role_ids=['Full user'], groups=[g])
+        view_only_user = User(username='viewonlyuser@cesium-ml.org',
+                              role_ids=['View only'], groups=[g])
         DBSession().add_all([super_admin_user, group_admin_user,
-                             full_user])
+                             full_user, view_only_user])
 
-        for u in [super_admin_user, group_admin_user, full_user]:
+        for u in [super_admin_user, group_admin_user, full_user, view_only_user]:
             DBSession().add(TornadoStorage.user.create_social_auth(u, u.username,
                                                                    'google-oauth2'))
 

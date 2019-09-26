@@ -43,7 +43,8 @@ def setup_permissions():
     role_acls = {
         'Super admin': all_acl_ids,
         'Group admin': ['Comment', 'Manage sources', 'Upload data'],
-        'Full user': ['Comment', 'Upload data']
+        'Full user': ['Comment', 'Upload data'],
+        'View only': []
     }
 
     for r, acl_ids in role_acls.items():
