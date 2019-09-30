@@ -6,12 +6,12 @@ import skyportal
 import tornado.web
 
 
-class SysInfoHandler(BaseHandler):
+class SourceTableEmptyHandler(BaseHandler):
     @auth_or_token
     def get(self):
         """
         ---
-        description: Retrieve system info
+        description: Determine whether sources table is empy.
         responses:
           200:
             content:
@@ -20,6 +20,12 @@ class SysInfoHandler(BaseHandler):
                   allOf:
                     - Success
                     - type: object
+                      properties:
+                        source_table_empty:
+                          type: boolean
+                          description: Boolean indicating whether source table is empty
         """
-        info = {}
+        info = {
+            'source_table_empty': DBSession.query(Source).first() is None,
+        }
         return self.success(data=info)

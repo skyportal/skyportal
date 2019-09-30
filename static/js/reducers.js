@@ -10,6 +10,7 @@ import groupsReducer from './ducks/groups';
 import profileReducer from './ducks/profile';
 import usersReducer from './ducks/users';
 import sysInfoReducer from './ducks/sysInfo';
+import sourceTableStatusReducer from './ducks/sourceTableStatus';
 import logoReducer from './ducks/logo';
 
 
@@ -23,7 +24,8 @@ const root = combineReducers({
   plots: plotsReducer,
   logo: logoReducer,
   users: usersReducer,
-  sysInfo: sysInfoReducer
+  sysInfo: sysInfoReducer,
+  sourceTableStatus: sourceTableStatusReducer
 });
 
 export default root;

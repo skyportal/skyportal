@@ -15,4 +15,5 @@ from .token import TokenHandler
 from .sysinfo import SysInfoHandler
 from .user import UserHandler
 from .spectrum import SpectrumHandler
+from .source_table_empty import SourceTableEmptyHandler
 from .base import BaseHandler
