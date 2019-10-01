@@ -100,7 +100,6 @@ const SourceList = () => {
                   </th>
                   <th>
                     Simbad
-                    {' '}
                     <br />
                     Class
                   </th>

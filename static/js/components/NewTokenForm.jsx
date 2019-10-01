@@ -69,7 +69,7 @@ Select Token ACLs:
             </tr>
             <tr>
               <td>
-Select Token Group:
+                Select Token Group:
               </td>
               <td>
                 <select
@@ -89,8 +89,7 @@ Select Token Group:
             <tr>
               <td>
                 <label>
-Token name:
-                  {' '}
+                  Token name:&nbsp;&nbsp;
                 </label>
               </td>
               <td>

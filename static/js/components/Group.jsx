@@ -28,8 +28,7 @@ const Group = ({ route }) => {
   return (
     <div className={styles.group}>
       <b>
-        Group Name:
-        {' '}
+        Group Name:&nbsp;&nbsp;
       </b>
       {group.name}
       <ul>
