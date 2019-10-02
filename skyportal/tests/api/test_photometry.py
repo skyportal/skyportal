@@ -175,9 +175,8 @@ def test_delete_photometry_cascades_to_thumbnail(manage_sources_token,
 
 def test_token_user_post_photometry_thumbnail(upload_data_token, public_source):
     thumbnails = [
-        {'fname': f'14gqr_{suffix}.png',
-         'data': base64.b64encode(open(os.path.abspath(f'skyportal/tests/data/14gqr_{suffix}.png'),
-                      'rb').read()),
+        {'data': base64.b64encode(open(os.path.abspath(f'skyportal/tests/data/14gqr_{suffix}.png'),
+                                       'rb').read()),
          'type': suffix}
         for suffix in ['new', 'ref', 'sub']
     ]

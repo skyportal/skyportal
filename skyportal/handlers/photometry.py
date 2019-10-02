@@ -22,6 +22,23 @@ class PhotometryHandler(BaseHandler):
           - in: path
             name: photometry
             schema: Photometry
+          - in: path
+            name: thumbnails
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  data:
+                    type: string
+                    format: byte
+                    description: base64-encoded PNG image file contents. Image size must be between 100px and 500px on a side.
+                  type:
+                    type: string
+                    description: Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
+                required:
+                  - data
+                  - type
         responses:
           200:
             content:
@@ -92,7 +109,7 @@ class PhotometryHandler(BaseHandler):
                     t = Thumbnail(type=thumb['type'],
                                   photometry_id=ids[0],
                                   file_uri=file_uri,
-                                  public_url=f'/static/thumbnails/{thumb["fname"]}')
+                                  public_url=f'/static/thumbnails/{source.id}_{thumb["type"]}.png')
                     DBSession.add(t)
                 except TypeError:
                     return self.error('Invalid thumbnail type. Please refer to '
