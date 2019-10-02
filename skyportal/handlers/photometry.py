@@ -1,6 +1,7 @@
 import os
 import io
 import base64
+from pathlib import Path
 import tornado.web
 from astropy.time import Time
 from sqlalchemy.orm import joinedload
@@ -73,8 +74,13 @@ class PhotometryHandler(BaseHandler):
             ids.append(p.id)
         if 'thumbnails' in data:
             for thumb in data['thumbnails']:
+                basedir = Path(os.path.dirname(__file__))/'..'/'..'
+                if os.path.abspath(basedir).endswith('skyportal/skyportal'):
+                    basedir = basedir/'..'
                 file_uri = os.path.abspath(
-                    f'static/thumbnails/{source.id}_{thumb["type"]}.png')
+                    basedir/f'static/thumbnails/{source.id}_{thumb["type"]}.png')
+                if not os.path.exists(os.path.dirname(file_uri)):
+                    (basedir/'static/thumbnails').mkdir(parents=True)
                 file_bytes = base64.b64decode(thumb['data'])
                 im = Image.open(io.BytesIO(file_bytes))
                 if im.format != 'PNG':
@@ -83,11 +89,15 @@ class PhotometryHandler(BaseHandler):
                     return self.error('Invalid thumbnail size. Only 200x200 px allowed.')
                 with open(file_uri, 'wb') as f:
                     f.write(file_bytes)
-                t = Thumbnail(type=thumb['type'],
-                              photometry_id=ids[0],
-                              file_uri=file_uri,
-                              public_url=f'/static/thumbnails/{thumb["fname"]}')
-                DBSession.add(t)
+                try:
+                    t = Thumbnail(type=thumb['type'],
+                                  photometry_id=ids[0],
+                                  file_uri=file_uri,
+                                  public_url=f'/static/thumbnails/{thumb["fname"]}')
+                    DBSession.add(t)
+                except TypeError:
+                    return self.error('Invalid thumbnail type. Please refer to '
+                                      'API docs for a list of allowed types.')
         DBSession().commit()
 
         return self.success(data={"ids": ids})
