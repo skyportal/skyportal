@@ -42,8 +42,7 @@ const NewGroupForm = (props) => {
             <tr>
               <td>
                 <label>
-                  Group Name:
-                  {' '}
+                  Group Name:&nbsp;&nbsp;
                 </label>
               </td>
               <td>
@@ -58,8 +57,7 @@ const NewGroupForm = (props) => {
             <tr>
               <td>
                 <label>
-                  Group Admins (comma-separated email addresses):
-                  {' '}
+                  Group Admins (comma-separated email addresses):&nbsp;&nbsp;
                 </label>
               </td>
               <td>

@@ -59,22 +59,22 @@ const Source = ({ route }) => {
           <b>
             Position (J2000):
           </b>
-          {' '}
+          &nbsp;
           {source.ra}
           ,
-          {' '}
+          &nbsp;
           {source.dec}
-          {' '}
+          &nbsp;
           (&alpha;,&delta;=
           {ra_to_hours(source.ra)}
           ,
-          {' '}
+          &nbsp;
           {dec_to_hours(source.dec)}
           )
           <br />
           <b>
             Redshift:
-            {' '}
+            &nbsp;
           </b>
           {source.redshift}
           <br />
