@@ -177,7 +177,7 @@ def test_token_user_post_photometry_thumbnail(upload_data_token, public_source):
     thumbnails = [
         {'data': base64.b64encode(open(os.path.abspath(f'skyportal/tests/data/14gqr_{suffix}.png'),
                                        'rb').read()),
-         'type': suffix}
+         'ttype': suffix}
         for suffix in ['new', 'ref', 'sub']
     ]
     status, data = api('POST', 'photometry',

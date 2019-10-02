@@ -20,8 +20,41 @@ class PhotometryHandler(BaseHandler):
         description: Upload photometry
         parameters:
           - in: path
-            name: photometry
-            schema: Photometry
+            name: time_format
+            schema:
+              type: string
+          - in: path
+            name: time_scale
+            schema:
+              type: string
+          - in: path
+            name: source_id
+            schema:
+              type: string
+          - in: path
+            name: instrument_id
+            schema:
+              type: integer
+          - in: path
+            name: time
+            schema:
+              type: string
+          - in: path
+            name: mag
+            schema:
+              type: number
+          - in: path
+            name: e_mag
+            schema:
+              type: number
+          - in: path
+            name: filter
+            schema:
+              type: string
+          - in: path
+            name: lim_mag
+            schema:
+              type: number
           - in: path
             name: thumbnails
             schema:
@@ -33,12 +66,12 @@ class PhotometryHandler(BaseHandler):
                     type: string
                     format: byte
                     description: base64-encoded PNG image file contents. Image size must be between 100px and 500px on a side.
-                  type:
+                  ttype:
                     type: string
                     description: Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
                 required:
                   - data
-                  - type
+                  - ttype
         responses:
           200:
             content:
@@ -95,7 +128,7 @@ class PhotometryHandler(BaseHandler):
                 if os.path.abspath(basedir).endswith('skyportal/skyportal'):
                     basedir = basedir/'..'
                 file_uri = os.path.abspath(
-                    basedir/f'static/thumbnails/{source.id}_{thumb["type"]}.png')
+                    basedir/f'static/thumbnails/{source.id}_{thumb["ttype"]}.png')
                 if not os.path.exists(os.path.dirname(file_uri)):
                     (basedir/'static/thumbnails').mkdir(parents=True)
                 file_bytes = base64.b64decode(thumb['data'])
@@ -106,14 +139,17 @@ class PhotometryHandler(BaseHandler):
                     return self.error('Invalid thumbnail size. Only thumbnails '
                                       'between (100, 100) and (500, 500) allowed.')
                 try:
-                    t = Thumbnail(type=thumb['type'],
+                    t = Thumbnail(type=thumb['ttype'],
                                   photometry_id=ids[0],
                                   file_uri=file_uri,
-                                  public_url=f'/static/thumbnails/{source.id}_{thumb["type"]}.png')
+                                  public_url=f'/static/thumbnails/{source.id}_{thumb["ttype"]}.png')
                     DBSession.add(t)
                 except TypeError:
                     return self.error('Invalid thumbnail type. Please refer to '
                                       'API docs for a list of allowed types.')
+                except Exception as e:
+                    return self.error(f'Error creating thumbnail: {str(e)}. Please check '
+                                      'submitted values against API docs.')
                 with open(file_uri, 'wb') as f:
                     f.write(file_bytes)
         DBSession().commit()
