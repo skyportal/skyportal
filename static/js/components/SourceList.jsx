@@ -12,7 +12,7 @@ const SourceList = () => {
     (state) => state.sources
   );
   const sourceTableEmpty = useSelector(
-    (state) => state.sourceTableStatus.source_table_empty
+    (state) => state.dbInfo.source_table_empty
   );
 
   const dispatch = useDispatch();

@@ -1,13 +1,13 @@
 import * as groupsActions from './ducks/groups';
 import * as profileActions from './ducks/profile';
 import * as sysInfoActions from './ducks/sysInfo';
-import * as sourceTableStatusActions from './ducks/sourceTableStatus';
+import * as dbInfoActions from './ducks/dbInfo';
 
 
 export default function hydrate() {
   return (dispatch) => {
     dispatch(sysInfoActions.fetchSystemInfo());
-    dispatch(sourceTableStatusActions.fetchSourceTableStatus());
+    dispatch(dbInfoActions.fetchDBInfo());
     dispatch(profileActions.fetchUserProfile());
     dispatch(groupsActions.fetchGroups());
   };
