@@ -1,10 +1,14 @@
+import os
+import io
+import base64
 import tornado.web
 from astropy.time import Time
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
+from PIL import Image
 from baselayer.app.access import permissions, auth_or_token
 from .base import BaseHandler
-from ..models import DBSession, Photometry, Comment, Instrument, Source
+from ..models import DBSession, Photometry, Comment, Instrument, Source, Thumbnail
 
 
 class PhotometryHandler(BaseHandler):
@@ -32,7 +36,6 @@ class PhotometryHandler(BaseHandler):
         """
         data = self.get_json()
 
-        # TODO where do we get the instrument info?
         # TODO should filters be a table/plaintext/limited set of strings?
         if 'time_format' not in data or 'time_scale' not in data:
             return self.error('Time scale (\'time_scale\') and time format '
@@ -68,6 +71,23 @@ class PhotometryHandler(BaseHandler):
             DBSession().add(p)
             DBSession().flush()
             ids.append(p.id)
+        if 'thumbnails' in data:
+            for thumb in data['thumbnails']:
+                file_uri = os.path.abspath(
+                    f'static/thumbnails/{source.id}_{thumb["type"]}.png')
+                file_bytes = base64.b64decode(thumb['data'])
+                im = Image.open(io.BytesIO(file_bytes))
+                if im.format != 'PNG':
+                    return self.error('Invalid thumbnail image type. Only PNG are supported.')
+                if im.size != (200, 200):
+                    return self.error('Invalid thumbnail size. Only 200x200 px allowed.')
+                with open(file_uri, 'wb') as f:
+                    f.write(file_bytes)
+                t = Thumbnail(type=thumb['type'],
+                              photometry_id=ids[0],
+                              file_uri=file_uri,
+                              public_url=f'/static/thumbnails/{thumb["fname"]}')
+                DBSession.add(t)
         DBSession().commit()
 
         return self.success(data={"ids": ids})
