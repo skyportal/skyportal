@@ -85,10 +85,9 @@ class PhotometryHandler(BaseHandler):
                 im = Image.open(io.BytesIO(file_bytes))
                 if im.format != 'PNG':
                     return self.error('Invalid thumbnail image type. Only PNG are supported.')
-                if im.size != (200, 200):
-                    return self.error('Invalid thumbnail size. Only 200x200 px allowed.')
-                with open(file_uri, 'wb') as f:
-                    f.write(file_bytes)
+                if not (100, 100) <= im.size <= (500, 500):
+                    return self.error('Invalid thumbnail size. Only thumbnails '
+                                      'between (100, 100) and (500, 500) allowed.')
                 try:
                     t = Thumbnail(type=thumb['type'],
                                   photometry_id=ids[0],
@@ -98,6 +97,8 @@ class PhotometryHandler(BaseHandler):
                 except TypeError:
                     return self.error('Invalid thumbnail type. Please refer to '
                                       'API docs for a list of allowed types.')
+                with open(file_uri, 'wb') as f:
+                    f.write(file_bytes)
         DBSession().commit()
 
         return self.success(data={"ids": ids})
