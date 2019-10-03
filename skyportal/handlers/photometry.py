@@ -23,10 +23,12 @@ class PhotometryHandler(BaseHandler):
             name: time_format
             schema:
               type: string
+            description: Valid time formats are listed in `astropy.time.Time.FORMATS` (https://docs.astropy.org/en/stable/api/astropy.time.Time.html#astropy.time.Time.FORMATS)
           - in: path
             name: time_scale
             schema:
               type: string
+            description: Valid time scales are listed in `astropy.time.Time.SCALES` (https://docs.astropy.org/en/stable/api/astropy.time.Time.html#astropy.time.Time.SCALES)
           - in: path
             name: source_id
             schema:
