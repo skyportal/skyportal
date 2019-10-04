@@ -44,7 +44,7 @@ def test_comments(driver, user, public_source):
     if day_text == 'Yesterday':
         day = day.AddDays(-1)
     timestamp = datetime.combine(day, timestamp.time())
-    assert((comment_time - timestamp).total_seconds() < 60)
+    assert((comment_time - timestamp).total_seconds() < 120)
 
 
 def test_upload_comment_attachment(driver, user, public_source):
@@ -84,7 +84,6 @@ def test_download_comment_attachment(driver, user, public_source):
         assert l.split('\n')[0] == 'wavelength,flux,instrument_id'
     finally:
         os.remove(fpath)
-
 
 
 def test_view_only_user_cannot_comment(driver, view_only_user, public_source):

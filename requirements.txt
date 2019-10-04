@@ -18,3 +18,4 @@ apispec==2.0.2
 marshmallow==3.0.0rc5
 marshmallow-sqlalchemy==0.17.0
 marshmallow-enum==1.4.1
+Pillow==6.2.0
