@@ -51,10 +51,10 @@ class ThumbnailHandler(BaseHandler):
                           description: New thumbnail ID
         """
         data = self.get_json()
-        if 'photometry_id' in data and data['photometry_id']:
+        if 'photometry_id' in data:
             phot = Photometry.query.get(int(photometry_id))
             source = phot.source
-        elif 'source_id' in data and data['source_id']:
+        elif 'source_id' in data:
             source = Source.query.get(source_id)
             try:
                 phot = source.photometry[0]
