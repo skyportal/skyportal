@@ -75,6 +75,7 @@ before_install:
   - which python; python --version
   - wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
   - source .travis/travis_funcs.sh
+  - export PYTHONPATH=$PYTHONPATH:$(pwd)
 
 install:
   # Workaround for invalid GPG keys for MongoDB, CouchDB, and git-lfs

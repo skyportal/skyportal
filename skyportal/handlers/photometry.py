@@ -127,8 +127,6 @@ class PhotometryHandler(BaseHandler):
         if 'thumbnails' in data:
             for thumb in data['thumbnails']:
                 basedir = Path(os.path.dirname(__file__))/'..'/'..'
-                if os.path.abspath(basedir).endswith('skyportal/skyportal'):
-                    basedir = basedir/'..'
                 file_uri = os.path.abspath(
                     basedir/f'static/thumbnails/{source.id}_{thumb["ttype"]}.png')
                 if not os.path.exists(os.path.dirname(file_uri)):
