@@ -155,9 +155,7 @@ class Source(Base):
                            order_by="Spectrum.observed_at")
     thumbnails = relationship('Thumbnail', back_populates='source',
                               secondary='photometry',
-                              cascade='save-update, merge, refresh-expire, expunge',
-                              passive_deletes=True,
-                              single_parent=True)
+                              cascade='save-update, merge, refresh-expire, expunge')
 
     def add_linked_thumbnails(self):
         sdss_thumb = Thumbnail(photometry=self.photometry[0],
@@ -324,8 +322,7 @@ class Thumbnail(Base):
                               nullable=False, index=True)
     photometry = relationship('Photometry', back_populates='thumbnails')
     source = relationship('Source', back_populates='thumbnails', uselist=False,
-                          secondary='photometry',
-                          single_parent=True)
+                          secondary='photometry')
 
 
 schema.setup_schema()
