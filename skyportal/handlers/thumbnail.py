@@ -62,8 +62,10 @@ class ThumbnailHandler(BaseHandler):
                 return self.error('Specified source does not yet have any photometry data.')
         else:
             return self.error('One of either source_id or photometry_id are required.')
-        t = create_thumbnail(data['data'], data['ttype'], source.id, phot)
-        DBSession.flush()
+        try:
+            t = create_thumbnail(data['data'], data['ttype'], source.id, phot)
+        except Exception as e:
+            return self.error(str(e))
         DBSession().commit()
 
         return self.success(data={"id": t.id})
@@ -113,22 +115,22 @@ def create_thumbnail(thumbnail_data, thumbnail_type, source_id, photometry_obj):
     file_bytes = base64.b64decode(thumbnail_data)
     im = Image.open(io.BytesIO(file_bytes))
     if im.format != 'PNG':
-        return self.error('Invalid thumbnail image type. Only PNG are supported.')
+        raise ValueError('Invalid thumbnail image type. Only PNG are supported.')
     if not (100, 100) <= im.size <= (500, 500):
-        return self.error('Invalid thumbnail size. Only thumbnails '
-                          'between (100, 100) and (500, 500) allowed.')
+        raise ValueError('Invalid thumbnail size. Only thumbnails '
+                        'between (100, 100) and (500, 500) allowed.')
     try:
         t = Thumbnail(type=thumbnail_type,
                       photometry=photometry_obj,
                       file_uri=file_uri,
                       public_url=f'/static/thumbnails/{source_id}_{thumbnail_type}.png')
         DBSession.add(t)
-    except TypeError:
-        return self.error('Invalid thumbnail type. Please refer to '
+        DBSession.flush()
+    except LookupError:
+        raise LookupError('Invalid thumbnail type. Please refer to '
                           'API docs for a list of allowed types.')
     except Exception as e:
-        return self.error(f'Error creating thumbnail: {str(e)}. Please check '
-                          'submitted values against API docs.')
+        raise e
     with open(file_uri, 'wb') as f:
         f.write(file_bytes)
     return t

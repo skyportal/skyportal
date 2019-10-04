@@ -128,7 +128,10 @@ class PhotometryHandler(BaseHandler):
         if 'thumbnails' in data:
             p = Photometry.query.get(ids[0])
             for thumb in data['thumbnails']:
-                create_thumbnail(thumb['data'], thumb['ttype'], source.id, p)
+                try:
+                    create_thumbnail(thumb['data'], thumb['ttype'], source.id, p)
+                except Exception as e:
+                    return self.error(str(e))
         DBSession().commit()
 
         return self.success(data={"ids": ids})
