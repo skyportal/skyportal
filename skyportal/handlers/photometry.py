@@ -9,6 +9,7 @@ from marshmallow.exceptions import ValidationError
 from PIL import Image
 from baselayer.app.access import permissions, auth_or_token
 from .base import BaseHandler
+from .thumbnail import create_thumbnail
 from ..models import DBSession, Photometry, Comment, Instrument, Source, Thumbnail
 
 
@@ -125,33 +126,9 @@ class PhotometryHandler(BaseHandler):
             DBSession().flush()
             ids.append(p.id)
         if 'thumbnails' in data:
+            p = Photometry.query.get(ids[0])
             for thumb in data['thumbnails']:
-                basedir = Path(os.path.dirname(__file__))/'..'/'..'
-                file_uri = os.path.abspath(
-                    basedir/f'static/thumbnails/{source.id}_{thumb["ttype"]}.png')
-                if not os.path.exists(os.path.dirname(file_uri)):
-                    (basedir/'static/thumbnails').mkdir(parents=True)
-                file_bytes = base64.b64decode(thumb['data'])
-                im = Image.open(io.BytesIO(file_bytes))
-                if im.format != 'PNG':
-                    return self.error('Invalid thumbnail image type. Only PNG are supported.')
-                if not (100, 100) <= im.size <= (500, 500):
-                    return self.error('Invalid thumbnail size. Only thumbnails '
-                                      'between (100, 100) and (500, 500) allowed.')
-                try:
-                    t = Thumbnail(type=thumb['ttype'],
-                                  photometry_id=ids[0],
-                                  file_uri=file_uri,
-                                  public_url=f'/static/thumbnails/{source.id}_{thumb["ttype"]}.png')
-                    DBSession.add(t)
-                except TypeError:
-                    return self.error('Invalid thumbnail type. Please refer to '
-                                      'API docs for a list of allowed types.')
-                except Exception as e:
-                    return self.error(f'Error creating thumbnail: {str(e)}. Please check '
-                                      'submitted values against API docs.')
-                with open(file_uri, 'wb') as f:
-                    f.write(file_bytes)
+                create_thumbnail(thumb['data'], thumb['ttype'], source.id, p)
         DBSession().commit()
 
         return self.success(data={"ids": ids})
