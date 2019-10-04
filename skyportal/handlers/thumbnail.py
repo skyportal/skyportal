@@ -52,10 +52,10 @@ class ThumbnailHandler(BaseHandler):
         """
         data = self.get_json()
         if 'photometry_id' in data:
-            phot = Photometry.query.get(int(photometry_id))
+            phot = Photometry.query.get(int(data['photometry_id']))
             source = phot.source
         elif 'source_id' in data:
-            source = Source.query.get(source_id)
+            source = Source.query.get(data['source_id'])
             try:
                 phot = source.photometry[0]
             except IndexError:
@@ -79,7 +79,6 @@ class ThumbnailHandler(BaseHandler):
         try:
             t = Thumbnail(type=data['ttype'],
                           photometry=phot,
-                          source=source,
                           file_uri=file_uri,
                           public_url=f'/static/thumbnails/{source.id}_{data["ttype"]}.png')
             DBSession.add(t)
