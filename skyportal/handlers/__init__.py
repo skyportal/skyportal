@@ -15,5 +15,6 @@ from .token import TokenHandler
 from .sysinfo import SysInfoHandler
 from .user import UserHandler
 from .spectrum import SpectrumHandler
+from .thumbnail import ThumbnailHandler
 from .dbinfo import DBInfoHandler
 from .base import BaseHandler
