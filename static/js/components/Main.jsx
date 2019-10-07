@@ -81,7 +81,7 @@ class MainContent extends React.Component {
 
           <Switch>
             <PropsRoute exact path="/" component={SourceList} />
-            {'See https://stackoverflow.com/a/35604855 for syntax'}
+            See https://stackoverflow.com/a/35604855 for syntax
             <PropsRoute path="/source/:id" component={Source} />
             <PropsRoute exact path="/groups/" component={Groups} />
             <PropsRoute path="/group/:id" component={Group} />

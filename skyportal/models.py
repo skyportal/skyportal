@@ -104,8 +104,6 @@ class Source(Base):
     redshift = sa.Column(sa.Float, nullable=True)
 
     altdata = sa.Column(JSONB, nullable=True)
-    created = sa.Column(ArrowType, nullable=False,
-                        server_default=sa.func.now())
 
     last_detected = sa.Column(ArrowType, nullable=True)
     dist_nearest_source = sa.Column(sa.Float, nullable=True)
@@ -157,9 +155,7 @@ class Source(Base):
                            order_by="Spectrum.observed_at")
     thumbnails = relationship('Thumbnail', back_populates='source',
                               secondary='photometry',
-                              cascade='save-update, merge, refresh-expire, expunge',
-                              passive_deletes=True,
-                              single_parent=True)
+                              cascade='save-update, merge, refresh-expire, expunge')
 
     def add_linked_thumbnails(self):
         sdss_thumb = Thumbnail(photometry=self.photometry[0],
@@ -261,9 +257,6 @@ class Photometry(Base):
     candid = sa.Column(sa.BigInteger, nullable=True)  # candidate ID
     altdata = sa.Column(JSONB)
 
-    created = sa.Column(sa.DateTime, nullable=False,
-                        server_default=sa.func.now())
-
     origin = sa.Column(sa.String, nullable=True)
 
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
@@ -329,8 +322,7 @@ class Thumbnail(Base):
                               nullable=False, index=True)
     photometry = relationship('Photometry', back_populates='thumbnails')
     source = relationship('Source', back_populates='thumbnails', uselist=False,
-                          secondary='photometry',
-                          single_parent=True)
+                          secondary='photometry')
 
 
 schema.setup_schema()

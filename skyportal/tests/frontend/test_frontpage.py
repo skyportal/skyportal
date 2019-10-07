@@ -14,7 +14,7 @@ def test_source_list(driver, user, public_source, private_source):
     driver.wait_for_xpath('//h2[contains(text(), "Sources")]')
     driver.wait_for_xpath(f'//a[text()="{public_source.id}"]')
     driver.wait_for_xpath(f'//td[text()="{public_source.simbad_class}"]')
-    driver.wait_for_xpath_missing(f'//a[text()="{private_source.id}"]')
+    driver.wait_for_xpath_to_disappear(f'//a[text()="{private_source.id}"]')
     el = driver.wait_for_xpath('//button[text()="View Next 100 Sources"]')
     assert not el.is_enabled()
     el = driver.wait_for_xpath('//button[text()="View Previous 100 Sources"]')

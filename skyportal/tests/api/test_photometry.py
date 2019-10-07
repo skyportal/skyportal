@@ -1,7 +1,8 @@
+import os
 import datetime
-
+import base64
 from skyportal.tests import api
-from skyportal.models import Thumbnail, DBSession
+from skyportal.models import Thumbnail, DBSession, Photometry
 
 
 def test_token_user_post_get_photometry_data(upload_data_token, public_source):
@@ -170,3 +171,39 @@ def test_delete_photometry_cascades_to_thumbnail(manage_sources_token,
     assert status == 200
 
     assert DBSession.query(Thumbnail).filter(Thumbnail.id == int(thumbnail_id)).count() == 0
+
+
+def test_token_user_post_photometry_thumbnail(upload_data_token, public_source):
+    thumbnails = [
+        {'data': base64.b64encode(open(os.path.abspath(f'skyportal/tests/data/14gqr_{suffix}.png'),
+                                       'rb').read()),
+         'ttype': suffix}
+        for suffix in ['new', 'ref', 'sub']
+    ]
+    status, data = api('POST', 'photometry',
+                       data={'source_id': str(public_source.id),
+                             'time': str(datetime.datetime.now()),
+                             'time_format': 'iso',
+                             'time_scale': 'utc',
+                             'instrument_id': 1,
+                             'mag': 12.24,
+                             'e_mag': 0.031,
+                             'lim_mag': 14.1,
+                             'filter': 'V',
+                             'thumbnails': thumbnails
+                       },
+                       token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    photometry_id = data['data']['ids'][0]
+    status, data = api(
+        'GET',
+        f'photometry/{photometry_id}',
+        token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['photometry']['mag'] == 12.24
+
+    assert len(DBSession.query(Photometry).filter(Photometry.id == photometry_id)
+               .first().thumbnails) == 3

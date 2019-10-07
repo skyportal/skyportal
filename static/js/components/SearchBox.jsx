@@ -92,8 +92,7 @@ const SearchBox = ({ sources }) => {
             <tr>
               <td colSpan="3">
                 <b>
-By Position
-                  {' '}
+                  By Position&nbsp;
                 </b>
               </td>
             </tr>
@@ -139,8 +138,7 @@ By Position
               <td colSpan="3">
                 <label>
                   <b>
-                    By Time Last Detected
-                    {' '}
+                    By Time Last Detected&nbsp;
                   </b>
                 </label>
               </td>
@@ -153,8 +151,7 @@ By Position
             <tr>
               <td>
                 <label>
-                  Start Date:
-                  {' '}
+                  Start Date:&nbsp;
                 </label>
                 <input
                   type="text"
@@ -166,8 +163,7 @@ By Position
               </td>
               <td>
                 <label>
-                  End Date:
-                  {' '}
+                  End Date:&nbsp;
                 </label>
                 <input
                   type="text"
@@ -182,8 +178,7 @@ By Position
               <td>
                 <label>
                   <b>
-                    By Simbad Class
-                    {' '}
+                    By Simbad Class&nbsp;
                   </b>
                 </label>
               </td>
@@ -191,8 +186,7 @@ By Position
             <tr>
               <td>
                 <label>
-                  Class:
-                  {' '}
+                  Class:&nbsp;
                 </label>
                 <input
                   type="text"
@@ -207,8 +201,7 @@ By Position
               <td>
                 <label>
                   <b>
-                    Must Have TNS Name:
-                    {' '}
+                    Must Have TNS Name:&nbsp;
                   </b>
                 </label>
                 <input
@@ -235,40 +228,39 @@ By Position
         <br />
         {
           sources && (
-          <div>
-            <div style={{ display: "inline-block" }}>
-              <button
-                type="button"
-                onClick={handleClickPreviousPage}
-                disabled={sources.pageNumber === 1}
-              >
-                View Previous 100 Sources
-              </button>
+            <div>
+              <div style={{ display: "inline-block" }}>
+                <button
+                  type="button"
+                  onClick={handleClickPreviousPage}
+                  disabled={sources.pageNumber === 1}
+                >
+                  View Previous 100 Sources
+                </button>
+              </div>
+              <div style={{ display: "inline-block" }}>
+                <i>
+                  Displaying&nbsp;
+                  {sources.sourceNumberingStart}
+                  -
+                  {sources.sourceNumberingEnd}
+                  &nbsp;
+                  of&nbsp;
+                  {sources.totalMatches}
+                  &nbsp;
+                  matching sources.
+                </i>
+              </div>
+              <div style={{ display: "inline-block" }}>
+                <button
+                  type="button"
+                  onClick={handleClickNextPage}
+                  disabled={sources.lastPage}
+                >
+                  View Next 100 Sources
+                </button>
+              </div>
             </div>
-            <div style={{ display: "inline-block" }}>
-              <i>
-                Displaying
-                {' '}
-                {sources.sourceNumberingStart}
--
-                {sources.sourceNumberingEnd}
-                {' '}
-of&nbsp;
-                {sources.totalMatches}
-                {' '}
-matching sources.
-              </i>
-            </div>
-            <div style={{ display: "inline-block" }}>
-              <button
-                type="button"
-                onClick={handleClickNextPage}
-                disabled={sources.lastPage}
-              >
-                View Next 100 Sources
-              </button>
-            </div>
-          </div>
           )
         }
       </form>

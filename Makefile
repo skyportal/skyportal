@@ -53,7 +53,7 @@ docs: | doc_reqs api-docs
 
 load_demo_data: ## Import example dataset
 load_demo_data: | dependencies
-	@PYTHONPATH=. python tools/load_demo_data.py
+	@PYTHONPATH=. python tools/load_demo_data.py $(FLAGS)
 
 alert_stream_demo: ## Create & spin up alert stream containers & consumer script
 alert_stream_demo: | dependencies

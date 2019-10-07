@@ -1,10 +1,16 @@
+import os
+import io
+import base64
+from pathlib import Path
 import tornado.web
 from astropy.time import Time
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
+from PIL import Image
 from baselayer.app.access import permissions, auth_or_token
 from .base import BaseHandler
-from ..models import DBSession, Photometry, Comment, Instrument, Source
+from .thumbnail import create_thumbnail
+from ..models import DBSession, Photometry, Comment, Instrument, Source, Thumbnail
 
 
 class PhotometryHandler(BaseHandler):
@@ -15,8 +21,60 @@ class PhotometryHandler(BaseHandler):
         description: Upload photometry
         parameters:
           - in: path
-            name: photometry
-            schema: Photometry
+            name: time_format
+            schema:
+              type: string
+            description: Valid time formats are listed in `astropy.time.Time.FORMATS` (https://docs.astropy.org/en/stable/api/astropy.time.Time.html#astropy.time.Time.FORMATS)
+          - in: path
+            name: time_scale
+            schema:
+              type: string
+            description: Valid time scales are listed in `astropy.time.Time.SCALES` (https://docs.astropy.org/en/stable/api/astropy.time.Time.html#astropy.time.Time.SCALES)
+          - in: path
+            name: source_id
+            schema:
+              type: string
+          - in: path
+            name: instrument_id
+            schema:
+              type: integer
+          - in: path
+            name: time
+            schema:
+              type: string
+          - in: path
+            name: mag
+            schema:
+              type: number
+          - in: path
+            name: e_mag
+            schema:
+              type: number
+          - in: path
+            name: filter
+            schema:
+              type: string
+          - in: path
+            name: lim_mag
+            schema:
+              type: number
+          - in: path
+            name: thumbnails
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  data:
+                    type: string
+                    format: byte
+                    description: base64-encoded PNG image file contents. Image size must be between 100px and 500px on a side.
+                  ttype:
+                    type: string
+                    description: Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
+                required:
+                  - data
+                  - ttype
         responses:
           200:
             content:
@@ -32,7 +90,6 @@ class PhotometryHandler(BaseHandler):
         """
         data = self.get_json()
 
-        # TODO where do we get the instrument info?
         # TODO should filters be a table/plaintext/limited set of strings?
         if 'time_format' not in data or 'time_scale' not in data:
             return self.error('Time scale (\'time_scale\') and time format '
@@ -68,6 +125,10 @@ class PhotometryHandler(BaseHandler):
             DBSession().add(p)
             DBSession().flush()
             ids.append(p.id)
+        if 'thumbnails' in data:
+            p = Photometry.query.get(ids[0])
+            for thumb in data['thumbnails']:
+                create_thumbnail(thumb['data'], thumb['ttype'], source.id, p)
         DBSession().commit()
 
         return self.success(data={"ids": ids})
