@@ -37,7 +37,7 @@ def test_stream_ingest():
                             stderr=subprocess.PIPE,
                             shell=True)
 
-    for i in range(30):
+    for i in range(120):
         out = str(proc.stdout.readline())
         r = requests.get('http://localhost:5000/api/sources',
                          headers={'Authorization': f'token {token}'})
