@@ -54,7 +54,6 @@ def test_stream_ingest():
         print('Stream ingestion test failed - no ouput indicating success.')
         print(out)
         proc.terminate()
-        clear_tables()
         raise Exception('test failed...')
 
 
