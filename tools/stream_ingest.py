@@ -44,7 +44,7 @@ def write_stamp_file(stamp_dict, output_dir):
         with open(out_path, 'wb') as f:
             f.write(stamp_dict['stampData'])
     except TypeError:
-        sys.stderr.write('%% Cannot get stamp\n')
+        sys.stderr.write(f'%% Cannot get stamp\n  -- stamp_dict: {stamp_dict}')
     return
 
 

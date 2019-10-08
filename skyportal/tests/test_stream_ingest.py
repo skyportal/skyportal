@@ -21,6 +21,7 @@ def test_stream_ingest():
     print("\n\ncwd:", os.getcwd(), "\n\n")
     cfg = load_config([os.path.join(skyportal_root, 'test_config.yaml')])
     load_demo_data(cfg)
+    print("CFG:", cfg)
     # Retrieve or generate token for SkyPortal API auth
     token = Token.query.filter(Token.name == 'alert_stream_token').first()
     if not token:
@@ -38,9 +39,12 @@ def test_stream_ingest():
                             shell=True)
 
     for i in range(120):
-        out = str(proc.stdout.readline())
+        print('trying again..')
+        out = proc.stdout.readline().decode('utf-8').strip()
+        print('trying request to api/sources..')
         r = requests.get('http://localhost:5000/api/sources',
                          headers={'Authorization': f'token {token}'})
+        print(r.json())
         n_sources = len(r.json()['data']['sources'])
         if n_sources > 2:
             print("\n\n\n\nYES!!!!!!!!!!\n\n\n\n")
@@ -48,8 +52,8 @@ def test_stream_ingest():
             #clear_tables()
             break
         else:
-            print("\n\n\nNot yet...", out, "\n\n\n")
-            time.sleep(2)
+            print("\nNot yet...", out, "\n")
+            time.sleep(1)
     else:
         print('Stream ingestion test failed - no ouput indicating success.')
         print(out)
