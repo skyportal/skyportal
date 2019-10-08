@@ -14,7 +14,8 @@ import numpy as np
 from lsst.alert.stream import alertConsumer
 import baselayer
 from baselayer.app.config import load_config
-from skyportal.models import init_db, Token, Source, Telescope, Instrument, Photometry, DBSession
+from skyportal.models import (init_db, Token, Source, Telescope, Instrument,
+                              Photometry, DBSession, Thumbnail)
 from skyportal.model_util import create_token
 
 
@@ -60,13 +61,13 @@ def post_to_skyportal(data, token, instrument_id):
     try:
         r = requests.post('http://localhost:5000/api/photometry',
                           headers=headers,
-                          json={'sourceID': str(data['diaSource']['diaSourceId']),
-                                'obsTime': data['diaObject']['radecTai'],
+                          json={'source_id': str(data['diaSource']['diaSourceId']),
+                                'time': data['diaObject']['radecTai'],
                                 'mag': data['diaSource']['totFlux'],
                                 'e_mag': data['diaSource']['totFluxErr'],
-                                'timeScale': 'tai',
-                                'timeFormat': 'mjd',
-                                'instrumentID': instrument_id,
+                                'time_scale': 'tai',
+                                'time_format': 'mjd',
+                                'instrument_id': instrument_id,
                                 'lim_mag': 28,
                                 'filter': ''})
     except:
