@@ -16,7 +16,7 @@ def test_stream_ingest():
     #skyportal_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     skyportal_root = os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(inspect.getsourcefile(lambda:0)))))
-    print(skyportal_root)
+    print('skyportal_root:', skyportal_root)
     os.chdir(skyportal_root)
     print("\n\ncwd:", os.getcwd(), "\n\n")
     cfg = load_config([os.path.join(skyportal_root, 'test_config.yaml')])
@@ -31,7 +31,7 @@ def test_stream_ingest():
 
     r = requests.get('http://localhost:5000/api/sources',
                      headers={'Authorization': f'token {token}'})
-    print(r.json())
+    print('get_request.json():', r.json())
     assert len(r.json()['data']['sources']) == 2
     proc = subprocess.Popen("make alert_stream_demo",
                             stdout=subprocess.PIPE,
@@ -44,7 +44,7 @@ def test_stream_ingest():
         print('trying request to api/sources..')
         r = requests.get('http://localhost:5000/api/sources',
                          headers={'Authorization': f'token {token}'})
-        print(r.json())
+        print('get_request.json():', r.json())
         n_sources = len(r.json()['data']['sources'])
         if n_sources > 2:
             print("\n\n\n\nYES!!!!!!!!!!\n\n\n\n")

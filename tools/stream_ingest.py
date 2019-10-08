@@ -8,6 +8,7 @@ each consumer needs a different group.
 import argparse
 import sys
 import os
+import inspect
 import requests
 import numpy as np
 
@@ -19,7 +20,11 @@ from skyportal.models import (init_db, Token, Source, Telescope, Instrument,
 from skyportal.model_util import create_token
 
 
-conn = init_db(**load_config()['database'])
+skyportal_root = os.path.dirname(os.path.dirname(
+    os.path.abspath(inspect.getsourcefile(lambda:0))))
+print('stream_ingest.py skyportal_root:', skyportal_root)
+cfg = load_config([os.path.join(skyportal_root, 'test_config.yaml')])
+conn = init_db(**cfg['database'])
 
 
 def msg_text(message):
