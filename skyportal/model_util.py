@@ -105,12 +105,15 @@ def load_demo_data(cfg, clear=False):
         if not super_admin_user: # Dummy users not yet added to DB
             super_admin_user = User(username='testuser@cesium-ml.org',
                                     role_ids=['Super admin'])
+            DBSession.add(super_admin_user)
+            DBSession().add(GroupUser(group=g, user=super_admin_user, admin=True))
+            DBSession.commit()
+        if not group_admin_user:
             group_admin_user = User(username='groupadmin@cesium-ml.org',
                                     role_ids=['Super admin'])
-            DBSession().add_all(
-                [GroupUser(group=g, user=super_admin_user, admin=True),
-                 GroupUser(group=g, user=group_admin_user, admin=True)]
-            )
+            DBSession.add(group_admin_user)
+            DBSession.add(GroupUser(group=g, user=group_admin_user, admin=True))
+            DBSession.commit()
             full_user = User(username='fulluser@cesium-ml.org',
                              role_ids=['Full user'], groups=[g])
             view_only_user = User(username='viewonlyuser@cesium-ml.org',
@@ -122,8 +125,6 @@ def load_demo_data(cfg, clear=False):
                 DBSession().add(TornadoStorage.user.create_social_auth(u, u.username,
                                                                        'google-oauth2'))
             DBSession.commit()
-        else:
-            print('Dummy users already added to DB.')
 
     with status("Creating dummy instruments"):
         t1 = Telescope.query.filter(Telescope.name == 'Palomar 1.5m').first()
