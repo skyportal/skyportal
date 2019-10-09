@@ -56,7 +56,8 @@ class GroupHandler(BaseHandler):
             info['group'] = group
         else:
             info['user_groups'] = list(self.current_user.groups)
-            info['all_groups'] = (list(Group.query) if 'Super admin' in
+            info['all_groups'] = (list(Group.query) if hasattr(self.current_user, 'roles')
+                                  and 'Super admin' in
                                   [role.id for role in self.current_user.roles]
                                   else None)
         if info is not None:

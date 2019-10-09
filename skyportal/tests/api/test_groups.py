@@ -21,6 +21,25 @@ def test_token_user_create_new_group_no_sources(manage_groups_token, user):
     assert len(data['data']['group']['sources']) == 0
 
 
+def test_token_user_request_all_groups(manage_groups_token, user):
+    group_name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'groups',
+        data={'name': group_name,
+              'group_admins': [user.username]},
+        token=manage_groups_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    new_group_id = data['data']['id']
+
+    status, data = api('GET', 'groups',
+                       token=manage_groups_token)
+    assert data['status'] == 'success'
+    assert data['data']['user_groups'][-1]['name'] == group_name
+    assert data['data']['all_groups'] is None
+
+
 def test_token_user_create_new_group_with_source(manage_groups_token, user, public_source):
     group_name = str(uuid.uuid4())
     status, data = api(
