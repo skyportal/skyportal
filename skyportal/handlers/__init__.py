@@ -18,3 +18,5 @@ from .spectrum import SpectrumHandler
 from .thumbnail import ThumbnailHandler
 from .dbinfo import DBInfoHandler
 from .base import BaseHandler
+from .instrument import InstrumentHandler
+from .telescope import TelescopeHandler
