@@ -32,7 +32,7 @@ def test_stream_ingest():
     r = requests.get('http://localhost:5000/api/sources',
                      headers={'Authorization': f'token {token}'})
     print('get_request.json():', r.json())
-    assert len(r.json()['data']['sources']) == 2
+    orig_source_count = len(r.json()['data']['sources'])
     proc = subprocess.Popen("make alert_stream_demo",
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
@@ -46,10 +46,9 @@ def test_stream_ingest():
                          headers={'Authorization': f'token {token}'})
         print('get_request.json():', r.json())
         n_sources = len(r.json()['data']['sources'])
-        if n_sources > 2:
+        if n_sources > orig_source_count:
             print("\n\n\n\nYES!!!!!!!!!!\n\n\n\n")
             proc.terminate()
-            #clear_tables()
             break
         else:
             print("\nNot yet...", out, "\n")

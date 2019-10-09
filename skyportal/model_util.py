@@ -101,6 +101,7 @@ def load_demo_data(cfg, clear=False):
         if not g:
             g = Group(name='Stream A')
         super_admin_user = User.query.filter(User.username == 'testuser@cesium-ml.org').first()
+        group_admin_user = User.query.filter(User.username == 'groupadmin@cesium-ml.org').first()
         if not super_admin_user: # Dummy users not yet added to DB
             super_admin_user = User(username='testuser@cesium-ml.org',
                                     role_ids=['Super admin'])
