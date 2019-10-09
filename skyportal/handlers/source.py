@@ -53,6 +53,7 @@ class SourceHandler(BaseHandler):
             info['sources'] = Source.get_if_owned_by(
                 source_id, self.current_user,
                 options=[joinedload(Source.comments),
+                         joinedload(Source.photometry),
                          joinedload(Source.thumbnails)
                          .joinedload(Thumbnail.photometry)
                          .joinedload(Photometry.instrument)

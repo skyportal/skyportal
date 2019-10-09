@@ -16,7 +16,7 @@ def test_token_user_retrieving_source(view_only_token, public_source):
     assert status == 200
     assert data['status'] == 'success'
     assert all(k in data['data']['sources'] for k in ['ra', 'dec', 'redshift',
-                                                      'created_at', 'id'])
+                                                      'created_at', 'id', 'photometry'])
 
 
 def test_token_user_update_source(manage_sources_token, public_source):
