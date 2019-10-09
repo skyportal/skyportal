@@ -1,7 +1,7 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from .base import BaseHandler
-from ..models import DBSession, Instrument
+from ..models import DBSession, Instrument, Telescope
 
 
 class InstrumentHandler(BaseHandler):
@@ -28,13 +28,18 @@ class InstrumentHandler(BaseHandler):
                           description: New instrument ID
         """
         data = self.get_json()
-        schema = Instrument.__schema__()
+        telescope_id = data.pop('telescope_id')
+        telescope = Telescope.query.get(telescope_id)
+        if not telescope:
+            return self.error('Invalid telescope ID.')
 
+        schema = Instrument.__schema__()
         try:
             instrument = schema.load(data)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
+        instrument.telescope = telescope
         DBSession.add(instrument)
         DBSession().commit()
 
