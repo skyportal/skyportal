@@ -135,19 +135,16 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        # TODO: Check ownership
         user = (self.current_user.username if hasattr(self.current_user, 'username') else self.current_user.name)
         roles = (self.current_user.roles if hasattr(self.current_user, 'roles') else '')
         c = Comment.query.get(comment_id)
         source_id = c.source_id
         author = c.author
         if ("Super admin" in [role.id for role in roles]) or (user == author):
-                try:
-                        Comment.query.filter_by(id=comment_id).delete()
-                        DBSession().commit()
-                except ValidationError as e:
-                        return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            Comment.query.filter_by(id=comment_id).delete()
+            DBSession().commit()
+        else:
+            return self.error('Insufficient user permissions.')
         self.push_all(action='skyportal/REFRESH_SOURCE',
                       payload={'source_id': source_id})
         return self.success()
