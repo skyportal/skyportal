@@ -9,7 +9,7 @@ from skyportal.handlers import (SourceHandler, CommentHandler, GroupHandler,
                                 PhotometryHandler, TokenHandler,
                                 FilterSourcesHandler, SysInfoHandler,
                                 UserHandler, SpectrumHandler, ThumbnailHandler,
-                                DBInfoHandler)
+                                DBInfoHandler, TelescopeHandler, InstrumentHandler)
 from skyportal import models, model_util, openapi
 
 
@@ -44,6 +44,8 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/comment(/[0-9]+)/(download_attachment)', CommentHandler),
         (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
         (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
+        (r'/api/telescope(/[0-9]+)?', TelescopeHandler),
+        (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
         (r'/api/thumbnail(/[0-9]+)?', ThumbnailHandler),
         (r'/api/user(/.*)?', UserHandler),
         (r'/api/sysinfo', SysInfoHandler),
