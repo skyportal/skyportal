@@ -53,7 +53,6 @@ class SourceHandler(BaseHandler):
             info['sources'] = Source.get_if_owned_by(
                 source_id, self.current_user,
                 options=[joinedload(Source.comments),
-                         joinedload(Source.photometry),
                          joinedload(Source.thumbnails)
                          .joinedload(Thumbnail.photometry)
                          .joinedload(Photometry.instrument)
@@ -107,7 +106,7 @@ class SourceHandler(BaseHandler):
                     - type: object
                       properties:
                         id:
-                          type: integer
+                          type: string
                           description: New source ID
         """
         data = self.get_json()
@@ -238,3 +237,32 @@ class FilterSourcesHandler(BaseHandler):
             info['sourceNumberingStart'] = 0
 
         return self.success(data=info)
+
+
+class SourcePhotometryHandler(BaseHandler):
+    @auth_or_token
+    def get(self, source_id):
+        """
+        ---
+        description: Retrieve a source's photometry
+        parameters:
+        - in: path
+          name: source_id
+          required: true
+          schema:
+            type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfPhotometrys
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        source = Source.get_if_owned_by(source_id, self.current_user)
+        if not source:
+            return self.error('Invalid source ID, or inadequate permissions to '
+                              'access source.')
+        return self.success(data={'photometry': source.photometry})
