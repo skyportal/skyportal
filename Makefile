@@ -52,6 +52,7 @@ docs: | doc_reqs api-docs
 	export SPHINXOPTS=-W; make -C doc html
 
 load_demo_data: ## Import example dataset
+load_demo_data: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
 load_demo_data: | dependencies
 	@PYTHONPATH=. python tools/load_demo_data.py $(FLAGS)
 
