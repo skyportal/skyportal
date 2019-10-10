@@ -13,6 +13,7 @@ class BecomeUserHandler(BaseHandler):
             if User.query.get(new_user_id):
                 user_id = self.get_secure_cookie('user_id')
                 self.clear_cookie('user_id')
+                self.clear_cookie('auth_token')
                 self.set_secure_cookie('user_id', new_user_id.encode('ascii'))
                 self.redirect('/')
             else:

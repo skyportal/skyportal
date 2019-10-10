@@ -47,6 +47,12 @@ def user(public_group):
 
 
 @pytest.fixture()
+def view_only_user(public_group):
+    return UserFactory(groups=[public_group],
+                       roles=[models.Role.query.get('View only')])
+
+
+@pytest.fixture()
 def super_admin_user(public_group):
     return UserFactory(groups=[public_group],
                        roles=[models.Role.query.get('Super admin')])
@@ -85,4 +91,10 @@ def manage_users_token(public_group):
 @pytest.fixture()
 def comment_token(public_group):
     token_id = create_token(public_group.id, permissions=['Comment'])
+    return token_id
+
+
+@pytest.fixture()
+def view_only_token_created_by_fulluser(public_group, user):
+    token_id = create_token(public_group.id, permissions=[], created_by_id=user.id)
     return token_id

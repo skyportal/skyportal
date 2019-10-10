@@ -1,86 +1,101 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 
-import NewGroupUserForm from '../containers/NewGroupUserForm';
+import * as groupActions from '../ducks/group';
+import * as groupsActions from '../ducks/groups';
+import NewGroupUserForm from './NewGroupUserForm';
 import styles from "./Group.css";
 
 
-class Group extends React.Component {
-  constructor(props) {
-    super(props);
-    this.handleDeleteGroupUser = this.handleDeleteGroupUser.bind(this);
-  }
+const Group = ({ route }) => {
+  const dispatch = useDispatch();
+  const currentUser = useSelector((state) => state.profile);
+  const group = useSelector((state) => state.group);
 
-  handleDeleteGroupUser(username, group_id) {
-    this.props.deleteGroupUser(username, group_id);
-  }
+  useEffect(() => {
+    dispatch(groupActions.fetchGroup(route.id));
+  }, []);
 
-  render() {
-    if (this.props.id === undefined) {
-      return (
-        <div>
-Group not found
-        </div>
-      );
-    }
+  if (!group || group.id === undefined) {
     return (
-      <div className={styles.group}>
-        <b>
-Group Name:
-          {' '}
-        </b>
-        {this.props.name}
-        <ul>
-          {
-            this.props.users.map((user, idx) => (
-              <li key={user.id}>
-                <Link to={`/user/${user.id}`}>
-                  {user.username}
-                </Link>&nbsp;&nbsp;
-                {
-                  this.props.group_users.filter(group_user => group_user.user_id === user.id)[0].admin
-                    && (
-                    <div style={{ display: "inline-block" }}>
-                      <span className={styles.badge}>
-Admin
-                      </span>&nbsp;&nbsp;
-                    </div>
-                    )
-                }
-                {
-                  (this.props.currentUser.roles.includes('Super admin')
-                   || this.props.currentUser.roles.includes('Group admin'))
-                   && (
-                   <input
-                     type="submit"
-                     onClick={() => this.props.deleteGroupUser(user.username,
-                       this.props.id)}
-                     value="Remove from group"
-                   />
-                   )
-                }
-              </li>
-            ))
-          }
-        </ul>
-        {
-          (this.props.currentUser.roles.includes('Super admin')
-           || this.props.currentUser.roles.includes('Group admin'))
-           && <NewGroupUserForm group_id={this.props.id} />
-        }
+      <div>
+        Group not found
       </div>
     );
   }
-}
+  return (
+    <div className={styles.group}>
+      <b>
+        Group Name:&nbsp;&nbsp;
+      </b>
+      {group.name}
+      <ul>
+        {
+          group.users.map((user, idx) => (
+            <li key={user.id}>
+              <Link to={`/user/${user.id}`}>
+                {user.username}
+              </Link>&nbsp;&nbsp;
+              {
+                group.group_users.filter((group_user) => group_user.user_id === user.id)[0].admin &&
+                (
+                  <div style={{ display: "inline-block" }}>
+                    <span className={styles.badge}>
+                      Admin
+                    </span>&nbsp;&nbsp;
+                  </div>
+                )
+              }
+              {
+                (currentUser.roles.includes('Super admin') ||
+                 currentUser.roles.includes('Group admin')) &&
+                (
+                  <input
+                    type="submit"
+                    onClick={() => dispatch(
+                        groupsActions.deleteGroupUser(
+                          { username: user.username,
+                            group_id: group.id }
+                        )
+                    )}
+                    value="Remove from group"
+                  />
+                )
+              }
+            </li>
+          ))
+        }
+      </ul>
+      {
+        (currentUser.roles.includes('Super admin') ||
+         currentUser.roles.includes('Group admin')) && <NewGroupUserForm group_id={group.id} />
+      }
+      <br />
+      <br />
+      <br />
+      {
+        (currentUser.roles.includes('Super admin') ||
+         currentUser.roles.includes('Group admin')) &&
+        (
+          <input
+            type="submit"
+            onClick={() => dispatch(
+                groupsActions.deleteGroup(group.id)
+            )}
+            value="Delete Group"
+          />
+        )
+      }
+    </div>
+  );
+};
 
 Group.propTypes = {
-  name: PropTypes.string.isRequired,
-  id: PropTypes.number.isRequired,
-  users: PropTypes.arrayOf(PropTypes.object).isRequired,
-  group_users: PropTypes.arrayOf(PropTypes.object).isRequired,
-  currentUser: PropTypes.object.isRequired,
-  deleteGroupUser: PropTypes.func.isRequired
+  route: PropTypes.shape({
+    id: PropTypes.string
+  }).isRequired
 };
 
 

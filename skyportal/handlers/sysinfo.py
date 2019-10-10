@@ -20,15 +20,6 @@ class SysInfoHandler(BaseHandler):
                   allOf:
                     - Success
                     - type: object
-                      properties:
-                        sources_table_empty:
-                          type: boolean
-                          description: Boolean indicating whether sources table is empty
-                        version:
-                          type: string
-                          description: Current SkyPortal version
         """
-        info = {
-            'sources_table_empty': DBSession.query(Source).first() is None,
-        }
+        info = {}
         return self.success(data=info)

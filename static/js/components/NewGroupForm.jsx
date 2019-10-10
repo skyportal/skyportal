@@ -1,90 +1,84 @@
-import React from 'react';
-import PropTypes from 'prop-types';
+import React, { useState } from 'react';
+import { useDispatch } from 'react-redux';
 
+import * as Action from '../ducks/groups';
 import styles from './NewGroupForm.css';
 
 
-class NewGroupForm extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      name: "",
-      groupAdmins: ""
-    };
-    this.handleSubmit = this.handleSubmit.bind(this);
-    this.handleChange = this.handleChange.bind(this);
-  }
+const NewGroupForm = (props) => {
+  const dispatch = useDispatch();
+  const [formState, setState] = useState({
+    name: "",
+    group_admins: []
+  });
 
-  handleSubmit(event) {
+  const handleSubmit = (event) => {
     event.preventDefault();
-    this.props.addNewGroup(this.state);
-    this.setState({
+    dispatch(Action.addNewGroup(formState));
+    setState({
       name: "",
-      groupAdmins: ""
+      group_admins: []
     });
-  }
+  };
 
-  handleChange(event) {
+  const handleChange = (event) => {
     const newState = {};
-    newState[event.target.name] = event.target.value;
-    this.setState(newState);
-  }
+    newState[event.target.name] = (event.target.name === "groupAdmins" ?
+                                   event.target.value.split(",") : event.target.value);
+    setState({
+      ...formState,
+      ...newState
+    });
+  };
 
-  render() {
-    return (
-      <div className={styles.newGroupFormDiv}>
-        <h3>
-          Create New Group
-        </h3>
-        <form className={styles.newGroupForm} onSubmit={this.handleSubmit}>
-          <table>
-            <tbody>
-              <tr>
-                <td>
-                  <label>
-                    Group Name:
-                    {' '}
-                  </label>
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    name="name"
-                    value={this.state.name}
-                    onChange={this.handleChange}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <label>
-                    Group Admins (comma-separated email addresses):
-                    {' '}
-                  </label>
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    name="groupAdmins"
-                    value={this.state.groupAdmins}
-                    onChange={this.handleChange}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td colSpan="2">
-                  <input type="submit" value="Create Group" />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </form>
-      </div>
-    );
-  }
-}
-NewGroupForm.propTypes = {
-  addNewGroup: PropTypes.func.isRequired
+  return (
+    <div className={styles.newGroupFormDiv}>
+      <h3>
+        Create New Group
+      </h3>
+      <form className={styles.newGroupForm} onSubmit={handleSubmit}>
+        <table>
+          <tbody>
+            <tr>
+              <td>
+                <label>
+                  Group Name:&nbsp;&nbsp;
+                </label>
+              </td>
+              <td>
+                <input
+                  type="text"
+                  name="name"
+                  value={formState.name}
+                  onChange={handleChange}
+                />
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <label>
+                  Group Admins (comma-separated email addresses):&nbsp;&nbsp;
+                </label>
+              </td>
+              <td>
+                <input
+                  type="text"
+                  name="groupAdmins"
+                  value={formState.group_admins}
+                  onChange={handleChange}
+                />
+              </td>
+            </tr>
+            <tr>
+              <td colSpan="2">
+                <input type="submit" value="Create Group" />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </form>
+    </div>
+  );
 };
 
 export default NewGroupForm;

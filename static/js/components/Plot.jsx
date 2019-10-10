@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import { useSelector, useDispatch } from 'react-redux';
+
+import * as Actions from '../ducks/plots';
 
 // These imports are necessary to initialize Bokeh + its extensions
 
@@ -47,7 +50,38 @@ function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
 }
 
 const Plot = (props) => {
-  const { plotData, error } = props;
+  const dispatch = useDispatch();
+  const plots = useSelector((state) => state.plots);
+  const [error, setError] = useState(false);
+  const [fetchingPlotIDs, setFetchingPlotIDs] = useState([]);
+
+  const needsFetching = () => (
+    !plots.plotIDList.includes(props.url) &&
+    !fetchingPlotIDs.includes(props.url)
+  );
+  const fetchPlotDataIfNotCached = () => {
+    if (needsFetching()) {
+      dispatch(
+        Actions.fetchPlotData(
+          props.url,
+          Actions.FETCH_SOURCE_PLOT
+        )
+      );
+      setFetchingPlotIDs(fetchingPlotIDs.concat([props.url]));
+    }
+    if (plots.plotData[props.url] &&
+        fetchingPlotIDs.includes(props.url)) {
+      const newFetchingPlotIDs = fetchingPlotIDs.slice();
+      newFetchingPlotIDs.splice(fetchingPlotIDs.indexOf(props.url), 1);
+      setFetchingPlotIDs(newFetchingPlotIDs);
+    }
+  };
+  useEffect(() => {
+    fetchPlotDataIfNotCached();
+  });
+
+
+  const plotData = plots.plotData[props.url];
   if (error) {
     return (
       <b>
@@ -95,14 +129,11 @@ const Plot = (props) => {
 
 
 Plot.propTypes = {
-  plotData: PropTypes.object,
-  error: PropTypes.bool,
+  url: PropTypes.string.isRequired,
   className: PropTypes.string
 };
 
 Plot.defaultProps = {
-  plotData: null,
-  error: false,
   className: ""
 };
 

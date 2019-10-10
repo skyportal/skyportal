@@ -18,18 +18,19 @@ import styles from './Main.css';
 import configureStore from '../store';
 
 // Actions
-import * as Action from '../actions';
+import hydrate from '../actions';
+import * as rotateLogoActions from '../ducks/logo';
 
 // Message Handler
 import CustomMessageHandler from '../CustomMessageHandler';
 
 // Local
-import NoMatchingRoute from '../components/NoMatchingRoute';
-import Responsive from '../components/Responsive';
+import NoMatchingRoute from './NoMatchingRoute';
+import Responsive from './Responsive';
 
-import CachedSource from './CachedSource';
-import GroupContainer from './GroupContainer';
-import SourceListContainer from './SourceListContainer';
+import Source from './Source';
+import Group from './Group';
+import SourceList from './SourceList';
 import Groups from './Groups';
 import Profile from './Profile';
 import ProfileDropdown from './ProfileDropdown';
@@ -45,8 +46,8 @@ const messageHandler = (
 
 class MainContent extends React.Component {
   async componentDidMount() {
-    await store.dispatch(Action.hydrate());
-    store.dispatch(Action.rotateLogo());
+    await store.dispatch(hydrate());
+    store.dispatch(rotateLogoActions.rotateLogo());
   }
 
   render() {
@@ -79,11 +80,11 @@ class MainContent extends React.Component {
           <Notifications />
 
           <Switch>
-            <PropsRoute exact path="/" component={SourceListContainer} />
-            {'See https://stackoverflow.com/a/35604855 for syntax'}
-            <PropsRoute path="/source/:id" component={CachedSource} />
+            <PropsRoute exact path="/" component={SourceList} />
+            See https://stackoverflow.com/a/35604855 for syntax
+            <PropsRoute path="/source/:id" component={Source} />
             <PropsRoute exact path="/groups/" component={Groups} />
-            <PropsRoute path="/group/:id" component={GroupContainer} />
+            <PropsRoute path="/group/:id" component={Group} />
             <PropsRoute path="/profile" component={Profile} />
             <PropsRoute path="/user/:id" component={UserInfo} />
             <PropsRoute component={NoMatchingRoute} />

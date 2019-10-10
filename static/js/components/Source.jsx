@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
+import { useSelector, useDispatch } from 'react-redux';
 
-import PlotContainer from '../containers/PlotContainer';
-import CommentListContainer from '../containers/CommentListContainer';
+import * as Action from '../ducks/source';
+import Plot from './Plot';
+import CommentList from './CommentList';
 import ThumbnailList from './ThumbnailList';
 import SurveyLinkList from './SurveyLinkList';
 import { ra_to_hours, dec_to_hours } from '../units';
@@ -12,11 +14,36 @@ import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 
 
-const Source = ({ ra, dec, redshift, thumbnails, id }) => {
-  if (id === undefined) {
+const Source = ({ route }) => {
+  const dispatch = useDispatch();
+  const source = useSelector((state) => state.source);
+  const isCached = () => {
+    const cachedSourceID = source ? source.id : null;
+    return route.id === cachedSourceID;
+  };
+  useEffect(() => {
+    if (!isCached()) {
+      dispatch(Action.fetchSource(route.id));
+    }
+  }, []);
+  if (source.loadError) {
     return (
       <div>
-Source not found
+        Could not retrieve requested source
+      </div>
+    );
+  } else if (!isCached()) {
+    return (
+      <div>
+        <span>
+          Loading...
+        </span>
+      </div>
+    );
+  } else if (source.id === undefined) {
+    return (
+      <div>
+        Source not found
       </div>
     );
   } else {
@@ -26,40 +53,41 @@ Source not found
         <div className={styles.leftColumn}>
 
           <div className={styles.name}>
-            {id}
+            {source.id}
           </div>
 
           <b>
-Position (J2000):
+            Position (J2000):
           </b>
-          {' '}
-          {ra}
-,
-          {' '}
-          {dec}
-          {' '}
-(&alpha;,&delta;=
-          {ra_to_hours(ra)}
-,
-          {' '}
-          {dec_to_hours(dec)}
-)
+          &nbsp;
+          {source.ra}
+          ,
+          &nbsp;
+          {source.dec}
+          &nbsp;
+          (&alpha;,&delta;=
+          {ra_to_hours(source.ra)}
+          ,
+          &nbsp;
+          {dec_to_hours(source.dec)}
+          )
           <br />
           <b>
-Redshift:
-            {' '}
+            Redshift:
+            &nbsp;
           </b>
-          {redshift}
+          {source.redshift}
           <br />
-          <ThumbnailList ra={ra} dec={dec} thumbnails={thumbnails} />
+          <ThumbnailList ra={source.ra} dec={source.dec} thumbnails={source.thumbnails} />
 
-          <br /><br />
+          <br />
+          <br />
           <Responsive
             element={FoldBox}
             title="Photometry"
             mobileProps={{ folded: true }}
           >
-            <PlotContainer className={styles.plot} url={`/api/internal/plot/photometry/${id}`} />
+            <Plot className={styles.plot} url={`/api/internal/plot/photometry/${source.id}`} />
           </Responsive>
 
           <Responsive
@@ -68,7 +96,7 @@ Redshift:
             mobileProps={{ folded: true }}
           >
 
-            <PlotContainer className={styles.plot} url={`/api/internal/plot/spectroscopy/${id}`} />
+            <Plot className={styles.plot} url={`/api/internal/plot/spectroscopy/${source.id}`} />
           </Responsive>
 
           { /* TODO 1) check for dead links; 2) simplify link formatting if possible */ }
@@ -78,7 +106,7 @@ Redshift:
             mobileProps={{ folded: true }}
           >
 
-            <SurveyLinkList id={id} ra={ra} dec={dec} />
+            <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
 
           </Responsive>
         </div>
@@ -91,7 +119,7 @@ Redshift:
             mobileProps={{ folded: true }}
             className={styles.comments}
           >
-            <CommentListContainer source={id} />
+            <CommentList />
           </Responsive>
 
         </div>
@@ -102,15 +130,9 @@ Redshift:
 };
 
 Source.propTypes = {
-  ra: PropTypes.number.isRequired,
-  dec: PropTypes.number.isRequired,
-  redshift: PropTypes.number,
-  id: PropTypes.string.isRequired,
-  thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired
-};
-
-Source.defaultProps = {
-  redshift: null
+  route: PropTypes.shape({
+    id: PropTypes.string
+  }).isRequired
 };
 
 export default Source;

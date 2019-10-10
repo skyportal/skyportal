@@ -1,24 +1,16 @@
 import pytest
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-import uuid
+from selenium.webdriver.support.ui import Select
 import time
 
 
-def test_add_token(driver, user):
+def test_token_acls_options_rendering1(driver, user):
     driver.get(f'/become_user/{user.id}')
     driver.get('/profile')
     driver.wait_for_xpath('//input[@name="acls_Comment"]')
     driver.wait_for_xpath('//input[@name="acls_Upload data"]')
-    try:
-        driver.wait_for_xpath('//input[@name="acls_Manage sources"]')
-    except:
-        pass
-    else:
-        raise Exception('ACLs list rendering error.')
+    driver.wait_for_xpath_to_disappear('//input[@name="acls_Manage sources"]')
 
-
-def test_add_token(driver, super_admin_user):
+def test_token_acls_options_rendering2(driver, super_admin_user):
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/profile')
     driver.wait_for_xpath('//input[@name="acls_Comment"]')

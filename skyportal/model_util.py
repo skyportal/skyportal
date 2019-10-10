@@ -43,7 +43,8 @@ def setup_permissions():
     role_acls = {
         'Super admin': all_acl_ids,
         'Group admin': ['Comment', 'Manage sources', 'Upload data'],
-        'Full user': ['Comment', 'Upload data']
+        'Full user': ['Comment', 'Upload data'],
+        'View only': []
     }
 
     for r, acl_ids in role_acls.items():
@@ -55,12 +56,13 @@ def setup_permissions():
 
 def create_token(group_id, permissions=[], created_by_id=None, name=None):
     group = Group.query.get(group_id)
-    t = Token(acl_ids=permissions, created_by_id=created_by_id,
+    t = Token(permissions=permissions, created_by_id=created_by_id,
               name=name)
     t.groups.append(group)
     if created_by_id:
         u = User.query.get(created_by_id)
         u.tokens.append(t)
+        t.created_by = u
         DBSession().add(u)
     DBSession().add(t)
     DBSession().commit()

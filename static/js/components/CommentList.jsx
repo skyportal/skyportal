@@ -1,12 +1,22 @@
 import React from 'react';
-import PropTypes from 'prop-types';
 import moment from 'moment-timezone';
+import { useSelector, useDispatch } from 'react-redux';
 
+import * as sourceActions from '../ducks/source';
 import styles from './CommentList.css';
 import CommentEntry from './CommentEntry';
 
 
-const CommentList = ({ source_id, comments, addComment, userProfile, deleteComment }) => {
+const CommentList = () => {
+  const dispatch = useDispatch();
+  const source = useSelector((state) => state.source);
+  const userProfile = useSelector((state) => state.profile);
+  const acls = useSelector((state) => state.profile.acls);
+  let { comments } = source;
+  const addComment = (formData) => dispatch(
+    sourceActions.addComment({ source_id: source.id, ...formData })
+  );
+
   comments = comments || [];
   const items = comments.map(
     ({ id, author, created_at, text, attachment_name, attachment_bytes }) => (
@@ -25,19 +35,23 @@ const CommentList = ({ source_id, comments, addComment, userProfile, deleteComme
         <div className={styles.commentMessage}>
           {text}
         </div>
-        {userProfile.roles.includes("Super admin") || userProfile.username === author ? (
-          <a href="#" onClick={() => deleteComment(id)} className={styles.commentDelete}>
-          Delete Comment
-          </a>
-        ) : null }
-        {attachment_name && (
-        <div>
-          Attachment:&nbsp;
-          <a href={`/api/comment/${id}/download_attachment`}>
-            {attachment_name}
-          </a>
-        </div>
-        )}
+        {
+          userProfile.roles.includes("Super admin") || userProfile.username === author ? (
+            <a href="#" onClick={() => dispatch(sourceActions.deleteComment(id))} className={styles.commentDelete}>
+              Delete Comment
+            </a>
+          ) : null
+        }
+        {
+          attachment_name && (
+            <div>
+              Attachment:&nbsp;
+              <a href={`/api/comment/${id}/download_attachment`}>
+                {attachment_name}
+              </a>
+            </div>
+          )
+        }
       </span>
     )
   );
@@ -45,25 +59,12 @@ const CommentList = ({ source_id, comments, addComment, userProfile, deleteComme
     <div className={styles.comments}>
       {items}
       <br />
-      <CommentEntry addComment={addComment} />
+      {
+        (acls.indexOf('Comment') >= 0) &&
+        <CommentEntry addComment={addComment} />
+      }
     </div>
   );
-};
-
-CommentList.propTypes = {
-  source_id: PropTypes.string.isRequired,
-  comments: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.String,
-    user: PropTypes.shape({
-      username: PropTypes.string.isRequired
-    }),
-    created_at: PropTypes.string.isRequired,
-    text: PropTypes.string.isRequired
-  })).isRequired,
-  addComment: PropTypes.func.isRequired,
-  userProfile: PropTypes.shape({ username: PropTypes.string,
-    roles: PropTypes.array }).isRequired,
-  deleteComment: PropTypes.func.isRequired
 };
 
 export default CommentList;

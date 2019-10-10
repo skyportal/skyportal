@@ -25,26 +25,27 @@ const Thumbnail = ({ ra, dec, telescope, observed_at, name, url }) => {
       alt = "Link to SDSS Navigate tool";
       link = `http://skyserver.sdss3.org/public/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.1981`;
       break;
-    case "ps1":
-      alt = "Link to PanSTARRS-1 Image Access";
-      link = `http://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos=${ra}+${dec}&filter=color&filter=g&filter=r&filter=i&filter=z&filter=y&filetypes=stack&auxiliary=data&size=240&output_size=0&verbose=0&autoscale=99.500000&catlist=`;
+    case "dr8":
+      alt = "Link to DESI DR8 Image Access";
+      link = `http://legacysurvey.org/viewer/jpeg-cutout?ra=${ra}&dec=${dec}&size=512&layer=dr8&pixscale=0.262&bands=grz`;
       break;
   }
 
-  const thumbnailDivClassNames = classnames(styles.Thumbnail, { [styles.ps1]: name === "ps1" });
+  const thumbnailDivClassNames = classnames(styles.Thumbnail, { [styles.dr8]: name === "dr8" });
 
   return (
     <a href={link}>
-      {name === "ps1" && <br />}
+      {name === "dr8" && <br />}
       <div className={thumbnailDivClassNames}>
         <b>
           {name.toUpperCase()}
         </b>
         <br />
         <div className={styles.thumbnailimgdiv}>
-          <img className={name === "ps1" && styles.ps1crosshairs} src={url} alt={alt} title={alt} />
-          {(name === "ps1") &&
-          <img className={styles.ps1crosshairs} src="/static/images/crosshairs.png" alt="" />
+          <img className={name === "dr8" && styles.dr8crosshairs} src={url} alt={alt} title={alt} />
+          {
+            (name === "dr8") &&
+            <img className={styles.dr8crosshairs} src="/static/images/crosshairs.png" alt="" />
           }
         </div>
       </div>
@@ -63,14 +64,14 @@ Thumbnail.propTypes = {
 
 
 const ThumbnailList = ({ ra, dec, thumbnails }) => {
-  const thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'ps1'];
+  const thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8'];
   // Sort thumbnails by order of appearance in `thumbnail_order`
   thumbnails.sort((a, b) => (thumbnail_order.indexOf(a.type) <
                              thumbnail_order.indexOf(b.type) ? -1 : 1));
 
   return (
     <div className={styles.ThumbnailList}>
-      {thumbnails.map(t => (
+      {thumbnails.map((t) => (
         <Thumbnail
           key={`thumb_${t.type}`}
           ra={ra}

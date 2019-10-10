@@ -32,7 +32,10 @@ class CommentHandler(BaseHandler):
             self.write(base64.b64decode(comment.attachment_bytes))
         else:
             # TODO: Ensure that it's okay for anyone to read any comment
-            return self.success(data={'comment': comment})
+            if comment is not None:
+                return self.success(data={'comment': comment})
+            else:
+                return self.error('Invalid comment ID.')
 
     @permissions(['Comment'])
     def post(self):

@@ -1,42 +1,41 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
+import { useDispatch } from 'react-redux';
+
+import * as Actions from '../ducks/sources';
 
 
-class SearchBox extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      sourceID: "",
-      ra: "",
-      dec: "",
-      radius: "",
-      startDate: "",
-      endDate: "",
-      simbadClass: "",
-      hasTNSname: false
-    };
+const SearchBox = ({ sources }) => {
+  const dispatch = useDispatch();
 
-    this.handleSubmit = this.handleSubmit.bind(this);
-    this.handleReset = this.handleReset.bind(this);
-    this.handleInputChange = this.handleInputChange.bind(this);
-    this.handleClickNextPage = this.handleClickNextPage.bind(this);
-    this.handleClickPreviousPage = this.handleClickPreviousPage.bind(this);
-  }
+  const [formState, setFormState] = useState({
+    sourceID: "",
+    ra: "",
+    dec: "",
+    radius: "",
+    startDate: "",
+    endDate: "",
+    simbadClass: "",
+    hasTNSname: false
+  });
 
-  handleInputChange(event) {
+  const handleInputChange = (event) => {
     const newState = {};
     newState[event.target.name] = event.target.type === 'checkbox' ?
-                                  event.target.checked : event.target.value;
-    this.setState(newState);
-  }
+      event.target.checked : event.target.value;
+    setFormState({
+      ...formState,
+      ...newState
+    });
+  };
 
-  handleSubmit(event) {
+  const handleSubmit = (event) => {
     event.preventDefault();
-    this.props.filterSources(this.state);
-  }
+    dispatch(Actions.submitSourceFilterParams(formState));
+  };
 
-  handleReset(event) {
-    this.setState({
+  const handleReset = (event) => {
+    setFormState({
       sourceID: "",
       ra: "",
       dec: "",
@@ -46,194 +45,231 @@ class SearchBox extends React.Component {
       simbadClass: "",
       hasTNSname: false
     });
-    this.props.fetchSources();
-  }
+    dispatch(Actions.fetchSources());
+  };
 
-  handleClickNextPage(event) {
+  const handleClickNextPage = (event) => {
     event.preventDefault();
-    this.props.nextPage(this.state);
-  }
+    const vals = { ...formState, pageNumber: sources.pageNumber + 1 };
+    dispatch(Actions.submitSourceFilterParams(vals));
+  };
 
-  handleClickPreviousPage(event) {
+  const handleClickPreviousPage = (event) => {
     event.preventDefault();
-    this.props.previousPage(this.state);
-  }
+    const vals = { ...formState, pageNumber: sources.pageNumber - 1 };
+    dispatch(Actions.submitSourceFilterParams(vals));
+  };
 
-  render() {
-    return (
-      <div>
-        <h4>Filter Sources</h4>
-        <form onSubmit={this.handleSubmit}>
-          <table>
-            <tbody>
-              <tr>
-                <td colSpan="3">
-                  <label><b>By Name/ID  </b></label>
-                </td>
-              </tr>
-              <tr>
-                <td colSpan="3">
-                  <label>Source ID/Name (can be substring):  </label>
+  return (
+    <div>
+      <h4>
+        Filter Sources
+      </h4>
+      <form onSubmit={handleSubmit}>
+        <table>
+          <tbody>
+            <tr>
+              <td colSpan="3">
+                <b>
+                  By Name/ID
+                </b>
+              </td>
+            </tr>
+            <tr>
+              <td colSpan="3">
+                <label>
+                  Source ID/Name (can be substring):
                   <input
                     type="text"
                     name="sourceID"
-                    value={this.state.sourceID}
-                    onChange={this.handleInputChange}
+                    value={formState.sourceID}
+                    onChange={handleInputChange}
                     size="6"
                   />
-                </td>
-              </tr>
-              <tr>
-                <td colSpan="3">
-                  <label><b>By Position  </b></label>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <label>RA (degrees):  </label>
+                </label>
+              </td>
+            </tr>
+            <tr>
+              <td colSpan="3">
+                <b>
+                  By Position&nbsp;
+                </b>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <label>
+                  RA (degrees):
                   <input
                     type="text"
                     name="ra"
-                    value={this.state.ra}
-                    onChange={this.handleInputChange}
+                    value={formState.ra}
+                    onChange={handleInputChange}
                     size="6"
                   />
-                </td>
-                <td>
-                  <label>Dec (degrees):  </label>
+                </label>
+              </td>
+              <td>
+                <label>
+                  Dec (degrees):
                   <input
                     type="text"
                     name="dec"
-                    value={this.state.dec}
-                    onChange={this.handleInputChange}
+                    value={formState.dec}
+                    onChange={handleInputChange}
                     size="6"
                   />
-                </td>
-                <td>
-                  <label>Radius (degrees):  </label>
+                </label>
+              </td>
+              <td>
+                <label>
+                  Radius (degrees):
                   <input
                     type="text"
                     name="radius"
-                    value={this.state.radius}
-                    onChange={this.handleInputChange}
+                    value={formState.radius}
+                    onChange={handleInputChange}
                     size="6"
                   />
-                </td>
-              </tr>
-              <tr>
-                <td colSpan="3">
-                  <label><b>By Time Last Detected </b></label>
-                </td>
-              </tr>
-              <tr>
-                <td colSpan="3">
-                  Required format: %Y-%m-%dT%H:%M:%S in UTC time, e.g. 2012-08-30T00:00:00
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <label>Start Date:  </label>
-                  <input
-                    type="text"
-                    name="startDate"
-                    value={this.state.startDate}
-                    onChange={this.handleInputChange}
-                    size="6"
-                  />
-                </td>
-                <td>
-                  <label>End Date:  </label>
-                  <input
-                    type="text"
-                    name="endDate"
-                    value={this.state.endDate}
-                    onChange={this.handleInputChange}
-                    size="6"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <label><b>By Simbad Class  </b></label>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <label>Class:  </label>
-                  <input
-                    type="text"
-                    name="simbadClass"
-                    value={this.state.simbadClass}
-                    onChange={this.handleInputChange}
-                    size="6"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <label><b>Must Have TNS Name: </b></label>
-                  <input
-                    type="checkbox"
-                    name="hasTNSname"
-                    checked={this.state.hasTNSname}
-                    onChange={this.handleInputChange}
-                    size="6"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <input type="submit" disabled={this.props.sources.queryInProgress} />
-                </td>
-                <td>
-                  <button type="button" onClick={this.handleReset}>Reset</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <br />
-          {
-            this.props.sources &&
+                </label>
+              </td>
+            </tr>
+            <tr>
+              <td colSpan="3">
+                <label>
+                  <b>
+                    By Time Last Detected&nbsp;
+                  </b>
+                </label>
+              </td>
+            </tr>
+            <tr>
+              <td colSpan="3">
+                Required format: %Y-%m-%dT%H:%M:%S in UTC time, e.g. 2012-08-30T00:00:00
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <label>
+                  Start Date:&nbsp;
+                </label>
+                <input
+                  type="text"
+                  name="startDate"
+                  value={formState.startDate}
+                  onChange={handleInputChange}
+                  size="6"
+                />
+              </td>
+              <td>
+                <label>
+                  End Date:&nbsp;
+                </label>
+                <input
+                  type="text"
+                  name="endDate"
+                  value={formState.endDate}
+                  onChange={handleInputChange}
+                  size="6"
+                />
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <label>
+                  <b>
+                    By Simbad Class&nbsp;
+                  </b>
+                </label>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <label>
+                  Class:&nbsp;
+                </label>
+                <input
+                  type="text"
+                  name="simbadClass"
+                  value={formState.simbadClass}
+                  onChange={handleInputChange}
+                  size="6"
+                />
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <label>
+                  <b>
+                    Must Have TNS Name:&nbsp;
+                  </b>
+                </label>
+                <input
+                  type="checkbox"
+                  name="hasTNSname"
+                  checked={formState.hasTNSname}
+                  onChange={handleInputChange}
+                  size="6"
+                />
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <input type="submit" disabled={sources.queryInProgress} />
+              </td>
+              <td>
+                <button type="button" onClick={handleReset}>
+                  Reset
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <br />
+        {
+          sources && (
             <div>
               <div style={{ display: "inline-block" }}>
                 <button
                   type="button"
-                  onClick={this.handleClickPreviousPage}
-                  disabled={this.props.sources.pageNumber == 1}
+                  onClick={handleClickPreviousPage}
+                  disabled={sources.pageNumber === 1}
                 >
                   View Previous 100 Sources
                 </button>
               </div>
               <div style={{ display: "inline-block" }}>
                 <i>
-                  Displaying {this.props.sources.sourceNumberingStart}-
-                  {this.props.sources.sourceNumberingEnd} of&nbsp;
-                  {this.props.sources.totalMatches} matching sources.
+                  Displaying&nbsp;
+                  {sources.sourceNumberingStart}
+                  -
+                  {sources.sourceNumberingEnd}
+                  &nbsp;
+                  of&nbsp;
+                  {sources.totalMatches}
+                  &nbsp;
+                  matching sources.
                 </i>
               </div>
               <div style={{ display: "inline-block" }}>
                 <button
                   type="button"
-                  onClick={this.handleClickNextPage}
-                  disabled={this.props.sources.lastPage}
+                  onClick={handleClickNextPage}
+                  disabled={sources.lastPage}
                 >
                   View Next 100 Sources
                 </button>
               </div>
             </div>
-          }
-        </form>
-        <br />
-      </div>
-    );
-  }
-}
+          )
+        }
+      </form>
+      <br />
+    </div>
+  );
+};
 SearchBox.propTypes = {
-  sources: PropTypes.object.isRequired,
-  filterSources: PropTypes.func.isRequired,
-  fetchSources: PropTypes.func.isRequired,
-  nextPage: PropTypes.func.isRequired,
-  previousPage: PropTypes.func.isRequired
+  sources: PropTypes.object.isRequired
 };
 
 export default SearchBox;

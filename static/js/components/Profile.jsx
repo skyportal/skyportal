@@ -1,27 +1,33 @@
 import React from 'react';
-import PropTypes from 'prop-types';
+import { useSelector } from 'react-redux';
 
-import NewTokenForm from '../containers/NewTokenForm';
-import TokenList from '../containers/TokenList';
+import NewTokenForm from './NewTokenForm';
+import TokenList from './TokenList';
 
 
-const Profile = props => (
-  <div>
-    <div>Username: {props.profile.username}</div>
-    <br />
-    <div>User roles: {props.profile.roles}</div>
-    <br />
-    <NewTokenForm
-      profile={props.profile}
-      groups={props.groups}
-    />
-    <br />
-    <TokenList tokens={props.profile.tokens} />
-  </div>
-);
-Profile.propTypes = {
-  profile: PropTypes.object.isRequired,
-  groups: PropTypes.object.isRequired
+const Profile = (props) => {
+  const profile = useSelector((state) => state.profile);
+  const groups = useSelector((state) => state.groups.latest);
+  return (
+    <div>
+      <div>
+Username:
+        {profile.username}
+      </div>
+      <br />
+      <div>
+User roles:
+        {profile.roles}
+      </div>
+      <br />
+      <NewTokenForm
+        profile={profile}
+        groups={groups}
+      />
+      <br />
+      <TokenList tokens={profile.tokens} />
+    </div>
+  );
 };
 
 export default Profile;
