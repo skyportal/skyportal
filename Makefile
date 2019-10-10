@@ -12,7 +12,7 @@ $(info $())
 
 help:
 	@echo -e "  To $(BOLD)start$(NORMAL) the web application, do \`make run\`."
-	@echo -e "  To $(BOLD)customize$(NORMAL) the configuration, edit \`config.yaml.defaults\`."
+	@echo -e "  To $(BOLD)configure$(NORMAL), copy \`config.yaml.defaults\` to \`config.yaml\` and edit."
 	@echo
 	@echo Please choose one of the following make targets:
 	@python baselayer/tools/makefile_to_help.py "Web Server":baselayer/Makefile "SkyPortal-specific":Makefile
