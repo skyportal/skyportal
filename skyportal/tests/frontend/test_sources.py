@@ -124,3 +124,21 @@ def test_regular_user_cannot_delete_unowned_comment(driver, super_admin_user,
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.wait_for_xpath_to_disappear('//a[text()="Delete Comment"]', timeout=0)
+
+
+def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
+                                               user, public_source):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    comment_box = driver.find_element_by_css_selector('[name=comment]')
+    comment_text = 'Test comment'
+    comment_box.send_keys(comment_text)
+    driver.find_element_by_css_selector('[type=submit]').click()
+    comment_time = datetime.now()
+    driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+    driver.wait_for_xpath('//span[contains(@class,"commentTime")]')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath('//a[text()="Delete Comment"]')

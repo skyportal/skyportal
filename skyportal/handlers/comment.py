@@ -148,5 +148,6 @@ class CommentHandler(BaseHandler):
                 except ValidationError as e:
                         return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
-        self.push_all(action='skyportal/REFRESH_SOURCE',payload={'source_id':source_id})
+        self.push_all(action='skyportal/REFRESH_SOURCE',
+                      payload={'source_id': source_id})
         return self.success()
