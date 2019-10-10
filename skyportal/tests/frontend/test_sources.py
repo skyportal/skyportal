@@ -91,3 +91,18 @@ def test_view_only_user_cannot_comment(driver, view_only_user, public_source):
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.wait_for_xpath_to_disappear('//input[@name="comment"]')
+
+
+def test_delete_comment(driver, user, public_source):
+    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    comment_box = driver.find_element_by_css_selector('[name=comment]')
+    comment_text = 'Test comment'
+    comment_box.send_keys(comment_text)
+    driver.find_element_by_css_selector('[type=submit]').click()
+    comment_time = datetime.now()
+    driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+    driver.wait_for_xpath('//span[contains(@class,"commentTime")]')
+    driver.wait_for_xpath('//a[text()="Delete Comment"]').click()
+    driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
