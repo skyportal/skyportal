@@ -19,6 +19,14 @@ def test_token_user_retrieving_source(view_only_token, public_source):
                                                       'created_at', 'id'])
 
 
+def test_token_user_retrieving_source_photometry(view_only_token, public_source):
+    status, data = api('GET', f'sources/{public_source.id}/photometry',
+                       token=view_only_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert isinstance(data['data']['photometry'], list)
+
+
 def test_token_user_update_source(manage_sources_token, public_source):
     status, data = api('PUT', f'sources/{public_source.id}',
                        data={'ra': 234.22,
