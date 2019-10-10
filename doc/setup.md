@@ -95,6 +95,13 @@ self-documenting.  Please modify as you see fit.
 **Before deploying this on a public server** change `app:secret-key`
 to a unique value.
 
+If you want to use a different configuration file, you may launch any
+of the SkyPortal commands with the FLAGS environment variable set:
+
+```
+FLAGS="--config=myconfig.yaml" make run
+```
+
 ### Authentication
 
 By default, the server allows anyone to log in (even if it presents a
