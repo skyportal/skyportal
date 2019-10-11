@@ -48,11 +48,11 @@ class GroupHandler(BaseHandler):
                     joinedload(Group.group_users)).options(
                         joinedload(Group.sources)).get(group_id)
             else:
-                group = Group.get_if_owned_by(
-                    group_id, self.current_user,
-                    options=[joinedload(Group.users),
-                             joinedload(Group.group_users),
-                             joinedload(Group.sources)])
+                group = Group.query.options([
+                    joinedload(Group.users).load_only(User.id, User.username),
+                    joinedload(Group.sources)]).get(group_id)
+                if group not in self.current_user.groups:
+                    return self.error('Insufficient permissions.')
             info['group'] = group
         else:
             info['user_groups'] = list(self.current_user.groups)
@@ -61,6 +61,11 @@ class GroupHandler(BaseHandler):
                                   [role.id for role in self.current_user.roles]
                                   else None)
         if info is not None:
+            if 'group' in info:
+                info['group'] = info['group'].to_dict()
+                # Do not include User.groups to avoid circular reference
+                info['group']['users'] = [{'id': user.id, 'username': user.username}
+                                          for user in info['group']['users']]
             return self.success(data=info)
         else:
             return self.error(f"Could not load group {group_id}",

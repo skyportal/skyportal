@@ -4,8 +4,6 @@ from selenium.webdriver.common.by import By
 import uuid
 import requests
 
-from skyportal.model_util import create_token
-
 
 def test_public_groups_list(driver, user, public_group):
     driver.get(f'/become_user/{user.id}')  # TODO decorator/context manager?

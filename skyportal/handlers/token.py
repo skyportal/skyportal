@@ -30,8 +30,7 @@ class TokenHandler(BaseHandler):
         requested_acls = {k.replace('acls_', '') for k, v in data.items() if
                           k.startswith('acls_') and v == True}
         token_acls = requested_acls & user_acls
-        token_id = create_token(group_id=data['group_id'],
-                                permissions=token_acls,
+        token_id = create_token(permissions=token_acls,
                                 created_by_id=user.id,
                                 name=data['name'])
         return self.success(data={'token_id': token_id},

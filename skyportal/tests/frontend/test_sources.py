@@ -10,7 +10,6 @@ import requests
 import numpy.testing as npt
 
 from skyportal.models import Source, DBSession
-from skyportal.model_util import create_token
 from baselayer.app.config import load_config
 
 
