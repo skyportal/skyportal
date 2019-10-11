@@ -1,5 +1,5 @@
 app:
-    secret-key: abc01234  # This secret key can be any random string of
+    secret_key: abc01234  # This secret key can be any random string of
                           # characters.
                           #
                           # You should re-generate this for your application

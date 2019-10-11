@@ -76,7 +76,7 @@ def test_download_comment_attachment(driver, user, public_source):
     driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     driver.wait_for_xpath('//a[text()="spec.csv"]').click()
     time.sleep(0.5)
-    fpath = str(os.path.abspath(pjoin(cfg['paths:downloads_folder'], 'spec.csv')))
+    fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'spec.csv')))
     assert(os.path.exists(fpath))
     try:
         with open(fpath) as f:
