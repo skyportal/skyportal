@@ -36,7 +36,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
 
     handlers = baselayer_handlers + [
         # API endpoints
-        (r'/api/sources/([0-9A-Za-z-]+)/photometry', SourcePhotometryHandler),
+        (r'/api/sources(/[0-9A-Za-z-]+)/photometry', SourcePhotometryHandler),
         (r'/api/sources/filter', FilterSourcesHandler),
         (r'/api/sources(/.*)?', SourceHandler),
         (r'/api/groups/(.*)/users/(.*)?', GroupUserHandler),
