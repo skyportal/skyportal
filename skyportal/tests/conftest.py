@@ -31,11 +31,6 @@ def public_source(public_group):
 
 
 @pytest.fixture()
-def public_sources_205(public_group):
-    return [SourceFactory(groups=[public_group]) for _ in range(205)]
-
-
-@pytest.fixture()
 def private_source():
     return SourceFactory(groups=[])
 

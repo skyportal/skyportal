@@ -1,9 +1,11 @@
+import uuid
 import pytest
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 import time
 
 import skyportal
+from skyportal.tests import api
 
 
 def test_source_list(driver, user, public_source, private_source):
@@ -21,13 +23,28 @@ def test_source_list(driver, user, public_source, private_source):
     assert not el.is_enabled()
 
 
-def test_source_filtering_and_pagination(driver, user, public_sources_205):
+def test_source_filtering_and_pagination(driver, user, public_group, upload_data_token):
+    source_id = str(uuid.uuid4())
+    for i in range(205):
+        status, data = api('POST', 'sources',
+                           data={'id': f'{source_id}_{i}',
+                                 'ra': 234.22,
+                                 'dec': -22.33,
+                                 'redshift': 3,
+                                 'simbad_class': 'RRLyr',
+                                 'transient': False,
+                                 'ra_dis': 2.3,
+                                 'group_ids': [public_group.id]},
+                           token=upload_data_token)
+        assert status == 200
+        assert data['data']['id'] == f'{source_id}_{i}'
+
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     assert 'localhost' in driver.current_url
     driver.get('/')
     driver.wait_for_xpath("//div[contains(@title,'connected')]")
     driver.wait_for_xpath('//h2[contains(text(), "Sources")]')
-    driver.wait_for_xpath(f'//td[text()="{public_sources_205[0].simbad_class}"]')
+    driver.wait_for_xpath(f'//td[text()="RRLyr"]')
     # Pagination
     next_button = driver.wait_for_xpath('//button[text()="View Next 100 Sources"]')
     assert next_button.is_enabled()
