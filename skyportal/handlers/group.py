@@ -51,7 +51,7 @@ class GroupHandler(BaseHandler):
                 group = Group.query.options([
                     joinedload(Group.users).load_only(User.id, User.username),
                     joinedload(Group.sources)]).get(group_id)
-                if group not in self.current_user.groups:
+                if group is not None and group not in self.current_user.groups:
                     return self.error('Insufficient permissions.')
             info['group'] = group
         else:
@@ -60,16 +60,17 @@ class GroupHandler(BaseHandler):
                                   and 'Super admin' in
                                   [role.id for role in self.current_user.roles]
                                   else None)
-        if info is not None:
-            if 'group' in info:
+            return self.success(data=info)
+        if 'group' in info:
+            if info['group'] is not None:
                 info['group'] = info['group'].to_dict()
                 # Do not include User.groups to avoid circular reference
                 info['group']['users'] = [{'id': user.id, 'username': user.username}
                                           for user in info['group']['users']]
-            return self.success(data=info)
-        else:
-            return self.error(f"Could not load group {group_id}",
-                              data={"group_id": group_id})
+                return self.success(data=info)
+            else:
+                return self.error(f"Could not load group {group_id}",
+                                  data={"group_id": group_id})
 
     @permissions(['Manage groups'])
     def post(self):
@@ -102,16 +103,10 @@ class GroupHandler(BaseHandler):
         if self.current_user not in group_admins and not isinstance(self.current_user, Token):
             group_admins.append(self.current_user)
 
-        group_tokens = [t.strip() for t in data.get('group_tokens', [])
-                        if t.strip()]
-        group_tokens = list(Token.query.filter(Token.id.in_(group_tokens)))
-        if isinstance(self.current_user, Token) and self.current_user not in group_tokens:
-            group_tokens.append(self.current_user)
-
         source_ids = [s.strip() for s in data.get('source_ids', []) if s.strip()]
         sources = list(Source.query.filter(Source.id.in_(source_ids)))
 
-        g = Group(name=data['name'], tokens=group_tokens, sources=sources)
+        g = Group(name=data['name'], sources=sources)
         DBSession().add_all(
             [GroupUser(group=g, user=user, admin=True) for user in group_admins])
         DBSession().commit()
