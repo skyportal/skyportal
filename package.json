@@ -23,7 +23,7 @@
     "react-responsive": "7.0.0",
     "react-router-dom": "5.0.1",
     "react-simple-dropdown": "3.0.0",
-    "redoc": "2.0.0-rc.2",
+    "redoc": "2.0.0-rc.10",
     "redoc-cli": "0.8.3",
     "redux": "3.6.0",
     "redux-logger": "3.0.6",
