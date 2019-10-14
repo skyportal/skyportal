@@ -108,9 +108,8 @@ if __name__ == "__main__":
                 file_path = os.path.abspath(basedir/f'skyportal/tests/data/{fname}')
                 im = base64.b64encode(open(file_path, 'rb').read())
                 t = Thumbnail(type=ttype, photometry_id=s.photometry[0].id,
-                              file_uri = im,
-                              public_url = im)
-                print(type(im))
+                              image = im,
+                              public_url = f'/static/thumbnails/{fname}')
                 DBSession().add(t)
 
             s.add_linked_thumbnails()
