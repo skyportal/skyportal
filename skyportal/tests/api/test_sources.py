@@ -25,6 +25,7 @@ def test_token_user_retrieving_source_photometry(view_only_token, public_source)
     assert status == 200
     assert data['status'] == 'success'
     assert isinstance(data['data']['photometry'], list)
+    assert 'mjd' in data['data']['photometry'][0]
 
 
 def test_token_user_update_source(manage_sources_token, public_source):
