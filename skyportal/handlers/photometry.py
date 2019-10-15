@@ -102,7 +102,7 @@ class PhotometryHandler(BaseHandler):
         instrument = Instrument.query.get(data['instrument_id'])
         if not instrument:
             raise Exception('Invalid instrument ID') # TODO: handle invalid instrument ID
-        source = Source.query.get(data['source_id'])
+        source = Source.get_if_owned_by(data['source_id'], self.current_user)
         if not source:
             raise Exception('Invalid source ID') # TODO: handle invalid source ID
         for i in range(len(data['mag'])):
@@ -156,12 +156,13 @@ class PhotometryHandler(BaseHandler):
         """
         info = {}
         info['photometry'] = Photometry.query.get(photometry_id)
+        if info['photometry'] is None:
+            return self.error ('Invalid photometry ID')
+        # Ensure user/token has access to parent source
+        s = Source.get_if_owned_by(info['photometry'].source_id,
+                                   self.current_user)
 
-        if info['photometry'] is not None:
-            return self.success(data=info)
-        else:
-            return self.error(f"Could not load photometry {photometry_id}",
-                              data={"photometry_id": photometry_id})
+        return self.success(data=info)
 
     @permissions(['Manage sources'])
     def put(self, photometry_id):
@@ -182,6 +183,9 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        # Ensure user/token has access to parent source
+        s = Source.get_if_owned_by(Photometry.query.get(photometry_id).source_id,
+                                   self.current_user)
         data = self.get_json()
         data['id'] = photometry_id
 
@@ -216,6 +220,9 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        # Ensure user/token has access to parent source
+        s = Source.get_if_owned_by(Photometry.query.get(photometry_id).source_id,
+                                   self.current_user)
         DBSession.query(Photometry).filter(Photometry.id == int(photometry_id)).delete()
         DBSession().commit()
 
