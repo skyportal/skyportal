@@ -69,6 +69,25 @@ class ThumbnailHandler(BaseHandler):
 
     @auth_or_token
     def get(self, thumbnail_id):
+        """
+        ---
+        description: Retrieve a thumbnail
+        parameters:
+          - in: path
+            name: thumbnail_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleThumbnail
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         info = {}
         info['thumbnail'] = Thumbnail.query.get(thumbnail_id)
 
@@ -80,6 +99,23 @@ class ThumbnailHandler(BaseHandler):
 
     @permissions(['Manage sources'])
     def put(self, thumbnail_id):
+        """
+        ---
+        description: Update thumbnail
+        parameters:
+          - in: path
+            name: thumbnail
+            schema: Thumbnail
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         data = self.get_json()
         data['id'] = thumbnail_id
 
@@ -95,6 +131,25 @@ class ThumbnailHandler(BaseHandler):
 
     @permissions(['Manage sources'])
     def delete(self, thumbnail_id):
+        """
+        ---
+        description: Delete a thumbnail
+        parameters:
+          - in: path
+            name: thumbnail_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         DBSession.query(Thumbnail).filter(Thumbnail.id == int(thumbnail_id)).delete()
         DBSession().commit()
 
