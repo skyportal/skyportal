@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useDispatch } from 'react-redux';
+import CustomInput from './CustomInput';
 
 import * as Actions from '../ducks/sources';
 

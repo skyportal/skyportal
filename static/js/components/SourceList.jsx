@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 
 import SearchBox from './SearchBox';
+import NewSearchBox from './NewSearchBox';
 import * as sourcesActions from '../ducks/sources';
 import UninitializedDBMessage from './UninitializedDBMessage';
+
+import styles from './SourceList.css';
 
 
 const SourceList = () => {
@@ -23,22 +26,34 @@ const SourceList = () => {
     }
   }, []);
 
+  const handleClickNextPage = (event) => {
+    event.preventDefault();
+    const vals = { ...formState, pageNumber: sources.pageNumber + 1 };
+    dispatch(Actions.submitSourceFilterParams(vals));
+  };
+
+  const handleClickPreviousPage = (event) => {
+    event.preventDefault();
+    const vals = { ...formState, pageNumber: sources.pageNumber - 1 };
+    dispatch(Actions.submitSourceFilterParams(vals));
+  };
+
   if (sourceTableEmpty) {
     return <UninitializedDBMessage />;
   }
   if (sources) {
     return (
-      <div>
+      <div className={styles.SourceListWrapper}>
         <h2>
           Sources
         </h2>
 
-        <SearchBox sources={sources} />
+        <NewSearchBox sources={sources} />
         {
           !sources.queryInProgress && (
             <table id="tab">
               <thead>
-                <tr>
+                <tr className={styles.outerHeading}>
                   <th />
                   <th />
                   <th colSpan="2">
@@ -56,7 +71,7 @@ const SourceList = () => {
                   <th />
                 </tr>
 
-                <tr>
+                <tr className={styles.innerHeading}>
                   <th>
                     Last detected
                   </th>
@@ -94,14 +109,10 @@ const SourceList = () => {
                     Score
                   </th>
                   <th>
-                    N
-                    <br />
-                    detections
+                    N detections
                   </th>
                   <th>
-                    Simbad
-                    <br />
-                    Class
+                    Simbad Class
                   </th>
                   <th>
                     TNS Name
@@ -111,7 +122,7 @@ const SourceList = () => {
               <tbody>
                 {
                   sources.latest && sources.latest.map((source, idx) => (
-                    <tr key={source.id}>
+                    <tr className={styles.tableRow} key={source.id}>
                       <td>
                         {source.last_detected && String(source.last_detected).split(".")[0]}
                       </td>
@@ -161,6 +172,43 @@ const SourceList = () => {
                 }
               </tbody>
             </table>
+          )
+        }
+        {
+          sources && (
+            <div className={styles.tableSubTitle}>
+              <div style={{ display: "inline-block" }}>
+                <button
+                  className={styles.inlineButton}
+                  type="button"
+                  onClick={handleClickPreviousPage}
+                  disabled={sources.pageNumber === 1}>
+                  View Previous 100 Sources
+                </button>
+              </div>
+              <div style={{ display: "inline-block" }}>
+                <i>
+                  Displaying&nbsp;
+                  {sources.sourceNumberingStart}
+                  -
+                  {sources.sourceNumberingEnd}
+                  &nbsp;
+                  of&nbsp;
+                  {sources.totalMatches}
+                  &nbsp;
+                  matching sources.
+                </i>
+              </div>
+              <div style={{ display: "inline-block" }}>
+                <button
+                  className={styles.inlineButton}
+                  type="button"
+                  onClick={handleClickNextPage}
+                  disabled={sources.lastPage}>
+                  View Next 100 Sources
+                </button>
+              </div>
+            </div>
           )
         }
         {

@@ -1,0 +1,86 @@
+.col4 {
+    width: 33.333%;
+}
+
+.col6 {
+    width: 50%;
+}
+
+.col12 {
+    width: 100%;
+}
+
+.searchBoxWrapper {
+    position: relative;
+}
+
+.searchBox {
+    /* width: 80%; */
+    width: 100%;
+}
+
+.searchBoxForm {
+    position: relative;
+    background-color: WhiteSmoke;
+    box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.05), 
+    0 2px 2px rgba(0, 0, 0, 0.03), 
+    0 4px 4px rgba(0, 0, 0, 0.022), 
+    0 8px 8px rgba(0, 0, 0, 0.020),
+    0 16px 16px rgba(0, 0, 0, 0.020);
+    border-radius: 8px;
+    width: 80%;
+    padding: 30px 25px;
+    display: flex;
+    flex-direction: column;
+    margin: 30px 10px;
+}
+
+.searchBoxFormHeader {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0px;
+}
+
+.searchBoxFormInner {
+    display: flex;
+    flex-direction: column;
+    margin: 8px;
+}
+
+.searchBoxFormInputs {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.inputSubmitButton {
+    display: block;
+    height: 40px;
+    width: 180px;
+    font-size: 18px;
+    color: #007bff;
+    background-color: transparent;
+    border: 1px solid #007bff;
+    border-radius: 2px;
+    transition: all 0.2s ease-out;
+    -webkit-transition: all 0.2s ease-out;
+    -moz-transition: all 0.2s ease-out;
+    -ms-transition: all 0.2s ease-out;
+    -o-transition: all 0.2s ease-out;
+    margin:auto;
+    cursor: pointer;
+}
+
+.inputSubmitButton:hover {
+    background-color: #007bff;
+    color: white;
+}
+
+.inputSubmitButton:active {
+    background-color: #007bff;
+    color: white;
+}
+
+.inputSubmitButton:focus {
+    outline: none;
+}
