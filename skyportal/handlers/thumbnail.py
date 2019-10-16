@@ -116,7 +116,6 @@ def create_thumbnail(thumbnail_data, thumbnail_type, source_id, photometry_obj):
     if not (100, 100) <= im.size <= (500, 500):
         raise ValueError('Invalid thumbnail size. Only thumbnails '
                         'between (100, 100) and (500, 500) allowed.')
-    print(type(im))
     t = Thumbnail(type=thumbnail_type,
                   photometry=photometry_obj,
                   image = im,
