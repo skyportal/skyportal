@@ -25,6 +25,7 @@ import shutil
 from tqdm import tqdm
 import tarfile
 import json
+import base64
 
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -292,13 +293,16 @@ class ZTFAvro():
             for ttype, ztftype in [('new', 'Science'), ('ref', 'Template'), ('sub', 'Difference')]:
                 fname = f'{packet["candid"]}_{ttype}.png'
                 gzname = f'{packet["candid"]}_{ttype}.fits.gz'
-
+                t_filepath = f'static/thumbnails/{packet["objectId"]}/{fname}'
+                t_im = base64.b64encode(open(t_filepath, 'rb').read())
+                tgz_filepath = f'static/thumbnails/{packet["objectId"]}/{gzname}'
+                tgz_im = base64.b64encode(open(tgz_filepath, 'rb').read())
                 t = Thumbnail(type=ttype, photometry_id=s.photometry[0].id,
-                              file_uri=f'static/thumbnails/{packet["objectId"]}/{fname}',
+                              image=t_im,
                               origin=f"{os.path.basename(self.fname)}",
                               public_url=f'/static/thumbnails/{packet["objectId"]}/{fname}')
                 tgz = Thumbnail(type=ttype + "_gz", photometry_id=s.photometry[0].id,
-                              file_uri=f'static/thumbnails/{packet["objectId"]}/{gzname}',
+                              image=tgz_im,
                               origin=f"{os.path.basename(self.fname)}",
                               public_url=f'/static/thumbnails/{packet["objectId"]}/{gzname}')
                 DBSession().add(t)
