@@ -244,7 +244,7 @@ const SearchBox = ({ sources }) => {
 };
 
 SearchBox.propTypes = {
-  sources: PropTypes.InstanceOf(Array).isRequired
+  sources: PropTypes.object.isRequired
 };
 
 export default SearchBox;
