@@ -244,7 +244,16 @@ const SearchBox = ({ sources }) => {
 };
 
 SearchBox.propTypes = {
-  sources: PropTypes.object.isRequired
+  sources: PropTypes.shape({
+    lastPage: PropTypes.bool,
+    latest: PropTypes.any,
+    pageNumber: PropTypes.number,
+    sourceNumberingStart: PropTypes.any,
+    sourcesNumberingEnd: PropTypes.any,
+    totalMatches: PropTypes.any,
+    queryInProgress: PropTypes.any,
+    sourceNumberingEnd: PropTypes.any
+  }).isRequired
 };
 
 export default SearchBox;
