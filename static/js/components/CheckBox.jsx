@@ -1,30 +1,45 @@
 import React from 'react';
+import PropTypes from 'prop-types';
+
 import styles from './CheckBox.css';
 
-const CheckBox = (props) => {
+
+function CheckBox({ label, name, checked, onChange, size }) {
   return (
-    <div className={styles.checkBoxWrapper}> 
-      <label className={styles.label}> {props.label} </label>
-
-      {/* A hack to style checkbox.
-          Essentially overwrite the original 
-          style completely. */}
-
-      <label 
-      className={styles.checkboxLabel}
-      style={props.labelStyle}>
+    <div className={styles.checkBoxWrapper}>
+      <label htmlFor={name} className={styles.label}>
+        {label}
+      </label>
+      <input htmlFor="dummy" className={styles.dummy} />
+      <label
+        className={styles.checkboxLabel}
+        htmlFor="dummy"
+      >
         <input
           type="checkbox"
-          style={props.checkboxStyle}
-          name={props.name}
+          name={name}
           className={styles.CheckBox}
-          checked={props.checked}
-          onChange={props.onChange}
-          size={props.size}/>
-        <span className={styles.checkboxCustom}/>
+          checked={checked}
+          onChange={onChange}
+          size={size}
+        />
+        <span className={styles.checkboxCustom} />
       </label>
     </div>
-  )
+  );
+}
+
+CheckBox.propTypes = {
+  label: PropTypes.string,
+  checked: PropTypes.bool.isRequired,
+  onChange: PropTypes.func.isRequired,
+  name: PropTypes.string.isRequired,
+  size: PropTypes.string
+};
+
+CheckBox.defaultProps = {
+  label: null,
+  size: "6"
 };
 
 export default CheckBox;

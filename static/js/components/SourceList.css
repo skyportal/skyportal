@@ -34,16 +34,3 @@ td, th {
 .tableRow:nth-child(odd) {
     background-color: WhiteSmoke
 }
-
-.tableSubTitle {
-    text-align: center;
-}
-
-.inlineButton {
-    margin: 20px;
-    padding: 5px;
-}
-
-.inlineButton:disabled {
-    background-color: white;
-}

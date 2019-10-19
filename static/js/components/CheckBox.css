@@ -10,6 +10,7 @@
 .label {
   flex-grow: 1;
   font-size: 16px;
+  font-weight: 700;
 }
 
 .labelWrapper {
@@ -105,8 +106,6 @@
   border-radius: 0;
 }
 
-
-
-
-
-
+.dummy {
+  visibility: hidden;
+}

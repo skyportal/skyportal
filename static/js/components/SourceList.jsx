@@ -3,17 +3,16 @@ import { Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 
 import SearchBox from './SearchBox';
-import NewSearchBox from './NewSearchBox';
 import * as sourcesActions from '../ducks/sources';
 import UninitializedDBMessage from './UninitializedDBMessage';
 
 import styles from './SourceList.css';
 
-
 const SourceList = () => {
   const sources = useSelector(
     (state) => state.sources
   );
+
   const sourceTableEmpty = useSelector(
     (state) => state.dbInfo.source_table_empty
   );
@@ -26,18 +25,6 @@ const SourceList = () => {
     }
   }, []);
 
-  const handleClickNextPage = (event) => {
-    event.preventDefault();
-    const vals = { ...formState, pageNumber: sources.pageNumber + 1 };
-    dispatch(Actions.submitSourceFilterParams(vals));
-  };
-
-  const handleClickPreviousPage = (event) => {
-    event.preventDefault();
-    const vals = { ...formState, pageNumber: sources.pageNumber - 1 };
-    dispatch(Actions.submitSourceFilterParams(vals));
-  };
-
   if (sourceTableEmpty) {
     return <UninitializedDBMessage />;
   }
@@ -48,7 +35,7 @@ const SourceList = () => {
           Sources
         </h2>
 
-        <NewSearchBox sources={sources} />
+        <SearchBox sources={sources} />
         {
           !sources.queryInProgress && (
             <table id="tab">
@@ -172,43 +159,6 @@ const SourceList = () => {
                 }
               </tbody>
             </table>
-          )
-        }
-        {
-          sources && (
-            <div className={styles.tableSubTitle}>
-              <div style={{ display: "inline-block" }}>
-                <button
-                  className={styles.inlineButton}
-                  type="button"
-                  onClick={handleClickPreviousPage}
-                  disabled={sources.pageNumber === 1}>
-                  View Previous 100 Sources
-                </button>
-              </div>
-              <div style={{ display: "inline-block" }}>
-                <i>
-                  Displaying&nbsp;
-                  {sources.sourceNumberingStart}
-                  -
-                  {sources.sourceNumberingEnd}
-                  &nbsp;
-                  of&nbsp;
-                  {sources.totalMatches}
-                  &nbsp;
-                  matching sources.
-                </i>
-              </div>
-              <div style={{ display: "inline-block" }}>
-                <button
-                  className={styles.inlineButton}
-                  type="button"
-                  onClick={handleClickNextPage}
-                  disabled={sources.lastPage}>
-                  View Next 100 Sources
-                </button>
-              </div>
-            </div>
           )
         }
         {
