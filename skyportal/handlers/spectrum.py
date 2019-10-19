@@ -9,6 +9,26 @@ from ..models import DBSession, Spectrum, Comment, Instrument, Source
 class SpectrumHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
+        """
+        ---
+        description: Upload spectrum
+        parameters:
+          - in: path
+            name: spectrum
+            schema: Spectrum
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - Success
+                    - type: object
+                      properties:
+                        id:
+                          type: integer
+                          description: New spectrum ID
+        """
         data = self.get_json()
         source_id = data.pop('source_id')
         instrument_id = data.pop('instrument_id')
@@ -29,7 +49,26 @@ class SpectrumHandler(BaseHandler):
         return self.success(data={"id": spec.id})
 
     @auth_or_token
-    def get(self, spectrum_id=None):
+    def get(self, spectrum_id):
+        """
+        ---
+        description: Retrieve a spectrum
+        parameters:
+          - in: path
+            name: spectrum_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleSpectrum
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         info = {}
         info['spectrum'] = Spectrum.query.get(spectrum_id)
 
@@ -41,6 +80,23 @@ class SpectrumHandler(BaseHandler):
 
     @permissions(['Manage sources'])
     def put(self, spectrum_id):
+        """
+        ---
+        description: Update spectrum
+        parameters:
+          - in: path
+            name: spectrum
+            schema: Spectrum
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         data = self.get_json()
         data['id'] = spectrum_id
 
@@ -56,6 +112,25 @@ class SpectrumHandler(BaseHandler):
 
     @permissions(['Manage sources'])
     def delete(self, spectrum_id):
+        """
+        ---
+        description: Delete a spectrum
+        parameters:
+          - in: path
+            name: spectrum_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         s = Spectrum.query.get(spectrum_id)
         DBSession().delete(s)
         DBSession().commit()

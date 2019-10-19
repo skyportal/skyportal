@@ -3,7 +3,7 @@ SHELL = /bin/bash
 BOLD=\033[1m
 NORMAL=\033[0m
 
-VER := $(shell cat skyportal/__init__.py | grep "__version__ =" | cut -d "'" -f 2)
+VER := $(shell python -c "import skyportal; print(skyportal.__version__)")
 BANNER := $(shell echo -e "Welcome to $(BOLD)SkyPortal v$(VER)$(NORMAL) (https://skyportal.io)")
 
 $(info $())
