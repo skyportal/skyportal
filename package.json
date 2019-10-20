@@ -30,7 +30,7 @@
     "redux-thunk": "2.3.0",
     "semver": "5.4.1",
     "style-loader": "0.18.2",
-    "whatwg-fetch": "2.0.2"
+    "whatwg-fetch": "3.0.0"
   },
   "devDependencies": {
     "babel-core": "6.26.0",
