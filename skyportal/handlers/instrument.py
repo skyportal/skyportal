@@ -47,6 +47,25 @@ class InstrumentHandler(BaseHandler):
 
     @auth_or_token
     def get(self, instrument_id):
+        """
+        ---
+        description: Retrieve an instrument
+        parameters:
+          - in: path
+            name: instrument_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleInstrument
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         info = {}
         info['instrument'] = Instrument.query.get(int(instrument_id))
 
@@ -58,6 +77,23 @@ class InstrumentHandler(BaseHandler):
 
     @permissions(['Manage sources'])
     def put(self, instrument_id):
+        """
+        ---
+        description: Update instrument
+        parameters:
+          - in: path
+            name: instrument
+            schema: Instrument
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         data = self.get_json()
         data['id'] = int(instrument_id)
 
@@ -73,6 +109,25 @@ class InstrumentHandler(BaseHandler):
 
     @permissions(['Manage sources'])
     def delete(self, instrument_id):
+        """
+        ---
+        description: Delete an instrument
+        parameters:
+          - in: path
+            name: instrument_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         DBSession.query(Instrument).filter(Instrument.id == int(instrument_id)).delete()
         DBSession().commit()
 
