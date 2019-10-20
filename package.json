@@ -27,7 +27,7 @@
     "redoc-cli": "0.8.3",
     "redux": "3.6.0",
     "redux-logger": "3.0.6",
-    "redux-thunk": "2.2.0",
+    "redux-thunk": "2.3.0",
     "semver": "5.4.1",
     "style-loader": "0.18.2",
     "whatwg-fetch": "2.0.2"
