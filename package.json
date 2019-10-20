@@ -21,7 +21,7 @@
     "react-dom": "16.9.0",
     "react-redux": "7.1.0",
     "react-responsive": "7.0.0",
-    "react-router-dom": "5.0.1",
+    "react-router-dom": "5.1.2",
     "react-simple-dropdown": "3.0.0",
     "redoc": "2.0.0-rc.10",
     "redoc-cli": "0.8.3",
