@@ -5,8 +5,15 @@ make db_init
 PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py \
       --adminuser=<google_email_address>
 
+PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py \
+      --adminuser=testuser@cesium-ml.org
+
+
 PYTHONPATH=$PYTHONPATH:"." python tools/ztf_upload_avro.py \
      <google_email_address> https://ztf.uw.edu/alerts/public/ztf_public_20180626.tar.gz
+
+PYTHONPATH=$PYTHONPATH:"." python tools/ztf_upload_avro.py \
+     testuser@cesium-ml.org https://ztf.uw.edu/alerts/public/ztf_public_20180626.tar.gz
 
 """
 import os
