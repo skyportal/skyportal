@@ -7,6 +7,10 @@
   height: 40px;
 }
 
+/* The styling of the checkbox is inspired by https://codepen.io/BrahmaUI/pen/WgOGQz,
+   which is written by @BrahmaUI */
+
+
 .label {
   flex-grow: 1;
   font-size: 16px;
