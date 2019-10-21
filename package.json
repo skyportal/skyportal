@@ -25,7 +25,7 @@
     "react-simple-dropdown": "3.0.0",
     "redoc": "2.0.0-rc.10",
     "redoc-cli": "0.8.3",
-    "redux": "3.6.0",
+    "redux": "4.0.4",
     "redux-logger": "3.0.6",
     "redux-thunk": "2.3.0",
     "semver": "5.4.1",
