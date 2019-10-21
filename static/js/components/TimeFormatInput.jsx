@@ -1,16 +1,22 @@
 import React from 'react';
+import NumberFormat from 'react-number-format';
 import PropTypes from 'prop-types';
 import styles from './Input.css';
 
 
 const CustomInput = ({ type, name, value, onChange, placeholder, size, disabled, label }) => (
+  // formatting time:
+  // %Y-%m-%dT%H:%M:%S in UTC time, e.g. 2012-08-30T00:00:00
+  // <NumberFormat format="####-##-##T##:##:##" mask="_"/
   <div className={styles.inputWrapper}>
     <div className={styles.labelWrapper}>
       <label htmlFor={name} className={styles.label}>
         {label}
       </label>
     </div>
-    <input
+    <NumberFormat
+      format="####-##-##T##:##:##"
+      mask="_"
       className={styles.input}
       type={type}
       name={name}
