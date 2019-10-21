@@ -8,6 +8,7 @@ import styles from "./SearchBox.css";
 
 // Custom Components:
 import CustomInput from './CustomInput';
+import TimeFormatInput from './TimeFormatInput';
 import CheckBox from './CheckBox';
 
 
@@ -126,8 +127,7 @@ const SearchBox = ({ sources }) => {
             <h5 className={styles.searchBoxFormHeader}> Filter by Time Last Detected (UTC)</h5>
             <div className={styles.searchBoxFormInputs}>
               <div className={styles.col6}>
-                <CustomInput
-                  format="UTC"
+                <TimeFormatInput
                   label="Start Date"
                   type="text"
                   name="startDate"
@@ -138,8 +138,7 @@ const SearchBox = ({ sources }) => {
                 />
               </div>
               <div className={styles.col6}>
-                <CustomInput
-                  format="UTC"
+                <TimeFormatInput
                   label="End Date"
                   type="text"
                   name="endDate"
