@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "bokehjs": "0.12.9",
-    "check-dependencies": "^1.1.0",
+    "check-dependencies": "1.1.0",
     "classnames": "2.2.6",
     "css-loader": "0.28.4",
     "exports-loader": "0.6.4",
