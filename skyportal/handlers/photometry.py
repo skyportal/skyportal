@@ -135,6 +135,25 @@ class PhotometryHandler(BaseHandler):
 
     @auth_or_token
     def get(self, photometry_id):
+        """
+        ---
+        description: Retrieve photometry
+        parameters:
+          - in: path
+            name: photometry_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SinglePhotometry
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         info = {}
         info['photometry'] = Photometry.query.get(photometry_id)
 
@@ -146,6 +165,23 @@ class PhotometryHandler(BaseHandler):
 
     @permissions(['Manage sources'])
     def put(self, photometry_id):
+        """
+        ---
+        description: Update photometry
+        parameters:
+          - in: path
+            name: photometry
+            schema: Photometry
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         data = self.get_json()
         data['id'] = photometry_id
 
@@ -161,6 +197,25 @@ class PhotometryHandler(BaseHandler):
 
     @permissions(['Manage sources'])
     def delete(self, photometry_id):
+        """
+        ---
+        description: Delete photometry
+        parameters:
+          - in: path
+            name: photometry_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         DBSession.query(Photometry).filter(Photometry.id == int(photometry_id)).delete()
         DBSession().commit()
 
