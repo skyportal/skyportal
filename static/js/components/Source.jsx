@@ -88,6 +88,7 @@ const Source = ({ route }) => {
             mobileProps={{ folded: true }}
           >
             <Plot className={styles.plot} url={`/api/internal/plot/photometry/${source.id}`} />
+            {/* /api/internal/plot/photometry/14gqr */}
           </Responsive>
 
           <Responsive
@@ -95,7 +96,6 @@ const Source = ({ route }) => {
             title="Spectroscopy"
             mobileProps={{ folded: true }}
           >
-
             <Plot className={styles.plot} url={`/api/internal/plot/spectroscopy/${source.id}`} />
           </Responsive>
 
