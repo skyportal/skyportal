@@ -85,7 +85,8 @@ Thumbnail.propTypes = {
   telescope: PropTypes.string.isRequired,
   name: PropTypes.string.isRequired,
   url: PropTypes.string.isRequired,
-  observed_at: PropTypes.string.isRequired
+  observed_at: PropTypes.string.isRequired,
+  image: PropTypes.string.isRequired
 };
 
 ThumbnailList.propTypes = {
