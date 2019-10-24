@@ -42,8 +42,7 @@ class GroupHandler(BaseHandler):
         """
         info = {}
         if group_id is not None:
-            if (hasattr(self.current_user, 'roles') and
-                'Super admin' in [role.id for role in self.current_user.roles]):
+            if 'Manage groups' in [acl.id for acl in self.current_user.acls]:
                 group = Group.query.options(joinedload(Group.users)).options(
                     joinedload(Group.group_users)).options(
                         joinedload(Group.sources)).get(group_id)
