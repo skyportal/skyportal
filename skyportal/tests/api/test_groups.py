@@ -1,5 +1,6 @@
 import uuid
 from skyportal.tests import api
+from skyportal.model_util import create_token
 
 
 def test_token_user_create_new_group_no_sources(manage_groups_token, super_admin_user):
@@ -88,3 +89,27 @@ def test_token_user_delete_group(manage_groups_token, public_group):
     status, data = api('GET', f'groups/{public_group.id}',
                        token=manage_groups_token)
     assert status == 400
+
+
+def test_manage_groups_token_get_unowned_group(manage_groups_token, user,
+                                               super_admin_user):
+    group_name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'groups',
+        data={'name': group_name,
+              'group_admins': [user.username]},
+        token=manage_groups_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    new_group_id = data['data']['id']
+
+    token_name = str(uuid.uuid4())
+    token_id = create_token(permissions=['Manage groups'],
+                            created_by_id=super_admin_user.id,
+                            name=token_name)
+
+    status, data = api('GET', f'groups/{new_group_id}',
+                       token=token_id)
+    assert data['status'] == 'success'
+    assert data['data']['group']['name'] == group_name
