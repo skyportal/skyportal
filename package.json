@@ -43,7 +43,7 @@
     "babel-polyfill": "6.26.0",
     "babel-preset-env": "1.7.0",
     "babel-preset-react": "6.24.1",
-    "eslint": "6.5.1",
+    "eslint": "6.6.0",
     "eslint-config-airbnb": "18.0.1",
     "eslint-import-resolver-webpack": "0.11.1",
     "eslint-loader": "3.0.2",
