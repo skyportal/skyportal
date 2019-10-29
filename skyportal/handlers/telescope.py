@@ -42,6 +42,25 @@ class TelescopeHandler(BaseHandler):
 
     @auth_or_token
     def get(self, telescope_id):
+        """
+        ---
+        description: Retrieve a telescope
+        parameters:
+          - in: path
+            name: telescope_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleTelescope
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         info = {}
         info['telescope'] = Telescope.query.get(int(telescope_id))
 
@@ -53,6 +72,23 @@ class TelescopeHandler(BaseHandler):
 
     @permissions(['Manage sources'])
     def put(self, telescope_id):
+        """
+        ---
+        description: Update telescope
+        parameters:
+          - in: path
+            name: telescope
+            schema: Telescope
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         data = self.get_json()
         data['id'] = int(telescope_id)
 
@@ -68,6 +104,25 @@ class TelescopeHandler(BaseHandler):
 
     @permissions(['Manage sources'])
     def delete(self, telescope_id):
+        """
+        ---
+        description: Delete a telescope
+        parameters:
+          - in: path
+            name: telescope_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         DBSession.query(Telescope).filter(Telescope.id == int(telescope_id)).delete()
         DBSession().commit()
 
