@@ -29,7 +29,7 @@ class InstrumentHandler(BaseHandler):
         """
         data = self.get_json()
         telescope_id = data.pop('telescope_id')
-        telescope = Telescope.query.get(telescope_id)
+        telescope = Telescope.get_if_owned_by(telescope_id, self.current_user)
         if not telescope:
             return self.error('Invalid telescope ID.')
 
@@ -66,11 +66,12 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        info = {}
-        info['instrument'] = Instrument.query.get(int(instrument_id))
+        instrument = Instrument.query.get(int(instrument_id))
 
-        if info['instrument'] is not None:
-            return self.success(data=info)
+        if instrument is not None:
+            telescope = Telescope.get_if_owned_by(instrument.telescope_id,
+                                                  self.current_user)
+            return self.success(data={'instrument': instrument})
         else:
             return self.error(f"Could not load instrument {instrument_id}",
                               data={"instrument_id": instrument_id})
@@ -94,6 +95,9 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        instrument = Instrument.query.get(int(instrument_id))
+        telescope = Telescope.get_if_owned_by(instrument.telescope_id,
+                                              self.current_user)
         data = self.get_json()
         data['id'] = int(instrument_id)
 
@@ -128,6 +132,9 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        instrument = Instrument.query.get(int(instrument_id))
+        telescope = Telescope.get_if_owned_by(instrument.telescope_id,
+                                              self.current_user)
         DBSession.query(Instrument).filter(Instrument.id == int(instrument_id)).delete()
         DBSession().commit()
 

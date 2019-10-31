@@ -157,6 +157,7 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        s = Source.get_if_owned_by(source_id, self.current_user)
         data = self.get_json()
         data['id'] = source_id
 
@@ -186,6 +187,7 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        s = Source.get_if_owned_by(source_id, self.current_user)
         DBSession.query(Source).filter(Source.id == source_id).delete()
         DBSession().commit()
 

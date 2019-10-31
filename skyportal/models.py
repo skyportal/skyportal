@@ -48,12 +48,12 @@ class Group(Base):
     sources = relationship('Source', secondary='group_sources')
     streams = relationship('Stream', secondary='stream_groups',
                            back_populates='groups')
+    telescopes = relationship('Telescope', secondary='group_telescopes')
     group_users = relationship('GroupUser', back_populates='group',
                                cascade='save-update, merge, refresh-expire, expunge',
                                passive_deletes=True)
     users = relationship('User', secondary='group_users',
                          back_populates='groups')
-
 
 
 GroupUser = join_model('group_users', Group, User)
@@ -196,9 +196,13 @@ class Telescope(Base):
     elevation = sa.Column(sa.Float, nullable=False)
     diameter = sa.Column(sa.Float, nullable=False)
 
+    groups = relationship('Group', secondary='group_telescopes')
     instruments = relationship('Instrument', back_populates='telescope',
                                cascade='save-update, merge, refresh-expire, expunge',
                                passive_deletes=True)
+
+
+GroupTelescope = join_model('group_telescopes', Group, Telescope)
 
 
 class Instrument(Base):
