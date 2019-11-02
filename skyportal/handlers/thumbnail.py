@@ -166,12 +166,12 @@ def create_thumbnail(thumbnail_data, thumbnail_type, source_id, photometry_obj):
         (basedir/'static/thumbnails').mkdir(parents=True)
     file_bytes = base64.b64decode(thumbnail_data)
     im = Image.open(io.BytesIO(file_bytes))
-    im64 = base64.b64encode(open(file_uri, 'rb').read())
     if im.format != 'PNG':
         raise ValueError('Invalid thumbnail image type. Only PNG are supported.')
     if not (100, 100) <= im.size <= (500, 500):
         raise ValueError('Invalid thumbnail size. Only thumbnails '
                         'between (100, 100) and (500, 500) allowed.')
+    im64 = base64.b64encode(open(file_uri, 'rb').read())
     t = Thumbnail(type=thumbnail_type,
                   photometry=photometry_obj,
                   image = im64,
