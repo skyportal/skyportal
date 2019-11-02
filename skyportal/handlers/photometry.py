@@ -98,6 +98,8 @@ class PhotometryHandler(BaseHandler):
             data['observed_at'] = [data['observed_at']]
             data['mag'] = [data['mag']]
             data['e_mag'] = [data['e_mag']]
+            data['lim_mag'] = [data['lim_mag']]
+            data['filter'] = [data['filter']]
         ids = []
         instrument = Instrument.query.get(data['instrument_id'])
         if not instrument:
@@ -120,8 +122,8 @@ class PhotometryHandler(BaseHandler):
                            time_scale='tcb',
                            time_format='iso',
                            instrument=instrument,
-                           lim_mag=data['lim_mag'],
-                           filter=data['filter'])
+                           lim_mag=data['lim_mag'][i],
+                           filter=data['filter'][i])
             DBSession().add(p)
             DBSession().flush()
             ids.append(p.id)

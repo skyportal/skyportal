@@ -44,8 +44,8 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
               'instrument_id': 1,
               'mag': [12.24, 12.52, 12.70],
               'e_mag': [0.031, 0.029, 0.030],
-              'lim_mag': 14.1,
-              'filter': 'V'},
+              'lim_mag': [14.1, 14.1, 14.1],
+              'filter': ['V', 'V', 'V']},
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -182,7 +182,7 @@ def test_token_user_post_photometry_thumbnail(upload_data_token, public_source):
     ]
     status, data = api('POST', 'photometry',
                        data={'source_id': str(public_source.id),
-                             'time': str(datetime.datetime.now()),
+                             'observed_at': str(datetime.datetime.now()),
                              'time_format': 'iso',
                              'time_scale': 'utc',
                              'instrument_id': 1,
