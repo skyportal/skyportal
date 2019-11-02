@@ -170,17 +170,21 @@ if __name__ == "__main__":
                                              'skyportal', 'tests', 'data',
                                              'phot.csv')
                     phot_data = pd.read_csv(phot_file)
-                    for j, row in phot_data.iterrows():
-                        response_status, data = api('POST', 'photometry',
-                                                    data={'source_id': source_info['id'],
-                                                          'time_format': 'iso',
-                                                          'time_scale': 'utc',
-                                                          'instrument_id': instrument1_id,
-                                                          **row
-                                                    },
-                                                    token=token)
-                        assert response_status == 200
-                        assert data['status'] == 'success'
+
+                    response_status, data = api('POST', 'photometry',
+                                                data={'source_id': source_info['id'],
+                                                      'time_format': 'iso',
+                                                      'time_scale': 'utc',
+                                                      'instrument_id': instrument1_id,
+                                                      'observed_at': phot_data.observed_at.tolist(),
+                                                      'mag': phot_data.mag.tolist(),
+                                                      'e_mag': phot_data.e_mag.tolist(),
+                                                      'lim_mag': phot_data.lim_mag.tolist(),
+                                                      'filter': phot_data['filter'].tolist()
+                                                },
+                                                token=token)
+                    assert response_status == 200
+                    assert data['status'] == 'success'
 
                     spec_file = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                                              'skyportal', 'tests', 'data',
