@@ -316,7 +316,8 @@ class Thumbnail(Base):
                              'ref_gz', 'sub_gz',
                              name='thumbnail_types', validate_strings=True))
     image = sa.Column(sa.types.LargeBinary, nullable=True, index=False, unique=False)
-    public_url = sa.Column(sa.String, nullable=True, index=False, unique=False)
+    file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
+    public_url = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     origin = sa.Column(sa.String, nullable=True)
     photometry_id = sa.Column(sa.ForeignKey('photometry.id', ondelete='CASCADE'),
                               nullable=False, index=True)
