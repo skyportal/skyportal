@@ -6,7 +6,7 @@ import classnames from 'classnames';
 import styles from "./ThumbnailList.css";
 
 
-const Thumbnail = ({ ra, dec, telescope, observed_at, name, url }) => {
+const Thumbnail = ({ ra, dec, telescope, observed_at, name, url, image }) => {
   const observed_at_str = moment(observed_at).calendar();
 
   let alt = null;
@@ -14,12 +14,15 @@ const Thumbnail = ({ ra, dec, telescope, observed_at, name, url }) => {
   switch (name) {
     case "new":
       alt = `${telescope} discovery image (${observed_at_str})`;
+      url = image;
       break;
     case "ref":
       alt = `${telescope} pre-discovery (reference) image (${observed_at_str})`;
+      url = image;
       break;
     case "sub":
       alt = `${telescope} subtracted image (${observed_at_str})`;
+      url = image;
       break;
     case "sdss":
       alt = "Link to SDSS Navigate tool";
@@ -59,7 +62,8 @@ Thumbnail.propTypes = {
   telescope: PropTypes.string.isRequired,
   name: PropTypes.string.isRequired,
   url: PropTypes.string.isRequired,
-  observed_at: PropTypes.string.isRequired
+  observed_at: PropTypes.string.isRequired,
+  image: PropTypes.string.isRequired
 };
 
 
@@ -78,6 +82,7 @@ const ThumbnailList = ({ ra, dec, thumbnails }) => {
           dec={dec}
           name={t.type}
           url={t.public_url}
+          image={`data:image/png;base64, ${t.image}`}
           telescope={t.photometry.instrument.telescope.nickname}
           observed_at={t.photometry.observed_at}
         />

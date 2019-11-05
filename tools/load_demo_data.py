@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import shutil
 import pandas as pd
+import base64
 
 from baselayer.app.env import load_env
 from baselayer.app.model_util import status, create_tables, drop_tables
@@ -104,10 +105,11 @@ if __name__ == "__main__":
 
             for ttype in ['new', 'ref', 'sub']:
                 fname = f'{s.id}_{ttype}.png'
+                file_path = os.path.abspath(basedir/f'skyportal/tests/data/{fname}')
+                im = base64.b64encode(open(file_path, 'rb').read())
                 t = Thumbnail(type=ttype, photometry_id=s.photometry[0].id,
-                              file_uri=f'static/thumbnails/{fname}',
+                              image=im,
                               public_url=f'/static/thumbnails/{fname}')
                 DBSession().add(t)
-                shutil.copy(basedir/f'skyportal/tests/data/{fname}', basedir/'static/thumbnails/')
 
             s.add_linked_thumbnails()

@@ -189,7 +189,7 @@ def create_thumbnail(thumbnail_data, thumbnail_type, source_id, photometry_obj):
                         'between (100, 100) and (500, 500) allowed.')
     t = Thumbnail(type=thumbnail_type,
                   photometry=photometry_obj,
-                  file_uri=file_uri,
+                  image=im,
                   public_url=f'/static/thumbnails/{source_id}_{thumbnail_type}.png')
     DBSession.add(t)
     DBSession.flush()

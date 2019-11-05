@@ -3,7 +3,9 @@ from datetime import datetime
 from glob import glob
 import re
 import os.path
+import base64
 
+import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 from sqlalchemy import create_engine
@@ -12,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from baselayer.app import load_config
 from skyportal.models import (DBSession, init_db, Comment, Group, Photometry,
-                              Source, Spectrum, User)
+                              Source, Spectrum, User, Thumbnail)
 from skyportal.model_util import create_tables
 
 pBase = automap_base()
@@ -117,7 +119,8 @@ if __name__ == '__main__':
     phot_map = {source_id: phot_id for phot_id, source_id in phot_info}
     for f in cutout_files:
         source_id, thumb_type = re.split('[\/_\.]', f)[-3:-1]
-        DBSession().add(Thumbnail(file_uri=f, type=thumb_type,
+        im = base64.b64encode(open(f, 'rb').read())
+        DBSession().add(Thumbnail(image=im, type=thumb_type,
                                   photometry_id=phot_map[source_id]))
         DBSession().commit()
 
