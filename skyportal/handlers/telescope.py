@@ -1,7 +1,7 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from .base import BaseHandler
-from ..models import DBSession, Telescope
+from ..models import DBSession, Telescope, Group
 
 
 class TelescopeHandler(BaseHandler):
@@ -28,6 +28,12 @@ class TelescopeHandler(BaseHandler):
                           description: New telescope ID
         """
         data = self.get_json()
+        group_ids = data.pop('group_ids')
+        groups = [g for g in Group.query.filter(Group.id.in_(group_ids)).all()
+                  if g in self.current_user.groups]
+        if not groups:
+            return self.error('You must specify at least one group of which you '
+                              'are a member.')
         schema = Telescope.__schema__()
 
         try:
@@ -35,6 +41,7 @@ class TelescopeHandler(BaseHandler):
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
+        telescope.groups = groups
         DBSession.add(telescope)
         DBSession().commit()
 
@@ -61,11 +68,10 @@ class TelescopeHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        info = {}
-        info['telescope'] = Telescope.query.get(int(telescope_id))
+        t = Telescope.get_if_owned_by(int(telescope_id), self.current_user)
 
-        if info['telescope'] is not None:
-            return self.success(data=info)
+        if t is not None:
+            return self.success(data={'telescope': t})
         else:
             return self.error(f"Could not load telescope {telescope_id}",
                               data={"telescope_id": telescope_id})
@@ -89,6 +95,7 @@ class TelescopeHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        t = Telescope.get_if_owned_by(int(telescope_id), self.current_user)
         data = self.get_json()
         data['id'] = int(telescope_id)
 
@@ -123,6 +130,7 @@ class TelescopeHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        t = Telescope.get_if_owned_by(int(telescope_id), self.current_user)
         DBSession.query(Telescope).filter(Telescope.id == int(telescope_id)).delete()
         DBSession().commit()
 

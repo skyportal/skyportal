@@ -157,6 +157,7 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        s = Source.get_if_owned_by(source_id, self.current_user)
         data = self.get_json()
         data['id'] = source_id
 
@@ -186,6 +187,7 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        s = Source.get_if_owned_by(source_id, self.current_user)
         DBSession.query(Source).filter(Source.id == source_id).delete()
         DBSession().commit()
 
@@ -261,8 +263,9 @@ class SourcePhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_if_owned_by(source_id, self.current_user)
+        source = Source.query.get(source_id)
         if not source:
-            return self.error('Invalid source ID, or inadequate permissions to '
-                              'access source.')
+            return self.error('Invalid source ID.')
+        if not set(source.groups).intersection(set(self.current_user.groups)):
+            return self.error('Inadequate permissions.')
         return self.success(data={'photometry': source.photometry})

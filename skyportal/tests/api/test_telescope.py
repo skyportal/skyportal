@@ -3,7 +3,7 @@ from skyportal.tests import api
 from skyportal.models import Telescope, DBSession
 
 
-def test_token_user_post_get_telescope(upload_data_token):
+def test_token_user_post_get_telescope(upload_data_token, public_group):
     name = str(uuid.uuid4())
     status, data = api('POST', 'telescope',
                        data={'name': name,
@@ -11,7 +11,8 @@ def test_token_user_post_get_telescope(upload_data_token):
                              'lat': 0.0,
                              'lon': 0.0,
                              'elevation': 0.0,
-                             'diameter': 10.0
+                             'diameter': 10.0,
+                             'group_ids': [public_group.id]
                        },
                        token=upload_data_token)
     assert status == 200
@@ -27,7 +28,8 @@ def test_token_user_post_get_telescope(upload_data_token):
     assert data['data']['telescope']['diameter'] == 10.0
 
 
-def test_token_user_update_telescope(upload_data_token, manage_sources_token):
+def test_token_user_update_telescope(upload_data_token, manage_sources_token,
+                                     public_group):
     name = str(uuid.uuid4())
     status, data = api('POST', 'telescope',
                        data={'name': name,
@@ -35,7 +37,8 @@ def test_token_user_update_telescope(upload_data_token, manage_sources_token):
                              'lat': 0.0,
                              'lon': 0.0,
                              'elevation': 0.0,
-                             'diameter': 10.0
+                             'diameter': 10.0,
+                             'group_ids': [public_group.id]
                        },
                        token=upload_data_token)
     assert status == 200
@@ -73,7 +76,8 @@ def test_token_user_update_telescope(upload_data_token, manage_sources_token):
     assert data['data']['telescope']['diameter'] == 12.0
 
 
-def test_token_user_delete_telescope(upload_data_token, manage_sources_token):
+def test_token_user_delete_telescope(upload_data_token, manage_sources_token,
+                                     public_group):
     name = str(uuid.uuid4())
     status, data = api('POST', 'telescope',
                        data={'name': name,
@@ -81,7 +85,8 @@ def test_token_user_delete_telescope(upload_data_token, manage_sources_token):
                              'lat': 0.0,
                              'lon': 0.0,
                              'elevation': 0.0,
-                             'diameter': 10.0
+                             'diameter': 10.0,
+                             'group_ids': [public_group.id]
                        },
                        token=upload_data_token)
     assert status == 200

@@ -53,16 +53,20 @@ class ThumbnailHandler(BaseHandler):
         data = self.get_json()
         if 'photometry_id' in data:
             phot = Photometry.query.get(int(data['photometry_id']))
-            source = phot.source
+            source_id = phot.source.id
+            # Ensure user/token has access to parent source
+            source = Source.get_if_owned_by(source_id, self.current_user)
         elif 'source_id' in data:
-            source = Source.query.get(data['source_id'])
+            source_id = data['source_id']
+            # Ensure user/token has access to parent source
+            source = Source.get_if_owned_by(source_id, self.current_user)
             try:
                 phot = source.photometry[0]
             except IndexError:
                 return self.error('Specified source does not yet have any photometry data.')
         else:
             return self.error('One of either source_id or photometry_id are required.')
-        t = create_thumbnail(data['data'], data['ttype'], source.id, phot)
+        t = create_thumbnail(data['data'], data['ttype'], source_id, phot)
         DBSession().commit()
 
         return self.success(data={"id": t.id})
@@ -88,14 +92,14 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        info = {}
-        info['thumbnail'] = Thumbnail.query.get(thumbnail_id)
-
-        if info['thumbnail'] is not None:
-            return self.success(data=info)
-        else:
+        t = Thumbnail.query.get(thumbnail_id)
+        if t is None:
             return self.error(f"Could not load thumbnail {thumbnail_id}",
                               data={"thumbnail_id": thumbnail_id})
+        # Ensure user/token has access to parent source
+        s = Source.get_if_owned_by(t.source.id, self.current_user)
+
+        return self.success(data={'thumbnail': t})
 
     @permissions(['Manage sources'])
     def put(self, thumbnail_id):
@@ -116,6 +120,12 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        t = Thumbnail.query.get(thumbnail_id)
+        if t is None:
+            return self.error('Invalid thumbnail ID.')
+        # Ensure user/token has access to parent source
+        s = Source.get_if_owned_by(t.source.id, self.current_user)
+
         data = self.get_json()
         data['id'] = thumbnail_id
 
@@ -150,6 +160,12 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        t = Thumbnail.query.get(thumbnail_id)
+        if t is None:
+            return self.error('Invalid thumbnail ID.')
+        # Ensure user/token has access to parent source
+        s = Source.get_if_owned_by(t.source.id, self.current_user)
+
         DBSession.query(Thumbnail).filter(Thumbnail.id == int(thumbnail_id)).delete()
         DBSession().commit()
 
