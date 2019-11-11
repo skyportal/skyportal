@@ -57,13 +57,13 @@ if __name__ == "__main__":
     with status("Creating dummy instruments"):
         t1 = Telescope(name='Palomar 1.5m', nickname='P60',
                        lat=33.3633675, lon=-116.8361345, elevation=1870,
-                       diameter=1.5)
+                       diameter=1.5, groups=[g])
         i1 = Instrument(telescope=t1, name='P60 Camera', type='phot',
                         band='optical')
 
         t2 = Telescope(name='Nordic Optical Telescope', nickname='NOT',
                        lat=28.75, lon=17.88, elevation=2327,
-                       diameter=2.56)
+                       diameter=2.56, groups=[g])
         i2 = Instrument(telescope=t2, name='ALFOSC', type='both',
                         band='optical')
         DBSession().add_all([i1, i2])

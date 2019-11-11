@@ -25,6 +25,10 @@ class CommentHandler(BaseHandler):
                 schema: SingleComment
         """
         comment = Comment.query.get(comment_id)
+        if comment is None:
+            return self.error('Invalid comment ID.')
+        # Ensure user/token has access to parent source
+        s = Source.get_if_owned_by(comment.source.id, self.current_user)
         if action == 'download_attachment':
             self.set_header(
                 "Content-Disposition", "attachment; "
@@ -61,6 +65,8 @@ class CommentHandler(BaseHandler):
         """
         data = self.get_json()
         source_id = data['source_id']
+        # Ensure user/token has access to parent source
+        s = Source.get_if_owned_by(source_id, self.current_user)
         if 'attachment' in data and 'body' in data['attachment']:
             attachment_bytes = str.encode(data['attachment']['body']
                                           .split('base64,')[-1])
@@ -101,10 +107,15 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        c = Comment.query.get(comment_id)
+        if c is None:
+            return self.error('Invalid comment ID.')
+        # Ensure user/token has access to parent source
+        s = Source.get_if_owned_by(c.source.id, self.current_user)
+
         data = self.get_json()
         data['id'] = comment_id
 
-        # TODO: Check ownership
         schema = Comment.__schema__()
         try:
             schema.load(data)

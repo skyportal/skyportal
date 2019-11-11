@@ -26,8 +26,8 @@ def test_delete_user(manage_users_token, user):
 
 def test_delete_user_cascades_to_tokens(manage_users_token, user, public_group):
     token_name = str(uuid.uuid4())
-    token_id = create_token(group_id=public_group.id, permissions=[],
-                            created_by_id=user.id, name=token_name)
+    token_id = create_token(permissions=[], created_by_id=user.id,
+                            name=token_name)
     assert Token.query.get(token_id)
 
     status, data = api('DELETE', f'user/{user.id}', token=manage_users_token)
@@ -44,7 +44,7 @@ def test_delete_user_cascades_to_groupuser(manage_users_token, manage_groups_tok
                                            user, public_group):
     status, data = api('GET', f'groups/{public_group.id}',
                        token=manage_groups_token)
-    assert len(data['data']['group']['users']) == 1
+    orig_num_users = len(data['data']['group']['users'])
 
     status, data = api('DELETE', f'user/{user.id}', token=manage_users_token)
     assert status == 200
@@ -55,4 +55,4 @@ def test_delete_user_cascades_to_groupuser(manage_users_token, manage_groups_tok
 
     status, data = api('GET', f'groups/{public_group.id}',
                        token=manage_groups_token)
-    assert len(data['data']['group']['users']) == 0
+    assert len(data['data']['group']['users']) == orig_num_users - 1

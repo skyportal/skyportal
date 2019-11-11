@@ -32,7 +32,7 @@ class SpectrumHandler(BaseHandler):
         data = self.get_json()
         source_id = data.pop('source_id')
         instrument_id = data.pop('instrument_id')
-        source = Source.query.get(source_id)
+        source = Source.get_if_owned_by(source_id, self.current_user)
         instrument = Instrument.query.get(instrument_id)
 
         schema = Spectrum.__schema__()
@@ -69,11 +69,11 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        info = {}
-        info['spectrum'] = Spectrum.query.get(spectrum_id)
+        spectrum = Spectrum.query.get(spectrum_id)
 
-        if info['spectrum'] is not None:
-            return self.success(data=info)
+        if spectrum is not None:
+            source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
+            return self.success(data={'spectrum': spectrum})
         else:
             return self.error(f"Could not load spectrum {spectrum_id}",
                               data={"spectrum_id": spectrum_id})
@@ -97,6 +97,8 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        spectrum = Spectrum.query.get(spectrum_id)
+        source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
         data = self.get_json()
         data['id'] = spectrum_id
 
@@ -131,8 +133,9 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        s = Spectrum.query.get(spectrum_id)
-        DBSession().delete(s)
+        spectrum = Spectrum.query.get(spectrum_id)
+        source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
+        DBSession().delete(spectrum)
         DBSession().commit()
 
         return self.success()
