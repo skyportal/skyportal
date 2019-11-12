@@ -6,7 +6,6 @@ import * as Actions from '../ducks/sources';
 
 import styles from "./SearchBox.css";
 
-// Custom Components:
 import CustomInput from './CustomInput';
 import TimeFormatInput from './TimeFormatInput';
 import CheckBox from './CheckBox';
