@@ -56,7 +56,8 @@
 .inputSubmitButton {
     display: block;
     height: 40px;
-    width: 180px;
+    width: 45%;
+    min-width: 70px;
     font-size: 18px;
     color: #007bff;
     background-color: transparent;
