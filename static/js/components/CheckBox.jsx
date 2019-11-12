@@ -10,21 +10,14 @@ function CheckBox({ label, name, checked, onChange, size }) {
       <label htmlFor={name} className={styles.label}>
         {label}
       </label>
-      <input htmlFor="dummy" className={styles.dummy} />
-      <label
-        className={styles.checkboxLabel}
-        htmlFor="dummy"
-      >
-        <input
-          type="checkbox"
-          name={name}
-          className={styles.CheckBox}
-          checked={checked}
-          onChange={onChange}
-          size={size}
-        />
-        <span className={styles.checkboxCustom} />
-      </label>
+      <input
+        type="checkbox"
+        name={name}
+        className={styles.CheckBox}
+        checked={checked}
+        onChange={onChange}
+        size={size}
+      />
     </div>
   );
 }
