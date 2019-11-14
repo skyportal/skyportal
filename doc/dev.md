@@ -1,17 +1,37 @@
 # Developer notes
 
 ## Testing
+
 To execute the test suite:
 
 - Install geckodriver and Firefox
 - To run all tests: `make test`
 - To run a single test: `./tools/test_frontend.py skportal/tests/frontend/<test_file>.py::test_<specific_test>`
 
+This fires up the test server and runs that test.  To make things
+faster you can also run the test server separately:
+
+```
+make run_testing   # fire up the server with `test_conf.yaml`
+
+pytest skyportal/tests/api  # test api
+pytest skyportal/tests/frontend/test_user.py  # run subset of frontend tests
+```
+
 On Linux, the tests can be run in "headless" mode (no browser display):
   - Install xfvb (`sudo apt-get install xfvb`)
   - `make test_headless`
 
+Or, as described above, launch the test server with `make run_testing`, and then call
+
+```
+xvfb-run pytest skyportal/tests/frontend/test_user.py
+```
+
+It is not noticeably faster to run the test suite headlessly.
+
 ## Debugging
+
 - Run `make log` to watch log output
 - Run `make stop` to stop any running web services.
 - Run `make attach` to attach to output of webserver, e.g. for use with `pdb.set_trace()`
@@ -50,10 +70,12 @@ DBSession().rollback()  # recover after a DB error
         - `u = User.query.first(); u.acls; u.to_dict()` does include a list of the user's ACLs
 
 ## Standards
+
 We use ESLint to ensure that our JavaScript & JSX code is consistent and conforms with recommended standards.
 
 - Install ESLint using `make lint-install`.  This will also install a git pre-commit hook so that any commit is linted before it is checked in.
 - Run `make lint`  to perform a style check
 
 ## Docker images
+
 Run `make docker-images` to build and push to Docker hub.

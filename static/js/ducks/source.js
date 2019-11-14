@@ -9,6 +9,9 @@ export const FETCH_LOADED_SOURCE_FAIL = 'skyportal/FETCH_LOADED_SOURCE_FAIL';
 export const ADD_COMMENT = 'skyportal/ADD_COMMENT';
 export const ADD_COMMENT_OK = 'skyportal/ADD_COMMENT_OK';
 
+export const DELETE_COMMENT = 'skyportal/DELETE_COMMENT';
+export const DELETE_COMMENT_OK = 'skyportal/DELETE_COMMENT_OK';
+
 export function addComment(form) {
   function fileReaderPromise(file) {
     return new Promise((resolve) => {
@@ -30,6 +33,10 @@ export function addComment(form) {
   } else {
     return API.POST(`/api/comment`, ADD_COMMENT, form);
   }
+}
+
+export function deleteComment(comment_id) {
+  return API.DELETE(`/api/comment/${comment_id}`, DELETE_COMMENT);
 }
 
 export function fetchSource(id) {

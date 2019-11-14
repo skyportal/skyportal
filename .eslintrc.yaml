@@ -6,6 +6,7 @@ extends: [airbnb, plugin:react/recommended]
 plugins: [import, react]
 settings:
   import/resolver:
+    node: {}
     webpack:
       config: webpack.config.js
 

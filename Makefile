@@ -3,7 +3,7 @@ SHELL = /bin/bash
 BOLD=\033[1m
 NORMAL=\033[0m
 
-VER := $(shell cat skyportal/__init__.py | grep "__version__ =" | cut -d "'" -f 2)
+VER := $(shell python -c "import skyportal; print(skyportal.__version__)")
 BANNER := $(shell echo -e "Welcome to $(BOLD)SkyPortal v$(VER)$(NORMAL) (https://skyportal.io)")
 
 $(info $())
@@ -12,7 +12,7 @@ $(info $())
 
 help:
 	@echo -e "  To $(BOLD)start$(NORMAL) the web application, do \`make run\`."
-	@echo -e "  To $(BOLD)customize$(NORMAL) the configuration, edit \`config.yaml.defaults\`."
+	@echo -e "  To $(BOLD)configure$(NORMAL), copy \`config.yaml.defaults\` to \`config.yaml\` and edit."
 	@echo
 	@echo Please choose one of the following make targets:
 	@python baselayer/tools/makefile_to_help.py "Web Server":baselayer/Makefile "SkyPortal-specific":Makefile
@@ -52,6 +52,7 @@ docs: | doc_reqs api-docs
 	export SPHINXOPTS=-W; make -C doc html
 
 load_demo_data: ## Import example dataset
+load_demo_data: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
 load_demo_data: | dependencies
 	@PYTHONPATH=. python tools/load_demo_data.py $(FLAGS)
 

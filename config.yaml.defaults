@@ -1,5 +1,5 @@
 app:
-    secret-key: abc01234  # This secret key can be any random string of
+    secret_key: abc01234  # This secret key can be any random string of
                           # characters.
                           #
                           # You should re-generate this for your application
@@ -28,3 +28,6 @@ server:
         debug_login: True
         google_oauth2_key:
         google_oauth2_secret:
+
+services:
+    dask: False

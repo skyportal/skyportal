@@ -27,7 +27,7 @@ def api(method, endpoint, data=None, token=None):
     json : dict
         Response JSON.
     """
-    url = urllib.parse.urljoin(f'http://localhost:{cfg["ports:app"]}/api/',
+    url = urllib.parse.urljoin(f'http://localhost:{cfg["ports.app"]}/api/',
                                endpoint)
     headers = {'Authorization': f'token {token}'} if token else None
     response = requests.request(method, url, json=data, headers=headers)

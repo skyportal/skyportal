@@ -106,7 +106,7 @@ class SourceHandler(BaseHandler):
                     - type: object
                       properties:
                         id:
-                          type: integer
+                          type: string
                           description: New source ID
         """
         data = self.get_json()
@@ -157,6 +157,7 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        s = Source.get_if_owned_by(source_id, self.current_user)
         data = self.get_json()
         data['id'] = source_id
 
@@ -186,6 +187,7 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        s = Source.get_if_owned_by(source_id, self.current_user)
         DBSession.query(Source).filter(Source.id == source_id).delete()
         DBSession().commit()
 
@@ -237,3 +239,33 @@ class FilterSourcesHandler(BaseHandler):
             info['sourceNumberingStart'] = 0
 
         return self.success(data=info)
+
+
+class SourcePhotometryHandler(BaseHandler):
+    @auth_or_token
+    def get(self, source_id):
+        """
+        ---
+        description: Retrieve a source's photometry
+        parameters:
+        - in: path
+          name: source_id
+          required: true
+          schema:
+            type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfPhotometrys
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        source = Source.query.get(source_id)
+        if not source:
+            return self.error('Invalid source ID.')
+        if not set(source.groups).intersection(set(self.current_user.groups)):
+            return self.error('Inadequate permissions.')
+        return self.success(data={'photometry': source.photometry})

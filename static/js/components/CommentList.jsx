@@ -10,6 +10,7 @@ import CommentEntry from './CommentEntry';
 const CommentList = () => {
   const dispatch = useDispatch();
   const source = useSelector((state) => state.source);
+  const userProfile = useSelector((state) => state.profile);
   const acls = useSelector((state) => state.profile.acls);
   let { comments } = source;
   const addComment = (formData) => dispatch(
@@ -35,13 +36,20 @@ const CommentList = () => {
           {text}
         </div>
         {
-          attachment_name && (
-          <div>
-            Attachment:&nbsp;
-            <a href={`/api/comment/${id}/download_attachment`}>
-              {attachment_name}
+          userProfile.roles.includes("Super admin") || userProfile.username === author ? (
+            <a href="#" onClick={() => dispatch(sourceActions.deleteComment(id))} className={styles.commentDelete}>
+              Delete Comment
             </a>
-          </div>
+          ) : null
+        }
+        {
+          attachment_name && (
+            <div>
+              Attachment:&nbsp;
+              <a href={`/api/comment/${id}/download_attachment`}>
+                {attachment_name}
+              </a>
+            </div>
           )
         }
       </span>

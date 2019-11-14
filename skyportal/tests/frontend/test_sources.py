@@ -10,7 +10,6 @@ import requests
 import numpy.testing as npt
 
 from skyportal.models import Source, DBSession
-from skyportal.model_util import create_token
 from baselayer.app.config import load_config
 
 
@@ -76,7 +75,7 @@ def test_download_comment_attachment(driver, user, public_source):
     driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     driver.wait_for_xpath('//a[text()="spec.csv"]').click()
     time.sleep(0.5)
-    fpath = str(os.path.abspath(pjoin(cfg['paths:downloads_folder'], 'spec.csv')))
+    fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'spec.csv')))
     assert(os.path.exists(fpath))
     try:
         with open(fpath) as f:
@@ -91,3 +90,54 @@ def test_view_only_user_cannot_comment(driver, view_only_user, public_source):
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.wait_for_xpath_to_disappear('//input[@name="comment"]')
+
+
+def test_delete_comment(driver, user, public_source):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    comment_box = driver.find_element_by_css_selector('[name=comment]')
+    comment_text = 'Test comment'
+    comment_box.send_keys(comment_text)
+    driver.find_element_by_css_selector('[type=submit]').click()
+    comment_time = datetime.now()
+    driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+    driver.wait_for_xpath('//span[contains(@class,"commentTime")]')
+    driver.wait_for_xpath('//a[text()="Delete Comment"]').click()
+    driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
+
+
+def test_regular_user_cannot_delete_unowned_comment(driver, super_admin_user,
+                                                    user, public_source):
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    comment_box = driver.find_element_by_css_selector('[name=comment]')
+    comment_text = 'Test comment'
+    comment_box.send_keys(comment_text)
+    driver.find_element_by_css_selector('[type=submit]').click()
+    comment_time = datetime.now()
+    driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+    driver.wait_for_xpath('//span[contains(@class,"commentTime")]')
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath_to_disappear('//a[text()="Delete Comment"]', timeout=0)
+
+
+def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
+                                               user, public_source):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    comment_box = driver.find_element_by_css_selector('[name=comment]')
+    comment_text = 'Test comment'
+    comment_box.send_keys(comment_text)
+    driver.find_element_by_css_selector('[type=submit]').click()
+    comment_time = datetime.now()
+    driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+    driver.wait_for_xpath('//span[contains(@class,"commentTime")]')
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath('//a[text()="Delete Comment"]')

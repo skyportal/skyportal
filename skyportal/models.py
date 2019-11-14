@@ -26,6 +26,9 @@ def is_owned_by(self, user_or_token):
     elif hasattr(self, 'groups'):
         return bool(set(self.groups) & set(user_or_token.groups))
     elif hasattr(self, 'users'):
+        if hasattr(user_or_token, 'created_by'):
+            if user_or_token.created_by in self.users:
+                return True
         return (user_or_token in self.users)
     else:
         raise NotImplementedError(f"{type(self).__name__} object has no owner")
@@ -45,24 +48,13 @@ class Group(Base):
     sources = relationship('Source', secondary='group_sources')
     streams = relationship('Stream', secondary='stream_groups',
                            back_populates='groups')
+    telescopes = relationship('Telescope', secondary='group_telescopes')
     group_users = relationship('GroupUser', back_populates='group',
                                cascade='save-update, merge, refresh-expire, expunge',
                                passive_deletes=True)
     users = relationship('User', secondary='group_users',
                          back_populates='groups')
-    group_tokens = relationship('GroupToken', back_populates='group',
-                                cascade='save-update, merge, refresh-expire, expunge',
-                                passive_deletes=True)
-    tokens = relationship('Token', secondary='group_tokens',
-                          back_populates='groups')
 
-
-GroupToken = join_model('group_tokens', Group, Token)
-Token.groups = relationship('Group', secondary='group_tokens',
-                            back_populates='tokens')
-Token.group_tokens = relationship('GroupToken', back_populates='token',
-                                  cascade='save-update, merge, refresh-expire, expunge',
-                                  passive_deletes=True)
 
 GroupUser = join_model('group_users', Group, User)
 GroupUser.admin = sa.Column(sa.Boolean, nullable=False, default=False)
@@ -86,6 +78,11 @@ User.group_users = relationship('GroupUser', back_populates='user',
                                 passive_deletes=True)
 User.groups = relationship('Group', secondary='group_users',
                            back_populates='users')
+
+@property
+def token_groups(self):
+    return self.created_by.groups
+Token.groups = token_groups
 
 
 class Source(Base):
@@ -199,9 +196,13 @@ class Telescope(Base):
     elevation = sa.Column(sa.Float, nullable=False)
     diameter = sa.Column(sa.Float, nullable=False)
 
+    groups = relationship('Group', secondary='group_telescopes')
     instruments = relationship('Instrument', back_populates='telescope',
                                cascade='save-update, merge, refresh-expire, expunge',
                                passive_deletes=True)
+
+
+GroupTelescope = join_model('group_telescopes', Group, Telescope)
 
 
 class Instrument(Base):

@@ -2,6 +2,7 @@
 
 import pytest
 import os
+import uuid
 import pathlib
 from psycopg2 import OperationalError
 from baselayer.app import models
@@ -15,7 +16,7 @@ from skyportal.model_util import create_token
 print('Loading test configuration from _test_config.yaml')
 basedir = pathlib.Path(os.path.dirname(__file__))
 cfg = load_config([(basedir/'../../test_config.yaml').absolute()])
-set_server_url(f'http://localhost:{cfg["ports:app"]}')
+set_server_url(f'http://localhost:{cfg["ports.app"]}')
 print('Setting test database to:', cfg['database'])
 models.init_db(**cfg['database'])
 
@@ -28,11 +29,6 @@ def public_group():
 @pytest.fixture()
 def public_source(public_group):
     return SourceFactory(groups=[public_group])
-
-
-@pytest.fixture()
-def public_sources_205(public_group):
-    return [SourceFactory(groups=[public_group]) for _ in range(205)]
 
 
 @pytest.fixture()
@@ -53,48 +49,59 @@ def view_only_user(public_group):
 
 
 @pytest.fixture()
+def group_admin_user(public_group):
+    return UserFactory(groups=[public_group],
+                       roles=[models.Role.query.get('Group admin')])
+
+
+@pytest.fixture()
 def super_admin_user(public_group):
     return UserFactory(groups=[public_group],
                        roles=[models.Role.query.get('Super admin')])
 
 
 @pytest.fixture()
-def view_only_token(public_group):
-    token_id = create_token(public_group.id, permissions=[])
+def view_only_token(user):
+    token_id = create_token(permissions=[], created_by_id=user.id,
+                            name=str(uuid.uuid4()))
     return token_id
 
 
 @pytest.fixture()
-def manage_sources_token(public_group):
-    token_id = create_token(public_group.id, permissions=['Manage sources'])
+def manage_sources_token(group_admin_user):
+    token_id = create_token(permissions=['Manage sources'],
+                            created_by_id=group_admin_user.id,
+                            name=str(uuid.uuid4()))
     return token_id
 
 
 @pytest.fixture()
-def upload_data_token(public_group):
-    token_id = create_token(public_group.id, permissions=['Upload data'])
+def upload_data_token(user):
+    token_id = create_token(permissions=['Upload data'],
+                            created_by_id=user.id,
+                            name=str(uuid.uuid4()))
     return token_id
 
 
 @pytest.fixture()
-def manage_groups_token(public_group):
-    token_id = create_token(public_group.id, permissions=['Manage groups'])
+def manage_groups_token(super_admin_user):
+    token_id = create_token(permissions=['Manage groups'],
+                            created_by_id=super_admin_user.id,
+                            name=str(uuid.uuid4()))
     return token_id
 
 
 @pytest.fixture()
-def manage_users_token(public_group):
-    token_id = create_token(public_group.id, permissions=['Manage users'])
+def manage_users_token(super_admin_user):
+    token_id = create_token(permissions=['Manage users'],
+                            created_by_id=super_admin_user.id,
+                            name=str(uuid.uuid4()))
     return token_id
 
 
 @pytest.fixture()
-def comment_token(public_group):
-    token_id = create_token(public_group.id, permissions=['Comment'])
-    return token_id
-
-
-@pytest.fixture()
-def view_only_token_created_by_fulluser(public_group, user):
-    token_id = create_token(public_group.id, permissions=[], created_by_id=user.id)
+def comment_token(user):
+    token_id = create_token(permissions=['Comment'],
+                            created_by_id=user.id,
+                            name=str(uuid.uuid4()))
     return token_id
