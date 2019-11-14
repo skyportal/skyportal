@@ -8,7 +8,8 @@ import requests
 import baselayer
 from baselayer.app.config import load_config
 from baselayer.app.model_util import clear_tables
-from skyportal.models import init_db, Token, Source, Telescope, Instrument, Photometry, DBSession
+from skyportal.models import (init_db, Token, Source, Telescope, Instrument,
+                              Photometry, DBSession, User)
 from skyportal.model_util import create_token, load_demo_data
 
 
@@ -25,7 +26,7 @@ def test_stream_ingest():
     # Retrieve or generate token for SkyPortal API auth
     token = Token.query.filter(Token.name == 'alert_stream_token').first()
     if not token:
-        token = create_token(1, ['Upload data'], name='alert_stream_token')
+        token = create_token(['Upload data'], 1, name='alert_stream_token')
     else:
         token = token.id
 

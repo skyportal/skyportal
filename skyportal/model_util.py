@@ -98,28 +98,54 @@ def load_demo_data(cfg, clear=False):
             g = Group(name='Stream A')
         super_admin_user = User.query.filter(User.username == 'testuser@cesium-ml.org').first()
         group_admin_user = User.query.filter(User.username == 'groupadmin@cesium-ml.org').first()
+        full_user = User.query.filter(User.username == 'fulluser@cesium-ml.org').first()
+        view_only_user = User.query.filter(User.username == 'viewonlyuser@cesium-ml.org').first()
         if not super_admin_user: # Dummy users not yet added to DB
             super_admin_user = User(username='testuser@cesium-ml.org',
                                     role_ids=['Super admin'])
             DBSession.add(super_admin_user)
-            DBSession().add(GroupUser(group=g, user=super_admin_user, admin=True))
+            try:
+                DBSession().add(GroupUser(group=g, user=super_admin_user, admin=True))
+            except:
+                DBSession.rollback()
+            DBSession().add(TornadoStorage.user.create_social_auth(
+                super_admin_user, super_admin_user.username, 'google-oauth2'))
             DBSession.commit()
         if not group_admin_user:
             group_admin_user = User(username='groupadmin@cesium-ml.org',
                                     role_ids=['Super admin'])
             DBSession.add(group_admin_user)
-            DBSession.add(GroupUser(group=g, user=group_admin_user, admin=True))
+            try:
+                DBSession.add(GroupUser(group=g, user=group_admin_user, admin=True))
+            except:
+                DBSession.rollback()
+            DBSession().add(TornadoStorage.user.create_social_auth(
+                group_admin_user, group_admin_user.username, 'google-oauth2'))
             DBSession.commit()
+        if not full_user:
             full_user = User(username='fulluser@cesium-ml.org',
-                             role_ids=['Full user'], groups=[g])
+                             role_ids=['Full user'])
+            DBSession.add(full_user)
+            try:
+                DBSession.add(GroupUser(group=g, user=full_user, admin=False))
+            except:
+                DBSession.rollback()
+            try:
+                DBSession().add(TornadoStorage.user.create_social_auth(
+                    full_user, full_user.username, 'google-oauth2'))
+            except:
+                DBSession.rollback()
+            DBSession.commit()
+        if not view_only_user:
             view_only_user = User(username='viewonlyuser@cesium-ml.org',
-                                  role_ids=['View only'], groups=[g])
-            DBSession().add_all([super_admin_user, group_admin_user,
-                                 full_user, view_only_user])
-
-            for u in [super_admin_user, group_admin_user, full_user, view_only_user]:
-                DBSession().add(TornadoStorage.user.create_social_auth(u, u.username,
-                                                                       'google-oauth2'))
+                                  role_ids=['View only'])
+            DBSession.add(view_only_user)
+            try:
+                DBSession.add(GroupUser(group=g, user=view_only_user, admin=False))
+            except:
+                DBSession.rollback()
+            DBSession().add(TornadoStorage.user.create_social_auth(
+                view_only_user, view_only_user.username, 'google-oauth2'))
             DBSession.commit()
 
     with status("Creating dummy instruments"):
