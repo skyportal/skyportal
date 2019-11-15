@@ -4,7 +4,7 @@ from pathlib import Path
 import shutil
 import numpy as np
 import pandas as pd
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, ProgrammingError
 
 from baselayer.app.env import load_env
 from baselayer.app.model_util import status, create_tables, drop_tables
@@ -78,6 +78,12 @@ def load_demo_data(cfg, clear=False):
 
     with status(f"Connecting to database {cfg['database']['database']}"):
         init_db(**cfg['database'])
+
+    try:
+        g = Group.query.filter(Group.name == 'Stream A').first()
+    except ProgrammingError:
+        DBSession.rollback()
+        clear = True
 
     if clear:
         with status("Dropping all tables"):
