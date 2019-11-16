@@ -39,7 +39,7 @@ def test_stream_ingest():
                             stderr=subprocess.PIPE,
                             shell=True)
 
-    for i in range(120):
+    for i in range(240):
         print('trying again..')
         out = proc.stdout.readline().decode('utf-8').strip()
         print('trying request to api/sources..')
