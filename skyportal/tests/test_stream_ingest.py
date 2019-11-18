@@ -41,7 +41,6 @@ def test_stream_ingest():
 
     for i in range(240):
         print('trying again..')
-        out = proc.stdout.readline().decode('utf-8').strip()
         print('trying request to api/sources..')
         r = requests.get('http://localhost:5000/api/sources',
                          headers={'Authorization': f'token {token}'})
@@ -52,7 +51,10 @@ def test_stream_ingest():
             proc.terminate()
             break
         else:
-            print("\nNot yet...", out, "\n")
+            print('not yet...')
+            #print('Not yet... waiting for process output:')
+            #out = proc.stdout.readline().decode('utf-8').strip()
+            #print(out, "\n")
             time.sleep(1)
     else:
         print('Stream ingestion test failed - no ouput indicating success.')

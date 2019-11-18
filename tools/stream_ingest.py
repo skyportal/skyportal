@@ -24,7 +24,9 @@ skyportal_root = os.path.dirname(os.path.dirname(
     os.path.abspath(inspect.getsourcefile(lambda:0))))
 print('stream_ingest.py skyportal_root:', skyportal_root)
 cfg = load_config([os.path.join(skyportal_root, 'test_config.yaml')])
+print('trying to connect to DB...')
 conn = init_db(**cfg['database'])
+print('done.')
 
 
 def msg_text(message):
@@ -125,7 +127,7 @@ def main():
     # Retrieve or generate token for SkyPortal API auth
     token = Token.query.filter(Token.name == 'alert_stream_token').first()
     if not token:
-        token = create_token(1, ['Upload data'], name='alert_stream_token')
+        token = create_token(['Upload data'], 1, name='alert_stream_token')
     else:
         token = token.id
 
@@ -157,8 +159,10 @@ def main():
                 schema, msg = streamReader.poll()
 
                 if msg is None:
+                    # print('msg is None')
                     continue
                 else:
+                    print('msg is not None... filtering.')
                     msg_count += 1
                     if msg_count % args.interval == 0:
                         # Apply filter to each alert
