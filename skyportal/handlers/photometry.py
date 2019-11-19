@@ -39,7 +39,7 @@ class PhotometryHandler(BaseHandler):
             schema:
               type: integer
           - in: path
-            name: time
+            name: observed_at
             schema:
               type: string
           - in: path
@@ -114,7 +114,7 @@ class PhotometryHandler(BaseHandler):
                          scale=data['time_scale'])
                 observed_at = t.tcb.iso
             else:
-                observed_at = data['time'][i]
+                observed_at = data['observed_at'][i]
             p = Photometry(source=source,
                            observed_at=observed_at,
                            mag=data['mag'][i],

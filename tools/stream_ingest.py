@@ -69,7 +69,7 @@ def post_to_skyportal(data, token, instrument_id):
         r = requests.post('http://localhost:5000/api/photometry',
                           headers=headers,
                           json={'source_id': str(data['diaSource']['diaSourceId']),
-                                'time': data['diaObject']['radecTai'],
+                                'observed_at': data['diaObject']['radecTai'],
                                 'mag': data['diaSource']['totFlux'],
                                 'e_mag': data['diaSource']['totFluxErr'],
                                 'time_scale': 'tai',
