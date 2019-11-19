@@ -6,6 +6,7 @@ from skyportal.models import (DBSession, User, Source, Group, GroupUser,
                               GroupSource, Photometry, Spectrum, Instrument,
                               Telescope, Comment, Thumbnail)
 from tempfile import mkdtemp
+import base64
 
 import factory
 
@@ -64,8 +65,8 @@ class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
 class ThumbnailFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Thumbnail
-
     type = 'new'
+    image = base64.b64encode(open('skyportal/tests/data/14gqr_new.png', 'rb').read())
 
 
 class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):

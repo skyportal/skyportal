@@ -7,6 +7,33 @@ from skyportal.models import Thumbnail, DBSession, Photometry, Source
 
 
 def test_token_user_post_get_thumbnail(upload_data_token, public_group):
+    name = str(uuid.uuid4())
+    status, data = api('POST', 'telescope',
+                       data={'name': name,
+                             'nickname': name,
+                             'lat': 0.0,
+                             'lon': 0.0,
+                             'elevation': 0.0,
+                             'diameter': 10.0,
+                             'group_ids': [public_group.id]
+                       },
+                       token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    telescope_id = data['data']['id']
+
+    status, data = api('POST', 'instrument',
+                       data={'name': 'instrument_name',
+                             'type': 'type',
+                             'band': 'V',
+                             'telescope_id': telescope_id
+                       },
+                       token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    instrument_id = data['data']['id']
+
     source_id = str(uuid.uuid4())
     status, data = api('POST', 'sources',
                        data={'id': source_id,
@@ -24,7 +51,7 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group):
                              'time': str(datetime.datetime.now()),
                              'time_format': 'iso',
                              'time_scale': 'utc',
-                             'instrument_id': 1,
+                             'instrument_id': instrument_id,
                              'mag': 12.24,
                              'e_mag': 0.031,
                              'lim_mag': 14.1,
@@ -62,7 +89,6 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group):
             .first().source.id) == source_id
     assert len(DBSession.query(Source).filter(Source.id == source_id).first()
                .thumbnails) == orig_source_thumbnail_count + 1
-
 
 def test_token_user_delete_thumbnail_cascade_source(upload_data_token,
                                                     manage_sources_token,
