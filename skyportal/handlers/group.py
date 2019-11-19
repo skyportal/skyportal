@@ -174,10 +174,10 @@ class GroupHandler(BaseHandler):
 
 class GroupUserHandler(BaseHandler):
     @permissions(['Manage groups'])
-    def put(self, group_id, username):
+    def post(self, group_id, username):
         """
         ---
-        description: Update a group user
+        description: Add a group user
         parameters:
           - in: path
             name: group_id

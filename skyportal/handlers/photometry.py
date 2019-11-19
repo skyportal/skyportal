@@ -95,9 +95,11 @@ class PhotometryHandler(BaseHandler):
             return self.error('Time scale (\'time_scale\') and time format '
                               '(\'time_format\') are required parameters.')
         if not isinstance(data['mag'], (list, tuple)):
-            data['time'] = [data['time']]
+            data['observed_at'] = [data['observed_at']]
             data['mag'] = [data['mag']]
             data['e_mag'] = [data['e_mag']]
+            data['lim_mag'] = [data['lim_mag']]
+            data['filter'] = [data['filter']]
         ids = []
         instrument = Instrument.query.get(data['instrument_id'])
         if not instrument:
@@ -107,21 +109,21 @@ class PhotometryHandler(BaseHandler):
             raise Exception('Invalid source ID') # TODO: handle invalid source ID
         for i in range(len(data['mag'])):
             if not (data['time_scale'] == 'tcb' and data['time_format'] == 'iso'):
-                t = Time(data['time'][i],
+                t = Time(data['observed_at'][i],
                          format=data['time_format'],
                          scale=data['time_scale'])
-                time = t.tcb.iso
+                observed_at = t.tcb.iso
             else:
-                time = data['time'][i]
+                observed_at = data['time'][i]
             p = Photometry(source=source,
-                           observed_at=time,
+                           observed_at=observed_at,
                            mag=data['mag'][i],
                            e_mag=data['e_mag'][i],
                            time_scale='tcb',
                            time_format='iso',
                            instrument=instrument,
-                           lim_mag=data['lim_mag'],
-                           filter=data['filter'])
+                           lim_mag=data['lim_mag'][i],
+                           filter=data['filter'][i])
             DBSession().add(p)
             DBSession().flush()
             ids.append(p.id)
