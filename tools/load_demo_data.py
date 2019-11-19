@@ -20,10 +20,10 @@ from baselayer.tools.test_frontend import verify_server_availability
 if __name__ == "__main__":
     """Insert test data"""
     env, cfg = load_env()
-    basedir = Path(os.path.dirname(__file__))/'..'
+    basedir = Path(os.path.dirname(__file__)) / ".."
 
     with status(f"Connecting to database {cfg['database']['database']}"):
-        init_db(**cfg['database'])
+        init_db(**cfg["database"])
 
     with status("Dropping all tables"):
         drop_tables()
@@ -32,174 +32,230 @@ if __name__ == "__main__":
         create_tables()
 
     for model in Base.metadata.tables:
-        print('    -', model)
+        print("    -", model)
 
     with status(f"Creating permissions"):
         setup_permissions()
 
     with status(f"Creating dummy users"):
-        super_admin_user = User(username='testuser@cesium-ml.org',
-                                role_ids=['Super admin'])
-        group_admin_user = User(username='groupadmin@cesium-ml.org',
-                                role_ids=['Super admin'])
-        full_user = User(username='fulluser@cesium-ml.org',
-                         role_ids=['Full user'])
-        view_only_user = User(username='viewonlyuser@cesium-ml.org',
-                              role_ids=['View only'])
-        DBSession().add_all([super_admin_user, group_admin_user,
-                             full_user, view_only_user])
+        super_admin_user = User(
+            username="testuser@cesium-ml.org", role_ids=["Super admin"]
+        )
+        group_admin_user = User(
+            username="groupadmin@cesium-ml.org", role_ids=["Super admin"]
+        )
+        full_user = User(username="fulluser@cesium-ml.org", role_ids=["Full user"])
+        view_only_user = User(
+            username="viewonlyuser@cesium-ml.org", role_ids=["View only"]
+        )
+        DBSession().add_all(
+            [super_admin_user, group_admin_user, full_user, view_only_user]
+        )
 
         for u in [super_admin_user, group_admin_user, full_user, view_only_user]:
-            DBSession().add(TornadoStorage.user.create_social_auth(u, u.username,
-                                                                   'google-oauth2'))
+            DBSession().add(
+                TornadoStorage.user.create_social_auth(u, u.username, "google-oauth2")
+            )
 
     with status("Creating token"):
-        token = create_token(['Manage groups', 'Manage sources', 'Upload data',
-                              'Comment', 'Manage users'],
-                             super_admin_user.id,
-                             'load_demo_data token')
+        token = create_token(
+            [
+                "Manage groups",
+                "Manage sources",
+                "Upload data",
+                "Comment",
+                "Manage users",
+            ],
+            super_admin_user.id,
+            "load_demo_data token",
+        )
 
     def assert_post(endpoint, data):
-        response_status, data = api('POST', endpoint, data, token)
-        if not response_status == 200 and data['status'] == 'success':
-            raise RuntimeError(f'API call to {endpoint} failed with status {status}: {data["message"]}')
+        response_status, data = api("POST", endpoint, data, token)
+        if not response_status == 200 and data["status"] == "success":
+            raise RuntimeError(
+                f'API call to {endpoint} failed with status {status}: {data["message"]}'
+            )
         return data
 
     with status("Launching web app & executing API calls"):
         try:
-            response_status, data = api('GET', 'sysinfo', token=token)
+            response_status, data = api("GET", "sysinfo", token=token)
             app_already_running = True
         except requests.ConnectionError:
             app_already_running = False
-            web_client = subprocess.Popen(['make', 'run'],
-                                          cwd=basedir, preexec_fn=os.setsid)
+            web_client = subprocess.Popen(
+                ["make", "run"], cwd=basedir, preexec_fn=os.setsid
+            )
 
         server_url = f"http://localhost:{cfg['ports.app']}"
         print()
-        print(f'Waiting for server to appear at {server_url}...')
+        print(f"Waiting for server to appear at {server_url}...")
 
         try:
             verify_server_availability(server_url)
-            print('App running - continuing with API calls')
+            print("App running - continuing with API calls")
 
             with status("Creating dummy group & adding users"):
-                data = assert_post('groups',
-                                   data={'name': 'Stream A',
-                                         'group_admins': [super_admin_user.username,
-                                                          group_admin_user.username]})
-                group_id = data['data']['id']
+                data = assert_post(
+                    "groups",
+                    data={
+                        "name": "Stream A",
+                        "group_admins": [
+                            super_admin_user.username,
+                            group_admin_user.username,
+                        ],
+                    },
+                )
+                group_id = data["data"]["id"]
 
                 for u in [view_only_user, full_user]:
                     data = assert_post(
-                        f'groups/{group_id}/users/{u.username}',
-                        data={'admin': False})
+                        f"groups/{group_id}/users/{u.username}", data={"admin": False}
+                    )
 
             with status("Creating dummy instruments"):
                 data = assert_post(
-                    'telescope',
-                    data={'name': 'Palomar 1.5m',
-                          'nickname': 'P60',
-                          'lat': 33.3633675,
-                          'lon': -116.8361345,
-                          'elevation': 1870,
-                          'diameter': 1.5,
-                          'group_ids': [group_id]})
-                telescope1_id = data['data']['id']
+                    "telescope",
+                    data={
+                        "name": "Palomar 1.5m",
+                        "nickname": "P60",
+                        "lat": 33.3633675,
+                        "lon": -116.8361345,
+                        "elevation": 1870,
+                        "diameter": 1.5,
+                        "group_ids": [group_id],
+                    },
+                )
+                telescope1_id = data["data"]["id"]
 
-                data = assert_post('instrument',
-                                   data={'name': 'P60 Camera',
-                                         'type': 'phot',
-                                         'band': 'optical',
-                                         'telescope_id': telescope1_id})
-                instrument1_id = data['data']['id']
+                data = assert_post(
+                    "instrument",
+                    data={
+                        "name": "P60 Camera",
+                        "type": "phot",
+                        "band": "optical",
+                        "telescope_id": telescope1_id,
+                    },
+                )
+                instrument1_id = data["data"]["id"]
 
-                data = assert_post('telescope',
-                                            data={'name': 'Nordic Optical Telescope',
-                                                  'nickname': 'NOT',
-                                                  'lat': 28.75,
-                                                  'lon': 17.88,
-                                                  'elevation': 1870,
-                                                  'diameter': 2.56,
-                                                  'group_ids': [group_id]
-                                            })
-                telescope2_id = data['data']['id']
+                data = assert_post(
+                    "telescope",
+                    data={
+                        "name": "Nordic Optical Telescope",
+                        "nickname": "NOT",
+                        "lat": 28.75,
+                        "lon": 17.88,
+                        "elevation": 1870,
+                        "diameter": 2.56,
+                        "group_ids": [group_id],
+                    },
+                )
+                telescope2_id = data["data"]["id"]
 
-                data = assert_post('instrument',
-                                   data={'name': 'ALFOSC',
-                                         'type': 'both',
-                                         'band': 'optical',
-                                         'telescope_id': telescope2_id
-                                   })
+                data = assert_post(
+                    "instrument",
+                    data={
+                        "name": "ALFOSC",
+                        "type": "both",
+                        "band": "optical",
+                        "telescope_id": telescope2_id,
+                    },
+                )
 
             with status("Creating dummy sources"):
-                SOURCES = [{'id': '14gqr', 'ra': 353.36647, 'dec': 33.646149,
-                            'redshift': 0.063, 'group_ids': [group_id],
-                            'comments': ["No source at transient location to R>26 in LRIS imaging",
-                                         "Strong calcium lines have emerged."]},
-                           {'id': '16fil', 'ra': 322.718872, 'dec': 27.574113,
-                            'redshift': 0.0, 'group_ids': [group_id],
-                            'comments': ["Frogs in the pond", "The eagle has landed"]}]
+                SOURCES = [
+                    {
+                        "id": "14gqr",
+                        "ra": 353.36647,
+                        "dec": 33.646149,
+                        "redshift": 0.063,
+                        "group_ids": [group_id],
+                        "comments": [
+                            "No source at transient location to R>26 in LRIS imaging",
+                            "Strong calcium lines have emerged.",
+                        ],
+                    },
+                    {
+                        "id": "16fil",
+                        "ra": 322.718872,
+                        "dec": 27.574113,
+                        "redshift": 0.0,
+                        "group_ids": [group_id],
+                        "comments": ["Frogs in the pond", "The eagle has landed"],
+                    },
+                ]
 
-                (basedir/'static/thumbnails').mkdir(parents=True, exist_ok=True)
+                (basedir / "static/thumbnails").mkdir(parents=True, exist_ok=True)
                 for source_info in SOURCES:
-                    comments = source_info.pop('comments')
+                    comments = source_info.pop("comments")
 
-                    data = assert_post('sources', data=source_info)
-                    assert data['data']['id'] == source_info['id']
+                    data = assert_post("sources", data=source_info)
+                    assert data["data"]["id"] == source_info["id"]
 
                     for comment in comments:
-                        data = assert_post('comment',
-                                           data={'source_id': source_info['id'],
-                                                 'text': comment})
+                        data = assert_post(
+                            "comment",
+                            data={"source_id": source_info["id"], "text": comment},
+                        )
 
-                    phot_file = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                                             'skyportal', 'tests', 'data',
-                                             'phot.csv')
+                    phot_file = basedir / "skyportal/tests/data/phot.csv"
                     phot_data = pd.read_csv(phot_file)
 
-                    data = assert_post('photometry',
-                                       data={'source_id': source_info['id'],
-                                             'time_format': 'iso',
-                                             'time_scale': 'utc',
-                                             'instrument_id': instrument1_id,
-                                             'observed_at': phot_data.observed_at.tolist(),
-                                             'mag': phot_data.mag.tolist(),
-                                             'e_mag': phot_data.e_mag.tolist(),
-                                             'lim_mag': phot_data.lim_mag.tolist(),
-                                             'filter': phot_data['filter'].tolist()
-                                       })
+                    data = assert_post(
+                        "photometry",
+                        data={
+                            "source_id": source_info["id"],
+                            "time_format": "iso",
+                            "time_scale": "utc",
+                            "instrument_id": instrument1_id,
+                            "observed_at": phot_data.observed_at.tolist(),
+                            "mag": phot_data.mag.tolist(),
+                            "e_mag": phot_data.e_mag.tolist(),
+                            "lim_mag": phot_data.lim_mag.tolist(),
+                            "filter": phot_data["filter"].tolist(),
+                        },
+                    )
 
-                    spec_file = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                                             'skyportal', 'tests', 'data',
-                                             'spec.csv')
+                    spec_file = os.path.join(
+                        os.path.dirname(os.path.dirname(__file__)),
+                        "skyportal",
+                        "tests",
+                        "data",
+                        "spec.csv",
+                    )
                     spec_data = pd.read_csv(spec_file)
-                    for i, df in spec_data.groupby('instrument_id'):
+                    for i, df in spec_data.groupby("instrument_id"):
                         data = assert_post(
-                            'spectrum',
-                            data={'source_id': source_info['id'],
-                                  'observed_at': str(datetime.datetime(2014, 10, 24)),
-                                  'instrument_id': 1,
-                                  'wavelengths': df.wavelength.tolist(),
-                                  'fluxes': df.flux.tolist()
-                            })
+                            "spectrum",
+                            data={
+                                "source_id": source_info["id"],
+                                "observed_at": str(datetime.datetime(2014, 10, 24)),
+                                "instrument_id": 1,
+                                "wavelengths": df.wavelength.tolist(),
+                                "fluxes": df.flux.tolist(),
+                            },
+                        )
 
-                    for ttype in ['new', 'ref', 'sub']:
+                    for ttype in ["new", "ref", "sub"]:
                         fname = f'{source_info["id"]}_{ttype}.png'
-                        fpath = basedir/f'skyportal/tests/data/{fname}'
+                        fpath = basedir / f"skyportal/tests/data/{fname}"
                         thumbnail_data = base64.b64encode(
-                            open(os.path.abspath(fpath), 'rb').read())
-                        data = assert_post('thumbnail',
-                                           data={'source_id': source_info['id'],
-                                                 'data': thumbnail_data,
-                                                 'ttype': ttype
-                                           })
+                            open(os.path.abspath(fpath), "rb").read()
+                        )
+                        data = assert_post(
+                            "thumbnail",
+                            data={
+                                "source_id": source_info["id"],
+                                "data": thumbnail_data,
+                                "ttype": ttype,
+                            },
+                        )
 
-                    source = Source.query.get(source_info['id'])
+                    source = Source.query.get(source_info["id"])
                     source.add_linked_thumbnails()
-        except Exception as e:
-            print(e)
-            raise
         finally:
             if not app_already_running:
-                print('Terminating web app')
+                print("Terminating web app")
                 os.killpg(os.getpgid(web_client.pid), signal.SIGTERM)
