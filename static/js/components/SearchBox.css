@@ -110,11 +110,14 @@
     }
     .searchBox {
         width: 120%;
-        min-width: 300px;
+        min-width: 250px;
     }
     .searchBoxFormHeader {
         font-size: 16px;
         font-weight: 700;
         margin: 0px;
+    }
+    .inputSubmitButton {
+        margin: 5px;
     }
 }
