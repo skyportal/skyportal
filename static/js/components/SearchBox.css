@@ -10,6 +10,7 @@
     width: 100%;
 }
 
+
 .searchBoxWrapper {
     position: relative;
 }
@@ -31,7 +32,7 @@
     padding: 30px 25px;
     display: flex;
     flex-direction: column;
-    margin: 30px 10px;
+    /* margin: 30px 10px; */
 }
 
 .searchBoxFormHeader {
@@ -96,4 +97,24 @@
 
 .inlineButton:disabled {
     background-color: white;
+}
+
+@media only screen and (max-width: 768px) {
+    [class*="col"] {
+        width: 100%;
+    }
+    .searchBoxFormInputs {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .searchBox {
+        width: 120%;
+        min-width: 300px;
+    }
+    .searchBoxFormHeader {
+        font-size: 16px;
+        font-weight: 700;
+        margin: 0px;
+    }
 }
