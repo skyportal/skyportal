@@ -1,5 +1,6 @@
 .ThumbnailList {
-    display: inline-block;
+    display: inline-block;  
+    width: 100%;
 }
 
 .Thumbnail {
@@ -11,6 +12,13 @@
 .Thumbnail img {
     width: 200px;
     height: 200px;
+}
+
+@media only screen and (max-width: 768px) {
+    .Thumbnail img {
+        width: 120px;
+        height: 120px;
+    }
 }
 
 .dr8 {
