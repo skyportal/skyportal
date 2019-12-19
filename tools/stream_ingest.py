@@ -29,6 +29,24 @@ conn = init_db(**cfg['database'])
 print('done.')
 
 
+def flux_to_mag(f, f_err, m0=24.63):
+    # http://horus.roe.ac.uk:8080/UKIDSSphotometry/magnitudes.html (ignoring corrections)
+    f_over_f0 = f / 15. * 10. ** (-0.4 * m0)
+    m = -2.5 * np.log10(f_over_f0)
+    m_err = 2.5 / np.log(10) * f_err / f
+    return m, m_err
+
+
+def remove_nones_from_dict(d):
+    c = {}
+    for k, v in d.items():
+        if isinstance(v, dict):
+            c[k] = remove_nones_from_dict(v)
+        elif v is not None:
+            c[k] = v
+    return c
+
+
 def msg_text(message):
     """Remove postage stamp cutouts from an alert message.
     """
@@ -56,22 +74,29 @@ def write_stamp_file(stamp_dict, output_dir):
 
 
 def post_to_skyportal(data, token, instrument_id):
+    source_id = str(data['diaSource'].pop('diaSourceId'))
+    obs_time = data['diaObject'].pop('radecTai')
+    tot_flux = data['diaSource'].pop('totFlux')
+    tot_flux_err = data['diaSource'].pop('totFluxErr')
+    mag, mag_err = flux_to_mag(tot_flux, tot_flux_err)
+
     headers = {'Authorization': f'token {token}'}
-    source = Source.query.get(str(data['diaSource']['diaSourceId']))
+    source = Source.query.get(source_id)
     if not source:
         r = requests.post('http://localhost:5000/api/sources',
                       headers=headers,
-                      json={'ra': data['diaSource']['ra'],
-                            'dec': data['diaSource']['decl'],
-                            'id': str(data['diaSource']['diaSourceId']),
-                            'group_ids': [1]})
+                      json={'ra': data['diaSource'].pop('ra'),
+                            'dec': data['diaSource'].pop('decl'),
+                            'id': source_id,
+                            'group_ids': [1],
+                            'altdata': remove_nones_from_dict(data)})
     try:
         r = requests.post('http://localhost:5000/api/photometry',
                           headers=headers,
-                          json={'source_id': str(data['diaSource']['diaSourceId']),
-                                'observed_at': data['diaObject']['radecTai'],
-                                'mag': data['diaSource']['totFlux'],
-                                'e_mag': data['diaSource']['totFluxErr'],
+                          json={'source_id': source_id,
+                                'observed_at': obs_time,
+                                'mag': mag,
+                                'e_mag': mag_err,
                                 'time_scale': 'tai',
                                 'time_format': 'mjd',
                                 'instrument_id': instrument_id,
