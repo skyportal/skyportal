@@ -13,7 +13,6 @@ section_end "ESLint"
 
 section "Tests"
 
-sed -i 's/database: skyportal/database: skyportal_test/g' config.yaml.defaults
 make log &
 make ${TEST_TARGET}
 
