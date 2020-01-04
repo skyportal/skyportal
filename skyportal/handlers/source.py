@@ -62,10 +62,9 @@ class SourceHandler(BaseHandler):
             q = Source.query.filter(Source.id.in_(DBSession.query(
                 GroupSource.source_id).filter(GroupSource.group_id.in_(
                     [g.id for g in self.current_user.groups]))))
-            all_matches = q.all()
-            info['totalMatches'] = len(all_matches)
-            info['sources'] = all_matches[
-                ((page - 1) * SOURCES_PER_PAGE):(page * SOURCES_PER_PAGE)]
+            info['totalMatches'] = q.count()
+            info['sources'] = q.limit(SOURCES_PER_PAGE).offset(
+                (page - 1) * SOURCES_PER_PAGE).all()
             info['pageNumber'] = page
             info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
             info['sourceNumberingEnd'] = min(info['totalMatches'],
@@ -199,7 +198,12 @@ class FilterSourcesHandler(BaseHandler):
     def post(self):
         data = self.get_json()
         info = {}
-        page = int(data.get('pageNumber', 1))
+        if 'pageNumber' in data:
+            page = int(data['pageNumber'])
+            already_counted = True
+        else:
+            page = 1
+            already_counted = False
         info['pageNumber'] = page
         q = Source.query.filter(Source.id.in_(DBSession.query(
                 GroupSource.source_id).filter(GroupSource.group_id.in_(
@@ -227,10 +231,13 @@ class FilterSourcesHandler(BaseHandler):
         if data['hasTNSname']:
             q = q.filter(Source.tns_name.isnot(None))
 
-        all_matches = list(q)
-        info['totalMatches'] = len(all_matches)
-        info['sources'] = all_matches[
-            ((page - 1) * SOURCES_PER_PAGE):(page * SOURCES_PER_PAGE)]
+        if already_counted:
+            info['totalMatches'] = int(data['totalMatches'])
+        else:
+            info['totalMatches'] = q.count()
+        info['sources'] = q.limit(SOURCES_PER_PAGE).offset(
+            (page - 1) * SOURCES_PER_PAGE).all()
+
         info['lastPage'] = info['totalMatches'] <= page * SOURCES_PER_PAGE
         info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
         info['sourceNumberingEnd'] = min(info['totalMatches'],

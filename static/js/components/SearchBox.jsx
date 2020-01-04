@@ -50,13 +50,21 @@ const SearchBox = ({ sources }) => {
 
   const handleClickNextPage = (event) => {
     event.preventDefault();
-    const vals = { ...formState, pageNumber: sources.pageNumber + 1 };
+    const vals = {
+      ...formState,
+      pageNumber: sources.pageNumber + 1,
+      totalMatches: sources.totalMatches
+    };
     dispatch(Actions.submitSourceFilterParams(vals));
   };
 
   const handleClickPreviousPage = (event) => {
     event.preventDefault();
-    const vals = { ...formState, pageNumber: sources.pageNumber - 1 };
+    const vals = {
+      ...formState,
+      pageNumber: sources.pageNumber - 1,
+      totalMatches: sources.totalMatches
+    };
     dispatch(Actions.submitSourceFilterParams(vals));
   };
 

@@ -48,7 +48,7 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group):
     assert data['data']['id'] == source_id
     status, data = api('POST', 'photometry',
                        data={'source_id': source_id,
-                             'time': str(datetime.datetime.now()),
+                             'observed_at': str(datetime.datetime.now()),
                              'time_format': 'iso',
                              'time_scale': 'utc',
                              'instrument_id': instrument_id,
@@ -107,7 +107,7 @@ def test_token_user_delete_thumbnail_cascade_source(upload_data_token,
     assert data['data']['id'] == source_id
     status, data = api('POST', 'photometry',
                        data={'source_id': source_id,
-                             'time': str(datetime.datetime.now()),
+                             'observed_at': str(datetime.datetime.now()),
                              'time_format': 'iso',
                              'time_scale': 'utc',
                              'instrument_id': 1,
@@ -175,7 +175,7 @@ def test_token_user_post_get_thumbnail_phot_id(upload_data_token, public_group):
     assert data['data']['id'] == source_id
     status, data = api('POST', 'photometry',
                        data={'source_id': source_id,
-                             'time': str(datetime.datetime.now()),
+                             'observed_at': str(datetime.datetime.now()),
                              'time_format': 'iso',
                              'time_scale': 'utc',
                              'instrument_id': 1,
@@ -234,7 +234,7 @@ def test_cannot_post_thumbnail_invalid_ttype(upload_data_token, public_group):
     assert data['data']['id'] == source_id
     status, data = api('POST', 'photometry',
                        data={'source_id': source_id,
-                             'time': str(datetime.datetime.now()),
+                             'observed_at': str(datetime.datetime.now()),
                              'time_format': 'iso',
                              'time_scale': 'utc',
                              'instrument_id': 1,
@@ -276,7 +276,7 @@ def test_cannot_post_thumbnail_invalid_image_type(upload_data_token, public_grou
     assert data['data']['id'] == source_id
     status, data = api('POST', 'photometry',
                        data={'source_id': source_id,
-                             'time': str(datetime.datetime.now()),
+                             'observed_at': str(datetime.datetime.now()),
                              'time_format': 'iso',
                              'time_scale': 'utc',
                              'instrument_id': 1,
@@ -318,7 +318,7 @@ def test_cannot_post_thumbnail_invalid_size(upload_data_token, public_group):
     assert data['data']['id'] == source_id
     status, data = api('POST', 'photometry',
                        data={'source_id': source_id,
-                             'time': str(datetime.datetime.now()),
+                             'observed_at': str(datetime.datetime.now()),
                              'time_format': 'iso',
                              'time_scale': 'utc',
                              'instrument_id': 1,
@@ -361,7 +361,7 @@ def test_cannot_post_thumbnail_invalid_file_type(upload_data_token, public_group
     assert data['data']['id'] == source_id
     status, data = api('POST', 'photometry',
                        data={'source_id': source_id,
-                             'time': str(datetime.datetime.now()),
+                             'observed_at': str(datetime.datetime.now()),
                              'time_format': 'iso',
                              'time_scale': 'utc',
                              'instrument_id': 1,
