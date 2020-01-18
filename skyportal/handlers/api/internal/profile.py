@@ -1,8 +1,6 @@
-from .base import BaseHandler
 from baselayer.app.access import auth_or_token
-from ..models import User
-
-import tornado.web
+from ...base import BaseHandler
+from ....models import User
 
 
 class ProfileHandler(BaseHandler):

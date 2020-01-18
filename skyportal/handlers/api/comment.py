@@ -2,8 +2,8 @@ import tornado.web
 import base64
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
-from .base import BaseHandler
-from ..models import DBSession, Source, User, Comment, Role
+from ..base import BaseHandler
+from ...models import DBSession, Source, User, Comment, Role
 
 
 class CommentHandler(BaseHandler):

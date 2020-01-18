@@ -5,9 +5,11 @@ import arrow
 from functools import reduce
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
-from .base import BaseHandler
-from ..models import (DBSession, Comment, Instrument, Photometry, Source,
-                      Thumbnail, GroupSource, Token, User, Group)
+from ..base import BaseHandler
+from ...models import (
+    DBSession, Comment, Instrument, Photometry, Source,
+    Thumbnail, GroupSource, Token, User, Group
+)
 
 
 SOURCES_PER_PAGE = 100

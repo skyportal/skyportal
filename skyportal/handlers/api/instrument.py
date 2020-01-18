@@ -1,19 +1,19 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
-from .base import BaseHandler
-from ..models import DBSession, Telescope, Group
+from ..base import BaseHandler
+from ...models import DBSession, Instrument, Telescope
 
 
-class TelescopeHandler(BaseHandler):
+class InstrumentHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
         """
         ---
-        description: Create telescopes
+        description: Create instruments
         parameters:
           - in: path
-            name: telescope
-            schema: Telescope
+            name: instrument
+            schema: Instrument
         responses:
           200:
             content:
@@ -25,36 +25,34 @@ class TelescopeHandler(BaseHandler):
                       properties:
                         id:
                           type: integer
-                          description: New telescope ID
+                          description: New instrument ID
         """
         data = self.get_json()
-        group_ids = data.pop('group_ids')
-        groups = [g for g in Group.query.filter(Group.id.in_(group_ids)).all()
-                  if g in self.current_user.groups]
-        if not groups:
-            return self.error('You must specify at least one group of which you '
-                              'are a member.')
-        schema = Telescope.__schema__()
+        telescope_id = data.pop('telescope_id')
+        telescope = Telescope.get_if_owned_by(telescope_id, self.current_user)
+        if not telescope:
+            return self.error('Invalid telescope ID.')
 
+        schema = Instrument.__schema__()
         try:
-            telescope = schema.load(data)
+            instrument = schema.load(data)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
-        telescope.groups = groups
-        DBSession.add(telescope)
+        instrument.telescope = telescope
+        DBSession.add(instrument)
         DBSession().commit()
 
-        return self.success(data={"id": telescope.id})
+        return self.success(data={"id": instrument.id})
 
     @auth_or_token
-    def get(self, telescope_id):
+    def get(self, instrument_id):
         """
         ---
-        description: Retrieve a telescope
+        description: Retrieve an instrument
         parameters:
           - in: path
-            name: telescope_id
+            name: instrument_id
             required: true
             schema:
               type: integer
@@ -62,29 +60,31 @@ class TelescopeHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: SingleTelescope
+                schema: SingleInstrument
           400:
             content:
               application/json:
                 schema: Error
         """
-        t = Telescope.get_if_owned_by(int(telescope_id), self.current_user)
+        instrument = Instrument.query.get(int(instrument_id))
 
-        if t is not None:
-            return self.success(data={'telescope': t})
+        if instrument is not None:
+            telescope = Telescope.get_if_owned_by(instrument.telescope_id,
+                                                  self.current_user)
+            return self.success(data={'instrument': instrument})
         else:
-            return self.error(f"Could not load telescope {telescope_id}",
-                              data={"telescope_id": telescope_id})
+            return self.error(f"Could not load instrument {instrument_id}",
+                              data={"instrument_id": instrument_id})
 
     @permissions(['Manage sources'])
-    def put(self, telescope_id):
+    def put(self, instrument_id):
         """
         ---
-        description: Update telescope
+        description: Update instrument
         parameters:
           - in: path
-            name: telescope
-            schema: Telescope
+            name: instrument
+            schema: Instrument
         responses:
           200:
             content:
@@ -95,11 +95,13 @@ class TelescopeHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        t = Telescope.get_if_owned_by(int(telescope_id), self.current_user)
+        instrument = Instrument.query.get(int(instrument_id))
+        telescope = Telescope.get_if_owned_by(instrument.telescope_id,
+                                              self.current_user)
         data = self.get_json()
-        data['id'] = int(telescope_id)
+        data['id'] = int(instrument_id)
 
-        schema = Telescope.__schema__()
+        schema = Instrument.__schema__()
         try:
             schema.load(data)
         except ValidationError as e:
@@ -110,13 +112,13 @@ class TelescopeHandler(BaseHandler):
         return self.success()
 
     @permissions(['Manage sources'])
-    def delete(self, telescope_id):
+    def delete(self, instrument_id):
         """
         ---
-        description: Delete a telescope
+        description: Delete an instrument
         parameters:
           - in: path
-            name: telescope_id
+            name: instrument_id
             required: true
             schema:
               type: integer
@@ -130,8 +132,10 @@ class TelescopeHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        t = Telescope.get_if_owned_by(int(telescope_id), self.current_user)
-        DBSession.query(Telescope).filter(Telescope.id == int(telescope_id)).delete()
+        instrument = Instrument.query.get(int(instrument_id))
+        telescope = Telescope.get_if_owned_by(instrument.telescope_id,
+                                              self.current_user)
+        DBSession.query(Instrument).filter(Instrument.id == int(instrument_id)).delete()
         DBSession().commit()
 
         return self.success()

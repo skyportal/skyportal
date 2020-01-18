@@ -1,21 +1,19 @@
-import tornado.web
-from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
-from .base import BaseHandler
-from ..models import DBSession, Spectrum, Comment, Instrument, Source
+from ..base import BaseHandler
+from ...models import DBSession, Telescope, Group
 
 
-class SpectrumHandler(BaseHandler):
+class TelescopeHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
         """
         ---
-        description: Upload spectrum
+        description: Create telescopes
         parameters:
           - in: path
-            name: spectrum
-            schema: Spectrum
+            name: telescope
+            schema: Telescope
         responses:
           200:
             content:
@@ -27,35 +25,36 @@ class SpectrumHandler(BaseHandler):
                       properties:
                         id:
                           type: integer
-                          description: New spectrum ID
+                          description: New telescope ID
         """
         data = self.get_json()
-        source_id = data.pop('source_id')
-        instrument_id = data.pop('instrument_id')
-        source = Source.get_if_owned_by(source_id, self.current_user)
-        instrument = Instrument.query.get(instrument_id)
+        group_ids = data.pop('group_ids')
+        groups = [g for g in Group.query.filter(Group.id.in_(group_ids)).all()
+                  if g in self.current_user.groups]
+        if not groups:
+            return self.error('You must specify at least one group of which you '
+                              'are a member.')
+        schema = Telescope.__schema__()
 
-        schema = Spectrum.__schema__()
         try:
-            spec = schema.load(data)
+            telescope = schema.load(data)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
-        spec.source = source
-        spec.instrument = instrument
-        DBSession().add(spec)
+        telescope.groups = groups
+        DBSession.add(telescope)
         DBSession().commit()
 
-        return self.success(data={"id": spec.id})
+        return self.success(data={"id": telescope.id})
 
     @auth_or_token
-    def get(self, spectrum_id):
+    def get(self, telescope_id):
         """
         ---
-        description: Retrieve a spectrum
+        description: Retrieve a telescope
         parameters:
           - in: path
-            name: spectrum_id
+            name: telescope_id
             required: true
             schema:
               type: integer
@@ -63,30 +62,29 @@ class SpectrumHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: SingleSpectrum
+                schema: SingleTelescope
           400:
             content:
               application/json:
                 schema: Error
         """
-        spectrum = Spectrum.query.get(spectrum_id)
+        t = Telescope.get_if_owned_by(int(telescope_id), self.current_user)
 
-        if spectrum is not None:
-            source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
-            return self.success(data={'spectrum': spectrum})
+        if t is not None:
+            return self.success(data={'telescope': t})
         else:
-            return self.error(f"Could not load spectrum {spectrum_id}",
-                              data={"spectrum_id": spectrum_id})
+            return self.error(f"Could not load telescope {telescope_id}",
+                              data={"telescope_id": telescope_id})
 
     @permissions(['Manage sources'])
-    def put(self, spectrum_id):
+    def put(self, telescope_id):
         """
         ---
-        description: Update spectrum
+        description: Update telescope
         parameters:
           - in: path
-            name: spectrum
-            schema: Spectrum
+            name: telescope
+            schema: Telescope
         responses:
           200:
             content:
@@ -97,12 +95,11 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        spectrum = Spectrum.query.get(spectrum_id)
-        source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
+        t = Telescope.get_if_owned_by(int(telescope_id), self.current_user)
         data = self.get_json()
-        data['id'] = spectrum_id
+        data['id'] = int(telescope_id)
 
-        schema = Spectrum.__schema__()
+        schema = Telescope.__schema__()
         try:
             schema.load(data)
         except ValidationError as e:
@@ -113,13 +110,13 @@ class SpectrumHandler(BaseHandler):
         return self.success()
 
     @permissions(['Manage sources'])
-    def delete(self, spectrum_id):
+    def delete(self, telescope_id):
         """
         ---
-        description: Delete a spectrum
+        description: Delete a telescope
         parameters:
           - in: path
-            name: spectrum_id
+            name: telescope_id
             required: true
             schema:
               type: integer
@@ -133,9 +130,8 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        spectrum = Spectrum.query.get(spectrum_id)
-        source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
-        DBSession().delete(spectrum)
+        t = Telescope.get_if_owned_by(int(telescope_id), self.current_user)
+        DBSession.query(Telescope).filter(Telescope.id == int(telescope_id)).delete()
         DBSession().commit()
 
         return self.success()

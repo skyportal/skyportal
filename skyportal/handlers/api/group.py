@@ -2,8 +2,8 @@ import tornado.web
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
-from .base import BaseHandler
-from ..models import DBSession, Group, GroupUser, User, Token, Source
+from ..base import BaseHandler
+from ...models import DBSession, Group, GroupUser, User, Token, Source
 
 
 class GroupHandler(BaseHandler):
