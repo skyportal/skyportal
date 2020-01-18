@@ -1,9 +1,7 @@
-from .base import BaseHandler
 from baselayer.app.access import auth_or_token
-from ..models import Source, DBSession
-import skyportal
+from ...base import BaseHandler
+from ....models import Source, DBSession
 
-import tornado.web
 import subprocess
 
 
