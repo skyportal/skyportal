@@ -2,10 +2,12 @@ import * as groupsActions from './ducks/groups';
 import * as profileActions from './ducks/profile';
 import * as sysInfoActions from './ducks/sysInfo';
 import * as dbInfoActions from './ducks/dbInfo';
+import * as configActions from './ducks/config';
 
 
 export default function hydrate() {
   return (dispatch) => {
+    dispatch(configActions.fetchConfig());
     dispatch(sysInfoActions.fetchSystemInfo());
     dispatch(dbInfoActions.fetchDBInfo());
     dispatch(profileActions.fetchUserProfile());

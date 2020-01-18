@@ -31,3 +31,19 @@ server:
 
 services:
     dask: False
+
+
+# This is an example section; the configuration specified here is
+# currently propagated through to the `config` section of the frontend state,
+# but we do not yet make use of it.
+#
+# It will eventually be used to specify the components that are rendered
+# on the front page.
+#
+frontend:
+    test_components:
+    - A
+    - B
+    - C
+    test_setting: 1
+    test_another_setting: True
