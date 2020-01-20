@@ -24,7 +24,7 @@
     "react-router-dom": "5.1.2",
     "react-simple-dropdown": "3.0.0",
     "redoc": "2.0.0-rc.10",
-    "redoc-cli": "0.9.2",
+    "redoc-cli": "0.9.5",
     "redux": "4.0.4",
     "redux-logger": "3.0.6",
     "redux-thunk": "2.3.0",
