@@ -15,28 +15,28 @@ class ThumbnailHandler(BaseHandler):
         """
         ---
         description: Upload thumbnails
-        parameters:
-          - in: path
-            name: source_id
-            schema:
-              type: string
-            description: ID of source associated with thumbnails. If specified, without `photometry_id`, the first photometry point associated with specified source will be associated with thumbnail(s).
-          - in: path
-            name: photometry_id
-            schema:
-              type: integer
-            description: ID of photometry to be associated with thumbnails. If omitted, `source_id` must be specified, in which case the first photometry entry associated with source will be used.
-          - in: path
-            name: data
-            schema:
-              type: string
-              format: byte
-            description: base64-encoded PNG image file contents. Image size must be between 100px and 500px on a side.
-          - in: path
-            name: ttype
-            schema:
-              type: string
-            description: Thumbnail type. Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  source_id:
+                    type: string
+                    description: ID of source associated with thumbnails. If specified, without `photometry_id`, the first photometry point associated with specified source will be associated with thumbnail(s).
+                  photometry_id:
+                    type: integer
+                    description: ID of photometry to be associated with thumbnails. If omitted, `source_id` must be specified, in which case the first photometry entry associated with source will be used.
+                  data:
+                    type: string
+                    format: byte
+                    description: base64-encoded PNG image file contents. Image size must be between 100px and 500px on a side.
+                  ttype:
+                    type: string
+                    description: Thumbnail type. Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
+                required:
+                  - data
+                  - ttype
         responses:
           200:
             content:
@@ -49,6 +49,10 @@ class ThumbnailHandler(BaseHandler):
                         id:
                           type: int
                           description: New thumbnail ID
+          400:
+            content:
+              application/json:
+                schema: Error
         """
         data = self.get_json()
         if 'photometry_id' in data:
@@ -108,8 +112,14 @@ class ThumbnailHandler(BaseHandler):
         description: Update thumbnail
         parameters:
           - in: path
-            name: thumbnail
-            schema: Thumbnail
+            name: thumbnail_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: ThumbnailNoID
         responses:
           200:
             content:

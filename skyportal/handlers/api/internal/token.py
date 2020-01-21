@@ -12,15 +12,22 @@ class TokenHandler(BaseHandler):
         """
         ---
         description: Generate new token
-        parameters:
-          - in: path
-            name: token
-            schema: Token
+        requestBody:
+          content:
+            application/json:
+              schema: Token
         responses:
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - Success
+                    - type: object
+                      properties:
+                        token_id:
+                          type: string
+                          description: Token ID
         """
         data = self.get_json()
 

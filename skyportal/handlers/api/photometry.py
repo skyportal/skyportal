@@ -21,62 +21,10 @@ class PhotometryHandler(BaseHandler):
         """
         ---
         description: Upload photometry
-        parameters:
-          - in: path
-            name: time_format
-            schema:
-              type: string
-            description: Valid time formats are listed in `astropy.time.Time.FORMATS` (https://docs.astropy.org/en/stable/api/astropy.time.Time.html#astropy.time.Time.FORMATS)
-          - in: path
-            name: time_scale
-            schema:
-              type: string
-            description: Valid time scales are listed in `astropy.time.Time.SCALES` (https://docs.astropy.org/en/stable/api/astropy.time.Time.html#astropy.time.Time.SCALES)
-          - in: path
-            name: source_id
-            schema:
-              type: string
-          - in: path
-            name: instrument_id
-            schema:
-              type: integer
-          - in: path
-            name: time
-            schema:
-              type: string
-          - in: path
-            name: mag
-            schema:
-              type: number
-          - in: path
-            name: e_mag
-            schema:
-              type: number
-          - in: path
-            name: filter
-            schema:
-              type: string
-          - in: path
-            name: lim_mag
-            schema:
-              type: number
-          - in: path
-            name: thumbnails
-            schema:
-              type: array
-              items:
-                type: object
-                properties:
-                  data:
-                    type: string
-                    format: byte
-                    description: base64-encoded PNG image file contents. Image size must be between 100px and 500px on a side.
-                  ttype:
-                    type: string
-                    description: Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
-                required:
-                  - data
-                  - ttype
+        requestBody:
+          content:
+            application/json:
+              schema: PhotometryNoID
         responses:
           200:
             content:
@@ -175,8 +123,14 @@ class PhotometryHandler(BaseHandler):
         description: Update photometry
         parameters:
           - in: path
-            name: photometry
-            schema: Photometry
+            name: photometry_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: PhotometryNoID
         responses:
           200:
             content:

@@ -10,10 +10,10 @@ class TelescopeHandler(BaseHandler):
         """
         ---
         description: Create telescopes
-        parameters:
-          - in: path
-            name: telescope
-            schema: Telescope
+        requestBody:
+          content:
+            application/json:
+              schema: TelescopeNoID
         responses:
           200:
             content:
@@ -26,6 +26,10 @@ class TelescopeHandler(BaseHandler):
                         id:
                           type: integer
                           description: New telescope ID
+          400:
+            content:
+              application/json:
+                schema: Error
         """
         data = self.get_json()
         group_ids = data.pop('group_ids')
@@ -83,8 +87,14 @@ class TelescopeHandler(BaseHandler):
         description: Update telescope
         parameters:
           - in: path
-            name: telescope
-            schema: Telescope
+            name: telescope_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: TelescopeNoID
         responses:
           200:
             content:

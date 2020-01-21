@@ -46,7 +46,7 @@ const CommentList = () => {
           attachment_name && (
             <div>
               Attachment:&nbsp;
-              <a href={`/api/comment/${id}/download_attachment`}>
+              <a href={`/api/comment/${id}/attachment`}>
                 {attachment_name}
               </a>
             </div>
