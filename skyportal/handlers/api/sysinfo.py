@@ -1,9 +1,5 @@
-from .base import BaseHandler
 from baselayer.app.access import auth_or_token
-from ..models import Source, DBSession
-import skyportal
-
-import tornado.web
+from ..base import BaseHandler
 
 
 class SysInfoHandler(BaseHandler):

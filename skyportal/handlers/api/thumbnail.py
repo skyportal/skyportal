@@ -5,8 +5,8 @@ from pathlib import Path
 from marshmallow.exceptions import ValidationError
 from PIL import Image
 from baselayer.app.access import permissions, auth_or_token
-from .base import BaseHandler
-from ..models import DBSession, Photometry, Comment, Instrument, Source, Thumbnail
+from ..base import BaseHandler
+from ...models import DBSession, Photometry, Source, Thumbnail
 
 
 class ThumbnailHandler(BaseHandler):

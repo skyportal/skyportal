@@ -1,9 +1,8 @@
-from .base import BaseHandler
+from ..base import BaseHandler
 from baselayer.app.access import permissions
-from ..models import DBSession, User
+from ...models import DBSession, User
 
 from sqlalchemy.orm import joinedload
-import tornado.web
 
 
 class UserHandler(BaseHandler):

@@ -8,9 +8,11 @@ from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from PIL import Image
 from baselayer.app.access import permissions, auth_or_token
-from .base import BaseHandler
+from ..base import BaseHandler
 from .thumbnail import create_thumbnail
-from ..models import DBSession, Photometry, Comment, Instrument, Source, Thumbnail
+from ...models import (
+    DBSession, Photometry, Comment, Instrument, Source, Thumbnail
+)
 
 
 class PhotometryHandler(BaseHandler):
