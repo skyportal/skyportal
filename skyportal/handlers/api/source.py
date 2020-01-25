@@ -93,10 +93,10 @@ class SourceHandler(BaseHandler):
         """
         ---
         description: Upload a source. If group_ids is not specified, the user or token's groups will be used.
-        parameters:
-          - in: path
-            name: source
-            schema: Source
+        requestBody:
+          content:
+            application/json:
+              schema: Source
         responses:
           200:
             content:
@@ -146,8 +146,14 @@ class SourceHandler(BaseHandler):
         description: Update a source
         parameters:
           - in: path
-            name: source
-            schema: Source
+            name: source_id
+            required: True
+            schema:
+              type: string
+        requestBody:
+          content:
+            application/json:
+              schema: SourceNoID
         responses:
           200:
             content:
@@ -179,9 +185,10 @@ class SourceHandler(BaseHandler):
         description: Delete a source
         parameters:
           - in: path
-            name: source
+            name: source_id
+            required: true
             schema:
-              Source
+              type: string
         responses:
           200:
             content:

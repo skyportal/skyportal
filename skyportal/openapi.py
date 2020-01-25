@@ -79,13 +79,16 @@ def spec_from_handlers(handlers):
                 continue
 
             path_template = endpoint
-            path_template = re.sub('\(.*?\)\??', '{}', path_template)
-            path_template = re.sub('(?=[^/]{1}){}', '/{}', path_template)
+            path_template = re.sub('\(.*?\)\??', '/{}', path_template)
+            path_template = re.sub('(/)+', '/', path_template)
             path_parameters = path_template.count('{}')
 
             spec = yaml_utils.load_yaml_from_docstring(method.__doc__)
             parameters = list(inspect.signature(method).parameters.keys())[1:]
             parameters = parameters + (path_parameters - len(parameters)) * ['',]
+
+            if parameters[-1:] == [''] and path_template.endswith('/{}'):
+                path_template = path_template[:-3]
 
             multiple_spec = spec.pop('multiple', {})
             single_spec = spec.pop('single', {})

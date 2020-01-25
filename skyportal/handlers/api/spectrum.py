@@ -12,10 +12,10 @@ class SpectrumHandler(BaseHandler):
         """
         ---
         description: Upload spectrum
-        parameters:
-          - in: path
-            name: spectrum
-            schema: Spectrum
+        requestBody:
+          content:
+            application/json:
+              schema: SpectrumNoID
         responses:
           200:
             content:
@@ -28,6 +28,10 @@ class SpectrumHandler(BaseHandler):
                         id:
                           type: integer
                           description: New spectrum ID
+          400:
+            content:
+              application/json:
+                schema: Error
         """
         data = self.get_json()
         source_id = data.pop('source_id')
@@ -85,8 +89,14 @@ class SpectrumHandler(BaseHandler):
         description: Update spectrum
         parameters:
           - in: path
-            name: spectrum
-            schema: Spectrum
+            name: spectrum_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: SpectrumNoID
         responses:
           200:
             content:

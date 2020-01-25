@@ -10,10 +10,10 @@ class InstrumentHandler(BaseHandler):
         """
         ---
         description: Create instruments
-        parameters:
-          - in: path
-            name: instrument
-            schema: Instrument
+        requestBody:
+          content:
+            application/json:
+              schema: InstrumentNoID
         responses:
           200:
             content:
@@ -26,6 +26,10 @@ class InstrumentHandler(BaseHandler):
                         id:
                           type: integer
                           description: New instrument ID
+          400:
+            content:
+              application/json:
+                schema: Error
         """
         data = self.get_json()
         telescope_id = data.pop('telescope_id')
@@ -83,8 +87,14 @@ class InstrumentHandler(BaseHandler):
         description: Update instrument
         parameters:
           - in: path
-            name: instrument
-            schema: Instrument
+            name: instrument_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: InstrumentNoID
         responses:
           200:
             content:
