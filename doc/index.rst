@@ -10,6 +10,7 @@ Skyportal
    api
    dev
    contributing
+   adding_features
 
 .. Indices and tables
 .. ==================
