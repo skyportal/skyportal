@@ -39,6 +39,14 @@ const ProfileDropdown = () => {
 
           <div className={styles.rule} />
 
+          <Link to="/sources" role="link">
+            <div className={styles.entry} onClick={collapseDropdown}>
+              Sources
+            </div>
+          </Link>
+
+          <div className={styles.rule} />
+
           <Link to="/groups" role="link">
             <div role="menuitem" tabIndex="-1" className={styles.entry} onClick={collapseDropdown}>
               Groups

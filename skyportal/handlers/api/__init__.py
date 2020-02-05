@@ -1,6 +1,7 @@
 from .comment import CommentHandler, CommentAttachmentHandler
 from .group import GroupHandler, GroupUserHandler
 from .instrument import InstrumentHandler
+from .news_feed import NewsFeedHandler
 from .photometry import PhotometryHandler
 from .source import SourceHandler, FilterSourcesHandler, SourcePhotometryHandler
 from .spectrum import SpectrumHandler
