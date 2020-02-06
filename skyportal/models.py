@@ -15,6 +15,9 @@ from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
 from . import schema
 
 
+User.preferences = sa.Column(JSONB, nullable=True)
+
+
 def is_owned_by(self, user_or_token):
     """Generic ownership logic for any `skyportal` ORM model.
 
