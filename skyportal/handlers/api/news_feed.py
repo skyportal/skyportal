@@ -33,8 +33,8 @@ class NewsFeedHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        if ('newsFeed' in self.current_user.preferences and
-            'numItemsPerCategory' in self.current_user.preferences['newsFeed']):
+        if (self.current_user.preferences and 'newsFeed' in self.current_user.preferences
+            and 'numItemsPerCategory' in self.current_user.preferences['newsFeed']):
             n_items = int(self.current_user.preferences['newsFeed']['numItemsPerCategory'])
         else:
             n_items = 5

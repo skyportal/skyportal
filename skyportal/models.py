@@ -6,16 +6,13 @@ import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import backref, relationship, mapper
-from sqlalchemy.dialects.postgresql import JSON, JSONB
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy_utils import ArrowType
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
 
 from . import schema
-
-
-User.preferences = sa.Column(JSONB, nullable=True)
 
 
 def is_owned_by(self, user_or_token):
