@@ -1,9 +1,11 @@
 import React from 'react';
+import moment from 'moment-timezone';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 
 import WidgetPrefsDialog from './WidgetPrefsDialog';
 import * as ProfileActions from '../ducks/profile';
+import styles from './NewsFeed.css';
 
 
 const NewsFeed = () => {
@@ -35,6 +37,10 @@ const NewsFeed = () => {
           {
             comments.map((comment, idx) => (
               <li key={`comment${idx}`}>
+                <span className={styles.entryTime}>
+                  {moment(comment.created_at).tz(Intl.DateTimeFormat().resolvedOptions().timeZone).calendar()}
+                </span>
+                &nbsp;
                 Source:&nbsp;
                 <Link to={`/source/${comment.source_id}`}>
                   {comment.source_id}
@@ -55,6 +61,10 @@ const NewsFeed = () => {
           {
             sources.map((source, idx) => (
               <li key={`source${idx}`}>
+                <span className={styles.entryTime}>
+                  {moment(source.modified).tz(Intl.DateTimeFormat().resolvedOptions().timeZone).calendar()}
+                </span>
+                &nbsp;&nbsp;
                 <Link to={`/source/${source.id}`}>
                   {source.id}
                 </Link>
@@ -71,6 +81,10 @@ const NewsFeed = () => {
           {
             photometry.map((phot, idx) => (
               <li key={`phot${idx}`}>
+                <span className={styles.entryTime}>
+                  {moment(phot.created_at).tz(Intl.DateTimeFormat().resolvedOptions().timeZone).calendar()}
+                </span>
+                &nbsp;&nbsp;
                 {phot.id} (source:&nbsp;
                 <Link to={`/source/${phot.source_id}`}>
                   {phot.source_id}

@@ -10,14 +10,14 @@ const HomePage = () => {
   const groups = useSelector((state) => state.groups.latest);
   return (
     <div>
-      <div style={{ float: "left", paddingRight: "50px" }}>
+      <div style={{ float: "left", paddingRight: "40px" }}>
         <SourceList />
       </div>
-      <div style={{ float: "left", paddingRight: "50px" }}>
-        <GroupList title="My Groups" groups={groups} />
-      </div>
-      <div style={{ float: "left" }}>
+      <div style={{ float: "left", paddingRight: "40px", paddingBottom: "40px" }}>
         <NewsFeed />
+      </div>
+      <div style={{ float: "left", paddingRight: "40px" }}>
+        <GroupList title="My Groups" groups={groups} />
       </div>
     </div>
   );
