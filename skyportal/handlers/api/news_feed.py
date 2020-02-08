@@ -35,7 +35,8 @@ class NewsFeedHandler(BaseHandler):
         """
         if (self.current_user.preferences and 'newsFeed' in self.current_user.preferences
             and 'numItemsPerCategory' in self.current_user.preferences['newsFeed']):
-            n_items = int(self.current_user.preferences['newsFeed']['numItemsPerCategory'])
+            n_items = max(int(self.current_user.preferences['newsFeed']['numItemsPerCategory']),
+                          10)
         else:
             n_items = 5
         sources = Source.query.filter(Source.id.in_(DBSession.query(
