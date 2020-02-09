@@ -39,12 +39,8 @@ class ProfileHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  preferences:
-                    type: object
-                    description: JSON describing updates to user preferences dict
+              schema: UserPreferences
+              description: JSON describing updates to user preferences dict
         responses:
           200:
             content:
