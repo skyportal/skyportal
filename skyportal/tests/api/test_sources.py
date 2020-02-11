@@ -38,6 +38,8 @@ def test_token_user_update_source(manage_sources_token, public_source):
                        token=manage_sources_token)
     assert status == 200
     assert data['status'] == 'success'
+    npt.assert_almost_equal(data['data']['source']['ra'], 234.22)
+    npt.assert_almost_equal(data['data']['source']['redshift'], 3.0)
 
     status, data = api('GET', f'sources/{public_source.id}',
                        token=manage_sources_token)

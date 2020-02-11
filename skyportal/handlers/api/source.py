@@ -176,7 +176,8 @@ class SourceHandler(BaseHandler):
                               f'{e.normalized_messages()}')
         DBSession().commit()
 
-        return self.success(action='skyportal/FETCH_SOURCES')
+        return self.success(action='skyportal/FETCH_SOURCES',
+                            data={'source': s})
 
     @permissions(['Manage sources'])
     def delete(self, source_id):
