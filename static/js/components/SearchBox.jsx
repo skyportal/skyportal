@@ -19,6 +19,8 @@ const SearchBox = ({ sources }) => {
     hasTNSname: false
   });
 
+  const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
+
   const handleInputChange = (event) => {
     const newState = {};
     newState[event.target.name] = event.target.type === 'checkbox' ?
@@ -63,6 +65,20 @@ const SearchBox = ({ sources }) => {
     const vals = {
       ...formState,
       pageNumber: sources.pageNumber - 1,
+      totalMatches: sources.totalMatches
+    };
+    dispatch(Actions.submitSourceFilterParams(vals));
+  };
+
+  const handleJumpToPageInputChange = (event) => {
+    setJumpToPageInputValue(event.target.value);
+  };
+
+  const handleClickJumpToPage = (event) => {
+    event.preventDefault();
+    const vals = {
+      ...formState,
+      pageNumber: jumpToPageInputValue,
       totalMatches: sources.totalMatches
     };
     dispatch(Actions.submitSourceFilterParams(vals));
@@ -267,6 +283,22 @@ const SearchBox = ({ sources }) => {
                 >
                   View Next 100 Sources
                 </button>
+              </div>
+              <div>
+                <i>
+                  or&nbsp;&nbsp;
+                </i>
+                <button type="button" onClick={handleClickJumpToPage}>
+                  Jump to page:
+                </button>
+                &nbsp;&nbsp;
+                <input
+                  type="text"
+                  style={{ width: "25px" }}
+                  onChange={handleJumpToPageInputChange}
+                  value={jumpToPageInputValue}
+                  name="jumpToPageInputField"
+                />
               </div>
             </div>
           )
