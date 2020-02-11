@@ -1,6 +1,7 @@
 import messageHandler from 'baselayer/MessageHandler';
 
 import * as API from '../API';
+import store from '../store';
 
 
 export const FETCH_USER_PROFILE = 'skyportal/FETCH_USER_PROFILE';
@@ -46,11 +47,21 @@ messageHandler.add((actionType, payload, dispatch) => {
 });
 
 
-export default function reducer(state={ username: '', roles: [], acls: [], tokens: [], preferences: {} }, action) {
+const initialState = {
+  username: '',
+  roles: [],
+  acls: [],
+  tokens: [],
+  preferences: {}
+};
+
+const reducer = (state=initialState, action) => {
   switch (action.type) {
     case FETCH_USER_PROFILE_OK:
       return action.data;
     default:
       return state;
   }
-}
+};
+
+store.injectReducer('profile', reducer);

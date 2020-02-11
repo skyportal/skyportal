@@ -1,5 +1,7 @@
 import messageHandler from 'baselayer/MessageHandler';
+
 import * as API from '../API';
+import store from '../store';
 
 
 export const FETCH_NEWSFEED = 'skyportal/FETCH_NEWSFEED';
@@ -17,7 +19,8 @@ messageHandler.add((actionType, payload, dispatch) => {
   }
 });
 
-export default function reducer(state=[], action) {
+
+const reducer = (state=[], action) => {
   switch (action.type) {
     case FETCH_NEWSFEED_OK: {
       const { newsFeedItems } = action.data;
@@ -29,4 +32,6 @@ export default function reducer(state=[], action) {
     default:
       return state;
   }
-}
+};
+
+store.injectReducer('newsFeed', reducer);

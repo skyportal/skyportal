@@ -1,15 +1,18 @@
 import * as API from '../API';
+import store from '../store';
 
 
 export const FETCH_SOURCE_PLOT = 'skyportal/FETCH_SOURCE_PLOT';
 export const FETCH_SOURCE_PLOT_OK = 'skyportal/FETCH_SOURCE_PLOT_OK';
 export const FETCH_SOURCE_PLOT_FAIL = 'skyportal/FETCH_SOURCE_PLOT_FAIL';
 
+
 export function fetchPlotData(url) {
   return API.GET(url, FETCH_SOURCE_PLOT);
 }
 
-export default function reducer(state={ plotData: {}, plotIDList: [] }, action) {
+
+const reducer = (state={ plotData: {}, plotIDList: [] }, action) => {
   switch (action.type) {
     case FETCH_SOURCE_PLOT_OK: {
       const plotData = { ...state.plotData };
@@ -34,4 +37,6 @@ export default function reducer(state={ plotData: {}, plotIDList: [] }, action) 
     default:
       return state;
   }
-}
+};
+
+store.injectReducer('plots', reducer);
