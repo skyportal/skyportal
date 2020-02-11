@@ -11,7 +11,7 @@
     "classnames": "2.2.6",
     "css-loader": "0.28.11",
     "exports-loader": "0.7.0",
-    "imports-loader": "0.7.1",
+    "imports-loader": "0.8.0",
     "moment": "2.24.0",
     "moment-timezone": "0.5.25",
     "npm-check": "5.9.0",
