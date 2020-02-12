@@ -1,10 +1,14 @@
 import React from 'react';
-import moment from 'moment-timezone';
 import { useSelector, useDispatch } from 'react-redux';
+
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 
 import * as sourceActions from '../ducks/source';
 import styles from './CommentList.css';
 import CommentEntry from './CommentEntry';
+
+dayjs.extend(relativeTime);
 
 
 const CommentList = () => {
@@ -29,7 +33,7 @@ const CommentList = () => {
           </span>
           &nbsp;
           <span className={styles.commentTime}>
-            {moment(created_at).tz(Intl.DateTimeFormat().resolvedOptions().timeZone).calendar()}
+            {dayjs().to(dayjs(created_at))}
           </span>
         </div>
         <div className={styles.commentMessage}>
