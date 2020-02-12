@@ -1,7 +1,7 @@
-from .base import BaseHandler
+from ...base import BaseHandler
 from baselayer.app.access import permissions, auth_or_token
-from ..models import User, Token, DBSession
-from ..model_util import create_token
+from ....models import User, Token, DBSession
+from ....model_util import create_token
 
 import tornado.web
 
@@ -12,15 +12,22 @@ class TokenHandler(BaseHandler):
         """
         ---
         description: Generate new token
-        parameters:
-          - in: path
-            name: token
-            schema: Token
+        requestBody:
+          content:
+            application/json:
+              schema: Token
         responses:
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - Success
+                    - type: object
+                      properties:
+                        token_id:
+                          type: string
+                          description: Token ID
         """
         data = self.get_json()
 
@@ -30,8 +37,7 @@ class TokenHandler(BaseHandler):
         requested_acls = {k.replace('acls_', '') for k, v in data.items() if
                           k.startswith('acls_') and v == True}
         token_acls = requested_acls & user_acls
-        token_id = create_token(group_id=data['group_id'],
-                                permissions=token_acls,
+        token_id = create_token(permissions=token_acls,
                                 created_by_id=user.id,
                                 name=data['name'])
         return self.success(data={'token_id': token_id},

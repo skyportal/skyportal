@@ -1,9 +1,7 @@
-from .base import BaseHandler
 from baselayer.app.access import auth_or_token
-from ..models import Source, DBSession
-import skyportal
+from ...base import BaseHandler
+from ....models import Source, DBSession
 
-import tornado.web
 import subprocess
 
 
@@ -25,6 +23,9 @@ class DBInfoHandler(BaseHandler):
                         source_table_empty:
                           type: boolean
                           description: Boolean indicating whether source table is empty
+                        postgres_version:
+                          type: string
+                          description: Installed Postgres version
         """
         p = subprocess.Popen(['psql', '--version'], stdout=subprocess.PIPE)
         out, err = p.communicate()

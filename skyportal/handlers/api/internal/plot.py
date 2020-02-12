@@ -1,8 +1,6 @@
-from .base import BaseHandler
 from baselayer.app.access import auth_or_token
-from .. import plot
-
-import tornado.web
+from ...base import BaseHandler
+from .... import plot
 
 
 # TODO this should distinguish between "no data to plot" and "plot failed"

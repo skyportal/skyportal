@@ -43,14 +43,14 @@ const CreateTokenForm = ({ profile, groups }) => {
   return (
     <div>
       <h3>
-Generate New Token for Command-Line Authentication
+        Generate New Token for Command-Line Authentication
       </h3>
       <form onSubmit={handleSubmit}>
         <table>
           <tbody>
             <tr>
               <td>
-Select Token ACLs:
+                Select Token ACLs:
               </td>
               <td>
                 {profile.acls.map((acl) => (

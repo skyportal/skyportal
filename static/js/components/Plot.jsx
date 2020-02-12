@@ -8,11 +8,11 @@ import * as Actions from '../ducks/plots';
 
 // eslint-disable-next-line import/extensions
 import "bokehjs/bokeh.js";
-// eslint-disable-next-line import/extensions
+// eslint-disable-next-line import/extensions, import/no-extraneous-dependencies
 import "bokehcss/bokeh.css";
 // eslint-disable-next-line import/extensions
 import "bokehjs/bokeh-widgets.js";
-// eslint-disable-next-line import/extensions
+// eslint-disable-next-line import/extensions, import/no-extraneous-dependencies
 import "bokehcss/bokeh-widgets.css";
 
 

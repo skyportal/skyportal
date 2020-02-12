@@ -2,15 +2,25 @@ import tornado.web
 
 from baselayer.app.app_server import MainPageHandler
 
-from skyportal.handlers import (SourceHandler, CommentHandler, GroupHandler,
-                                GroupUserHandler, PlotPhotometryHandler,
-                                PlotSpectroscopyHandler, ProfileHandler,
-                                BecomeUserHandler, LogoutHandler,
-                                PhotometryHandler, TokenHandler, SourcePhotometryHandler,
-                                FilterSourcesHandler, SysInfoHandler,
-                                UserHandler, SpectrumHandler, ThumbnailHandler,
-                                DBInfoHandler, TelescopeHandler, InstrumentHandler)
-from skyportal import models, model_util, openapi
+from skyportal.handlers import (BecomeUserHandler, LogoutHandler)
+from skyportal.handlers.api import (
+    CommentHandler, CommentAttachmentHandler,
+    GroupHandler, GroupUserHandler,
+    InstrumentHandler,
+    PhotometryHandler,
+    SourceHandler, FilterSourcesHandler, SourcePhotometryHandler,
+    SpectrumHandler,
+    SysInfoHandler,
+    TelescopeHandler,
+    ThumbnailHandler,
+    UserHandler
+)
+from skyportal.handlers.api.internal import (
+    PlotPhotometryHandler, PlotSpectroscopyHandler, TokenHandler,
+    DBInfoHandler, ProfileHandler
+)
+
+from . import models, model_util, openapi
 
 
 def make_app(cfg, baselayer_handlers, baselayer_settings):
@@ -36,20 +46,20 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
 
     handlers = baselayer_handlers + [
         # API endpoints
+        (r'/api/comment(/[0-9]+)?', CommentHandler),
+        (r'/api/comment(/[0-9]+)/attachment', CommentAttachmentHandler),
+        (r'/api/groups/(.*)/users/(.*)?', GroupUserHandler),
+        (r'/api/groups(/.*)?', GroupHandler),
+        (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
+        (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
         (r'/api/sources(/[0-9A-Za-z-]+)/photometry', SourcePhotometryHandler),
         (r'/api/sources/filter', FilterSourcesHandler),
         (r'/api/sources(/.*)?', SourceHandler),
-        (r'/api/groups/(.*)/users/(.*)?', GroupUserHandler),
-        (r'/api/groups(/.*)?', GroupHandler),
-        (r'/api/comment(/[0-9]+)?', CommentHandler),
-        (r'/api/comment(/[0-9]+)/(download_attachment)', CommentHandler),
-        (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
         (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
+        (r'/api/sysinfo', SysInfoHandler),
         (r'/api/telescope(/[0-9]+)?', TelescopeHandler),
-        (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
         (r'/api/thumbnail(/[0-9]+)?', ThumbnailHandler),
         (r'/api/user(/.*)?', UserHandler),
-        (r'/api/sysinfo', SysInfoHandler),
 
         (r'/api/internal/tokens(/.*)?', TokenHandler),
         (r'/api/internal/profile', ProfileHandler),

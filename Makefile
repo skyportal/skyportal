@@ -10,7 +10,7 @@ $(info $())
 $(info $(BANNER))
 $(info $())
 
-help:
+help: baselayer/Makefile
 	@echo -e "  To $(BOLD)start$(NORMAL) the web application, do \`make run\`."
 	@echo -e "  To $(BOLD)configure$(NORMAL), copy \`config.yaml.defaults\` to \`config.yaml\` and edit."
 	@echo

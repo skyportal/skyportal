@@ -5,8 +5,8 @@ from pathlib import Path
 from marshmallow.exceptions import ValidationError
 from PIL import Image
 from baselayer.app.access import permissions, auth_or_token
-from .base import BaseHandler
-from ..models import DBSession, Photometry, Comment, Instrument, Source, Thumbnail
+from ..base import BaseHandler
+from ...models import DBSession, Photometry, Source, Thumbnail
 
 
 class ThumbnailHandler(BaseHandler):
@@ -15,28 +15,28 @@ class ThumbnailHandler(BaseHandler):
         """
         ---
         description: Upload thumbnails
-        parameters:
-          - in: path
-            name: source_id
-            schema:
-              type: string
-            description: ID of source associated with thumbnails. If specified, without `photometry_id`, the first photometry point associated with specified source will be associated with thumbnail(s).
-          - in: path
-            name: photometry_id
-            schema:
-              type: integer
-            description: ID of photometry to be associated with thumbnails. If omitted, `source_id` must be specified, in which case the first photometry entry associated with source will be used.
-          - in: path
-            name: data
-            schema:
-              type: string
-              format: byte
-            description: base64-encoded PNG image file contents. Image size must be between 100px and 500px on a side.
-          - in: path
-            name: ttype
-            schema:
-              type: string
-            description: Thumbnail type. Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  source_id:
+                    type: string
+                    description: ID of source associated with thumbnails. If specified, without `photometry_id`, the first photometry point associated with specified source will be associated with thumbnail(s).
+                  photometry_id:
+                    type: integer
+                    description: ID of photometry to be associated with thumbnails. If omitted, `source_id` must be specified, in which case the first photometry entry associated with source will be used.
+                  data:
+                    type: string
+                    format: byte
+                    description: base64-encoded PNG image file contents. Image size must be between 100px and 500px on a side.
+                  ttype:
+                    type: string
+                    description: Thumbnail type. Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
+                required:
+                  - data
+                  - ttype
         responses:
           200:
             content:
@@ -49,20 +49,28 @@ class ThumbnailHandler(BaseHandler):
                         id:
                           type: int
                           description: New thumbnail ID
+          400:
+            content:
+              application/json:
+                schema: Error
         """
         data = self.get_json()
         if 'photometry_id' in data:
             phot = Photometry.query.get(int(data['photometry_id']))
-            source = phot.source
+            source_id = phot.source.id
+            # Ensure user/token has access to parent source
+            source = Source.get_if_owned_by(source_id, self.current_user)
         elif 'source_id' in data:
-            source = Source.query.get(data['source_id'])
+            source_id = data['source_id']
+            # Ensure user/token has access to parent source
+            source = Source.get_if_owned_by(source_id, self.current_user)
             try:
                 phot = source.photometry[0]
             except IndexError:
                 return self.error('Specified source does not yet have any photometry data.')
         else:
             return self.error('One of either source_id or photometry_id are required.')
-        t = create_thumbnail(data['data'], data['ttype'], source.id, phot)
+        t = create_thumbnail(data['data'], data['ttype'], source_id, phot)
         DBSession().commit()
 
         return self.success(data={"id": t.id})
@@ -88,14 +96,14 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        info = {}
-        info['thumbnail'] = Thumbnail.query.get(thumbnail_id)
-
-        if info['thumbnail'] is not None:
-            return self.success(data=info)
-        else:
+        t = Thumbnail.query.get(thumbnail_id)
+        if t is None:
             return self.error(f"Could not load thumbnail {thumbnail_id}",
                               data={"thumbnail_id": thumbnail_id})
+        # Ensure user/token has access to parent source
+        s = Source.get_if_owned_by(t.source.id, self.current_user)
+
+        return self.success(data={'thumbnail': t})
 
     @permissions(['Manage sources'])
     def put(self, thumbnail_id):
@@ -104,8 +112,14 @@ class ThumbnailHandler(BaseHandler):
         description: Update thumbnail
         parameters:
           - in: path
-            name: thumbnail
-            schema: Thumbnail
+            name: thumbnail_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: ThumbnailNoID
         responses:
           200:
             content:
@@ -116,6 +130,12 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        t = Thumbnail.query.get(thumbnail_id)
+        if t is None:
+            return self.error('Invalid thumbnail ID.')
+        # Ensure user/token has access to parent source
+        s = Source.get_if_owned_by(t.source.id, self.current_user)
+
         data = self.get_json()
         data['id'] = thumbnail_id
 
@@ -150,6 +170,12 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        t = Thumbnail.query.get(thumbnail_id)
+        if t is None:
+            return self.error('Invalid thumbnail ID.')
+        # Ensure user/token has access to parent source
+        s = Source.get_if_owned_by(t.source.id, self.current_user)
+
         DBSession.query(Thumbnail).filter(Thumbnail.id == int(thumbnail_id)).delete()
         DBSession().commit()
 

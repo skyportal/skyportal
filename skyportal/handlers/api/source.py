@@ -5,9 +5,11 @@ import arrow
 from functools import reduce
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
-from .base import BaseHandler
-from ..models import (DBSession, Comment, Instrument, Photometry, Source,
-                      Thumbnail, GroupSource, Token, User, Group)
+from ..base import BaseHandler
+from ...models import (
+    DBSession, Comment, Instrument, Photometry, Source,
+    Thumbnail, GroupSource, Token, User, Group
+)
 
 
 SOURCES_PER_PAGE = 100
@@ -62,10 +64,9 @@ class SourceHandler(BaseHandler):
             q = Source.query.filter(Source.id.in_(DBSession.query(
                 GroupSource.source_id).filter(GroupSource.group_id.in_(
                     [g.id for g in self.current_user.groups]))))
-            all_matches = q.all()
-            info['totalMatches'] = len(all_matches)
-            info['sources'] = all_matches[
-                ((page - 1) * SOURCES_PER_PAGE):(page * SOURCES_PER_PAGE)]
+            info['totalMatches'] = q.count()
+            info['sources'] = q.limit(SOURCES_PER_PAGE).offset(
+                (page - 1) * SOURCES_PER_PAGE).all()
             info['pageNumber'] = page
             info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
             info['sourceNumberingEnd'] = min(info['totalMatches'],
@@ -92,10 +93,10 @@ class SourceHandler(BaseHandler):
         """
         ---
         description: Upload a source. If group_ids is not specified, the user or token's groups will be used.
-        parameters:
-          - in: path
-            name: source
-            schema: Source
+        requestBody:
+          content:
+            application/json:
+              schema: Source
         responses:
           200:
             content:
@@ -145,8 +146,14 @@ class SourceHandler(BaseHandler):
         description: Update a source
         parameters:
           - in: path
-            name: source
-            schema: Source
+            name: source_id
+            required: True
+            schema:
+              type: string
+        requestBody:
+          content:
+            application/json:
+              schema: SourceNoID
         responses:
           200:
             content:
@@ -157,6 +164,7 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        s = Source.get_if_owned_by(source_id, self.current_user)
         data = self.get_json()
         data['id'] = source_id
 
@@ -177,15 +185,17 @@ class SourceHandler(BaseHandler):
         description: Delete a source
         parameters:
           - in: path
-            name: source
+            name: source_id
+            required: true
             schema:
-              Source
+              type: string
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
+        s = Source.get_if_owned_by(source_id, self.current_user)
         DBSession.query(Source).filter(Source.id == source_id).delete()
         DBSession().commit()
 
@@ -197,7 +207,12 @@ class FilterSourcesHandler(BaseHandler):
     def post(self):
         data = self.get_json()
         info = {}
-        page = int(data.get('pageNumber', 1))
+        if 'pageNumber' in data:
+            page = int(data['pageNumber'])
+            already_counted = True
+        else:
+            page = 1
+            already_counted = False
         info['pageNumber'] = page
         q = Source.query.filter(Source.id.in_(DBSession.query(
                 GroupSource.source_id).filter(GroupSource.group_id.in_(
@@ -225,10 +240,13 @@ class FilterSourcesHandler(BaseHandler):
         if data['hasTNSname']:
             q = q.filter(Source.tns_name.isnot(None))
 
-        all_matches = list(q)
-        info['totalMatches'] = len(all_matches)
-        info['sources'] = all_matches[
-            ((page - 1) * SOURCES_PER_PAGE):(page * SOURCES_PER_PAGE)]
+        if already_counted:
+            info['totalMatches'] = int(data['totalMatches'])
+        else:
+            info['totalMatches'] = q.count()
+        info['sources'] = q.limit(SOURCES_PER_PAGE).offset(
+            (page - 1) * SOURCES_PER_PAGE).all()
+
         info['lastPage'] = info['totalMatches'] <= page * SOURCES_PER_PAGE
         info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
         info['sourceNumberingEnd'] = min(info['totalMatches'],
@@ -261,8 +279,9 @@ class SourcePhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_if_owned_by(source_id, self.current_user)
+        source = Source.query.get(source_id)
         if not source:
-            return self.error('Invalid source ID, or inadequate permissions to '
-                              'access source.')
+            return self.error('Invalid source ID.')
+        if not set(source.groups).intersection(set(self.current_user.groups)):
+            return self.error('Inadequate permissions.')
         return self.success(data={'photometry': source.photometry})

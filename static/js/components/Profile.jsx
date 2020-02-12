@@ -11,12 +11,12 @@ const Profile = (props) => {
   return (
     <div>
       <div>
-Username:
+        Username:
         {profile.username}
       </div>
       <br />
       <div>
-User roles:
+        User roles:
         {profile.roles}
       </div>
       <br />

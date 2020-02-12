@@ -30,14 +30,14 @@ const UserInfo = ({ route }) => {
         <ul>
           <li>
             <b>
-created_at:
+              created_at:
             </b>
             {' '}
             {created_at}
           </li>
           <li>
             <b>
-acls:
+              acls:
             </b>
             {' '}
             {acls.join(', ')}

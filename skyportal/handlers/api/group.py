@@ -2,8 +2,8 @@ import tornado.web
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
-from .base import BaseHandler
-from ..models import DBSession, Group, GroupUser, User, Token, Source
+from ..base import BaseHandler
+from ...models import DBSession, Group, GroupUser, User, Token, Source
 
 
 class GroupHandler(BaseHandler):
@@ -16,7 +16,7 @@ class GroupHandler(BaseHandler):
           parameters:
             - in: path
               name: group_id
-              required: false
+              required: true
               schema:
                 type: integer
           responses:
@@ -42,17 +42,17 @@ class GroupHandler(BaseHandler):
         """
         info = {}
         if group_id is not None:
-            if (hasattr(self.current_user, 'roles') and
-                'Super admin' in [role.id for role in self.current_user.roles]):
+            if 'Manage groups' in [acl.id for acl in self.current_user.acls]:
                 group = Group.query.options(joinedload(Group.users)).options(
                     joinedload(Group.group_users)).options(
                         joinedload(Group.sources)).get(group_id)
             else:
-                group = Group.get_if_owned_by(
-                    group_id, self.current_user,
-                    options=[joinedload(Group.users),
-                             joinedload(Group.group_users),
-                             joinedload(Group.sources)])
+                group = Group.query.options([
+                    joinedload(Group.users).load_only(User.id, User.username),
+                    joinedload(Group.sources)]).get(group_id)
+                if group is not None and group.id not in [
+                        g.id for g in self.current_user.groups]:
+                    return self.error('Insufficient permissions.')
             info['group'] = group
         else:
             info['user_groups'] = list(self.current_user.groups)
@@ -60,21 +60,27 @@ class GroupHandler(BaseHandler):
                                   and 'Super admin' in
                                   [role.id for role in self.current_user.roles]
                                   else None)
-        if info is not None:
             return self.success(data=info)
-        else:
-            return self.error(f"Could not load group {group_id}",
-                              data={"group_id": group_id})
+        if 'group' in info:
+            if info['group'] is not None:
+                info['group'] = info['group'].to_dict()
+                # Do not include User.groups to avoid circular reference
+                info['group']['users'] = [{'id': user.id, 'username': user.username}
+                                          for user in info['group']['users']]
+                return self.success(data=info)
+            else:
+                return self.error(f"Could not load group {group_id}",
+                                  data={"group_id": group_id})
 
     @permissions(['Manage groups'])
     def post(self):
         """
         ---
         description: Create a new group
-        parameters:
-          - in: path
-            name: group
-            schema: Group
+        requestBody:
+          content:
+            application/json:
+              schema: GroupNoID
         responses:
           200:
             content:
@@ -97,16 +103,10 @@ class GroupHandler(BaseHandler):
         if self.current_user not in group_admins and not isinstance(self.current_user, Token):
             group_admins.append(self.current_user)
 
-        group_tokens = [t.strip() for t in data.get('group_tokens', [])
-                        if t.strip()]
-        group_tokens = list(Token.query.filter(Token.id.in_(group_tokens)))
-        if isinstance(self.current_user, Token) and self.current_user not in group_tokens:
-            group_tokens.append(self.current_user)
-
         source_ids = [s.strip() for s in data.get('source_ids', []) if s.strip()]
         sources = list(Source.query.filter(Source.id.in_(source_ids)))
 
-        g = Group(name=data['name'], tokens=group_tokens, sources=sources)
+        g = Group(name=data['name'], sources=sources)
         DBSession().add_all(
             [GroupUser(group=g, user=user, admin=True) for user in group_admins])
         DBSession().commit()
@@ -121,8 +121,13 @@ class GroupHandler(BaseHandler):
         description: Update a group
         parameters:
           - in: path
-            name: group
-            schema: Group
+            name: group_id
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: GroupNoID
         responses:
           200:
             content:
@@ -174,10 +179,10 @@ class GroupHandler(BaseHandler):
 
 class GroupUserHandler(BaseHandler):
     @permissions(['Manage groups'])
-    def put(self, group_id, username):
+    def post(self, group_id, username):
         """
         ---
-        description: Update a group user
+        description: Add a group user
         parameters:
           - in: path
             name: group_id
@@ -189,11 +194,16 @@ class GroupUserHandler(BaseHandler):
             required: true
             schema:
               type: string
-          - in: path
-            name: admin
-            required: true
-            schema:
-              type: boolean
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  admin:
+                    type: boolean
+                required:
+                  - admin
         responses:
           200:
             content:
