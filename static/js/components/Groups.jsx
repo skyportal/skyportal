@@ -5,7 +5,7 @@ import GroupManagement from './GroupManagement';
 import GroupList from './GroupList';
 
 
-const Groups = (props) => {
+const Groups = () => {
   const roles = useSelector((state) => state.profile.roles);
   return (
     <div>

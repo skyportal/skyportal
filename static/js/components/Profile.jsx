@@ -5,7 +5,7 @@ import NewTokenForm from './NewTokenForm';
 import TokenList from './TokenList';
 
 
-const Profile = (props) => {
+const Profile = () => {
   const profile = useSelector((state) => state.profile);
   const groups = useSelector((state) => state.groups.latest);
   return (
@@ -21,7 +21,7 @@ const Profile = (props) => {
       </div>
       <br />
       <NewTokenForm
-        profile={profile}
+        acls={profile.acls}
         groups={groups}
       />
       <br />

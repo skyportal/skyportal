@@ -34,7 +34,7 @@ const SearchBox = ({ sources }) => {
     dispatch(Actions.submitSourceFilterParams(formState));
   };
 
-  const handleReset = (event) => {
+  const handleReset = () => {
     setFormState({
       sourceID: "",
       ra: "",
@@ -276,8 +276,16 @@ const SearchBox = ({ sources }) => {
     </div>
   );
 };
+
 SearchBox.propTypes = {
-  sources: PropTypes.object.isRequired
+  sources: PropTypes.shape({
+    queryInProgress: PropTypes.bool,
+    totalMatches: PropTypes.number.isRequired,
+    sourceNumberingStart: PropTypes.number.isRequired,
+    sourceNumberingEnd: PropTypes.number.isRequired,
+    pageNumber: PropTypes.number.isRequired,
+    lastPage: PropTypes.bool.isRequired
+  }).isRequired
 };
 
 export default SearchBox;

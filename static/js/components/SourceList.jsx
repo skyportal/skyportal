@@ -110,7 +110,7 @@ const SourceList = () => {
               </thead>
               <tbody>
                 {
-                  sources.latest && sources.latest.map((source, idx) => (
+                  sources.latest && sources.latest.map((source) => (
                     <tr key={source.id}>
                       <td>
                         {source.last_detected && String(source.last_detected).split(".")[0]}
@@ -142,7 +142,9 @@ const SourceList = () => {
                         {source.gaia_info && Number(JSON.parse(source.gaia_info).Gmag).toFixed(2)}
                       </td>
                       <td>
-                        {source.gaia_info && JSON.parse(source.gaia_info).Teff && Number(JSON.parse(source.gaia_info).Teff).toFixed(1)}
+                        {source.gaia_info &&
+                         JSON.parse(source.gaia_info).Teff &&
+                         Number(JSON.parse(source.gaia_info).Teff).toFixed(1)}
                       </td>
                       <td>
                         {Number(source.score).toFixed(2)}

@@ -5,7 +5,7 @@ import SourceList from './SourceList';
 import GroupList from './GroupList';
 
 
-const HomePage = (props) => {
+const HomePage = () => {
   const groups = useSelector((state) => state.groups.latest);
   return (
     <div>
