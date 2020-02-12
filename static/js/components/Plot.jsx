@@ -137,4 +137,4 @@ Plot.defaultProps = {
   className: ""
 };
 
-export default Plot;
+export default React.memo(Plot);
