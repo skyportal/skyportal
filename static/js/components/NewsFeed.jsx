@@ -1,21 +1,34 @@
 import React from 'react';
-import moment from 'moment-timezone';
-import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 
 import WidgetPrefsDialog from './WidgetPrefsDialog';
 import * as ProfileActions from '../ducks/profile';
 import styles from './NewsFeed.css';
 
+dayjs.extend(relativeTime);
+
 
 const NewsFeed = () => {
-  const { comments, sources, photometry } = useSelector((state) => state.newsFeed);
+  const { newsFeedItems } = useSelector((state) => state.newsFeed);
   const profile = useSelector((state) => state.profile);
 
   const newsFeedPrefs = (
-    profile != null && profile.hasOwnProperty("preferences") &&
-    profile.preferences != null && profile.preferences.hasOwnProperty("newsFeed")) ?
-                        profile.preferences.newsFeed : { numItemsPerCategory: "" };
+    profile != null &&
+    Object.prototype.hasOwnProperty.call(profile, "preferences") &&
+    profile.preferences != null &&
+    Object.prototype.hasOwnProperty.call(profile.preferences, "newsFeed")
+  ) ?
+    profile.preferences.newsFeed : { numItemsPerCategory: "" };
+  if (newsFeedItems === undefined) {
+    return (
+      <div>
+        No new items to display...
+      </div>
+    );
+  }
   return (
     <div style={{ border: "1px solid #DDD", padding: "10px" }}>
       <h2 style={{ display: "inline-block" }}>
@@ -31,65 +44,21 @@ const NewsFeed = () => {
       </div>
       <div>
         <h4>
-          Newest Comments:
+          Newest Activity:
         </h4>
         <ul>
           {
-            comments.map((comment, idx) => (
-              <li key={`comment${idx}`}>
+            newsFeedItems.map((item) => (
+              <li key={`newsFeedItem_${item.time}`}>
                 <span className={styles.entryTime}>
-                  {moment(comment.created_at).tz(Intl.DateTimeFormat().resolvedOptions().timeZone).calendar()}
+                  {dayjs().to(dayjs(item.time))}
                 </span>
                 &nbsp;
-                Source:&nbsp;
-                <Link to={`/source/${comment.source_id}`}>
-                  {comment.source_id}
-                </Link>
-                ;&nbsp;type: {comment.ctype}; author: {comment.author};
-                <br />
-                text: <i>{comment.text}</i>
-              </li>
-            ))
-          }
-        </ul>
-      </div>
-      <div>
-        <h4>
-          Newest Sources:
-        </h4>
-        <ul>
-          {
-            sources.map((source, idx) => (
-              <li key={`source${idx}`}>
-                <span className={styles.entryTime}>
-                  {moment(source.modified).tz(Intl.DateTimeFormat().resolvedOptions().timeZone).calendar()}
+                {item.type}
+                :&nbsp;
+                <span className={styles.entry}>
+                  {item.message}
                 </span>
-                &nbsp;&nbsp;
-                <Link to={`/source/${source.id}`}>
-                  {source.id}
-                </Link>
-              </li>
-            ))
-          }
-        </ul>
-      </div>
-      <div>
-        <h4>
-          Newest Photometry:
-        </h4>
-        <ul>
-          {
-            photometry.map((phot, idx) => (
-              <li key={`phot${idx}`}>
-                <span className={styles.entryTime}>
-                  {moment(phot.created_at).tz(Intl.DateTimeFormat().resolvedOptions().timeZone).calendar()}
-                </span>
-                &nbsp;&nbsp;
-                {phot.id} (source:&nbsp;
-                <Link to={`/source/${phot.source_id}`}>
-                  {phot.source_id}
-                </Link>
-                )
               </li>
             ))
           }

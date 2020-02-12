@@ -35,26 +35,30 @@ class NewsFeedHandler(BaseHandler):
         """
         if (self.current_user.preferences and 'newsFeed' in self.current_user.preferences
             and 'numItemsPerCategory' in self.current_user.preferences['newsFeed']):
-            n_items = max(int(self.current_user.preferences['newsFeed']['numItemsPerCategory']),
-                          10)
+            n_items = min(int(self.current_user.preferences['newsFeed']['numItemsPerCategory']),
+                          20)
         else:
             n_items = 5
-        sources = Source.query.filter(Source.id.in_(DBSession.query(
-            GroupSource.source_id).filter(GroupSource.group_id.in_(
-                [g.id for g in self.current_user.groups])
-            ))).order_by(desc(Source.modified)).limit(n_items).all()
-        photometry = Photometry.query.filter(Photometry.source_id.in_(DBSession.query(
-            GroupSource.source_id).filter(GroupSource.group_id.in_(
-                [g.id for g in self.current_user.groups])
-            ))).order_by(desc(Photometry.created_at)).limit(n_items).all()
-        comments = Comment.query.filter(Comment.source_id.in_(DBSession.query(
-            GroupSource.source_id).filter(GroupSource.group_id.in_(
-                [g.id for g in self.current_user.groups])
-            ))).order_by(desc(Comment.created_at)).limit(n_items).all()
 
-        return self.success(
-            data={
-                'comments': comments,
-                'sources': sources,
-                'photometry': photometry,
-            })
+        def fetch_newest(model):
+            if model == Source:
+                source_id_attr = 'id'
+            else:
+                source_id_attr = 'source_id'
+            return model.query.filter(getattr(model, source_id_attr).in_(
+                DBSession.query(GroupSource.source_id).filter(
+                    GroupSource.group_id.in_([g.id for g in self.current_user.groups])
+                ))).order_by(desc(model.created_at)).limit(n_items).all()
+
+        sources = fetch_newest(Source)
+        photometry = fetch_newest(Photometry)
+        comments = fetch_newest(Comment)
+        news_feed_items = [{'type': 'source', 'time': s.created_at,
+                            'message': f'New source {s.id}'} for s in sources]
+        news_feed_items.extend([{'type': 'comment', 'time': c.created_at,
+                                 'message': f'{c.author}: {c.text} ({c.source_id})'}
+                                for c in comments])
+        news_feed_items.sort(key=lambda x: x['time'], reverse=True)
+        news_feed_items = news_feed_items[:n_items]
+
+        return self.success(data={'news_feed_items': news_feed_items})

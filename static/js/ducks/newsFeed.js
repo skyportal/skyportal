@@ -9,15 +9,13 @@ export function fetchNewsFeed() {
   return API.GET('/api/newsfeed', FETCH_NEWSFEED);
 }
 
-export default function reducer(state={ comments: [], sources: [], photometry: [] }, action) {
+export default function reducer(state=[], action) {
   switch (action.type) {
     case FETCH_NEWSFEED_OK: {
-      const { comments, sources, photometry } = action.data;
+      const newsFeedItems = action.data.news_feed_items;
       return {
         ...state,
-        comments,
-        sources,
-        photometry
+        newsFeedItems
       };
     }
     default:
