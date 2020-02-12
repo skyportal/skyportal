@@ -276,14 +276,15 @@ const SearchBox = ({ sources }) => {
     </div>
   );
 };
+
 SearchBox.propTypes = {
   sources: PropTypes.shape({
-    queryInProgress: PropTypes.bool.isRequired,
+    queryInProgress: PropTypes.bool,
     totalMatches: PropTypes.number.isRequired,
     sourceNumberingStart: PropTypes.number.isRequired,
     sourceNumberingEnd: PropTypes.number.isRequired,
     pageNumber: PropTypes.number.isRequired,
-    lastPage: PropTypes.number.isRequired
+    lastPage: PropTypes.bool.isRequired
   }).isRequired
 };
 
