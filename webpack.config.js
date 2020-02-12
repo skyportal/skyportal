@@ -1,6 +1,8 @@
 const webpack = require('webpack');
 const path = require('path');
 
+// const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+
 const config = {
   entry: [
     'whatwg-fetch',
@@ -91,6 +93,9 @@ const config = {
       $: 'jquery',
       jQuery: 'jquery'
     }),
+
+    // Uncomment the following line to enable bundle size analysis
+    //    new BundleAnalyzerPlugin()
 
   ],
   resolve: {
