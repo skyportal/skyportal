@@ -7,7 +7,7 @@ import styles from "./ProfileDropdown.css";
 import Responsive from "./Responsive";
 
 
-const ProfileDropdown = (props) => {
+const ProfileDropdown = () => {
   const profile = useSelector((state) => state.profile);
   const dropdown = useRef(null);
 
@@ -32,7 +32,7 @@ const ProfileDropdown = (props) => {
         <DropdownContent>
 
           <Link to="/profile" role="link">
-            <div className={styles.entry} onClick={collapseDropdown}>
+            <div role="menuitem" tabIndex="0" className={styles.entry} onClick={collapseDropdown}>
               Profile
             </div>
           </Link>
@@ -40,7 +40,7 @@ const ProfileDropdown = (props) => {
           <div className={styles.rule} />
 
           <Link to="/groups" role="link">
-            <div className={styles.entry} onClick={collapseDropdown}>
+            <div role="menuitem" tabIndex="-1" className={styles.entry} onClick={collapseDropdown}>
               Groups
             </div>
           </Link>
@@ -48,13 +48,13 @@ const ProfileDropdown = (props) => {
           <div className={styles.rule} />
 
           <a href="https://github.com/skyportal/skyportal/issues/new">
-            <div className={styles.entry} onClick={collapseDropdown}>
+            <div role="menuitem" tabIndex="-1" className={styles.entry} onClick={collapseDropdown}>
               File an issue
             </div>
           </a>
 
           <a href="https://github.com/skyportal/skyportal">
-            <div className={styles.entry} onClick={collapseDropdown}>
+            <div role="menuitem" tabIndex="-1" className={styles.entry} onClick={collapseDropdown}>
               Help
             </div>
           </a>
@@ -62,7 +62,7 @@ const ProfileDropdown = (props) => {
           <div className={styles.rule} />
 
           <a href="/logout">
-            <div className={styles.entry} onClick={collapseDropdown}>
+            <div role="menuitem" tabIndex="-1" className={styles.entry} onClick={collapseDropdown}>
               Sign out
             </div>
           </a>

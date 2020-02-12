@@ -18,7 +18,7 @@ const GroupList = ({ title, listSources, groups }) => {
       <ul>
         {
           groups &&
-          groups.map((group, idx) => (
+          groups.map((group) => (
             <li key={group.id}>
               <Link to={`/group/${group.id}`}>
                 {group.name}

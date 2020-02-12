@@ -5,17 +5,21 @@ import PropTypes from 'prop-types';
 class FoldBox extends Component {
   constructor(props) {
     super(props);
-    this.state = { folded: this.props.folded };
+    const { folded } = this.props;
+    this.state = { folded };
     this.toggleFold = this.toggleFold.bind(this);
   }
 
   toggleFold() {
-    const folded = !this.state.folded;
-    this.setState({ folded });
+    const { folded } = this.state;
+    this.setState({ folded: !folded });
   }
 
   render() {
-    const children = this.state.folded ? null : this.props.children;
+    const { folded } = this.state;
+    const { children, title } = this.props;
+    const folded_children = folded ? null : children;
+
     const onClick = (e) => {
       e.stopPropagation();
       this.toggleFold();
@@ -32,11 +36,11 @@ class FoldBox extends Component {
           tabIndex={0}
           style={{ fontSize: '150%' }}
         >
-          {this.state.folded ? '▸' : '▾'}
+          {folded ? '▸' : '▾'}
           {' '}
-          {this.props.title}
+          {title}
         </div>
-        {children}
+        {folded_children}
       </div>
     );
   }

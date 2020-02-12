@@ -32,22 +32,26 @@ const TokenList = ({ tokens }) => {
             <td>
               <b>
                 Value
-              </b>&nbsp;&nbsp;
+              </b>
+              &nbsp;&nbsp;
             </td>
             <td>
               <b>
                 Name
-              </b>&nbsp;&nbsp;
+              </b>
+              &nbsp;&nbsp;
             </td>
             <td>
               <b>
                 ACLS
-              </b>&nbsp;&nbsp;
+              </b>
+              &nbsp;&nbsp;
             </td>
             <td>
               <b>
                 Created
-              </b>&nbsp;&nbsp;
+              </b>
+              &nbsp;&nbsp;
             </td>
             <td>
               <b>

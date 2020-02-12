@@ -19,7 +19,7 @@ const CommentList = () => {
 
   comments = comments || [];
   const items = comments.map(
-    ({ id, author, created_at, text, attachment_name, attachment_bytes }) => (
+    ({ id, author, created_at, text, attachment_name }) => (
       <span key={id} className={styles.comment}>
         <div className={styles.commentHeader}>
           <span className={styles.commentUser}>
@@ -37,9 +37,13 @@ const CommentList = () => {
         </div>
         {
           userProfile.roles.includes("Super admin") || userProfile.username === author ? (
-            <a href="#" onClick={() => dispatch(sourceActions.deleteComment(id))} className={styles.commentDelete}>
+            <button
+              type="button"
+              onClick={() => dispatch(sourceActions.deleteComment(id))}
+              className={styles.commentDelete}
+            >
               Delete Comment
-            </a>
+            </button>
           ) : null
         }
         {

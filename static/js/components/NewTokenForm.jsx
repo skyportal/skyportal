@@ -5,7 +5,7 @@ import { useDispatch } from 'react-redux';
 import * as Action from '../ducks/profile';
 
 
-const CreateTokenForm = ({ profile, groups }) => {
+const CreateTokenForm = ({ acls, groups }) => {
   const dispatch = useDispatch();
   const [formState, setFormState] = useState({
     group_id: "",
@@ -37,9 +37,6 @@ const CreateTokenForm = ({ profile, groups }) => {
     });
   };
 
-  if (!profile) {
-    return <div />;
-  }
   return (
     <div>
       <h3>
@@ -53,7 +50,7 @@ const CreateTokenForm = ({ profile, groups }) => {
                 Select Token ACLs:
               </td>
               <td>
-                {profile.acls.map((acl) => (
+                {acls.map((acl) => (
                   <label key={acl}>
                     <input
                       key={acl}
@@ -88,9 +85,7 @@ const CreateTokenForm = ({ profile, groups }) => {
             </tr>
             <tr>
               <td>
-                <label>
-                  Token name:&nbsp;&nbsp;
-                </label>
+                Token name:&nbsp;&nbsp;
               </td>
               <td>
                 <input
@@ -117,8 +112,8 @@ const CreateTokenForm = ({ profile, groups }) => {
   );
 };
 CreateTokenForm.propTypes = {
-  profile: PropTypes.object.isRequired,
-  groups: PropTypes.array.isRequired
+  acls: PropTypes.arrayOf(PropTypes.string).isRequired,
+  groups: PropTypes.arrayOf(PropTypes.string).isRequired
 };
 
 export default CreateTokenForm;
