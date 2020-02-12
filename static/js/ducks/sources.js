@@ -15,9 +15,9 @@ export function submitSourceFilterParams(formData) {
 export default function reducer(state={ latest: null,
   pageNumber: 1,
   lastPage: false,
-  totalMatches: null,
-  sourceNumberingStart: null,
-  sourcesNumberingEnd: null },
+  totalMatches: 0,
+  sourceNumberingStart: 0,
+  sourceNumberingEnd: 0 },
 action) {
   switch (action.type) {
     case FETCH_SOURCES: {
