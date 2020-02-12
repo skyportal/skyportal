@@ -38,7 +38,7 @@ const Group = ({ route }) => {
               <Link to={`/user/${user.id}`}>
                 {user.username}
               </Link>
-&nbsp;&nbsp;
+              &nbsp;&nbsp;
               {
                 group.group_users.filter((group_user) => group_user.user_id === user.id)[0].admin &&
                 (
@@ -46,7 +46,7 @@ const Group = ({ route }) => {
                     <span className={styles.badge}>
                       Admin
                     </span>
-&nbsp;&nbsp;
+                    &nbsp;&nbsp;
                   </div>
                 )
               }
