@@ -105,7 +105,8 @@ const config = {
       bokehcss: path.resolve(__dirname, 'node_modules/bokehjs/build/css')
     },
     extensions: ['.js', '.jsx']
-  }
+  },
+  mode: 'development'
 };
 
 module.exports = config;
