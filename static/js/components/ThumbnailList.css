@@ -3,6 +3,10 @@
     width: 100%;
 }
 
+.thumbLink {
+    /* display: inline-block; */
+}
+
 .Thumbnail {
     display: inline-block;
     padding: 0.2em;
@@ -14,8 +18,13 @@
     height: 200px;
 }
 
-@media only screen and (max-width: 768px) {
+@media only screen and (max-width: 900px) {
     .Thumbnail img {
+        width: 120px;
+        height: 120px;
+    }
+
+    .dr8 {
         width: 120px;
         height: 120px;
     }

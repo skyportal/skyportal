@@ -34,7 +34,7 @@ const Thumbnail = ({ ra, dec, telescope, observed_at, name, url }) => {
   const thumbnailDivClassNames = classnames(styles.Thumbnail, { [styles.dr8]: name === "dr8" });
 
   return (
-    <a href={link}>
+    <a href={link} className={styles.thumbLink}>
       {name === "dr8" && <br />}
       <div className={thumbnailDivClassNames}>
         <b>
