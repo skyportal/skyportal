@@ -1,3 +1,5 @@
+import messageHandler from 'baselayer/MessageHandler';
+
 import * as API from '../API';
 
 export const REFRESH_GROUP = 'skyportal/REFRESH_GROUP';
@@ -9,6 +11,21 @@ const FETCH_GROUP_FAIL = 'skyportal/FETCH_GROUP_FAIL';
 export function fetchGroup(id) {
   return API.GET(`/api/groups/${id}`, FETCH_GROUP);
 }
+
+
+// Websocket message handler
+messageHandler.add((actionType, payload, dispatch, getState) => {
+  const { group } = getState();
+
+  if (actionType === REFRESH_GROUP) {
+    const loaded_group_id = group ? group.id : null;
+
+    if (loaded_group_id === payload.group_id) {
+      dispatch(fetchGroup(loaded_group_id));
+    }
+  }
+});
+
 
 export default function reducer(state={}, action) {
   switch (action.type) {

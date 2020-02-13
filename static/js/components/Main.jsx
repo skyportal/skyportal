@@ -9,7 +9,9 @@ import { Provider } from 'react-redux';
 import ReactDOM from 'react-dom';
 
 import { BrowserRouter, Link, Switch } from 'react-router-dom';
-import PropsRoute from '../route';
+
+// Message Handler
+import messageHandler from 'baselayer/MessageHandler';
 
 // Main style
 import styles from './Main.css';
@@ -21,10 +23,7 @@ import configureStore from '../store';
 import hydrate from '../actions';
 import * as rotateLogoActions from '../ducks/logo';
 
-// Message Handler
-import CustomMessageHandler from '../CustomMessageHandler';
-
-// Local
+import PropsRoute from '../route';
 import NoMatchingRoute from './NoMatchingRoute';
 import Responsive from './Responsive';
 
@@ -40,9 +39,8 @@ import UserInfo from './UserInfo';
 
 
 const store = configureStore({});
-const messageHandler = (
-  new CustomMessageHandler(store.dispatch, store.getState)
-);
+messageHandler.init(store.dispatch, store.getState);
+
 
 class MainContent extends React.Component {
   async componentDidMount() {
