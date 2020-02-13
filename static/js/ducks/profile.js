@@ -18,8 +18,8 @@ export const DELETE_TOKEN_OK = 'skyportal/DELETE_TOKEN_OK';
 
 export function updateUserPreferences(form_data) {
   return API.PUT('/api/internal/profile',
-                 UPDATE_USER_PREFERENCES,
-                 { preferences: form_data });
+    UPDATE_USER_PREFERENCES,
+    { preferences: form_data });
 }
 
 export function fetchUserProfile() {
