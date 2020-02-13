@@ -1,3 +1,5 @@
+import messageHandler from 'baselayer/MessageHandler';
+
 import * as API from '../API';
 
 
@@ -44,6 +46,14 @@ export function deleteGroupUser({ username, group_id }) {
     { username, group_id }
   );
 }
+
+
+// Websocket message handler
+messageHandler.add((action, payload, dispatch) => {
+  if (action === FETCH_GROUPS) {
+    dispatch(fetchGroups());
+  }
+});
 
 
 export default function reducer(state={ latest: [], all: null }, action) {

@@ -1,3 +1,5 @@
+import messageHandler from 'baselayer/MessageHandler';
+
 import * as API from '../API';
 
 export const REFRESH_SOURCE = 'skyportal/REFRESH_SOURCE';
@@ -42,6 +44,21 @@ export function deleteComment(comment_id) {
 export function fetchSource(id) {
   return API.GET(`/api/sources/${id}`, FETCH_LOADED_SOURCE);
 }
+
+
+// Websocket message handler
+messageHandler.add((action, payload, dispatch, getState) => {
+  const { source } = getState();
+
+  if (action === REFRESH_SOURCE) {
+    const loaded_source_id = source ? source.id : null;
+
+    if (loaded_source_id === payload.source_id) {
+      dispatch(fetchSource(loaded_source_id));
+    }
+  }
+});
+
 
 // Reducer for currently displayed source
 export default function reducer(state={ source: null, loadError: false }, action) {
