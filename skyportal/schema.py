@@ -47,7 +47,7 @@ class Error(Response):
 
 
 class newsFeedPrefs(_Schema):
-    numItemsPerCategory = fields.String()
+    numItems = fields.String()
 
 
 class UserPrefs(_Schema):

@@ -34,8 +34,8 @@ class NewsFeedHandler(BaseHandler):
                 schema: Error
         """
         if (self.current_user.preferences and 'newsFeed' in self.current_user.preferences
-            and 'numItemsPerCategory' in self.current_user.preferences['newsFeed']):
-            n_items = min(int(self.current_user.preferences['newsFeed']['numItemsPerCategory']),
+            and 'numItems' in self.current_user.preferences['newsFeed']):
+            n_items = min(int(self.current_user.preferences['newsFeed']['numItems']),
                           20)
         else:
             n_items = 5

@@ -21,7 +21,7 @@ const NewsFeed = () => {
     profile.preferences != null &&
     Object.prototype.hasOwnProperty.call(profile.preferences, "newsFeed")
   ) ?
-    profile.preferences.newsFeed : { numItemsPerCategory: "" };
+    profile.preferences.newsFeed : { numItems: "" };
   if (newsFeedItems === undefined) {
     return (
       <div>
