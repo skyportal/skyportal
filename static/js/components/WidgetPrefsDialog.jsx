@@ -39,7 +39,7 @@ const WidgetPrefsDialog = ({ title, formValues, onSubmit, stateBranchName }) => 
 
   return (
     <div>
-      <SettingsIcon fontSize="small" onClick={handleClickOpen} />
+      <SettingsIcon id={`${stateBranchName}SettingsIcon`} fontSize="small" onClick={handleClickOpen} />
       <Dialog open={open} onClose={handleClose} style={{ position: "fixed" }}>
         <DialogTitle>
           {title}

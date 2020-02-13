@@ -61,7 +61,7 @@ def test_news_feed_prefs_widget(driver, user, public_source, public_group, uploa
     for i in range(2):
         driver.wait_for_xpath(f'//span[text()="New source {source_id_base}_{i}"]')
         driver.wait_for_xpath(f'//span[contains(text(),"comment_text_{i} ({source_id_base}_{i})")]')
-    prefs_widget_button = driver.wait_for_xpath('//*[contains(@class,"MuiSvgIcon-root")]')
+    prefs_widget_button = driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]')
     prefs_widget_button.click()
     n_items_input = driver.wait_for_xpath('//input[@name="numItems"]')
     n_items_input.clear()

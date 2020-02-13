@@ -1,6 +1,7 @@
 import json
 from copy import deepcopy
 from baselayer.app.access import auth_or_token
+from baselayer.app.config import recursive_update
 from ...base import BaseHandler
 from ....models import User, DBSession
 
@@ -39,7 +40,7 @@ class ProfileHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: UserPreferences
+              schema: UpdateUserPreferencesRequestJSON
               description: JSON describing updates to user preferences dict
         responses:
           200:
@@ -52,14 +53,17 @@ class ProfileHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
+        if 'preferences' not in data:
+            return self.error('Invalid request body: missing required "preferences" parameter')
+        preferences = data['preferences']
         user_prefs = deepcopy(self.current_user.preferences)
         if not user_prefs:
-            user_prefs = data['preferences']
+            user_prefs = preferences
         else:
-            user_prefs.update(data['preferences'])
+            user_prefs = recursive_update(user_prefs, preferences)
         self.current_user.preferences = user_prefs
         DBSession.add(self.current_user)
         DBSession.commit()
-        if "newsFeed" in data['preferences']:
+        if "newsFeed" in preferences:
             self.push(action='skyportal/FETCH_NEWSFEED')
         return self.success(action="skyportal/FETCH_USER_PROFILE")

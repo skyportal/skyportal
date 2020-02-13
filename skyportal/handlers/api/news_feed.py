@@ -27,10 +27,9 @@ class NewsFeedHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        if (self.current_user.preferences and 'newsFeed' in self.current_user.preferences
-            and 'numItems' in self.current_user.preferences['newsFeed']):
-            n_items = min(int(self.current_user.preferences['newsFeed']['numItems']),
-                          20)
+        preferences = self.current_user.preferences if self.current_user.preferences else {}
+        if 'newsFeed' in preferences and 'numItems' in preferences['newsFeed']:
+            n_items = min(int(preferences['newsFeed']['numItems']), 20)
         else:
             n_items = 5
 
@@ -54,4 +53,4 @@ class NewsFeedHandler(BaseHandler):
         news_feed_items.sort(key=lambda x: x['time'], reverse=True)
         news_feed_items = news_feed_items[:n_items]
 
-        return self.success(data={'news_feed_items': news_feed_items})
+        return self.success(data={'newsFeedItems': news_feed_items})

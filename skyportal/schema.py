@@ -50,12 +50,12 @@ class newsFeedPrefs(_Schema):
     numItems = fields.String()
 
 
-class UserPrefs(_Schema):
+class UserPreferences(_Schema):
     newsFeed = fields.Nested(newsFeedPrefs)
 
 
-class UserPreferences(_Schema):
-    preferences = fields.Nested(UserPrefs)
+class UpdateUserPreferencesRequestJSON(_Schema):
+    preferences = fields.Nested(UserPreferences)
 
 
 class NewsFeedItem(_Schema):
