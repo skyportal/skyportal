@@ -23,6 +23,9 @@ class DBInfoHandler(BaseHandler):
                         source_table_empty:
                           type: boolean
                           description: Boolean indicating whether source table is empty
+                        postgres_version:
+                          type: string
+                          description: Installed Postgres version
         """
         p = subprocess.Popen(['psql', '--version'], stdout=subprocess.PIPE)
         out, err = p.communicate()

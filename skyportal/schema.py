@@ -24,6 +24,7 @@ from baselayer.app.models import (
 
 import sys
 import inspect
+from uuid import uuid4
 from enum import Enum
 
 
@@ -76,21 +77,41 @@ def setup_schema():
                     "Model class ends with 'Schema'"
                 )
 
-            class Meta(object):
-                model = class_
-                sqla_session = _DBSession
+            def add_schema(schema_class_name, exclude=[], add_to_model=False):
+                """Add schema to module namespace, and, optionally, to model object.
 
-            schema_class_name = '%s' % class_.__name__
+                Parameters
+                ----------
+                schema_class_name : str
+                    Name of schema.
+                exclude : list of str, optional
+                    List of model attributes to exclude from schema. Defaults to `[]`.
+                add_to_model : bool, optional
+                    Boolean indicating whether to install this schema generator
+                    on the model as `model.__schema__`. Defaults to `False`.
+                """
+                schema_class_meta = type(f'{schema_class_name}_meta', (),
+                                         {'model': class_, 'sqla_session': _DBSession,
+                                          'ordered': True, 'exclude': []}
+                )
+                for exclude_attr in exclude:
+                    if hasattr(class_, exclude_attr) and getattr(class_, exclude_attr) is not None:
+                        schema_class_meta.exclude.append(exclude_attr)
 
-            schema_class = type(
-                schema_class_name,
-                (_ModelSchema,),
-                {'Meta': Meta}
-            )
+                schema_class = type(schema_class_name, (_ModelSchema,),
+                                    {'Meta': schema_class_meta}
+                )
 
-            setattr(class_, '__schema__', schema_class)
-            setattr(sys.modules[__name__], class_.__name__,
-                    schema_class())
+                if add_to_model:
+                    setattr(class_, '__schema__', schema_class)
+
+                setattr(sys.modules[__name__], schema_class_name,
+                        schema_class())
+
+            schema_class_name = class_.__name__
+            add_schema(schema_class_name, exclude=['created_at'],
+                       add_to_model=True)
+            add_schema(f'{schema_class_name}NoID', exclude=['created_at', 'id'])
 
 
 def register_components(spec):

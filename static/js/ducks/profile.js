@@ -1,3 +1,5 @@
+import messageHandler from 'baselayer/MessageHandler';
+
 import * as API from '../API';
 
 
@@ -25,6 +27,15 @@ export function deleteToken(tokenID) {
     DELETE_TOKEN
   );
 }
+
+
+// Websocket message handler
+messageHandler.add((actionType, payload, dispatch) => {
+  if (actionType === FETCH_USER_PROFILE) {
+    dispatch(fetchUserProfile());
+  }
+});
+
 
 export default function reducer(state={ username: '', roles: [], acls: [], tokens: [] }, action) {
   switch (action.type) {

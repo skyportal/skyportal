@@ -7,9 +7,9 @@ const UninitializedDBMessage = () => (
     <br />
     For help with initializing the database, see the&nbsp;
     <a href="https://skyportal.io/docs/setup.html">
-getting started documentation
+      getting started documentation
     </a>
-.
+    .
   </div>
 );
 

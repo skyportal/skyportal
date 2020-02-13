@@ -51,7 +51,6 @@ addons:
     - ccache
     - wget
     - nodejs
-    - supervisor
     - unzip
     - libnss3
     - libgconf-2-4

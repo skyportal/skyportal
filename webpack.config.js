@@ -1,6 +1,8 @@
 const webpack = require('webpack');
 const path = require('path');
 
+// const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+
 const config = {
   entry: [
     'whatwg-fetch',
@@ -92,6 +94,9 @@ const config = {
       jQuery: 'jquery'
     }),
 
+    // Uncomment the following line to enable bundle size analysis
+    //    new BundleAnalyzerPlugin()
+
   ],
   resolve: {
     alias: {
@@ -100,7 +105,8 @@ const config = {
       bokehcss: path.resolve(__dirname, 'node_modules/bokehjs/build/css')
     },
     extensions: ['.js', '.jsx']
-  }
+  },
+  mode: 'development'
 };
 
 module.exports = config;

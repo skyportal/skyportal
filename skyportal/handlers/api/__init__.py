@@ -1,4 +1,4 @@
-from .comment import CommentHandler
+from .comment import CommentHandler, CommentAttachmentHandler
 from .group import GroupHandler, GroupUserHandler
 from .instrument import InstrumentHandler
 from .photometry import PhotometryHandler

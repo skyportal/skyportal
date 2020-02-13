@@ -25,6 +25,8 @@ const SearchBox = ({ sources }) => {
     hasTNSname: false
   });
 
+  const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
+
   const handleInputChange = (event) => {
     const newState = {};
     newState[event.target.name] = event.target.type === 'checkbox' ?
@@ -40,7 +42,7 @@ const SearchBox = ({ sources }) => {
     dispatch(Actions.submitSourceFilterParams(formState));
   };
 
-  const handleReset = (event) => {
+  const handleReset = () => {
     setFormState({
       sourceID: "",
       ra: "",
@@ -69,6 +71,20 @@ const SearchBox = ({ sources }) => {
     const vals = {
       ...formState,
       pageNumber: sources.pageNumber - 1,
+      totalMatches: sources.totalMatches
+    };
+    dispatch(Actions.submitSourceFilterParams(vals));
+  };
+
+  const handleJumpToPageInputChange = (event) => {
+    setJumpToPageInputValue(event.target.value);
+  };
+
+  const handleClickJumpToPage = (event) => {
+    event.preventDefault();
+    const vals = {
+      ...formState,
+      pageNumber: jumpToPageInputValue,
       totalMatches: sources.totalMatches
     };
     dispatch(Actions.submitSourceFilterParams(vals));
@@ -201,6 +217,22 @@ const SearchBox = ({ sources }) => {
                   Reset
                 </button>
               </div>
+              <div>
+                <i>
+                  or&nbsp;&nbsp;
+                </i>
+                <button type="button" onClick={handleClickJumpToPage}>
+                  Jump to page:
+                </button>
+                &nbsp;&nbsp;
+                <input
+                  type="text"
+                  style={{ width: "25px" }}
+                  onChange={handleJumpToPageInputChange}
+                  value={jumpToPageInputValue}
+                  name="jumpToPageInputField"
+                />
+              </div>
             </div>
           </div>
 
@@ -251,6 +283,7 @@ const SearchBox = ({ sources }) => {
 
 SearchBox.propTypes = {
   sources: PropTypes.shape({
+<<<<<<< HEAD
     lastPage: PropTypes.bool,
     latest: PropTypes.any,
     pageNumber: PropTypes.number,
@@ -259,6 +292,14 @@ SearchBox.propTypes = {
     totalMatches: PropTypes.any,
     queryInProgress: PropTypes.any,
     sourceNumberingEnd: PropTypes.any
+=======
+    queryInProgress: PropTypes.bool,
+    totalMatches: PropTypes.number.isRequired,
+    sourceNumberingStart: PropTypes.number.isRequired,
+    sourceNumberingEnd: PropTypes.number.isRequired,
+    pageNumber: PropTypes.number.isRequired,
+    lastPage: PropTypes.bool.isRequired
+>>>>>>> 3f7425b5521ecd199746b6018e8721ae2869b5b3
   }).isRequired
 };
 

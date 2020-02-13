@@ -1,13 +1,17 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import moment from 'moment';
 import classnames from 'classnames';
+
+import dayjs from 'dayjs';
+import calendar from 'dayjs/plugin/calendar';
 
 import styles from "./ThumbnailList.css";
 
+dayjs.extend(calendar);
+
 
 const Thumbnail = ({ ra, dec, telescope, observed_at, name, url }) => {
-  const observed_at_str = moment(observed_at).calendar();
+  const observed_at_str = dayjs(observed_at).toString();
 
   let alt = null;
   let link = null;
@@ -29,8 +33,12 @@ const Thumbnail = ({ ra, dec, telescope, observed_at, name, url }) => {
       alt = "Link to DESI DR8 Image Access";
       link = `http://legacysurvey.org/viewer/jpeg-cutout?ra=${ra}&dec=${dec}&size=512&layer=dr8&pixscale=0.262&bands=grz`;
       break;
+    default:
+      alt = "";
+      link = "";
   }
 
+  // Always apply Thumbnail style; conditionally apply DR8 style
   const thumbnailDivClassNames = classnames(styles.Thumbnail, { [styles.dr8]: name === "dr8" });
 
   return (

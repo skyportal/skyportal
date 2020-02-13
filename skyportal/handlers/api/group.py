@@ -16,7 +16,7 @@ class GroupHandler(BaseHandler):
           parameters:
             - in: path
               name: group_id
-              required: false
+              required: true
               schema:
                 type: integer
           responses:
@@ -77,10 +77,10 @@ class GroupHandler(BaseHandler):
         """
         ---
         description: Create a new group
-        parameters:
-          - in: path
-            name: group
-            schema: Group
+        requestBody:
+          content:
+            application/json:
+              schema: GroupNoID
         responses:
           200:
             content:
@@ -121,8 +121,13 @@ class GroupHandler(BaseHandler):
         description: Update a group
         parameters:
           - in: path
-            name: group
-            schema: Group
+            name: group_id
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: GroupNoID
         responses:
           200:
             content:
@@ -189,11 +194,16 @@ class GroupUserHandler(BaseHandler):
             required: true
             schema:
               type: string
-          - in: path
-            name: admin
-            required: true
-            schema:
-              type: boolean
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  admin:
+                    type: boolean
+                required:
+                  - admin
         responses:
           200:
             content:

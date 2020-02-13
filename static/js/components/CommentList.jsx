@@ -1,10 +1,14 @@
 import React from 'react';
-import moment from 'moment-timezone';
 import { useSelector, useDispatch } from 'react-redux';
+
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 
 import * as sourceActions from '../ducks/source';
 import styles from './CommentList.css';
 import CommentEntry from './CommentEntry';
+
+dayjs.extend(relativeTime);
 
 
 const CommentList = () => {
@@ -19,7 +23,7 @@ const CommentList = () => {
 
   comments = comments || [];
   const items = comments.map(
-    ({ id, author, created_at, text, attachment_name, attachment_bytes }) => (
+    ({ id, author, created_at, text, attachment_name }) => (
       <span key={id} className={styles.comment}>
         <div className={styles.commentHeader}>
           <span className={styles.commentUser}>
@@ -29,7 +33,7 @@ const CommentList = () => {
           </span>
           &nbsp;
           <span className={styles.commentTime}>
-            {moment(created_at).tz(Intl.DateTimeFormat().resolvedOptions().timeZone).calendar()}
+            {dayjs().to(dayjs(created_at))}
           </span>
         </div>
         <div className={styles.commentMessage}>
@@ -37,16 +41,20 @@ const CommentList = () => {
         </div>
         {
           userProfile.roles.includes("Super admin") || userProfile.username === author ? (
-            <a href="#" onClick={() => dispatch(sourceActions.deleteComment(id))} className={styles.commentDelete}>
+            <button
+              type="button"
+              onClick={() => dispatch(sourceActions.deleteComment(id))}
+              className={styles.commentDelete}
+            >
               Delete Comment
-            </a>
+            </button>
           ) : null
         }
         {
           attachment_name && (
             <div>
               Attachment:&nbsp;
-              <a href={`/api/comment/${id}/download_attachment`}>
+              <a href={`/api/comment/${id}/attachment`}>
                 {attachment_name}
               </a>
             </div>

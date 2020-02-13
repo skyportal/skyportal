@@ -5,23 +5,23 @@ import NewTokenForm from './NewTokenForm';
 import TokenList from './TokenList';
 
 
-const Profile = (props) => {
+const Profile = () => {
   const profile = useSelector((state) => state.profile);
   const groups = useSelector((state) => state.groups.latest);
   return (
     <div>
       <div>
-Username:
+        Username:
         {profile.username}
       </div>
       <br />
       <div>
-User roles:
+        User roles:
         {profile.roles}
       </div>
       <br />
       <NewTokenForm
-        profile={profile}
+        acls={profile.acls}
         groups={groups}
       />
       <br />

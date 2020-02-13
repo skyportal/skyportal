@@ -33,18 +33,20 @@ const Group = ({ route }) => {
       {group.name}
       <ul>
         {
-          group.users.map((user, idx) => (
+          group.users.map((user) => (
             <li key={user.id}>
               <Link to={`/user/${user.id}`}>
                 {user.username}
-              </Link>&nbsp;&nbsp;
+              </Link>
+              &nbsp;&nbsp;
               {
                 group.group_users.filter((group_user) => group_user.user_id === user.id)[0].admin &&
                 (
                   <div style={{ display: "inline-block" }}>
                     <span className={styles.badge}>
                       Admin
-                    </span>&nbsp;&nbsp;
+                    </span>
+                    &nbsp;&nbsp;
                   </div>
                 )
               }
@@ -55,10 +57,10 @@ const Group = ({ route }) => {
                   <input
                     type="submit"
                     onClick={() => dispatch(
-                        groupsActions.deleteGroupUser(
-                          { username: user.username,
-                            group_id: group.id }
-                        )
+                      groupsActions.deleteGroupUser(
+                        { username: user.username,
+                          group_id: group.id }
+                      )
                     )}
                     value="Remove from group"
                   />
@@ -82,7 +84,7 @@ const Group = ({ route }) => {
           <input
             type="submit"
             onClick={() => dispatch(
-                groupsActions.deleteGroup(group.id)
+              groupsActions.deleteGroup(group.id)
             )}
             value="Delete Group"
           />
