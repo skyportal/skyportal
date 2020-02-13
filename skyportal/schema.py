@@ -53,8 +53,15 @@ class newsFeedPrefs(_Schema):
 class UserPrefs(_Schema):
     newsFeed = fields.Nested(newsFeedPrefs)
 
+
 class UserPreferences(_Schema):
     preferences = fields.Nested(UserPrefs)
+
+
+class NewsFeedItem(_Schema):
+    type = fields.String()
+    time = fields.String()
+    message = fields.String()
 
 
 def success(schema_name, base_schema=None):

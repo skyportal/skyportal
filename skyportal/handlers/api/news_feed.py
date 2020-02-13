@@ -1,7 +1,7 @@
 from sqlalchemy import desc
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, Photometry, Comment, GroupSource
+from ...models import DBSession, Source, Comment, GroupSource
 
 
 class NewsFeedHandler(BaseHandler):
@@ -19,15 +19,9 @@ class NewsFeedHandler(BaseHandler):
                     - Success
                     - type: object
                       properties:
-                        comments:
-                          type: arrayOfComments
-                          description: Newest comments
-                        sources:
-                          type: arrayOfSources
-                          description: Newest updated sources
-                        photometry:
-                          type: arrayOfPhotometry
-                          description: Newest photometry entries
+                        news_feed_items:
+                          type: arrayOfNewsFeedItems
+                          description: List of recent activity
           400:
             content:
               application/json:
@@ -51,7 +45,6 @@ class NewsFeedHandler(BaseHandler):
                 ))).order_by(desc(model.created_at)).limit(n_items).all()
 
         sources = fetch_newest(Source)
-        photometry = fetch_newest(Photometry)
         comments = fetch_newest(Comment)
         news_feed_items = [{'type': 'source', 'time': s.created_at,
                             'message': f'New source {s.id}'} for s in sources]
