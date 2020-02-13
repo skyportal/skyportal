@@ -14,10 +14,10 @@ export function fetchGroup(id) {
 
 
 // Websocket message handler
-messageHandler.add((action, payload, dispatch, getState) => {
+messageHandler.add((actionType, payload, dispatch, getState) => {
   const { group } = getState();
 
-  if (action === REFRESH_GROUP) {
+  if (actionType === REFRESH_GROUP) {
     const loaded_group_id = group ? group.id : null;
 
     if (loaded_group_id === payload.group_id) {

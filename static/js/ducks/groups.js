@@ -49,8 +49,8 @@ export function deleteGroupUser({ username, group_id }) {
 
 
 // Websocket message handler
-messageHandler.add((action, payload, dispatch) => {
-  if (action === FETCH_GROUPS) {
+messageHandler.add((actionType, payload, dispatch) => {
+  if (actionType === FETCH_GROUPS) {
     dispatch(fetchGroups());
   }
 });

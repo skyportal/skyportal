@@ -47,10 +47,10 @@ export function fetchSource(id) {
 
 
 // Websocket message handler
-messageHandler.add((action, payload, dispatch, getState) => {
+messageHandler.add((actionType, payload, dispatch, getState) => {
   const { source } = getState();
 
-  if (action === REFRESH_SOURCE) {
+  if (actionType === REFRESH_SOURCE) {
     const loaded_source_id = source ? source.id : null;
 
     if (loaded_source_id === payload.source_id) {
