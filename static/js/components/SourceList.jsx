@@ -28,7 +28,7 @@ const SourceList = () => {
   }
   if (sources) {
     return (
-      <div>
+      <div style={{ border: "1px solid #DDD", padding: "10px" }}>
         <h2>
           Sources
         </h2>

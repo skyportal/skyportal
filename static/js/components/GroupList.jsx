@@ -11,7 +11,7 @@ const GroupList = ({ title, listSources, groups }) => {
     groups = useSelector((state) => state.groups.latest);
   }
   return (
-    <div>
+    <div style={{ border: "1px solid #DDD", padding: "10px" }}>
       <h2>
         {title}
       </h2>

@@ -30,6 +30,7 @@ import Responsive from './Responsive';
 import Source from './Source';
 import Group from './Group';
 import SourceList from './SourceList';
+import HomePage from './HomePage';
 import Groups from './Groups';
 import Profile from './Profile';
 import ProfileDropdown from './ProfileDropdown';
@@ -78,12 +79,13 @@ class MainContent extends React.Component {
           <Notifications />
 
           <Switch>
-            <PropsRoute exact path="/" component={SourceList} />
+            <PropsRoute exact path="/" component={HomePage} />
             See https://stackoverflow.com/a/35604855 for syntax
             <PropsRoute path="/source/:id" component={Source} />
             <PropsRoute exact path="/groups/" component={Groups} />
             <PropsRoute path="/group/:id" component={Group} />
             <PropsRoute path="/profile" component={Profile} />
+            <PropsRoute path="/sources" component={SourceList} />
             <PropsRoute path="/user/:id" component={UserInfo} />
             <PropsRoute component={NoMatchingRoute} />
           </Switch>

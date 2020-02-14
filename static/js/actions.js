@@ -2,6 +2,7 @@ import * as groupsActions from './ducks/groups';
 import * as profileActions from './ducks/profile';
 import * as sysInfoActions from './ducks/sysInfo';
 import * as dbInfoActions from './ducks/dbInfo';
+import * as newsFeedActions from './ducks/newsFeed';
 
 
 export default function hydrate() {
@@ -10,5 +11,6 @@ export default function hydrate() {
     dispatch(dbInfoActions.fetchDBInfo());
     dispatch(profileActions.fetchUserProfile());
     dispatch(groupsActions.fetchGroups());
+    dispatch(newsFeedActions.fetchNewsFeed());
   };
 }

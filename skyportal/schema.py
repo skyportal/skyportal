@@ -11,7 +11,7 @@ from marshmallow_sqlalchemy import (
     ModelSchema as _ModelSchema
 )
 
-from marshmallow import (Schema as _Schema, fields)
+from marshmallow import (Schema as _Schema, fields, validate)
 from marshmallow_enum import EnumField
 
 import sqlalchemy as sa
@@ -44,6 +44,24 @@ class Response(_Schema):
 
 class Error(Response):
     status = ApispecEnumField(Enum('status', ['error']), required=True)
+
+
+class newsFeedPrefs(_Schema):
+    numItems = fields.String()
+
+
+class UserPreferences(_Schema):
+    newsFeed = fields.Nested(newsFeedPrefs)
+
+
+class UpdateUserPreferencesRequestJSON(_Schema):
+    preferences = fields.Nested(UserPreferences)
+
+
+class NewsFeedItem(_Schema):
+    type = fields.String()
+    time = fields.String()
+    message = fields.String()
 
 
 def success(schema_name, base_schema=None):

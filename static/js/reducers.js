@@ -12,6 +12,7 @@ import usersReducer from './ducks/users';
 import sysInfoReducer from './ducks/sysInfo';
 import dbInfoReducer from './ducks/dbInfo';
 import logoReducer from './ducks/logo';
+import newsFeedReducer from './ducks/newsFeed';
 
 
 const root = combineReducers({
@@ -25,7 +26,8 @@ const root = combineReducers({
   logo: logoReducer,
   users: usersReducer,
   sysInfo: sysInfoReducer,
-  dbInfo: dbInfoReducer
+  dbInfo: dbInfoReducer,
+  newsFeed: newsFeedReducer
 });
 
 export default root;
