@@ -19,7 +19,7 @@ class NewsFeedHandler(BaseHandler):
                     - Success
                     - type: object
                       properties:
-                        news_feed_items:
+                        newsFeedItems:
                           type: arrayOfNewsFeedItems
                           description: List of recent activity
           400:

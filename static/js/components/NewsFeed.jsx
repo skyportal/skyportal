@@ -11,24 +11,17 @@ import styles from './NewsFeed.css';
 dayjs.extend(relativeTime);
 
 
-const NewsFeed = () => {
-  const { newsFeedItems } = useSelector((state) => state.newsFeed);
-  const profile = useSelector((state) => state.profile);
+const defaultPrefs = {
+  numItems: ""
+};
 
-  const newsFeedPrefs = (
-    profile != null &&
-    Object.prototype.hasOwnProperty.call(profile, "preferences") &&
-    profile.preferences != null &&
-    Object.prototype.hasOwnProperty.call(profile.preferences, "newsFeed")
-  ) ?
-    profile.preferences.newsFeed : { numItems: "" };
-  if (newsFeedItems === undefined) {
-    return (
-      <div>
-        No new items to display...
-      </div>
-    );
-  }
+
+const NewsFeed = () => {
+  const { items } = useSelector((state) => state.newsFeed);
+  const newsFeedPrefs = useSelector(
+    (state) => state.profile.preferences.newsFeed
+  ) || defaultPrefs;
+
   return (
     <div style={{ border: "1px solid #DDD", padding: "10px" }}>
       <h2 style={{ display: "inline-block" }}>
@@ -48,7 +41,7 @@ const NewsFeed = () => {
         </h4>
         <ul>
           {
-            newsFeedItems.map((item) => (
+            items.map((item) => (
               <li key={`newsFeedItem_${item.time}`}>
                 <span className={styles.entryTime}>
                   {dayjs().to(dayjs(item.time))}

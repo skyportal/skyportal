@@ -8,7 +8,7 @@ import SourceList from './SourceList';
 
 const GroupList = ({ title, listSources, groups }) => {
   if (!groups || groups.length === 0) {
-    groups = useSelector((state) => state.groups.latest);
+    groups = useSelector((state) => state.groups.user);
   }
   return (
     <div style={{ border: "1px solid #DDD", padding: "10px" }}>

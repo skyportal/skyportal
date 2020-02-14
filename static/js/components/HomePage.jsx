@@ -7,7 +7,7 @@ import NewsFeed from './NewsFeed';
 
 
 const HomePage = () => {
-  const groups = useSelector((state) => state.groups.latest);
+  const groups = useSelector((state) => state.groups.user);
   return (
     <div>
       <div style={{ float: "left", paddingRight: "40px" }}>

@@ -19,14 +19,17 @@ messageHandler.add((actionType, payload, dispatch) => {
   }
 });
 
+const initialState = {
+  items: []
+};
 
-const reducer = (state=[], action) => {
+const reducer = (state=initialState, action) => {
   switch (action.type) {
     case FETCH_NEWSFEED_OK: {
       const { newsFeedItems } = action.data;
       return {
         ...state,
-        newsFeedItems
+        items: newsFeedItems
       };
     }
     default:
