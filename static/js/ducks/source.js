@@ -1,6 +1,8 @@
 import messageHandler from 'baselayer/MessageHandler';
 
 import * as API from '../API';
+import store from '../store';
+
 
 export const REFRESH_SOURCE = 'skyportal/REFRESH_SOURCE';
 
@@ -13,6 +15,7 @@ export const ADD_COMMENT_OK = 'skyportal/ADD_COMMENT_OK';
 
 export const DELETE_COMMENT = 'skyportal/DELETE_COMMENT';
 export const DELETE_COMMENT_OK = 'skyportal/DELETE_COMMENT_OK';
+
 
 export function addComment(form) {
   function fileReaderPromise(file) {
@@ -61,7 +64,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
 
 
 // Reducer for currently displayed source
-export default function reducer(state={ source: null, loadError: false }, action) {
+const reducer = (state={ source: null, loadError: false }, action) => {
   switch (action.type) {
     case FETCH_LOADED_SOURCE_OK: {
       const source = action.data.sources;
@@ -79,4 +82,6 @@ export default function reducer(state={ source: null, loadError: false }, action
     default:
       return state;
   }
-}
+};
+
+store.injectReducer('source', reducer);

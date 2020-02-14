@@ -108,13 +108,8 @@ const SourceList = () => {
               </thead>
               <tbody>
                 {
-<<<<<<< HEAD
                   sources.latest && sources.latest.map((source, idx) => (
                     <tr className={styles.tableRow} key={source.id}>
-=======
-                  sources.latest && sources.latest.map((source) => (
-                    <tr key={source.id}>
->>>>>>> 3f7425b5521ecd199746b6018e8721ae2869b5b3
                       <td>
                         {source.last_detected && String(source.last_detected).split(".")[0]}
                       </td>

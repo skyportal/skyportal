@@ -1,6 +1,7 @@
 import messageHandler from 'baselayer/MessageHandler';
 
 import * as API from '../API';
+import store from '../store';
 
 
 export const FETCH_USER_PROFILE = 'skyportal/FETCH_USER_PROFILE';
@@ -9,9 +10,18 @@ export const FETCH_USER_PROFILE_OK = 'skyportal/FETCH_USER_PROFILE_OK';
 export const GENERATE_TOKEN = 'skyportal/GENERATE_TOKEN';
 export const GENERATE_TOKEN_OK = 'skyportal/GENERATE_TOKEN_OK';
 
+export const UPDATE_USER_PREFERENCES = 'skyportal/UPDATE_USER_PREFERENCES';
+export const UPDATE_USER_PREFERENCES_OK = 'skyportal/UPDATE_USER_PREFERENCES_OK';
+
 export const DELETE_TOKEN = 'skyportal/DELETE_TOKEN';
 export const DELETE_TOKEN_OK = 'skyportal/DELETE_TOKEN_OK';
 
+
+export function updateUserPreferences(form_data) {
+  return API.PUT('/api/internal/profile',
+    UPDATE_USER_PREFERENCES,
+    { preferences: form_data });
+}
 
 export function fetchUserProfile() {
   return API.GET('/api/internal/profile', FETCH_USER_PROFILE);
@@ -37,11 +47,21 @@ messageHandler.add((actionType, payload, dispatch) => {
 });
 
 
-export default function reducer(state={ username: '', roles: [], acls: [], tokens: [] }, action) {
+const initialState = {
+  username: '',
+  roles: [],
+  acls: [],
+  tokens: [],
+  preferences: {}
+};
+
+const reducer = (state=initialState, action) => {
   switch (action.type) {
     case FETCH_USER_PROFILE_OK:
       return action.data;
     default:
       return state;
   }
-}
+};
+
+store.injectReducer('profile', reducer);

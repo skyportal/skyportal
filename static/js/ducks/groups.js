@@ -1,6 +1,7 @@
 import messageHandler from 'baselayer/MessageHandler';
 
 import * as API from '../API';
+import store from '../store';
 
 
 export const FETCH_GROUPS = 'skyportal/FETCH_GROUPS';
@@ -56,13 +57,13 @@ messageHandler.add((actionType, payload, dispatch) => {
 });
 
 
-export default function reducer(state={ latest: [], all: null }, action) {
+function reducer(state={ user: [], all: null }, action) {
   switch (action.type) {
     case FETCH_GROUPS_OK: {
       const { user_groups, all_groups } = action.data;
       return {
         ...state,
-        latest: user_groups,
+        user: user_groups,
         all: all_groups
       };
     }
@@ -70,3 +71,5 @@ export default function reducer(state={ latest: [], all: null }, action) {
       return state;
   }
 }
+
+store.injectReducer('groups', reducer);

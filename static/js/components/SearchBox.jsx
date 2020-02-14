@@ -283,23 +283,12 @@ const SearchBox = ({ sources }) => {
 
 SearchBox.propTypes = {
   sources: PropTypes.shape({
-<<<<<<< HEAD
-    lastPage: PropTypes.bool,
-    latest: PropTypes.any,
-    pageNumber: PropTypes.number,
-    sourceNumberingStart: PropTypes.any,
-    sourcesNumberingEnd: PropTypes.any,
-    totalMatches: PropTypes.any,
-    queryInProgress: PropTypes.any,
-    sourceNumberingEnd: PropTypes.any
-=======
     queryInProgress: PropTypes.bool,
     totalMatches: PropTypes.number.isRequired,
     sourceNumberingStart: PropTypes.number.isRequired,
     sourceNumberingEnd: PropTypes.number.isRequired,
     pageNumber: PropTypes.number.isRequired,
     lastPage: PropTypes.bool.isRequired
->>>>>>> 3f7425b5521ecd199746b6018e8721ae2869b5b3
   }).isRequired
 };
 

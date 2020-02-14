@@ -6,6 +6,8 @@
     "test": "eslint --ext .jsx,.js static/js && make test"
   },
   "dependencies": {
+    "@material-ui/core": "4.9.1",
+    "@material-ui/icons": "4.9.1",
     "bokehjs": "0.12.9",
     "check-dependencies": "1.1.0",
     "classnames": "2.2.6",
@@ -51,8 +53,8 @@
     "eslint-plugin-react": "7.18.3",
     "eslint-plugin-react-hooks": "1.7.0",
     "webpack": "4.41.6",
-    "webpack-cli": "3.3.11",
-    "webpack-bundle-analyzer": "3.6.0"
+    "webpack-bundle-analyzer": "3.6.0",
+    "webpack-cli": "3.3.11"
   },
   "repository": {
     "type": "git",
