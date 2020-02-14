@@ -52,7 +52,9 @@ const initialState = {
   roles: [],
   acls: [],
   tokens: [],
-  preferences: {}
+  preferences: {
+    newsFeed: {}
+  }
 };
 
 const reducer = (state=initialState, action) => {
