@@ -17,7 +17,7 @@ import messageHandler from 'baselayer/MessageHandler';
 import styles from './Main.css';
 
 // Store
-import configureStore from '../store';
+import store from '../store';
 
 // Actions
 import hydrate from '../actions';
@@ -39,7 +39,6 @@ import Footer from './Footer';
 import UserInfo from './UserInfo';
 
 
-const store = configureStore({});
 messageHandler.init(store.dispatch, store.getState);
 
 
