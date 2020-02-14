@@ -27,11 +27,13 @@ class ProfileHandler(BaseHandler):
                         'acls': [acl.id for acl in token.acls],
                         'created_at': token.created_at}
                        for token in user.tokens]
-        return self.success(data={'username': self.current_user.username,
-                                  'roles': user_roles,
-                                  'acls': user_acls,
-                                  'tokens': user_tokens,
-                                  'preferences': self.current_user.preferences})
+        return self.success(data={
+            'username': self.current_user.username,
+            'roles': user_roles,
+            'acls': user_acls,
+            'tokens': user_tokens,
+            'preferences': self.current_user.preferences or {}
+        })
 
     def put(self):
         """

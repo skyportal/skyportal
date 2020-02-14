@@ -11,11 +11,17 @@ import styles from './NewsFeed.css';
 dayjs.extend(relativeTime);
 
 
+const defaultPrefs = {
+  numItems: ""
+};
+
+
 const NewsFeed = () => {
   const { items } = useSelector((state) => state.newsFeed);
-  const profile = useSelector((state) => state.profile);
+  const newsFeedPrefs = useSelector(
+    (state) => state.profile.preferences.newsFeed
+  ) || defaultPrefs;
 
-  const newsFeedPrefs = profile.preferences.newsFeed;
   return (
     <div style={{ border: "1px solid #DDD", padding: "10px" }}>
       <h2 style={{ display: "inline-block" }}>
