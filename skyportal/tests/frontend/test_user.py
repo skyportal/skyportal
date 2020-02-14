@@ -19,4 +19,4 @@ def test_user_info(driver, super_admin_user):
 def test_user_info_forbidden(driver, user):
     driver.get(f'/become_user/{user.id}')
     driver.get(f'/user/{user.id}')
-    driver.wait_for_xpath('//div[contains(.,"API error")]')
+    driver.wait_for_xpath('//div[contains(.,"Backend error")]')
