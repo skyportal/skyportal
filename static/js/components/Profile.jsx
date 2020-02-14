@@ -7,7 +7,7 @@ import TokenList from './TokenList';
 
 const Profile = () => {
   const profile = useSelector((state) => state.profile);
-  const groups = useSelector((state) => state.groups.latest);
+  const groups = useSelector((state) => state.groups.user);
   return (
     <div>
       <div>
