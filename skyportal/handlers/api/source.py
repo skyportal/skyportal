@@ -68,11 +68,12 @@ class SourceHandler(BaseHandler):
                 GroupSource.source_id).filter(GroupSource.group_id.in_(
                     [g.id for g in self.current_user.groups]))))
             info['totalMatches'] = q.count()
-            if ((info['totalMatches'] < (page - 1) * SOURCES_PER_PAGE and
-                 info['totalMatches'] % SOURCES_PER_PAGE != 0) or
-                (info['totalMatches'] < page * SOURCES_PER_PAGE and
-                 info['totalMatches'] % SOURCES_PER_PAGE == 0) or
-                page <= 0):
+            if (((info['totalMatches'] < (page - 1) * SOURCES_PER_PAGE and
+                  info['totalMatches'] % SOURCES_PER_PAGE != 0) or
+                 (info['totalMatches'] < page * SOURCES_PER_PAGE and
+                  info['totalMatches'] % SOURCES_PER_PAGE == 0) and
+                 info['totalMatches'] != 0) or
+                page <= 0 or (info['totalMatches'] == 0 and page != 1)):
                 return self.error("Page number out of range.")
             info['sources'] = q.limit(SOURCES_PER_PAGE).offset(
                 (page - 1) * SOURCES_PER_PAGE).all()
@@ -256,11 +257,12 @@ class FilterSourcesHandler(BaseHandler):
             info['totalMatches'] = int(data['totalMatches'])
         else:
             info['totalMatches'] = q.count()
-        if ((info['totalMatches'] < (page - 1) * SOURCES_PER_PAGE and
-             info['totalMatches'] % SOURCES_PER_PAGE != 0) or
-            (info['totalMatches'] < page * SOURCES_PER_PAGE and
-             info['totalMatches'] % SOURCES_PER_PAGE == 0) or
-            page <= 0):
+        if (((info['totalMatches'] < (page - 1) * SOURCES_PER_PAGE and
+              info['totalMatches'] % SOURCES_PER_PAGE != 0) or
+             (info['totalMatches'] < page * SOURCES_PER_PAGE and
+              info['totalMatches'] % SOURCES_PER_PAGE == 0) and
+             info['totalMatches'] != 0) or
+            page <= 0 or (info['totalMatches'] == 0 and page != 1)):
             return self.error("Page number out of range.")
         info['sources'] = q.limit(SOURCES_PER_PAGE).offset(
             (page - 1) * SOURCES_PER_PAGE).all()

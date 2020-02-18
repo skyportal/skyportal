@@ -4,6 +4,7 @@ import store from '../store';
 
 export const FETCH_SOURCES = 'skyportal/FETCH_SOURCES';
 export const FETCH_SOURCES_OK = 'skyportal/FETCH_SOURCES_OK';
+export const FETCH_SOURCES_FAIL = 'skyportal/FETCH_SOURCES_FAIL';
 
 
 export function fetchSources(page=1) {
@@ -44,6 +45,12 @@ const reducer = (state=initialState, action) => {
         totalMatches,
         sourceNumberingStart,
         sourceNumberingEnd
+      };
+    }
+    case FETCH_SOURCES_FAIL: {
+      return {
+        ...state,
+        queryInProgress: false
       };
     }
     default:

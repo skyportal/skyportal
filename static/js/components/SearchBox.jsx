@@ -239,7 +239,7 @@ const SearchBox = ({ sources }) => {
             </tr>
             <tr>
               <td>
-                <input type="submit" disabled={sources.queryInProgress} />
+                <input type="submit" id="submitQueryButton" disabled={sources.queryInProgress} />
               </td>
               <td>
                 <button type="button" onClick={handleReset}>
