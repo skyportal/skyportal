@@ -60,11 +60,20 @@ class SourceHandler(BaseHandler):
                          .joinedload(Photometry.instrument)
                          .joinedload(Instrument.telescope)])
         elif page_number:
-            page = int(page_number)
+            try:
+                page = int(page_number)
+            except ValueError:
+                return self.error("Invalid page number value.")
             q = Source.query.filter(Source.id.in_(DBSession.query(
                 GroupSource.source_id).filter(GroupSource.group_id.in_(
                     [g.id for g in self.current_user.groups]))))
             info['totalMatches'] = q.count()
+            if ((info['totalMatches'] < (page - 1) * SOURCES_PER_PAGE and
+                 info['totalMatches'] % SOURCES_PER_PAGE != 0) or
+                (info['totalMatches'] < page * SOURCES_PER_PAGE and
+                 info['totalMatches'] % SOURCES_PER_PAGE == 0) or
+                page <= 0):
+                return self.error("Page number out of range.")
             info['sources'] = q.limit(SOURCES_PER_PAGE).offset(
                 (page - 1) * SOURCES_PER_PAGE).all()
             info['pageNumber'] = page
@@ -208,7 +217,10 @@ class FilterSourcesHandler(BaseHandler):
         data = self.get_json()
         info = {}
         if 'pageNumber' in data:
-            page = int(data['pageNumber'])
+            try:
+                page = int(data['pageNumber'])
+            except ValueError:
+                return self.error("Invalid page number value.")
             already_counted = True
         else:
             page = 1
@@ -244,6 +256,12 @@ class FilterSourcesHandler(BaseHandler):
             info['totalMatches'] = int(data['totalMatches'])
         else:
             info['totalMatches'] = q.count()
+        if ((info['totalMatches'] < (page - 1) * SOURCES_PER_PAGE and
+             info['totalMatches'] % SOURCES_PER_PAGE != 0) or
+            (info['totalMatches'] < page * SOURCES_PER_PAGE and
+             info['totalMatches'] % SOURCES_PER_PAGE == 0) or
+            page <= 0):
+            return self.error("Page number out of range.")
         info['sources'] = q.limit(SOURCES_PER_PAGE).offset(
             (page - 1) * SOURCES_PER_PAGE).all()
 
