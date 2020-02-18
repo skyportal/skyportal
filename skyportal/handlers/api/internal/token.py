@@ -38,6 +38,8 @@ class TokenHandler(BaseHandler):
                           k.startswith('acls_') and v == True}
         token_acls = requested_acls & user_acls
         token_name = data['name']
+        if Token.query.filter(Token.name == token_name).first():
+            return self.error("Duplicate token name.")
         token_id = create_token(permissions=token_acls,
                                 created_by_id=user.id,
                                 name=token_name)
