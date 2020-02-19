@@ -179,7 +179,7 @@ const reducer = (state = { sourceList: [] }, action) => {
 
 (If the above JavaScript syntax is unfamiliar, please refer to the [object destructuring assignment docs](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment), [object spread syntax docs](https://tc39.es/proposal-object-rest-spread/), and a description here of [object literal property shorthand](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Object_initializer).) Let's break this down: we've defined our action type, which is just a string literal, and assigned its value to the constant `UPDATE_SOURCES`. We also defined a reducer (the function named `reducer`) which takes two arguments: `state`, the current state value (which we've given a default value of `{ sourceList: [] }` here) and `action`, the action object that has been dispatched to the store. Our reducer then returns a new object based on the previous state and the data contained in `action`. As you can see, the original state is return with no changes by default, which is the case whenever an action whose type doesn't match any of the cases we've described in our reducer. _Reducers are pure functions that take the current state and an action as arguments, and return a new state object_. Whenever an action is dispatched, each of the reducers in the store is called, with the current state and the action passed in as arguments, and only those reducers whose cases  a matching action type will return a modified state object.
 
-In SkyPortal, we've added a utility method to the global `store` object to inject reducers to the store. Each reducer corresponds to its own branch of the state tree, which is specified when we inject the reducer into the store. Let's look at an example, assuming we're creating new a file that lives in `static/js/ducks/` (our `store` is defined in `static/js/store.js`):
+In SkyPortal, we've added a utility method to the global `store` object to inject reducers to the store. Each reducer corresponds to its own branch of the state tree, which is specified when we inject the reducer into the store. Let's look at an example, assuming we're creating new a file in the `static/js/ducks` directory (our `store` is defined in `static/js/store.js`):
 
 ``` jsx
 import store from '../store';
@@ -207,6 +207,8 @@ const reducer = (state = { sourceList: [] }, action) => {
 store.injectReducer('sources', reducer);
 ```
 
+This warrants a brief note on code organization: we bundle all of our Redux-related code (action types, action creators, reducer) associated with a particular branch of the application state together in a file in the `static/js/ducks` directory ([read more about "ducks" modules here](https://github.com/erikras/ducks-modular-redux)). Each component definition typically goes in its own file in `static/js/components`.
+
 Now that we've added our reducer to the store, whenever an action of type `UPDATE_SOURCES` is dispatched, our reducer will update the `sources` branch of the application state as specified. So far, our global application state looks like: `{ sources: { sourceList: ...} }`.
 
 We have injected our reducer into the store that can handle actions of the type `UPDATE_SOURCES`, so now let's dispatch one. We use the `react-redux` library which provides a `useDispatch` function, giving us access to the store's dispatch. Dispatching an action is as simple as:
@@ -222,7 +224,7 @@ const newSourceList = resultFromSomeAPICall();
 dispatch({ type: 'UPDATE_SOURCES', data: { sourceList: newSourceList } });
 ```
 
-The store dispatches the action, and applies each of our reducers to it, creating a new state object from the return values of our reducers (each reducer returning the branch of state it's associated with, e.g. the return value of the reducer above corresponds to the 'sources' branch, or `state.sources`). Typically we define _action creators_, functions that return action objects, and call those inside `dispatch` rather than explicitly pass in these clunky action objects everytime we need to dispatch an action. Here's an example of an action creator being defined, and then using it to dispatch an action:
+The store dispatches the action, and applies each of our reducers to it, creating a new state object from the return values of our reducers (each reducer returning the branch of state it's associated with, e.g. the return value of the reducer above corresponds to the 'sources' branch, or `state.sources`, as specified in our `store.injectRecuer` call). Typically we define _action creators_, functions that return action objects, and call those inside `dispatch` rather than explicitly pass in these clunky action objects everytime we need to dispatch an action. Here's an example of an action creator being defined, and then using it to dispatch an action:
 
 ``` jsx
 // Define action creator
@@ -259,7 +261,7 @@ export function fetchSources() {
 }
 ```
 
-When we call `dispatch(fetchSources())`, the thunk returned by `API.GET` is called, which dispatches an action of type `FETCH_SOURCES`, then makes an asynchronous HTTP GET request to the back-end. If the request returns with a successful response, the response data is then packaged into another action of type `FETCH_SOURCES + "_OK"` which is then dispatched to the store. The first action dispatched, of type `FETCH_SOURCES`, may or may not need to be handled in our reducers. In the case of SkyPortal, we do indeed handle this action and update the front-end state object `sources.queryInProgress` in our reducer. The final action dispatched, of type `FETCH_SOURCES + "_OK"`, which contains the HTTP request response data, is also handled in our reducer, updating other portions of the `sources` branch of the app state.
+When we call `dispatch(fetchSources())`, the thunk returned by `API.GET` is called, which dispatches an action of type `FETCH_SOURCES`, then makes an asynchronous HTTP GET request to the back-end. If the request returns with a successful response, the response data is then packaged into another action of type "FETCH_SOURCES_OK" which is then dispatched to the store. The first action dispatched, of type `FETCH_SOURCES`, may or may not need to be handled in our reducers. In the case of SkyPortal, we do indeed handle this action and update the front-end state object `sources.queryInProgress` in our reducer. The final action dispatched, of type "FETCH_SOURCES_OK", which contains the HTTP request response data, is also handled in our reducer, updating other portions of the `sources` branch of the app state.
 
 In order for our components to access the application state, the `react-redux` library provides the `useSelector` hook:
 
@@ -269,8 +271,6 @@ import { useSelector } from 'react-redux';
 // Accessing the application state
 const { sourceList } = useSelector((state) => state.sources);
 ```
-
-In terms of code organization, we bundle all of our Redux-related code (action types, action creators, reducer) associated with a particular branch of the application state together in a file in the `static/js/ducks` directory ([read more about "ducks" modules here](https://github.com/erikras/ducks-modular-redux)). Each component definition typically goes in its own file in `static/js/components`.
 
 Now that we've learned a bit about the various technologies employed in the front-end, let's learn by getting our hands dirty and add a dummy feature to SkyPortal.
 
@@ -314,7 +314,7 @@ const RandomString = () => {
 
 export default RandomString;
 ```
-Our new component can see a portion of the app state tree (specifically the `randomString` branch) via the `useSelector` hook, and can dispatch action creators via the `useDispatch` hook. The value of `state.randomString` (which is intialized to the string "null" in its associated reducer, which we'll see shortly) is displayed, and a button is shown. We've supplied a handler to the button's `onClick` event, which when called, dispatches an action creator called `fetchRandomString`. Let's look at that action creator defined belo.
+Our new component can see a portion of the app state tree (specifically the `randomString` branch) via the `useSelector` hook, and can dispatch action creators via the `useDispatch` hook. The value of `state.randomString` (which is intialized to the string "null" in its associated reducer, which we'll see shortly) is displayed, and a button is shown. We've supplied a handler to the button's `onClick` event, which when called, dispatches an action creator called `fetchRandomString`. Let's look at that action creator defined below.
 
 All of the redux-related logic associated with our new component will live in a separate file in the `static/js/ducks` directory. This is where we'll define our action types, action creators and reducer.
 
