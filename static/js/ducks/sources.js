@@ -11,9 +11,8 @@ export function fetchSources(filterParams={}) {
   if (!Object.keys(filterParams).includes("pageNumber")) {
     filterParams.pageNumber = 1;
   }
-  const queryString = Object.keys(filterParams).map(
-    (key) => `${key}=${filterParams[key]}`
-  ).join("&");
+  const params = new URLSearchParams(filterParams);
+  const queryString = params.toString();
   return API.GET(`/api/sources?${queryString}`, FETCH_SOURCES);
 }
 
