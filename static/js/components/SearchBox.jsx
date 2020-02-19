@@ -33,7 +33,7 @@ const SearchBox = ({ sources }) => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    dispatch(Actions.submitSourceFilterParams(formState));
+    dispatch(Actions.fetchSources(formState));
   };
 
   const handleReset = () => {
@@ -57,7 +57,7 @@ const SearchBox = ({ sources }) => {
       pageNumber: sources.pageNumber + 1,
       totalMatches: sources.totalMatches
     };
-    dispatch(Actions.submitSourceFilterParams(vals));
+    dispatch(Actions.fetchSources(vals));
   };
 
   const handleClickPreviousPage = (event) => {
@@ -67,7 +67,7 @@ const SearchBox = ({ sources }) => {
       pageNumber: sources.pageNumber - 1,
       totalMatches: sources.totalMatches
     };
-    dispatch(Actions.submitSourceFilterParams(vals));
+    dispatch(Actions.fetchSources(vals));
   };
 
   const handleJumpToPageInputChange = (event) => {
@@ -81,7 +81,7 @@ const SearchBox = ({ sources }) => {
       pageNumber: jumpToPageInputValue,
       totalMatches: sources.totalMatches
     };
-    dispatch(Actions.submitSourceFilterParams(vals));
+    dispatch(Actions.fetchSources(vals));
   };
 
   return (
@@ -239,7 +239,7 @@ const SearchBox = ({ sources }) => {
             </tr>
             <tr>
               <td>
-                <input type="submit" disabled={sources.queryInProgress} />
+                <input type="submit" id="submitQueryButton" disabled={sources.queryInProgress} />
               </td>
               <td>
                 <button type="button" onClick={handleReset}>
