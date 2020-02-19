@@ -7,12 +7,14 @@ export const FETCH_SOURCES_OK = 'skyportal/FETCH_SOURCES_OK';
 export const FETCH_SOURCES_FAIL = 'skyportal/FETCH_SOURCES_FAIL';
 
 
-export function fetchSources(page=1) {
-  return API.GET(`/api/sources?page=${page}`, FETCH_SOURCES);
-}
-
-export function submitSourceFilterParams(formData) {
-  return API.POST(`/api/sources/filter`, FETCH_SOURCES, formData);
+export function fetchSources(filterParams={}) {
+  if (!Object.keys(filterParams).includes("pageNumber")) {
+    filterParams.pageNumber = 1;
+  }
+  const queryString = Object.keys(filterParams).map(
+    (key) => `${key}=${filterParams[key]}`
+  ).join("&");
+  return API.GET(`/api/sources?${queryString}`, FETCH_SOURCES);
 }
 
 

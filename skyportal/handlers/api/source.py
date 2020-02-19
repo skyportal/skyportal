@@ -50,7 +50,16 @@ class SourceHandler(BaseHandler):
                   schema: Error
         """
         info = {}
-        page_number = self.get_query_argument('page', None)
+        page_number = self.get_query_argument('pageNumber', None)
+        ra = self.get_query_argument('ra', None)
+        dec = self.get_query_argument('dec', None)
+        radius = self.get_query_argument('radius', None)
+        start_date = self.get_query_argument('startDate', None)
+        end_date = self.get_query_argument('endDate', None)
+        sourceID = self.get_query_argument('sourceID', None) # Partial ID to match
+        simbad_class = self.get_query_argument('simbadClass', None)
+        has_tns_name = self.get_query_argument('hasTNSname', None)
+        total_matches = self.get_query_argument('totalMatches', None)
         if source_id:
             info['sources'] = Source.get_if_owned_by(
                 source_id, self.current_user,
@@ -67,7 +76,34 @@ class SourceHandler(BaseHandler):
             q = Source.query.filter(Source.id.in_(DBSession.query(
                 GroupSource.source_id).filter(GroupSource.group_id.in_(
                     [g.id for g in self.current_user.groups]))))
-            info['totalMatches'] = q.count()
+            if sourceID:
+                q = q.filter(Source.id.contains(sourceID.strip()))
+            if ra and dec and radius:
+                try:
+                    ra = float(ra)
+                    dec = float(dec)
+                    radius = float(radius)
+                except ValueError:
+                    return self.error("Invalid values for ra, dec or radius - could not convert to float")
+                q = q.filter(Source.ra <= ra + radius)\
+                     .filter(Source.ra >= ra - radius)\
+                     .filter(Source.dec <= dec + radius)\
+                     .filter(Source.dec >= dec - radius)
+            if start_date:
+                start_date = arrow.get(start_date.strip())
+                q = q.filter(Source.last_detected >= start_date)
+            if end_date:
+                end_date = arrow.get(end_date.strip())
+                q = q.filter(Source.last_detected <= end_date)
+            if simbad_class:
+                q = q.filter(func.lower(Source.simbad_class) == simbad_class.lower())
+            if has_tns_name == 'true':
+                q = q.filter(Source.tns_name.isnot(None))
+
+            if total_matches:
+                info['totalMatches'] = int(total_matches)
+            else:
+                info['totalMatches'] = q.count()
             if (((info['totalMatches'] < (page - 1) * SOURCES_PER_PAGE and
                   info['totalMatches'] % SOURCES_PER_PAGE != 0) or
                  (info['totalMatches'] < page * SOURCES_PER_PAGE and
@@ -77,11 +113,12 @@ class SourceHandler(BaseHandler):
                 return self.error("Page number out of range.")
             info['sources'] = q.limit(SOURCES_PER_PAGE).offset(
                 (page - 1) * SOURCES_PER_PAGE).all()
+
             info['pageNumber'] = page
+            info['lastPage'] = info['totalMatches'] <= page * SOURCES_PER_PAGE
             info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
             info['sourceNumberingEnd'] = min(info['totalMatches'],
                                              page * SOURCES_PER_PAGE)
-            info['lastPage'] = info['totalMatches'] <= page * SOURCES_PER_PAGE
             if info['totalMatches'] == 0:
                 info['sourceNumberingStart'] = 0
         else:
@@ -210,71 +247,6 @@ class SourceHandler(BaseHandler):
         DBSession().commit()
 
         return self.success(action='skyportal/FETCH_SOURCES')
-
-
-class FilterSourcesHandler(BaseHandler):
-    @auth_or_token
-    def post(self):
-        data = self.get_json()
-        info = {}
-        if 'pageNumber' in data:
-            try:
-                page = int(data['pageNumber'])
-            except ValueError:
-                return self.error("Invalid page number value.")
-            already_counted = True
-        else:
-            page = 1
-            already_counted = False
-        info['pageNumber'] = page
-        q = Source.query.filter(Source.id.in_(DBSession.query(
-                GroupSource.source_id).filter(GroupSource.group_id.in_(
-                    [g.id for g in self.current_user.groups]))))
-
-        if data['sourceID']:
-            q = q.filter(Source.id.contains(data['sourceID'].strip()))
-        if data['ra'] and data['dec'] and data['radius']:
-            ra = float(data['ra'])
-            dec = float(data['dec'])
-            radius = float(data['radius'])
-            q = q.filter(Source.ra <= ra + radius)\
-                 .filter(Source.ra >= ra - radius)\
-                 .filter(Source.dec <= dec + radius)\
-                 .filter(Source.dec >= dec - radius)
-        if data['startDate']:
-            start_date = arrow.get(data['startDate'].strip())
-            q = q.filter(Source.last_detected >= start_date)
-        if data['endDate']:
-            end_date = arrow.get(data['endDate'].strip())
-            q = q.filter(Source.last_detected <= end_date)
-        if data['simbadClass']:
-            q = q.filter(func.lower(Source.simbad_class) ==
-                         data['simbadClass'].lower())
-        if data['hasTNSname']:
-            q = q.filter(Source.tns_name.isnot(None))
-
-        if already_counted:
-            info['totalMatches'] = int(data['totalMatches'])
-        else:
-            info['totalMatches'] = q.count()
-        if (((info['totalMatches'] < (page - 1) * SOURCES_PER_PAGE and
-              info['totalMatches'] % SOURCES_PER_PAGE != 0) or
-             (info['totalMatches'] < page * SOURCES_PER_PAGE and
-              info['totalMatches'] % SOURCES_PER_PAGE == 0) and
-             info['totalMatches'] != 0) or
-            page <= 0 or (info['totalMatches'] == 0 and page != 1)):
-            return self.error("Page number out of range.")
-        info['sources'] = q.limit(SOURCES_PER_PAGE).offset(
-            (page - 1) * SOURCES_PER_PAGE).all()
-
-        info['lastPage'] = info['totalMatches'] <= page * SOURCES_PER_PAGE
-        info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
-        info['sourceNumberingEnd'] = min(info['totalMatches'],
-                                         page * SOURCES_PER_PAGE)
-        if info['totalMatches'] == 0:
-            info['sourceNumberingStart'] = 0
-
-        return self.success(data=info)
 
 
 class SourcePhotometryHandler(BaseHandler):
