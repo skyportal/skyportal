@@ -23,9 +23,16 @@ def test_top_sources(driver, user, public_source, public_group, upload_data_toke
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
     driver.wait_for_xpath(f'//td[text()="RRLyr"]')
-    driver.wait_for_xpath_to_disappear(f'//em[contains(.,"views)")]')
+
+    # Test that front-end views register as source views
     driver.get(f'/source/{source_id}')
     driver.wait_for_xpath(f'//div[text()="{source_id}"]')
     driver.get('/')
     driver.wait_for_xpath(f'//td[text()="RRLyr"]')
-    driver.wait_for_xpath(f'//*[contains(.,"views)")]')
+    driver.wait_for_xpath(f'//*[contains(.,"1\u00a0view(s)")]')
+
+    # Test that token requests are registered as source views
+    status, data = api('GET', f'sources/{source_id}', token=upload_data_token)
+    assert status == 200
+    driver.refresh()
+    driver.wait_for_xpath(f'//*[contains(.,"2\u00a0view(s)")]')

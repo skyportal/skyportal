@@ -42,12 +42,14 @@ const TopSources = () => {
                   {source_id}
                 </Link>
               </span>
-              &nbsp;
-              <em>
-                (
-                {views}
-                &nbsp;views)
-              </em>
+              <span>
+                <em>
+                  &nbsp;
+                  -&nbsp;
+                  {views}
+                  &nbsp;view(s)
+                </em>
+              </span>
             </li>
           ))
         }
