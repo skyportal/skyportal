@@ -1,13 +1,13 @@
 import tornado.web
 from sqlalchemy.orm import joinedload
-from sqlalchemy import func
+from sqlalchemy import func, desc
 import arrow
 from functools import reduce
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
-    DBSession, Comment, Instrument, Photometry, Source,
+    DBSession, Comment, Instrument, Photometry, Source, SourceView,
     Thumbnail, GroupSource, Token, User, Group
 )
 
@@ -60,7 +60,13 @@ class SourceHandler(BaseHandler):
         simbad_class = self.get_query_argument('simbadClass', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
         total_matches = self.get_query_argument('totalMatches', None)
+        is_token_request = isinstance(self.current_user, Token)
         if source_id:
+            if is_token_request:
+                # Logic determining whether to register front-end request as view lives in front-end
+                register_source_view(source_id=source_id,
+                                     username_or_token_id=self.current_user.id,
+                                     is_token=True)
             info['sources'] = Source.get_if_owned_by(
                 source_id, self.current_user,
                 options=[joinedload(Source.comments),
@@ -122,7 +128,7 @@ class SourceHandler(BaseHandler):
             if info['totalMatches'] == 0:
                 info['sourceNumberingStart'] = 0
         else:
-            if isinstance(self.current_user, Token):
+            if is_token_request:
                 token = self.current_user
                 info['sources'] = list(reduce(
                     set.union, (set(group.sources) for group in token.groups)))
@@ -277,3 +283,33 @@ class SourcePhotometryHandler(BaseHandler):
         if not set(source.groups).intersection(set(self.current_user.groups)):
             return self.error('Inadequate permissions.')
         return self.success(data={'photometry': source.photometry})
+
+
+class SourceViewsHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        q = (DBSession.query(func.count(SourceView.source_id).label('views'),
+                             SourceView.source_id).group_by(SourceView.source_id)
+             .filter(SourceView.source_id.in_(DBSession.query(
+                 GroupSource.source_id).filter(GroupSource.group_id.in_(
+                     [g.id for g in self.current_user.groups]))))
+             .order_by(desc('views')).limit(10))
+        return self.success(data={'source_views': q.all()})
+
+    @auth_or_token
+    def post(self, source_id):
+        # Ensure token/user has access to source
+        s = Source.get_if_owned_by(source_id, self.current_user)
+        # This endpoint will only be hit by front-end, so this will never be a token
+        register_source_view(source_id=source_id,
+                             username_or_token_id=self.current_user.username,
+                             is_token=False)
+        return self.success()
+
+
+def register_source_view(source_id, username_or_token_id, is_token):
+    sv = SourceView(source_id=source_id,
+                    username_or_token_id=username_or_token_id,
+                    is_token=is_token)
+    DBSession.add(sv)
+    DBSession.commit()

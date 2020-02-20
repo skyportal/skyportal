@@ -188,6 +188,14 @@ User.sources = relationship('Source', backref='users',
                             primaryjoin='group_users.c.user_id == users.c.id')
 
 
+class SourceView(Base):
+    source_id = sa.Column(sa.ForeignKey('sources.id'),
+                          nullable=False, index=True, unique=False)
+    username_or_token_id = sa.Column(sa.String, nullable=False, index=True,
+                                     unique=False)
+    is_token = sa.Column(sa.Boolean, nullable=False, default=False)
+
+
 class Telescope(Base):
     name = sa.Column(sa.String, nullable=False)
     nickname = sa.Column(sa.String, nullable=False)

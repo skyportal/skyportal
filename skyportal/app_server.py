@@ -9,7 +9,7 @@ from skyportal.handlers.api import (
     InstrumentHandler,
     NewsFeedHandler,
     PhotometryHandler,
-    SourceHandler, SourcePhotometryHandler,
+    SourceViewsHandler, SourceHandler, SourcePhotometryHandler,
     SpectrumHandler,
     SysInfoHandler,
     TelescopeHandler,
@@ -65,6 +65,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/internal/tokens(/.*)?', TokenHandler),
         (r'/api/internal/profile', ProfileHandler),
         (r'/api/internal/dbinfo', DBInfoHandler),
+        (r'/api/internal/source_views(/.*)?', SourceViewsHandler),
         (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
         (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
 
