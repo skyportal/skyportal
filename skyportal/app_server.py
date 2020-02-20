@@ -9,7 +9,7 @@ from skyportal.handlers.api import (
     InstrumentHandler,
     NewsFeedHandler,
     PhotometryHandler,
-    SourceViewsHandler, SourceHandler, SourcePhotometryHandler,
+    SourceHandler, SourcePhotometryHandler,
     SpectrumHandler,
     SysInfoHandler,
     TelescopeHandler,
@@ -17,8 +17,8 @@ from skyportal.handlers.api import (
     UserHandler
 )
 from skyportal.handlers.api.internal import (
-    PlotPhotometryHandler, PlotSpectroscopyHandler, TokenHandler,
-    DBInfoHandler, ProfileHandler
+    PlotPhotometryHandler, PlotSpectroscopyHandler, SourceViewsHandler,
+    TokenHandler, DBInfoHandler, ProfileHandler
 )
 
 from . import models, model_util, openapi

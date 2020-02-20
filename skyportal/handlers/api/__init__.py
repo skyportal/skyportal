@@ -3,7 +3,7 @@ from .group import GroupHandler, GroupUserHandler
 from .instrument import InstrumentHandler
 from .news_feed import NewsFeedHandler
 from .photometry import PhotometryHandler
-from .source import SourceViewsHandler, SourceHandler, SourcePhotometryHandler
+from .source import SourceHandler, SourcePhotometryHandler
 from .spectrum import SpectrumHandler
 from .sysinfo import SysInfoHandler
 from .telescope import TelescopeHandler
