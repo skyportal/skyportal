@@ -66,6 +66,8 @@ class ProfileHandler(BaseHandler):
         self.current_user.preferences = user_prefs
         DBSession.add(self.current_user)
         DBSession.commit()
-        if "newsFeed" in preferences:
+        if 'newsFeed' in preferences:
             self.push(action='skyportal/FETCH_NEWSFEED')
+        if 'topSources' in preferences:
+            self.push(action='skyportal/FETCH_TOP_SOURCES')
         return self.success(action="skyportal/FETCH_USER_PROFILE")

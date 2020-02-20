@@ -2,6 +2,7 @@ import tornado.web
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, desc
 import arrow
+import datetime
 from functools import reduce
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
@@ -288,13 +289,26 @@ class SourcePhotometryHandler(BaseHandler):
 class SourceViewsHandler(BaseHandler):
     @auth_or_token
     def get(self):
+        prefs = (self.current_user.preferences if
+                 hasattr(self.current_user, 'preferences') and
+                 self.current_user.preferences else {})
+        if 'topSources' in prefs and 'maxNumSources' in prefs['topSources']:
+            max_num_sources = int(prefs['topSources']['maxNumSources'])
+        else:
+            max_num_sources = 10
+        if 'topSources' in prefs and 'sinceDaysAgo' in prefs['topSources']:
+            since_days_ago = int(prefs['topSources']['sinceDaysAgo'])
+        else:
+            since_days_ago = 30
+        cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
         q = (DBSession.query(func.count(SourceView.source_id).label('views'),
                              SourceView.source_id).group_by(SourceView.source_id)
              .filter(SourceView.source_id.in_(DBSession.query(
                  GroupSource.source_id).filter(GroupSource.group_id.in_(
                      [g.id for g in self.current_user.groups]))))
-             .order_by(desc('views')).limit(10))
-        return self.success(data={'source_views': q.all()})
+             .filter(SourceView.created_at >= cutoff_day)
+             .order_by(desc('views')).limit(max_num_sources))
+        return self.success(data={'sourceViews': q.all()})
 
     @auth_or_token
     def post(self, source_id):

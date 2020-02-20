@@ -1,0 +1,59 @@
+import React from 'react';
+import { useSelector } from 'react-redux';
+import { Link } from 'react-router-dom';
+
+import * as profileActions from '../ducks/profile';
+import WidgetPrefsDialog from './WidgetPrefsDialog';
+
+
+const defaultPrefs = {
+  maxNumSources: "",
+  sinceDaysAgo: ""
+};
+
+const TopSources = () => {
+  const { sourceViews } = useSelector((state) => state.topSources);
+  const topSourcesPrefs = useSelector(
+    (state) => state.profile.preferences.topSources
+  ) || defaultPrefs;
+
+  return (
+    <div style={{ border: "1px solid #DDD", padding: "10px" }}>
+      <h2 style={{ display: "inline-block" }}>
+        Top Sources
+      </h2>
+      <div style={{ display: "inline-block", float: "right" }}>
+        <WidgetPrefsDialog
+          formValues={topSourcesPrefs}
+          stateBranchName="topSources"
+          title="Top Sources Preferences"
+          onSubmit={profileActions.updateUserPreferences}
+        />
+      </div>
+      <p>
+        Displaying most-viewed sources
+      </p>
+      <ul>
+        {
+          sourceViews.map(({ source_id, views }) => (
+            <li key={`topSources_${source_id}_${views}`}>
+              <span>
+                <Link to={`/source/${source_id}`}>
+                  {source_id}
+                </Link>
+              </span>
+              &nbsp;
+              <em>
+                (
+                {views}
+                &nbsp;views)
+              </em>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  );
+};
+
+export default TopSources;

@@ -189,10 +189,9 @@ User.sources = relationship('Source', backref='users',
 
 
 class SourceView(Base):
-    source_id = sa.Column(sa.ForeignKey('sources.id'),
+    source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, index=True, unique=False)
-    username_or_token_id = sa.Column(sa.String, nullable=False, index=True,
-                                     unique=False)
+    username_or_token_id = sa.Column(sa.String, nullable=False, unique=False)
     is_token = sa.Column(sa.Boolean, nullable=False, default=False)
 
 

@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import SourceList from './SourceList';
 import GroupList from './GroupList';
 import NewsFeed from './NewsFeed';
+import TopSources from './TopSources';
 
 
 const HomePage = () => {
@@ -15,6 +16,9 @@ const HomePage = () => {
       </div>
       <div style={{ float: "left", paddingRight: "40px", paddingBottom: "40px" }}>
         <NewsFeed />
+      </div>
+      <div style={{ float: "left", paddingRight: "40px", paddingBottom: "40px" }}>
+        <TopSources />
       </div>
       <div style={{ float: "left", paddingRight: "40px" }}>
         <GroupList title="My Groups" groups={groups} />
