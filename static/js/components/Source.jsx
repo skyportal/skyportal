@@ -21,11 +21,17 @@ const Source = ({ route }) => {
     const cachedSourceID = source ? source.id : null;
     return route.id === cachedSourceID;
   };
+
   useEffect(() => {
     if (!isCached()) {
       dispatch(Action.fetchSource(route.id));
     }
   }, []);
+
+  const handleIsCandidateRadioClick = (event) => {
+    dispatch(Action.updateSource(source.id, { is_candidate: event.target.value }));
+  };
+
   if (source.loadError) {
     return (
       <div>
@@ -55,7 +61,29 @@ const Source = ({ route }) => {
           <div className={styles.name}>
             {source.id}
           </div>
-
+          <div style={{ display: "inline-block", float: "right", paddingRight: "50px" }}>
+            <input
+              type="radio"
+              name="isCandidate"
+              id="isCandidateTrueRadio"
+              // eslint-disable-next-line
+              value={true}
+              checked={source.is_candidate}
+              onClick={handleIsCandidateRadioClick}
+            />
+            &nbsp;Is candidate
+            <br />
+            <input
+              type="radio"
+              name="isCandidate"
+              id="isCandidateFalseRadio"
+              value={false}
+              checked={!source.is_candidate}
+              onClick={handleIsCandidateRadioClick}
+            />
+            &nbsp;Is source
+          </div>
+          <br />
           <b>
             Position (J2000):
           </b>
@@ -123,7 +151,6 @@ const Source = ({ route }) => {
           </Responsive>
 
         </div>
-
       </div>
     );
   }
