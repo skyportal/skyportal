@@ -66,7 +66,7 @@ const Source = ({ route }) => {
               type="radio"
               name="isCandidate"
               id="isCandidateTrueRadio"
-              // eslint-disable-next-line
+              // eslint-disable-next-line react/jsx-boolean-value
               value={true}
               checked={source.is_candidate}
               onClick={handleIsCandidateRadioClick}
