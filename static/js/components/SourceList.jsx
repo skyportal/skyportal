@@ -39,45 +39,6 @@ const SourceList = () => {
   }
   
   if (sources) {
-    // rows = [];
-    // if (sources.latest) {
-    //   rows = sources.latest.map((source, idx) => {
-    //     return {
-    //       last_detected: source.last_detected && String(source.last_detected).split(".")[0],
-    //       id: source.id, 
-    //       ra: source.ra && Number(source.ra).toFixed(3),
-    //       dec: source.dec && Number(source.dec.toFixed(4)),
-    //       varstar: source.varstar.toString(),
-    //       transient: source.transient.toString(),
-    //       disagree: (source.transient === source.varstar).toString(),
-    //       is_roid: source.is_roid.toString(),
-    //       Gmag: source.gaia_info && Number(JSON.parse(source.gaia_info).Gmag).toFixed(2),
-    //       Teff: source.gaia_info && JSON.parse(source.gaia_info).Teff && Number(JSON.parse(source.gaia_info).Teff).toFixed(1),
-    //       Score: Number(source.score).toFixed(2),
-    //       NDetections: source.detect_photometry_count,
-    //       simbad_class: source.simbad_class,
-    //       tns_name: source.tns_name,
-    //     };
-    //   });  
-    // }
-    // {rows.map(row => (
-    //   <TableRow key={row.name}>
-    //     <TableCell> Last detected </TableCell>
-    //     <TableCell align="right"> {row.Name} </TableCell>
-    //     <TableCell align="right"> {row.RA} </TableCell>
-    //     <TableCell align="right"> {row.DEC} </TableCell>
-    //     <TableCell align="right"> {row.varstar} </TableCell>
-    //     <TableCell align="right"> {row.transient} </TableCell>
-    //     <TableCell align="right"> {row.disagree} </TableCell>
-    //     <TableCell align="right"> {row.is_roid} </TableCell>
-    //     <TableCell align="right"> {row.Gmag} </TableCell>
-    //     <TableCell align="right"> {row.Teff} </TableCell>
-    //     <TableCell align="right"> {row.Score} </TableCell>
-    //     <TableCell align="right"> {row.NDetections} </TableCell>
-    //     <TableCell align="right"> {row.simbad_class} </TableCell>
-    //     <TableCell align="right"> {row.tns_name} </TableCell>
-    //   </TableRow>
-    // console.log(rows);
     return (
       <div className={styles.SourceListWrapper}>
         <h2>
