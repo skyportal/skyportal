@@ -8,6 +8,15 @@ import UninitializedDBMessage from './UninitializedDBMessage';
 
 import styles from './SourceList.css';
 
+import Table from '@material-ui/core/Table';
+import TableBody from '@material-ui/core/TableBody';
+import TableCell from '@material-ui/core/TableCell';
+import TableContainer from '@material-ui/core/TableContainer';
+import TableHead from '@material-ui/core/TableHead';
+import TableRow from '@material-ui/core/TableRow';
+import Paper from '@material-ui/core/Paper';
+
+
 const SourceList = () => {
   const sources = useSelector(
     (state) => state.sources
@@ -28,141 +37,97 @@ const SourceList = () => {
   if (sourceTableEmpty) {
     return <UninitializedDBMessage />;
   }
+  
   if (sources) {
+    // rows = [];
+    // if (sources.latest) {
+    //   rows = sources.latest.map((source, idx) => {
+    //     return {
+    //       last_detected: source.last_detected && String(source.last_detected).split(".")[0],
+    //       id: source.id, 
+    //       ra: source.ra && Number(source.ra).toFixed(3),
+    //       dec: source.dec && Number(source.dec.toFixed(4)),
+    //       varstar: source.varstar.toString(),
+    //       transient: source.transient.toString(),
+    //       disagree: (source.transient === source.varstar).toString(),
+    //       is_roid: source.is_roid.toString(),
+    //       Gmag: source.gaia_info && Number(JSON.parse(source.gaia_info).Gmag).toFixed(2),
+    //       Teff: source.gaia_info && JSON.parse(source.gaia_info).Teff && Number(JSON.parse(source.gaia_info).Teff).toFixed(1),
+    //       Score: Number(source.score).toFixed(2),
+    //       NDetections: source.detect_photometry_count,
+    //       simbad_class: source.simbad_class,
+    //       tns_name: source.tns_name,
+    //     };
+    //   });  
+    // }
+    // {rows.map(row => (
+    //   <TableRow key={row.name}>
+    //     <TableCell> Last detected </TableCell>
+    //     <TableCell align="right"> {row.Name} </TableCell>
+    //     <TableCell align="right"> {row.RA} </TableCell>
+    //     <TableCell align="right"> {row.DEC} </TableCell>
+    //     <TableCell align="right"> {row.varstar} </TableCell>
+    //     <TableCell align="right"> {row.transient} </TableCell>
+    //     <TableCell align="right"> {row.disagree} </TableCell>
+    //     <TableCell align="right"> {row.is_roid} </TableCell>
+    //     <TableCell align="right"> {row.Gmag} </TableCell>
+    //     <TableCell align="right"> {row.Teff} </TableCell>
+    //     <TableCell align="right"> {row.Score} </TableCell>
+    //     <TableCell align="right"> {row.NDetections} </TableCell>
+    //     <TableCell align="right"> {row.simbad_class} </TableCell>
+    //     <TableCell align="right"> {row.tns_name} </TableCell>
+    //   </TableRow>
+    // console.log(rows);
     return (
       <div className={styles.SourceListWrapper}>
         <h2>
           Sources
         </h2>
-
+        !sources.queryInProgress && (
         <SearchBox sources={sources} />
-        {
-          !sources.queryInProgress && (
-            <table id="tab">
-              <thead>
-                <tr className={styles.outerHeading}>
-                  <th />
-                  <th />
-                  <th colSpan="2">
-                    Position
-                  </th>
-                  <th colSpan="4">
-                    Type
-                  </th>
-                  <th colSpan="2">
-                    Gaia
-                  </th>
-                  <th />
-                  <th />
-                  <th />
-                  <th />
-                </tr>
-
-                <tr className={styles.innerHeading}>
-                  <th>
-                    Last detected
-                  </th>
-                  <th>
-                    Name
-                  </th>
-                  <th>
-                    RA
-                  </th>
-                  <th>
-                    DEC
-                  </th>
-                  <th>
-                    varstar
-                  </th>
-                  <th>
-                    transient
-                  </th>
-                  <th>
-                    disagree
-                  </th>
-                  <th>
-                    is_roid
-                  </th>
-                  <th>
-                    Gmag
-                  </th>
-                  <th>
-                    T
-                    <sub>
-                      eff
-                    </sub>
-                  </th>
-                  <th>
-                    Score
-                  </th>
-                  <th>
-                    N detections
-                  </th>
-                  <th>
-                    Simbad Class
-                  </th>
-                  <th>
-                    TNS Name
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {
-                  sources.latest && sources.latest.map((source, idx) => (
-                    <tr className={styles.tableRow} key={source.id}>
-                      <td>
-                        {source.last_detected && String(source.last_detected).split(".")[0]}
-                      </td>
-                      <td>
-                        <Link to={`/source/${source.id}`}>
-                          {source.id}
-                        </Link>
-                      </td>
-                      <td>
-                        {source.ra && Number(source.ra).toFixed(3)}
-                      </td>
-                      <td>
-                        {source.dec && Number(source.dec.toFixed(4))}
-                      </td>
-                      <td>
-                        {source.varstar.toString()}
-                      </td>
-                      <td>
-                        {source.transient.toString()}
-                      </td>
-                      <td>
-                        {(source.transient === source.varstar).toString()}
-                      </td>
-                      <td>
-                        {source.is_roid.toString()}
-                      </td>
-                      <td>
-                        {source.gaia_info && Number(JSON.parse(source.gaia_info).Gmag).toFixed(2)}
-                      </td>
-                      <td>
-                        {source.gaia_info &&
-                         JSON.parse(source.gaia_info).Teff &&
-                         Number(JSON.parse(source.gaia_info).Teff).toFixed(1)}
-                      </td>
-                      <td>
-                        {Number(source.score).toFixed(2)}
-                      </td>
-                      <td>
-                        {source.detect_photometry_count}
-                      </td>
-                      <td>
-                        {source.simbad_class}
-                      </td>
-                      <td>
-                        {source.tns_name}
-                      </td>
-                    </tr>
-                  ))
-                }
-              </tbody>
-            </table>
-          )
-        }
+          <TableContainer component={Paper}>
+            <Table size="small" aria-label="a dense table">
+              <TableHead>
+                <TableRow>
+                  <TableCell> Last detected </TableCell>
+                  <TableCell align="right"> ID </TableCell>
+                  <TableCell align="right"> RA </TableCell>
+                  <TableCell align="right"> DEC </TableCell>
+                  <TableCell align="right"> varstar </TableCell>
+                  <TableCell align="right"> transient </TableCell>
+                  <TableCell align="right"> disagree </TableCell>
+                  <TableCell align="right"> is_roid </TableCell>
+                  <TableCell align="right"> Gmag </TableCell>
+                  <TableCell align="right"> Teff </TableCell>
+                  <TableCell align="right"> Score </TableCell>
+                  <TableCell align="right"> N Detections </TableCell>
+                  <TableCell align="right"> Simbad Class </TableCell>
+                  <TableCell align="right"> TNS Name </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {sources.latest && sources.latest.map((source) => (
+                  <TableRow key={source.id}>
+                    <TableCell align="right"> {source.last_detected && String(source.last_detected).split(".")[0]} </TableCell>
+                    <TableCell align="right"> {source.id} </TableCell>
+                    <TableCell align="right"> {source.ra && Number(source.ra).toFixed(3)} </TableCell>
+                    <TableCell align="right"> {source.dec && Number(source.dec.toFixed(4))} </TableCell>
+                    <TableCell align="right"> {source.varstar.toString()} </TableCell>
+                    <TableCell align="right"> {source.transient.toString()} </TableCell>
+                    <TableCell align="right"> {(source.transient === source.varstar).toString()} </TableCell>
+                    <TableCell align="right"> {source.is_roid.toString()} </TableCell>
+                    <TableCell align="right"> {source.gaia_info && Number(JSON.parse(source.gaia_info).Gmag).toFixed(2)} </TableCell>
+                    <TableCell align="right"> {source.gaia_info && JSON.parse(source.gaia_info).Teff && Number(JSON.parse(source.gaia_info).Teff).toFixed(1)} </TableCell>
+                    <TableCell align="right"> {Number(source.score).toFixed(2)} </TableCell>
+                    <TableCell align="right"> {source.detect_photometry_count} </TableCell>
+                    <TableCell align="right"> {source.simbad_class} </TableCell>
+                    <TableCell align="right"> {source.tns_name} </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )
         {
           sources.queryInProgress && (
             <div>
