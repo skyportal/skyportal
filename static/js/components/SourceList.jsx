@@ -8,6 +8,7 @@ import UninitializedDBMessage from './UninitializedDBMessage';
 
 import styles from './SourceList.css';
 
+import { makeStyles } from '@material-ui/core/styles';
 import Table from '@material-ui/core/Table';
 import TableBody from '@material-ui/core/TableBody';
 import TableCell from '@material-ui/core/TableCell';
@@ -16,6 +17,16 @@ import TableHead from '@material-ui/core/TableHead';
 import TableRow from '@material-ui/core/TableRow';
 import Paper from '@material-ui/core/Paper';
 
+
+const useStyles = makeStyles({
+  table: {
+    width: 80,
+    height: 12,
+  },
+  cell: {
+    padding: 7
+  }
+});
 
 const SourceList = () => {
   const sources = useSelector(
@@ -38,68 +49,59 @@ const SourceList = () => {
     return <UninitializedDBMessage />;
   }
   
+  const tableClasses = useStyles();
+
   if (sources) {
     return (
       <div className={styles.SourceListWrapper}>
         <h2>
           Sources
         </h2>
-        !sources.queryInProgress && (
         <SearchBox sources={sources} />
+        {!sources.queryInProgress && (
           <TableContainer component={Paper}>
-            <Table size="small" aria-label="a dense table">
+            <Table className={tableClasses.table} size="small" aria-label="a dense table">
               <TableHead>
                 <TableRow>
-                  <TableCell> Last detected </TableCell>
-                  <TableCell align="right"> ID </TableCell>
-                  <TableCell align="right"> RA </TableCell>
-                  <TableCell align="right"> DEC </TableCell>
-                  <TableCell align="right"> varstar </TableCell>
-                  <TableCell align="right"> transient </TableCell>
-                  <TableCell align="right"> disagree </TableCell>
-                  <TableCell align="right"> is_roid </TableCell>
-                  <TableCell align="right"> Gmag </TableCell>
-                  <TableCell align="right"> Teff </TableCell>
-                  <TableCell align="right"> Score </TableCell>
-                  <TableCell align="right"> N Detections </TableCell>
-                  <TableCell align="right"> Simbad Class </TableCell>
-                  <TableCell align="right"> TNS Name </TableCell>
+                  <TableCell className={tableClasses.cell}> Last detected </TableCell>
+                  <TableCell className={tableClasses.cell} align="left"> ID </TableCell>
+                  <TableCell className={tableClasses.cell} align="left"> RA </TableCell>
+                  <TableCell className={tableClasses.cell} align="left"> DEC </TableCell>
+                  <TableCell className={tableClasses.cell} align="left"> varstar </TableCell>
+                  <TableCell className={tableClasses.cell} align="left"> transient </TableCell>
+                  <TableCell className={tableClasses.cell} align="left"> disagree </TableCell>
+                  <TableCell className={tableClasses.cell} align="left"> is_roid </TableCell>
+                  <TableCell className={tableClasses.cell} align="left"> Gmag </TableCell>
+                  <TableCell className={tableClasses.cell} align="left"> Teff </TableCell>
+                  <TableCell className={tableClasses.cell} align="left"> Score </TableCell>
+                  <TableCell className={tableClasses.cell} align="left"> N Detections </TableCell>
+                  <TableCell className={tableClasses.cell} align="left"> Simbad Class </TableCell>
+                  <TableCell className={tableClasses.cell} align="left"> TNS Name </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {sources.latest && sources.latest.map((source) => (
                   <TableRow key={source.id}>
-                    <TableCell align="right"> {source.last_detected && String(source.last_detected).split(".")[0]} </TableCell>
-                    <TableCell align="right"> {source.id} </TableCell>
-                    <TableCell align="right"> {source.ra && Number(source.ra).toFixed(3)} </TableCell>
-                    <TableCell align="right"> {source.dec && Number(source.dec.toFixed(4))} </TableCell>
-                    <TableCell align="right"> {source.varstar.toString()} </TableCell>
-                    <TableCell align="right"> {source.transient.toString()} </TableCell>
-                    <TableCell align="right"> {(source.transient === source.varstar).toString()} </TableCell>
-                    <TableCell align="right"> {source.is_roid.toString()} </TableCell>
-                    <TableCell align="right"> {source.gaia_info && Number(JSON.parse(source.gaia_info).Gmag).toFixed(2)} </TableCell>
-                    <TableCell align="right"> {source.gaia_info && JSON.parse(source.gaia_info).Teff && Number(JSON.parse(source.gaia_info).Teff).toFixed(1)} </TableCell>
-                    <TableCell align="right"> {Number(source.score).toFixed(2)} </TableCell>
-                    <TableCell align="right"> {source.detect_photometry_count} </TableCell>
-                    <TableCell align="right"> {source.simbad_class} </TableCell>
-                    <TableCell align="right"> {source.tns_name} </TableCell>
+                    <TableCell className={tableClasses.cell} align="left"> {source.last_detected && String(source.last_detected).split(".")[0]} </TableCell>
+                    <TableCell className={tableClasses.cell} align="left"> {source.id} </TableCell>
+                    <TableCell className={tableClasses.cell} align="left"> {source.ra && Number(source.ra).toFixed(3)} </TableCell>
+                    <TableCell className={tableClasses.cell} align="left"> {source.dec && Number(source.dec.toFixed(4))} </TableCell>
+                    <TableCell className={tableClasses.cell} align="left"> {source.varstar.toString()} </TableCell>
+                    <TableCell className={tableClasses.cell} align="left"> {source.transient.toString()} </TableCell>
+                    <TableCell className={tableClasses.cell} align="left"> {(source.transient === source.varstar).toString()} </TableCell>
+                    <TableCell className={tableClasses.cell} align="left"> {source.is_roid.toString()} </TableCell>
+                    <TableCell className={tableClasses.cell} align="left"> {source.gaia_info && Number(JSON.parse(source.gaia_info).Gmag).toFixed(2)} </TableCell>
+                    <TableCell className={tableClasses.cell} align="left"> {source.gaia_info && JSON.parse(source.gaia_info).Teff && Number(JSON.parse(source.gaia_info).Teff).toFixed(1)} </TableCell>
+                    <TableCell className={tableClasses.cell} align="left"> {Number(source.score).toFixed(2)} </TableCell>
+                    <TableCell className={tableClasses.cell} align="left"> {source.detect_photometry_count} </TableCell>
+                    <TableCell className={tableClasses.cell} align="left"> {source.simbad_class} </TableCell>
+                    <TableCell className={tableClasses.cell} align="left"> {source.tns_name} </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </TableContainer>
-        )
-        {
-          sources.queryInProgress && (
-            <div>
-              <br />
-              <br />
-              <i>
-                Query in progress...
-              </i>
-            </div>
-          )
-        }
+        )}
       </div>
     );
   } else {

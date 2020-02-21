@@ -8,8 +8,9 @@ import styles from "./SearchBox.css";
 
 import CustomInput from './CustomInput';
 import TimeFormatInput from './TimeFormatInput';
-import CheckBox from './CheckBox';
+// import CheckBox from './CheckBox';
 
+import { Button, Checkbox, FormControlLabel } from '@material-ui/core';
 
 const SearchBox = ({ sources }) => {
   const dispatch = useDispatch();
@@ -24,8 +25,6 @@ const SearchBox = ({ sources }) => {
     simbadClass: "",
     hasTNSname: false
   });
-
-  const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
 
   const handleInputChange = (event) => {
     const newState = {};
@@ -42,7 +41,7 @@ const SearchBox = ({ sources }) => {
     dispatch(Actions.submitSourceFilterParams(formState));
   };
 
-  const handleReset = () => {
+  const handleReset = (event) => {
     setFormState({
       sourceID: "",
       ra: "",
@@ -71,20 +70,6 @@ const SearchBox = ({ sources }) => {
     const vals = {
       ...formState,
       pageNumber: sources.pageNumber - 1,
-      totalMatches: sources.totalMatches
-    };
-    dispatch(Actions.submitSourceFilterParams(vals));
-  };
-
-  const handleJumpToPageInputChange = (event) => {
-    setJumpToPageInputValue(event.target.value);
-  };
-
-  const handleClickJumpToPage = (event) => {
-    event.preventDefault();
-    const vals = {
-      ...formState,
-      pageNumber: jumpToPageInputValue,
       totalMatches: sources.totalMatches
     };
     dispatch(Actions.submitSourceFilterParams(vals));
@@ -150,7 +135,7 @@ const SearchBox = ({ sources }) => {
             <h5 className={styles.searchBoxFormHeader}> Filter by Time Last Detected (UTC)</h5>
             <div className={styles.searchBoxFormInputs}>
               <div className={styles.col6}>
-                <TimeFormatInput
+                <CustomInput
                   label="Start Date"
                   type="text"
                   name="startDate"
@@ -161,7 +146,7 @@ const SearchBox = ({ sources }) => {
                 />
               </div>
               <div className={styles.col6}>
-                <TimeFormatInput
+                <CustomInput
                   label="End Date"
                   type="text"
                   name="endDate"
@@ -191,47 +176,57 @@ const SearchBox = ({ sources }) => {
           <div className={styles.searchBoxFormInner}>
             <div className={styles.searchBoxFormInputs}>
               <div className={styles.col4}>
-                <CheckBox
+                {/* <CheckBox
                   type="checkbox"
                   label="Must Have TNS Name: "
                   name="hasTNSname"
                   checked={formState.hasTNSname}
                   onChange={handleInputChange}
                   size="6"
+                /> */}
+                <FormControlLabel 
+                  label="TNS Name"
+                  labelPlacement="start"
+                  control={
+                  <Checkbox 
+                    color="primary"
+                    type="checkbox"
+                    name="hasTNSname"
+                    checked={formState.hasTNSname}
+                    onChange={handleInputChange}
+                    size="6"/>
+                  }
                 />
               </div>
               <div className={styles.col4}>
-                <input
+                {/* <input
                   type="submit"
                   className={styles.inputSubmitButton}
                   disabled={sources.queryInProgress}
                   onClick={handleSubmit}
-                />
+                /> */}
+              <Button 
+                variant="contained" 
+                color="primary" 
+                onClick={handleSubmit} 
+                disabled={sources.queryInProgress}>
+                Submit
+              </Button>
               </div>
               <div className={styles.col4}>
-                <button
+              <Button 
+                variant="contained" 
+                color="primary" 
+                onClick={handleReset}>
+              Reset
+              </Button>
+                {/* <button
                   className={styles.inputSubmitButton}
                   type="button"
                   onClick={handleReset}
                 >
                   Reset
-                </button>
-              </div>
-              <div>
-                <i>
-                  or&nbsp;&nbsp;
-                </i>
-                <button type="button" onClick={handleClickJumpToPage}>
-                  Jump to page:
-                </button>
-                &nbsp;&nbsp;
-                <input
-                  type="text"
-                  style={{ width: "25px" }}
-                  onChange={handleJumpToPageInputChange}
-                  value={jumpToPageInputValue}
-                  name="jumpToPageInputField"
-                />
+                </button> */}
               </div>
             </div>
           </div>
@@ -283,12 +278,14 @@ const SearchBox = ({ sources }) => {
 
 SearchBox.propTypes = {
   sources: PropTypes.shape({
-    queryInProgress: PropTypes.bool,
-    totalMatches: PropTypes.number.isRequired,
-    sourceNumberingStart: PropTypes.number.isRequired,
-    sourceNumberingEnd: PropTypes.number.isRequired,
-    pageNumber: PropTypes.number.isRequired,
-    lastPage: PropTypes.bool.isRequired
+    lastPage: PropTypes.bool,
+    latest: PropTypes.any,
+    pageNumber: PropTypes.number,
+    sourceNumberingStart: PropTypes.any,
+    sourcesNumberingEnd: PropTypes.any,
+    totalMatches: PropTypes.any,
+    queryInProgress: PropTypes.any,
+    sourceNumberingEnd: PropTypes.any
   }).isRequired
 };
 
