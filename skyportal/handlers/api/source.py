@@ -78,7 +78,10 @@ class SourceHandler(BaseHandler):
                     [g.id for g in self.current_user.groups]))))
             if sourceID:
                 q = q.filter(Source.id.contains(sourceID.strip()))
-            if ra and dec and radius:
+            if any([ra, dec, radius]):
+                if not all([ra, dec, radius]):
+                    return self.error("If any of 'ra', 'dec' or 'radius' are "
+                                      "provided, all three are required.")
                 try:
                     ra = float(ra)
                     dec = float(dec)
