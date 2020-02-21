@@ -87,6 +87,7 @@ Token.groups = token_groups
 
 class Source(Base):
     id = sa.Column(sa.String, primary_key=True)
+    is_candidate = sa.Column(sa.Boolean, default=True)
     # TODO should this column type be decimal? fixed-precison numeric
     ra = sa.Column(sa.Float)
     dec = sa.Column(sa.Float)
