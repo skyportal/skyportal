@@ -83,7 +83,11 @@ const SourceList = () => {
                 {sources.latest && sources.latest.map((source) => (
                   <TableRow key={source.id}>
                     <TableCell className={tableClasses.cell} align="left"> {source.last_detected && String(source.last_detected).split(".")[0]} </TableCell>
-                    <TableCell className={tableClasses.cell} align="left"> {source.id} </TableCell>
+                    <TableCell className={tableClasses.cell} align="left">                         
+                      <Link to={`/source/${source.id}`}>
+                        {source.id}
+                      </Link> 
+                    </TableCell>
                     <TableCell className={tableClasses.cell} align="left"> {source.ra && Number(source.ra).toFixed(3)} </TableCell>
                     <TableCell className={tableClasses.cell} align="left"> {source.dec && Number(source.dec.toFixed(4))} </TableCell>
                     <TableCell className={tableClasses.cell} align="left"> {source.varstar.toString()} </TableCell>
