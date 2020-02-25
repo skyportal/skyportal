@@ -27,5 +27,10 @@
     overflow: auto;
 }
 
+.smallPlot {
+    width: 300px;
+    overflow: auto;
+}
+
 .comments {
 }

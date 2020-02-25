@@ -30,6 +30,7 @@ import Responsive from './Responsive';
 import Source from './Source';
 import Group from './Group';
 import SourceList from './SourceList';
+import CandidateList from './CandidateList';
 import HomePage from './HomePage';
 import Groups from './Groups';
 import Profile from './Profile';
@@ -85,6 +86,7 @@ class MainContent extends React.Component {
             <PropsRoute path="/group/:id" component={Group} />
             <PropsRoute path="/profile" component={Profile} />
             <PropsRoute path="/sources" component={SourceList} />
+            <PropsRoute path="/candidates" component={CandidateList} />
             <PropsRoute path="/user/:id" component={UserInfo} />
             <PropsRoute component={NoMatchingRoute} />
           </Switch>

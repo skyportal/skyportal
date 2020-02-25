@@ -78,6 +78,7 @@ User.group_users = relationship('GroupUser', back_populates='user',
                                 passive_deletes=True)
 User.groups = relationship('Group', secondary='group_users',
                            back_populates='users')
+User.saved_sources = relationship('Source', back_populates='saved_as_source_by')
 
 @property
 def token_groups(self):
@@ -88,6 +89,8 @@ Token.groups = token_groups
 class Source(Base):
     id = sa.Column(sa.String, primary_key=True)
     is_candidate = sa.Column(sa.Boolean, default=True)
+    saved_as_source_by = relationship('User', back_populates='saved_sources')
+    saved_as_source_by_id = sa.Column(sa.ForeignKey('users.id'))
     # TODO should this column type be decimal? fixed-precison numeric
     ra = sa.Column(sa.Float)
     dec = sa.Column(sa.Float)

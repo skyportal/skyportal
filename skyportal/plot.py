@@ -138,7 +138,7 @@ def _plot_to_json(plot):
 
 
 # TODO make async so that thread isn't blocked
-def photometry_plot(source_id):
+def photometry_plot(source_id, width=600, height=300):
     """Create scatter plot of photometry for source.
     Parameters
     ----------
@@ -173,8 +173,8 @@ def photometry_plot(source_id):
     split = data.groupby(['label', 'observed'])
 
     plot = figure(
-        plot_width=600,
-        plot_height=300,
+        plot_width=width,
+        plot_height=height,
         active_drag='box_zoom',
         tools='box_zoom,wheel_zoom,pan,reset',
         y_range=(np.nanmax(data['mag']) + 0.1,

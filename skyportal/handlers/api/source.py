@@ -13,6 +13,7 @@ from ...models import (
 
 
 SOURCES_PER_PAGE = 100
+CANDIDATES_PER_PAGE = 25
 
 
 class SourceHandler(BaseHandler):
@@ -56,10 +57,13 @@ class SourceHandler(BaseHandler):
         radius = self.get_query_argument('radius', None)
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
-        sourceID = self.get_query_argument('sourceID', None) # Partial ID to match
+        sourceID = self.get_query_argument('sourceID', None) # Partial str to match
         simbad_class = self.get_query_argument('simbadClass', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
         total_matches = self.get_query_argument('totalMatches', None)
+        is_candidate = self.get_query_argument('isCandidate', None)
+        candidate_scanning_page = self.get_query_argument(
+            'candidateScanningPage', None)
         if source_id:
             info['sources'] = Source.get_if_owned_by(
                 source_id, self.current_user,
@@ -68,6 +72,39 @@ class SourceHandler(BaseHandler):
                          .joinedload(Thumbnail.photometry)
                          .joinedload(Photometry.instrument)
                          .joinedload(Instrument.telescope)])
+        elif candidate_scanning_page:
+            try:
+                page = int(page_number)
+            except ValueError:
+                return self.error("Invalid page number value.")
+            q = Source.query.options([joinedload(Source.thumbnails)
+                                      .joinedload(Thumbnail.photometry)
+                                      .joinedload(Photometry.instrument)
+                                      .joinedload(Instrument.telescope)]
+            ).filter(Source.id.in_(DBSession.query(GroupSource.source_id
+            ).filter(GroupSource.group_id.in_(
+                [g.id for g in self.current_user.groups]))))
+            if total_matches:
+                info['totalMatches'] = int(total_matches)
+            else:
+                info['totalMatches'] = q.count()
+            if (((info['totalMatches'] < (page - 1) * CANDIDATES_PER_PAGE and
+                  info['totalMatches'] % CANDIDATES_PER_PAGE != 0) or
+                 (info['totalMatches'] < page * CANDIDATES_PER_PAGE and
+                  info['totalMatches'] % CANDIDATES_PER_PAGE == 0) and
+                 info['totalMatches'] != 0) or
+                page <= 0 or (info['totalMatches'] == 0 and page != 1)):
+                return self.error("Page number out of range.")
+            info['sources'] = q.limit(CANDIDATES_PER_PAGE).offset(
+                (page - 1) * CANDIDATES_PER_PAGE).all()
+
+            info['pageNumber'] = page
+            info['lastPage'] = info['totalMatches'] <= page * CANDIDATES_PER_PAGE
+            info['sourceNumberingStart'] = (page - 1) * CANDIDATES_PER_PAGE + 1
+            info['sourceNumberingEnd'] = min(info['totalMatches'],
+                                             page * CANDIDATES_PER_PAGE)
+            if info['totalMatches'] == 0:
+                info['sourceNumberingStart'] = 0
         elif page_number:
             try:
                 page = int(page_number)
@@ -99,6 +136,8 @@ class SourceHandler(BaseHandler):
                 q = q.filter(func.lower(Source.simbad_class) == simbad_class.lower())
             if has_tns_name == 'true':
                 q = q.filter(Source.tns_name.isnot(None))
+            if is_candidate:
+                q = q.filter(Source.is_candidate == True)
 
             if total_matches:
                 info['totalMatches'] = int(total_matches)
@@ -214,6 +253,8 @@ class SourceHandler(BaseHandler):
         s = Source.get_if_owned_by(source_id, self.current_user)
         data = self.get_json()
         data['id'] = source_id
+        if 'is_candidate' in data and data['is_candidate'] and not s.saved_as_source_by:
+            data['saved_as_source_by'] = self.current_user
 
         schema = Source.__schema__()
         try:
