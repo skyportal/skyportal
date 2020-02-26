@@ -106,6 +106,11 @@ const config = {
     },
     extensions: ['.js', '.jsx']
   },
+  watchOptions: {
+    ignored: /node_modules/,
+    // Set to true if you have trouble with JS change monitoring
+    poll: false
+  },
   mode: 'development'
 };
 
