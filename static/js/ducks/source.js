@@ -16,6 +16,9 @@ export const ADD_COMMENT_OK = 'skyportal/ADD_COMMENT_OK';
 export const DELETE_COMMENT = 'skyportal/DELETE_COMMENT';
 export const DELETE_COMMENT_OK = 'skyportal/DELETE_COMMENT_OK';
 
+export const ADD_SOURCE_VIEW = 'skyportal/ADD_SOURCE_VIEW';
+export const ADD_SOURCE_VIEW_OK = 'skyportal/ADD_SOURCE_VIEW_OK';
+
 
 export function addComment(form) {
   function fileReaderPromise(file) {
@@ -46,6 +49,10 @@ export function deleteComment(comment_id) {
 
 export function fetchSource(id) {
   return API.GET(`/api/sources/${id}`, FETCH_LOADED_SOURCE);
+}
+
+export function addSourceView(id) {
+  return API.POST(`/api/internal/source_views/${id}`, ADD_SOURCE_VIEW);
 }
 
 

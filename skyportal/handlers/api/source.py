@@ -1,15 +1,17 @@
 import tornado.web
 from sqlalchemy.orm import joinedload
-from sqlalchemy import func
+from sqlalchemy import func, desc
 import arrow
+import datetime
 from functools import reduce
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
-    DBSession, Comment, Instrument, Photometry, Source,
+    DBSession, Comment, Instrument, Photometry, Source, SourceView,
     Thumbnail, GroupSource, Token, User, Group
 )
+from .internal.source_views import register_source_view
 
 
 SOURCES_PER_PAGE = 100
@@ -60,7 +62,13 @@ class SourceHandler(BaseHandler):
         simbad_class = self.get_query_argument('simbadClass', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
         total_matches = self.get_query_argument('totalMatches', None)
+        is_token_request = isinstance(self.current_user, Token)
         if source_id:
+            if is_token_request:
+                # Logic determining whether to register front-end request as view lives in front-end
+                register_source_view(source_id=source_id,
+                                     username_or_token_id=self.current_user.id,
+                                     is_token=True)
             info['sources'] = Source.get_if_owned_by(
                 source_id, self.current_user,
                 options=[joinedload(Source.comments),
@@ -125,7 +133,7 @@ class SourceHandler(BaseHandler):
             if info['totalMatches'] == 0:
                 info['sourceNumberingStart'] = 0
         else:
-            if isinstance(self.current_user, Token):
+            if is_token_request:
                 token = self.current_user
                 info['sources'] = list(reduce(
                     set.union, (set(group.sources) for group in token.groups)))
