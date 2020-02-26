@@ -58,6 +58,10 @@ class ProfileHandler(BaseHandler):
         if 'preferences' not in data:
             return self.error('Invalid request body: missing required "preferences" parameter')
         preferences = data['preferences']
+        # Do not save blank fields (empty strings)
+        for k, v in preferences.items():
+            if isinstance(v, dict):
+                preferences[k] = {key: val for key, val in v.items() if val != ''}
         user_prefs = deepcopy(self.current_user.preferences)
         if not user_prefs:
             user_prefs = preferences

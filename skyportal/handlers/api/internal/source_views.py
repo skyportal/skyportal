@@ -8,20 +8,22 @@ from ....models import (
 )
 
 
+default_prefs = {
+    'maxNumSources': 10,
+    'sinceDaysAgo': 7
+}
+
+
 class SourceViewsHandler(BaseHandler):
     @auth_or_token
     def get(self):
-        prefs = (self.current_user.preferences if
-                 hasattr(self.current_user, 'preferences') and
-                 self.current_user.preferences is not None else {})
-        if 'topSources' in prefs and 'maxNumSources' in prefs['topSources']:
-            max_num_sources = int(prefs['topSources']['maxNumSources'])
-        else:
-            max_num_sources = 10
-        if 'topSources' in prefs and 'sinceDaysAgo' in prefs['topSources']:
-            since_days_ago = int(prefs['topSources']['sinceDaysAgo'])
-        else:
-            since_days_ago = 30
+        user_prefs = getattr(self.current_user, 'preferences', None) or {}
+        top_sources_prefs = user_prefs.get('topSources', {})
+        top_sources_prefs = {**default_prefs, **top_sources_prefs}
+
+        max_num_sources = int(top_sources_prefs['maxNumSources'])
+        since_days_ago = int(top_sources_prefs['sinceDaysAgo'])
+
         cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
         q = (DBSession.query(func.count(SourceView.source_id).label('views'),
                              SourceView.source_id).group_by(SourceView.source_id)
