@@ -25,6 +25,7 @@ const Source = ({ route }) => {
   useEffect(() => {
     if (!isCached()) {
       dispatch(Action.fetchSource(route.id));
+      dispatch(Action.addSourceView(route.id));
     }
   }, []);
 
