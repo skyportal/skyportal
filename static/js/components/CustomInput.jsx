@@ -1,17 +1,32 @@
+  
 import React from 'react';
 import PropTypes from 'prop-types';
 import styles from './Input.css';
 
+import { TextField } from '@material-ui/core';
 
 const CustomInput = ({ type, name, value, onChange, placeholder, size, disabled, label }) => (
   <div className={styles.inputWrapper}>
-    <div className={styles.labelWrapper}>
+    {/* <div className={styles.labelWrapper}>
       <label htmlFor={name} className={styles.label}>
         {label}
       </label>
-    </div>
-    <input
+    </div> */}
+    {/* <input
       className={styles.input}
+      type={type}
+      name={name}
+      value={value}
+      onChange={onChange}
+      size={size}
+      placeholder={placeholder}
+      disabled={disabled}
+    /> */}
+    <TextField 
+      id="standard-basic" 
+      label={label}   
+      fullWidth={true}
+      // className={styles.input}
       type={type}
       name={name}
       value={value}
