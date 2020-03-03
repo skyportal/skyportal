@@ -59,7 +59,7 @@ const SourceList = () => {
         </h2>
         <SearchBox sources={sources} />
         {!sources.queryInProgress && (
-          <TableContainer component={Paper}>
+          <div>
             <Table className={tableClasses.table} size="small" aria-label="a dense table">
               <TableHead>
                 <TableRow>
@@ -104,7 +104,7 @@ const SourceList = () => {
                 ))}
               </TableBody>
             </Table>
-          </TableContainer>
+          </div>
         )}
       </div>
     );
