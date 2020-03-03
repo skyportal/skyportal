@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
 import WidgetPrefsDialog from './WidgetPrefsDialog';
-import * as ProfileActions from '../ducks/profile';
+import * as profileActions from '../ducks/profile';
 import styles from './NewsFeed.css';
 
 dayjs.extend(relativeTime);
@@ -32,7 +32,7 @@ const NewsFeed = () => {
           formValues={newsFeedPrefs}
           stateBranchName="newsFeed"
           title="News Feed Preferences"
-          onSubmit={ProfileActions.updateUserPreferences}
+          onSubmit={profileActions.updateUserPreferences}
         />
       </div>
       <div>

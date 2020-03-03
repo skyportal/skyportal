@@ -3,6 +3,7 @@ import * as profileActions from './ducks/profile';
 import * as sysInfoActions from './ducks/sysInfo';
 import * as dbInfoActions from './ducks/dbInfo';
 import * as newsFeedActions from './ducks/newsFeed';
+import * as topSourcesActions from './ducks/topSources';
 
 
 export default function hydrate() {
@@ -12,5 +13,6 @@ export default function hydrate() {
     dispatch(profileActions.fetchUserProfile());
     dispatch(groupsActions.fetchGroups());
     dispatch(newsFeedActions.fetchNewsFeed());
+    dispatch(topSourcesActions.fetchTopSources());
   };
 }

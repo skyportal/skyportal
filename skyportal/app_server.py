@@ -9,7 +9,7 @@ from skyportal.handlers.api import (
     InstrumentHandler,
     NewsFeedHandler,
     PhotometryHandler,
-    SourceHandler, FilterSourcesHandler, SourcePhotometryHandler,
+    SourceHandler, SourcePhotometryHandler,
     SpectrumHandler,
     SysInfoHandler,
     TelescopeHandler,
@@ -17,8 +17,8 @@ from skyportal.handlers.api import (
     UserHandler
 )
 from skyportal.handlers.api.internal import (
-    PlotPhotometryHandler, PlotSpectroscopyHandler, TokenHandler,
-    DBInfoHandler, ProfileHandler
+    PlotPhotometryHandler, PlotSpectroscopyHandler, SourceViewsHandler,
+    TokenHandler, DBInfoHandler, ProfileHandler
 )
 
 from . import models, model_util, openapi
@@ -55,7 +55,6 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/newsfeed', NewsFeedHandler),
         (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
         (r'/api/sources(/[0-9A-Za-z-]+)/photometry', SourcePhotometryHandler),
-        (r'/api/sources/filter', FilterSourcesHandler),
         (r'/api/sources(/.*)?', SourceHandler),
         (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
         (r'/api/sysinfo', SysInfoHandler),
@@ -66,6 +65,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/internal/tokens(/.*)?', TokenHandler),
         (r'/api/internal/profile', ProfileHandler),
         (r'/api/internal/dbinfo', DBInfoHandler),
+        (r'/api/internal/source_views(/.*)?', SourceViewsHandler),
         (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
         (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
 
