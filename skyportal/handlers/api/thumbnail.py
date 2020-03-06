@@ -117,7 +117,7 @@ class ThumbnailHandler(BaseHandler):
             return self.error(f"Could not load thumbnail {thumbnail_id}",
                               data={"thumbnail_id": thumbnail_id})
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(t.source.id, self.current_user)
+        _ = Source.get_if_owned_by(t.source.id, self.current_user)
 
         return self.success(data={'thumbnail': t})
 
@@ -150,7 +150,7 @@ class ThumbnailHandler(BaseHandler):
         if t is None:
             return self.error('Invalid thumbnail ID.')
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(t.source.id, self.current_user)
+        _ = Source.get_if_owned_by(t.source.id, self.current_user)
 
         data = self.get_json()
         data['id'] = thumbnail_id
@@ -190,7 +190,7 @@ class ThumbnailHandler(BaseHandler):
         if t is None:
             return self.error('Invalid thumbnail ID.')
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(t.source.id, self.current_user)
+        _ = Source.get_if_owned_by(t.source.id, self.current_user)
 
         DBSession.query(Thumbnail).filter(Thumbnail.id == int(thumbnail_id)).delete()
         DBSession().commit()

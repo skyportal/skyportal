@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
 
@@ -8,16 +8,15 @@ import Plot from './Plot';
 import ThumbnailList from './ThumbnailList';
 import CandidateCommentList from './CandidateCommentList';
 import SaveCandidateGroupSelectDialog from './SaveCandidateGroupSelectDialog';
+import FilterCandidateList from './FilterCandidateList';
 
 
 const CandidateList = () => {
-  const { candidates, pageNumber, lastPage, totalMatches,
-    candidateNumberingStart, candidateNumberingEnd } = useSelector((state) => state.candidates);
+  const { candidates } = useSelector((state) => state.candidates);
 
   const userGroups = useSelector((state) => state.groups.user);
 
   const dispatch = useDispatch();
-  const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
 
   useEffect(() => {
     if (!candidates.length) {
@@ -25,77 +24,12 @@ const CandidateList = () => {
     }
   }, []);
 
-  const handleClickNextPage = () => {
-    dispatch(candidatesActions.fetchCandidates({ pageNumber: pageNumber + 1 }));
-  };
-
-  const handleClickPreviousPage = () => {
-    dispatch(candidatesActions.fetchCandidates({ pageNumber: pageNumber - 1 }));
-  };
-
-  const handleJumpToPageInputChange = (event) => {
-    setJumpToPageInputValue(event.target.value);
-  };
-
-  const handleClickJumpToPage = (event) => {
-    event.preventDefault();
-    dispatch(candidatesActions.fetchCandidates({ pageNumber: jumpToPageInputValue }));
-  };
-
   return (
     <div style={{ border: "1px solid #DDD", padding: "10px" }}>
       <h2>
         Scan candidates for sources
       </h2>
-      <div>
-        <div style={{ display: "inline-block" }}>
-          <button
-            type="button"
-            onClick={handleClickPreviousPage}
-            disabled={pageNumber === 1}
-          >
-            Previous Page
-          </button>
-        </div>
-        <div style={{ display: "inline-block" }}>
-          <i>
-            Displaying&nbsp;
-            {candidateNumberingStart}
-            -
-            {candidateNumberingEnd}
-            &nbsp;
-            of&nbsp;
-            {totalMatches}
-            &nbsp;
-            candidates.
-          </i>
-        </div>
-        <div style={{ display: "inline-block" }}>
-          <button
-            type="button"
-            onClick={handleClickNextPage}
-            disabled={lastPage}
-          >
-            Next Page
-          </button>
-        </div>
-        <div>
-          <i>
-            or&nbsp;&nbsp;
-          </i>
-          <button type="button" onClick={handleClickJumpToPage}>
-            Jump to page:
-          </button>
-          &nbsp;&nbsp;
-          <input
-            type="text"
-            style={{ width: "25px" }}
-            onChange={handleJumpToPageInputChange}
-            value={jumpToPageInputValue}
-            name="jumpToPageInputField"
-          />
-        </div>
-      </div>
+      <FilterCandidateList />
       <table>
         <thead>
           <tr>
