@@ -71,7 +71,7 @@ DBSession().rollback()  # recover after a DB error
 
 ### Scheduling a `pg_cron` job to periodically delete old candidates not saved as sources
 
-The SkyPortal data model distinguishes between _sources_ and _candidates_ via the `is_candidate` boolean column in the sources table. You may wish to configure SkyPortal to periodically delete old candidates not saved as sources. This section will outline that process using the Postgres extension [`pg_cron`](https://github.com/citusdata/pg_cron) in Ubuntu or other Debian-based distros.
+You may wish to configure SkyPortal to periodically delete old candidates not saved as sources. This section will outline that process using the Postgres extension [`pg_cron`](https://github.com/citusdata/pg_cron) in Ubuntu or other Debian-based distros.
 
 The `pg_cron` installation and setup instructions here largely mirror those in the [official docs](https://github.com/citusdata/pg_cron#setting-up-pg_cron).
 
@@ -95,16 +95,16 @@ sudo psql -U skyportal -h localhost -p 5432 -c "CREATE EXTENSION pg_cron;"
 
 Now add the cron job by running
 ```
-SELECT cron.schedule('0 1 * * 6', $$DELETE FROM sources WHERE is_candidate is true AND created_at < now() - interval '2 month'$$);
+SELECT cron.schedule('0 1 * * 6', $$DELETE FROM candidates WHERE source_id IS NULL AND created_at < now() - interval '1 month'$$);
 ```
-This will run the command every Saturday at 1am UTC (change as desired), and will delete candidates not flagged as sources older than two months (configure as needed).
+This will run the command every Saturday at 1am UTC (change as desired), and will delete candidates not flagged as sources older than one month (configure as needed).
 
 View all pg_cron jobs by running `SELECT * FROM cron.job;`, and you will see your new job:
 ```
 skyportal=# SELECT * FROM cron.job;
  jobid | schedule  |                                          command                                           | nodename  | nodeport | database  | username  | active
 -------+-----------+--------------------------------------------------------------------------------------------+-----------+----------+-----------+-----------+--------
-     1 | 0 1 * * 6 | DELETE FROM sources WHERE is_candidate is true AND created_at < now() - interval '2 month' | localhost |     5432 | skyportal | skyportal | t
+     1 | 0 1 * * 6 | DELETE FROM candidates WHERE source_id IS NULL AND created_at < now() - interval '1 month' | localhost |     5432 | skyportal | skyportal | t
 (1 row)
 
 ```

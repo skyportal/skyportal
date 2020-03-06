@@ -227,39 +227,6 @@ User.sources = relationship(
 )
 
 
-# class Candidate(Source):
-#     __tablename__ = "candidates"
-#     id = sa.Column(sa.String, sa.ForeignKey("sources.id"), primary_key=True)
-#     saved_as_source_by = relationship()
-#     groups = relationship("Group", secondary="group_candidates")
-#     photometry = relationship(
-#         "Photometry",
-#         back_populates="candidate",
-#         cascade="save-update, merge, refresh-expire, expunge",
-#         single_parent=True,
-#         passive_deletes=True,
-#         order_by="Photometry.observed_at",
-#     )
-#     spectra = relationship(
-#         "Spectrum",
-#         back_populates="candidate",
-#         cascade="save-update, merge, refresh-expire, expunge",
-#         single_parent=True,
-#         passive_deletes=True,
-#         order_by="Spectrum.observed_at",
-#     )
-#     thumbnails = relationship(
-#         "Thumbnail",
-#         back_populates="candidate",
-#         secondary="photometry",
-#         cascade="save-update, merge, refresh-expire, expunge",
-#     )
-#     __mapper_args__ = {
-#         "polymorphic_identity": "candidates",
-#         "inherit_condition": id == Source.id,
-#     }
-
-
 class Candidate(Base):
     id = sa.Column(sa.String, primary_key=True)
     saved_as_source_by_id = sa.Column(sa.ForeignKey("users.id"), nullable=True)
