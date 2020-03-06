@@ -1,3 +1,5 @@
+import messageHandler from 'baselayer/MessageHandler';
+
 import * as API from '../API';
 import store from '../store';
 
@@ -8,33 +10,38 @@ export const FETCH_CANDIDATES_FAIL = 'skyportal/FETCH_CANDIDATES_FAIL';
 
 
 export const fetchCandidates = (pageNumber = 1) => (
-  API.GET(`/api/sources?pageNumber=${pageNumber}&candidateScanningPage=true`,
-          FETCH_CANDIDATES)
+  API.GET(`/api/candidates?pageNumber=${pageNumber}`, FETCH_CANDIDATES)
 );
 
+// Websocket message handler
+messageHandler.add((actionType, payload, dispatch) => {
+  if (actionType === FETCH_CANDIDATES) {
+    dispatch(fetchCandidates());
+  }
+});
+
 const initialState = {
-  candidateList: [],
+  candidates: [],
   pageNumber: 1,
   lastPage: false,
   totalMatches: 0,
-  sourceNumberingStart: 0,
-  sourceNumberingEnd: 0
+  candidateNumberingStart: 0,
+  candidateNumberingEnd: 0
 };
 
 const reducer = (state = initialState, action) => {
   switch (action.type) {
     case FETCH_CANDIDATES_OK: {
-      const { sources, pageNumber, lastPage, totalMatches, sourceNumberingStart,
-              sourceNumberingEnd } = action.data;
-      const candidateList = sources;
+      const { candidates, pageNumber, lastPage, totalMatches, candidateNumberingStart,
+        candidateNumberingEnd } = action.data;
       return {
         ...state,
-        candidateList,
+        candidates,
         pageNumber,
         lastPage,
         totalMatches,
-        sourceNumberingStart,
-        sourceNumberingEnd
+        candidateNumberingStart,
+        candidateNumberingEnd
       };
     }
     default:

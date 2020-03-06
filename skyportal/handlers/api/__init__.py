@@ -1,3 +1,4 @@
+from .candidate import CandidateHandler
 from .comment import CommentHandler, CommentAttachmentHandler
 from .group import GroupHandler, GroupUserHandler
 from .instrument import InstrumentHandler

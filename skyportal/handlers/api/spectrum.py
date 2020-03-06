@@ -1,9 +1,7 @@
-import tornado.web
-from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Spectrum, Comment, Instrument, Source
+from ...models import DBSession, Spectrum, Instrument, Source, Candidate
 
 
 class SpectrumHandler(BaseHandler):
@@ -34,9 +32,13 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        source_id = data.pop('source_id')
+        source_id = data.pop('source_id', None)
+        candidate_id = data.pop('candidate_id', None)
+        source = (Source.get_if_owned_by(source_id, self.current_user)
+                  if source_id is not None else None)
+        candidate = (Candidate.get_if_owned_by(candidate_id, self.current_user)
+                     if candidate_id is not None else None)
         instrument_id = data.pop('instrument_id')
-        source = Source.get_if_owned_by(source_id, self.current_user)
         instrument = Instrument.query.get(instrument_id)
 
         schema = Spectrum.__schema__()
@@ -45,7 +47,10 @@ class SpectrumHandler(BaseHandler):
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
-        spec.source = source
+        if source is not None:
+            spec.source = source
+        if candidate is not None:
+            spec.candidate = candidate
         spec.instrument = instrument
         DBSession().add(spec)
         DBSession().commit()

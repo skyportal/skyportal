@@ -3,7 +3,7 @@ import base64
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, User, Comment, Role
+from ...models import DBSession, Candidate, Source, User, Comment, Role
 
 
 class CommentHandler(BaseHandler):
@@ -61,9 +61,13 @@ class CommentHandler(BaseHandler):
                           description: Associated source ID
         """
         data = self.get_json()
-        source_id = data['source_id']
-        # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(source_id, self.current_user)
+        source_id = data.get('source_id', None)
+        candidate_id = data.get('candidate_id', None)
+        if source_id is not None:
+            # Ensure user/token has access to parent source
+            _ = Source.get_if_owned_by(source_id, self.current_user)
+        if candidate_id is not None:
+            _ = Candidate.get_if_owned_by(candidate_id, self.current_user)
         if 'attachment' in data and 'body' in data['attachment']:
             attachment_bytes = str.encode(data['attachment']['body']
                                           .split('base64,')[-1])
@@ -75,7 +79,7 @@ class CommentHandler(BaseHandler):
                   else self.current_user.name)
         comment = Comment(text=data['text'],
                           source_id=source_id, attachment_bytes=attachment_bytes,
-                          attachment_name=attachment_name,
+                          attachment_name=attachment_name, candidate_id=candidate_id,
                           author=author)
 
         DBSession().add(comment)

@@ -1,33 +1,35 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { Link } from 'react-router-dom';
 
-import * as sourceActions from '../ducks/source';
 import * as candidatesActions from '../ducks/candidates';
 import sourceStyles from "./Source.css";
 import Plot from './Plot';
 import ThumbnailList from './ThumbnailList';
+import CandidateCommentList from './CandidateCommentList';
+import SaveCandidateGroupSelectDialog from './SaveCandidateGroupSelectDialog';
 
 
 const CandidateList = () => {
-  const { candidateList, pageNumber, lastPage, totalMatches,
-          sourceNumberingStart, sourceNumberingEnd } = useSelector((state) =>
-            state.candidates
-          );
+  const { candidates, pageNumber, lastPage, totalMatches,
+    candidateNumberingStart, candidateNumberingEnd } = useSelector((state) => state.candidates);
+
+  const userGroups = useSelector((state) => state.groups.user);
 
   const dispatch = useDispatch();
   const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
 
   useEffect(() => {
-    if (!candidateList.length) {
+    if (!candidates.length) {
       dispatch(candidatesActions.fetchCandidates());
     }
   }, []);
 
-  const handleClickNextPage = (event) => {
+  const handleClickNextPage = () => {
     dispatch(candidatesActions.fetchCandidates({ pageNumber: pageNumber + 1 }));
   };
 
-  const handleClickPreviousPage = (event) => {
+  const handleClickPreviousPage = () => {
     dispatch(candidatesActions.fetchCandidates({ pageNumber: pageNumber - 1 }));
   };
 
@@ -38,10 +40,6 @@ const CandidateList = () => {
   const handleClickJumpToPage = (event) => {
     event.preventDefault();
     dispatch(candidatesActions.fetchCandidates({ pageNumber: jumpToPageInputValue }));
-  };
-
-  const handleIsCandidateRadioClick = (value, candidate_id) => {
-    dispatch(sourceActions.updateSource(candidate_id, { is_candidate: value }));
   };
 
   return (
@@ -62,9 +60,9 @@ const CandidateList = () => {
         <div style={{ display: "inline-block" }}>
           <i>
             Displaying&nbsp;
-            {sourceNumberingStart}
+            {candidateNumberingStart}
             -
-            {sourceNumberingEnd}
+            {candidateNumberingEnd}
             &nbsp;
             of&nbsp;
             {totalMatches}
@@ -88,14 +86,14 @@ const CandidateList = () => {
           <button type="button" onClick={handleClickJumpToPage}>
             Jump to page:
           </button>
-    &nbsp;&nbsp;
-    <input
-      type="text"
-      style={{ width: "25px" }}
-      onChange={handleJumpToPageInputChange}
-      value={jumpToPageInputValue}
-      name="jumpToPageInputField"
-    />
+          &nbsp;&nbsp;
+          <input
+            type="text"
+            style={{ width: "25px" }}
+            onChange={handleJumpToPageInputChange}
+            value={jumpToPageInputValue}
+            name="jumpToPageInputField"
+          />
         </div>
       </div>
       <table>
@@ -113,16 +111,30 @@ const CandidateList = () => {
             <th>
               Photometry
             </th>
+            <th>
+              Autoannotations
+            </th>
           </tr>
         </thead>
         <tbody>
           {
-            candidateList.map((candidate) => {
-              const thumbnails = candidate.thumbnails.filter((t) => t.type != "dr8");
+            candidates.map((candidate) => {
+              const thumbnails = candidate.thumbnails.filter((t) => t.type !== "dr8");
               return (
                 <tr key={candidate.id}>
                   <td>
-                    {candidate.last_detected && String(candidate.last_detected).split(".")[0]}
+                    {
+                      candidate.last_detected && (
+                        <div>
+                          <div>
+                            {String(candidate.last_detected).split(".")[0].split("T")[1]}
+                          </div>
+                          <div>
+                            {String(candidate.last_detected).split(".")[0].split("T")[0]}
+                          </div>
+                        </div>
+                      )
+                    }
                   </td>
                   <td>
                     <ThumbnailList
@@ -132,34 +144,51 @@ const CandidateList = () => {
                     />
                   </td>
                   <td>
-                    <div style={{ display: "inline-block", float: "right", paddingRight: "50px" }}>
-                      <input
-                        type="radio"
-                        name={`isCandidate${candidate.id}`}
-                        id={`isCandidateTrueRadio${candidate.id}`}
-                      // eslint-disable-next-line react/jsx-boolean-value
-                        value={true}
-                        checked={candidate.is_candidate}
-                        onClick={() => { handleIsCandidateRadioClick(true, candidate.id) }}
-                      />
-                &nbsp;Is candidate
-                <br />
-                <input
-                  type="radio"
-                  name={`isCandidate${candidate.id}`}
-                  id={`isCandidateFalseRadio${candidate.id}`}
-                  value={false}
-                  checked={!candidate.is_candidate}
-                  onClick={() => { handleIsCandidateRadioClick(false, candidate.id) }}
-                />
-                &nbsp;Is source
-                    </div>
+                    ID:&nbsp;
+                    <Link to={`/candidate/${candidate.id}`}>
+                      {candidate.id}
+                    </Link>
+                    <br />
+                    {
+                      candidate.source_id ? (
+                        <div>
+                          <Link
+                            to={`/source/${candidate.id}`}
+                            style={{ color: "red", textDecoration: "underline" }}
+                          >
+                            Previously Saved
+                          </Link>
+                        </div>
+                      ) : (
+                        <div>
+                          NOT SAVED
+                          <br />
+                          <SaveCandidateGroupSelectDialog
+                            candidateID={candidate.id}
+                            candidateGroups={candidate.groups}
+                            userGroups={userGroups}
+                          />
+                        </div>
+                      )
+                    }
+                    <b>Coordinates</b>
+                    :&nbsp;
+                    {candidate.ra}
+                    &nbsp;
+                    {candidate.dec}
+                    <br />
                   </td>
                   <td>
                     <Plot
                       className={sourceStyles.smallPlot}
-                      url={`/api/internal/plot/photometry/${candidate.id}`}
+                      url={`/api/internal/plot/photometry/${candidate.id}?plotHeight=200&plotWidth=300`}
                     />
+                  </td>
+                  <td>
+                    {
+                      candidate.comments &&
+                        <CandidateCommentList comments={candidate.comments} />
+                    }
                   </td>
                 </tr>
               );

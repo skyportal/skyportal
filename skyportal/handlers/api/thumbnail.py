@@ -6,7 +6,7 @@ from marshmallow.exceptions import ValidationError
 from PIL import Image
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Photometry, Source, Thumbnail
+from ...models import DBSession, Candidate, Photometry, Source, Thumbnail
 
 
 class ThumbnailHandler(BaseHandler):
@@ -55,22 +55,40 @@ class ThumbnailHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        if 'photometry_id' in data:
-            phot = Photometry.query.get(int(data['photometry_id']))
+        photometry_id = data.get("photometry_id", None)
+        source_id = data.get("source_id", None)
+        candidate_id = data.get("candidate_id", None)
+        if photometry_id is not None:
+            phot = Photometry.query.get(int(photometry_id))
             source_id = phot.source.id
             # Ensure user/token has access to parent source
             source = Source.get_if_owned_by(source_id, self.current_user)
-        elif 'source_id' in data:
-            source_id = data['source_id']
+            candidate = Candidate.get_if_owned_by(source_id, self.current_user)
+        elif source_id is not None:
             # Ensure user/token has access to parent source
             source = Source.get_if_owned_by(source_id, self.current_user)
             try:
                 phot = source.photometry[0]
             except IndexError:
                 return self.error('Specified source does not yet have any photometry data.')
+            source_or_candidate_id = source_id
+            candidate = Candidate.get_if_owned_by(source_id, self.current_user)
+        elif candidate_id is not None:
+            # Ensure user/token has access to parent source
+            candidate = Candidate.get_if_owned_by(candidate_id, self.current_user)
+            try:
+                phot = candidate.photometry[0]
+            except IndexError:
+                return self.error('Specified source does not yet have any photometry data.')
+            source_or_candidate_id = candidate_id
+            source = Source.get_if_owned_by(candidate_id, self.current_user)
         else:
-            return self.error('One of either source_id or photometry_id are required.')
-        t = create_thumbnail(data['data'], data['ttype'], source_id, phot)
+            return self.error('One of either source_id, candidate_id or photometry_id are required.')
+        t = create_thumbnail(data['data'], data['ttype'], source_or_candidate_id, phot)
+        if source is not None:
+            source.thumbnails.append(t)
+        if candidate is not None:
+            candidate.thumbnails.append(t)
         DBSession().commit()
 
         return self.success(data={"id": t.id})
@@ -182,14 +200,15 @@ class ThumbnailHandler(BaseHandler):
         return self.success()
 
 
-def create_thumbnail(thumbnail_data, thumbnail_type, source_id, photometry_obj):
-    basedir = Path(os.path.dirname(__file__))/'..'/'..'
+def create_thumbnail(thumbnail_data, thumbnail_type, source_or_candidate_id,
+                     photometry_obj):
+    basedir = Path(os.path.dirname(__file__)) / '..' / '..'
     if os.path.abspath(basedir).endswith('skyportal/skyportal'):
-        basedir = basedir/'..'
+        basedir = basedir / '..'
     file_uri = os.path.abspath(
-        basedir/f'static/thumbnails/{source_id}_{thumbnail_type}.png')
+        basedir / f'static/thumbnails/{source_or_candidate_id}_{thumbnail_type}.png')
     if not os.path.exists(os.path.dirname(file_uri)):
-        (basedir/'static/thumbnails').mkdir(parents=True)
+        (basedir / 'static/thumbnails').mkdir(parents=True)
     file_bytes = base64.b64decode(thumbnail_data)
     im = Image.open(io.BytesIO(file_bytes))
     if im.format != 'PNG':
@@ -200,7 +219,7 @@ def create_thumbnail(thumbnail_data, thumbnail_type, source_id, photometry_obj):
     t = Thumbnail(type=thumbnail_type,
                   photometry=photometry_obj,
                   file_uri=file_uri,
-                  public_url=f'/static/thumbnails/{source_id}_{thumbnail_type}.png')
+                  public_url=f'/static/thumbnails/{source_or_candidate_id}_{thumbnail_type}.png')
     DBSession.add(t)
     DBSession.flush()
 

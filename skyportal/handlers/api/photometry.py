@@ -1,17 +1,10 @@
-import os
-import io
-import base64
-from pathlib import Path
-import tornado.web
 from astropy.time import Time
-from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
-from PIL import Image
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from .thumbnail import create_thumbnail
 from ...models import (
-    DBSession, Photometry, Comment, Instrument, Source, Thumbnail
+    DBSession, Candidate, Photometry, Instrument, Source
 )
 
 
@@ -53,19 +46,34 @@ class PhotometryHandler(BaseHandler):
         ids = []
         instrument = Instrument.query.get(data['instrument_id'])
         if not instrument:
-            raise Exception('Invalid instrument ID') # TODO: handle invalid instrument ID
-        source = Source.get_if_owned_by(data['source_id'], self.current_user)
-        if not source:
-            raise Exception('Invalid source ID') # TODO: handle invalid source ID
+            return self.error('Invalid instrument ID')
+        source_id = data.get("source_id", None)
+        candidate_id = data.get('candidate_id', None)
+        if candidate_id is not None:
+            candidate = Candidate.get_if_owned_by(candidate_id, self.current_user)
+            if candidate is None:
+                return self.error("Invalid candidate ID")
+        else:
+            # We want candidates to stay up to date with associated sources
+            candidate = Candidate.get_if_owned_by(source_id, self.current_user)
+        if source_id is not None:
+            source = Source.get_if_owned_by(source_id, self.current_user)
+            if source is None:
+                return self.error("Invalid source ID")
+        else:
+            # We want sources to stay up to date with associated candidates
+            source = Source.get_if_owned_by(candidate_id, self.current_user)
+        if not (source or candidate):
+            return self.error('Invalid source/candidate ID')
+        converted_times = []
         for i in range(len(data['mag'])):
-            if not (data['time_scale'] == 'tcb' and data['time_format'] == 'iso'):
-                t = Time(data['observed_at'][i],
-                         format=data['time_format'],
-                         scale=data['time_scale'])
-                observed_at = t.tcb.iso
-            else:
-                observed_at = data['time'][i]
+            t = Time(data['observed_at'][i],
+                     format=data['time_format'],
+                     scale=data['time_scale'])
+            observed_at = t.tcb.iso
+            converted_times.append(observed_at)
             p = Photometry(source=source,
+                           candidate=candidate,
                            observed_at=observed_at,
                            mag=data['mag'][i],
                            e_mag=data['e_mag'][i],
@@ -81,6 +89,14 @@ class PhotometryHandler(BaseHandler):
             p = Photometry.query.get(ids[0])
             for thumb in data['thumbnails']:
                 create_thumbnail(thumb['data'], thumb['ttype'], source.id, p)
+        if source is not None:
+            source.last_detected = max(converted_times
+                                       + [source.last_detected if
+                                          source.last_detected is not None else '0'])
+        if candidate is not None:
+            candidate.last_detected = max(converted_times
+                                          + [candidate.last_detected if
+                                             candidate.last_detected is not None else '0'])
         DBSession().commit()
 
         return self.success(data={"ids": ids})
@@ -109,9 +125,9 @@ class PhotometryHandler(BaseHandler):
         info = {}
         info['photometry'] = Photometry.query.get(photometry_id)
         if info['photometry'] is None:
-            return self.error ('Invalid photometry ID')
+            return self.error('Invalid photometry ID')
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(info['photometry'].source_id,
+        _ = Source.get_if_owned_by(info['photometry'].source_id,
                                    self.current_user)
 
         return self.success(data=info)
@@ -142,7 +158,7 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(Photometry.query.get(photometry_id).source_id,
+        _ = Source.get_if_owned_by(Photometry.query.get(photometry_id).source_id,
                                    self.current_user)
         data = self.get_json()
         data['id'] = photometry_id
@@ -179,7 +195,7 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(Photometry.query.get(photometry_id).source_id,
+        _ = Source.get_if_owned_by(Photometry.query.get(photometry_id).source_id,
                                    self.current_user)
         DBSession.query(Photometry).filter(Photometry.id == int(photometry_id)).delete()
         DBSession().commit()
