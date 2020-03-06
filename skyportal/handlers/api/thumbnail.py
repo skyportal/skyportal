@@ -71,7 +71,6 @@ class ThumbnailHandler(BaseHandler):
                 phot = source.photometry[0]
             except IndexError:
                 return self.error('Specified source does not yet have any photometry data.')
-            source_or_candidate_id = source_id
             candidate = Candidate.get_if_owned_by(source_id, self.current_user)
         elif candidate_id is not None:
             # Ensure user/token has access to parent source
@@ -80,11 +79,10 @@ class ThumbnailHandler(BaseHandler):
                 phot = candidate.photometry[0]
             except IndexError:
                 return self.error('Specified source does not yet have any photometry data.')
-            source_or_candidate_id = candidate_id
             source = Source.get_if_owned_by(candidate_id, self.current_user)
         else:
             return self.error('One of either source_id, candidate_id or photometry_id are required.')
-        t = create_thumbnail(data['data'], data['ttype'], source_or_candidate_id, phot)
+        t = create_thumbnail(data['data'], data['ttype'], source_id or candidate_id, phot)
         if source is not None:
             source.thumbnails.append(t)
         if candidate is not None:
@@ -215,7 +213,7 @@ def create_thumbnail(thumbnail_data, thumbnail_type, source_or_candidate_id,
         raise ValueError('Invalid thumbnail image type. Only PNG are supported.')
     if not (100, 100) <= im.size <= (500, 500):
         raise ValueError('Invalid thumbnail size. Only thumbnails '
-                        'between (100, 100) and (500, 500) allowed.')
+                         'between (100, 100) and (500, 500) allowed.')
     t = Thumbnail(type=thumbnail_type,
                   photometry=photometry_obj,
                   file_uri=file_uri,

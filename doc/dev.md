@@ -79,7 +79,7 @@ To install the `pg_cron` extension, run (assuming Postgres 11 -- replace the ver
 ```
 sudo apt -y install postgresql-11-cron
 ```
-Then add the following two lines to bottom of postgresql.conf (typically located at /etc/postgresql/11/main/postgresql.conf):
+Then add the following two lines to the bottom of postgresql.conf (typically located at /etc/postgresql/11/main/postgresql.conf):
 ```
 shared_preload_libraries = 'pg_cron'
 cron.database_name = 'skyportal'
