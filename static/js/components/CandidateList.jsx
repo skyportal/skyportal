@@ -29,7 +29,7 @@ const CandidateList = () => {
       <h2>
         Scan candidates for sources
       </h2>
-      <FilterCandidateList />
+      <FilterCandidateList userGroups={userGroups} />
       <table>
         <thead>
           <tr>

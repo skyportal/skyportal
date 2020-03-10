@@ -1,4 +1,5 @@
 import datetime
+import arrow
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import auth_or_token, permissions
@@ -24,6 +25,15 @@ class CandidateHandler(BaseHandler):
         page_number = self.get_query_argument("pageNumber", None) or 1
         unsaved_only = self.get_query_argument("unsavedOnly", False)
         total_matches = self.get_query_argument("totalMatches", None)
+        start_date = self.get_query_argument("startDate", None)
+        end_date = self.get_query_argument("endDate", None)
+        group_ids = self.get_query_argument("groupIDs", [])
+        if "," in group_ids:
+            group_ids = [int(g_id) for g_id in group_ids.split(",")]
+        elif group_ids:
+            group_ids = [int(group_ids)]
+        else:
+            group_ids = []
         info = {}
         try:
             page = int(page_number)
@@ -47,8 +57,14 @@ class CandidateHandler(BaseHandler):
                 )
             )
         ).order_by(Candidate.last_detected.desc().nullslast(), Candidate.id)
-        if unsaved_only:
+        if unsaved_only == "true":
             q = q.filter(Candidate.source_id.is_(None))
+        if start_date is not None and start_date.strip() != "":
+            start_date = arrow.get(start_date.strip())
+            q = q.filter(Candidate.last_detected >= start_date)
+        if end_date is not None and end_date.strip() != "":
+            end_date = arrow.get(end_date.strip())
+            q = q.filter(Candidate.last_detected <= end_date)
         if total_matches:
             info["totalMatches"] = int(total_matches)
         else:

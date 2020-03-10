@@ -9,9 +9,14 @@ export const FETCH_CANDIDATES_OK = 'skyportal/FETCH_CANDIDATES_OK';
 export const FETCH_CANDIDATES_FAIL = 'skyportal/FETCH_CANDIDATES_FAIL';
 
 
-export const fetchCandidates = (pageNumber = 1) => (
-  API.GET(`/api/candidates?pageNumber=${pageNumber}`, FETCH_CANDIDATES)
-);
+export const fetchCandidates = (filterParams={}) => {
+  if (!Object.keys(filterParams).includes("pageNumber")) {
+    filterParams.pageNumber = 1;
+  }
+  const params = new URLSearchParams(filterParams);
+  const queryString = params.toString();
+  return API.GET(`/api/candidates?${queryString}`, FETCH_CANDIDATES);
+};
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {
