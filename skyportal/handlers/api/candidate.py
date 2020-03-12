@@ -27,13 +27,17 @@ class CandidateHandler(BaseHandler):
         total_matches = self.get_query_argument("totalMatches", None)
         start_date = self.get_query_argument("startDate", None)
         end_date = self.get_query_argument("endDate", None)
-        group_ids = self.get_query_argument("groupIDs", [])
-        if "," in group_ids:
-            group_ids = [int(g_id) for g_id in group_ids.split(",")]
-        elif group_ids:
-            group_ids = [int(group_ids)]
+        group_ids = self.get_query_argument("groupIDs", None)
+        if group_ids is not None:
+            if "," in group_ids:
+                group_ids = [int(g_id) for g_id in group_ids.split(",")]
+            elif group_ids.isdigit():
+                group_ids = [int(group_ids)]
+            else:
+                return self.error("Invalid groupIDs value -- select at least one group")
         else:
-            group_ids = []
+            # If 'groupIDs' param not present in request, use all user groups
+            group_ids = [g.id for g in self.current_user.groups]
         info = {}
         try:
             page = int(page_number)
@@ -51,11 +55,7 @@ class CandidateHandler(BaseHandler):
         ).filter(
             Candidate.id.in_(
                 DBSession.query(GroupCandidate.candidate_id).filter(
-                    GroupCandidate.group_id.in_(
-                        [g.id for g in self.current_user.groups]
-                    )
-                )
-            )
+                    GroupCandidate.group_id.in_(group_ids)))
         ).order_by(Candidate.last_detected.desc().nullslast(), Candidate.id)
         if unsaved_only == "true":
             q = q.filter(Candidate.source_id.is_(None))
