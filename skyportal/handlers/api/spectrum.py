@@ -80,12 +80,17 @@ class SpectrumHandler(BaseHandler):
         """
         spectrum = Spectrum.query.get(spectrum_id)
 
-        if spectrum is not None:
-            source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
-            return self.success(data={'spectrum': spectrum})
-        else:
+        if spectrum is None:
             return self.error(f"Could not load spectrum {spectrum_id}",
                               data={"spectrum_id": spectrum_id})
+        # Ensure user/token has access to parent source/candidate
+        try:
+            _ = Source.get_if_owned_by(spectrum.source_id, self.current_user)
+        except (ValueError, AttributeError, TypeError):
+            _ = Candidate.get_if_owned_by(spectrum.candidate_id, self.current_user)
+
+        return self.success(data={'spectrum': spectrum})
+
 
     @permissions(['Manage sources'])
     def put(self, spectrum_id):
@@ -113,7 +118,11 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
         spectrum = Spectrum.query.get(spectrum_id)
-        source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
+        # Ensure user/token has access to parent source/candidate
+        try:
+            _ = Source.get_if_owned_by(spectrum.source_id, self.current_user)
+        except (ValueError, AttributeError, TypeError):
+            _ = Candidate.get_if_owned_by(spectrum.candidate_id, self.current_user)
         data = self.get_json()
         data['id'] = spectrum_id
 
@@ -149,7 +158,11 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
         spectrum = Spectrum.query.get(spectrum_id)
-        source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
+        # Ensure user/token has access to parent source/candidate
+        try:
+            _ = Source.get_if_owned_by(spectrum.source_id, self.current_user)
+        except (ValueError, AttributeError, TypeError):
+            _ = Candidate.get_if_owned_by(spectrum.candidate_id, self.current_user)
         DBSession().delete(spectrum)
         DBSession().commit()
 

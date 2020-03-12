@@ -31,8 +31,11 @@ class CommentHandler(BaseHandler):
         comment = Comment.query.get(comment_id)
         if comment is None:
             return self.error('Invalid comment ID.')
-        # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(comment.source.id, self.current_user)
+        # Ensure user/token has access to parent source/candidate
+        try:
+            _ = Source.get_if_owned_by(comment.source_id, self.current_user)
+        except (ValueError, AttributeError, TypeError):
+            _ = Candidate.get_if_owned_by(comment.candidate_id, self.current_user)
         if comment is not None:
             return self.success(data={'comment': comment})
         else:
@@ -117,8 +120,11 @@ class CommentHandler(BaseHandler):
         c = Comment.query.get(comment_id)
         if c is None:
             return self.error('Invalid comment ID.')
-        # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(c.source.id, self.current_user)
+        # Ensure user/token has access to parent source/candidate
+        try:
+            _ = Source.get_if_owned_by(c.source_id, self.current_user)
+        except (ValueError, AttributeError, TypeError):
+            _ = Candidate.get_if_owned_by(c.candidate_id, self.current_user)
 
         data = self.get_json()
         data['id'] = comment_id
@@ -133,7 +139,7 @@ class CommentHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'source_id': comment.source_id})
+                      payload={'source_id': c.source_id})
         return self.success()
 
     @permissions(['Comment'])
@@ -192,8 +198,11 @@ class CommentAttachmentHandler(BaseHandler):
         comment = Comment.query.get(comment_id)
         if comment is None:
             return self.error('Invalid comment ID.')
-        # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(comment.source.id, self.current_user)
+        # Ensure user/token has access to parent source/candidate
+        try:
+            _ = Source.get_if_owned_by(comment.source_id, self.current_user)
+        except (ValueError, AttributeError, TypeError):
+            _ = Candidate.get_if_owned_by(comment.candidate_id, self.current_user)
         self.set_header(
             "Content-Disposition", "attachment; "
             f"filename={comment.attachment_name}")

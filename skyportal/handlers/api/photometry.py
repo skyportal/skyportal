@@ -122,15 +122,16 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        info = {}
-        info['photometry'] = Photometry.query.get(photometry_id)
-        if info['photometry'] is None:
+        p = Photometry.query.get(photometry_id)
+        if p is None:
             return self.error('Invalid photometry ID')
-        # Ensure user/token has access to parent source
-        _ = Source.get_if_owned_by(info['photometry'].source_id,
-                                   self.current_user)
+        # Ensure user/token has access to parent source/candidate
+        try:
+            _ = Source.get_if_owned_by(p.source_id, self.current_user)
+        except (ValueError, AttributeError, TypeError):
+            _ = Candidate.get_if_owned_by(p.candidate_id, self.current_user)
 
-        return self.success(data=info)
+        return self.success(data={"photometry": p})
 
     @permissions(['Manage sources'])
     def put(self, photometry_id):
@@ -157,9 +158,14 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        # Ensure user/token has access to parent source
-        _ = Source.get_if_owned_by(Photometry.query.get(photometry_id).source_id,
-                                   self.current_user)
+        # Ensure user/token has access to parent source/candidate
+        try:
+            _ = Source.get_if_owned_by(Photometry.query.get(photometry_id).source_id,
+                                       self.current_user)
+        except (ValueError, AttributeError, TypeError):
+            _ = Candidate.get_if_owned_by(Photometry.query.get(photometry_id).candidate_id,
+                                          self.current_user)
+
         data = self.get_json()
         data['id'] = photometry_id
 
@@ -194,9 +200,14 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        # Ensure user/token has access to parent source
-        _ = Source.get_if_owned_by(Photometry.query.get(photometry_id).source_id,
-                                   self.current_user)
+        # Ensure user/token has access to parent source/candidate
+        try:
+            _ = Source.get_if_owned_by(Photometry.query.get(photometry_id).source_id,
+                                       self.current_user)
+        except (ValueError, AttributeError, TypeError):
+            _ = Candidate.get_if_owned_by(Photometry.query.get(photometry_id).candidate_id,
+                                          self.current_user)
+
         DBSession.query(Photometry).filter(Photometry.id == int(photometry_id)).delete()
         DBSession().commit()
 

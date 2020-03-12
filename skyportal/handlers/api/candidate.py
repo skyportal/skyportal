@@ -22,12 +22,29 @@ CANDIDATES_PER_PAGE = 25
 class CandidateHandler(BaseHandler):
     @auth_or_token
     def get(self, candidate_id=None):
+        if candidate_id is not None:
+            c = Candidate.get_if_owned_by(
+                candidate_id,
+                self.current_user,
+                options=[
+                    joinedload(Candidate.comments),
+                    joinedload(Candidate.thumbnails)
+                    .joinedload(Thumbnail.photometry)
+                    .joinedload(Photometry.instrument)
+                    .joinedload(Instrument.telescope),
+                ],
+            )
+            if c is None:
+                return self.error("Invalid candidate ID")
+            return self.success(data={"candidates": c})
+
         page_number = self.get_query_argument("pageNumber", None) or 1
         unsaved_only = self.get_query_argument("unsavedOnly", False)
         total_matches = self.get_query_argument("totalMatches", None)
         start_date = self.get_query_argument("startDate", None)
         end_date = self.get_query_argument("endDate", None)
         group_ids = self.get_query_argument("groupIDs", None)
+        info = {}
         if group_ids is not None:
             if "," in group_ids:
                 group_ids = [int(g_id) for g_id in group_ids.split(",")]
@@ -38,7 +55,6 @@ class CandidateHandler(BaseHandler):
         else:
             # If 'groupIDs' param not present in request, use all user groups
             group_ids = [g.id for g in self.current_user.groups]
-        info = {}
         try:
             page = int(page_number)
         except ValueError:

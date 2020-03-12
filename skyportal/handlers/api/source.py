@@ -180,7 +180,7 @@ class SourceHandler(BaseHandler):
         else:
             return self.error(
                 f"Could not load source {source_id}",
-                data={"source_id": source_id_or_page_num},
+                data={"source_id": source_id},
             )
 
     @permissions(["Upload data"])
