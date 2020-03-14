@@ -1,14 +1,8 @@
-import pytest
-import uuid
 import os
 from os.path import join as pjoin
 import time
-from selenium import webdriver
 from selenium.webdriver.common.by import By
-import requests
-import numpy.testing as npt
 
-from skyportal.models import Source, DBSession
 from baselayer.app.config import load_config
 
 
@@ -71,8 +65,8 @@ def test_download_comment_attachment(driver, user, public_source):
     assert(os.path.exists(fpath))
     try:
         with open(fpath) as f:
-            l = f.read()
-        assert l.split('\n')[0] == 'wavelength,flux,instrument_id'
+            lines = f.read()
+        assert lines.split('\n')[0] == 'wavelength,flux,instrument_id'
     finally:
         os.remove(fpath)
 

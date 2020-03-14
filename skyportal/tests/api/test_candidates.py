@@ -14,7 +14,6 @@ def test_token_user_retrieving_candidate(view_only_token, public_candidate):
                        token=view_only_token)
     assert status == 200
     assert data['status'] == 'success'
-    print("candidates:", data['data']['candidates'])
     assert all(k in data['data']['candidates'] for k in ['ra', 'dec', 'redshift',
                                                          'comments', 'thumbnails'])
 
@@ -169,9 +168,8 @@ def test_delete_candidate_cascade_comments(manage_sources_token, public_candidat
 
 
 def test_delete_candidate_cascade_groupcandidate(upload_data_token,
-                                           manage_sources_token, public_group):
+                                                 manage_sources_token, public_group):
     candidate_id = str(uuid.uuid4())
-    print(public_group.id)
     assert len(public_group.candidates) == 0
 
     status, data = api('POST', 'candidates',
