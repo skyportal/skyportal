@@ -1,16 +1,15 @@
-import React, { useState } from 'react';
-import PropTypes from 'prop-types';
-import { useDispatch } from 'react-redux';
+import React, { useState } from "react";
+import PropTypes from "prop-types";
+import { useDispatch } from "react-redux";
 
-import * as Actions from '../ducks/sources';
+import { Button, Checkbox, FormControlLabel } from "@material-ui/core";
+
+import * as Actions from "../ducks/sources";
 
 import styles from "./SearchBox.css";
 
-import CustomInput from './CustomInput';
-import TimeFormatInput from './TimeFormatInput';
-// import CheckBox from './CheckBox';
+import CustomInput from "./CustomInput";
 
-import { Button, Checkbox, FormControlLabel } from '@material-ui/core';
 
 const SearchBox = ({ sources }) => {
   const dispatch = useDispatch();
@@ -30,8 +29,8 @@ const SearchBox = ({ sources }) => {
 
   const handleInputChange = (event) => {
     const newState = {};
-    newState[event.target.name] = event.target.type === 'checkbox' ?
-      event.target.checked : event.target.value;
+    newState[event.target.name] =
+      event.target.type === "checkbox" ? event.target.checked : event.target.value;
     setFormState({
       ...formState,
       ...newState
@@ -43,7 +42,7 @@ const SearchBox = ({ sources }) => {
     dispatch(Actions.fetchSources(formState));
   };
 
-  const handleReset = (event) => {
+  const handleReset = () => {
     setFormState({
       sourceID: "",
       ra: "",
@@ -97,7 +96,9 @@ const SearchBox = ({ sources }) => {
       <div className={styles.searchBox}>
         <form className={styles.searchBoxForm}>
           <div className={styles.searchBoxFormInner}>
-            <h5 className={styles.searchBoxFormHeader}> Filter by Name or ID </h5>
+            <h5 className={styles.searchBoxFormHeader}>
+              Filter by Name or ID
+            </h5>
             <div className={styles.searchBoxFormInputs}>
               <div className={styles.col12}>
                 <CustomInput
@@ -146,9 +147,10 @@ const SearchBox = ({ sources }) => {
               </div>
             </div>
           </div>
-          {/* Required format: %Y-%m-%dT%H:%M:%S in UTC time, e.g. 2012-08-30T00:00:00 */}
           <div className={styles.searchBoxFormInner}>
-            <h5 className={styles.searchBoxFormHeader}> Filter by Time Last Detected (UTC)</h5>
+            <h5 className={styles.searchBoxFormHeader}>
+              Filter by Time Last Detected (UTC)
+            </h5>
             <div className={styles.searchBoxFormInputs}>
               <div className={styles.col6}>
                 <CustomInput
@@ -175,7 +177,9 @@ const SearchBox = ({ sources }) => {
             </div>
           </div>
           <div className={styles.searchBoxFormInner}>
-            <h5 className={styles.searchBoxFormHeader}> Filter by Simbad Class </h5>
+            <h5 className={styles.searchBoxFormHeader}>
+              Filter by Simbad Class
+            </h5>
             <div className={styles.searchBoxFormInputs}>
               <div className={styles.col12}>
                 <CustomInput
@@ -192,118 +196,93 @@ const SearchBox = ({ sources }) => {
           <div className={styles.searchBoxFormInner}>
             <div className={styles.searchBoxFormInputs}>
               <div className={styles.col4}>
-                {/* <CheckBox
-                  type="checkbox"
-                  label="Must Have TNS Name: "
-                  name="hasTNSname"
-                  checked={formState.hasTNSname}
-                  onChange={handleInputChange}
-                  size="6"
-                /> */}
-                <FormControlLabel 
+                <FormControlLabel
                   label="TNS Name"
                   labelPlacement="start"
-                  control={
-                  <Checkbox 
-                    color="primary"
-                    type="checkbox"
-                    name="hasTNSname"
-                    checked={formState.hasTNSname}
-                    onChange={handleInputChange}
-                    size="6"/>
-                  }
+                  control={(
+                    <Checkbox
+                      color="primary"
+                      type="checkbox"
+                      name="hasTNSname"
+                      checked={formState.hasTNSname}
+                      onChange={handleInputChange}
+                      size="6"
+                    />
+                  )}
                 />
               </div>
               <div className={styles.col4}>
-                {/* <input
-                  type="submit"
-                  className={styles.inputSubmitButton}
-                  disabled={sources.queryInProgress}
+                <Button
+                  variant="contained"
+                  color="primary"
                   onClick={handleSubmit}
-                /> */}
-              <Button 
-                variant="contained" 
-                color="primary" 
-                onClick={handleSubmit} 
-                disabled={sources.queryInProgress}>
-                Submit
-              </Button>
+                  disabled={sources.queryInProgress}
+                >
+                  Submit
+                </Button>
               </div>
               <div className={styles.col4}>
-              <Button 
-                variant="contained" 
-                color="primary" 
-                onClick={handleReset}>
-              Reset
-              </Button>
-                {/* <button
-                  className={styles.inputSubmitButton}
-                  type="button"
+                <Button
+                  variant="contained"
+                  color="primary"
                   onClick={handleReset}
                 >
                   Reset
-                </button> */}
+                </Button>
               </div>
             </div>
           </div>
-
         </form>
       </div>
-      {
-        sources && (
-          <div className={styles.tableSubTitle}>
-            <div style={{ display: "inline-block" }}>
-              <button
-                className={styles.inlineButton}
-                type="button"
-                onClick={handleClickPreviousPage}
-                disabled={sources.pageNumber === 1}
-              >
-                View Previous 100 Sources
-              </button>
-            </div>
-            <div style={{ display: "inline-block" }}>
-              <i>
-                Displaying&nbsp;
-                {sources.sourceNumberingStart}
-                -
-                {sources.sourceNumberingEnd}
-                &nbsp;
-                of&nbsp;
-                {sources.totalMatches}
-                &nbsp;
-                matching sources.
-              </i>
-            </div>
-            <div style={{ display: "inline-block" }}>
-              <button
-                className={styles.inlineButton}
-                type="button"
-                onClick={handleClickNextPage}
-                disabled={sources.lastPage}
-              >
-                View Next 100 Sources
-              </button>
-            </div>
-            <div>
-                <i>
-                  or&nbsp;&nbsp;
-                </i>
-                <button type="button" onClick={handleClickJumpToPage}>
-                  Jump to page:
-                </button>
-                &nbsp;&nbsp;
-                <input
-                  type="text"
-                  style={{ width: "25px" }}
-                  onChange={handleJumpToPageInputChange}
-                  value={jumpToPageInputValue}
-                  name="jumpToPageInputField"
-                />
-              </div>
+      {sources && (
+        <div className={styles.tableSubTitle}>
+          <div style={{ display: "inline-block" }}>
+            <button
+              className={styles.inlineButton}
+              type="button"
+              onClick={handleClickPreviousPage}
+              disabled={sources.pageNumber === 1}
+            >
+              View Previous 100 Sources
+            </button>
           </div>
-        )
-      }
+          <div style={{ display: "inline-block" }}>
+            <i>
+              Displaying&nbsp;
+              {sources.sourceNumberingStart}
+              -
+              {sources.sourceNumberingEnd}
+              &nbsp; of&nbsp;
+              {sources.totalMatches}
+              &nbsp; matching sources.
+            </i>
+          </div>
+          <div style={{ display: "inline-block" }}>
+            <button
+              className={styles.inlineButton}
+              type="button"
+              onClick={handleClickNextPage}
+              disabled={sources.lastPage}
+            >
+              View Next 100 Sources
+            </button>
+          </div>
+          <div>
+            <i>or&nbsp;&nbsp;</i>
+            <button type="button" onClick={handleClickJumpToPage}>
+              Jump to page:
+            </button>
+            &nbsp;&nbsp;
+            <input
+              type="text"
+              style={{ width: "25px" }}
+              onChange={handleJumpToPageInputChange}
+              value={jumpToPageInputValue}
+              name="jumpToPageInputField"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
