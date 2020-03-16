@@ -28,6 +28,7 @@ class CandidateHandler(BaseHandler):
                 self.current_user,
                 options=[
                     joinedload(Candidate.comments),
+                    joinedload(Candidate.groups),
                     joinedload(Candidate.thumbnails)
                     .joinedload(Thumbnail.photometry)
                     .joinedload(Photometry.instrument)
