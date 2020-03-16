@@ -58,7 +58,7 @@ class SourceHandler(BaseHandler):
         radius = self.get_query_argument('radius', None)
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
-        sourceID = self.get_query_argument('sourceID', None) # Partial ID to match
+        sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
         simbad_class = self.get_query_argument('simbadClass', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
         total_matches = self.get_query_argument('totalMatches', None)
@@ -120,7 +120,7 @@ class SourceHandler(BaseHandler):
                  (info['totalMatches'] < page * SOURCES_PER_PAGE and
                   info['totalMatches'] % SOURCES_PER_PAGE == 0) and
                  info['totalMatches'] != 0) or
-                page <= 0 or (info['totalMatches'] == 0 and page != 1)):
+                    page <= 0 or (info['totalMatches'] == 0 and page != 1)):
                 return self.error("Page number out of range.")
             info['sources'] = q.limit(SOURCES_PER_PAGE).offset(
                 (page - 1) * SOURCES_PER_PAGE).all()
@@ -144,7 +144,7 @@ class SourceHandler(BaseHandler):
             return self.success(data=info)
         else:
             return self.error(f"Could not load source {source_id}",
-                              data={"source_id": source_id_or_page_num})
+                              data={"source_id": source_id})
 
     @permissions(['Upload data'])
     def post(self):
