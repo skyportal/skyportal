@@ -162,6 +162,8 @@ class CommentHandler(BaseHandler):
         user = (self.current_user.username if hasattr(self.current_user, 'username') else self.current_user.name)
         roles = (self.current_user.roles if hasattr(self.current_user, 'roles') else '')
         c = Comment.query.get(comment_id)
+        if c is None:
+            return self.error("Invalid comment ID")
         source_id = c.source_id
         author = c.author
         if ("Super admin" in [role.id for role in roles]) or (user == author):
