@@ -18,4 +18,5 @@ node_modules/
 static/thumbnails
 *.lock
 *.dirlock
+.jobs*
 package-lock.json
