@@ -69,48 +69,6 @@ DBSession().rollback()  # recover after a DB error
         - `User.query.first().to_dict()` will not contain information about the user's permissions
         - `u = User.query.first(); u.acls; u.to_dict()` does include a list of the user's ACLs
 
-### Scheduling a `pg_cron` job to periodically delete old candidates not saved as sources
-
-You may wish to configure SkyPortal to periodically delete old candidates not saved as sources. This section will outline that process using the Postgres extension [`pg_cron`](https://github.com/citusdata/pg_cron) in Ubuntu or other Debian-based distros.
-
-The `pg_cron` installation and setup instructions here largely mirror those in the [official docs](https://github.com/citusdata/pg_cron#setting-up-pg_cron).
-
-To install the `pg_cron` extension, run (assuming Postgres 11 -- replace the version number to match yours)
-```
-sudo apt -y install postgresql-11-cron
-```
-Then add the following two lines to the bottom of postgresql.conf (typically located at /etc/postgresql/11/main/postgresql.conf):
-```
-shared_preload_libraries = 'pg_cron'
-cron.database_name = 'skyportal'
-```
-Then, after restarting Postgres (`sudo service postgresql restart`), add the extension by running the following command in psql as superuser:
-```
-CREATE EXTENSION pg_cron;
-```
-If using the default SkyPortal DB configuration, this can be achieved by running
-```
-sudo psql -U skyportal -h localhost -p 5432 -c "CREATE EXTENSION pg_cron;"
-```
-
-Now add the cron job by running
-```
-SELECT cron.schedule('0 1 * * 6', $$DELETE FROM candidates WHERE source_id IS NULL AND created_at < now() - interval '1 month'$$);
-```
-This will run the command every Saturday at 1am UTC (change as desired), and will delete candidates not flagged as sources older than one month (configure as needed).
-
-View all pg_cron jobs by running `SELECT * FROM cron.job;`, and you will see your new job:
-```
-skyportal=# SELECT * FROM cron.job;
- jobid | schedule  |                                          command                                           | nodename  | nodeport | database  | username  | active
--------+-----------+--------------------------------------------------------------------------------------------+-----------+----------+-----------+-----------+--------
-     1 | 0 1 * * 6 | DELETE FROM candidates WHERE source_id IS NULL AND created_at < now() - interval '1 month' | localhost |     5432 | skyportal | skyportal | t
-(1 row)
-
-```
-
-You can check that your pg_cron jobs are running as expected by viewing the main Postgres log (typically /var/log/postgresql/postgresql-11-main.log).
-
 ## Standards
 
 We use ESLint to ensure that our JavaScript & JSX code is consistent and conforms with recommended standards.
