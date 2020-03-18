@@ -3,7 +3,7 @@ database:
     host: db
     port: 5432
     user: skyportal
-    password:
+    password: latropyks
 
 server:
     url: http://localhost:5000
