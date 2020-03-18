@@ -13,5 +13,5 @@ services:
     image: postgres:9.6
     environment:
       - POSTGRES_USER=skyportal
-      - POSTGRES_PASSWORD=
+      - POSTGRES_PASSWORD=latropyks
       - POSTGRES_DB=skyportal
