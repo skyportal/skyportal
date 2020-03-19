@@ -37,4 +37,4 @@ misc:
 
 cron:
   - interval: 1440
-    script: skyportal/jobs/delete_unsaved_candidates.py
+    script: jobs/delete_unsaved_candidates.py
