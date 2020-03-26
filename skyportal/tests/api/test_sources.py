@@ -208,3 +208,22 @@ def test_delete_source_cascade_groupsource(upload_data_token,
     status, data = api('GET', f'groups/{public_group.id}',
                        token=manage_sources_token)
     assert len(data['data']['group']['sources']) == 0
+
+
+def test_starlist(manage_sources_token, public_source):
+    status, data = api('PUT', f'sources/{public_source.id}',
+                       data={'ra': 234.22,
+                             'dec': -22.33},
+                       token=manage_sources_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api('GET', f'sources/{public_source.id}/offsets?facility=Keck&how_many=1',
+                       token=manage_sources_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']["noffsets"] == 1
+    assert data['data']["facility"] == 'Keck'
+    assert 'starlist' in data['data']
+
+

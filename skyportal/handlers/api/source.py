@@ -1,10 +1,14 @@
+import datetime
+from functools import reduce
+
 import tornado.web
+from tornado import escape
+
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, desc
 import arrow
-import datetime
-from functools import reduce
 from marshmallow.exceptions import ValidationError
+
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
@@ -12,7 +16,8 @@ from ...models import (
     Thumbnail, GroupSource, Token, User, Group
 )
 from .internal.source_views import register_source_view
-
+from .internal import get_nearby_offset_stars
+from .internal import facility_parameters
 
 SOURCES_PER_PAGE = 100
 
@@ -288,3 +293,101 @@ class SourcePhotometryHandler(BaseHandler):
         if not set(source.groups).intersection(set(self.current_user.groups)):
             return self.error('Inadequate permissions.')
         return self.success(data={'photometry': source.photometry})
+
+
+class SourceOffsetsHandler(BaseHandler):
+    @auth_or_token
+    def get(self, source_id):
+        """
+        ---
+        description: Retrieve offset stars to aid in spectroscopy
+        parameters:
+        - in: path
+          name: source_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: facility
+          nullable: true
+          schema:
+            type: string
+            enum: [null, Keck, Shane, P200]
+          description: Which facility to generate the starlist for
+        - in: query
+          name: how_many
+          nullable: true
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10
+          description: |
+            Requested number of offset stars (set to zero to get starlist
+            of just the source itself)
+        - in: query
+          name: obstime_isoformat
+          nullable: True
+          schema:
+            type: string
+          description: |
+            datetime of observation in isoformat (e.g. 2020-12-30T12:34:10)
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        source = Source.query.get(source_id)
+        if not source:
+            return self.error('Invalid source ID.')
+        if not set(source.groups).intersection(set(self.current_user.groups)):
+            return self.error('Inadequate permissions.')
+
+        facility = self.get_query_argument('facility', 'Keck')
+        how_many = self.get_query_argument('how_many', '3')
+        obstime_isoformat = \
+            self.get_query_argument('obstime_isoformat',
+                                    datetime.datetime.utcnow().isoformat())
+
+        if facility not in facility_parameters:
+            return self.error('Invalid facility')
+
+        radius_degrees = facility_parameters[facility]["radius_degrees"]
+        mag_limit = facility_parameters[facility]["mag_limit"]
+        min_sep_arcsec = facility_parameters[facility]["min_sep_arcsec"]
+        mag_min = facility_parameters[facility]["mag_min"]
+
+        try:
+            how_many = int(how_many)
+        except:
+            # could not handle inputs
+            return self.error('Error converting some input parameters')
+
+        try:
+            r, query_string, remaining_searches, noffsets = \
+                get_nearby_offset_stars(source.ra, source.dec,
+                                        source_id,
+                                        how_many=how_many,
+                                        radius_degrees=radius_degrees,
+                                        mag_limit=mag_limit,
+                                        min_sep_arcsec=min_sep_arcsec,
+                                        starlist_type=facility,
+                                        mag_min=mag_min,
+                                        obstime_isoformat=obstime_isoformat,
+                                        remaining_searches=1)
+
+        except:
+            return self.error('Error calling get_nearby_offset_stars')
+
+        return self.success(data={'facility': facility,
+                                  'starlist': r.replace(" ", "&nbsp;"),
+                                  'ra': source.ra,
+                                  'dec': source.dec, 'noffsets': noffsets,
+                                  'remaining_searches': remaining_searches,
+                                  'query': query_string})
+
+
