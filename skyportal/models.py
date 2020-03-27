@@ -47,6 +47,7 @@ class Group(Base):
     name = sa.Column(sa.String, unique=True, nullable=False)
 
     sources = relationship('Source', secondary='group_sources')
+    candidates = relationship("Candidate", secondary="group_candidates")
     streams = relationship('Stream', secondary='stream_groups',
                            back_populates='groups')
     telescopes = relationship('Telescope', secondary='group_telescopes')
@@ -189,6 +190,123 @@ User.sources = relationship('Source', backref='users',
                             primaryjoin='group_users.c.user_id == users.c.id')
 
 
+class Candidate(Base):
+    id = sa.Column(sa.String, primary_key=True)
+    saved_as_source_by_id = sa.Column(sa.ForeignKey("users.id"), nullable=True)
+    source_id = sa.Column(sa.ForeignKey("sources.id"), nullable=True)
+    # TODO should this column type be decimal? fixed-precison numeric
+    ra = sa.Column(sa.Float)
+    dec = sa.Column(sa.Float)
+
+    ra_dis = sa.Column(sa.Float)
+    dec_dis = sa.Column(sa.Float)
+
+    ra_err = sa.Column(sa.Float, nullable=True)
+    dec_err = sa.Column(sa.Float, nullable=True)
+
+    offset = sa.Column(sa.Float, default=0.0)
+    redshift = sa.Column(sa.Float, nullable=True)
+
+    altdata = sa.Column(JSONB, nullable=True)
+
+    last_detected = sa.Column(ArrowType, nullable=True)
+    dist_nearest_source = sa.Column(sa.Float, nullable=True)
+    mag_nearest_source = sa.Column(sa.Float, nullable=True)
+    e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
+
+    transient = sa.Column(sa.Boolean, default=False)
+    varstar = sa.Column(sa.Boolean, default=False)
+    is_roid = sa.Column(sa.Boolean, default=False)
+
+    score = sa.Column(sa.Float, nullable=True)
+
+    # pan-starrs
+    sgmag1 = sa.Column(sa.Float, nullable=True)
+    srmag1 = sa.Column(sa.Float, nullable=True)
+    simag1 = sa.Column(sa.Float, nullable=True)
+    objectidps1 = sa.Column(sa.BigInteger, nullable=True)
+    sgscore1 = sa.Column(sa.Float, nullable=True)
+    distpsnr1 = sa.Column(sa.Float, nullable=True)
+
+    origin = sa.Column(sa.String, nullable=True)
+    modified = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        server_default=sa.func.now(),
+        server_onupdate=sa.func.now(),
+    )
+
+    simbad_class = sa.Column(sa.Unicode, nullable=True,)
+    simbad_info = sa.Column(JSONB, nullable=True)
+    gaia_info = sa.Column(JSONB, nullable=True)
+    tns_info = sa.Column(JSONB, nullable=True)
+    tns_name = sa.Column(sa.Unicode, nullable=True)
+
+    groups = relationship("Group", secondary="group_candidates")
+    comments = relationship(
+        "Comment",
+        back_populates="candidate",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        order_by="Comment.created_at",
+    )
+    photometry = relationship(
+        "Photometry",
+        back_populates="candidate",
+        cascade="save-update, merge, refresh-expire, expunge",
+        single_parent=True,
+        passive_deletes=True,
+        order_by="Photometry.observed_at",
+    )
+
+    detect_photometry_count = sa.Column(sa.Integer, nullable=True)
+
+    spectra = relationship(
+        "Spectrum",
+        back_populates="candidate",
+        cascade="save-update, merge, refresh-expire, expunge",
+        single_parent=True,
+        passive_deletes=True,
+        order_by="Spectrum.observed_at",
+    )
+    thumbnails = relationship(
+        "Thumbnail",
+        back_populates="candidate",
+        secondary="photometry",
+        cascade="save-update, merge, refresh-expire, expunge",
+    )
+
+    def add_linked_thumbnails(self):
+        sdss_thumb = Thumbnail(
+            photometry=self.photometry[0], public_url=self.sdss_url, type="sdss"
+        )
+        dr8_thumb = Thumbnail(
+            photometry=self.photometry[0], public_url=self.desi_dr8_url, type="dr8"
+        )
+        DBSession().add_all([sdss_thumb, dr8_thumb])
+        DBSession().commit()
+
+    @property
+    def sdss_url(self):
+        """Construct URL for public Sloan Digital Sky Survey (SDSS) cutout."""
+        return (
+            f"http://skyservice.pha.jhu.edu/DR9/ImgCutout/getjpeg.aspx"
+            f"?ra={self.ra}&dec={self.dec}&scale=0.3&width=200&height=200"
+            f"&opt=G&query=&Grid=on"
+        )
+
+    @property
+    def desi_dr8_url(self):
+        """Construct URL for public DESI DR8 cutout."""
+        return (
+            f"http://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
+            f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz"
+        )
+
+
+GroupCandidate = join_model("group_candidates", Group, Candidate)
+
+
 class SourceView(Base):
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, unique=False)
@@ -242,6 +360,10 @@ class Comment(Base):
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, index=True)
     source = relationship('Source', back_populates='comments')
+    candidate_id = sa.Column(
+        sa.ForeignKey("candidates.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    candidate = relationship("Candidate", back_populates="comments")
 
 
 class Photometry(Base):
@@ -273,6 +395,10 @@ class Photometry(Base):
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, index=True)
     source = relationship('Source', back_populates='photometry')
+    candidate_id = sa.Column(
+        sa.ForeignKey("candidates.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    candidate = relationship("Candidate", back_populates="photometry")
     instrument_id = sa.Column(sa.ForeignKey('instruments.id'),
                               nullable=False, index=True)
     instrument = relationship('Instrument', back_populates='photometry')
@@ -289,6 +415,10 @@ class Spectrum(Base):
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
                           nullable=False, index=True)
     source = relationship('Source', back_populates='spectra')
+    candidate_id = sa.Column(
+        sa.ForeignKey("candidates.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    candidate = relationship("Candidate", back_populates="spectra")
     observed_at = sa.Column(sa.DateTime, nullable=False)
     origin = sa.Column(sa.String, nullable=True)
     # TODO program?
@@ -334,6 +464,9 @@ class Thumbnail(Base):
     photometry = relationship('Photometry', back_populates='thumbnails')
     source = relationship('Source', back_populates='thumbnails', uselist=False,
                           secondary='photometry')
+    candidate = relationship(
+        "Candidate", back_populates="thumbnails", secondary="photometry"
+    )
 
 
 schema.setup_schema()
