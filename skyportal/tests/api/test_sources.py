@@ -218,8 +218,10 @@ def test_starlist(manage_sources_token, public_source):
     assert status == 200
     assert data['status'] == 'success'
 
-    status, data = api('GET', f'sources/{public_source.id}/offsets?facility=Keck&how_many=1',
-                       token=manage_sources_token)
+    status, data = \
+        api('GET',
+            f'sources/{public_source.id}/offsets?facility=Keck&how_many=1',
+            token=manage_sources_token)
     assert status == 200
     assert data['status'] == 'success'
     assert data['data']["noffsets"] == 1

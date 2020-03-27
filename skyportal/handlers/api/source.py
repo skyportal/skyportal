@@ -2,7 +2,6 @@ import datetime
 from functools import reduce
 
 import tornado.web
-from tornado import escape
 
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, desc
@@ -16,8 +15,7 @@ from ...models import (
     Thumbnail, GroupSource, Token, User, Group
 )
 from .internal.source_views import register_source_view
-from .internal import get_nearby_offset_stars
-from .internal import facility_parameters
+from ...utils import get_nearby_offset_stars, facility_parameters
 
 SOURCES_PER_PAGE = 100
 
@@ -341,8 +339,8 @@ class SourceOffsetsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.query.get(source_id)
-        if not source:
+        source = Source.get_if_owned_by(source_id, self.current_user)
+        if source is None:
             return self.error('Invalid source ID.')
         if not set(source.groups).intersection(set(self.current_user.groups)):
             return self.error('Inadequate permissions.')
@@ -363,7 +361,7 @@ class SourceOffsetsHandler(BaseHandler):
 
         try:
             how_many = int(how_many)
-        except:
+        except ValueError:
             # could not handle inputs
             return self.error('Error converting some input parameters')
 
@@ -380,7 +378,7 @@ class SourceOffsetsHandler(BaseHandler):
                                         obstime_isoformat=obstime_isoformat,
                                         remaining_searches=1)
 
-        except:
+        except ValueError:
             return self.error('Error calling get_nearby_offset_stars')
 
         return self.success(data={'facility': facility,
