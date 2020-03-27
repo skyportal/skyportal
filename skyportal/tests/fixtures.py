@@ -4,7 +4,7 @@ import uuid
 import numpy as np
 from skyportal.models import (DBSession, User, Source, Group, GroupUser,
                               GroupSource, Photometry, Spectrum, Instrument,
-                              Telescope, Comment, Thumbnail)
+                              Telescope, Comment, Thumbnail, Candidate)
 from tempfile import mkdtemp
 
 import factory
@@ -110,6 +110,35 @@ class SourceFactory(factory.alchemy.SQLAlchemyModelFactory):
             DBSession().add(ThumbnailFactory(photometry=phot1))
             DBSession().add(CommentFactory(source_id=source.id))
         DBSession().add(SpectrumFactory(source_id=source.id,
+                                        instrument=instruments[0]))
+        DBSession().commit()
+
+
+class CandidateFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Candidate
+    id = factory.LazyFunction(lambda: str(uuid.uuid4()))
+    ra = 0.0
+    dec = 0.0
+    redshift = 0.0
+    simbad_class = 'RRLyr'
+
+    @factory.post_generation
+    def add_phot_spec(candidate, create, value, *args, **kwargs):
+        instruments = [InstrumentFactory(), InstrumentFactory()]
+        filters = ['g', 'rpr', 'ipr']
+        for instrument, filter in islice(zip(cycle(instruments), cycle(filters)), 10):
+            phot1 = PhotometryFactory(candidate_id=candidate.id,
+                                      instrument=instrument,
+                                      filter=filter)
+            DBSession().add(phot1)
+            DBSession().add(PhotometryFactory(candidate_id=candidate.id, mag=99.,
+                                              e_mag=99., lim_mag=30.,
+                                              instrument=instrument,
+                                              filter=filter))
+            DBSession().add(ThumbnailFactory(photometry=phot1))
+            DBSession().add(CommentFactory(candidate_id=candidate.id))
+        DBSession().add(SpectrumFactory(candidate_id=candidate.id,
                                         instrument=instruments[0]))
         DBSession().commit()
 
