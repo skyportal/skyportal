@@ -1,9 +1,9 @@
-import tornado.web
-from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.custom_exceptions import AccessError
 from ..base import BaseHandler
-from ...models import DBSession, Spectrum, Comment, Instrument, Source
+from ...models import DBSession, Spectrum, Instrument, Source
+from ...model_util import get_either_source_candidate_if_owned_by_user
 
 
 class SpectrumHandler(BaseHandler):
@@ -34,9 +34,11 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        source_id = data.pop('source_id')
+        source_id = data.pop('source_id', None)
+        if source_id is not None:
+            source = get_either_source_candidate_if_owned_by_user(source_id,
+                                                                  self.current_user)
         instrument_id = data.pop('instrument_id')
-        source = Source.get_if_owned_by(source_id, self.current_user)
         instrument = Instrument.query.get(instrument_id)
 
         schema = Spectrum.__schema__()
@@ -75,12 +77,13 @@ class SpectrumHandler(BaseHandler):
         """
         spectrum = Spectrum.query.get(spectrum_id)
 
-        if spectrum is not None:
-            source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
-            return self.success(data={'spectrum': spectrum})
-        else:
+        if spectrum is None:
             return self.error(f"Could not load spectrum {spectrum_id}",
                               data={"spectrum_id": spectrum_id})
+        get_either_source_candidate_if_owned_by_user(
+            spectrum.source_id, self.current_user)
+
+        return self.success(data={'spectrum': spectrum})
 
     @permissions(['Manage sources'])
     def put(self, spectrum_id):
@@ -108,7 +111,8 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
         spectrum = Spectrum.query.get(spectrum_id)
-        source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
+        get_either_source_candidate_if_owned_by_user(
+            spectrum.source_id, self.current_user)
         data = self.get_json()
         data['id'] = spectrum_id
 
@@ -144,7 +148,8 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
         spectrum = Spectrum.query.get(spectrum_id)
-        source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
+        get_either_source_candidate_if_owned_by_user(
+            spectrum.source_id, self.current_user)
         DBSession().delete(spectrum)
         DBSession().commit()
 

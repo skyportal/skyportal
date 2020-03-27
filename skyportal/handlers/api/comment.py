@@ -4,6 +4,8 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Source, User, Comment, Role
+from ...model_util import (ensure_parent_source_candidate_owned_by_user,
+                           ensure_source_candidate_owned_by_user)
 
 
 class CommentHandler(BaseHandler):
@@ -31,8 +33,7 @@ class CommentHandler(BaseHandler):
         comment = Comment.query.get(comment_id)
         if comment is None:
             return self.error('Invalid comment ID.')
-        # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(comment.source.id, self.current_user)
+        ensure_parent_source_candidate_owned_by_user(comment, self.current_user)
         if comment is not None:
             return self.success(data={'comment': comment})
         else:
@@ -61,9 +62,10 @@ class CommentHandler(BaseHandler):
                           description: Associated source ID
         """
         data = self.get_json()
-        source_id = data['source_id']
-        # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(source_id, self.current_user)
+        source_id = data.get('source_id', None)
+        candidate_id = data.get('candidate_id', None)
+        ensure_source_candidate_owned_by_user(
+            source_id=source_id, candidate_id=candidate_id, user=self.current_user)
         if 'attachment' in data and 'body' in data['attachment']:
             attachment_bytes = str.encode(data['attachment']['body']
                                           .split('base64,')[-1])
@@ -75,14 +77,15 @@ class CommentHandler(BaseHandler):
                   else self.current_user.name)
         comment = Comment(text=data['text'],
                           source_id=source_id, attachment_bytes=attachment_bytes,
-                          attachment_name=attachment_name,
+                          attachment_name=attachment_name, candidate_id=candidate_id,
                           author=author)
 
         DBSession().add(comment)
         DBSession().commit()
 
-        self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'source_id': comment.source_id})
+        if comment.source_id is not None:
+            self.push_all(action='skyportal/REFRESH_SOURCE',
+                          payload={'source_id': comment.source_id})
         return self.success(data={'comment_id': comment.id})
 
     @permissions(['Comment'])
@@ -113,8 +116,7 @@ class CommentHandler(BaseHandler):
         c = Comment.query.get(comment_id)
         if c is None:
             return self.error('Invalid comment ID.')
-        # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(c.source.id, self.current_user)
+        ensure_parent_source_candidate_owned_by_user(c, self.current_user)
 
         data = self.get_json()
         data['id'] = comment_id
@@ -128,8 +130,9 @@ class CommentHandler(BaseHandler):
 
         DBSession().commit()
 
-        self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'source_id': c.source_id})
+        if c.source_id is not None:
+            self.push_all(action='skyportal/REFRESH_SOURCE',
+                          payload={'source_id': c.source_id})
         return self.success()
 
     @permissions(['Comment'])
@@ -190,8 +193,7 @@ class CommentAttachmentHandler(BaseHandler):
         comment = Comment.query.get(comment_id)
         if comment is None:
             return self.error('Invalid comment ID.')
-        # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(comment.source.id, self.current_user)
+        ensure_parent_source_candidate_owned_by_user(comment, self.current_user)
         self.set_header(
             "Content-Disposition", "attachment; "
             f"filename={comment.attachment_name}")

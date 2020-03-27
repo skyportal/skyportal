@@ -49,7 +49,7 @@ class GroupHandler(BaseHandler):
             else:
                 group = Group.query.options([
                     joinedload(Group.users).load_only(User.id, User.username),
-                    joinedload(Group.sources)]).get(group_id)
+                    joinedload(Group.sources), joinedload(Group.candidates)]).get(group_id)
                 if group is not None and group.id not in [
                         g.id for g in self.current_user.groups]:
                     return self.error('Insufficient permissions.')

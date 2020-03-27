@@ -7,6 +7,7 @@ from PIL import Image
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Photometry, Source, Thumbnail
+from ...model_util import get_either_source_candidate_if_owned_by_user
 
 
 class ThumbnailHandler(BaseHandler):
@@ -55,22 +56,23 @@ class ThumbnailHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        if 'photometry_id' in data:
-            phot = Photometry.query.get(int(data['photometry_id']))
+        photometry_id = data.get("photometry_id", None)
+        source_id = data.get("source_id", None)
+        if photometry_id is not None:
+            phot = Photometry.query.get(int(photometry_id))
             source_id = phot.source.id
-            # Ensure user/token has access to parent source
-            source = Source.get_if_owned_by(source_id, self.current_user)
-        elif 'source_id' in data:
-            source_id = data['source_id']
-            # Ensure user/token has access to parent source
-            source = Source.get_if_owned_by(source_id, self.current_user)
+            source = get_either_source_candidate_if_owned_by_user(source_id, self.current_user)
+        elif source_id is not None:
+            source = get_either_source_candidate_if_owned_by_user(source_id, self.current_user)
             try:
                 phot = source.photometry[0]
             except IndexError:
                 return self.error('Specified source does not yet have any photometry data.')
         else:
-            return self.error('One of either source_id or photometry_id are required.')
+            return self.error('One of either source_id or photometry_id is required.')
         t = create_thumbnail(data['data'], data['ttype'], source_id, phot)
+        if source is not None:
+            source.thumbnails.append(t)
         DBSession().commit()
 
         return self.success(data={"id": t.id})
@@ -100,8 +102,7 @@ class ThumbnailHandler(BaseHandler):
         if t is None:
             return self.error(f"Could not load thumbnail {thumbnail_id}",
                               data={"thumbnail_id": thumbnail_id})
-        # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(t.source.id, self.current_user)
+        _ = get_either_source_candidate_if_owned_by_user(t.source.id, self.current_user)
 
         return self.success(data={'thumbnail': t})
 
@@ -133,8 +134,7 @@ class ThumbnailHandler(BaseHandler):
         t = Thumbnail.query.get(thumbnail_id)
         if t is None:
             return self.error('Invalid thumbnail ID.')
-        # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(t.source.id, self.current_user)
+        _ = get_either_source_candidate_if_owned_by_user(t.source.id, self.current_user)
 
         data = self.get_json()
         data['id'] = thumbnail_id
@@ -173,8 +173,7 @@ class ThumbnailHandler(BaseHandler):
         t = Thumbnail.query.get(thumbnail_id)
         if t is None:
             return self.error('Invalid thumbnail ID.')
-        # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(t.source.id, self.current_user)
+        _ = get_either_source_candidate_if_owned_by_user(t.source.id, self.current_user)
 
         DBSession.query(Thumbnail).filter(Thumbnail.id == int(thumbnail_id)).delete()
         DBSession().commit()
@@ -182,21 +181,22 @@ class ThumbnailHandler(BaseHandler):
         return self.success()
 
 
-def create_thumbnail(thumbnail_data, thumbnail_type, source_id, photometry_obj):
-    basedir = Path(os.path.dirname(__file__))/'..'/'..'
+def create_thumbnail(thumbnail_data, thumbnail_type, source_id,
+                     photometry_obj):
+    basedir = Path(os.path.dirname(__file__)) / '..' / '..'
     if os.path.abspath(basedir).endswith('skyportal/skyportal'):
-        basedir = basedir/'..'
+        basedir = basedir / '..'
     file_uri = os.path.abspath(
-        basedir/f'static/thumbnails/{source_id}_{thumbnail_type}.png')
+        basedir / f'static/thumbnails/{source_id}_{thumbnail_type}.png')
     if not os.path.exists(os.path.dirname(file_uri)):
-        (basedir/'static/thumbnails').mkdir(parents=True)
+        (basedir / 'static/thumbnails').mkdir(parents=True)
     file_bytes = base64.b64decode(thumbnail_data)
     im = Image.open(io.BytesIO(file_bytes))
     if im.format != 'PNG':
         raise ValueError('Invalid thumbnail image type. Only PNG are supported.')
     if not (100, 100) <= im.size <= (500, 500):
         raise ValueError('Invalid thumbnail size. Only thumbnails '
-                        'between (100, 100) and (500, 500) allowed.')
+                         'between (100, 100) and (500, 500) allowed.')
     t = Thumbnail(type=thumbnail_type,
                   photometry=photometry_obj,
                   file_uri=file_uri,
