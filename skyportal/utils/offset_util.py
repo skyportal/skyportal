@@ -33,15 +33,19 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
                             starlist_type='Keck',
                             obstime_isoformat=None,
                             use_source_pos_in_starlist=True,
-                            remaining_searches=1
+                            allowed_queries=2,
+                            queries_issued=0
                             ):
 
-    # TODO make these search parameters part of the API call
+    if queries_issued >= allowed_queries:
+        raise Exception('Number of offsets queries needed exceeds what is allowed')
+
     if not obstime_isoformat:
         source_obstime = Time(datetime.datetime.utcnow().isoformat())
     else:
         # TODO: check the obstime format
         source_obstime = Time(obstime_isoformat)
+
     gaia_obstime = "J2015.5"
 
     center = SkyCoord(source_ra, source_dec, unit=(u.degree, u.degree),
@@ -69,6 +73,7 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
     # TODO possibly: save the offset data (cache)
     job = Gaia.launch_job(query_string)
     r = job.get_results()
+    queries_issued += 1
 
     catalog = SkyCoord.guess_from_table(r)
 
@@ -97,7 +102,7 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
     good_list.sort()
 
     # if we got less than we asked for, relax the criteria
-    if (len(good_list) < how_many) and (remaining_searches > 0):
+    if (len(good_list) < how_many) and (queries_issued < allowed_queries):
         return get_nearby_offset_stars(source_ra, source_dec, source_name,
                                        how_many=how_many,
                                        radius_degrees=radius_degrees*1.3,
@@ -107,7 +112,8 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
                                        starlist_type=starlist_type,
                                        obstime_isoformat=obstime_isoformat,
                                        use_source_pos_in_starlist=use_source_pos_in_starlist,
-                                       remaining_searches=remaining_searches - 1)
+                                       queries_issued=queries_issued,
+                                       allowed_queries=allowed_queries)
 
     # default to keck star list
     sep = ' '  # 'fromunit'
@@ -145,7 +151,8 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
 
     star_list = []
     if use_source_pos_in_starlist:
-        star_list.append(star_list_format)
+        star_list.append({"str": star_list_format, "ra": float(source_ra),
+                          "dec": float(source_dec), "name": basename})
 
     for i, (dist, c, source, dra, ddec) in enumerate(good_list[:how_many]):
 
@@ -165,6 +172,10 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
                            f" {commentstr} dist={3600*dist:0.2f}\"; r={source['phot_rp_mean_mag']:0.4} mag" + \
                            f"; {dras}, {ddecs} offset to {source_name}; GaiaID={source['source_id']}"
 
-        star_list.append(star_list_format)
+        star_list.append({"str": star_list_format, "ra": float(source["ra"]),
+                          "dec": float(source["dec"]), "name": name, "dras": dras,
+                          "ddecs": ddecs, "mag": float(source["phot_rp_mean_mag"])})
 
-    return "\n".join(star_list), query_string, remaining_searches, len(star_list) - 1
+    # send back the starlist in
+    return (star_list, query_string.replace("\n", " "),
+            queries_issued, len(star_list) - 1)

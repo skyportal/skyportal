@@ -220,12 +220,24 @@ def test_starlist(manage_sources_token, public_source):
 
     status, data = \
         api('GET',
-            f'sources/{public_source.id}/offsets?facility=Keck&how_many=1',
+            f'sources/{public_source.id}/offsets?facility=P200&how_many=1',
             token=manage_sources_token)
     assert status == 200
     assert data['status'] == 'success'
     assert data['data']["noffsets"] == 1
-    assert data['data']["facility"] == 'Keck'
-    assert 'starlist' in data['data']
+    assert data['data']['queries_issued'] == 1
+    assert data['data']["facility"] == 'P200'
+    assert 'starlist_str' in data['data']
+    assert isinstance(data['data']["starlist_info"][0]["ra"], float)
 
+    status, data = \
+        api('GET',
+            f'sources/{public_source.id}/offsets',
+            token=manage_sources_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']["noffsets"] == 3
+    assert data['data']["facility"] == 'Keck'
+    assert 'starlist_str' in data['data']
+    assert isinstance(data['data']["starlist_info"][2]["dec"], float)
 
