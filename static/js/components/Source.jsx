@@ -12,6 +12,7 @@ import { ra_to_hours, dec_to_hours } from '../units';
 import styles from "./Source.css";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
+import FollowupRequestForm from './FollowupRequestForm';
 
 
 const Source = ({ route }) => {
@@ -110,6 +111,7 @@ const Source = ({ route }) => {
             <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
 
           </Responsive>
+          <FollowupRequestForm source={source} />
         </div>
 
         <div className={styles.rightColumn}>

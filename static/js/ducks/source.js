@@ -19,6 +19,8 @@ export const DELETE_COMMENT_OK = 'skyportal/DELETE_COMMENT_OK';
 export const ADD_SOURCE_VIEW = 'skyportal/ADD_SOURCE_VIEW';
 export const ADD_SOURCE_VIEW_OK = 'skyportal/ADD_SOURCE_VIEW_OK';
 
+export const SUBMIT_FOLLOWUP_REQUEST = 'skyportal/SUBMIT_FOLLOWUP_REQUEST';
+export const SUBMIT_FOLLOWUP_REQUEST_OK = 'skyportal/SUBMIT_FOLLOWUP_REQUEST_OK';
 
 export function addComment(form) {
   function fileReaderPromise(file) {
@@ -54,6 +56,10 @@ export function fetchSource(id) {
 export function addSourceView(id) {
   return API.POST(`/api/internal/source_views/${id}`, ADD_SOURCE_VIEW);
 }
+
+export const submitFollowupRequest = (params) => (
+  API.POST('/api/followup_request', SUBMIT_FOLLOWUP_REQUEST, params)
+);
 
 
 // Websocket message handler

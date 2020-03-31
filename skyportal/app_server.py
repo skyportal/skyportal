@@ -5,6 +5,7 @@ from baselayer.app.app_server import MainPageHandler
 from skyportal.handlers import (BecomeUserHandler, LogoutHandler)
 from skyportal.handlers.api import (
     CommentHandler, CommentAttachmentHandler,
+    FollowupRequestHandler,
     GroupHandler, GroupUserHandler,
     InstrumentHandler,
     NewsFeedHandler,
@@ -49,6 +50,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         # API endpoints
         (r'/api/comment(/[0-9]+)?', CommentHandler),
         (r'/api/comment(/[0-9]+)/attachment', CommentAttachmentHandler),
+        (r'/api/followup_request', FollowupRequestHandler),
         (r'/api/groups/(.*)/users/(.*)?', GroupUserHandler),
         (r'/api/groups(/.*)?', GroupHandler),
         (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
