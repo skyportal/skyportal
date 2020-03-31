@@ -356,6 +356,7 @@ class FollowupRequest(Base):
     filters = sa.Column(psql.ARRAY(sa.String))
     priority = sa.Column(sa.Enum('1', '2', '3', '4', '5',
                                  name='priority'))
+    status = sa.Column(sa.String(), nullable=False, default="pending")
 
 
 User.followup_requests = relationship('FollowupRequest', back_populates='requester')

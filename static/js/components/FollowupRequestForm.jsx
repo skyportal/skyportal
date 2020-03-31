@@ -8,13 +8,15 @@ import * as Actions from '../ducks/source';
 const FollowupRequestForm = ({ source }) => {
   const dispatch = useDispatch();
   const { instrumentList } = useSelector((state) => state.instruments);
-  const [formState, setFormState] = useState({
+
+  const initialFormState = {
     source_id: source.id,
     instrument_id: "",
     start_date: "",
     end_date: "",
     priority: ""
-  });
+  };
+  const [formState, setFormState] = useState({ ...initialFormState });
 
   const handleInputChange = (e) => {
     const newState = {};
@@ -28,6 +30,10 @@ const FollowupRequestForm = ({ source }) => {
 
   const handleSubmit = () => {
     dispatch(Actions.submitFollowupRequest(formState));
+    setFormState({
+      ...formState,
+      ...initialFormState
+    });
   };
 
   return (

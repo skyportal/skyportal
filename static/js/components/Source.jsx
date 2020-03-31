@@ -13,6 +13,7 @@ import styles from "./Source.css";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 import FollowupRequestForm from './FollowupRequestForm';
+import FollowupRequestList from './FollowupRequestList';
 
 
 const Source = ({ route }) => {
@@ -112,6 +113,7 @@ const Source = ({ route }) => {
 
           </Responsive>
           <FollowupRequestForm source={source} />
+          <FollowupRequestList followupRequests={source.followup_requests} />
         </div>
 
         <div className={styles.rightColumn}>
