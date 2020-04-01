@@ -1,10 +1,12 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
+import styles from './FollowupRequestList.css';
+
 
 const FollowupRequestList = ({ followupRequests }) => (
   <div>
-    <table>
+    <table className={styles.followupRequestTable}>
       <thead>
         <tr>
           <th>
