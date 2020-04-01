@@ -15,7 +15,10 @@ from ...models import (
     Thumbnail, GroupSource, Token, User, Group
 )
 from .internal.source_views import register_source_view
-from ...utils import get_nearby_offset_stars, facility_parameters
+from ...utils import (
+    get_nearby_offset_stars, facility_parameters, source_image_parameters,
+    get_finding_chart
+)
 
 SOURCES_PER_PAGE = 100
 
@@ -457,4 +460,88 @@ class SourceOffsetsHandler(BaseHandler):
                                   'queries_issued': queries_issued,
                                   'query': query_string})
 
+class SourceFinderHandler(BaseHandler):
+    @auth_or_token
+    def get(self, source_id):
+        """
+        ---
+        description: Generate a PDF finding chart to aid in spectroscopy
+        parameters:
+        - in: path
+          name: source_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: facility
+          nullable: true
+          schema:
+            type: string
+            enum: [Keck, Shane, P200]
+        - in: query
+          name: image_source
+          nullable: true
+          schema:
+            type: string
+            enum: [desi, discovery, ps1]
+          description: Source of the image used in the finding chart
+        - in: query
+          name: obstime
+          nullable: True
+          schema:
+            type: string
+          description: |
+            datetime of observation in isoformat (e.g. 2020-12-30T12:34:10)
+        responses:
+          200:
+            description: A PDF finding chart file
+            content:
+              application/pdf:
+                schema:
+                  type: string
+                  format: binary
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        source = Source.get_if_owned_by(source_id, self.current_user)
+        if source is None:
+            return self.error('Invalid source ID.')
 
+        facility = self.get_query_argument('facility', 'Keck')
+        image_source = self.get_query_argument('image_source', 'desi')
+
+        how_many = 3
+        obstime_isoformat = \
+            self.get_query_argument('obstime',
+                                    datetime.datetime.utcnow().isoformat())
+        if not isinstance(isoparse(obstime_isoformat), datetime.datetime):
+            return self.error('obstime is not valid isoformat')
+
+        if facility not in facility_parameters:
+            return self.error('Invalid facility')
+
+        if image_source not in source_image_parameters:
+            return self.error('Invalid source image')
+
+        radius_degrees = facility_parameters[facility]["radius_degrees"]
+        mag_limit = facility_parameters[facility]["mag_limit"]
+        min_sep_arcsec = facility_parameters[facility]["min_sep_arcsec"]
+        mag_min = facility_parameters[facility]["mag_min"]
+
+        rez = get_finding_chart(source.ra, source.dec, source_id,
+                                image_source=image_source,
+                                how_many=how_many,
+                                radius_degrees=radius_degrees,  # 2 arcmin radius
+                                mag_limit=mag_limit,
+                                mag_min=mag_min,
+                                min_sep_arcsec=min_sep_arcsec,
+                                starlist_type=facility,
+                                obstime_isoformat=obstime_isoformat,
+                                use_source_pos_in_starlist=True,
+                                allowed_queries=2,
+                                queries_issued=0
+                                )
+        result = {"rez": rez}
+        return self.success(data=result)
