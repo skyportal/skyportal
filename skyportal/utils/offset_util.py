@@ -1,11 +1,22 @@
+import os
+import io
+from pathlib import Path
 import datetime
 
+import requests
+import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
+from scipy.ndimage.filters import gaussian_filter
+
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astroquery.gaia import Gaia
 from astropy.time import Time
 
+from astropy.wcs import WCS
+from astropy.io import fits
+from astropy.visualization import ImageNormalize, ZScaleInterval, HistEqStretch
 
 facility_parameters = {'Keck': {"radius_degrees": 2.0/60,
                                 "mag_limit": 18.5,
@@ -23,6 +34,14 @@ facility_parameters = {'Keck': {"radius_degrees": 2.0/60,
                                  "min_sep_arcsec": 5.0
                                  }
                        }
+
+source_image_parameters = \
+    {'desi': \
+        {'url': 'http://legacysurvey.org/viewer/fits-cutout/?ra={ra}&dec={dec}&layer=dr8&pixscale={pixscale}&bands=r',
+         'npixels': 256,
+         'smooth': None}
+    }
+
 
 def get_nearby_offset_stars(source_ra, source_dec, source_name,
                             how_many=3,
@@ -145,7 +164,8 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
         print("Warning: Do not recognize this starlist format. Using Keck.")
 
     basename = basename.strip().replace(" ", "")
-    star_list_format = f"{basename:<{maxname_size}} " + \
+    space = "\u2009"
+    star_list_format = f"{basename:{space}<{maxname_size}} " + \
                        f"{center.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}" + \
                        f" 2000.0 {commentstr}"
 
@@ -156,21 +176,22 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
 
     for i, (dist, c, source, dra, ddec) in enumerate(good_list[:how_many]):
 
-        dras = f"{dra.value:0.4}\" E" if dra > 0 else f"{abs(dra.value):0.4}\" W"
-        ddecs = f"{ddec.value:0.4}\" N" if ddec > 0 else f"{abs(ddec.value):0.4}\" S"
+        dras = f"{dra.value:<0.03f}\" E" if dra > 0 else f"{abs(dra.value):<0.03f}\" W"
+        ddecs = f"{ddec.value:<0.03f}\" N" if ddec > 0 else f"{abs(ddec.value):<0.03f}\" S"
 
         if giveoffsets:
-            offsets = f"raoffset={dra.value:0.4} decoffset={ddec.value:0.4}"
+            offsets = f"raoffset={dra.value:<0.03f} decoffset={ddec.value:<0.03f}"
         else:
             offsets = ""
 
         name = f"{basename}_off{i+1}"
 
-        star_list_format = f"{name:<{maxname_size}} " + \
+        star_list_format = f"{name:{space}<{maxname_size}} " + \
                            f"{c.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}" + \
                            f" 2000.0 {offsets} " + \
-                           f" {commentstr} dist={3600*dist:0.2f}\"; r={source['phot_rp_mean_mag']:0.4} mag" + \
-                           f"; {dras}, {ddecs} offset to {source_name}; GaiaID={source['source_id']}"
+                           f" {commentstr} dist={3600*dist:<0.02f}\"; {source['phot_rp_mean_mag']:<0.02f} mag" + \
+                           f"; {dras}, {ddecs} " + \
+                           f" ID={source['source_id']}"
 
         star_list.append({"str": star_list_format, "ra": float(source["ra"]),
                           "dec": float(source["dec"]), "name": name, "dras": dras,
@@ -179,3 +200,171 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
     # send back the starlist in
     return (star_list, query_string.replace("\n", " "),
             queries_issued, len(star_list) - 1)
+
+
+def fits_image(center_ra, center_dec, imsize=4.0, image_source="desi",
+               cache=True, cachedir="/tmp/skyportal_image_cache/"):
+
+    if image_source not in source_image_parameters:
+        raise Exception("do not know how to grab image source")
+
+    pixscale = 60*imsize/source_image_parameters[image_source].get("npixels", 256)
+
+    url = source_image_parameters[image_source]["url"].\
+            format(ra=center_ra, dec=center_dec, pixscale=pixscale)
+
+    cachedir = Path(cachedir)
+    if not cachedir.is_dir():
+        cachedir.mkdir()
+
+    def get_hdu(url):
+        response = requests.get(url, stream=True)
+        if response.status_code == 200:
+            hdu = fits.open(io.BytesIO(response.content))[0]
+            return hdu
+        else:
+            return None
+
+    if cache:
+        hash_name = "image" + str(abs(url.__hash__()))
+        image_file = cachedir / hash_name
+        if image_file.exists():
+            print("Opening cached image.")
+            hdu = fits.open(image_file)[0]
+        else:
+            hdu = get_hdu(url)
+            hdu.writeto(image_file)
+            print(f"Saving cached file {image_file}")
+        # TODO: clean out cache to remove old files
+    else:
+        hdu = get_hdu(url)
+
+    return hdu
+
+
+def get_finding_chart(source_ra, source_dec, source_name,
+                      image_source='desi',
+                      output_format='pdf',
+                      imsize=3.0,  # arcmin
+                      **offset_star_kwargs):
+
+    if image_source not in source_image_parameters:
+            return {'sucess': False, 'reason': 'image source not in list'}
+
+    hdu = fits_image(source_ra, source_dec, imsize=imsize,
+                     image_source=image_source)
+
+    fig = plt.figure(figsize=(11, 8.5), constrained_layout=False)
+    widths = [2.6, 1]
+    heights = [2.6, 1]
+    spec = fig.add_gridspec(ncols=2, nrows=2, width_ratios=widths,
+                            height_ratios=heights, left=0.05, right=0.95)
+
+    npixels = source_image_parameters[image_source].get("npixels", 256)
+    pixscale = 60*imsize/npixels
+
+    if hdu is not None:
+        wcs = WCS(hdu.header)
+        if source_image_parameters[image_source]["smooth"]:
+            im = gaussian_filter(hdu.data,
+                                 source_image_parameters[image_source]["smooth"]/pixscale)
+        else:
+            im = hdu.data
+
+        norm = ImageNormalize(im, interval=ZScaleInterval())
+
+    else:
+        # we dont have an image here, so let's create a dummy one
+        # so we can still plot
+        wcs = WCS(naxis=2)
+        wcs.wcs.crpix = [npixels/2, npixels/2]
+        wcs.wcs.crval = [source_ra, source_dec]
+        wcs.wcs.cd = np.array([[-pixscale/3600, 0], [0, pixscale/3600]])
+        wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
+        im = np.zeros((npixels, npixels))
+        norm = None
+
+    # add the images in the top left corner
+    ax = fig.add_subplot(spec[0, 0], projection=wcs)
+    ax_text = fig.add_subplot(spec[0, 1])
+    ax_text.axis('off')
+    ax_starlist = fig.add_subplot(spec[1, 0:])
+    ax_starlist.axis('off')
+
+    ax.imshow(im, origin='lower', norm=norm, cmap='gray_r')
+    ax.set_autoscale_on(False)
+    ax.grid(color='gray', ls='dotted')
+    ax.set_xlabel(r'$\alpha$ (J2000)', fontsize='large')
+    ax.set_ylabel(r'$\delta$ (J2000)', fontsize='large')
+    ax.set_title(f'{source_name} Finder ({offset_star_kwargs["starlist_type"]})',
+                 fontsize='large', fontweight='bold')
+
+    star_list, _, _, _ = get_nearby_offset_stars(source_ra, source_dec,
+                                                 source_name,
+                                                 **offset_star_kwargs)
+
+    if not isinstance(star_list, list) or len(star_list) == 0:
+        return {'sucess': False, 'reason': 'failure to get star list'}
+
+    ncolors = len(star_list)
+    colors = sns.color_palette("colorblind", ncolors)
+
+    tick_offset = 4  # arcsec
+    tick_length = 5  # arcsec
+
+    start_text = [-0.35, 0.99]
+    starlist_str = "\n".join([x["str"] for x in star_list])
+
+    # show the starlist so it can be copy/pasted (PDF)
+    ax_starlist.text(0, 0.70, starlist_str,
+                     fontsize='x-small',
+                     transform=ax_starlist.transAxes, family='monospace')
+
+    for i, star in enumerate(star_list):
+
+        c1 = SkyCoord(star["ra"]*u.deg, star["dec"]*u.deg, frame='icrs')
+
+        # mark up the right side of the page with position and offset info
+        name_title = star["name"]
+        if star.get("mag") is not None:
+            name_title += f", mag={star.get('mag'):<0.02f}"
+        ax_text.text(start_text[0], start_text[1]-i/ncolors, name_title,
+                     ha='left', va='top', fontsize='large', fontweight='bold',
+                     transform=ax_text.transAxes, color=colors[i])
+        source_text = f"  {star['ra']:<4.06} {star['dec']:<4.05}\n"
+        source_text += f"  {c1.to_string('hmsdms')}\n"
+        if (star.get("dras") is not None) and (star.get("ddecs") is not None):
+            source_text += \
+               f'  {star.get("dras")} {star.get("ddecs")} to {source_name}'
+        ax_text.text(start_text[0], start_text[1]-i/ncolors - 0.06,
+                     source_text,
+                     ha='left', va='top', fontsize='large',
+                     transform=ax_text.transAxes, color=colors[i])
+
+        # work on making marks where the stars are
+        for ang in [0, 90]:
+            position_angle = ang * u.deg
+            separation = tick_offset * u.arcsec
+            p1 = c1.directional_offset_by(position_angle, separation)
+            separation = (tick_offset + tick_length) * u.arcsec
+            p2 = c1.directional_offset_by(position_angle, separation)
+            ax.plot([p1.ra.value, p2.ra.value], [p1.dec.value, p2.dec.value],
+                    transform=ax.get_transform('world'), color=colors[i],
+                    linewidth=3)
+        if star["name"].find("_off") != -1:
+            # this is an offset star
+            text = star["name"].split("_off")[-1]
+            position_angle = 14 * u.deg
+            separation = (tick_offset + tick_length*1.6) * u.arcsec
+            p1 = c1.directional_offset_by(position_angle, separation)
+            ax.text(p1.ra.value, p1.dec.value, text, color=colors[i],
+                    transform=ax.get_transform('world'),
+                    fontsize='large', fontweight='bold')
+
+    # fig.tight_layout()
+
+    fig.savefig("/tmp/ttt.pdf")
+
+
+    return star_list
+
