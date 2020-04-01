@@ -50,7 +50,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         # API endpoints
         (r'/api/comment(/[0-9]+)?', CommentHandler),
         (r'/api/comment(/[0-9]+)/attachment', CommentAttachmentHandler),
-        (r'/api/followup_request', FollowupRequestHandler),
+        (r'/api/followup_request(/.*)?', FollowupRequestHandler),
         (r'/api/groups/(.*)/users/(.*)?', GroupUserHandler),
         (r'/api/groups(/.*)?', GroupHandler),
         (r'/api/instrument(/[0-9]+)?', InstrumentHandler),

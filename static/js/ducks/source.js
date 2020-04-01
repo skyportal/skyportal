@@ -22,6 +22,9 @@ export const ADD_SOURCE_VIEW_OK = 'skyportal/ADD_SOURCE_VIEW_OK';
 export const SUBMIT_FOLLOWUP_REQUEST = 'skyportal/SUBMIT_FOLLOWUP_REQUEST';
 export const SUBMIT_FOLLOWUP_REQUEST_OK = 'skyportal/SUBMIT_FOLLOWUP_REQUEST_OK';
 
+export const DELETE_FOLLOWUP_REQUEST = 'skyportal/DELETE_FOLLOWUP_REQUEST';
+export const DELETE_FOLLOWUP_REQUEST_OK = 'skyportal/DELETE_FOLLOWUP_REQUEST_OK';
+
 export function addComment(form) {
   function fileReaderPromise(file) {
     return new Promise((resolve) => {
@@ -59,6 +62,10 @@ export function addSourceView(id) {
 
 export const submitFollowupRequest = (params) => (
   API.POST('/api/followup_request', SUBMIT_FOLLOWUP_REQUEST, params)
+);
+
+export const deleteFollowupRequest = (id) => (
+  API.DELETE(`/api/followup_request/${id}`, DELETE_FOLLOWUP_REQUEST)
 );
 
 
