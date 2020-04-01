@@ -11,7 +11,7 @@
     "bokehjs": "0.12.9",
     "check-dependencies": "1.1.0",
     "classnames": "2.2.6",
-    "css-loader": "0.28.11",
+    "css-loader": "3.4.2",
     "dayjs": "1.8.23",
     "exports-loader": "0.7.0",
     "imports-loader": "0.8.0",
