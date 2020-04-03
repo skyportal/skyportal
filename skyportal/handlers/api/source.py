@@ -460,6 +460,7 @@ class SourceOffsetsHandler(BaseHandler):
                                   'queries_issued': queries_issued,
                                   'query': query_string})
 
+
 class SourceFinderHandler(BaseHandler):
     @auth_or_token
     def get(self, source_id):
@@ -473,6 +474,13 @@ class SourceFinderHandler(BaseHandler):
           schema:
             type: string
         - in: query
+          name: imsize
+          schema:
+            type: float
+            minimum: 2
+            maximum: 15
+          description: Image size in arcmin (square)
+        - in: query
           name: facility
           nullable: true
           schema:
@@ -483,7 +491,7 @@ class SourceFinderHandler(BaseHandler):
           nullable: true
           schema:
             type: string
-            enum: [desi, discovery, ps1]
+            enum: [desi, dss]
           description: Source of the image used in the finding chart
         - in: query
           name: obstime
@@ -509,6 +517,15 @@ class SourceFinderHandler(BaseHandler):
         if source is None:
             return self.error('Invalid source ID.')
 
+        imsize = self.get_query_argument('imsize', '4.0')
+        try:
+            imsize = float(imsize)
+            assert imsize >= 2.0
+            assert imsize <= 15.0
+        except ValueError:
+            # could not handle inputs
+            return self.error('Invalid argument for `imsize`')
+
         facility = self.get_query_argument('facility', 'Keck')
         image_source = self.get_query_argument('image_source', 'desi')
 
@@ -532,8 +549,10 @@ class SourceFinderHandler(BaseHandler):
 
         rez = get_finding_chart(source.ra, source.dec, source_id,
                                 image_source=image_source,
+                                output_format='pdf',
+                                imsize=imsize,
                                 how_many=how_many,
-                                radius_degrees=radius_degrees,  # 2 arcmin radius
+                                radius_degrees=radius_degrees,
                                 mag_limit=mag_limit,
                                 mag_min=mag_min,
                                 min_sep_arcsec=min_sep_arcsec,
@@ -543,5 +562,16 @@ class SourceFinderHandler(BaseHandler):
                                 allowed_queries=2,
                                 queries_issued=0
                                 )
-        result = {"rez": rez}
-        return self.success(data=result)
+
+        filename = rez["name"]
+        image = rez["data"]
+
+        # do not send result via `.success`, since that creates a JSON
+        self.set_status(200)
+        self.set_header("Content-Type", "application/pdf; charset='utf-8'")
+        self.set_header("Content-Disposition",
+                        f"attachment; filename={filename}")
+        self.set_header('Cache-Control',
+                        'no-store, no-cache, must-revalidate, max-age=0')
+
+        return self.write(image)
