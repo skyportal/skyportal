@@ -241,3 +241,36 @@ def test_starlist(manage_sources_token, public_source):
     assert 'starlist_str' in data['data']
     assert isinstance(data['data']["starlist_info"][2]["dec"], float)
 
+
+def test_finder(manage_sources_token, public_source):
+    status, data = api('PUT', f'sources/{public_source.id}',
+                       data={'ra': 234.22,
+                             'dec': -22.33},
+                       token=manage_sources_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    response = \
+        api('GET',
+            f'sources/{public_source.id}/finder?imsize=2',
+            token=manage_sources_token, raw_response=True)
+    status = response.status_code
+    data = response.text
+    assert status == 200
+    assert isinstance(data, str)
+    assert data[0:10].find("PDF") != -1
+    assert response.headers.get("Content-Type", "Empty").find("application/pdf") != -1
+
+    # try a image source we dont know about
+    status, data = \
+        api('GET',
+            f'sources/{public_source.id}/finder?image_source=whoknows',
+            token=manage_sources_token)
+    assert status == 400
+
+    # try an image too big
+    status, data = \
+        api('GET',
+            f'sources/{public_source.id}/finder?imsize=30',
+            token=manage_sources_token)
+    assert status == 400

@@ -1,7 +1,9 @@
-import os
 import io
+import os
 from pathlib import Path
 import datetime
+import tempfile
+import hashlib
 
 import requests
 import matplotlib.pyplot as plt
@@ -15,8 +17,9 @@ from astroquery.gaia import Gaia
 from astropy.time import Time
 
 from astropy.wcs import WCS
+from astropy.wcs.utils import pixel_to_skycoord
 from astropy.io import fits
-from astropy.visualization import ImageNormalize, ZScaleInterval, HistEqStretch
+from astropy.visualization import ImageNormalize, ZScaleInterval
 
 facility_parameters = {'Keck': {"radius_degrees": 2.0/60,
                                 "mag_limit": 18.5,
@@ -35,17 +38,23 @@ facility_parameters = {'Keck': {"radius_degrees": 2.0/60,
                                  }
                        }
 
+# helper dict for seaching for FITS images from various surveys
 source_image_parameters = \
     {'desi': \
         {'url': 'http://legacysurvey.org/viewer/fits-cutout/?ra={ra}&dec={dec}&layer=dr8&pixscale={pixscale}&bands=r',
          'npixels': 256,
-         'smooth': None}
-    }
+         'smooth': None,
+         'str': 'DESI DR8 R-band'},
+     'dss': \
+        {'url': 'http://archive.stsci.edu/cgi-bin/dss_search?v=poss2ukstu_red&r={ra}&dec={dec}&h={imsize}&w={imsize}&e=J2000',
+         'smooth': None,
+         'str': 'DSS-2 Red'}
+         }
 
 
 def get_nearby_offset_stars(source_ra, source_dec, source_name,
                             how_many=3,
-                            radius_degrees=2 / 60.,  # 2 arcmin radius
+                            radius_degrees=2 / 60.,
                             mag_limit=18.0,
                             mag_min=10.0,
                             min_sep_arcsec=5,
@@ -55,6 +64,49 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
                             allowed_queries=2,
                             queries_issued=0
                             ):
+
+    """Finds good list of nearby offset stars for spectroscopy
+       and returns info about those stars, including their
+       offsets calculated to the source of interest
+
+    Parameters
+    ----------
+    source_ra : float
+        Right ascension (J2000) of the source
+    source_dec : float
+        Declination (J2000) of the source
+    source_name : str
+        Name of the source
+    how_many : int, optional
+        How many offset stars to try to find
+    radius_degrees : float, optional
+        Search radius from the source position in arcmin
+    mag_limit : float, optional
+        How faint should we search for offset stars?
+    mag_min : float, optional
+        What is the brightest offset star we will allow?
+    min_sep_arcsec : float, optional
+        What is the closest offset star allowed to the source?
+    starlist_type : str, optional
+        What starlist format should we use?
+    obstime_isoformat : str, optional
+        What datetime should we assume for the observation
+        (to calculate proper motions)?
+    use_source_pos_in_starlist : bool, optional
+        Return the source itself for in starlist?
+    allowed_queries : int, optional
+        How many times should we query (with looser and looser criteria)
+        before giving up on getting the number of offset stars we desire?
+    queries_issued : int, optional
+        How many times have we issued a query? Bookeeping parameter.
+
+    Returns
+    -------
+    (list, str, int, int)
+        Return a tuple which contains: a list of dictionaries for each object
+        in the star list, the query issued, the number of queries issues, and
+        the length of the star list (not including the source itself)
+    """
 
     if queries_issued >= allowed_queries:
         raise Exception('Number of offsets queries needed exceeds what is allowed')
@@ -105,7 +157,7 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
                      unit=(u.degree, u.degree),
                      pm_ra_cosdec=np.cos(source["dec"]*np.pi/180.0)*source['pmra'] * u.mas/u.yr,
                      pm_dec=source["pmdec"] * u.mas/u.yr,
-                     frame='icrs', distance=min(abs(1/source["parallax"]),10)*u.kpc,
+                     frame='icrs', distance=min(abs(1/source["parallax"]), 10)*u.kpc,
                      obstime=gaia_obstime)
 
         d2d = c.separation(catalog)  # match it to the catalog
@@ -116,7 +168,7 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
             # TODO: put this in geocentric coords to account for parallax
             cprime = c.apply_space_motion(new_obstime=source_obstime)
             dra, ddec = cprime.spherical_offsets_to(center)
-            good_list.append((source["dist"], c, source, dra.to(u.arcsec) , ddec.to(u.arcsec) ))
+            good_list.append((source["dist"], c, source, dra.to(u.arcsec), ddec.to(u.arcsec) ))
 
     good_list.sort()
 
@@ -138,7 +190,7 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
     sep = ' '  # 'fromunit'
     commentstr = "#"
     giveoffsets = True
-    maxname_size= 16
+    maxname_size = 16
     # truncate the source_name if we need to
     if len(source_name) > 10:
         basename = source_name[0:3] + ".." + source_name[-6:]
@@ -152,7 +204,7 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
         sep = ':'  # 'fromunit'
         commentstr = "!"
         giveoffsets = False
-        maxname_size= 20
+        maxname_size = 20
 
         # truncate the source_name if we need to
         if len(source_name) > 15:
@@ -164,7 +216,7 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
         print("Warning: Do not recognize this starlist format. Using Keck.")
 
     basename = basename.strip().replace(" ", "")
-    space = "\u2009"
+    space = " "
     star_list_format = f"{basename:{space}<{maxname_size}} " + \
                        f"{center.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}" + \
                        f" 2000.0 {commentstr}"
@@ -203,7 +255,34 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
 
 
 def fits_image(center_ra, center_dec, imsize=4.0, image_source="desi",
-               cache=True, cachedir="/tmp/skyportal_image_cache/"):
+               cache=True, cachedir="/tmp/skyportal_image_cache/",
+               max_cache=5):
+
+    """Returns an opened FITS image centered on the source
+       of the requested size.
+
+    Parameters
+    ----------
+    source_ra : float
+        Right ascension (J2000) of the source
+    source_dec : float
+        Declination (J2000) of the source
+    imsize : float, optional
+        Requested image size (on a size) in arcmin
+    image_source : str, optional
+        Survey where the image comes from "desi" or "dss" (more to be added)
+    cache : bool, optional
+        Use a cache version of the image and save to a cache if True
+    cachedir : str, optional
+        Where should the cache live?
+    max_cache : int, optional
+        How many older files in the cache should we keep?
+
+    Returns
+    -------
+    object
+        either a pyfits HDU object or None
+    """
 
     if image_source not in source_image_parameters:
         raise Exception("do not know how to grab image source")
@@ -211,8 +290,8 @@ def fits_image(center_ra, center_dec, imsize=4.0, image_source="desi",
     pixscale = 60*imsize/source_image_parameters[image_source].get("npixels", 256)
 
     url = source_image_parameters[image_source]["url"].\
-            format(ra=center_ra, dec=center_dec, pixscale=pixscale)
-
+            format(ra=center_ra, dec=center_dec, pixscale=pixscale, imsize=imsize)
+    print(url)
     cachedir = Path(cachedir)
     if not cachedir.is_dir():
         cachedir.mkdir()
@@ -226,18 +305,41 @@ def fits_image(center_ra, center_dec, imsize=4.0, image_source="desi",
             return None
 
     if cache:
-        hash_name = "image" + str(abs(url.__hash__()))
+        m = hashlib.md5()
+        m.update(
+            f"{center_ra}{center_dec}{imsize}{image_source}".encode('utf-8'))
+        hash_name = "image" + m.hexdigest()
+        print(hash_name)
         image_file = cachedir / hash_name
         if image_file.exists():
-            print("Opening cached image.")
+            print("Opening cached image")
+            image_file.touch()
             hdu = fits.open(image_file)[0]
         else:
             hdu = get_hdu(url)
-            hdu.writeto(image_file)
-            print(f"Saving cached file {image_file}")
-        # TODO: clean out cache to remove old files
+            if np.count_nonzero(hdu.data) > 0:
+                hdu.writeto(image_file)
+                print(f"Saving cached file {image_file}")
+            else:
+                print("got an empty image")
+                hdu = None
+
+        if max_cache > 1:
+            cached_files = []
+            for item in Path(cachedir).glob('*'):
+                if item.is_file():
+                    cached_files.append((item.stat().st_mtime, item.name))
+            if len(cached_files) > max_cache:
+                for t, f in cached_files[:-max_cache]:
+                    try:
+                        os.remove(cachedir / f)
+                    except FileNotFoundError:
+                        pass
     else:
         hdu = get_hdu(url)
+        if np.count_nonzero(hdu.data) > 0:
+            print("Note: got an empty image")
+            hdu = None
 
     return hdu
 
@@ -245,14 +347,50 @@ def fits_image(center_ra, center_dec, imsize=4.0, image_source="desi",
 def get_finding_chart(source_ra, source_dec, source_name,
                       image_source='desi',
                       output_format='pdf',
-                      imsize=3.0,  # arcmin
+                      imsize=3.0,
+                      tick_offset=4.0,
+                      tick_length=5.0,
+                      fallback_image_source='dss',
                       **offset_star_kwargs):
+
+    """Create a finder chart suitable for spectroscopic observations of
+       the source
+
+    Parameters
+    ----------
+    source_ra : float
+        Right ascension (J2000) of the source
+    source_dec : float
+        Declination (J2000) of the source
+    source_name : str
+        Name of the source
+    image_source : str, optional
+        Survey where the image comes from "desi" or "dss" (more to be added)
+    output_format : str, optional
+        "pdf" of "png" -- determines the format of the returned finder
+    imsize : float, optional
+        Requested image size (on a size) in arcmin
+    tick_offset : float, optional
+        How far off the each source should the tick mark be made? (in arcsec)
+    tick_length : float, optional
+        How long should the tick mark be made? (in arcsec)
+    fallback_image_source : str, optional
+        Where what `image_source` should we fall back to if the
+        one requested fails
+    **offset_star_kwargs : dict, optional
+        Other parameters passed to `get_nearby_offset_stars`
+
+    Returns
+    -------
+    dict
+        name : str
+            suggested filename based on `source_name` and `output_format`
+        data : str
+            binary encoded data for the image (to be streamed)
+    """
 
     if image_source not in source_image_parameters:
             return {'sucess': False, 'reason': 'image source not in list'}
-
-    hdu = fits_image(source_ra, source_dec, imsize=imsize,
-                     image_source=image_source)
 
     fig = plt.figure(figsize=(11, 8.5), constrained_layout=False)
     widths = [2.6, 1]
@@ -263,6 +401,9 @@ def get_finding_chart(source_ra, source_dec, source_name,
     npixels = source_image_parameters[image_source].get("npixels", 256)
     pixscale = 60*imsize/npixels
 
+    hdu = fits_image(source_ra, source_dec, imsize=imsize,
+                     image_source=image_source)
+
     if hdu is not None:
         wcs = WCS(hdu.header)
         if source_image_parameters[image_source]["smooth"]:
@@ -272,10 +413,25 @@ def get_finding_chart(source_ra, source_dec, source_name,
             im = hdu.data
 
         norm = ImageNormalize(im, interval=ZScaleInterval())
+        watermark = source_image_parameters[image_source]["str"]
+        npixels = hdu.data.shape[0]
 
     else:
+
+        if (fallback_image_source is not None):
+            if (fallback_image_source != image_source):
+                print(f"Falling back on image source {fallback_image_source}")
+                return get_finding_chart(source_ra, source_dec, source_name,
+                                         image_source=fallback_image_source,
+                                         output_format=output_format,
+                                         imsize=imsize,
+                                         tick_offset=tick_offset,
+                                         tick_length=tick_length,
+                                         fallback_image_source=None,
+                                         **offset_star_kwargs)
         # we dont have an image here, so let's create a dummy one
         # so we can still plot
+        print("making a dummy WCS")
         wcs = WCS(naxis=2)
         wcs.wcs.crpix = [npixels/2, npixels/2]
         wcs.wcs.crval = [source_ra, source_dec]
@@ -283,6 +439,7 @@ def get_finding_chart(source_ra, source_dec, source_name,
         wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
         im = np.zeros((npixels, npixels))
         norm = None
+        watermark = None
 
     # add the images in the top left corner
     ax = fig.add_subplot(spec[0, 0], projection=wcs)
@@ -293,10 +450,11 @@ def get_finding_chart(source_ra, source_dec, source_name,
 
     ax.imshow(im, origin='lower', norm=norm, cmap='gray_r')
     ax.set_autoscale_on(False)
-    ax.grid(color='gray', ls='dotted')
+    ax.grid(color='white', ls='dotted')
     ax.set_xlabel(r'$\alpha$ (J2000)', fontsize='large')
     ax.set_ylabel(r'$\delta$ (J2000)', fontsize='large')
-    ax.set_title(f'{source_name} Finder ({offset_star_kwargs["starlist_type"]})',
+    obstime = offset_star_kwargs.get("obstime_isoformat", datetime.datetime.utcnow().isoformat())
+    ax.set_title(f'{source_name} Finder ({obstime})',
                  fontsize='large', fontweight='bold')
 
     star_list, _, _, _ = get_nearby_offset_stars(source_ra, source_dec,
@@ -309,16 +467,52 @@ def get_finding_chart(source_ra, source_dec, source_name,
     ncolors = len(star_list)
     colors = sns.color_palette("colorblind", ncolors)
 
-    tick_offset = 4  # arcsec
-    tick_length = 5  # arcsec
-
     start_text = [-0.35, 0.99]
-    starlist_str = "\n".join([x["str"] for x in star_list])
+    starlist_str = "# Note: spacing in starlist many not copy/paste correctly in PDF\n" +\
+                   f"#       you can get starlist directly from /api/{source_name}/offsets\n" +\
+                   "\n".join([x["str"] for x in star_list])
 
-    # show the starlist so it can be copy/pasted (PDF)
-    ax_starlist.text(0, 0.70, starlist_str,
-                     fontsize='x-small',
-                     transform=ax_starlist.transAxes, family='monospace')
+    # add the starlist
+    ax_starlist.text(0, 0.50, starlist_str,
+                     fontsize="x-small", family='monospace',
+                     transform=ax_starlist.transAxes)
+
+    # add the watermark for the survey
+    props = dict(boxstyle='round', facecolor='gray', alpha=0.5)
+
+    if watermark is not None:
+        ax.text(0.035, 0.035, watermark,
+                horizontalalignment='left',
+                verticalalignment='center',
+                transform=ax.transAxes, fontsize='medium', fontweight='bold',
+                color="yellow", alpha=0.5, bbox=props)
+
+    ax.text(0.95, 0.035, f"{imsize}\u2032 \u00D7 {imsize}\u2032", # size' x size'
+            horizontalalignment='right',
+            verticalalignment='center',
+            transform=ax.transAxes, fontsize='medium', fontweight='bold',
+            color="yellow", alpha=0.5, bbox=props)
+
+    # compass rose
+    # rose_center_pixel = ax.transAxes.transform((0.04, 0.95))
+    rose_center = pixel_to_skycoord(int(npixels*0.1), int(npixels*0.9), wcs)
+    props = dict(boxstyle='round', facecolor='gray', alpha=0.5)
+
+    for ang, label, off in [(0, "N", 4), (90, "E", 8)]:
+        position_angle = ang * u.deg
+        separation = 2 * tick_length * u.arcsec
+        p2 = rose_center.directional_offset_by(position_angle, separation)
+        ax.plot([rose_center.ra.value, p2.ra.value], [rose_center.dec.value, p2.dec.value],
+                transform=ax.get_transform('world'), color="black",
+                linewidth=2)
+
+        # label N and E
+        position_angle = (ang + 15) * u.deg
+        separation = (2 * tick_length + off) * u.arcsec
+        p2 = rose_center.directional_offset_by(position_angle, separation)
+        ax.text(p2.ra.value, p2.dec.value, label, color="black",
+                transform=ax.get_transform('world'),
+                fontsize='large', fontweight='bold', bbox=props)
 
     for i, star in enumerate(star_list):
 
@@ -327,11 +521,11 @@ def get_finding_chart(source_ra, source_dec, source_name,
         # mark up the right side of the page with position and offset info
         name_title = star["name"]
         if star.get("mag") is not None:
-            name_title += f", mag={star.get('mag'):<0.02f}"
+            name_title += f", mag={star.get('mag'):.2f}"
         ax_text.text(start_text[0], start_text[1]-i/ncolors, name_title,
                      ha='left', va='top', fontsize='large', fontweight='bold',
                      transform=ax_text.transAxes, color=colors[i])
-        source_text = f"  {star['ra']:<4.06} {star['dec']:<4.05}\n"
+        source_text = f"  {star['ra']:.5f} {star['dec']:.5f}\n"
         source_text += f"  {c1.to_string('hmsdms')}\n"
         if (star.get("dras") is not None) and (star.get("ddecs") is not None):
             source_text += \
@@ -361,10 +555,14 @@ def get_finding_chart(source_ra, source_dec, source_name,
                     transform=ax.get_transform('world'),
                     fontsize='large', fontweight='bold')
 
-    # fig.tight_layout()
+    temp_image = tempfile.NamedTemporaryFile(prefix=f"finder_{source_name}",
+                                             suffix=f".{output_format}",
+                                             dir="/tmp", mode="w",
+                                             delete=False)
+    temp_image.close()
 
-    fig.savefig("/tmp/ttt.pdf")
+    fig.savefig(temp_image.name)
+    f = open(temp_image.name, 'rb').read()
+    os.remove(temp_image.name)
 
-
-    return star_list
-
+    return {"name": f"finder_{source_name}.{output_format}", "data": f}
