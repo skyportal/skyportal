@@ -4,7 +4,9 @@ from pathlib import Path
 import datetime
 import tempfile
 import hashlib
+import warnings
 
+import pandas as pd
 import requests
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -15,11 +17,15 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astroquery.gaia import Gaia
 from astropy.time import Time
+from astropy.utils.exceptions import AstropyWarning
 
 from astropy.wcs import WCS
 from astropy.wcs.utils import pixel_to_skycoord
 from astropy.io import fits
 from astropy.visualization import ImageNormalize, ZScaleInterval
+from reproject import reproject_adaptive
+
+warnings.simplefilter('ignore', category=AstropyWarning)
 
 facility_parameters = {'Keck': {"radius_degrees": 2.0/60,
                                 "mag_limit": 18.5,
@@ -38,6 +44,38 @@ facility_parameters = {'Keck': {"radius_degrees": 2.0/60,
                                  }
                        }
 
+# ZTF ref grabber
+irsa = {
+    "url_data": "https://irsa.ipac.caltech.edu/ibe/data/ztf/products/",
+    "url_search": "https://irsa.ipac.caltech.edu/ibe/search/ztf/products/",
+}
+
+
+def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
+    """
+    https://gist.github.com/dmitryduev/634bd2b21a77e2b1de89e0bfd39d14b9
+    """
+    imsize_deg = imsize/60
+
+    url_ref_meta = os.path.join(irsa['url_search'], \
+                                f"ref?POS={ra:f},{dec:f}&SIZE={imsize_deg:f}&ct=csv")
+    s = requests.get(url_ref_meta).content
+    c = pd.read_csv(io.StringIO(s.decode('utf-8')))
+
+    field = f"{c.loc[0, 'field']:06d}"
+    filt = c.loc[0, 'filtercode']
+    quad = f"{c.loc[0, 'qid']}"
+    ccd = f"{c.loc[0, 'ccdid']:02d}"
+    # print(field, filt, quad, ccd)
+
+    path_ursa_ref = os.path.join(irsa['url_data'], 'ref',
+                                 field[:3], f'field{field}', filt,
+                                 f'ccd{ccd}', f'q{quad}',
+                                 f'ztf_{field}_{filt}_c{ccd}_q{quad}_refimg.fits')
+    # print(path_ursa_ref)
+    return path_ursa_ref
+
+
 # helper dict for seaching for FITS images from various surveys
 source_image_parameters = \
     {'desi': \
@@ -48,8 +86,15 @@ source_image_parameters = \
      'dss': \
         {'url': 'http://archive.stsci.edu/cgi-bin/dss_search?v=poss2ukstu_red&r={ra}&dec={dec}&h={imsize}&w={imsize}&e=J2000',
          'smooth': None,
-         'str': 'DSS-2 Red'}
-         }
+         'reproject': True,
+         'npixels': 500,
+         'str': 'DSS-2 Red'},
+     'ztfref': \
+        {'url': get_ztfref_url,
+         'reproject': True,
+         'npixels': 500,
+         'smooth': None,
+         'str': 'ZTF Ref'}}
 
 
 def get_nearby_offset_stars(source_ra, source_dec, source_name,
@@ -289,15 +334,24 @@ def fits_image(center_ra, center_dec, imsize=4.0, image_source="desi",
 
     pixscale = 60*imsize/source_image_parameters[image_source].get("npixels", 256)
 
-    url = source_image_parameters[image_source]["url"].\
-            format(ra=center_ra, dec=center_dec, pixscale=pixscale, imsize=imsize)
+    if isinstance(source_image_parameters[image_source]["url"], str):
+        url = source_image_parameters[image_source]["url"].\
+                        format(ra=center_ra, dec=center_dec,
+                               pixscale=pixscale, imsize=imsize)
+    else:
+        # use the URL field as a function
+        url = source_image_parameters[image_source]["url"](
+                       ra=center_ra,
+                       dec=center_dec,
+                       imsize=imsize)
+
     print(url)
     cachedir = Path(cachedir)
     if not cachedir.is_dir():
         cachedir.mkdir()
 
     def get_hdu(url):
-        response = requests.get(url, stream=True)
+        response = requests.get(url, stream=True, allow_redirects=True)
         if response.status_code == 200:
             hdu = fits.open(io.BytesIO(response.content))[0]
             return hdu
@@ -330,7 +384,7 @@ def fits_image(center_ra, center_dec, imsize=4.0, image_source="desi",
                 if item.is_file():
                     cached_files.append((item.stat().st_mtime, item.name))
             if len(cached_files) > max_cache:
-                for t, f in cached_files[:-max_cache]:
+                for t, f in cached_files[-max_cache:]:
                     try:
                         os.remove(cachedir / f)
                     except FileNotFoundError:
@@ -348,8 +402,8 @@ def get_finding_chart(source_ra, source_dec, source_name,
                       image_source='desi',
                       output_format='pdf',
                       imsize=3.0,
-                      tick_offset=4.0,
-                      tick_length=5.0,
+                      tick_offset=0.02,
+                      tick_length=0.03,
                       fallback_image_source='dss',
                       **offset_star_kwargs):
 
@@ -364,8 +418,8 @@ def get_finding_chart(source_ra, source_dec, source_name,
         Declination (J2000) of the source
     source_name : str
         Name of the source
-    image_source : str, optional
-        Survey where the image comes from "desi" or "dss" (more to be added)
+    image_source : {'desi', 'dss', 'ztfref'}, optional
+        Survey where the image comes from "desi", "dss", "ztfref" (more to be added)
     output_format : str, optional
         "pdf" of "png" -- determines the format of the returned finder
     imsize : float, optional
@@ -404,17 +458,32 @@ def get_finding_chart(source_ra, source_dec, source_name,
     hdu = fits_image(source_ra, source_dec, imsize=imsize,
                      image_source=image_source)
 
+    # skeleton WCS
+    wcs = WCS(naxis=2)
+    wcs.wcs.crpix = [npixels/2, npixels/2]
+    wcs.wcs.crval = [source_ra, source_dec]
+    wcs.wcs.cd = np.array([[-pixscale/3600, 0], [0, pixscale/3600]])
+    wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
+
     if hdu is not None:
-        wcs = WCS(hdu.header)
-        if source_image_parameters[image_source]["smooth"]:
+
+        im = hdu.data
+
+        # replace the nans with medians
+        im[np.isnan(im)] = np.nanmedian(im)
+        if source_image_parameters[image_source].get("reproject", False):
+            # project image to the skeleton WCS solution
+            print("reprojecting")
+            im, _ = reproject_adaptive(hdu, wcs, shape_out=(npixels,npixels))
+        else:
+            wcs = WCS(hdu.header)
+
+        if source_image_parameters[image_source].get("smooth", False):
             im = gaussian_filter(hdu.data,
                                  source_image_parameters[image_source]["smooth"]/pixscale)
-        else:
-            im = hdu.data
 
         norm = ImageNormalize(im, interval=ZScaleInterval())
         watermark = source_image_parameters[image_source]["str"]
-        npixels = hdu.data.shape[0]
 
     else:
 
@@ -431,12 +500,6 @@ def get_finding_chart(source_ra, source_dec, source_name,
                                          **offset_star_kwargs)
         # we dont have an image here, so let's create a dummy one
         # so we can still plot
-        print("making a dummy WCS")
-        wcs = WCS(naxis=2)
-        wcs.wcs.crpix = [npixels/2, npixels/2]
-        wcs.wcs.crval = [source_ra, source_dec]
-        wcs.wcs.cd = np.array([[-pixscale/3600, 0], [0, pixscale/3600]])
-        wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
         im = np.zeros((npixels, npixels))
         norm = None
         watermark = None
@@ -469,7 +532,9 @@ def get_finding_chart(source_ra, source_dec, source_name,
 
     start_text = [-0.35, 0.99]
     starlist_str = "# Note: spacing in starlist many not copy/paste correctly in PDF\n" +\
-                   f"#       you can get starlist directly from /api/{source_name}/offsets\n" +\
+                   f"#       you can get starlist directly from" + \
+                   f" /api/{source_name}/offsets?" + \
+                   f"facility={offset_star_kwargs.get('facility', 'Keck')}\n" + \
                    "\n".join([x["str"] for x in star_list])
 
     # add the starlist
@@ -487,7 +552,7 @@ def get_finding_chart(source_ra, source_dec, source_name,
                 transform=ax.transAxes, fontsize='medium', fontweight='bold',
                 color="yellow", alpha=0.5, bbox=props)
 
-    ax.text(0.95, 0.035, f"{imsize}\u2032 \u00D7 {imsize}\u2032", # size' x size'
+    ax.text(0.95, 0.035, f"{imsize}\u2032 \u00D7 {imsize}\u2032",  # size'xsize'
             horizontalalignment='right',
             verticalalignment='center',
             transform=ax.transAxes, fontsize='medium', fontweight='bold',
@@ -498,21 +563,21 @@ def get_finding_chart(source_ra, source_dec, source_name,
     rose_center = pixel_to_skycoord(int(npixels*0.1), int(npixels*0.9), wcs)
     props = dict(boxstyle='round', facecolor='gray', alpha=0.5)
 
-    for ang, label, off in [(0, "N", 4), (90, "E", 8)]:
+    for ang, label, off in [(0, "N", 0.01), (90, "E", 0.03)]:
         position_angle = ang * u.deg
-        separation = 2 * tick_length * u.arcsec
+        separation = (0.05*imsize*60) * u.arcsec # 5%
         p2 = rose_center.directional_offset_by(position_angle, separation)
         ax.plot([rose_center.ra.value, p2.ra.value], [rose_center.dec.value, p2.dec.value],
-                transform=ax.get_transform('world'), color="black",
+                transform=ax.get_transform('world'), color="gold",
                 linewidth=2)
 
         # label N and E
         position_angle = (ang + 15) * u.deg
-        separation = (2 * tick_length + off) * u.arcsec
+        separation = ((0.05 + off)*imsize*60) * u.arcsec
         p2 = rose_center.directional_offset_by(position_angle, separation)
-        ax.text(p2.ra.value, p2.dec.value, label, color="black",
+        ax.text(p2.ra.value, p2.dec.value, label, color="gold",
                 transform=ax.get_transform('world'),
-                fontsize='large', fontweight='bold', bbox=props)
+                fontsize='large', fontweight='bold')
 
     for i, star in enumerate(star_list):
 
@@ -538,18 +603,18 @@ def get_finding_chart(source_ra, source_dec, source_name,
         # work on making marks where the stars are
         for ang in [0, 90]:
             position_angle = ang * u.deg
-            separation = tick_offset * u.arcsec
+            separation = (tick_offset*imsize*60) * u.arcsec
             p1 = c1.directional_offset_by(position_angle, separation)
-            separation = (tick_offset + tick_length) * u.arcsec
+            separation = (tick_offset + tick_length) * imsize * 60 * u.arcsec
             p2 = c1.directional_offset_by(position_angle, separation)
             ax.plot([p1.ra.value, p2.ra.value], [p1.dec.value, p2.dec.value],
                     transform=ax.get_transform('world'), color=colors[i],
-                    linewidth=3)
+                    linewidth=3 if imsize <= 4 else 2)
         if star["name"].find("_off") != -1:
             # this is an offset star
             text = star["name"].split("_off")[-1]
             position_angle = 14 * u.deg
-            separation = (tick_offset + tick_length*1.6) * u.arcsec
+            separation = (tick_offset + tick_length*1.6) * imsize * 60 * u.arcsec
             p1 = c1.directional_offset_by(position_angle, separation)
             ax.text(p1.ra.value, p1.dec.value, text, color=colors[i],
                     transform=ax.get_transform('world'),
