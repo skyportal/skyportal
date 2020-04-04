@@ -491,7 +491,7 @@ class SourceFinderHandler(BaseHandler):
           nullable: true
           schema:
             type: string
-            enum: [desi, dss]
+            enum: [desi, dss, ztfref]
           description: Source of the image used in the finding chart
         - in: query
           name: obstime
