@@ -4,7 +4,7 @@
 .leftColumn {
     display: inline-block;
     vertical-align: top;
-    width: 100%;
+    width: 900px;
     padding-right: 1em;
 }
 
@@ -22,7 +22,7 @@
 }
 
 .plot {
-    width: 100%;
+    width: 900px;
     overflow: auto;
 }
 
