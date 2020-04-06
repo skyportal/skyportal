@@ -81,7 +81,6 @@ import {empty, input, label, div} from "core/dom"
 import * as p from "core/properties"
 import {CheckboxGroup, CheckboxGroupView} from "models/widgets/checkbox_group"
 export class CheckboxWithLegendGroupView extends CheckboxGroupView
-
   render: () ->
     super()
     empty(@el)
@@ -89,7 +88,7 @@ export class CheckboxWithLegendGroupView extends CheckboxGroupView
     colors = @model.colors
     for text, i in @model.labels
       inputEl = input({type: "checkbox", value: "#{i}"})
-      inputEl.addEventListener("change", () => @change_input()) # bug here
+      inputEl.addEventListener("change", () => @change_input())
       if @model.disabled then inputEl.disabled = true
       if i in active then inputEl.checked = true
       attrs = {
@@ -202,7 +201,6 @@ def photometry_plot(source_id):
                       formatters={'observed_at': 'datetime'})
     plot.add_tools(hover)
 
-    # HERE is the checkbox!
     toggle = CheckboxWithLegendGroup(
         labels=list(data.label.unique()),
         active=list(range(len(data.label.unique()))),
