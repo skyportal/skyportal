@@ -27,6 +27,7 @@ def test_comments(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     comment_box = driver.find_element_by_css_selector('[name=comment]')
     comment_text = 'Test comment'
     comment_box.send_keys(comment_text)
@@ -42,6 +43,7 @@ def test_upload_comment_attachment(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     comment_box = driver.find_element_by_css_selector('[name=comment]')
     comment_text = 'Test comment'
     comment_box.send_keys(comment_text)
@@ -57,6 +59,7 @@ def test_download_comment_attachment(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     comment_box = driver.find_element_by_css_selector('[name=comment]')
     comment_text = 'Test comment'
     comment_box.send_keys(comment_text)
@@ -88,6 +91,7 @@ def test_delete_comment(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     comment_box = driver.find_element_by_css_selector('[name=comment]')
     comment_text = 'Test comment'
     comment_box.send_keys(comment_text)
@@ -103,6 +107,7 @@ def test_regular_user_cannot_delete_unowned_comment(driver, super_admin_user,
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     comment_box = driver.find_element_by_css_selector('[name=comment]')
     comment_text = 'Test comment'
     comment_box.send_keys(comment_text)
@@ -120,6 +125,7 @@ def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     comment_box = driver.find_element_by_css_selector('[name=comment]')
     comment_text = 'Test comment'
     comment_box.send_keys(comment_text)
