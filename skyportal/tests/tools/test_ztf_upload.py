@@ -1,7 +1,10 @@
 import pytest
 import uuid
 from skyportal.model_util import create_token
-from tools import ztf_upload_avro
+
+# failing test on import for some systems
+# deprecated 'independent_celestial_slices'
+# from tools import ztf_upload_avro
 
 fname = "skyportal/tests/data/541234765015015012.avro"
 

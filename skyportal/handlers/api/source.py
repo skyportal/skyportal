@@ -1,10 +1,13 @@
+import datetime
+from functools import reduce
+
 import tornado.web
+from dateutil.parser import isoparse
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, desc
 import arrow
-import datetime
-from functools import reduce
 from marshmallow.exceptions import ValidationError
+
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
@@ -12,7 +15,7 @@ from ...models import (
     Thumbnail, GroupSource, Token, User, Group
 )
 from .internal.source_views import register_source_view
-
+from ...utils import get_nearby_offset_stars, facility_parameters
 
 SOURCES_PER_PAGE = 100
 
@@ -58,7 +61,7 @@ class SourceHandler(BaseHandler):
         radius = self.get_query_argument('radius', None)
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
-        sourceID = self.get_query_argument('sourceID', None) # Partial ID to match
+        sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
         simbad_class = self.get_query_argument('simbadClass', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
         total_matches = self.get_query_argument('totalMatches', None)
@@ -120,7 +123,7 @@ class SourceHandler(BaseHandler):
                  (info['totalMatches'] < page * SOURCES_PER_PAGE and
                   info['totalMatches'] % SOURCES_PER_PAGE == 0) and
                  info['totalMatches'] != 0) or
-                page <= 0 or (info['totalMatches'] == 0 and page != 1)):
+                    page <= 0 or (info['totalMatches'] == 0 and page != 1)):
                 return self.error("Page number out of range.")
             info['sources'] = q.limit(SOURCES_PER_PAGE).offset(
                 (page - 1) * SOURCES_PER_PAGE).all()
@@ -144,7 +147,7 @@ class SourceHandler(BaseHandler):
             return self.success(data=info)
         else:
             return self.error(f"Could not load source {source_id}",
-                              data={"source_id": source_id_or_page_num})
+                              data={"source_id": source_id})
 
     @permissions(['Upload data'])
     def post(self):
@@ -288,3 +291,170 @@ class SourcePhotometryHandler(BaseHandler):
         if not set(source.groups).intersection(set(self.current_user.groups)):
             return self.error('Inadequate permissions.')
         return self.success(data={'photometry': source.photometry})
+
+
+class SourceOffsetsHandler(BaseHandler):
+    @auth_or_token
+    def get(self, source_id):
+        """
+        ---
+        description: Retrieve offset stars to aid in spectroscopy
+        parameters:
+        - in: path
+          name: source_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: facility
+          nullable: true
+          schema:
+            type: string
+            enum: [Keck, Shane, P200]
+          description: Which facility to generate the starlist for
+        - in: query
+          name: how_many
+          nullable: true
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10
+          description: |
+            Requested number of offset stars (set to zero to get starlist
+            of just the source itself)
+        - in: query
+          name: obstime
+          nullable: True
+          schema:
+            type: string
+          description: |
+            datetime of observation in isoformat (e.g. 2020-12-30T12:34:10)
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        facility:
+                          type: string
+                          enum: [Keck, Shane, P200]
+                          description: Facility queried for starlist
+                        starlist_str:
+                          type: string
+                          description: formatted starlist in facility format
+                        starlist_info:
+                          type: array
+                          description: |
+                            list of source and offset star information
+                          items:
+                            type: object
+                            properties:
+                              str:
+                                type: string
+                                description: single-line starlist format per object
+                              ra:
+                                type: number
+                                format: float
+                                description: object RA in degrees (J2000)
+                              dec:
+                                type: number
+                                format: float
+                                description: object DEC in degrees (J2000)
+                              name:
+                                type: string
+                                description: object name
+                              dras:
+                                type: string
+                                description: offset from object to source in RA
+                              ddecs:
+                                type: string
+                                description: offset from object to source in DEC
+                              mag:
+                                type: number
+                                format: float
+                                description: |
+                                  magnitude of object (from
+                                  Gaia phot_rp_mean_mag)
+                        ra:
+                          type: number
+                          format: float
+                          description: source RA in degrees (J2000)
+                        dec:
+                          type: number
+                          format: float
+                          description: source DEC in degrees (J2000)
+                        queries_issued:
+                          type: integer
+                          description: |
+                            Number of times the catalog was queried to find
+                            noffsets
+                        noffsets:
+                          type: integer
+                          description: |
+                            Number of suitable offset stars found (may be less)
+                            than requested
+                        query:
+                          type: string
+                          description: SQL query submitted to Gaia
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        source = Source.get_if_owned_by(source_id, self.current_user)
+        if source is None:
+            return self.error('Invalid source ID.')
+
+        facility = self.get_query_argument('facility', 'Keck')
+        how_many = self.get_query_argument('how_many', '3')
+        obstime_isoformat = \
+            self.get_query_argument('obstime',
+                                    datetime.datetime.utcnow().isoformat())
+        if not isinstance(isoparse(obstime_isoformat), datetime.datetime):
+            return self.error('obstime is not valid isoformat')
+
+        if facility not in facility_parameters:
+            return self.error('Invalid facility')
+
+        radius_degrees = facility_parameters[facility]["radius_degrees"]
+        mag_limit = facility_parameters[facility]["mag_limit"]
+        min_sep_arcsec = facility_parameters[facility]["min_sep_arcsec"]
+        mag_min = facility_parameters[facility]["mag_min"]
+
+        try:
+            how_many = int(how_many)
+        except ValueError:
+            # could not handle inputs
+            return self.error('Invalid argument for `how_many`')
+
+        try:
+            starlist_info, query_string, queries_issued, noffsets = \
+                get_nearby_offset_stars(source.ra, source.dec,
+                                        source_id,
+                                        how_many=how_many,
+                                        radius_degrees=radius_degrees,
+                                        mag_limit=mag_limit,
+                                        min_sep_arcsec=min_sep_arcsec,
+                                        starlist_type=facility,
+                                        mag_min=mag_min,
+                                        obstime_isoformat=obstime_isoformat,
+                                        allowed_queries=2)
+
+        except ValueError:
+            return self.error('Error while querying for nearby offset stars')
+
+        starlist_str = "\n".join([x["str"].replace(" ", "&nbsp;") for x in starlist_info])
+        return self.success(data={'facility': facility,
+                                  'starlist_str': starlist_str,
+                                  'starlist_info': starlist_info,
+                                  'ra': source.ra,
+                                  'dec': source.dec,
+                                  'noffsets': noffsets,
+                                  'queries_issued': queries_issued,
+                                  'query': query_string})
+
+
