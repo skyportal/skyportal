@@ -93,7 +93,7 @@ if __name__ == "__main__":
         print(f"Waiting for server to appear at {server_url}...")
 
         try:
-            verify_server_availability(server_url)
+            # verify_server_availability(server_url)
             print("App running - continuing with API calls")
 
             with status("Creating dummy group & adding users"):
