@@ -19,3 +19,4 @@ static/thumbnails
 *.lock
 *.dirlock
 package-lock.json
+.jobs_timestamps.yaml
