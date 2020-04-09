@@ -7,6 +7,7 @@ import pandas as pd
 
 from baselayer.app.env import load_env
 from baselayer.app.model_util import status, create_tables, drop_tables
+from baselayer.app.custom_exceptions import AccessError
 from social_tornado.models import TornadoStorage
 from skyportal.models import (init_db, Base, DBSession, ACL, Comment,
                               Instrument, Group, GroupUser, Photometry, Role,
@@ -63,3 +64,42 @@ def create_token(permissions, created_by_id, name):
     DBSession().add(t)
     DBSession().commit()
     return t.id
+
+
+def ensure_parent_source_candidate_owned_by_user(obj, user):
+    if obj.source_id is not None:
+        try:
+            _ = Source.get_if_owned_by(obj.source_id, user)
+        except AccessError:
+            if obj.candidate_id is not None:
+                _ = Source.get_if_owned_by(obj.candidate_id, user,
+                                           groups_attr="candidate_groups")
+            else:
+                raise
+    elif obj.candidate_id is not None:
+        _ = Source.get_if_owned_by(obj.candidate_id, user,
+                                   groups_attr="candidate_groups")
+    else:
+        raise AccessError("Neither source_id nor candidate_id attributes are non-null "
+                          f"for object {obj}")
+
+
+def ensure_source_candidate_owned_by_user(source_id=None, candidate_id=None, user=None):
+    if user is None:
+        raise ValueError("user must not be None")
+    if source_id is None and candidate_id is None:
+        raise ValueError("one of either source_id or candidate_id must be provided")
+    if source_id is not None:
+        _ = Source.get_if_owned_by(source_id, user)
+    if candidate_id is not None:
+        _ = Source.get_if_owned_by(candidate_id, user, groups_attr="candidate_groups")
+
+
+def get_either_source_candidate_if_owned_by_user(source_id=None, user=None):
+    if user is None:
+        raise ValueError("user must not be None")
+    try:
+        source = Source.get_if_owned_by(source_id, user)
+    except AccessError:
+        source = Source.get_if_owned_by(source_id, user, groups_attr="candidate_groups")
+    return source
