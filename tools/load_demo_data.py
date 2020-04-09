@@ -10,7 +10,7 @@ import requests
 from baselayer.app.env import load_env
 from baselayer.app.model_util import status, create_tables, drop_tables
 from social_tornado.models import TornadoStorage
-from skyportal.models import init_db, Base, Candidate, DBSession, Source, User
+from skyportal.models import init_db, Base, DBSession, Source, User
 from skyportal.model_util import setup_permissions, create_token
 from skyportal.tests import api
 from baselayer.tools.test_frontend import verify_server_availability
@@ -69,13 +69,14 @@ if __name__ == "__main__":
             "load_demo_data token",
         )
 
-    def assert_post(endpoint, data):
-        response_status, data = api("POST", endpoint, data, token)
-        if not response_status == 200 and data["status"] == "success":
+    def assert_post(endpoint, post_data):
+        r_status, r_data = api("POST", endpoint, post_data, token)
+        if not (r_status == 200 and r_data["status"] == "success"):
+            print("post_data:", post_data)
             raise RuntimeError(
-                f'API call to {endpoint} failed with status {status}: {data["message"]}'
+                f'API call to {endpoint} failed with status {r_status}: {r_data}'
             )
-        return data
+        return r_data
 
     with status("Launching web app & executing API calls"):
         try:
@@ -98,7 +99,7 @@ if __name__ == "__main__":
             with status("Creating dummy groups & adding users"):
                 data = assert_post(
                     "groups",
-                    data={
+                    post_data={
                         "name": "Program B",
                         "group_admins": [
                             super_admin_user.username,
@@ -107,7 +108,7 @@ if __name__ == "__main__":
                 )
                 data = assert_post(
                     "groups",
-                    data={
+                    post_data={
                         "name": "Program A",
                         "group_admins": [
                             super_admin_user.username,
@@ -119,13 +120,13 @@ if __name__ == "__main__":
 
                 for u in [view_only_user, full_user]:
                     data = assert_post(
-                        f"groups/{group_id}/users/{u.username}", data={"admin": False}
+                        f"groups/{group_id}/users/{u.username}", post_data={"admin": False}
                     )
 
             with status("Creating dummy instruments"):
                 data = assert_post(
                     "telescope",
-                    data={
+                    post_data={
                         "name": "Palomar 1.5m",
                         "nickname": "P60",
                         "lat": 33.3633675,
@@ -139,7 +140,7 @@ if __name__ == "__main__":
 
                 data = assert_post(
                     "instrument",
-                    data={
+                    post_data={
                         "name": "P60 Camera",
                         "type": "phot",
                         "band": "optical",
@@ -150,7 +151,7 @@ if __name__ == "__main__":
 
                 data = assert_post(
                     "telescope",
-                    data={
+                    post_data={
                         "name": "Nordic Optical Telescope",
                         "nickname": "NOT",
                         "lat": 28.75,
@@ -164,7 +165,7 @@ if __name__ == "__main__":
 
                 data = assert_post(
                     "instrument",
-                    data={
+                    post_data={
                         "name": "ALFOSC",
                         "type": "both",
                         "band": "optical",
@@ -199,29 +200,28 @@ if __name__ == "__main__":
                 for source_info in SOURCES:
                     comments = source_info.pop("comments")
 
-                    data = assert_post("sources", data=source_info)
+                    data = assert_post("sources", post_data=source_info)
                     assert data["data"]["id"] == source_info["id"]
 
                     # Add one unsaved and one saved candidate per source
                     data = assert_post("candidates",
-                                       data={**source_info, **{"id": source_info["id"] + "_2"}})
+                                       post_data={**source_info, **{"id": source_info["id"] + "_2"}})
                     assert data["data"]["id"] == source_info["id"] + "_2"
 
                     # Saved candidates have associated source ID and saved by user ID
-                    source_info["source_id"] = source_info["id"]
                     source_info["saved_as_source_by_id"] = super_admin_user.id
-                    data = assert_post("candidates", data=source_info)
+                    data = assert_post("candidates", post_data=source_info)
                     assert data["data"]["id"] == source_info["id"]
 
                     for comment in comments:
                         data = assert_post(
                             "comment",
-                            data={"source_id": source_info["id"],
-                                  "candidate_id": source_info["id"], "text": comment},
+                            post_data={"source_id": source_info["id"],
+                                       "candidate_id": source_info["id"], "text": comment},
                         )
                         data = assert_post(
                             "comment",
-                            data={"candidate_id": source_info["id"] + "_2", "text": comment},
+                            post_data={"candidate_id": source_info["id"] + "_2", "text": comment},
                         )
 
                     phot_file = basedir / "skyportal/tests/data/phot.csv"
@@ -229,9 +229,8 @@ if __name__ == "__main__":
 
                     data = assert_post(
                         "photometry",
-                        data={
+                        post_data={
                             "source_id": source_info["id"],
-                            "candidate_id": source_info["id"],
                             "time_format": "iso",
                             "time_scale": "utc",
                             "instrument_id": instrument1_id,
@@ -244,8 +243,8 @@ if __name__ == "__main__":
                     )
                     data = assert_post(
                         "photometry",
-                        data={
-                            "candidate_id": source_info["id"] + "_2",
+                        post_data={
+                            "source_id": source_info["id"] + "_2",
                             "time_format": "iso",
                             "time_scale": "utc",
                             "instrument_id": instrument1_id,
@@ -268,9 +267,8 @@ if __name__ == "__main__":
                     for i, df in spec_data.groupby("instrument_id"):
                         data = assert_post(
                             "spectrum",
-                            data={
+                            post_data={
                                 "source_id": source_info["id"],
-                                "candidate_id": source_info["id"],
                                 "observed_at": str(datetime.datetime(2014, 10, 24)),
                                 "instrument_id": 1,
                                 "wavelengths": df.wavelength.tolist(),
@@ -279,8 +277,8 @@ if __name__ == "__main__":
                         )
                         data = assert_post(
                             "spectrum",
-                            data={
-                                "candidate_id": source_info["id"] + "_2",
+                            post_data={
+                                "source_id": source_info["id"] + "_2",
                                 "observed_at": str(datetime.datetime(2014, 10, 24)),
                                 "instrument_id": 1,
                                 "wavelengths": df.wavelength.tolist(),
@@ -296,17 +294,16 @@ if __name__ == "__main__":
                         )
                         data = assert_post(
                             "thumbnail",
-                            data={
+                            post_data={
                                 "source_id": source_info["id"],
-                                "candidate_id": source_info["id"],
                                 "data": thumbnail_data,
                                 "ttype": ttype,
                             },
                         )
                         data = assert_post(
                             "thumbnail",
-                            data={
-                                "candidate_id": source_info["id"] + "_2",
+                            post_data={
+                                "source_id": source_info["id"] + "_2",
                                 "data": thumbnail_data,
                                 "ttype": ttype,
                             },
@@ -314,7 +311,7 @@ if __name__ == "__main__":
 
                     source = Source.query.get(source_info["id"])
                     source.add_linked_thumbnails()
-                    cand = Candidate.query.get(source_info["id"] + "_2")
+                    cand = Source.query.get(source_info["id"] + "_2")
                     cand.add_linked_thumbnails()
         finally:
             if not app_already_running:

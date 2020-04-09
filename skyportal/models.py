@@ -16,7 +16,7 @@ from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
 from . import schema
 
 
-def is_owned_by(self, user_or_token):
+def is_owned_by(self, user_or_token, groups_attr="groups"):
     """Generic ownership logic for any `skyportal` ORM model.
 
     Models with complicated ownership logic should implement their own method
@@ -24,15 +24,14 @@ def is_owned_by(self, user_or_token):
     """
     if hasattr(self, 'tokens'):
         return (user_or_token in self.tokens)
-    elif hasattr(self, 'groups'):
-        return bool(set(self.groups) & set(user_or_token.groups))
-    elif hasattr(self, 'users'):
+    if hasattr(self, groups_attr):
+        return bool(set(getattr(self, groups_attr)) & set(user_or_token.groups))
+    if hasattr(self, 'users'):
         if hasattr(user_or_token, 'created_by'):
             if user_or_token.created_by in self.users:
                 return True
         return (user_or_token in self.users)
-    else:
-        raise NotImplementedError(f"{type(self).__name__} object has no owner")
+    raise NotImplementedError(f"{type(self).__name__} object has no owner")
 
 
 Base.is_owned_by = is_owned_by
@@ -49,6 +48,7 @@ class Group(Base):
     name = sa.Column(sa.String, unique=True, nullable=False)
 
     sources = relationship('Source', secondary='group_sources')
+    candidates = relationship("Source", secondary="group_candidates")
     streams = relationship('Stream', secondary='stream_groups',
                            back_populates='groups')
     telescopes = relationship('Telescope', secondary='group_telescopes')
@@ -95,12 +95,6 @@ class Source(Base):
     id = sa.Column(sa.String, primary_key=True)
     is_source = sa.Column(sa.Boolean, default=False)
     is_candidate = sa.Column(sa.Boolean, default=True)
-    saved_as_source_by = relationship("User", back_populates="saved_sources")
-    saved_as_source_by_id = sa.Column(sa.ForeignKey("users.id"), nullable=True)
-    saved_as_source_at_time = sa.Column(ArrowType, nullable=True)
-    unsaved_as_source_at_time = sa.Column(ArrowType, nullable=True)
-    unsaved_as_source_by = relationship("User")
-    unsaved_as_source_by_id = sa.Column(sa.ForeignKey("users.id"), nullable=True)
 
     # TODO should this column type be decimal? fixed-precison numeric
     ra = sa.Column(sa.Float)
@@ -148,12 +142,14 @@ class Source(Base):
     tns_name = sa.Column(sa.Unicode, nullable=True)
 
     groups = relationship('Group', secondary='group_sources')
-    candidate_groups = relationship("Group", backref="candidates")
+    candidate_groups = relationship("Group", secondary="group_candidates")
     comments = relationship('Comment', back_populates='source',
+                            primaryjoin="comments.c.source_id == sources.c.id",
                             cascade='save-update, merge, refresh-expire, expunge',
                             passive_deletes=True,
                             order_by="Comment.created_at")
     candidate_comments = relationship("Comment", back_populates="candidate",
+                                      primaryjoin="comments.c.candidate_id == sources.c.id",
                                       cascade="save-update, merge, refresh-expire, expunge",
                                       passive_deletes=True,
                                       order_by="Comment.created_at")
@@ -207,6 +203,13 @@ User.sources = relationship('Source', backref='users',
                             secondary='join(Group, group_sources).join(group_users)',
                             primaryjoin='group_users.c.user_id == users.c.id')
 
+GroupSource.saved_as_source_by_id = sa.Column(sa.ForeignKey("users.id"), nullable=True)
+GroupSource.saved_as_source_by = relationship(
+    "User", foreign_keys=[GroupSource.saved_as_source_by_id], backref="saved_sources")
+GroupSource.saved_as_source_at_time = sa.Column(ArrowType, nullable=True)
+
+GroupCandidate = join_model("group_candidates", Group, Source)
+
 
 class SourceView(Base):
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
@@ -259,12 +262,14 @@ class Comment(Base):
     origin = sa.Column(sa.String, nullable=True)
     author = sa.Column(sa.String, nullable=False)
     source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
-                          nullable=False, index=True)
-    source = relationship('Source', back_populates='comments')
+                          nullable=True, index=True)
+    source = relationship('Source', foreign_keys=[source_id],
+                          back_populates='comments')
     candidate_id = sa.Column(
         sa.ForeignKey("sources.id", ondelete="CASCADE"), nullable=True, index=True
     )
-    candidate = relationship("Source", back_populates="candidate_comments")
+    candidate = relationship("Source", foreign_keys=[candidate_id],
+                             back_populates="candidate_comments")
 
 
 class Photometry(Base):
