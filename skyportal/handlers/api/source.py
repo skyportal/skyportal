@@ -414,9 +414,9 @@ class SourceOffsetsHandler(BaseHandler):
 
         facility = self.get_query_argument('facility', 'Keck')
         how_many = self.get_query_argument('how_many', '3')
-        obstime_isoformat = \
-            self.get_query_argument('obstime',
-                                    datetime.datetime.utcnow().isoformat())
+        obstime_isoformat = self.get_query_argument(
+            'obstime', datetime.datetime.utcnow().isoformat()
+        )
         if not isinstance(isoparse(obstime_isoformat), datetime.datetime):
             return self.error('obstime is not valid isoformat')
 
@@ -436,29 +436,35 @@ class SourceOffsetsHandler(BaseHandler):
 
         try:
             starlist_info, query_string, queries_issued, noffsets = \
-                get_nearby_offset_stars(source.ra, source.dec,
-                                        source_id,
-                                        how_many=how_many,
-                                        radius_degrees=radius_degrees,
-                                        mag_limit=mag_limit,
-                                        min_sep_arcsec=min_sep_arcsec,
-                                        starlist_type=facility,
-                                        mag_min=mag_min,
-                                        obstime_isoformat=obstime_isoformat,
-                                        allowed_queries=2)
+                get_nearby_offset_stars(
+                    source.ra, source.dec,
+                    source_id,
+                    how_many=how_many,
+                    radius_degrees=radius_degrees,
+                    mag_limit=mag_limit,
+                    min_sep_arcsec=min_sep_arcsec,
+                    starlist_type=facility,
+                    mag_min=mag_min,
+                    obstime_isoformat=obstime_isoformat,
+                    allowed_queries=2
+                )
 
         except ValueError:
             return self.error('Error while querying for nearby offset stars')
 
         starlist_str = "\n".join([x["str"].replace(" ", "&nbsp;") for x in starlist_info])
-        return self.success(data={'facility': facility,
-                                  'starlist_str': starlist_str,
-                                  'starlist_info': starlist_info,
-                                  'ra': source.ra,
-                                  'dec': source.dec,
-                                  'noffsets': noffsets,
-                                  'queries_issued': queries_issued,
-                                  'query': query_string})
+        return self.success(
+            data={
+                'facility': facility,
+                'starlist_str': starlist_str,
+                'starlist_info': starlist_info,
+                'ra': source.ra,
+                'dec': source.dec,
+                'noffsets': noffsets,
+                'queries_issued': queries_issued,
+                'query': query_string
+            }
+        )
 
 
 class SourceFinderHandler(BaseHandler):
