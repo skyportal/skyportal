@@ -3,8 +3,7 @@ database:
     host: db
     port: 5432
     user: skyportal
-    password:
+    password: password
 
 server:
     url: http://localhost:5000
-
