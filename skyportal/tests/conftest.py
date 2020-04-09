@@ -7,8 +7,7 @@ import pathlib
 from baselayer.app import models
 from baselayer.app.config import load_config
 from baselayer.app.test_util import driver, MyCustomWebDriver, set_server_url, reset_state
-from skyportal.tests.fixtures import (SourceFactory, GroupFactory, UserFactory,
-                                      CandidateFactory)
+from skyportal.tests.fixtures import SourceFactory, GroupFactory, UserFactory
 from skyportal.model_util import create_token
 
 
@@ -27,17 +26,18 @@ def public_group():
 
 @pytest.fixture()
 def public_source(public_group):
-    return SourceFactory(groups=[public_group])
+    return SourceFactory(groups=[public_group], is_source=True)
 
 
 @pytest.fixture()
 def private_source():
-    return SourceFactory(groups=[])
+    return SourceFactory(groups=[], is_source=True)
 
 
 @pytest.fixture()
 def public_candidate(public_group):
-    return CandidateFactory(groups=[public_group])
+    return SourceFactory(candidate_groups=[public_group], is_candidate=True,
+                         is_source=False)
 
 
 @pytest.fixture()

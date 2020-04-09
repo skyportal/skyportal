@@ -15,7 +15,7 @@ def test_token_user_retrieving_candidate(view_only_token, public_candidate):
     assert status == 200
     assert data['status'] == 'success'
     assert all(k in data['data']['candidates'] for k in ['ra', 'dec', 'redshift',
-                                                         'comments', 'thumbnails'])
+                                                         'candidate_comments', 'thumbnails'])
 
 
 def test_token_user_update_candidate(manage_sources_token, public_candidate):
@@ -142,7 +142,7 @@ def test_delete_candidate_cascade_spectra(manage_sources_token, public_candidate
 
 
 def test_delete_candidate_cascade_comments(manage_sources_token, public_candidate):
-    comment_ids = [comment.id for comment in public_candidate.comments]
+    comment_ids = [comment.id for comment in public_candidate.candidate_comments]
     assert len(comment_ids) > 0
     for comment_id in comment_ids:
         status, data = api(

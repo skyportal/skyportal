@@ -7,12 +7,12 @@ from ..base import BaseHandler
 from ...models import (
     DBSession,
     Photometry,
-    Candidate,
     Thumbnail,
-    GroupCandidate,
     Instrument,
     Group,
     Source,
+    GroupSource,
+    GroupCandidate,
 )
 
 
@@ -23,19 +23,20 @@ class CandidateHandler(BaseHandler):
     @auth_or_token
     def get(self, candidate_id=None):
         if candidate_id is not None:
-            c = Candidate.get_if_owned_by(
+            c = Source.get_if_owned_by(
                 candidate_id,
                 self.current_user,
+                groups_attr="candidate_groups",
                 options=[
-                    joinedload(Candidate.comments),
-                    joinedload(Candidate.groups),
-                    joinedload(Candidate.thumbnails)
+                    joinedload(Source.candidate_comments),
+                    joinedload(Source.candidate_groups),
+                    joinedload(Source.thumbnails)
                     .joinedload(Thumbnail.photometry)
                     .joinedload(Photometry.instrument)
                     .joinedload(Instrument.telescope),
                 ],
             )
-            if c is None:
+            if c is None or not c.is_candidate:
                 return self.error("Invalid candidate ID")
             return self.success(data={"candidates": c})
 
@@ -60,28 +61,30 @@ class CandidateHandler(BaseHandler):
             page = int(page_number)
         except ValueError:
             return self.error("Invalid page number value.")
-        q = Candidate.query.options(
+        q = Source.query.options(
             [
-                joinedload(Candidate.comments),
-                joinedload(Candidate.groups),
-                joinedload(Candidate.thumbnails)
+                joinedload(Source.candidate_comments),
+                joinedload(Source.candidate_groups),
+                joinedload(Source.thumbnails)
                 .joinedload(Thumbnail.photometry)
                 .joinedload(Photometry.instrument)
                 .joinedload(Instrument.telescope)
             ]
         ).filter(
-            Candidate.id.in_(
-                DBSession.query(GroupCandidate.candidate_id).filter(
+            Source.id.in_(
+                DBSession.query(GroupCandidate.source_id).filter(
                     GroupCandidate.group_id.in_(group_ids)))
-        ).order_by(Candidate.last_detected.desc().nullslast(), Candidate.id)
+        ).order_by(Source.last_detected.desc().nullslast(), Source.id).filter(
+            Source.is_candidate.is_(True)
+        )
         if unsaved_only == "true":
-            q = q.filter(Candidate.source_id.is_(None))
+            q = q.filter(Source.is_source.is_(False))
         if start_date is not None and start_date.strip() != "":
             start_date = arrow.get(start_date.strip())
-            q = q.filter(Candidate.last_detected >= start_date)
+            q = q.filter(Source.last_detected >= start_date)
         if end_date is not None and end_date.strip() != "":
             end_date = arrow.get(end_date.strip())
-            q = q.filter(Candidate.last_detected <= end_date)
+            q = q.filter(Source.last_detected <= end_date)
         if total_matches:
             info["totalMatches"] = int(total_matches)
         else:
@@ -125,7 +128,7 @@ class CandidateHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: Candidate
+              schema: Source
         responses:
           200:
             content:
@@ -140,9 +143,9 @@ class CandidateHandler(BaseHandler):
                           description: New candidate ID
         """
         data = self.get_json()
-        source_id = data.pop("source_id", None)
+        data["is_candidate"] = True
         saved_as_source_by_id = data.pop("saved_as_source_by_id", None)
-        schema = Candidate.__schema__()
+        schema = Source.__schema__()
         user_group_ids = [g.id for g in self.current_user.groups]
         if not user_group_ids:
             return self.error(
@@ -169,11 +172,10 @@ class CandidateHandler(BaseHandler):
                 "Invalid group_ids field. Please specify at least "
                 "one valid group ID that you belong to."
             )
-        c.groups = groups
-        if source_id is not None:
-            c.source_id = source_id
-        if saved_as_source_by_id is not None:
-            c.saved_as_source_by_id = saved_as_source_by_id
+        c.candidate_groups = groups
+        if saved_as_source_by_id is None:
+            saved_as_source_by_id = self.current_user.id
+        # TODO - create GroupSources with appropriate fields
         DBSession.add(c)
         DBSession().commit()
 
@@ -194,7 +196,7 @@ class CandidateHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: CandidateNoID
+              schema: SourceNoID
         responses:
           200:
             content:
@@ -206,50 +208,42 @@ class CandidateHandler(BaseHandler):
                 schema: Error
         """
         # Ensure user has access to candidate
-        c = Candidate.get_if_owned_by(candidate_id, self.current_user)
+        c = Source.get_if_owned_by(candidate_id, self.current_user,
+                                   groups_attr="candidate_groups")
+        if c is None:
+            return self.error("Invalid ID or inadequate permssions.")
         data = self.get_json()
         data["id"] = candidate_id
 
         save_as_source = data.pop("saveAsSource", False)
         if save_as_source:
-            s = Source.query.get(candidate_id)
             group_ids = data.get("groupIDs", None)
             if group_ids is None:
                 return self.error("Required groupIDs field missing.")
             groups = Group.query.filter(Group.id.in_(group_ids)).all()
             if len(groups) == 0:
                 return self.error("Invalid group ID(s).")
-            if s is not None:
-                return self.error("Source with matching ID already exists.")
-            s = Source()
-            attrs = [
-                k
-                for k in dir(Candidate)
-                if not callable(getattr(Candidate, k))
-                and not k.startswith("_")
-                and k != "query"
-                and "url" not in k
-            ]
-            for attr in attrs:
-                setattr(s, attr, getattr(c, attr))
-            s.groups = groups
-            s.photometry = c.photometry
-            s.thumbnails = c.thumbnails
-            s.spectra = c.spectra
-            s.saved_as_source_by = self.current_user
-            s.created_at = datetime.datetime.now()
-            DBSession.add(s)
-            DBSession.commit()
-            c.source_id = s.id
-            c.saved_as_source_by_id = self.current_user.id
-            DBSession.add(c)
+            c.is_source = True
+            c.source_groups = groups
+            for g in groups:
+                gs = GroupSource.query.filter(GroupSource.group_id == g.id).filter(
+                    GroupSource.source_id == c.id
+                ).first()
+                if gs is None:
+                    gs = GroupSource(group_id=g.id, source_id=c.id,
+                                     saved_as_source_by_id=self.current_user.id,
+                                     saved_as_source_at_time=arrow.now())
+                    DBSession.add(gs)
+                else:
+                    gs.saved_as_source_by_id = self.current_user.id
+                    gs.saved_as_source_at_time = arrow.now()
             DBSession.commit()
             self.push_all("skyportal/FETCH_SOURCES")
             return self.success(
                 data={"candidate": c}, action="skyportal/FETCH_CANDIDATES"
             )
 
-        schema = Candidate.__schema__()
+        schema = Source.__schema__()
         try:
             schema.load(data)
         except ValidationError as e:
@@ -278,8 +272,9 @@ class CandidateHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        _ = Candidate.get_if_owned_by(candidate_id, self.current_user)
-        DBSession.query(Candidate).filter(Candidate.id == candidate_id).delete()
+        _ = Source.get_if_owned_by(candidate_id, self.current_user,
+                                   groups_attr="candidate_groups")
+        DBSession.query(Source).filter(Source.id == candidate_id).delete()
         DBSession().commit()
 
         return self.success(action="skyportal/FETCH_CANDIDATES")
