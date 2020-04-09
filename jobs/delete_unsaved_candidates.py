@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import datetime
-from skyportal.models import init_db, Candidate, DBSession
+from skyportal.models import init_db, Source, DBSession
 from baselayer.app.env import load_env
 
 
@@ -12,10 +12,14 @@ cutoff_datetime = datetime.datetime.now() - datetime.timedelta(
     days=cfg["misc.days_to_keep_unsaved_candidates"]
 )
 
-c = Candidate.query.filter(Candidate.source_id.is_(None)).filter(
-    Candidate.created_at <= cutoff_datetime
-).delete()
+n_deleted = (
+    Source.query
+    .filter(Source.is_candidate.is_(True))
+    .filter(Source.is_source.is_(False))
+    .filter(Source.created_at <= cutoff_datetime)
+    .delete()
+)
 
 DBSession.commit()
 
-print(f"Deleted {c} unsaved candidates.")
+print(f"Deleted {n_deleted} unsaved candidates.")
