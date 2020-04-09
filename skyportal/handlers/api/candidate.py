@@ -22,6 +22,37 @@ CANDIDATES_PER_PAGE = 25
 class CandidateHandler(BaseHandler):
     @auth_or_token
     def get(self, candidate_id=None):
+        """
+        ---
+        single:
+          description: Retrieve a candidate
+          parameters:
+            - in: path
+              name: candidate_id
+              required: true
+              schema:
+                type: string
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleSource
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all candidates
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfSources
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
         if candidate_id is not None:
             c = Source.get_if_owned_by(
                 candidate_id,
@@ -36,7 +67,7 @@ class CandidateHandler(BaseHandler):
                     .joinedload(Instrument.telescope),
                 ],
             )
-            if c is None or not c.is_candidate:
+            if (c is None) or (not c.is_candidate):
                 return self.error("Invalid candidate ID")
             return self.success(data={"candidates": c})
 
@@ -61,21 +92,26 @@ class CandidateHandler(BaseHandler):
             page = int(page_number)
         except ValueError:
             return self.error("Invalid page number value.")
-        q = Source.query.options(
-            [
-                joinedload(Source.candidate_comments),
-                joinedload(Source.candidate_groups),
-                joinedload(Source.thumbnails)
-                .joinedload(Thumbnail.photometry)
-                .joinedload(Photometry.instrument)
-                .joinedload(Instrument.telescope)
-            ]
-        ).filter(
-            Source.id.in_(
-                DBSession.query(GroupCandidate.source_id).filter(
-                    GroupCandidate.group_id.in_(group_ids)))
-        ).order_by(Source.last_detected.desc().nullslast(), Source.id).filter(
-            Source.is_candidate.is_(True)
+        q = (
+            Source.query.options(
+                [
+                    joinedload(Source.candidate_comments),
+                    joinedload(Source.candidate_groups),
+                    joinedload(Source.thumbnails)
+                    .joinedload(Thumbnail.photometry)
+                    .joinedload(Photometry.instrument)
+                    .joinedload(Instrument.telescope),
+                ]
+            )
+            .filter(
+                Source.id.in_(
+                    DBSession.query(GroupCandidate.source_id).filter(
+                        GroupCandidate.group_id.in_(group_ids)
+                    )
+                )
+            )
+            .order_by(Source.last_detected.desc().nullslast(), Source.id)
+            .filter(Source.is_candidate.is_(True))
         )
         if unsaved_only == "true":
             q = q.filter(Source.is_source.is_(False))
@@ -208,8 +244,9 @@ class CandidateHandler(BaseHandler):
                 schema: Error
         """
         # Ensure user has access to candidate
-        c = Source.get_if_owned_by(candidate_id, self.current_user,
-                                   groups_attr="candidate_groups")
+        c = Source.get_if_owned_by(
+            candidate_id, self.current_user, groups_attr="candidate_groups"
+        )
         if c is None:
             return self.error("Invalid ID or inadequate permssions.")
         data = self.get_json()
@@ -226,13 +263,18 @@ class CandidateHandler(BaseHandler):
             c.is_source = True
             c.source_groups = groups
             for g in groups:
-                gs = GroupSource.query.filter(GroupSource.group_id == g.id).filter(
-                    GroupSource.source_id == c.id
-                ).first()
+                gs = (
+                    GroupSource.query.filter(GroupSource.group_id == g.id)
+                    .filter(GroupSource.source_id == c.id)
+                    .first()
+                )
                 if gs is None:
-                    gs = GroupSource(group_id=g.id, source_id=c.id,
-                                     saved_as_source_by_id=self.current_user.id,
-                                     saved_as_source_at_time=arrow.now())
+                    gs = GroupSource(
+                        group_id=g.id,
+                        source_id=c.id,
+                        saved_as_source_by_id=self.current_user.id,
+                        saved_as_source_at_time=arrow.now(),
+                    )
                     DBSession.add(gs)
                 else:
                     gs.saved_as_source_by_id = self.current_user.id
@@ -272,8 +314,9 @@ class CandidateHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        _ = Source.get_if_owned_by(candidate_id, self.current_user,
-                                   groups_attr="candidate_groups")
+        _ = Source.get_if_owned_by(
+            candidate_id, self.current_user, groups_attr="candidate_groups"
+        )
         DBSession.query(Source).filter(Source.id == candidate_id).delete()
         DBSession().commit()
 
