@@ -138,7 +138,7 @@ def _plot_to_json(plot):
 
 
 # TODO make async so that thread isn't blocked
-def photometry_plot(source_or_candidate_id, width=600, height=300):
+def photometry_plot(source_id, width=600, height=300):
     """Create scatter plot of photometry for source.
     Parameters
     ----------
@@ -154,14 +154,8 @@ def photometry_plot(source_or_candidate_id, width=600, height=300):
     data = pd.read_sql(DBSession()
                        .query(Photometry, Telescope.nickname.label('telescope'))
                        .join(Instrument).join(Telescope)
-                       .filter(Photometry.source_id == source_or_candidate_id)
+                       .filter(Photometry.source_id == source_id)
                        .statement, DBSession().bind)
-    if data.empty:
-        data = pd.read_sql(DBSession()
-                           .query(Photometry, Telescope.nickname.label('telescope'))
-                           .join(Instrument).join(Telescope)
-                           .filter(Photometry.candidate_id == source_or_candidate_id)
-                           .statement, DBSession().bind)
     if data.empty:
         return None, None, None
 
