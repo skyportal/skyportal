@@ -28,12 +28,6 @@ docker-images: docker-local
 	docker build -t skyportal/web . && docker push skyportal/web
 
 docker-local: ## Build docker images locally
-	@echo "!! WARNING !! The current directory will be bundled inside of"
-	@echo "              the Docker image.  Make sure you have no passwords"
-	@echo "              or tokens in configuration files before continuing!"
-	@echo
-	@echo "Press enter to confirm that you want to continue."
-	@read
 	cd baselayer && git submodule update --init --remote
 	docker build -t skyportal/web .
 
