@@ -16,6 +16,7 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - dbdata:/var/lib/postgresql/data/pgdata
+    restart: on-failure:3
 
 volumes:
   dbdata:
