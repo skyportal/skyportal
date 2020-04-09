@@ -536,9 +536,9 @@ class SourceFinderHandler(BaseHandler):
         image_source = self.get_query_argument('image_source', 'desi')
 
         how_many = 3
-        obstime_isoformat = \
-            self.get_query_argument('obstime',
-                                    datetime.datetime.utcnow().isoformat())
+        obstime_isoformat = self.get_query_argument(
+            'obstime', datetime.datetime.utcnow().isoformat()
+        )
         if not isinstance(isoparse(obstime_isoformat), datetime.datetime):
             return self.error('obstime is not valid isoformat')
 
@@ -553,21 +553,22 @@ class SourceFinderHandler(BaseHandler):
         min_sep_arcsec = facility_parameters[facility]["min_sep_arcsec"]
         mag_min = facility_parameters[facility]["mag_min"]
 
-        rez = get_finding_chart(source.ra, source.dec, source_id,
-                                image_source=image_source,
-                                output_format='pdf',
-                                imsize=imsize,
-                                how_many=how_many,
-                                radius_degrees=radius_degrees,
-                                mag_limit=mag_limit,
-                                mag_min=mag_min,
-                                min_sep_arcsec=min_sep_arcsec,
-                                starlist_type=facility,
-                                obstime_isoformat=obstime_isoformat,
-                                use_source_pos_in_starlist=True,
-                                allowed_queries=2,
-                                queries_issued=0
-                                )
+        rez = get_finding_chart(
+            source.ra, source.dec, source_id,
+            image_source=image_source,
+            output_format='pdf',
+            imsize=imsize,
+            how_many=how_many,
+            radius_degrees=radius_degrees,
+            mag_limit=mag_limit,
+            mag_min=mag_min,
+            min_sep_arcsec=min_sep_arcsec,
+            starlist_type=facility,
+            obstime_isoformat=obstime_isoformat,
+            use_source_pos_in_starlist=True,
+            allowed_queries=2,
+            queries_issued=0
+        )
 
         filename = rez["name"]
         image = rez["data"]
