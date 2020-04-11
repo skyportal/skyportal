@@ -60,9 +60,10 @@ export function addSourceView(id) {
   return API.POST(`/api/internal/source_views/${id}`, ADD_SOURCE_VIEW);
 }
 
-export const submitFollowupRequest = (params) => (
-  API.POST('/api/followup_request', SUBMIT_FOLLOWUP_REQUEST, params)
-);
+export const submitFollowupRequest = (params) => {
+  const { instrument_name, ...paramsToSubmit } = params;
+  return API.POST('/api/followup_request', SUBMIT_FOLLOWUP_REQUEST, paramsToSubmit);
+};
 
 export const deleteFollowupRequest = (id) => (
   API.DELETE(`/api/followup_request/${id}`, DELETE_FOLLOWUP_REQUEST)

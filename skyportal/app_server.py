@@ -19,7 +19,7 @@ from skyportal.handlers.api import (
 )
 from skyportal.handlers.api.internal import (
     PlotPhotometryHandler, PlotSpectroscopyHandler, SourceViewsHandler,
-    TokenHandler, DBInfoHandler, ProfileHandler
+    TokenHandler, DBInfoHandler, ProfileHandler, InstrumentObservationParamsHandler
 )
 
 from . import models, model_util, openapi
@@ -71,6 +71,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/internal/source_views(/.*)?', SourceViewsHandler),
         (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
         (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
+        (r'/api/internal/instrument_obs_params', InstrumentObservationParamsHandler),
 
         (r'/become_user(/.*)?', BecomeUserHandler),
         (r'/logout', LogoutHandler),

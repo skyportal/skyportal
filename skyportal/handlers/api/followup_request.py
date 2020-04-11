@@ -34,6 +34,8 @@ class FollowupRequestHandler(BaseHandler):
         data["start_date"] = arrow.get(data["start_date"]).datetime
         data["end_date"] = arrow.get(data["end_date"]).datetime
         data["requester_id"] = self.current_user.id
+        if isinstance(data["filters"], str):
+            data["filters"] = [data["filters"]]
         followup_request = FollowupRequest(**data)
         DBSession.add(followup_request)
         DBSession.commit()

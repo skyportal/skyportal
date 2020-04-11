@@ -11,6 +11,7 @@ const FollowupRequestList = ({ followupRequests }) => {
   const deleteRequest = (id) => {
     dispatch(Actions.deleteFollowupRequest(id));
   };
+  const editRequest = () => null; // TODO
   return (
     <div>
       <table className={styles.followupRequestTable}>
@@ -35,7 +36,7 @@ const FollowupRequestList = ({ followupRequests }) => {
               Status
             </th>
             <th>
-              Delete
+              Edit/Delete
             </th>
           </tr>
         </thead>
@@ -62,9 +63,22 @@ const FollowupRequestList = ({ followupRequests }) => {
                   {followupRequest.status}
                 </td>
                 <td>
-                  <button type="button" onClick={() => { deleteRequest(followupRequest.id); }}>
-                    Delete
-                  </button>
+                  {
+                    followupRequest.editable &&
+                      (
+                        <span>
+                          <button
+                            type="button"
+                            onClick={() => { editRequest(followupRequest.id); }}
+                          >
+                            Edit
+                          </button>
+                          <button type="button" onClick={() => { deleteRequest(followupRequest.id); }}>
+                            Delete
+                          </button>
+                        </span>
+                      )
+                  }
                 </td>
               </tr>
             ))

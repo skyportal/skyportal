@@ -353,9 +353,11 @@ class FollowupRequest(Base):
                               index=True)
     start_date = sa.Column(ArrowType, nullable=False)
     end_date = sa.Column(ArrowType, nullable=False)
-    filters = sa.Column(psql.ARRAY(sa.String))
+    filters = sa.Column(psql.ARRAY(sa.String), nullable=True)
+    exposure_time = sa.Column(sa.String, nullable=True)
     priority = sa.Column(sa.Enum('1', '2', '3', '4', '5',
                                  name='priority'))
+    editable = sa.Column(sa.Boolean, nullable=False, default=True)
     status = sa.Column(sa.String(), nullable=False, default="pending")
 
 

@@ -16,5 +16,6 @@ export default function hydrate() {
     dispatch(newsFeedActions.fetchNewsFeed());
     dispatch(topSourcesActions.fetchTopSources());
     dispatch(instrumentsActions.fetchInstruments());
+    dispatch(instrumentsActions.fetchInstrumentObsParams());
   };
 }

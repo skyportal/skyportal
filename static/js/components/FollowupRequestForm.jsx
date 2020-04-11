@@ -7,21 +7,51 @@ import * as Actions from '../ducks/source';
 
 const FollowupRequestForm = ({ source }) => {
   const dispatch = useDispatch();
-  const { instrumentList } = useSelector((state) => state.instruments);
+  const { instrumentList, instrumentObsParams } = useSelector((state) => state.instruments);
+  const obsParams = instrumentObsParams; // Shorten to reduce line length below
+
+  const instIDToName = {};
+  instrumentList.forEach((instrumentObj) => {
+    instIDToName[instrumentObj.id] = instrumentObj.name;
+  });
 
   const initialFormState = {
     source_id: source.id,
     instrument_id: "",
+    instrument_name: "",
     start_date: "",
     end_date: "",
+    filters: [],
+    exposure_time: null,
     priority: ""
   };
   const [formState, setFormState] = useState({ ...initialFormState });
 
   const handleInputChange = (e) => {
-    const newState = {};
-    newState[e.target.name] = e.target.type === 'checkbox' ?
-      e.target.checked : e.target.value;
+    let newState = { ...formState };
+    newState.filters = [...formState.filters];
+
+    if (e.target.name.startsWith("filterCheckbox_")) {
+      const filter = e.target.name.split("filterCheckbox_")[1];
+      if (e.target.checked) {
+        newState.filters.push(filter);
+      } else {
+        newState.filters.splice(newState.filters.indexOf(filter), 1);
+      }
+    } else {
+      newState[e.target.name] = e.target.type === 'checkbox' ?
+        e.target.checked : e.target.value;
+
+      if (e.target.name === "instrument_id") {
+        // Reset form state using newly selected instrument ID & name
+        newState = {
+          ...initialFormState,
+          instrument_id: e.target.value,
+          instrument_name: instIDToName[e.target.value],
+          editable: obsParams[instIDToName[e.target.value]].requestsEditable
+        };
+      }
+    }
     setFormState({
       ...formState,
       ...newState
@@ -42,6 +72,9 @@ const FollowupRequestForm = ({ source }) => {
         Submit new follow-up request
       </h3>
       <div>
+        <label>
+          Select Instrument:&nbsp;
+        </label>
         <select
           name="instrument_id"
           value={formState.instrument_id}
@@ -59,46 +92,161 @@ const FollowupRequestForm = ({ source }) => {
           }
         </select>
       </div>
-      <div>
-        <label>
-          Start Date
-        </label>
-        <input
-          type="text"
-          name="start_date"
-          value={formState.start_date}
-          onChange={handleInputChange}
-          size="6"
-        />
-        &nbsp;&nbsp;
-        <label>
-          End Date
-        </label>
-        <input
-          type="text"
-          name="end_date"
-          value={formState.end_date}
-          onChange={handleInputChange}
-          size="6"
-        />
-      </div>
-      <div>
-        <select name="priority" value={formState.priority} onChange={handleInputChange}>
-          <option value="null">
-            Select Priority
-          </option>
-          {
-            ["1", "2", "3", "4", "5"].map((val) => (
-              <option value={val} key={val}>
-                {val}
-              </option>
-            ))
-          }
-        </select>
-      </div>
-      <button type="button" onClick={handleSubmit}>
-        Submit
-      </button>
+      {
+        formState.instrument_id && (
+          <div>
+            {
+              !obsParams[formState.instrument_name].requestsEditable && (
+                <div>
+                  <font color="red">
+                    WARNING: You will not be able to edit or delete this request once submitted.
+                  </font>
+                </div>
+              )
+            }
+            <div>
+              <label>
+                Start Date:&nbsp;
+              </label>
+              <input
+                type="text"
+                name="start_date"
+                value={formState.start_date}
+                onChange={handleInputChange}
+                size="6"
+              />
+              &nbsp;&nbsp;
+              <label>
+                End Date:&nbsp;
+              </label>
+              <input
+                type="text"
+                name="end_date"
+                value={formState.end_date}
+                onChange={handleInputChange}
+                size="6"
+              />
+            </div>
+            <div>
+              {
+                obsParams[formState.instrument_name].filters.type === "checkbox" && (
+                  <div>
+                    <label>
+                      Filters:&nbsp;&nbsp;
+                    </label>
+                    {
+                      obsParams[formState.instrument_name].filters.options.map(
+                        (filter) => (
+                          <span key={filter}>
+                            <input
+                              type="checkbox"
+                              name={`filterCheckbox_${filter}`}
+                              checked={formState.filters.includes(filter)}
+                              onChange={handleInputChange}
+                            />
+                            <label>
+                              {filter}
+                            </label>
+                            &nbsp;&nbsp;
+                          </span>
+                        )
+                      )
+                    }
+                  </div>
+                )
+              }
+              {
+                obsParams[formState.instrument_name].filters.type === "select" && (
+                  <div>
+                    <label>
+                      Filter:&nbsp;&nbsp;
+                    </label>
+                    <select
+                      name="filters"
+                      value={formState.filter}
+                      onChange={handleInputChange}
+                    >
+                      <option value="null">
+                        Select Filter
+                      </option>
+                      {
+                        obsParams[formState.instrument_name].filters.options.map(
+                          (filter) => (
+                            <option value={filter} key={filter}>
+                              {filter}
+                            </option>
+                          )
+                        )
+                      }
+                    </select>
+                  </div>
+                )
+              }
+            </div>
+            <div>
+              {
+                Object.keys(obsParams[formState.instrument_name]).includes("exposureTime") && (
+                  <div>
+                    <label>
+                      Exposure time:&nbsp;
+                    </label>
+                    <select
+                      name="exposure_time"
+                      value={formState.exposure_time}
+                      onChange={handleInputChange}
+                    >
+                      <option value="null">
+                        Select Exposure Time
+                      </option>
+                      {
+                        obsParams[formState.instrument_name].exposureTime.options.map(
+                          (expTime) => (
+                            <option value={expTime} key={expTime}>
+                              {expTime}
+                            </option>
+                          )
+                        )
+                      }
+                    </select>
+                    {
+                      Object.keys(obsParams[formState.instrument_name].exposureTime).includes("note") && (
+                        <div>
+                          <font color="purple">
+                            Note:&nbsp;
+                            {obsParams[formState.instrument_name].exposureTime.note}
+                          </font>
+                        </div>
+                      )
+                    }
+                  </div>
+                )
+              }
+            </div>
+            <div>
+              <label>
+                Priority:
+              </label>
+              &nbsp;
+              <select name="priority" value={formState.priority} onChange={handleInputChange}>
+                <option value="null">
+                  Select Priority
+                </option>
+                {
+                  ["1", "2", "3", "4", "5"].map((val) => (
+                    <option value={val} key={val}>
+                      {val}
+                    </option>
+                  ))
+                }
+              </select>
+            </div>
+            <br />
+            <button type="button" onClick={handleSubmit}>
+              Submit
+            </button>
+          </div>
+        )
+      }
     </div>
   );
 };
