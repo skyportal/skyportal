@@ -368,9 +368,11 @@ class Assignment(Base):
     reverse_idx = sa.Index('assignments_reverse_idx', source_id, run_id)
 
     run = relationship(
-        'ObservingRun', cascade='save-update, merge, refresh-expire, expunge')
+        'ObservingRun', cascade='save-update, merge, refresh-expire, expunge',
+        uselist=False)
     source = relationship(
-        'Source', cascade='save-update, merge, refresh-expire, expunge')
+        'Source', cascade='save-update, merge, refresh-expire, expunge',
+        uselist=False)
     priority = sa.Column(sa.Integer, nullable=False)
     type = sa.Column(sa.Enum('classification',
                              'host redshift',
