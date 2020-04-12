@@ -33,8 +33,6 @@ def is_owned_by(self, user_or_token):
         return (user_or_token in self.users)
     else:
         raise NotImplementedError(f"{type(self).__name__} object has no owner")
-
-
 Base.is_owned_by = is_owned_by
 
 
@@ -82,12 +80,9 @@ User.group_users = relationship('GroupUser', back_populates='user',
 User.groups = relationship('Group', secondary='group_users',
                            back_populates='users')
 
-
 @property
 def token_groups(self):
     return self.created_by.groups
-
-
 Token.groups = token_groups
 
 
@@ -119,7 +114,7 @@ class Source(Base):
 
     score = sa.Column(sa.Float, nullable=True)
 
-    # pan-starrs
+    ## pan-starrs
     sgmag1 = sa.Column(sa.Float, nullable=True)
     srmag1 = sa.Column(sa.Float, nullable=True)
     simag1 = sa.Column(sa.Float, nullable=True)
@@ -257,7 +252,7 @@ class Comment(Base):
 
 class Photometry(Base):
     __tablename__ = 'photometry'
-    observed_at = sa.Column(ArrowType)  # iso date
+    observed_at = sa.Column(ArrowType) # iso date
     mjd = sa.Column(sa.Float)  # mjd date
     time_format = sa.Column(sa.String, default='iso')
     time_scale = sa.Column(sa.String, default='utc')
@@ -274,7 +269,7 @@ class Photometry(Base):
     mag_nearest_source = sa.Column(sa.Float, nullable=True)
     e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
 
-    # external values
+    ## external values
     score = sa.Column(sa.Float, nullable=True)  # RB
     candid = sa.Column(sa.BigInteger, nullable=True)  # candidate ID
     altdata = sa.Column(JSONB)
@@ -319,7 +314,7 @@ class Spectrum(Base):
                    observed_at=observed_at)
 
 
-# def format_public_url(context):
+#def format_public_url(context):
 #    """TODO migrate this to broker tools"""
 #    file_uri = context.current_parameters.get('file_uri')
 #    if file_uri is None:
@@ -338,8 +333,7 @@ class Thumbnail(Base):
                              'ref_gz', 'sub_gz',
                              name='thumbnail_types', validate_strings=True))
     file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
-    public_url = sa.Column(sa.String(), nullable=True,
-                           index=False, unique=False)
+    public_url = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     origin = sa.Column(sa.String, nullable=True)
     photometry_id = sa.Column(sa.ForeignKey('photometry.id', ondelete='CASCADE'),
                               nullable=False, index=True)
