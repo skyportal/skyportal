@@ -266,7 +266,7 @@ def test_finder(manage_sources_token, public_source):
     assert data[0:10].find("PDF") != -1
     assert response.headers.get("Content-Type", "Empty").find("application/pdf") != -1
 
-    # try a image source we dont know about
+    # try an image source we dont know about
     status, data = api(
         'GET',
         f'sources/{public_source.id}/finder?image_source=whoknows',

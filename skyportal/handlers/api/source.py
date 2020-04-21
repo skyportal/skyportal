@@ -414,10 +414,10 @@ class SourceOffsetsHandler(BaseHandler):
 
         facility = self.get_query_argument('facility', 'Keck')
         how_many = self.get_query_argument('how_many', '3')
-        obstime_isoformat = self.get_query_argument(
+        obstime = self.get_query_argument(
             'obstime', datetime.datetime.utcnow().isoformat()
         )
-        if not isinstance(isoparse(obstime_isoformat), datetime.datetime):
+        if not isinstance(isoparse(obstime), datetime.datetime):
             return self.error('obstime is not valid isoformat')
 
         if facility not in facility_parameters:
@@ -445,14 +445,15 @@ class SourceOffsetsHandler(BaseHandler):
                     min_sep_arcsec=min_sep_arcsec,
                     starlist_type=facility,
                     mag_min=mag_min,
-                    obstime_isoformat=obstime_isoformat,
+                    obstime=obstime,
                     allowed_queries=2
                 )
 
         except ValueError:
             return self.error('Error while querying for nearby offset stars')
 
-        starlist_str = "\n".join([x["str"].replace(" ", "&nbsp;") for x in starlist_info])
+        starlist_str = \
+            "\n".join([x["str"].replace(" ", "&nbsp;") for x in starlist_info])
         return self.success(
             data={
                 'facility': facility,
@@ -526,20 +527,22 @@ class SourceFinderHandler(BaseHandler):
         imsize = self.get_query_argument('imsize', '4.0')
         try:
             imsize = float(imsize)
-            assert imsize >= 2.0
-            assert imsize <= 15.0
         except ValueError:
             # could not handle inputs
             return self.error('Invalid argument for `imsize`')
+
+        if imsize < 2.0 or imsize > 15.0:
+            return \
+              self.error('The value for `imsize` is outside the allowed range')
 
         facility = self.get_query_argument('facility', 'Keck')
         image_source = self.get_query_argument('image_source', 'desi')
 
         how_many = 3
-        obstime_isoformat = self.get_query_argument(
+        obstime = self.get_query_argument(
             'obstime', datetime.datetime.utcnow().isoformat()
         )
-        if not isinstance(isoparse(obstime_isoformat), datetime.datetime):
+        if not isinstance(isoparse(obstime), datetime.datetime):
             return self.error('obstime is not valid isoformat')
 
         if facility not in facility_parameters:
@@ -564,7 +567,7 @@ class SourceFinderHandler(BaseHandler):
             mag_min=mag_min,
             min_sep_arcsec=min_sep_arcsec,
             starlist_type=facility,
-            obstime_isoformat=obstime_isoformat,
+            obstime=obstime,
             use_source_pos_in_starlist=True,
             allowed_queries=2,
             queries_issued=0

@@ -2,7 +2,6 @@ import io
 import os
 from pathlib import Path
 import datetime
-import tempfile
 import hashlib
 import warnings
 
@@ -108,13 +107,19 @@ def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
 # helper dict for seaching for FITS images from various surveys
 source_image_parameters = {
     'desi': {
-        'url': 'http://legacysurvey.org/viewer/fits-cutout/?ra={ra}&dec={dec}&layer=dr8&pixscale={pixscale}&bands=r',
+        'url': (
+            'http://legacysurvey.org/viewer/fits-cutout/'
+            '?ra={ra}&dec={dec}&layer=dr8&pixscale={pixscale}&bands=r'
+        ),
         'npixels': 256,
         'smooth': None,
         'str': 'DESI DR8 R-band'
     },
     'dss': {
-        'url': 'http://archive.stsci.edu/cgi-bin/dss_search?v=poss2ukstu_red&r={ra}&dec={dec}&h={imsize}&w={imsize}&e=J2000',
+        'url': (
+            'http://archive.stsci.edu/cgi-bin/dss_search'
+            '?v=poss2ukstu_red&r={ra}&dec={dec}&h={imsize}&w={imsize}&e=J2000'
+        ),
         'smooth': None,
         'reproject': True,
         'npixels': 500,
@@ -129,6 +134,7 @@ source_image_parameters = {
     }
 }
 
+
 def get_nearby_offset_stars(source_ra, source_dec, source_name,
                             how_many=3,
                             radius_degrees=2 / 60.,
@@ -136,7 +142,7 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
                             mag_min=10.0,
                             min_sep_arcsec=5,
                             starlist_type='Keck',
-                            obstime_isoformat=None,
+                            obstime=None,
                             use_source_pos_in_starlist=True,
                             allowed_queries=2,
                             queries_issued=0
@@ -166,8 +172,8 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
         What is the closest offset star allowed to the source?
     starlist_type : str, optional
         What starlist format should we use?
-    obstime_isoformat : str, optional
-        What datetime should we assume for the observation
+    obstime : str, optional
+        What datetime (in isoformat) should we assume for the observation
         (to calculate proper motions)?
     use_source_pos_in_starlist : bool, optional
         Return the source itself for in starlist?
@@ -186,13 +192,15 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
     """
 
     if queries_issued >= allowed_queries:
-        raise Exception('Number of offsets queries needed exceeds what is allowed')
+        raise Exception(
+            'Number of offsets queries needed exceeds what is allowed'
+        )
 
-    if not obstime_isoformat:
+    if not obstime:
         source_obstime = Time(datetime.datetime.utcnow().isoformat())
     else:
         # TODO: check the obstime format
-        source_obstime = Time(obstime_isoformat)
+        source_obstime = Time(obstime)
 
     gaia_obstime = "J2015.5"
 
@@ -244,12 +252,16 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
         d2d = c.separation(catalog)  # match it to the catalog
         if sum(d2d < min_sep) == 1 and source["phot_rp_mean_mag"] <= mag_limit:
             # this star is not near another star and is bright enough
-            # precess it's position forward to the source obstime and get offsets
-            # suitable for spectroscopy
+            # precess it's position forward to the source obstime and
+            # get offsets suitable for spectroscopy
             # TODO: put this in geocentric coords to account for parallax
             cprime = c.apply_space_motion(new_obstime=source_obstime)
             dra, ddec = cprime.spherical_offsets_to(center)
-            good_list.append((source["dist"], c, source, dra.to(u.arcsec), ddec.to(u.arcsec) ))
+            good_list.append(
+                (source["dist"], c, source,
+                 dra.to(u.arcsec),
+                 ddec.to(u.arcsec))
+            )
 
     good_list.sort()
 
@@ -263,7 +275,7 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
             mag_min=mag_min-1.0,
             min_sep_arcsec=min_sep_arcsec/2.0,
             starlist_type=starlist_type,
-            obstime_isoformat=obstime_isoformat,
+            obstime=obstime,
             use_source_pos_in_starlist=use_source_pos_in_starlist,
             queries_issued=queries_issued,
             allowed_queries=allowed_queries
@@ -317,7 +329,8 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
         ddecs = f"{ddec.value:<0.03f}\" N" if ddec > 0 else f"{abs(ddec.value):<0.03f}\" S"
 
         if giveoffsets:
-            offsets = f"raoffset={dra.value:<0.03f} decoffset={ddec.value:<0.03f}"
+            offsets = \
+                f"raoffset={dra.value:<0.03f} decoffset={ddec.value:<0.03f}"
         else:
             offsets = ""
 
@@ -346,7 +359,7 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
 
 
 def fits_image(center_ra, center_dec, imsize=4.0, image_source="desi",
-               cache=True, cachedir="/tmp/skyportal_image_cache/",
+               cache=True, cachedir="./skyportal_image_cache/",
                max_cache=5):
 
     """Returns an opened FITS image centered on the source
@@ -372,13 +385,16 @@ def fits_image(center_ra, center_dec, imsize=4.0, image_source="desi",
     Returns
     -------
     object
-        either a pyfits HDU object or None
+        Either a pyfits HDU object or None. If no suitable image is found
+        then None is returned. The caller of `fits_image` will need to
+        handle this case.
     """
 
     if image_source not in source_image_parameters:
         raise Exception("do not know how to grab image source")
 
-    pixscale = 60*imsize/source_image_parameters[image_source].get("npixels", 256)
+    pixscale = \
+        60*imsize/source_image_parameters[image_source].get("npixels", 256)
 
     if isinstance(source_image_parameters[image_source]["url"], str):
         url = source_image_parameters[image_source]["url"].format(
@@ -416,9 +432,7 @@ def fits_image(center_ra, center_dec, imsize=4.0, image_source="desi",
             hdu = get_hdu(url)
             if np.count_nonzero(hdu.data) > 0:
                 hdu.writeto(image_file)
-                print(f"Saving cached file {image_file}")
             else:
-                print("got an empty image")
                 hdu = None
 
         if max_cache > 1:
@@ -435,7 +449,6 @@ def fits_image(center_ra, center_dec, imsize=4.0, image_source="desi",
     else:
         hdu = get_hdu(url)
         if np.count_nonzero(hdu.data) > 0:
-            print("Note: got an empty image")
             hdu = None
 
     return hdu
@@ -462,7 +475,8 @@ def get_finding_chart(source_ra, source_dec, source_name,
     source_name : str
         Name of the source
     image_source : {'desi', 'dss', 'ztfref'}, optional
-        Survey where the image comes from "desi", "dss", "ztfref" (more to be added)
+        Survey where the image comes from "desi", "dss", "ztfref"
+        (more to be added)
     output_format : str, optional
         "pdf" of "png" -- determines the format of the returned finder
     imsize : float, optional
@@ -480,16 +494,31 @@ def get_finding_chart(source_ra, source_dec, source_name,
     Returns
     -------
     dict
+        success: bool
+            Whether the request was successful or not, returning
+            a sensible error in 'reason'
         name : str
             suggested filename based on `source_name` and `output_format`
         data : str
             binary encoded data for the image (to be streamed)
+        reason : str
+            If not successful, a reason is returned.
     """
     if (imsize < 2.0) or (imsize > 15):
-        raise ValueError("Requested `imsize` out of range")
+        return {
+            'success': False,
+            'reason': 'Requested `imsize` out of range',
+            'data': '',
+            'name': ''
+        }
 
     if image_source not in source_image_parameters:
-            return {'success': False, 'reason': 'image source not in list'}
+        return {
+            'success': False,
+            'reason': f'image source {image_source} not in list',
+            'data': '',
+            'name': ''
+        }
 
     fig = plt.figure(figsize=(11, 8.5), constrained_layout=False)
     widths = [2.6, 1]
@@ -497,17 +526,25 @@ def get_finding_chart(source_ra, source_dec, source_name,
     spec = fig.add_gridspec(ncols=2, nrows=2, width_ratios=widths,
                             height_ratios=heights, left=0.05, right=0.95)
 
+    # how wide on the side will the image be? 256 as default
     npixels = source_image_parameters[image_source].get("npixels", 256)
+    # set the pixelscale in arcsec (typically about 1 arcsec/pixel)
     pixscale = 60*imsize/npixels
 
     hdu = fits_image(source_ra, source_dec, imsize=imsize,
                      image_source=image_source)
 
     # skeleton WCS - this is the field that the user requested
-    # North up, East left
     wcs = WCS(naxis=2)
+
+    # set the headers of the WCS.
+    # The center of the image is the reference point (source_ra, source_dec):
     wcs.wcs.crpix = [npixels/2, npixels/2]
     wcs.wcs.crval = [source_ra, source_dec]
+
+    # create the pixel scale and orientation North up, East left
+    # pixelscale is in degrees, established in the tangent plane
+    # to the reference point
     wcs.wcs.cd = np.array([[-pixscale/3600, 0], [0, pixscale/3600]])
     wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
 
@@ -519,13 +556,15 @@ def get_finding_chart(source_ra, source_dec, source_name,
         if source_image_parameters[image_source].get("reproject", False):
             # project image to the skeleton WCS solution
             print("Reprojecting image to requested position and orientation")
-            im, _ = reproject_adaptive(hdu, wcs, shape_out=(npixels,npixels))
+            im, _ = reproject_adaptive(hdu, wcs, shape_out=(npixels, npixels))
         else:
             wcs = WCS(hdu.header)
 
         if source_image_parameters[image_source].get("smooth", False):
-            im = gaussian_filter(hdu.data,
-                                 source_image_parameters[image_source]["smooth"]/pixscale)
+            im = gaussian_filter(
+                    hdu.data,
+                    source_image_parameters[image_source]["smooth"]/pixscale
+                 )
 
         norm = ImageNormalize(im, interval=ZScaleInterval())
         watermark = source_image_parameters[image_source]["str"]
@@ -563,7 +602,9 @@ def get_finding_chart(source_ra, source_dec, source_name,
     ax.grid(color='white', ls='dotted')
     ax.set_xlabel(r'$\alpha$ (J2000)', fontsize='large')
     ax.set_ylabel(r'$\delta$ (J2000)', fontsize='large')
-    obstime = offset_star_kwargs.get("obstime_isoformat", datetime.datetime.utcnow().isoformat())
+    obstime = offset_star_kwargs.get(
+            "obstime", datetime.datetime.utcnow().isoformat()
+            )
     ax.set_title(f'{source_name} Finder ({obstime})',
                  fontsize='large', fontweight='bold')
 
@@ -572,7 +613,12 @@ def get_finding_chart(source_ra, source_dec, source_name,
                                                  **offset_star_kwargs)
 
     if not isinstance(star_list, list) or len(star_list) == 0:
-        return {'success': False, 'reason': 'failure to get star list'}
+        return {
+            'success': False,
+            'reason': f'ifailure to get star list',
+            'data': '',
+            'name': ''
+        }
 
     ncolors = len(star_list)
     colors = sns.color_palette("colorblind", ncolors)
@@ -601,7 +647,8 @@ def get_finding_chart(source_ra, source_dec, source_name,
                 transform=ax.transAxes, fontsize='medium', fontweight='bold',
                 color="yellow", alpha=0.5, bbox=props)
 
-    ax.text(0.95, 0.035, f"{imsize}\u2032 \u00D7 {imsize}\u2032",  # size'xsize'
+    ax.text(0.95, 0.035,
+            f"{imsize}\u2032 \u00D7 {imsize}\u2032",  # size'x size'
             horizontalalignment='right',
             verticalalignment='center',
             transform=ax.transAxes, fontsize='medium', fontweight='bold',
@@ -614,9 +661,10 @@ def get_finding_chart(source_ra, source_dec, source_name,
 
     for ang, label, off in [(0, "N", 0.01), (90, "E", 0.03)]:
         position_angle = ang * u.deg
-        separation = (0.05*imsize*60) * u.arcsec # 5%
+        separation = (0.05*imsize*60) * u.arcsec  # 5%
         p2 = rose_center.directional_offset_by(position_angle, separation)
-        ax.plot([rose_center.ra.value, p2.ra.value], [rose_center.dec.value, p2.dec.value],
+        ax.plot([rose_center.ra.value, p2.ra.value],
+                [rose_center.dec.value, p2.dec.value],
                 transform=ax.get_transform('world'), color="gold",
                 linewidth=2)
 
@@ -663,24 +711,20 @@ def get_finding_chart(source_ra, source_dec, source_name,
             # this is an offset star
             text = star["name"].split("_off")[-1]
             position_angle = 14 * u.deg
-            separation = (tick_offset + tick_length*1.6) * imsize * 60 * u.arcsec
+            separation = \
+                (tick_offset + tick_length*1.6) * imsize * 60 * u.arcsec
             p1 = c1.directional_offset_by(position_angle, separation)
             ax.text(p1.ra.value, p1.dec.value, text, color=colors[i],
                     transform=ax.get_transform('world'),
                     fontsize='large', fontweight='bold')
 
-    temp_image = tempfile.NamedTemporaryFile(prefix=f"finder_{source_name}",
-                                             suffix=f".{output_format}",
-                                             dir="/tmp", mode="w",
-                                             delete=False)
-    temp_image.close()
-
-    fig.savefig(temp_image.name)
-    f = open(temp_image.name, 'rb').read()
-    os.remove(temp_image.name)
+    buf = io.BytesIO()
+    fig.savefig(buf, format=output_format)
+    buf.seek(0)
 
     return {
         "success": True,
         "name": f"finder_{source_name}.{output_format}",
-        "data": f
+        "data": buf.read(),
+        "reason": ""
     }

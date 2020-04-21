@@ -19,22 +19,22 @@ def test_get_nearby_offset_stars():
     rez = get_nearby_offset_stars(
         123.0, 33.3, "testSource",
         how_many=how_many,
-        radius_degrees = 3/60.0
+        radius_degrees=3 / 60.0
     )
 
     assert len(rez) == 4
     assert isinstance(rez[0], list)
     assert len(rez[0]) == how_many + 1
 
-
     with pytest.raises(Exception):
         rez = get_nearby_offset_stars(
             123.0, 33.3, "testSource",
             how_many=how_many,
-            radius_degrees = 3/60.0,
+            radius_degrees=3 / 60.0,
             allowed_queries=1,
             queries_issued=2
         )
+
 
 def test_get_finding_chart():
 
@@ -50,12 +50,12 @@ def test_get_finding_chart():
     assert rez["data"].find(bytes("PDF", encoding='utf8')) != -1
 
 
-    with pytest.raises(ValueError):
-        rez = get_finding_chart(
-            123.0, 33.3, "testSource",
-            imsize=1.0
-        )
 
+    rez = get_finding_chart(
+        123.0, 33.3, "testSource",
+        imsize=1.0
+    )
+    assert not rez["success"]
 
     rez = get_finding_chart(
             123.0, 33.3, "testSource",
