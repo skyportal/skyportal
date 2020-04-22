@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import PropTypes from 'prop-types';
 import DatePicker from 'react-datepicker';
 
-import { showNotification } from 'baselayer/components/Notifications'
+import { showNotification } from 'baselayer/components/Notifications';
 import * as Actions from '../ducks/source';
 
 import 'react-datepicker/dist/react-datepicker-cssmodules.css';
@@ -64,8 +64,7 @@ const FollowupRequestForm = ({ source }) => {
 
   const handleSubmit = () => {
     if (formState.start_date >= formState.end_date) {
-      dispatch(showNotification("Please select an end date that is later than the start date.",
-                                "error"));
+      dispatch(showNotification("Please select an end date that is later than the start date.", "error"));
     } else if (formState.priority === "") {
       dispatch(showNotification("Please select a followup request priority.", "error"));
     } else if (Object.keys(obsParams[formState.instrument_name]).includes("exposureTime") &&

@@ -90,6 +90,7 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
 
 
 def test_jump_to_page_invalid_values(driver):
+    driver.get('/')
     jump_to_page_input = driver.wait_for_xpath("//input[@name='jumpToPageInputField']")
     jump_to_page_input.clear()
     jump_to_page_input.send_keys('3')

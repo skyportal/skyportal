@@ -1,14 +1,22 @@
-web:
-  image: skyportal/web
-  ports:
-    - "9000:5000"
-    - "9001:5001"
-  links:
-    - db
+version: "3.7"
 
-db:
-  image: postgres:9.6
-  environment:
-    - POSTGRES_USER=skyportal
-    - POSTGRES_PASSWORD=
-    - POSTGRES_DB=skyportal
+services:
+  web:
+    image: skyportal/web
+    ports:
+      - "9000:5000"
+      - "9001:5001"
+
+  db:
+    image: postgres:12.2
+    environment:
+      POSTGRES_USER: skyportal
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: skyportal
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - dbdata:/var/lib/postgresql/data/pgdata
+    restart: on-failure:3
+
+volumes:
+  dbdata:
