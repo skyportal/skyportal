@@ -2,13 +2,14 @@ Skyportal
 ---------
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    about
    setup
    usage
    api
    dev
+   deploy
    contributing
    adding_features
 
