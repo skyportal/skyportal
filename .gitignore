@@ -1,5 +1,6 @@
 .#*
 log/
+.log
 .cache
 static/build
 doc/_build

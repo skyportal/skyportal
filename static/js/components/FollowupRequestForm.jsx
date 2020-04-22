@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import PropTypes from 'prop-types';
+import DatePicker from 'react-datepicker';
 
+import { showNotification } from 'baselayer/components/Notifications'
 import * as Actions from '../ducks/source';
+
+import 'react-datepicker/dist/react-datepicker-cssmodules.css';
 
 
 const FollowupRequestForm = ({ source }) => {
@@ -19,8 +23,8 @@ const FollowupRequestForm = ({ source }) => {
     source_id: source.id,
     instrument_id: "",
     instrument_name: "",
-    start_date: "",
-    end_date: "",
+    start_date: new Date(),
+    end_date: new Date(),
     filters: [],
     exposure_time: null,
     priority: ""
@@ -59,11 +63,23 @@ const FollowupRequestForm = ({ source }) => {
   };
 
   const handleSubmit = () => {
-    dispatch(Actions.submitFollowupRequest(formState));
-    setFormState({
-      ...formState,
-      ...initialFormState
-    });
+    if (formState.start_date >= formState.end_date) {
+      dispatch(showNotification("Please select an end date that is later than the start date.",
+                                "error"));
+    } else if (formState.priority === "") {
+      dispatch(showNotification("Please select a followup request priority.", "error"));
+    } else if (Object.keys(obsParams[formState.instrument_name]).includes("exposureTime") &&
+               formState.exposure_time === null) {
+      dispatch(showNotification("Please select an exposure time.", "error"));
+    } else if (formState.filters.length === 0) {
+      dispatch(showNotification("Please select valid filter value(s).", "error"));
+    } else {
+      dispatch(Actions.submitFollowupRequest(formState));
+      setFormState({
+        ...formState,
+        ...initialFormState
+      });
+    }
   };
 
   return (
@@ -106,25 +122,24 @@ const FollowupRequestForm = ({ source }) => {
             }
             <div>
               <label>
-                Start Date:&nbsp;
+                Start Date (YYYY-MM-DD):&nbsp;
               </label>
-              <input
-                type="text"
+              <DatePicker
                 name="start_date"
-                value={formState.start_date}
-                onChange={handleInputChange}
-                size="6"
+                dateFormat="yyyy-MM-dd"
+                selected={formState.start_date}
+                onChange={(value) => { setFormState({ ...formState, start_date: value }); }}
               />
-              &nbsp;&nbsp;
+            </div>
+            <div>
               <label>
-                End Date:&nbsp;
+                End Date (YYYY-MM-DD):&nbsp;
               </label>
-              <input
-                type="text"
+              <DatePicker
                 name="end_date"
-                value={formState.end_date}
-                onChange={handleInputChange}
-                size="6"
+                dateFormat="yyyy-MM-dd"
+                selected={formState.end_date}
+                onChange={(value) => { setFormState({ ...formState, end_date: value }); }}
               />
             </div>
             <div>

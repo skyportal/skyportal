@@ -52,7 +52,7 @@ const config = {
       // Enable CSS Modules for Skyportal
       {
         test: /\.css$/,
-        include: /static\/js/,
+        include: [/static\/js/, /node_modules\/react-datepicker\/dist/],
         use: [
           {
             loader: 'style-loader'
