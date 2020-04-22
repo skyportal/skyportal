@@ -181,7 +181,7 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
         How many times should we query (with looser and looser criteria)
         before giving up on getting the number of offset stars we desire?
     queries_issued : int, optional
-        How many times have we issued a query? Bookeeping parameter.
+        How many times have we issued a query? Bookkeeping parameter.
 
     Returns
     -------
@@ -494,7 +494,7 @@ def get_finding_chart(source_ra, source_dec, source_name,
     Returns
     -------
     dict
-        success: bool
+        success : bool
             Whether the request was successful or not, returning
             a sensible error in 'reason'
         name : str
@@ -615,7 +615,7 @@ def get_finding_chart(source_ra, source_dec, source_name,
     if not isinstance(star_list, list) or len(star_list) == 0:
         return {
             'success': False,
-            'reason': f'ifailure to get star list',
+            'reason': 'failure to get star list',
             'data': '',
             'name': ''
         }
