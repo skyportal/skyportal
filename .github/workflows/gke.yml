@@ -54,36 +54,30 @@ jobs:
     - run: |-
         gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE"
 
-    # Build the Docker image
-    - name: Build
-      run: |-
-        docker build \
-          --tag "gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA" \
-          --build-arg GITHUB_SHA="$GITHUB_SHA" \
-          --build-arg GITHUB_REF="$GITHUB_REF" \
-          .
+    # # Will use this, once the official Docker action introduces caching
+    # - name: Build and push image
+    #   uses: docker/build-push-action@v1
+    #   with:
+    #     registry: gcr.io
+    #     repository: $PROJECT_ID/$IMAGE
+    #     tags: $GITHUB_SHA
 
-    # Push the Docker image to Google Container Registry
-    - name: Publish
-      run: |-
-        docker push "gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA"
+    - name: Build and push Docker image
+      uses: whoan/docker-build-with-cache-action@v5
+      with:
+        registry: gcr.io
+        image_name: $PROJECT_ID/$IMAGE
+        image_tag: $GITHUB_SHA
 
     - name: Clone deployment scripts
       run: |-
         git clone https://github.com/skyportal/deploy
-
-    # Set up kustomize
-    - name: Set up Kustomize
-      run: |-
-        cd deploy
-        curl -sfLo kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v3.1.0/kustomize_3.1.0_linux_amd64
-        chmod u+x ./kustomize
 
     # Deploy the Docker image to the GKE cluster
     - name: Deploy
       run: |-
         cd deploy
         (cd base && ../kustomize edit set image gcr.io/PROJECT_ID/IMAGE:TAG=gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA)
-        ./kustomize build base | kubectl apply -f -
+        kubectl apply -k base
         kubectl rollout status --timeout=5m deployment/$IMAGE
         kubectl get services -o wide
