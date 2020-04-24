@@ -212,7 +212,6 @@ class SourceHandler(BaseHandler):
                           description: New source ID
         """
         data = self.get_json()
-        data["is_source"] = True
         schema = Source.__schema__()
         user_group_ids = [g.id for g in self.current_user.groups]
         if not user_group_ids:
