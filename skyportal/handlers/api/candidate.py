@@ -211,6 +211,7 @@ class CandidateHandler(BaseHandler):
         c.candidate_groups = groups
         if saved_as_source_by_id is None:
             saved_as_source_by_id = self.current_user.id
+        c.is_source = False
         # TODO - create GroupSources with appropriate fields
         DBSession.add(c)
         DBSession().commit()
