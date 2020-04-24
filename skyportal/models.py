@@ -21,6 +21,14 @@ def is_owned_by(self, user_or_token, groups_attr="groups"):
 
     Models with complicated ownership logic should implement their own method
     instead of adding too many additional conditions here.
+
+    Parameters
+    ----------
+    user_or_token : User or Token object
+        The user or token whose access rights are to be checked.
+    groups_attr : str, optional
+        The object's relevant groups attribute name, e.g. "groups" or "candidate_groups".
+        Defaults to "groups".
     """
     if hasattr(self, 'tokens'):
         return (user_or_token in self.tokens)
