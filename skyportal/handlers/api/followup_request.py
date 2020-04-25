@@ -47,6 +47,51 @@ class FollowupRequestHandler(BaseHandler):
         return self.success(data={"id": followup_request.id})
 
     @auth_or_token
+    def put(self, request_id):
+        """
+        ---
+        description: Update a follow-up request
+        parameters:
+          - in: path
+            name: request_id
+            required: True
+            schema:
+              type: string
+        requestBody:
+          content:
+            application/json:
+              schema: FollowupRequestNoID
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        followup_request = FollowupRequest.query.get(request_id)
+        _ = Source.get_if_owned_by(followup_request.source_id, self.current_user)
+        data = self.get_json()
+        data['id'] = request_id
+        data["requester_id"] = self.current_user.id
+
+        schema = FollowupRequest.__schema__()
+        try:
+            schema.load(data)
+        except ValidationError as e:
+            return self.error('Invalid/missing parameters: '
+                              f'{e.normalized_messages()}')
+        DBSession().commit()
+
+        self.push_all(
+            action="skyportal/REFRESH_SOURCE",
+            payload={"source_id": followup_request.source_id},
+        )
+        return self.success()
+
+    @auth_or_token
     def delete(self, request_id):
         """
         ---

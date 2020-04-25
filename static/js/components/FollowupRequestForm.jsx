@@ -9,9 +9,8 @@ import * as Actions from '../ducks/source';
 import 'react-datepicker/dist/react-datepicker-cssmodules.css';
 
 
-const FollowupRequestForm = ({ source }) => {
+const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsParams, followupRequest = null, title = "Submit new follow-up request", afterSubmit = null }) => {
   const dispatch = useDispatch();
-  const { instrumentList, instrumentObsParams } = useSelector((state) => state.instruments);
   const obsParams = instrumentObsParams; // Shorten to reduce line length below
 
   const instIDToName = {};
@@ -19,14 +18,24 @@ const FollowupRequestForm = ({ source }) => {
     instIDToName[instrumentObj.id] = instrumentObj.name;
   });
 
-  const initialFormState = {
-    source_id: source.id,
+  const initialFormState = followupRequest !== null ? {
+    source_id: followupRequest.source_id,
+    instrument_id: followupRequest.instrument_id,
+    instrument_name: instIDToName[followupRequest.instrument_id],
+    start_date: new Date(followupRequest.start_date),
+    end_date: new Date(followupRequest.end_date),
+    filters: followupRequest.filters,
+    exposure_time: followupRequest.exposure_time,
+    priority: followupRequest.priority,
+    editable: followupRequest.editable
+  } : {
+    source_id: source_id,
     instrument_id: "",
     instrument_name: "",
     start_date: new Date(),
     end_date: new Date(),
     filters: [],
-    exposure_time: null,
+    exposure_time: "",
     priority: ""
   };
   const [formState, setFormState] = useState({ ...initialFormState });
@@ -68,23 +77,30 @@ const FollowupRequestForm = ({ source }) => {
     } else if (formState.priority === "") {
       dispatch(showNotification("Please select a followup request priority.", "error"));
     } else if (Object.keys(obsParams[formState.instrument_name]).includes("exposureTime") &&
-               formState.exposure_time === null) {
+               formState.exposure_time === "") {
       dispatch(showNotification("Please select an exposure time.", "error"));
     } else if (formState.filters.length === 0) {
       dispatch(showNotification("Please select valid filter value(s).", "error"));
     } else {
-      dispatch(Actions.submitFollowupRequest(formState));
+      if (action === "createNew") {
+        dispatch(Actions.submitFollowupRequest(formState));
+      } else if (action === "editExisting") {
+        dispatch(Actions.editFollowupRequest(formState, followupRequest.id));
+      }
       setFormState({
         ...formState,
         ...initialFormState
       });
+      if (afterSubmit !== null) {
+        afterSubmit();
+      }
     }
   };
 
   return (
     <div>
       <h3>
-        Submit new follow-up request
+        {title}
       </h3>
       <div>
         <label>
@@ -266,9 +282,7 @@ const FollowupRequestForm = ({ source }) => {
 };
 
 FollowupRequestForm.propTypes = {
-  source: PropTypes.shape({
-    id: PropTypes.string
-  }).isRequired
+  source_id: PropTypes.string.isRequired
 };
 
 export default FollowupRequestForm;

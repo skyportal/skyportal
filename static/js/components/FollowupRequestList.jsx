@@ -2,16 +2,17 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { useDispatch } from 'react-redux';
 
+import EditFollowupRequestDialog from './EditFollowupRequestDialog';
 import * as Actions from '../ducks/source';
 import styles from './FollowupRequestList.css';
 
 
-const FollowupRequestList = ({ followupRequests }) => {
+const FollowupRequestList = ({ followupRequests, instrumentList, instrumentObsParams }) => {
   const dispatch = useDispatch();
   const deleteRequest = (id) => {
     dispatch(Actions.deleteFollowupRequest(id));
   };
-  const editRequest = () => null; // TODO
+
   return (
     <div>
       <table className={styles.followupRequestTable}>
@@ -67,12 +68,11 @@ const FollowupRequestList = ({ followupRequests }) => {
                     followupRequest.editable &&
                       (
                         <span>
-                          <button
-                            type="button"
-                            onClick={() => { editRequest(followupRequest.id); }}
-                          >
-                            Edit
-                          </button>
+                          <EditFollowupRequestDialog
+                            followupRequest={followupRequest}
+                            instrumentList={instrumentList}
+                            instrumentObsParams={instrumentObsParams}
+                          />
                           <button type="button" onClick={() => { deleteRequest(followupRequest.id); }}>
                             Delete
                           </button>

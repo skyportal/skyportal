@@ -29,6 +29,7 @@ const Source = ({ route }) => {
       dispatch(Action.addSourceView(route.id));
     }
   }, []);
+  const { instrumentList, instrumentObsParams } = useSelector((state) => state.instruments);
   if (source.loadError) {
     return (
       <div>
@@ -112,8 +113,17 @@ const Source = ({ route }) => {
             <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
 
           </Responsive>
-          <FollowupRequestForm source={source} />
-          <FollowupRequestList followupRequests={source.followup_requests} />
+          <FollowupRequestForm
+            source_id={source.id}
+            action="createNew"
+            instrumentList={instrumentList}
+            instrumentObsParams={instrumentObsParams}
+          />
+          <FollowupRequestList
+            followupRequests={source.followup_requests}
+            instrumentList={instrumentList}
+            instrumentObsParams={instrumentObsParams}
+          />
         </div>
 
         <div className={styles.rightColumn}>
