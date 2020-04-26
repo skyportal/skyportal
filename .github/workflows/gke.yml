@@ -1,0 +1,83 @@
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Build and Deploy to Google Kubernetes Engine
+
+on:
+  push:
+    branches:
+    - deploy
+
+env:
+  PROJECT_ID: ${{ secrets.GKE_PROJECT }}
+  GKE_CLUSTER: skyportal-cluster
+  GKE_ZONE: us-west1-a
+  IMAGE: web
+
+jobs:
+  setup-build-publish-deploy:
+    name: Setup, Build, Publish, and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - name: Setup gcloud cli
+      uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+      with:
+        version: '286.0.0'
+        service_account_email: ${{ secrets.GKE_SA_EMAIL }}
+        service_account_key: ${{ secrets.GKE_SA_KEY }}
+        project_id: ${{ secrets.GKE_PROJECT }}
+
+    # Configure Docker to use the gcloud command-line tool as a credential
+    # helper for authentication
+    - name: Set up docker credentials
+      run: |-
+        gcloud --quiet auth configure-docker
+
+    # Get the GKE credentials so we can deploy to the cluster
+    - run: |-
+        gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE"
+
+    # # Will use this, once the official Docker action introduces caching
+    # - name: Build and push image
+    #   uses: docker/build-push-action@v1
+    #   with:
+    #     registry: gcr.io
+    #     repository: $PROJECT_ID/$IMAGE
+    #     tags: $GITHUB_SHA
+
+    - name: Build and push Docker image
+      uses: whoan/docker-build-with-cache-action@v5
+      with:
+        registry: gcr.io
+        image_name: $PROJECT_ID/$IMAGE
+        image_tag: $GITHUB_SHA
+
+    - name: Clone deployment scripts
+      run: |-
+        git clone https://github.com/skyportal/deploy
+
+    # Deploy the Docker image to the GKE cluster
+    - name: Deploy
+      run: |-
+        cd deploy
+        (cd base && ../kustomize edit set image gcr.io/PROJECT_ID/IMAGE:TAG=gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA)
+        kubectl apply -k base
+        kubectl rollout status --timeout=5m deployment/$IMAGE
+        kubectl get services -o wide

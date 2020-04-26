@@ -4,7 +4,7 @@ from .instrument import InstrumentHandler
 from .news_feed import NewsFeedHandler
 from .photometry import PhotometryHandler
 from .source import SourceHandler, SourcePhotometryHandler, \
-                    SourceOffsetsHandler
+                    SourceOffsetsHandler, SourceFinderHandler
 from .spectrum import SpectrumHandler
 from .sysinfo import SysInfoHandler
 from .telescope import TelescopeHandler
