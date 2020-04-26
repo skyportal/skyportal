@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 
 import dayjs from 'dayjs';
@@ -12,6 +12,25 @@ dayjs.extend(relativeTime);
 
 
 const CommentList = () => {
+
+  const [isHover, setIsHover] = useState([]); 
+
+
+  const handleMouseHover = (id, userProfile, author) => {  
+    if (userProfile.roles.includes("Super admin") || userProfile.username === author) {
+      let newState = [...isHover, id];
+      setIsHover(newState);
+      console.log(newState);
+    }
+    
+  }
+
+  const handleMouseLeave = (id) => {
+    let newState = isHover.filter((cid) => cid !== id);
+    setIsHover(newState);
+    console.log(newState);
+  }
+
   const dispatch = useDispatch();
   const source = useSelector((state) => state.source);
   const userProfile = useSelector((state) => state.profile);
@@ -22,6 +41,7 @@ const CommentList = () => {
   );
 
   comments = comments || [];
+
   const items = comments.map(
     ({ id, author, created_at, text, attachment_name }) => (
       <span key={id} className={styles.comment}>
@@ -36,20 +56,21 @@ const CommentList = () => {
             {dayjs().to(dayjs(created_at))}
           </span>
         </div>
-        <div className={styles.commentMessage}>
-          {text}
-        </div>
-        {
-          userProfile.roles.includes("Super admin") || userProfile.username === author ? (
-            <button
-              type="button"
-              onClick={() => dispatch(sourceActions.deleteComment(id))}
-              className={styles.commentDelete}
-            >
-              Delete Comment
-            </button>
-          ) : null
-        }
+        <div>
+          <div onMouseOver={() => handleMouseHover(id, userProfile, author)} onMouseOut={() => handleMouseLeave(id)} className={styles.commentMessage}>
+            {text}
+          </div>
+          {
+            isHover.includes(id) && 
+              <button
+                type="button"
+                onClick={() => dispatch(sourceActions.deleteComment(id))}
+                className={styles.commentDelete}
+              >
+                🗑
+              </button>
+          }
+      </div>
         {
           attachment_name && (
             <div>

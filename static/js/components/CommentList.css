@@ -3,8 +3,8 @@
 }
 
 .commentHeader {
-    padding-top: 0.3em;
-    padding-bottom: 0.1em;
+    padding-top: 0.5em;
+    padding-bottom: 0.25em;
 }
 
 .commentMessage {
@@ -36,4 +36,6 @@
 .commentDelete {
     color: lightgray;
     font-size: 70%;
+    border: none;
+    float:right;
 }
