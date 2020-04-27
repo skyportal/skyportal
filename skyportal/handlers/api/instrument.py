@@ -32,7 +32,7 @@ class InstrumentHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        telescope_id = data.pop('telescope_id')
+        telescope_id = data.get('telescope_id')
         telescope = Telescope.get_if_owned_by(telescope_id, self.current_user)
         if not telescope:
             return self.error('Invalid telescope ID.')

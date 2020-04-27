@@ -34,8 +34,8 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        source_id = data.pop('source_id')
-        instrument_id = data.pop('instrument_id')
+        source_id = data.get('source_id')
+        instrument_id = data.get('instrument_id')
         source = Source.get_if_owned_by(source_id, self.current_user)
         instrument = Instrument.query.get(instrument_id)
 
