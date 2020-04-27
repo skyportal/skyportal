@@ -97,7 +97,16 @@ FollowupRequestList.propTypes = {
     end_date: PropTypes.string,
     priority: PropTypes.string,
     status: PropTypes.string
-  })).isRequired
+  })).isRequired,
+  instrumentList: PropTypes.arrayOf(PropTypes.shape({
+    band: PropTypes.string,
+    created_at: PropTypes.string,
+    id: PropTypes.number,
+    name: PropTypes.string,
+    type: PropTypes.string,
+    telescope_id: PropTypes.number
+  })).isRequired,
+  instrumentObsParams: PropTypes.objectOf(PropTypes.any).isRequired
 };
 
 export default FollowupRequestList;

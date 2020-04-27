@@ -47,8 +47,18 @@ EditFollowupRequestDialog.propTypes = {
     end_date: PropTypes.string,
     priority: PropTypes.string,
     status: PropTypes.string,
-    source_id: PropTypes.string
-  })
+    source_id: PropTypes.string,
+    id: PropTypes.number
+  }).isRequired,
+  instrumentList: PropTypes.arrayOf(PropTypes.shape({
+    band: PropTypes.string,
+    created_at: PropTypes.string,
+    id: PropTypes.number,
+    name: PropTypes.string,
+    type: PropTypes.string,
+    telescope_id: PropTypes.number
+  })).isRequired,
+  instrumentObsParams: PropTypes.objectOf(PropTypes.any).isRequired
 };
 
 export default EditFollowupRequestDialog;

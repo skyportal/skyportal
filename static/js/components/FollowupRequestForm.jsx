@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
 import DatePicker from 'react-datepicker';
 
@@ -29,7 +29,7 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
     priority: followupRequest.priority,
     editable: followupRequest.editable
   } : {
-    source_id: source_id,
+    source_id,
     instrument_id: "",
     instrument_name: "",
     start_date: new Date(),
@@ -282,7 +282,35 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
 };
 
 FollowupRequestForm.propTypes = {
-  source_id: PropTypes.string.isRequired
+  source_id: PropTypes.string.isRequired,
+  action: PropTypes.string.isRequired,
+  instrumentList: PropTypes.arrayOf(PropTypes.shape({
+    band: PropTypes.string,
+    created_at: PropTypes.string,
+    id: PropTypes.number,
+    name: PropTypes.string,
+    type: PropTypes.string,
+    telescope_id: PropTypes.number
+  })).isRequired,
+  instrumentObsParams: PropTypes.objectOf(PropTypes.any).isRequired,
+  followupRequest: PropTypes.shape({
+    requester: PropTypes.object,
+    instrument: PropTypes.object,
+    start_date: PropTypes.string,
+    end_date: PropTypes.string,
+    priority: PropTypes.string,
+    status: PropTypes.string,
+    source_id: PropTypes.string,
+    id: PropTypes.number
+  }),
+  title: PropTypes.string,
+  afterSubmit: PropTypes.func
+};
+
+FollowupRequestForm.defaultProps = {
+  followupRequest: null,
+  title: "Submit new follow-up request",
+  afterSubmit: null
 };
 
 export default FollowupRequestForm;
