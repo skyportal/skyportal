@@ -10,8 +10,8 @@ class InstrumentObservationParamsHandler(BaseHandler):
             with open("instrument_observation_params.json") as f:
                 instrument_data = json.load(f)
         except FileNotFoundError:
-            return self.error("instrument_observation_params.json does not exist.")
+            return self.error("Instrument observation parameters file does not exist.")
         except json.JSONDecodeError:
-            return self.error("JSON parse error: instrument_observation_params.json "
+            return self.error("JSON parse error: instrument observation parameters file "
                               "does not contain properly formatted JSON.")
         return self.success(data={"instrumentObsParams": instrument_data})
