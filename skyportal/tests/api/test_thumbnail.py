@@ -29,7 +29,7 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group):
                              'e_mag': 0.031,
                              'lim_mag': 14.1,
                              'filter': 'V'
-                       },
+                             },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -43,7 +43,7 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group):
                        data={'source_id': source_id,
                              'data': data,
                              'ttype': ttype
-                       },
+                             },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -305,7 +305,7 @@ def test_cannot_post_thumbnail_invalid_size(upload_data_token, public_group):
     assert status == 200
     assert data['status'] == 'success'
 
-    data = base64.b64encode(open(os.path.abspath('skyportal/tests/data/14gqr_new_50px.png'),
+    data = base64.b64encode(open(os.path.abspath('skyportal/tests/data/14gqr_new_13px.png'),
                                  'rb').read())
     ttype = 'ref'
     status, data = api('POST', 'thumbnail',
