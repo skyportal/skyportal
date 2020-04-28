@@ -38,6 +38,7 @@ import Logo from './Logo';
 import Footer from './Footer';
 import UserInfo from './UserInfo';
 
+import Sidebar from './Sidebar';
 
 messageHandler.init(store.dispatch, store.getState);
 
@@ -52,43 +53,45 @@ class MainContent extends React.Component {
     const { root } = this.props;
     return (
       <div className={styles.main}>
-
-        <div className={styles.topBanner}>
-          <div className={styles.topBannerContent}>
-            <Logo className={styles.logo} />
-            <Link className={styles.title} to="/">
-              SkyPortal ∝
-            </Link>
-            <div className={styles.websocket}>
-              <WebSocket
-                url={`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${root}websocket`}
-                auth_url={`${window.location.protocol}//${root}baselayer/socket_auth_token`}
-                messageHandler={messageHandler}
-                dispatch={store.dispatch}
-              />
+        <Sidebar />
+        <div className={styles.contentWrapper}>
+          <div className={styles.topBanner}>
+            <div className={styles.topBannerContent}>
+              <Logo className={styles.logo} />
+              <Link className={styles.title} to="/">
+                SkyPortal ∝
+              </Link>
+              <div className={styles.websocket}>
+                <WebSocket
+                  url={`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${root}websocket`}
+                  auth_url={`${window.location.protocol}//${root}baselayer/socket_auth_token`}
+                  messageHandler={messageHandler}
+                  dispatch={store.dispatch}
+                />
+              </div>
+              <Responsive desktopElement={ProfileDropdown} />
             </div>
-            <Responsive desktopElement={ProfileDropdown} />
           </div>
-        </div>
 
-        <Responsive mobileElement={ProfileDropdown} />
+          <Responsive mobileElement={ProfileDropdown} />
 
-        <div className={styles.content}>
+          <div className={styles.content}>
 
-          <Notifications />
+            <Notifications />
 
-          <Switch>
-            <PropsRoute exact path="/" component={HomePage} />
-            See https://stackoverflow.com/a/35604855 for syntax
-            <PropsRoute path="/source/:id" component={Source} />
-            <PropsRoute exact path="/groups/" component={Groups} />
-            <PropsRoute path="/group/:id" component={Group} />
-            <PropsRoute path="/profile" component={Profile} />
-            <PropsRoute path="/sources" component={SourceList} />
-            <PropsRoute path="/user/:id" component={UserInfo} />
-            <PropsRoute component={NoMatchingRoute} />
-          </Switch>
+            <Switch>
+              <PropsRoute exact path="/" component={HomePage} />
+              See https://stackoverflow.com/a/35604855 for syntax
+              <PropsRoute path="/source/:id" component={Source} />
+              <PropsRoute exact path="/groups/" component={Groups} />
+              <PropsRoute path="/group/:id" component={Group} />
+              <PropsRoute path="/profile" component={Profile} />
+              <PropsRoute path="/sources" component={SourceList} />
+              <PropsRoute path="/user/:id" component={UserInfo} />
+              <PropsRoute component={NoMatchingRoute} />
+            </Switch>
 
+          </div>
         </div>
 
         <Footer />
