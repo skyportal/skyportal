@@ -141,7 +141,7 @@ class ThumbnailHandler(BaseHandler):
 
         schema = Thumbnail.__schema__()
         try:
-            schema.load(data)
+            schema.load(data, partial=True)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
@@ -183,7 +183,7 @@ class ThumbnailHandler(BaseHandler):
 
 
 def create_thumbnail(thumbnail_data, thumbnail_type, source_id, photometry_obj):
-    basedir = Path(os.path.dirname(__file__))/'..'/'..'
+    basedir = Path(os.path.dirname(__file__)) / '..' / '..'
     if os.path.abspath(basedir).endswith('skyportal/skyportal'):
         basedir = basedir/'..'
     file_uri = os.path.abspath(

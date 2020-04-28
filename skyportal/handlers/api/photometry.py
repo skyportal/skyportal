@@ -53,7 +53,7 @@ class PhotometryHandler(BaseHandler):
         ids = []
         instrument = Instrument.query.get(data['instrument_id'])
         if not instrument:
-            raise Exception('Invalid instrument ID') # TODO: handle invalid instrument ID
+            raise Exception('Invalid instrument ID')  # TODO: handle invalid instrument ID
         source = Source.get_if_owned_by(data['source_id'], self.current_user)
         if not source:
             raise Exception('Invalid source ID') # TODO: handle invalid source ID
@@ -149,7 +149,7 @@ class PhotometryHandler(BaseHandler):
 
         schema = Photometry.__schema__()
         try:
-            schema.load(data)
+            schema.load(data, partial=True)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')

@@ -119,7 +119,7 @@ class InstrumentHandler(BaseHandler):
 
         schema = Instrument.__schema__()
         try:
-            schema.load(data)
+            schema.load(data, partial=True)
         except ValidationError as exc:
             return self.error('Invalid/missing parameters: '
                               f'{exc.normalized_messages()}')
