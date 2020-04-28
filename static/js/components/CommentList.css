@@ -1,41 +1,57 @@
 .comment {
-    font-size: 90%;
+  font-size: 90%;
+  display: flex;
+  flex-direction: column;
+  min-height: 60px;
+  padding-bottom: 10px;
+  padding-left: 10px;
+}
+.comment:hover {
+  background-color: #ccc;
 }
 
 .commentHeader {
-    padding-top: 0.5em;
-    padding-bottom: 0.25em;
-}
-
-.commentMessage {
+  flex-grow: 4;
+  flex-direction: row;
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
 }
 
 .commentTime {
-    color: lightgray;
-    font-size: 80%;
+  flex-grow: 4;
+  color: lightgray;
+  font-size: 80%;
 }
-
-.commentUser .commentUserDomain {
+.commentMessage {
+  max-width: 20em;
+}
+/* .commentUser .commentUserDomain {
     display: none;
 }
 
 .commentUser:hover .commentUserDomain {
     display: inline-block;
-}
+} */
 
 .commentUserName {
-    font-weight: bold;
+  font-weight: bold;
 }
 
 .commentUserDomain {
-    color: lightgray;
-    font-size: 80%;
-    padding-right: 0.5em;
+  color: lightgray;
+  font-size: 80%;
+  padding-right: 0.5em;
+}
+.wrap {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 27px;
+  max-width: 20em;
+  /* width: 100%; */
 }
 
 .commentDelete {
-    color: lightgray;
-    font-size: 70%;
-    border: none;
-    float:right;
+  height: 35px;
 }

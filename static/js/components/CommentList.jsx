@@ -1,86 +1,89 @@
-import React, { useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import React, { useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { Button } from "@material-ui/core";
 
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
 
-import * as sourceActions from '../ducks/source';
-import styles from './CommentList.css';
-import CommentEntry from './CommentEntry';
+import * as sourceActions from "../ducks/source";
+import styles from "./CommentList.css";
+import CommentEntry from "./CommentEntry";
 
 dayjs.extend(relativeTime);
 
-
 const CommentList = () => {
+  const [isHover, setIsHover] = useState([]);
 
-  const [isHover, setIsHover] = useState([]); 
-
-
-  const handleMouseHover = (id, userProfile, author) => {  
-    if (userProfile.roles.includes("Super admin") || userProfile.username === author) {
-      let newState = [...isHover, id];
+  const handleMouseHover = (id, userProfile, author) => {
+    if (
+      userProfile.roles.includes("Super admin") ||
+      userProfile.username === author
+    ) {
+      const newState = [...isHover, id];
       setIsHover(newState);
-      console.log(newState);
     }
-    
-  }
+  };
 
   const handleMouseLeave = (id) => {
-    let newState = isHover.filter((cid) => cid !== id);
+    const newState = isHover.filter((cid) => cid !== id);
     setIsHover(newState);
-    console.log(newState);
-  }
+  };
 
   const dispatch = useDispatch();
   const source = useSelector((state) => state.source);
   const userProfile = useSelector((state) => state.profile);
   const acls = useSelector((state) => state.profile.acls);
   let { comments } = source;
-  const addComment = (formData) => dispatch(
-    sourceActions.addComment({ source_id: source.id, ...formData })
-  );
+  const addComment = (formData) => {
+    dispatch(sourceActions.addComment({ source_id: source.id, ...formData }));
+  };
 
   comments = comments || [];
 
   const items = comments.map(
     ({ id, author, created_at, text, attachment_name }) => (
-      <span key={id} className={styles.comment}>
+      <span
+        key={id}
+        className={styles.comment}
+        onMouseOver={() => handleMouseHover(id, userProfile, author)}
+        onMouseOut={() => handleMouseLeave(id)}
+        onFocus={() => handleMouseHover(id, userProfile, author)}
+        onBlur={() => handleMouseLeave(id)}
+
+      >
         <div className={styles.commentHeader}>
           <span className={styles.commentUser}>
-            <span className={styles.commentUserName}>
-              {author}
-            </span>
+            <span className={styles.commentUserName}>{author}</span>
           </span>
           &nbsp;
           <span className={styles.commentTime}>
             {dayjs().to(dayjs(created_at))}
           </span>
         </div>
-        <div>
-          <div onMouseOver={() => handleMouseHover(id, userProfile, author)} onMouseOut={() => handleMouseLeave(id)} className={styles.commentMessage}>
-            {text}
+        <div className={styles.wrap}>
+          <div className={styles.commentMessage}>{text}</div>
+          <Button
+            style={
+              isHover.includes(id) ? { display: "block" } : { display: "none" }
+            }
+            size="small"
+            variant="outlined"
+            color="primary"
+            type="button"
+            onClick={() => {
+              dispatch(sourceActions.deleteComment(id));
+            }}
+            className={styles.commentDelete}
+          >
+            🗑
+          </Button>
+        </div>
+        {attachment_name && (
+          <div>
+            Attachment:&nbsp;
+            <a href={`/api/comment/${id}/attachment`}>{attachment_name}</a>
           </div>
-          {
-            isHover.includes(id) && 
-              <button
-                type="button"
-                onClick={() => dispatch(sourceActions.deleteComment(id))}
-                className={styles.commentDelete}
-              >
-                🗑
-              </button>
-          }
-      </div>
-        {
-          attachment_name && (
-            <div>
-              Attachment:&nbsp;
-              <a href={`/api/comment/${id}/attachment`}>
-                {attachment_name}
-              </a>
-            </div>
-          )
-        }
+        )}
       </span>
     )
   );
@@ -88,10 +91,7 @@ const CommentList = () => {
     <div className={styles.comments}>
       {items}
       <br />
-      {
-        (acls.indexOf('Comment') >= 0) &&
-        <CommentEntry addComment={addComment} />
-      }
+      {acls.indexOf("Comment") >= 0 && <CommentEntry addComment={addComment} />}
     </div>
   );
 };

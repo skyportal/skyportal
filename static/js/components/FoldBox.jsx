@@ -1,6 +1,5 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
 class FoldBox extends Component {
   constructor(props) {
@@ -26,18 +25,15 @@ class FoldBox extends Component {
     };
 
     return (
-      <div
-        style={{ paddingTop: '0.25em', outline: 'none' }}
-      >
+      <div style={{ paddingTop: "0.25em", outline: "none" }}>
         <div
           onClick={onClick}
           onKeyDown={onClick}
           role="button"
           tabIndex={0}
-          style={{ fontSize: '150%' }}
+          style={{ fontSize: "150%" }}
         >
-          {folded ? '▸' : '▾'}
-          {' '}
+          {folded ? "▸" : "▾"}
           {title}
         </div>
         {folded_children}
@@ -48,11 +44,11 @@ class FoldBox extends Component {
 FoldBox.propTypes = {
   folded: PropTypes.bool,
   title: PropTypes.string.isRequired,
-  children: PropTypes.node
+  children: PropTypes.node,
 };
 FoldBox.defaultProps = {
   folded: false,
-  children: null
+  children: null,
 };
 
 export default FoldBox;

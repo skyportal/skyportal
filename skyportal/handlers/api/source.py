@@ -68,6 +68,7 @@ class SourceHandler(BaseHandler):
         simbad_class = self.get_query_argument('simbadClass', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
         total_matches = self.get_query_argument('totalMatches', None)
+        entries_per_page = self.get_query_argument('entriesPerPage', SOURCES_PER_PAGE)
         is_token_request = isinstance(self.current_user, Token)
         if source_id:
             if is_token_request:
@@ -121,21 +122,21 @@ class SourceHandler(BaseHandler):
                 info['totalMatches'] = int(total_matches)
             else:
                 info['totalMatches'] = q.count()
-            if (((info['totalMatches'] < (page - 1) * SOURCES_PER_PAGE and
-                  info['totalMatches'] % SOURCES_PER_PAGE != 0) or
-                 (info['totalMatches'] < page * SOURCES_PER_PAGE and
-                  info['totalMatches'] % SOURCES_PER_PAGE == 0) and
+            if (((info['totalMatches'] < (page - 1) * entries_per_page and
+                  info['totalMatches'] % entries_per_page != 0) or
+                 (info['totalMatches'] < page * entries_per_page and
+                  info['totalMatches'] % entries_per_page == 0) and
                  info['totalMatches'] != 0) or
                     page <= 0 or (info['totalMatches'] == 0 and page != 1)):
                 return self.error("Page number out of range.")
-            info['sources'] = q.limit(SOURCES_PER_PAGE).offset(
-                (page - 1) * SOURCES_PER_PAGE).all()
+            info['sources'] = q.limit(entries_per_page).offset(
+                (page - 1) * entries_per_page).all()
 
             info['pageNumber'] = page
-            info['lastPage'] = info['totalMatches'] <= page * SOURCES_PER_PAGE
-            info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
+            info['lastPage'] = info['totalMatches'] <= page * entries_per_page
+            info['sourceNumberingStart'] = (page - 1) * entries_per_page + 1
             info['sourceNumberingEnd'] = min(info['totalMatches'],
-                                             page * SOURCES_PER_PAGE)
+                                             page * entries_per_page)
             if info['totalMatches'] == 0:
                 info['sourceNumberingStart'] = 0
         else:
