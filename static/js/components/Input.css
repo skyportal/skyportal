@@ -5,37 +5,3 @@
   align-items: center;
   padding: 2px;
 }
-
-.label {
-  flex-grow: 1;
-  font-size: 16px;
-}
-
-.labelWrapper {
-  font-size: 20px;
-  width: 100%;
-  margin-bottom: 4px;
-}
-
-.input {
-  border: 1px solid #d3d3d3;
-  border-radius: 2px;
-  padding: 3px;
-  height: 22px;
-  width: 100%;
-  transition: all 0.2s ease-out;
-  -webkit-transition: all 0.2s ease-out;
-  -moz-transition: all 0.2s ease-out;
-  -ms-transition: all 0.2s ease-out;
-  -o-transition: all 0.2s ease-out;
-  font-size: 16px;
-}
-
-.input:hover {
-  border: 1px solid rgba(81, 203, 238, 1);
-}
-
-.input:focus {
-  outline: none;
-  box-shadow: 0 0 4px rgba(81, 203, 238, 1);
-}

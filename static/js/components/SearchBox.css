@@ -10,7 +10,6 @@
     width: 100%;
 }
 
-
 .searchBoxWrapper {
     position: relative;
 }
@@ -50,39 +49,6 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-}
-
-.inputSubmitButton {
-    display: block;
-    height: 40px;
-    width: 45%;
-    min-width: 70px;
-    font-size: 18px;
-    color: #007bff;
-    background-color: transparent;
-    border: 1px solid #007bff;
-    border-radius: 2px;
-    transition: all 0.2s ease-out;
-    -webkit-transition: all 0.2s ease-out;
-    -moz-transition: all 0.2s ease-out;
-    -ms-transition: all 0.2s ease-out;
-    -o-transition: all 0.2s ease-out;
-    margin:auto;
-    cursor: pointer;
-}
-
-.inputSubmitButton:hover {
-    background-color: #007bff;
-    color: white;
-}
-
-.inputSubmitButton:active {
-    background-color: #007bff;
-    color: white;
-}
-
-.inputSubmitButton:focus {
-    outline: none;
 }
 
 .tableSubTitle {
