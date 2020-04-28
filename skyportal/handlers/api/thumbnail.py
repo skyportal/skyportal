@@ -30,7 +30,7 @@ class ThumbnailHandler(BaseHandler):
                   data:
                     type: string
                     format: byte
-                    description: base64-encoded PNG image file contents. Image size must be between 100px and 500px on a side.
+                    description: base64-encoded PNG image file contents. Image size must be between 16px and 500px on a side.
                   ttype:
                     type: string
                     description: Thumbnail type. Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
@@ -197,9 +197,9 @@ def create_thumbnail(thumbnail_data, thumbnail_type, source_id, photometry_obj):
     im = Image.open(io.BytesIO(file_bytes))
     if im.format != 'PNG':
         raise ValueError('Invalid thumbnail image type. Only PNG are supported.')
-    if not all(100 <= x <= 500 for x in im.size):
+    if not all(16 <= x <= 500 for x in im.size):
         raise ValueError('Invalid thumbnail size. Only thumbnails '
-                         'between (100, 100) and (500, 500) allowed.')
+                         'between (16, 16) and (500, 500) allowed.')
     t = Thumbnail(type=thumbnail_type,
                   photometry=photometry_obj,
                   file_uri=file_uri,
