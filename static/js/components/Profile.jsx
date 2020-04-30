@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 
 import NewTokenForm from './NewTokenForm';
 import TokenList from './TokenList';
+import UIPreferences from './UIPreferences';
 
 
 const Profile = () => {
@@ -14,18 +15,20 @@ const Profile = () => {
         Username:
         {profile.username}
       </div>
-      <br />
+
       <div>
         User roles:
         {profile.roles}
       </div>
-      <br />
+
       <NewTokenForm
         acls={profile.acls}
         groups={groups}
       />
-      <br />
+
       <TokenList tokens={profile.tokens} />
+
+      <UIPreferences />
     </div>
   );
 };
