@@ -48,19 +48,12 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
     formState = getValues({ nest: true });
     if (Array.isArray(formState.filters)) {
       return formState.filters.filter((v) => Boolean(v)).length >= 1;
-    } else {
-      return (
-        formState.filters !== "null" && formState.filters !== "" &&
-          formState.filters !== null && formState.filters !== undefined
-      );
     }
+    return true;
   };
 
   const validateDates = () => {
     formState = getValues({ nest: true });
-    if (formState.start_date == null || formState.end_date == null) {
-      return false;
-    }
     return formState.start_date < formState.end_date;
   };
 
@@ -127,14 +120,14 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
               <div>
                 {
                   (errors.start_date || errors.end_date) &&
-                    <FormValidationError message="Please select an end date that is later than the start date." />
+                    <FormValidationError message="Invalid date range." />
                 }
                 <label>
                   Start Date (YYYY-MM-DD):&nbsp;
                 </label>
                 <Controller
                   as={<DatePicker dateFormat="yyyy-MM-dd" selected={formState.start_date} />}
-                  rules={{ validate: validateDates }}
+                  rules={{ required: true, validate: validateDates }}
                   name="start_date"
                   control={control}
                   valueName="selected"
@@ -147,7 +140,7 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
                 </label>
                 <Controller
                   as={<DatePicker dateFormat="yyyy-MM-dd" selected={formState.end_date} />}
-                  rules={{ validate: validateDates }}
+                  rules={{ required: true, validate: validateDates }}
                   name="end_date"
                   control={control}
                   valueName="selected"
@@ -173,7 +166,7 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
                                 type="checkbox"
                                 name="filters"
                                 value={filter}
-                                ref={register({ validate: validateFilters })}
+                                ref={register({ required: true, validate: validateFilters })}
                               />
                               <label>
                                 {filter}
@@ -198,7 +191,7 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
                       </label>
                       <select
                         name="filters"
-                        ref={register({ validate: validateFilters })}
+                        ref={register({ required: true, validate: validateFilters })}
                       >
                         <option value="null">
                           Select Filter
