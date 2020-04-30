@@ -8,6 +8,25 @@ app:
                           # base64.b64encode(os.urandom(50)).decode('ascii')
     factory: skyportal.app_server.make_app
 
+    # See https://stackoverflow.com/a/35604855 for syntax
+    # These are Javascript component routes
+    routes:
+    - path: "/"
+      component: HomePage
+      exact: True
+    - path: "/source/:id"
+      component: Source
+    - path: "/groups"
+      component: Groups
+    - path: "/group/:id"
+      component: Group
+    - path: "/profile"
+      component: Profile
+    - path: "/sources"
+      component: SourceList
+    - path: "/user/:id"
+      component: UserInfo
+
 database:
     database: skyportal
     host: localhost

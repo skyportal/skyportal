@@ -31,6 +31,7 @@ import shlex
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'recommonmark',
     'sphinx.ext.mathjax',
 #    'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
@@ -45,14 +46,10 @@ extensions = [
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
-# The suffix(es) of source filenames.
-from recommonmark.parser import CommonMarkParser
-
-source_parsers = {
-    '.md': CommonMarkParser,
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown',
 }
-
-source_suffix = ['.rst', '.md', '.txt']
 
 # The encoding of source files.
 #source_encoding = 'utf-8-sig'
@@ -308,4 +305,4 @@ texinfo_documents = [
 #texinfo_no_detailmenu = False
 
 def setup(app):
-    app.add_stylesheet("output_cells.css")
+    app.add_css_file("output_cells.css")
