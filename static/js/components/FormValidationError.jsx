@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 
 
-const BoldRedTextDiv = ({ message }) => (
+const FormValidationError = ({ message }) => (
   <div>
     <strong>
       <font color="red">
@@ -11,8 +11,8 @@ const BoldRedTextDiv = ({ message }) => (
     </strong>
   </div>
 );
-BoldRedTextDiv.propTypes = {
+FormValidationError.propTypes = {
   message: PropTypes.string.isRequired
 };
 
-export default BoldRedTextDiv;
+export default FormValidationError;
