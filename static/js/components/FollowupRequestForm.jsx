@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
 import DatePicker from 'react-datepicker';
+import { useForm, Controller } from 'react-hook-form';
 
-import { showNotification } from 'baselayer/components/Notifications';
 import * as Actions from '../ducks/source';
+import BoldRedTextDiv from './BoldRedTextDiv';
 
 import 'react-datepicker/dist/react-datepicker-cssmodules.css';
 
@@ -21,7 +22,6 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
   const initialFormState = followupRequest !== null ? {
     source_id: followupRequest.source_id,
     instrument_id: followupRequest.instrument_id,
-    instrument_name: instIDToName[followupRequest.instrument_id],
     start_date: new Date(followupRequest.start_date),
     end_date: new Date(followupRequest.end_date),
     filters: followupRequest.filters,
@@ -31,74 +31,71 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
   } : {
     source_id,
     instrument_id: "",
-    instrument_name: "",
     start_date: new Date(),
     end_date: new Date(),
     filters: [],
     exposure_time: "",
     priority: ""
   };
-  const [formState, setFormState] = useState({ ...initialFormState });
 
-  const handleInputChange = (e) => {
-    let newState = { ...formState };
-    newState.filters = [...formState.filters];
+  const { handleSubmit, register, getValues, control, errors, reset } = useForm({
+    defaultValues: initialFormState
+  });
 
-    if (e.target.name.startsWith("filterCheckbox_")) {
-      const filter = e.target.name.split("filterCheckbox_")[1];
-      if (e.target.checked) {
-        newState.filters.push(filter);
-      } else {
-        newState.filters.splice(newState.filters.indexOf(filter), 1);
-      }
+  let formState = getValues({ nest: true });
+
+  const validateFilters = () => {
+    formState = getValues({ nest: true });
+    if (Array.isArray(formState.filters)) {
+      return (
+        formState.filters.filter(v => Boolean(v)).length >= 1
+      );
     } else {
-      newState[e.target.name] = e.target.type === 'checkbox' ?
-        e.target.checked : e.target.value;
-
-      if (e.target.name === "instrument_id") {
-        // Reset form state using newly selected instrument ID & name
-        newState = {
-          ...initialFormState,
-          instrument_id: e.target.value,
-          instrument_name: instIDToName[e.target.value],
-          editable: obsParams[instIDToName[e.target.value]].requestsEditable
-        };
-      }
+      return (
+        formState.filters !== "null" && formState.filters !== "" &&
+          formState.filters !== null && formState.filters !== undefined
+      );
     }
-    setFormState({
-      ...formState,
-      ...newState
+  };
+
+  const validateDates = () => {
+    formState = getValues({ nest: true });
+    if (formState.start_date == null || formState.end_date == null) {
+      return false;
+    }
+    return formState.start_date < formState.end_date;
+  };
+
+  const handleSelectedInstrumentChange = (e) => {
+    reset({
+      ...initialFormState,
+      instrument_id: e.target.value
     });
   };
 
-  const handleSubmit = () => {
-    if (formState.start_date >= formState.end_date) {
-      dispatch(showNotification("Please select an end date that is later than the start date.", "error"));
-    } else if (formState.priority === "") {
-      dispatch(showNotification("Please select a followup request priority.", "error"));
-    } else if (Object.keys(obsParams[formState.instrument_name]).includes("exposureTime") &&
-               formState.exposure_time === "") {
-      dispatch(showNotification("Please select an exposure time.", "error"));
-    } else if (formState.filters.length === 0) {
-      dispatch(showNotification("Please select valid filter value(s).", "error"));
-    } else {
-      if (action === "createNew") {
-        dispatch(Actions.submitFollowupRequest(formState));
-      } else if (action === "editExisting") {
-        dispatch(Actions.editFollowupRequest(formState, followupRequest.id));
-      }
-      setFormState({
-        ...formState,
-        ...initialFormState
-      });
-      if (afterSubmit !== null) {
-        afterSubmit();
-      }
+  const onSubmit = () => {
+    const formData = {
+      // Need to add source_id, etc to form data for request
+      ...initialFormState,
+      ...getValues({ nest: true })
+    };
+    // We need to include this field in request, but it isn't in form data
+    formData.editable = obsParams[instIDToName[formData.instrument_id]].requestsEditable;
+    console.log(formData);
+    if (action === "createNew") {
+      dispatch(Actions.submitFollowupRequest(formData));
+    } else if (action === "editExisting") {
+      dispatch(Actions.editFollowupRequest(formData, followupRequest.id));
+    }
+    reset(initialFormState);
+    if (afterSubmit !== null) {
+      afterSubmit();
     }
   };
 
   return (
     <div>
+      <form onSubmit={handleSubmit(onSubmit)}>
       <h3>
         {title}
       </h3>
@@ -108,10 +105,10 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
         </label>
         <select
           name="instrument_id"
-          value={formState.instrument_id}
-          onChange={handleInputChange}
+          ref={register({ required: true })}
+          onChange={handleSelectedInstrumentChange}
         >
-          <option value="null">
+          <option value={null}>
             Select Instrument
           </option>
           {
@@ -124,55 +121,62 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
         </select>
       </div>
       {
-        formState.instrument_id && (
+        (formState.instrument_id) && (
           <div>
             {
-              !obsParams[formState.instrument_name].requestsEditable && (
-                <div>
-                  <font color="red">
-                    WARNING: You will not be able to edit or delete this request once submitted.
-                  </font>
-                </div>
-              )
+              !obsParams[instIDToName[formState.instrument_id]].requestsEditable &&
+                <BoldRedTextDiv message="WARNING: You will not be able to edit or delete this request once submitted." />
             }
             <div>
+              {
+                (errors.start_date || errors.end_date) &&
+                  <BoldRedTextDiv message="Please select an end date that is later than the start date." />
+              }
               <label>
                 Start Date (YYYY-MM-DD):&nbsp;
               </label>
-              <DatePicker
+              <Controller
+                as={<DatePicker dateFormat="yyyy-MM-dd" selected={formState.start_date} />}
+                rules={{ validate: validateDates }}
                 name="start_date"
-                dateFormat="yyyy-MM-dd"
-                selected={formState.start_date}
-                onChange={(value) => { setFormState({ ...formState, start_date: value }); }}
+                control={control}
+                valueName="selected"
+                onChange={([selected]) => { return selected; }}
               />
             </div>
             <div>
               <label>
                 End Date (YYYY-MM-DD):&nbsp;
               </label>
-              <DatePicker
+              <Controller
+                as={<DatePicker dateFormat="yyyy-MM-dd" selected={formState.end_date} />}
+                rules={{ validate: validateDates }}
                 name="end_date"
-                dateFormat="yyyy-MM-dd"
-                selected={formState.end_date}
-                onChange={(value) => { setFormState({ ...formState, end_date: value }); }}
+                control={control}
+                valueName="selected"
+                onChange={([selected]) => { return selected; }}
               />
             </div>
             <div>
               {
-                obsParams[formState.instrument_name].filters.type === "checkbox" && (
+                obsParams[instIDToName[formState.instrument_id]].filters.type === "checkbox" && (
                   <div>
+                    {
+                      errors.filters &&
+                        <BoldRedTextDiv message="Select at least one filter." />
+                    }
                     <label>
                       Filters:&nbsp;&nbsp;
                     </label>
                     {
-                      obsParams[formState.instrument_name].filters.options.map(
+                      obsParams[instIDToName[formState.instrument_id]].filters.options.map(
                         (filter) => (
                           <span key={filter}>
                             <input
                               type="checkbox"
-                              name={`filterCheckbox_${filter}`}
-                              checked={formState.filters.includes(filter)}
-                              onChange={handleInputChange}
+                              name="filters"
+                              value={filter}
+                              ref={register({ validate: validateFilters })}
                             />
                             <label>
                               {filter}
@@ -186,21 +190,24 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
                 )
               }
               {
-                obsParams[formState.instrument_name].filters.type === "select" && (
+                obsParams[instIDToName[formState.instrument_id]].filters.type === "select" && (
                   <div>
+                    {
+                      errors.filters &&
+                        <BoldRedTextDiv message="Please select a filter." />
+                    }
                     <label>
                       Filter:&nbsp;&nbsp;
                     </label>
                     <select
                       name="filters"
-                      value={formState.filter}
-                      onChange={handleInputChange}
+                      ref={register({ validate: validateFilters })}
                     >
                       <option value="null">
                         Select Filter
                       </option>
                       {
-                        obsParams[formState.instrument_name].filters.options.map(
+                        obsParams[instIDToName[formState.instrument_id]].filters.options.map(
                           (filter) => (
                             <option value={filter} key={filter}>
                               {filter}
@@ -215,21 +222,24 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
             </div>
             <div>
               {
-                Object.keys(obsParams[formState.instrument_name]).includes("exposureTime") && (
+                Object.keys(obsParams[instIDToName[formState.instrument_id]]).includes("exposureTime") && (
                   <div>
+                    {
+                      errors.exposure_time &&
+                        <BoldRedTextDiv message="Select an exposure time." />
+                    }
                     <label>
                       Exposure time:&nbsp;
                     </label>
                     <select
                       name="exposure_time"
-                      value={formState.exposure_time}
-                      onChange={handleInputChange}
+                      ref={register({ required: true })}
                     >
                       <option value="null">
                         Select Exposure Time
                       </option>
                       {
-                        obsParams[formState.instrument_name].exposureTime.options.map(
+                        obsParams[instIDToName[formState.instrument_id]].exposureTime.options.map(
                           (expTime) => (
                             <option value={expTime} key={expTime}>
                               {expTime}
@@ -239,11 +249,11 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
                       }
                     </select>
                     {
-                      Object.keys(obsParams[formState.instrument_name].exposureTime).includes("note") && (
+                      Object.keys(obsParams[instIDToName[formState.instrument_id]].exposureTime).includes("note") && (
                         <div>
                           <font color="purple">
                             Note:&nbsp;
-                            {obsParams[formState.instrument_name].exposureTime.note}
+                            {obsParams[instIDToName[formState.instrument_id]].exposureTime.note}
                           </font>
                         </div>
                       )
@@ -253,11 +263,15 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
               }
             </div>
             <div>
+              {
+                errors.priority &&
+                  <BoldRedTextDiv message="Select priority." />
+              }
               <label>
                 Priority:
               </label>
               &nbsp;
-              <select name="priority" value={formState.priority} onChange={handleInputChange}>
+              <select name="priority" ref={register({ required: true })}>
                 <option value="null">
                   Select Priority
                 </option>
@@ -271,12 +285,11 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
               </select>
             </div>
             <br />
-            <button type="button" onClick={handleSubmit}>
-              Submit
-            </button>
+            <input type="submit" />
           </div>
         )
       }
+      </form>
     </div>
   );
 };
