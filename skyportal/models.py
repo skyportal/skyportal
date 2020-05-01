@@ -323,7 +323,6 @@ class ArrayOfEnum(ARRAY):
 
 
 class Instrument(Base):
-
     name = sa.Column(sa.String, nullable=False)
     type = sa.Column(sa.String)
     band = sa.Column(sa.String)
@@ -509,4 +508,3 @@ class FollowupRequest(Base):
 User.followup_requests = relationship('FollowupRequest', back_populates='requester')
 
 schema.setup_schema()
-
