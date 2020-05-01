@@ -6,7 +6,7 @@
     "test": "eslint --ext .jsx,.js static/js && make test"
   },
   "dependencies": {
-    "@material-ui/core": "4.9.8",
+    "@material-ui/core": "4.9.12",
     "@material-ui/icons": "4.9.1",
     "bokehjs": "0.12.9",
     "check-dependencies": "1.1.0",
