@@ -52,11 +52,12 @@ class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Photometry
 
     instrument = factory.SubFactory(InstrumentFactory)
-    observed_at = factory.LazyFunction(lambda: datetime.datetime.now() -
-                                       datetime.timedelta(days=np.random.randint(0, 10)))
-    mag = factory.LazyFunction(lambda: 20 + 10 * np.random.random())
-    e_mag = factory.LazyFunction(lambda: 2 * np.random.random())
-    lim_mag = 99.
+    mjd = factory.LazyFunction(lambda: 58000. + np.random.random())
+    flux = factory.LazyFunction(lambda: 20 + 10 * np.random.random())
+    fluxerr = factory.LazyFunction(lambda: 2 * np.random.random())
+
+    zp = factory.LazyFunction(lambda: 25. + 1 * np.random.random())
+    zpsys = 'ab'
 
 
 class ThumbnailFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -101,16 +102,17 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
     @factory.post_generation
     def add_phot_spec(obj, create, value, *args, **kwargs):
         instruments = [InstrumentFactory(), InstrumentFactory()]
-        filters = ['g', 'rpr', 'ipr']
+        filters = ['ztfg', 'ztfr', 'ztfi']
         for instrument, filter in islice(zip(cycle(instruments), cycle(filters)), 10):
             phot1 = PhotometryFactory(obj_id=obj.id,
                                       instrument=instrument,
                                       filter=filter)
             DBSession().add(phot1)
-            DBSession().add(PhotometryFactory(obj_id=obj.id, mag=99.,
-                                              e_mag=99., lim_mag=30.,
+            DBSession().add(PhotometryFactory(obj_id=obj.id, flux=99.,
+                                              fluxerr=99., zp=25., zpsys='ab',
                                               instrument=instrument,
                                               filter=filter))
+
             DBSession().add(ThumbnailFactory(photometry=phot1))
             DBSession().add(CommentFactory(obj_id=obj.id))
         DBSession().add(SpectrumFactory(obj_id=obj.id,
