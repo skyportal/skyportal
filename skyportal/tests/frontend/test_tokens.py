@@ -13,7 +13,7 @@ def test_add_token(driver, user, public_group):
     group_select = Select(driver.wait_for_xpath('//select[@name="group_id"]'))
     group_select.select_by_value(str(public_group.id))
     driver.wait_for_xpath('//input[@name="name"]').send_keys(token_name)
-    driver.wait_for_xpath('//input[@value="Generate Token"]').click()
+    driver.scroll_to_element_and_click(driver.wait_for_xpath('//input[@value="Generate Token"]'))
     driver.wait_for_xpath(f'//td[contains(.,"{token_name}")]')
 
 
@@ -21,7 +21,7 @@ def test_delete_token(driver, user, public_group, view_only_token):
     driver.get(f'/become_user/{user.id}')
     driver.get('/profile')
     driver.wait_for_xpath(f'//input[@value="{view_only_token}"]')
-    driver.wait_for_xpath('//a[contains(text(),"Delete")]').click()
+    driver.scroll_to_element_and_click(driver.wait_for_xpath('//a[contains(text(),"Delete")]'))
     driver.wait_for_xpath_to_disappear(f'//input[@value="{view_only_token}"]')
 
 
@@ -34,7 +34,7 @@ def test_add_duplicate_token_error_message(driver, user, public_group):
     group_select = Select(driver.wait_for_xpath('//select[@name="group_id"]'))
     group_select.select_by_value(str(public_group.id))
     driver.wait_for_xpath('//input[@name="name"]').send_keys(token_name)
-    driver.wait_for_xpath('//input[@value="Generate Token"]').click()
+    driver.scroll_to_element_and_click(driver.wait_for_xpath('//input[@value="Generate Token"]'))
     driver.wait_for_xpath(f'//td[contains(.,"{token_name}")]')
 
     driver.wait_for_xpath('//input[@name="acls_Comment"]').click()
