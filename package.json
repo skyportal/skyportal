@@ -17,7 +17,7 @@
     "imports-loader": "0.8.0",
     "npm-check": "5.9.2",
     "prop-types": "15.7.2",
-    "raw-loader": "4.0.0",
+    "raw-loader": "4.0.1",
     "react": "16.13.1",
     "react-datepicker": "2.14.1",
     "react-dom": "16.13.0",
