@@ -54,7 +54,7 @@
     "eslint-plugin-jsx-a11y": "6.2.3",
     "eslint-plugin-react": "7.19.0",
     "eslint-plugin-react-hooks": "1.7.0",
-    "webpack": "4.42.1",
+    "webpack": "4.43.0",
     "webpack-bundle-analyzer": "3.7.0",
     "webpack-cli": "3.3.11"
   },
