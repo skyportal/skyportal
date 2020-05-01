@@ -258,6 +258,17 @@ class Photometry(Base):
     mag = sa.Column(sa.Float)
     e_mag = sa.Column(sa.Float)
     lim_mag = sa.Column(sa.Float)
+
+    flux = sa.Column(sa.Float)
+    fluxerr = sa.Column(sa.Float)
+
+    zp = sa.Column(sa.Float)
+    zpsys = sa.Column(sa.Enum("ab", "vega", "johnson-cousins", "sdss", "lsst",
+                              name="zpsys", validate_strings=True))
+
+    ra = sa.Column(sa.Float)
+    dec = sa.Column(sa.Float)
+
     filter = sa.Column(sa.String)  # TODO Enum?
     isdiffpos = sa.Column(sa.Boolean, default=True)  # candidate from position?
 
