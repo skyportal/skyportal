@@ -47,20 +47,18 @@ def spec_from_handlers(handlers):
 
     """
     openapi_spec = APISpec(
-        title='SkyPortal',
+        title="SkyPortal",
         version=__version__,
-        openapi_version='3.0.2',
-        info=dict(
-            description='SkyPortal API'
-        ),
-        plugins=[
-            MarshmallowPlugin(),
-        ]
+        openapi_version="3.0.2",
+        info=dict(description="SkyPortal API"),
+        plugins=[MarshmallowPlugin(),],
     )
 
     token_scheme = {
-        "type": "apiKey", "in": "header", "name": "Authorization",
-        "description": "Header should be in the format 'token abcd-efgh-0000-1234'"
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "Header should be in the format 'token abcd-efgh-0000-1234'",
     }
     openapi_spec.components.security_scheme("token", token_scheme)
 
@@ -70,8 +68,11 @@ def spec_from_handlers(handlers):
     import re
 
     HTTP_METHODS = ("get", "put", "post", "delete", "options", "head", "patch")
-    handlers = [handler for handler in handlers if not
-                isinstance(handler, URLSpec) and len(handler) == 2]
+    handlers = [
+        handler
+        for handler in handlers
+        if not isinstance(handler, URLSpec) and len(handler) == 2
+    ]
     for (endpoint, handler) in handlers:
         for http_method in HTTP_METHODS:
             method = getattr(handler, http_method)
@@ -79,41 +80,33 @@ def spec_from_handlers(handlers):
                 continue
 
             path_template = endpoint
-            path_template = re.sub('\(.*?\)\??', '/{}', path_template)
-            path_template = re.sub('(/)+', '/', path_template)
-            path_parameters = path_template.count('{}')
+            path_template = re.sub("\(.*?\)\??", "/{}", path_template)
+            path_template = re.sub("(/)+", "/", path_template)
+            path_parameters = path_template.count("{}")
 
             spec = yaml_utils.load_yaml_from_docstring(method.__doc__)
             parameters = list(inspect.signature(method).parameters.keys())[1:]
-            parameters = parameters + (path_parameters - len(parameters)) * ['',]
+            parameters = parameters + (path_parameters - len(parameters)) * [
+                "",
+            ]
 
-            if parameters[-1:] == [''] and path_template.endswith('/{}'):
+            if parameters[-1:] == [""] and path_template.endswith("/{}"):
                 path_template = path_template[:-3]
 
-            multiple_spec = spec.pop('multiple', {})
-            single_spec = spec.pop('single', {})
+            multiple_spec = spec.pop("multiple", {})
+            single_spec = spec.pop("single", {})
             other_spec = spec
 
             for subspec in [single_spec, other_spec]:
                 if subspec:
                     path = path_template.format(*parameters)
-                    openapi_spec.path(
-                        path=path,
-                        operations={
-                            http_method: subspec
-                        }
-                    )
+                    openapi_spec.path(path=path, operations={http_method: subspec})
 
             if multiple_spec:
-                multiple_path_template = path_template.rsplit('/', 1)[0]
-                multiple_path = multiple_path_template.format(
-                    *parameters[:-1]
-                )
+                multiple_path_template = path_template.rsplit("/", 1)[0]
+                multiple_path = multiple_path_template.format(*parameters[:-1])
                 openapi_spec.path(
-                    path=multiple_path,
-                    operations={
-                        http_method: multiple_spec
-                    }
+                    path=multiple_path, operations={http_method: multiple_spec}
                 )
 
     return openapi_spec

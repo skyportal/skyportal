@@ -5,7 +5,7 @@ from ...models import DBSession, Telescope, Group
 
 
 class TelescopeHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -32,19 +32,24 @@ class TelescopeHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        group_ids = data.pop('group_ids')
-        groups = [g for g in Group.query.filter(Group.id.in_(group_ids)).all()
-                  if g in self.current_user.groups]
+        group_ids = data.pop("group_ids")
+        groups = [
+            g
+            for g in Group.query.filter(Group.id.in_(group_ids)).all()
+            if g in self.current_user.groups
+        ]
         if not groups:
-            return self.error('You must specify at least one group of which you '
-                              'are a member.')
+            return self.error(
+                "You must specify at least one group of which you " "are a member."
+            )
         schema = Telescope.__schema__()
 
         try:
             telescope = schema.load(data)
         except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            return self.error(
+                "Invalid/missing parameters: " f"{e.normalized_messages()}"
+            )
         telescope.groups = groups
         DBSession.add(telescope)
         DBSession().commit()
@@ -75,12 +80,14 @@ class TelescopeHandler(BaseHandler):
         t = Telescope.get_if_owned_by(int(telescope_id), self.current_user)
 
         if t is not None:
-            return self.success(data={'telescope': t})
+            return self.success(data={"telescope": t})
         else:
-            return self.error(f"Could not load telescope {telescope_id}",
-                              data={"telescope_id": telescope_id})
+            return self.error(
+                f"Could not load telescope {telescope_id}",
+                data={"telescope_id": telescope_id},
+            )
 
-    @permissions(['Manage sources'])
+    @permissions(["Manage sources"])
     def put(self, telescope_id):
         """
         ---
@@ -107,19 +114,20 @@ class TelescopeHandler(BaseHandler):
         """
         t = Telescope.get_if_owned_by(int(telescope_id), self.current_user)
         data = self.get_json()
-        data['id'] = int(telescope_id)
+        data["id"] = int(telescope_id)
 
         schema = Telescope.__schema__()
         try:
             schema.load(data)
         except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            return self.error(
+                "Invalid/missing parameters: " f"{e.normalized_messages()}"
+            )
         DBSession().commit()
 
         return self.success()
 
-    @permissions(['Manage sources'])
+    @permissions(["Manage sources"])
     def delete(self, telescope_id):
         """
         ---

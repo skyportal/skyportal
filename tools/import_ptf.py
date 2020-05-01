@@ -11,8 +11,16 @@ from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 
 from baselayer.app import load_config
-from skyportal.models import (DBSession, init_db, Comment, Group, Photometry,
-                              Source, Spectrum, User)
+from skyportal.models import (
+    DBSession,
+    init_db,
+    Comment,
+    Group,
+    Photometry,
+    Source,
+    Spectrum,
+    User,
+)
 from skyportal.model_util import create_tables
 
 pBase = automap_base()
@@ -27,27 +35,41 @@ pTelescope = pBase.classes.telescopes
 pInstrument = pBase.classes.instruments
 
 psession = Session(pengine)
-init_db(**load_config()['database'])
+init_db(**load_config()["database"])
 create_tables()
 
 
-def import_table(ptf_table, skyportal_table, columns=None, column_map={},
-                 condition=None, dedupe=[], sql_statement=None):
-    df = pd.read_sql(sql_statement if sql_statement is not None else ptf_table,
-                     pengine, columns=columns)
+def import_table(
+    ptf_table,
+    skyportal_table,
+    columns=None,
+    column_map={},
+    condition=None,
+    dedupe=[],
+    sql_statement=None,
+):
+    df = pd.read_sql(
+        sql_statement if sql_statement is not None else ptf_table,
+        pengine,
+        columns=columns,
+    )
     df = df[columns]
 
     df.rename(columns=column_map, inplace=True)
     if condition:
         df = df[df.apply(condition, axis=1)]
-    if 'created_at' not in df:
-        df['created_at'] = datetime.now()
+    if "created_at" not in df:
+        df["created_at"] = datetime.now()
     for col in dedupe:
         df.drop_duplicates(subset=[col], inplace=True)
-    df.to_sql(skyportal_table, DBSession().bind, index=False, if_exists='append')
+    df.to_sql(skyportal_table, DBSession().bind, index=False, if_exists="append")
     try:
-        max_id = DBSession().execute(f"SELECT MAX(id) FROM {skyportal_table};").first()[0]
-        DBSession().execute(f"ALTER SEQUENCE {skyportal_table}_id_seq RESTART WITH {max_id + 1};")
+        max_id = (
+            DBSession().execute(f"SELECT MAX(id) FROM {skyportal_table};").first()[0]
+        )
+        DBSession().execute(
+            f"ALTER SEQUENCE {skyportal_table}_id_seq RESTART WITH {max_id + 1};"
+        )
     except Exception as e:
         print("Ignored exception:", e)
 
@@ -63,62 +85,92 @@ def normalize_spectrum(spectrum):
         spectrum.fluxes /= np.abs(np.median(spectrum.fluxes))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from argparse import ArgumentParser
+
     parser = ArgumentParser()
-    parser.add_argument('data_dir')
+    parser.add_argument("data_dir")
     args = parser.parse_args()
 
+    #    """
+    #    DELETE FROM phot WHERE sourceid NOT IN (SELECT id FROM sources);
+    #    ALTER TABLE phot ADD CONSTRAINT fk_phot_source_id FOREIGN KEY (sourceid) REFERENCES sources(id) ON DELETE CASCADE;
+    #    """
 
-#    """
-#    DELETE FROM phot WHERE sourceid NOT IN (SELECT id FROM sources);
-#    ALTER TABLE phot ADD CONSTRAINT fk_phot_source_id FOREIGN KEY (sourceid) REFERENCES sources(id) ON DELETE CASCADE;
-#    """
+    import_table("users", "users", ["id", "username"], dedupe=["username"])
 
-    import_table('users', 'users', ['id', 'username'], dedupe=['username'])
-
-    import_table('telescopes', 'telescopes', ['id', 'name', 'nickname', 'lat',
-                                              'lon', 'elevation', 'diameter'])
-    import_table('instruments', 'instruments', ['id', 'name', 'type', 'band', 'telid'],
-                 {'telid': 'telescope_id'})
-    import_table('sources', 'sources', ['name', 'ra', 'dec', 'redshift'],
-                 {'name': 'id'})
-    import_table('comments', 'comments', ['id', 'user_id', 'text',
-                                          'date_added', 'source_id'],
-                 {'date_added': 'created_at'})
-    import_table('phot', 'photometry', ['id', 'name', 'instrumentid',
-                                        'obsdate', 'filter', 'mag', 'emag',
-                                        'limmag'],
-                 {'name': 'source_id', 'instrumentid': 'instrument_id',
-                  'obsdate': 'obs_time', 'emag': 'e_mag', 'limmag': 'lim_mag'},
-                  sql_statement=psession.query(pPhotometry, pSource.name)
-                                        .join(pSource)
-                                        .statement)
-    spectra_files = glob(f'{args.data_dir}/spectra/*.ascii')
+    import_table(
+        "telescopes",
+        "telescopes",
+        ["id", "name", "nickname", "lat", "lon", "elevation", "diameter"],
+    )
+    import_table(
+        "instruments",
+        "instruments",
+        ["id", "name", "type", "band", "telid"],
+        {"telid": "telescope_id"},
+    )
+    import_table(
+        "sources", "sources", ["name", "ra", "dec", "redshift"], {"name": "id"}
+    )
+    import_table(
+        "comments",
+        "comments",
+        ["id", "user_id", "text", "date_added", "source_id"],
+        {"date_added": "created_at"},
+    )
+    import_table(
+        "phot",
+        "photometry",
+        ["id", "name", "instrumentid", "obsdate", "filter", "mag", "emag", "limmag"],
+        {
+            "name": "source_id",
+            "instrumentid": "instrument_id",
+            "obsdate": "obs_time",
+            "emag": "e_mag",
+            "limmag": "lim_mag",
+        },
+        sql_statement=psession.query(pPhotometry, pSource.name).join(pSource).statement,
+    )
+    spectra_files = glob(f"{args.data_dir}/spectra/*.ascii")
 
     for f in spectra_files:
-        source_id, obs_date, nickname = os.path.basename(f.strip('.ascii')).split('_')[:3]
-        telescope = psession.query(pTelescope).filter(pTelescope.nickname.like(f'{nickname}%')).first()
-        instruments = psession.query(pInstrument).filter(pInstrument.telid == telescope.id).all()
+        source_id, obs_date, nickname = os.path.basename(f.strip(".ascii")).split("_")[
+            :3
+        ]
+        telescope = (
+            psession.query(pTelescope)
+            .filter(pTelescope.nickname.like(f"{nickname}%"))
+            .first()
+        )
+        instruments = (
+            psession.query(pInstrument).filter(pInstrument.telid == telescope.id).all()
+        )
         if len(instruments) > 1:
-            instruments = [i for i in instruments if i.type != 'phot']
+            instruments = [i for i in instruments if i.type != "phot"]
         try:
-            spectrum = Spectrum.from_ascii(f, source_id, instruments[0].id,
-                                           datetime.strptime(obs_date, '%Y%m%d'))
+            spectrum = Spectrum.from_ascii(
+                f, source_id, instruments[0].id, datetime.strptime(obs_date, "%Y%m%d")
+            )
             DBSession().add(spectrum)
             DBSession().commit()
         except ValueError:
             print(f"Skipped {f}")
 
     # TODO can't serve from outside static/
-    cutout_files = glob(f'{args.data_dir}/cutouts/*')
-    phot_info = DBSession().query(sa.sql.functions.min(Photometry.id),
-                                  Photometry.source_id).group_by(Photometry.source_id).all()
+    cutout_files = glob(f"{args.data_dir}/cutouts/*")
+    phot_info = (
+        DBSession()
+        .query(sa.sql.functions.min(Photometry.id), Photometry.source_id)
+        .group_by(Photometry.source_id)
+        .all()
+    )
     phot_map = {source_id: phot_id for phot_id, source_id in phot_info}
     for f in cutout_files:
-        source_id, thumb_type = re.split('[\/_\.]', f)[-3:-1]
-        DBSession().add(Thumbnail(file_uri=f, type=thumb_type,
-                                  photometry_id=phot_map[source_id]))
+        source_id, thumb_type = re.split("[\/_\.]", f)[-3:-1]
+        DBSession().add(
+            Thumbnail(file_uri=f, type=thumb_type, photometry_id=phot_map[source_id])
+        )
         DBSession().commit()
 
     g = Group(name="Public group", public=True, sources=list(Source.query))

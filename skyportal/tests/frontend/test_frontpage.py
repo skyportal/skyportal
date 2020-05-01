@@ -10,8 +10,8 @@ from skyportal.tests import api
 
 def test_source_list(driver, user, public_source, private_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
-    assert 'localhost' in driver.current_url
-    driver.get('/')
+    assert "localhost" in driver.current_url
+    driver.get("/")
     driver.wait_for_xpath("//div[contains(@title,'connected')]")
     driver.wait_for_xpath('//h2[contains(text(), "Sources")]')
     driver.wait_for_xpath(f'//a[text()="{public_source.id}"]')
@@ -26,22 +26,27 @@ def test_source_list(driver, user, public_source, private_source):
 def test_source_filtering_and_pagination(driver, user, public_group, upload_data_token):
     source_id = str(uuid.uuid4())
     for i in range(205):
-        status, data = api('POST', 'sources',
-                           data={'id': f'{source_id}_{i}',
-                                 'ra': 234.22,
-                                 'dec': -22.33,
-                                 'redshift': 3,
-                                 'simbad_class': 'RRLyr',
-                                 'transient': False,
-                                 'ra_dis': 2.3,
-                                 'group_ids': [public_group.id]},
-                           token=upload_data_token)
+        status, data = api(
+            "POST",
+            "sources",
+            data={
+                "id": f"{source_id}_{i}",
+                "ra": 234.22,
+                "dec": -22.33,
+                "redshift": 3,
+                "simbad_class": "RRLyr",
+                "transient": False,
+                "ra_dis": 2.3,
+                "group_ids": [public_group.id],
+            },
+            token=upload_data_token,
+        )
         assert status == 200
-        assert data['data']['id'] == f'{source_id}_{i}'
+        assert data["data"]["id"] == f"{source_id}_{i}"
 
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
-    assert 'localhost' in driver.current_url
-    driver.get('/')
+    assert "localhost" in driver.current_url
+    driver.get("/")
     driver.wait_for_xpath("//div[contains(@title,'connected')]")
     driver.wait_for_xpath('//h2[contains(text(), "Sources")]')
     driver.wait_for_xpath(f'//td[text()="RRLyr"]')
@@ -65,15 +70,15 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
     # Jump to page
     jump_to_page_input = driver.wait_for_xpath("//input[@name='jumpToPageInputField']")
     jump_to_page_input.clear()
-    jump_to_page_input.send_keys('3')
+    jump_to_page_input.send_keys("3")
     jump_to_page_button = driver.wait_for_xpath('//button[text()="Jump to page:"]')
     jump_to_page_button.click()
     time.sleep(0.5)
-    #driver.wait_for_xpath('//div[contains(text(), "Displaying 1-100")]')
+    # driver.wait_for_xpath('//div[contains(text(), "Displaying 1-100")]')
     assert prev_button.is_enabled()
     assert not next_button.is_enabled()
     jump_to_page_input.clear()
-    jump_to_page_input.send_keys('1')
+    jump_to_page_input.send_keys("1")
     jump_to_page_button.click()
     time.sleep(0.5)
     assert next_button.is_enabled()
@@ -82,7 +87,7 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
     assert next_button.is_enabled()
     source_id = driver.wait_for_xpath("//input[@name='sourceID']")
     source_id.clear()
-    source_id.send_keys('aaaa')
+    source_id.send_keys("aaaa")
     submit = driver.wait_for_xpath("//input[@id='submitQueryButton']")
     submit.click()
     time.sleep(1)
@@ -90,23 +95,29 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
 
 
 def test_jump_to_page_invalid_values(driver):
-    driver.get('/')
+    driver.get("/")
     jump_to_page_input = driver.wait_for_xpath("//input[@name='jumpToPageInputField']")
     jump_to_page_input.clear()
-    jump_to_page_input.send_keys('3')
+    jump_to_page_input.send_keys("3")
     jump_to_page_button = driver.wait_for_xpath('//button[text()="Jump to page:"]')
     jump_to_page_button.click()
-    driver.wait_for_xpath('//div[contains(.,"Backend error: Page number out of range")]')
+    driver.wait_for_xpath(
+        '//div[contains(.,"Backend error: Page number out of range")]'
+    )
     jump_to_page_input.clear()
-    jump_to_page_input.send_keys('0')
+    jump_to_page_input.send_keys("0")
     jump_to_page_button.click()
-    driver.wait_for_xpath('//div[contains(.,"Backend error: Page number out of range")]')
+    driver.wait_for_xpath(
+        '//div[contains(.,"Backend error: Page number out of range")]'
+    )
     jump_to_page_input.clear()
-    jump_to_page_input.send_keys('abc')
+    jump_to_page_input.send_keys("abc")
     jump_to_page_button.click()
-    driver.wait_for_xpath('//div[contains(.,"Backend error: Invalid page number value")]')
+    driver.wait_for_xpath(
+        '//div[contains(.,"Backend error: Invalid page number value")]'
+    )
 
 
 def test_skyportal_version_displayed(driver):
-    driver.get('/')
+    driver.get("/")
     driver.wait_for_xpath(f"//div[contains(.,'SkyPortal v{skyportal.__version__}')]")

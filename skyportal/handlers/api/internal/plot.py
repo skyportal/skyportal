@@ -9,11 +9,16 @@ class PlotPhotometryHandler(BaseHandler):
     def get(self, source_id):
         docs_json, render_items, custom_model_js = plot.photometry_plot(source_id)
         if docs_json is None:
-            self.success(data={'docs_json': None, 'url': self.request.path})
+            self.success(data={"docs_json": None, "url": self.request.path})
         else:
-            self.success(data={'docs_json': docs_json, 'render_items': render_items,
-                               'custom_model_js': custom_model_js,
-                               'url': self.request.path})
+            self.success(
+                data={
+                    "docs_json": docs_json,
+                    "render_items": render_items,
+                    "custom_model_js": custom_model_js,
+                    "url": self.request.path,
+                }
+            )
 
 
 class PlotSpectroscopyHandler(BaseHandler):
@@ -21,8 +26,13 @@ class PlotSpectroscopyHandler(BaseHandler):
     def get(self, source_id):
         docs_json, render_items, custom_model_js = plot.spectroscopy_plot(source_id)
         if docs_json is None:
-            self.success(data={'docs_json': None, 'url': self.request.path})
+            self.success(data={"docs_json": None, "url": self.request.path})
         else:
-            self.success(data={'docs_json': docs_json, 'render_items': render_items,
-                               'custom_model_js': custom_model_js,
-                               'url': self.request.path})
+            self.success(
+                data={
+                    "docs_json": docs_json,
+                    "render_items": render_items,
+                    "custom_model_js": custom_model_js,
+                    "url": self.request.path,
+                }
+            )

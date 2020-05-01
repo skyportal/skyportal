@@ -74,15 +74,16 @@ class FollowupRequestHandler(BaseHandler):
         followup_request = FollowupRequest.query.get(request_id)
         _ = Source.get_if_owned_by(followup_request.source_id, self.current_user)
         data = self.get_json()
-        data['id'] = request_id
+        data["id"] = request_id
         data["requester_id"] = self.current_user.id
 
         schema = FollowupRequest.__schema__()
         try:
             schema.load(data)
         except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            return self.error(
+                "Invalid/missing parameters: " f"{e.normalized_messages()}"
+            )
         DBSession().commit()
 
         self.push_all(

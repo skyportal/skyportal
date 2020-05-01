@@ -13,28 +13,27 @@ from bokeh.util.compiler import bundle_all_models
 from bokeh.util.serialization import make_id
 from arrow.arrow import Arrow
 
-from skyportal.models import (DBSession, Source, Photometry,
-                              Instrument, Telescope)
+from skyportal.models import DBSession, Source, Photometry, Instrument, Telescope
 
 
 SPEC_LINES = {
-    'H': ([3970, 4102, 4341, 4861, 6563], '#ff0000'),
-    'He': ([3886, 4472, 5876, 6678, 7065], '#002157'),
-    'He II': ([3203, 4686], '#003b99'),
-    'C II': ([3919, 4267, 6580, 7234, 9234], '#570199'),
-    'C III': ([4650, 5696], '#a30198'),
-    'C IV': ([5801], '#ff0073'),
-    'O': ([7772, 7774, 7775, 8447, 9266], '#007236'),
-    'O II': ([3727], '#00a64d'),
-    'O III': ([4959, 5007], '#00bf59'),
-    'Na': ([5890, 5896, 8183, 8195], '#aba000'),
-    'Mg': ([2780, 2852, 3829, 3832, 3838, 4571, 5167, 5173, 5184], '#8c6239'),
-    'Mg II': ([2791, 2796, 2803, 4481], '#bf874e'),
-    'Si II': ([3856, 5041, 5056, 5670, 6347, 6371], '#5674b9'),
-    'S II': ([5433, 5454, 5606, 5640, 5647, 6715], '#a38409'),
-    'Ca II': ([3934, 3969, 7292, 7324, 8498, 8542, 8662], '#005050'),
-    'Fe II': ([5018, 5169], '#f26c4f'),
-    'Fe III': ([4397, 4421, 4432, 5129, 5158], '#f9917b')
+    "H": ([3970, 4102, 4341, 4861, 6563], "#ff0000"),
+    "He": ([3886, 4472, 5876, 6678, 7065], "#002157"),
+    "He II": ([3203, 4686], "#003b99"),
+    "C II": ([3919, 4267, 6580, 7234, 9234], "#570199"),
+    "C III": ([4650, 5696], "#a30198"),
+    "C IV": ([5801], "#ff0073"),
+    "O": ([7772, 7774, 7775, 8447, 9266], "#007236"),
+    "O II": ([3727], "#00a64d"),
+    "O III": ([4959, 5007], "#00bf59"),
+    "Na": ([5890, 5896, 8183, 8195], "#aba000"),
+    "Mg": ([2780, 2852, 3829, 3832, 3838, 4571, 5167, 5173, 5184], "#8c6239"),
+    "Mg II": ([2791, 2796, 2803, 4481], "#bf874e"),
+    "Si II": ([3856, 5041, 5056, 5670, 6347, 6371], "#5674b9"),
+    "S II": ([5433, 5454, 5606, 5640, 5647, 6715], "#a38409"),
+    "Ca II": ([3934, 3969, 7292, 7324, 8498, 8542, 8662], "#005050"),
+    "Fe II": ([5018, 5169], "#f26c4f"),
+    "Fe III": ([4397, 4421, 4432, 5129, 5158], "#f9917b"),
 }
 # TODO add groups
 # Galaxy lines
@@ -123,12 +122,12 @@ def _plot_to_json(plot):
     (str, str)
         Returns (docs_json, render_items) json for the desired plot.
     """
-    render_items = [{'docid': plot._id, 'elementid': make_id()}]
+    render_items = [{"docid": plot._id, "elementid": make_id()}]
 
     doc = Document()
     doc.add_root(plot)
     docs_json_inner = doc.to_json()
-    docs_json = {render_items[0]['docid']: docs_json_inner}
+    docs_json = {render_items[0]["docid"]: docs_json_inner}
 
     docs_json = serialize_json(docs_json)
     render_items = serialize_json(render_items)
@@ -149,13 +148,17 @@ def photometry_plot(source_id):
     (str, str)
         Returns (docs_json, render_items) json for the desired plot.
     """
-    color_map = {'ipr': 'yellow', 'rpr': 'red', 'g': 'green'}
+    color_map = {"ipr": "yellow", "rpr": "red", "g": "green"}
 
-    data = pd.read_sql(DBSession()
-                       .query(Photometry, Telescope.nickname.label('telescope'))
-                       .join(Instrument).join(Telescope)
-                       .filter(Photometry.source_id == source_id)
-                       .statement, DBSession().bind)
+    data = pd.read_sql(
+        DBSession()
+        .query(Photometry, Telescope.nickname.label("telescope"))
+        .join(Instrument)
+        .join(Telescope)
+        .filter(Photometry.source_id == source_id)
+        .statement,
+        DBSession().bind,
+    )
     if data.empty:
         return None, None, None
 
@@ -163,58 +166,66 @@ def photometry_plot(source_id):
         if not data[col].empty and type(data[col][0]) == Arrow:
             data[col] = pd.Series([pd.Timestamp(el.isoformat()) for el in data[col]])
 
-    for col in ['mag', 'e_mag', 'lim_mag']:
+    for col in ["mag", "e_mag", "lim_mag"]:
         # TODO remove magic number; where can this logic live?
         data.loc[np.abs(data[col]) > 90, col] = np.nan
-    data['color'] = [color_map.get(f, 'black') for f in data['filter']]
-    data['label'] = [f'{t} {f}-band'
-                     for t, f in zip(data['telescope'], data['filter'])]
-    data['observed'] = ~np.isnan(data.mag)
-    split = data.groupby(['label', 'observed'])
+    data["color"] = [color_map.get(f, "black") for f in data["filter"]]
+    data["label"] = [f"{t} {f}-band" for t, f in zip(data["telescope"], data["filter"])]
+    data["observed"] = ~np.isnan(data.mag)
+    split = data.groupby(["label", "observed"])
 
     plot = figure(
         plot_width=600,
         plot_height=300,
-        active_drag='box_zoom',
-        tools='box_zoom,wheel_zoom,pan,reset',
-        y_range=(np.nanmax(data['mag']) + 0.1,
-                 np.nanmin(data['mag']) - 0.1)
+        active_drag="box_zoom",
+        tools="box_zoom,wheel_zoom,pan,reset",
+        y_range=(np.nanmax(data["mag"]) + 0.1, np.nanmin(data["mag"]) - 0.1),
     )
     model_dict = {}
     for i, ((label, is_obs), df) in enumerate(split):
-        key = ("" if is_obs else "un") + 'obs' + str(i // 2)
+        key = ("" if is_obs else "un") + "obs" + str(i // 2)
         model_dict[key] = plot.scatter(
-            x='observed_at', y='mag' if is_obs else 'lim_mag',
-            color='color',
-            marker='circle' if is_obs else 'inverted_triangle',
-            fill_color='color' if is_obs else 'white',
-            source=ColumnDataSource(df)
+            x="observed_at",
+            y="mag" if is_obs else "lim_mag",
+            color="color",
+            marker="circle" if is_obs else "inverted_triangle",
+            fill_color="color" if is_obs else "white",
+            source=ColumnDataSource(df),
         )
-    plot.xaxis.axis_label = 'Observation Date'
-    plot.xaxis.formatter = DatetimeTickFormatter(hours=['%D'], days=['%D'],
-                                                 months=['%D'], years=['%D'])
+    plot.xaxis.axis_label = "Observation Date"
+    plot.xaxis.formatter = DatetimeTickFormatter(
+        hours=["%D"], days=["%D"], months=["%D"], years=["%D"]
+    )
     plot.toolbar.logo = None
 
-    hover = HoverTool(tooltips=[('observed_at', '@observed_at{%D}'), ('mag', '@mag'),
-                                ('lim_mag', '@lim_mag'),
-                                ('filter', '@filter')],
-                      formatters={'observed_at': 'datetime'})
+    hover = HoverTool(
+        tooltips=[
+            ("observed_at", "@observed_at{%D}"),
+            ("mag", "@mag"),
+            ("lim_mag", "@lim_mag"),
+            ("filter", "@filter"),
+        ],
+        formatters={"observed_at": "datetime"},
+    )
     plot.add_tools(hover)
 
     toggle = CheckboxWithLegendGroup(
         labels=list(data.label.unique()),
         active=list(range(len(data.label.unique()))),
-        colors=list(data.color.unique()))
+        colors=list(data.color.unique()),
+    )
 
     # TODO replace `eval` with Namespaces
     # https://github.com/bokeh/bokeh/pull/6340
-    toggle.callback = CustomJS(args={'toggle': toggle, **model_dict},
-                               code="""
+    toggle.callback = CustomJS(
+        args={"toggle": toggle, **model_dict},
+        code="""
         for (let i = 0; i < toggle.labels.length; i++) {
             eval("obs" + i).visible = (toggle.active.includes(i))
             eval("unobs" + i).visible = (toggle.active.includes(i));
         }
-    """)
+    """,
+    )
 
     layout = row(plot, toggle)
     return _plot_to_json(layout)
@@ -230,62 +241,83 @@ def spectroscopy_plot(source_id):
 
     color_map = dict(zip([s.id for s in spectra], viridis(len(spectra))))
     data = pd.concat(
-        [pd.DataFrame({'wavelength': s.wavelengths,
-                       'flux': s.fluxes, 'id': s.id,
-                       'instrument': s.instrument.telescope.nickname})
-         for i, s in enumerate(spectra)]
+        [
+            pd.DataFrame(
+                {
+                    "wavelength": s.wavelengths,
+                    "flux": s.fluxes,
+                    "id": s.id,
+                    "instrument": s.instrument.telescope.nickname,
+                }
+            )
+            for i, s in enumerate(spectra)
+        ]
     )
-    split = data.groupby('id')
-    hover = HoverTool(tooltips=[('wavelength', '$x'), ('flux', '$y'),
-                                ('instrument', '@instrument')])
-    plot = figure(plot_width=600, plot_height=300, sizing_mode='scale_both',
-                  tools='box_zoom,wheel_zoom,pan,reset',
-                  active_drag='box_zoom')
+    split = data.groupby("id")
+    hover = HoverTool(
+        tooltips=[("wavelength", "$x"), ("flux", "$y"), ("instrument", "@instrument")]
+    )
+    plot = figure(
+        plot_width=600,
+        plot_height=300,
+        sizing_mode="scale_both",
+        tools="box_zoom,wheel_zoom,pan,reset",
+        active_drag="box_zoom",
+    )
     plot.add_tools(hover)
     model_dict = {}
     for i, (key, df) in enumerate(split):
-        model_dict['s' + str(i)] = plot.line(x='wavelength', y='flux',
-                                             color=color_map[key],
-                                             source=ColumnDataSource(df))
-    plot.xaxis.axis_label = 'Wavelength (Å)'
-    plot.yaxis.axis_label = 'Flux'
+        model_dict["s" + str(i)] = plot.line(
+            x="wavelength", y="flux", color=color_map[key], source=ColumnDataSource(df)
+        )
+    plot.xaxis.axis_label = "Wavelength (Å)"
+    plot.yaxis.axis_label = "Flux"
     plot.toolbar.logo = None
 
     # TODO how to choose a good default?
     plot.y_range = Range1d(0, 1.03 * data.flux.max())
 
-    toggle = CheckboxWithLegendGroup(labels=[s.instrument.telescope.nickname
-                                             for s in spectra],
-                                     active=list(range(len(spectra))),
-                                     width=100,
-                                     colors=[color_map[k] for k, df in split])
-    toggle.callback = CustomJS(args={'toggle': toggle, **model_dict},
-                               code="""
+    toggle = CheckboxWithLegendGroup(
+        labels=[s.instrument.telescope.nickname for s in spectra],
+        active=list(range(len(spectra))),
+        width=100,
+        colors=[color_map[k] for k, df in split],
+    )
+    toggle.callback = CustomJS(
+        args={"toggle": toggle, **model_dict},
+        code="""
           for (let i = 0; i < toggle.labels.length; i++) {
               eval("s" + i).visible = (toggle.active.includes(i))
           }
-    """)
+    """,
+    )
 
     elements = CheckboxWithLegendGroup(
         labels=list(SPEC_LINES.keys()),
-        active=[], width=80,
-        colors=[c for w, c in SPEC_LINES.values()]
+        active=[],
+        width=80,
+        colors=[c for w, c in SPEC_LINES.values()],
     )
     z = TextInput(value=str(source.redshift), title="z:")
-    v_exp = TextInput(value='0', title="v_exp:")
+    v_exp = TextInput(value="0", title="v_exp:")
     for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
-        el_data = pd.DataFrame({'wavelength': wavelengths})
-        el_data['x'] = el_data['wavelength'] * (1 + source.redshift)
-        model_dict[f'el{i}'] = plot.segment(x0='x', x1='x',
-                                            # TODO change limits
-                                            y0=0, y1=1e-13, color=color,
-                                            source=ColumnDataSource(el_data))
-        model_dict[f'el{i}'].visible = False
+        el_data = pd.DataFrame({"wavelength": wavelengths})
+        el_data["x"] = el_data["wavelength"] * (1 + source.redshift)
+        model_dict[f"el{i}"] = plot.segment(
+            x0="x",
+            x1="x",
+            # TODO change limits
+            y0=0,
+            y1=1e-13,
+            color=color,
+            source=ColumnDataSource(el_data),
+        )
+        model_dict[f"el{i}"].visible = False
 
     # TODO callback policy: don't require submit for text changes?
-    elements.callback = CustomJS(args={'elements': elements, 'z': z,
-                                       'v_exp': v_exp, **model_dict},
-                                 code="""
+    elements.callback = CustomJS(
+        args={"elements": elements, "z": z, "v_exp": v_exp, **model_dict},
+        code="""
           let c = 299792.458; // speed of light in km / s
           for (let i = 0; i < elements.labels.length; i++) {
               let el = eval("el" + i);
@@ -296,7 +328,8 @@ def spectroscopy_plot(source_id):
               );
               el.data_source.change.emit();
           }
-    """)
+    """,
+    )
     z.callback = elements.callback
     v_exp.callback = elements.callback
 

@@ -27,11 +27,11 @@ class DBInfoHandler(BaseHandler):
                           type: string
                           description: Installed Postgres version
         """
-        p = subprocess.Popen(['psql', '--version'], stdout=subprocess.PIPE)
+        p = subprocess.Popen(["psql", "--version"], stdout=subprocess.PIPE)
         out, err = p.communicate()
-        postgres_version = out.decode('utf-8').split()[2]
+        postgres_version = out.decode("utf-8").split()[2]
         info = {
-            'source_table_empty': DBSession.query(Source).first() is None,
-            'postgres_version': postgres_version
+            "source_table_empty": DBSession.query(Source).first() is None,
+            "postgres_version": postgres_version,
         }
         return self.success(data=info)

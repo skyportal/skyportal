@@ -30,15 +30,15 @@ class CommentHandler(BaseHandler):
         """
         comment = Comment.query.get(comment_id)
         if comment is None:
-            return self.error('Invalid comment ID.')
+            return self.error("Invalid comment ID.")
         # Ensure user/token has access to parent source
         s = Source.get_if_owned_by(comment.source.id, self.current_user)
         if comment is not None:
-            return self.success(data={'comment': comment})
+            return self.success(data={"comment": comment})
         else:
-            return self.error('Invalid comment ID.')
+            return self.error("Invalid comment ID.")
 
-    @permissions(['Comment'])
+    @permissions(["Comment"])
     def post(self):
         """
         ---
@@ -61,31 +61,39 @@ class CommentHandler(BaseHandler):
                           description: Associated source ID
         """
         data = self.get_json()
-        source_id = data['source_id']
+        source_id = data["source_id"]
         # Ensure user/token has access to parent source
         s = Source.get_if_owned_by(source_id, self.current_user)
-        if 'attachment' in data and 'body' in data['attachment']:
-            attachment_bytes = str.encode(data['attachment']['body']
-                                          .split('base64,')[-1])
-            attachment_name = data['attachment']['name']
+        if "attachment" in data and "body" in data["attachment"]:
+            attachment_bytes = str.encode(
+                data["attachment"]["body"].split("base64,")[-1]
+            )
+            attachment_name = data["attachment"]["name"]
         else:
             attachment_bytes, attachment_name = None, None
 
-        author = (self.current_user.username if hasattr(self.current_user, 'username')
-                  else self.current_user.name)
-        comment = Comment(text=data['text'],
-                          source_id=source_id, attachment_bytes=attachment_bytes,
-                          attachment_name=attachment_name,
-                          author=author)
+        author = (
+            self.current_user.username
+            if hasattr(self.current_user, "username")
+            else self.current_user.name
+        )
+        comment = Comment(
+            text=data["text"],
+            source_id=source_id,
+            attachment_bytes=attachment_bytes,
+            attachment_name=attachment_name,
+            author=author,
+        )
 
         DBSession().add(comment)
         DBSession().commit()
 
-        self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'source_id': comment.source_id})
-        return self.success(data={'comment_id': comment.id})
+        self.push_all(
+            action="skyportal/REFRESH_SOURCE", payload={"source_id": comment.source_id}
+        )
+        return self.success(data={"comment_id": comment.id})
 
-    @permissions(['Comment'])
+    @permissions(["Comment"])
     def put(self, comment_id):
         """
         ---
@@ -112,27 +120,29 @@ class CommentHandler(BaseHandler):
         """
         c = Comment.query.get(comment_id)
         if c is None:
-            return self.error('Invalid comment ID.')
+            return self.error("Invalid comment ID.")
         # Ensure user/token has access to parent source
         s = Source.get_if_owned_by(c.source.id, self.current_user)
 
         data = self.get_json()
-        data['id'] = comment_id
+        data["id"] = comment_id
 
         schema = Comment.__schema__()
         try:
             schema.load(data)
         except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            return self.error(
+                "Invalid/missing parameters: " f"{e.normalized_messages()}"
+            )
 
         DBSession().commit()
 
-        self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'source_id': c.source_id})
+        self.push_all(
+            action="skyportal/REFRESH_SOURCE", payload={"source_id": c.source_id}
+        )
         return self.success()
 
-    @permissions(['Comment'])
+    @permissions(["Comment"])
     def delete(self, comment_id):
         """
         ---
@@ -149,8 +159,12 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        user = (self.current_user.username if hasattr(self.current_user, 'username') else self.current_user.name)
-        roles = (self.current_user.roles if hasattr(self.current_user, 'roles') else '')
+        user = (
+            self.current_user.username
+            if hasattr(self.current_user, "username")
+            else self.current_user.name
+        )
+        roles = self.current_user.roles if hasattr(self.current_user, "roles") else ""
         c = Comment.query.get(comment_id)
         if c is None:
             return self.error("Invalid comment ID")
@@ -160,9 +174,10 @@ class CommentHandler(BaseHandler):
             Comment.query.filter_by(id=comment_id).delete()
             DBSession().commit()
         else:
-            return self.error('Insufficient user permissions.')
-        self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'source_id': source_id})
+            return self.error("Insufficient user permissions.")
+        self.push_all(
+            action="skyportal/REFRESH_SOURCE", payload={"source_id": source_id}
+        )
         return self.success()
 
 
@@ -189,10 +204,10 @@ class CommentAttachmentHandler(BaseHandler):
         """
         comment = Comment.query.get(comment_id)
         if comment is None:
-            return self.error('Invalid comment ID.')
+            return self.error("Invalid comment ID.")
         # Ensure user/token has access to parent source
         s = Source.get_if_owned_by(comment.source.id, self.current_user)
         self.set_header(
-            "Content-Disposition", "attachment; "
-            f"filename={comment.attachment_name}")
+            "Content-Disposition", "attachment; " f"filename={comment.attachment_name}"
+        )
         self.write(base64.b64decode(comment.attachment_bytes))

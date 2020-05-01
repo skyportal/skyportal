@@ -7,7 +7,7 @@ from ...models import DBSession, Spectrum, Comment, Instrument, Source
 
 
 class SpectrumHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -34,8 +34,8 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        source_id = data.get('source_id')
-        instrument_id = data.get('instrument_id')
+        source_id = data.get("source_id")
+        instrument_id = data.get("instrument_id")
         source = Source.get_if_owned_by(source_id, self.current_user)
         instrument = Instrument.query.get(instrument_id)
 
@@ -43,8 +43,9 @@ class SpectrumHandler(BaseHandler):
         try:
             spec = schema.load(data)
         except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            return self.error(
+                "Invalid/missing parameters: " f"{e.normalized_messages()}"
+            )
         spec.source = source
         spec.instrument = instrument
         DBSession().add(spec)
@@ -77,12 +78,14 @@ class SpectrumHandler(BaseHandler):
 
         if spectrum is not None:
             source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
-            return self.success(data={'spectrum': spectrum})
+            return self.success(data={"spectrum": spectrum})
         else:
-            return self.error(f"Could not load spectrum {spectrum_id}",
-                              data={"spectrum_id": spectrum_id})
+            return self.error(
+                f"Could not load spectrum {spectrum_id}",
+                data={"spectrum_id": spectrum_id},
+            )
 
-    @permissions(['Manage sources'])
+    @permissions(["Manage sources"])
     def put(self, spectrum_id):
         """
         ---
@@ -110,19 +113,20 @@ class SpectrumHandler(BaseHandler):
         spectrum = Spectrum.query.get(spectrum_id)
         source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
         data = self.get_json()
-        data['id'] = spectrum_id
+        data["id"] = spectrum_id
 
         schema = Spectrum.__schema__()
         try:
             schema.load(data, partial=True)
         except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            return self.error(
+                "Invalid/missing parameters: " f"{e.normalized_messages()}"
+            )
         DBSession().commit()
 
         return self.success()
 
-    @permissions(['Manage sources'])
+    @permissions(["Manage sources"])
     def delete(self, spectrum_id):
         """
         ---

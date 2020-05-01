@@ -10,7 +10,7 @@ from ...models import DBSession, Photometry, Source, Thumbnail
 
 
 class ThumbnailHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -55,23 +55,25 @@ class ThumbnailHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        if 'photometry_id' in data:
-            phot = Photometry.query.get(int(data['photometry_id']))
+        if "photometry_id" in data:
+            phot = Photometry.query.get(int(data["photometry_id"]))
             source_id = phot.source.id
             # Ensure user/token has access to parent source
             source = Source.get_if_owned_by(source_id, self.current_user)
-        elif 'source_id' in data:
-            source_id = data['source_id']
+        elif "source_id" in data:
+            source_id = data["source_id"]
             # Ensure user/token has access to parent source
             source = Source.get_if_owned_by(source_id, self.current_user)
             try:
                 phot = source.photometry[0]
             except IndexError:
-                return self.error('Specified source does not yet have any photometry data.')
+                return self.error(
+                    "Specified source does not yet have any photometry data."
+                )
         else:
-            return self.error('One of either source_id or photometry_id are required.')
+            return self.error("One of either source_id or photometry_id are required.")
         try:
-            t = create_thumbnail(data['data'], data['ttype'], source_id, phot)
+            t = create_thumbnail(data["data"], data["ttype"], source_id, phot)
         except ValueError as e:
             return self.error(f"Error in creating new thumbnail: invalid value(s): {e}")
         DBSession().commit()
@@ -101,14 +103,16 @@ class ThumbnailHandler(BaseHandler):
         """
         t = Thumbnail.query.get(thumbnail_id)
         if t is None:
-            return self.error(f"Could not load thumbnail {thumbnail_id}",
-                              data={"thumbnail_id": thumbnail_id})
+            return self.error(
+                f"Could not load thumbnail {thumbnail_id}",
+                data={"thumbnail_id": thumbnail_id},
+            )
         # Ensure user/token has access to parent source
         s = Source.get_if_owned_by(t.source.id, self.current_user)
 
-        return self.success(data={'thumbnail': t})
+        return self.success(data={"thumbnail": t})
 
-    @permissions(['Manage sources'])
+    @permissions(["Manage sources"])
     def put(self, thumbnail_id):
         """
         ---
@@ -135,24 +139,25 @@ class ThumbnailHandler(BaseHandler):
         """
         t = Thumbnail.query.get(thumbnail_id)
         if t is None:
-            return self.error('Invalid thumbnail ID.')
+            return self.error("Invalid thumbnail ID.")
         # Ensure user/token has access to parent source
         s = Source.get_if_owned_by(t.source.id, self.current_user)
 
         data = self.get_json()
-        data['id'] = thumbnail_id
+        data["id"] = thumbnail_id
 
         schema = Thumbnail.__schema__()
         try:
             schema.load(data, partial=True)
         except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            return self.error(
+                "Invalid/missing parameters: " f"{e.normalized_messages()}"
+            )
         DBSession().commit()
 
         return self.success()
 
-    @permissions(['Manage sources'])
+    @permissions(["Manage sources"])
     def delete(self, thumbnail_id):
         """
         ---
@@ -175,7 +180,7 @@ class ThumbnailHandler(BaseHandler):
         """
         t = Thumbnail.query.get(thumbnail_id)
         if t is None:
-            return self.error('Invalid thumbnail ID.')
+            return self.error("Invalid thumbnail ID.")
         # Ensure user/token has access to parent source
         s = Source.get_if_owned_by(t.source.id, self.current_user)
 
@@ -186,27 +191,32 @@ class ThumbnailHandler(BaseHandler):
 
 
 def create_thumbnail(thumbnail_data, thumbnail_type, source_id, photometry_obj):
-    basedir = Path(os.path.dirname(__file__)) / '..' / '..'
-    if os.path.abspath(basedir).endswith('skyportal/skyportal'):
-        basedir = basedir / '..'
+    basedir = Path(os.path.dirname(__file__)) / ".." / ".."
+    if os.path.abspath(basedir).endswith("skyportal/skyportal"):
+        basedir = basedir / ".."
     file_uri = os.path.abspath(
-        basedir / f'static/thumbnails/{source_id}_{thumbnail_type}.png')
+        basedir / f"static/thumbnails/{source_id}_{thumbnail_type}.png"
+    )
     if not os.path.exists(os.path.dirname(file_uri)):
-        (basedir / 'static/thumbnails').mkdir(parents=True)
+        (basedir / "static/thumbnails").mkdir(parents=True)
     file_bytes = base64.b64decode(thumbnail_data)
     im = Image.open(io.BytesIO(file_bytes))
-    if im.format != 'PNG':
-        raise ValueError('Invalid thumbnail image type. Only PNG are supported.')
+    if im.format != "PNG":
+        raise ValueError("Invalid thumbnail image type. Only PNG are supported.")
     if not all(16 <= x <= 500 for x in im.size):
-        raise ValueError('Invalid thumbnail size. Only thumbnails '
-                         'between (16, 16) and (500, 500) allowed.')
-    t = Thumbnail(type=thumbnail_type,
-                  photometry=photometry_obj,
-                  file_uri=file_uri,
-                  public_url=f'/static/thumbnails/{source_id}_{thumbnail_type}.png')
+        raise ValueError(
+            "Invalid thumbnail size. Only thumbnails "
+            "between (16, 16) and (500, 500) allowed."
+        )
+    t = Thumbnail(
+        type=thumbnail_type,
+        photometry=photometry_obj,
+        file_uri=file_uri,
+        public_url=f"/static/thumbnails/{source_id}_{thumbnail_type}.png",
+    )
     DBSession.add(t)
     DBSession.flush()
 
-    with open(file_uri, 'wb') as f:
+    with open(file_uri, "wb") as f:
         f.write(file_bytes)
     return t

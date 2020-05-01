@@ -6,7 +6,7 @@ from sqlalchemy.orm import joinedload
 
 
 class UserHandler(BaseHandler):
-    @permissions(['Manage users'])
+    @permissions(["Manage users"])
     def get(self, user_id=None):
         """
         ---
@@ -29,11 +29,11 @@ class UserHandler(BaseHandler):
         """
         user = User.query.options(joinedload(User.acls)).get(int(user_id))
         if user is None:
-            return self.error('Invalid user ID.', data={'id': user_id})
+            return self.error("Invalid user ID.", data={"id": user_id})
         else:
-            return self.success(data={'user': user})
+            return self.success(data={"user": user})
 
-    @permissions(['Manage users'])
+    @permissions(["Manage users"])
     def delete(self, user_id=None):
         """
         ---
@@ -57,4 +57,4 @@ class UserHandler(BaseHandler):
         user_id = int(user_id)
         DBSession.query(User).filter(User.id == user_id).delete()
         DBSession.commit()
-        return self.success(data={'user_id': user_id})
+        return self.success(data={"user_id": user_id})
