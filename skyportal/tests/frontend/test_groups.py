@@ -102,5 +102,5 @@ def test_delete_group(driver, super_admin_user, user, public_group):
     driver.wait_for_xpath('//h2[text()="All Groups"]')
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.execute_script("arguments[0].click();", el)
-    driver.wait_for_xpath('//input[@value="Delete Group"]').click()
+    driver.scroll_to_element_and_click(driver.wait_for_xpath('//input[@value="Delete Group"]'))
     driver.wait_for_xpath('//div[contains(.,"Group not found")]')
