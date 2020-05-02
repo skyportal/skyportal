@@ -284,18 +284,19 @@ def photometry_plot(obj_id):
     # TODO replace `eval` with Namespaces
     # https://github.com/bokeh/bokeh/pull/6340
     toggle.callback = CustomJS(args={'toggle': toggle, **model_dict},
-                               code=open(os.path.join(os.path.dirname(__file__), 'plotjs', 'togglef.js')).read())
+                               code=open(os.path.join(os.path.dirname(__file__),
+                                                      '../static/plotjs', 'togglef.js')).read())
 
     slider = Slider(start=0., end=15., value=0., step=1., title='binsize (days)')
 
     callback = CustomJS(args={'slider': slider, 'toggle': toggle, **model_dict},
-                        code=open(os.path.join(os.path.dirname(__file__), 'plotjs', 'stackf.js')).read())
+                        code=open(os.path.join(os.path.dirname(__file__), '../static/plotjs', 'stackf.js')).read())
 
     slider.js_on_change('value', callback)
 
     button = Button(label="Export Bold Light Curve to CSV")
     button.callback = CustomJS(args={'slider': slider, 'toggle': toggle, **model_dict},
-                               code=open(os.path.join(os.path.dirname(__file__), 'plotjs',
+                               code=open(os.path.join(os.path.dirname(__file__), '../static/plotjs',
                                                       "download.js")).read().replace('objname', source_id))
 
 
@@ -418,12 +419,12 @@ def photometry_plot(obj_id):
     # TODO replace `eval` with Namespaces
     # https://github.com/bokeh/bokeh/pull/6340
     toggle.callback = CustomJS(args={'toggle': toggle, **model_dict},
-                               code=open(os.path.join(os.path.dirname(__file__), 'plotjs', 'togglem.js')).read())
+                               code=open(os.path.join(os.path.dirname(__file__), '../static/plotjs', 'togglem.js')).read())
 
     slider = Slider(start=0., end=15., value=0., step=1., title='binsize (days)')
 
     callback = CustomJS(args={'slider': slider, 'toggle': toggle, **model_dict},
-                        code=open(os.path.join(os.path.dirname(__file__), 'plotjs', 'stackm.js')).read())
+                        code=open(os.path.join(os.path.dirname(__file__), '../static/plotjs', 'stackm.js')).read())
     slider.js_on_change('value', callback)
 
     layout = row(plot, toggle)
