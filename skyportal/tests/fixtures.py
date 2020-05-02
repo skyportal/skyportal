@@ -101,7 +101,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
     @factory.post_generation
     def add_phot_spec(obj, create, value, *args, **kwargs):
         instruments = [InstrumentFactory(), InstrumentFactory()]
-        filters = ['g', 'rpr', 'ipr']
+        filters = ['ztfg', 'ztfr', 'ztfi']
         for instrument, filter in islice(zip(cycle(instruments), cycle(filters)), 10):
             phot1 = PhotometryFactory(obj_id=obj.id,
                                       instrument=instrument,
