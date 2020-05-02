@@ -10,5 +10,3 @@ server:
     debug_login: True
     google_oauth2_key:
     google_oauth2_secret:
-  log:
-    api_calls: True
