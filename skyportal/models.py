@@ -11,7 +11,14 @@ from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
 from baselayer.app.custom_exceptions import AccessError
 
+from sncosmo.magsystems import _MAGSYSTEMS
+from sncosmo.bandpasses import _BANDPASSES
+
 from . import schema
+
+
+ALLOWED_MAGSYSTEMS = tuple(l['name'] for l in _MAGSYSTEMS.get_loaders_metadata())
+ALLOWED_BANDPASSES = tuple(l['name'] for l in _BANDPASSES.get_loaders_metadata())
 
 
 def is_owned_by(self, user_or_token):
@@ -318,13 +325,14 @@ class Photometry(Base):
     fluxerr = sa.Column(sa.Float)
 
     zp = sa.Column(sa.Float)
-    zpsys = sa.Column(sa.Enum("ab", "vega", "johnson-cousins", "sdss", "lsst",
-                              name="zpsys", validate_strings=True))
+    zpsys = sa.Column(sa.Enum(*ALLOWED_MAGSYSTEMS, name="zpsys",
+                              validate_strings=True))
 
     ra = sa.Column(sa.Float)
     dec = sa.Column(sa.Float)
+    filter = sa.Column(sa.Enum(*ALLOWED_BANDPASSES, name='filters',
+                               validate_strings=True))
 
-    filter = sa.Column(sa.String)  # TODO Enum?
     isdiffpos = sa.Column(sa.Boolean, default=True)  # candidate from position?
 
     var_mag = sa.Column(sa.Float, nullable=True)
