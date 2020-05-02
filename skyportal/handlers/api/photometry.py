@@ -53,10 +53,10 @@ class PhotometryHandler(BaseHandler):
         ids = []
         instrument = Instrument.query.get(data['instrument_id'])
         if not instrument:
-            raise Exception('Invalid instrument ID') # TODO: handle invalid instrument ID
+            return self.error('Invalid instrument ID')
         source = Source.get_if_owned_by(data['source_id'], self.current_user)
         if not source:
-            raise Exception('Invalid source ID') # TODO: handle invalid source ID
+            return self.error('Invalid source ID')
         for i in range(len(data['mag'])):
             if not (data['time_scale'] == 'tcb' and data['time_format'] == 'iso'):
                 t = Time(data['observed_at'][i],
@@ -109,7 +109,7 @@ class PhotometryHandler(BaseHandler):
         info = {}
         info['photometry'] = Photometry.query.get(photometry_id)
         if info['photometry'] is None:
-            return self.error ('Invalid photometry ID')
+            return self.error('Invalid photometry ID')
         # Ensure user/token has access to parent source
         s = Source.get_if_owned_by(info['photometry'].source_id,
                                    self.current_user)
@@ -149,7 +149,7 @@ class PhotometryHandler(BaseHandler):
 
         schema = Photometry.__schema__()
         try:
-            schema.load(data)
+            schema.load(data, partial=True)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')

@@ -30,11 +30,11 @@ def test_comments(driver, user, public_source):
     comment_box = driver.find_element_by_css_selector('[name=comment]')
     comment_text = 'Test comment'
     comment_box.send_keys(comment_text)
-    driver.find_element_by_css_selector('[type=submit]').click()
+    driver.scroll_to_element_and_click(driver.find_element_by_css_selector('[type=submit]'))
     driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     driver.wait_for_xpath('//span[contains(@class,"commentTime")]')
     timestamp_text = driver.find_element(By.XPATH,
-                        '//span[contains(@class,"commentTime")]').text
+                                         '//span[contains(@class,"commentTime")]').text
     assert timestamp_text == 'a few seconds ago'
 
 
@@ -48,7 +48,7 @@ def test_upload_comment_attachment(driver, user, public_source):
     attachment_file = driver.find_element_by_css_selector('input[type=file]')
     attachment_file.send_keys(pjoin(os.path.dirname(os.path.dirname(__file__)),
                                     'data', 'spec.csv'))
-    driver.find_element_by_css_selector('[type=submit]').click()
+    driver.scroll_to_element_and_click(driver.find_element_by_css_selector('[type=submit]'))
     driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     driver.wait_for_xpath('//a[text()="spec.csv"]')
 
@@ -63,7 +63,7 @@ def test_download_comment_attachment(driver, user, public_source):
     attachment_file = driver.find_element_by_css_selector('input[type=file]')
     attachment_file.send_keys(pjoin(os.path.dirname(os.path.dirname(__file__)),
                                     'data', 'spec.csv'))
-    driver.find_element_by_css_selector('[type=submit]').click()
+    driver.scroll_to_element_and_click(driver.find_element_by_css_selector('[type=submit]'))
     driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     driver.wait_for_xpath('//a[text()="spec.csv"]').click()
     time.sleep(0.5)
@@ -91,7 +91,7 @@ def test_delete_comment(driver, user, public_source):
     comment_box = driver.find_element_by_css_selector('[name=comment]')
     comment_text = 'Test comment'
     comment_box.send_keys(comment_text)
-    driver.find_element_by_css_selector('[type=submit]').click()
+    driver.scroll_to_element_and_click(driver.find_element_by_css_selector('[type=submit]'))
     driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     driver.wait_for_xpath('//span[contains(@class,"commentTime")]')
     driver.wait_for_xpath('//button[text()="Delete Comment"]').click()
@@ -106,7 +106,8 @@ def test_regular_user_cannot_delete_unowned_comment(driver, super_admin_user,
     comment_box = driver.find_element_by_css_selector('[name=comment]')
     comment_text = 'Test comment'
     comment_box.send_keys(comment_text)
-    driver.find_element_by_css_selector('[type=submit]').click()
+    submit_button = driver.find_element_by_css_selector('[type=submit]')
+    driver.scroll_to_element_and_click(submit_button)
     driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     driver.wait_for_xpath('//span[contains(@class,"commentTime")]')
     driver.get(f"/become_user/{user.id}")
@@ -123,7 +124,7 @@ def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
     comment_box = driver.find_element_by_css_selector('[name=comment]')
     comment_text = 'Test comment'
     comment_box.send_keys(comment_text)
-    driver.find_element_by_css_selector('[type=submit]').click()
+    driver.scroll_to_element_and_click(driver.find_element_by_css_selector('[type=submit]'))
     driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     driver.wait_for_xpath('//span[contains(@class,"commentTime")]')
     driver.get(f"/become_user/{super_admin_user.id}")

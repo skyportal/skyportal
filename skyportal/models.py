@@ -1,12 +1,9 @@
 from datetime import datetime
-import os.path
-import re
-import requests
 import numpy as np
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.orm import backref, relationship, mapper
+from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy_utils import ArrowType
 
@@ -23,16 +20,18 @@ def is_owned_by(self, user_or_token):
     instead of adding too many additional conditions here.
     """
     if hasattr(self, 'tokens'):
-        return (user_or_token in self.tokens)
-    elif hasattr(self, 'groups'):
+        return user_or_token in self.tokens
+    if hasattr(self, 'groups'):
         return bool(set(self.groups) & set(user_or_token.groups))
-    elif hasattr(self, 'users'):
+    if hasattr(self, 'users'):
         if hasattr(user_or_token, 'created_by'):
             if user_or_token.created_by in self.users:
                 return True
-        return (user_or_token in self.users)
-    else:
-        raise NotImplementedError(f"{type(self).__name__} object has no owner")
+        return user_or_token in self.users
+
+    raise NotImplementedError(f"{type(self).__name__} object has no owner")
+
+
 Base.is_owned_by = is_owned_by
 
 
@@ -80,9 +79,12 @@ User.group_users = relationship('GroupUser', back_populates='user',
 User.groups = relationship('Group', secondary='group_users',
                            back_populates='users')
 
+
 @property
 def token_groups(self):
     return self.created_by.groups
+
+
 Token.groups = token_groups
 
 
@@ -114,7 +116,7 @@ class Source(Base):
 
     score = sa.Column(sa.Float, nullable=True)
 
-    ## pan-starrs
+    # pan-starrs
     sgmag1 = sa.Column(sa.Float, nullable=True)
     srmag1 = sa.Column(sa.Float, nullable=True)
     simag1 = sa.Column(sa.Float, nullable=True)
@@ -154,6 +156,8 @@ class Source(Base):
     thumbnails = relationship('Thumbnail', back_populates='source',
                               secondary='photometry',
                               cascade='save-update, merge, refresh-expire, expunge')
+
+    followup_requests = relationship('FollowupRequest', back_populates='source')
 
     def add_linked_thumbnails(self):
         sdss_thumb = Thumbnail(photometry=self.photometry[0],
@@ -226,12 +230,13 @@ class Instrument(Base):
     telescope = relationship('Telescope', back_populates='instruments')
     photometry = relationship('Photometry', back_populates='instrument')
     spectra = relationship('Spectrum', back_populates='instrument')
+    followup_requests = relationship('FollowupRequest', back_populates='instrument')
 
 
 class Comment(Base):
     text = sa.Column(sa.String, nullable=False)
     ctype = sa.Column(sa.Enum('text', 'redshift', 'classification',
-                             name='comment_types', validate_strings=True))
+                              name='comment_types', validate_strings=True))
 
     attachment_name = sa.Column(sa.String, nullable=True)
     attachment_type = sa.Column(sa.String, nullable=True)
@@ -246,7 +251,7 @@ class Comment(Base):
 
 class Photometry(Base):
     __tablename__ = 'photometry'
-    observed_at = sa.Column(ArrowType) # iso date
+    observed_at = sa.Column(ArrowType)  # iso date
     mjd = sa.Column(sa.Float)  # mjd date
     time_format = sa.Column(sa.String, default='iso')
     time_scale = sa.Column(sa.String, default='utc')
@@ -263,7 +268,7 @@ class Photometry(Base):
     mag_nearest_source = sa.Column(sa.Float, nullable=True)
     e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
 
-    ## external values
+    # external values
     score = sa.Column(sa.Float, nullable=True)  # RB
     candid = sa.Column(sa.BigInteger, nullable=True)  # candidate ID
     altdata = sa.Column(JSONB)
@@ -308,7 +313,7 @@ class Spectrum(Base):
                    observed_at=observed_at)
 
 
-#def format_public_url(context):
+# def format_public_url(context):
 #    """TODO migrate this to broker tools"""
 #    file_uri = context.current_parameters.get('file_uri')
 #    if file_uri is None:
@@ -335,5 +340,27 @@ class Thumbnail(Base):
     source = relationship('Source', back_populates='thumbnails', uselist=False,
                           secondary='photometry')
 
+
+class FollowupRequest(Base):
+    requester = relationship(User, back_populates='followup_requests')
+    requester_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
+                             nullable=False, index=True)
+    source = relationship(Source, back_populates='followup_requests')
+    source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
+                          nullable=False, index=True)
+    instrument = relationship(Instrument, back_populates='followup_requests')
+    instrument_id = sa.Column(sa.ForeignKey('instruments.id'), nullable=False,
+                              index=True)
+    start_date = sa.Column(ArrowType, nullable=False)
+    end_date = sa.Column(ArrowType, nullable=False)
+    filters = sa.Column(psql.ARRAY(sa.String), nullable=True)
+    exposure_time = sa.Column(sa.String, nullable=True)
+    priority = sa.Column(sa.Enum('1', '2', '3', '4', '5',
+                                 name='priority'))
+    editable = sa.Column(sa.Boolean, nullable=False, default=True)
+    status = sa.Column(sa.String(), nullable=False, default="pending")
+
+
+User.followup_requests = relationship('FollowupRequest', back_populates='requester')
 
 schema.setup_schema()

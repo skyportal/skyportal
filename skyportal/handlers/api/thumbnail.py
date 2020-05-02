@@ -30,7 +30,7 @@ class ThumbnailHandler(BaseHandler):
                   data:
                     type: string
                     format: byte
-                    description: base64-encoded PNG image file contents. Image size must be between 100px and 500px on a side.
+                    description: base64-encoded PNG image file contents. Image size must be between 16px and 500px on a side.
                   ttype:
                     type: string
                     description: Thumbnail type. Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
@@ -70,7 +70,10 @@ class ThumbnailHandler(BaseHandler):
                 return self.error('Specified source does not yet have any photometry data.')
         else:
             return self.error('One of either source_id or photometry_id are required.')
-        t = create_thumbnail(data['data'], data['ttype'], source_id, phot)
+        try:
+            t = create_thumbnail(data['data'], data['ttype'], source_id, phot)
+        except ValueError as e:
+            return self.error(f"Error in creating new thumbnail: invalid value(s): {e}")
         DBSession().commit()
 
         return self.success(data={"id": t.id})
@@ -141,7 +144,7 @@ class ThumbnailHandler(BaseHandler):
 
         schema = Thumbnail.__schema__()
         try:
-            schema.load(data)
+            schema.load(data, partial=True)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
@@ -183,20 +186,20 @@ class ThumbnailHandler(BaseHandler):
 
 
 def create_thumbnail(thumbnail_data, thumbnail_type, source_id, photometry_obj):
-    basedir = Path(os.path.dirname(__file__))/'..'/'..'
+    basedir = Path(os.path.dirname(__file__)) / '..' / '..'
     if os.path.abspath(basedir).endswith('skyportal/skyportal'):
-        basedir = basedir/'..'
+        basedir = basedir / '..'
     file_uri = os.path.abspath(
-        basedir/f'static/thumbnails/{source_id}_{thumbnail_type}.png')
+        basedir / f'static/thumbnails/{source_id}_{thumbnail_type}.png')
     if not os.path.exists(os.path.dirname(file_uri)):
-        (basedir/'static/thumbnails').mkdir(parents=True)
+        (basedir / 'static/thumbnails').mkdir(parents=True)
     file_bytes = base64.b64decode(thumbnail_data)
     im = Image.open(io.BytesIO(file_bytes))
     if im.format != 'PNG':
         raise ValueError('Invalid thumbnail image type. Only PNG are supported.')
-    if not (100, 100) <= im.size <= (500, 500):
+    if not all(16 <= x <= 500 for x in im.size):
         raise ValueError('Invalid thumbnail size. Only thumbnails '
-                        'between (100, 100) and (500, 500) allowed.')
+                         'between (16, 16) and (500, 500) allowed.')
     t = Thumbnail(type=thumbnail_type,
                   photometry=photometry_obj,
                   file_uri=file_uri,

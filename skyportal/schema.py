@@ -31,6 +31,7 @@ from enum import Enum
 class ApispecEnumField(EnumField):
     """See https://github.com/justanr/marshmallow_enum/issues/24#issue-335162592
     """
+
     def __init__(self, enum, *args, **kwargs):
         super().__init__(enum, *args, **kwargs)
         self.metadata['enum'] = [e.name for e in enum]
@@ -110,15 +111,15 @@ def setup_schema():
                 """
                 schema_class_meta = type(f'{schema_class_name}_meta', (),
                                          {'model': class_, 'sqla_session': _DBSession,
-                                          'ordered': True, 'exclude': []}
-                )
+                                          'ordered': True, 'exclude': [], 'include_fk': True}
+                                         )
                 for exclude_attr in exclude:
                     if hasattr(class_, exclude_attr) and getattr(class_, exclude_attr) is not None:
                         schema_class_meta.exclude.append(exclude_attr)
 
                 schema_class = type(schema_class_name, (_ModelSchema,),
                                     {'Meta': schema_class_meta}
-                )
+                                    )
 
                 if add_to_model:
                     setattr(class_, '__schema__', schema_class)
