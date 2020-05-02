@@ -1,6 +1,4 @@
 import uuid
-from selenium import webdriver
-from selenium.webdriver.common.by import By
 
 from skyportal.tests import api
 
@@ -57,12 +55,12 @@ def test_news_feed_prefs_widget(driver, user, public_source, public_group, uploa
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
-    driver.wait_for_xpath(f'//span[text()="a few seconds ago"]')
+    driver.wait_for_xpath('//span[text()="a few seconds ago"]')
     for i in range(2):
         driver.wait_for_xpath(f'//span[text()="New source {source_id_base}_{i}"]')
         driver.wait_for_xpath(f'//span[contains(text(),"comment_text_{i} ({source_id_base}_{i})")]')
     prefs_widget_button = driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]')
-    prefs_widget_button.click()
+    driver.scroll_to_element_and_click(prefs_widget_button)
     n_items_input = driver.wait_for_xpath('//input[@name="numItems"]')
     n_items_input.clear()
     n_items_input.send_keys("2")

@@ -5,6 +5,7 @@ from baselayer.app.app_server import MainPageHandler
 from skyportal.handlers import (BecomeUserHandler, LogoutHandler)
 from skyportal.handlers.api import (
     CommentHandler, CommentAttachmentHandler,
+    FollowupRequestHandler,
     GroupHandler, GroupUserHandler,
     InstrumentHandler,
     NewsFeedHandler,
@@ -19,7 +20,7 @@ from skyportal.handlers.api import (
 )
 from skyportal.handlers.api.internal import (
     PlotPhotometryHandler, PlotSpectroscopyHandler, SourceViewsHandler,
-    TokenHandler, DBInfoHandler, ProfileHandler
+    TokenHandler, DBInfoHandler, ProfileHandler, InstrumentObservationParamsHandler
 )
 
 from . import models, model_util, openapi
@@ -50,6 +51,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         # API endpoints
         (r'/api/comment(/[0-9]+)?', CommentHandler),
         (r'/api/comment(/[0-9]+)/attachment', CommentAttachmentHandler),
+        (r'/api/followup_request(/.*)?', FollowupRequestHandler),
         (r'/api/groups/(.*)/users/(.*)?', GroupUserHandler),
         (r'/api/groups(/.*)?', GroupHandler),
         (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
@@ -71,6 +73,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/internal/source_views(/.*)?', SourceViewsHandler),
         (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
         (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
+        (r'/api/internal/instrument_obs_params', InstrumentObservationParamsHandler),
 
         (r'/become_user(/.*)?', BecomeUserHandler),
         (r'/logout', LogoutHandler),
