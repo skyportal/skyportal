@@ -2,7 +2,7 @@
   "P60 Camera": {
     "filters": {
       "type": "checkbox",
-      "options": ["u", "g", "r", "i", "z"]
+      "options": ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
     },
     "exposureTime": {
       "type": "select",
@@ -14,7 +14,7 @@
   "ALFOSC": {
     "filters": {
       "type": "select",
-      "options": ["u", "g", "z"]
+      "options": ["sdssu", "sdssg", "sdssz"]
     },
     "requestsEditable": false
   }
