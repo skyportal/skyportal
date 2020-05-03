@@ -143,7 +143,7 @@ def _plot_to_json(plot):
     return docs_json, render_items, custom_model_js
 
 
-tooltip_format = [('mjd', '@mjd{%.6f}'), ('flux', '@flux'), ('filter', '@filter'), ('fluxerr', '@fluxerr'),
+tooltip_format = [('mjd', '@mjd{0.000000}'), ('flux', '@flux'), ('filter', '@filter'), ('fluxerr', '@fluxerr'),
                   ('mag', '@mag'), ('magerr', '@magerr'), ('lim_mag', '@lim_mag')]
 
 

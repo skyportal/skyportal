@@ -15,7 +15,7 @@ def test_token_user_post_get_photometry_data(upload_data_token, public_source):
                              'mag': 12.24,
                              'e_mag': 0.031,
                              'lim_mag': 14.1,
-                             'filter': 'V'
+                             'filter': 'bessellv'
                        },
                        token=upload_data_token)
     assert status == 200
@@ -45,7 +45,7 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
               'mag': [12.24, 12.52, 12.70],
               'e_mag': [0.031, 0.029, 0.030],
               'lim_mag': [14.1, 14.1, 14.1],
-              'filter': ['V', 'V', 'V']},
+              'filter': ['bessellv', 'bessellv', 'bessellv']},
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -70,7 +70,7 @@ def test_post_photometry_no_access_token(view_only_token, public_source):
                              'mag': 12.24,
                              'e_mag': 0.031,
                              'lim_mag': 14.1,
-                             'filter': 'V'
+                             'filter': 'bessellv'
                        },
                        token=view_only_token)
     assert status == 400
@@ -89,7 +89,7 @@ def test_token_user_update_photometry(upload_data_token,
                              'mag': 12.24,
                              'e_mag': 0.031,
                              'lim_mag': 14.1,
-                             'filter': 'V'
+                             'filter': 'bessellv'
                        },
                        token=upload_data_token)
     assert status == 200
@@ -127,7 +127,7 @@ def test_delete_photometry_data(upload_data_token, manage_sources_token,
                              'mag': 12.24,
                              'e_mag': 0.031,
                              'lim_mag': 14.1,
-                             'filter': 'V'
+                             'filter': 'bessellv'
                        },
                        token=upload_data_token)
     assert status == 200
@@ -189,7 +189,7 @@ def test_token_user_post_photometry_thumbnail(upload_data_token, public_source):
                              'mag': 12.24,
                              'e_mag': 0.031,
                              'lim_mag': 14.1,
-                             'filter': 'V',
+                             'filter': 'bessellv',
                              'thumbnails': thumbnails
                        },
                        token=upload_data_token)
