@@ -11,12 +11,12 @@ import * as profileActions from '../ducks/profile';
 
 
 const UIPreferences = () => {
-  const theme = useSelector((state) => state.profile.preferences.theme);
+  const currentTheme = useSelector((state) => state.profile.preferences.theme);
   const dispatch = useDispatch();
 
-  const themeToggled = () => {
+  const themeToggled = (event) => {
     const prefs = {
-      theme: theme === 'light' ? 'dark' : 'light'
+      theme: event.target.checked ? 'dark' : 'light'
     };
 
     dispatch(profileActions.updateUserPreferences(prefs));
@@ -25,7 +25,7 @@ const UIPreferences = () => {
   const themeSwitch = (
     <Switch
       value="Dark Mode"
-      checked={theme === 'dark'}
+      checked={currentTheme === 'dark'}
       onChange={themeToggled}
     />
   );

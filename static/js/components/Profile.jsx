@@ -1,6 +1,9 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 
+import Typography from '@material-ui/core/Typography';
+import Box from '@material-ui/core/Box';
+
 import NewTokenForm from './NewTokenForm';
 import TokenList from './TokenList';
 import UIPreferences from './UIPreferences';
@@ -11,15 +14,22 @@ const Profile = () => {
   const groups = useSelector((state) => state.groups.user);
   return (
     <div>
-      <div>
-        Username:
-        {profile.username}
-      </div>
 
-      <div>
-        User roles:
-        {profile.roles}
-      </div>
+      <Typography component="div">
+        <Box fontWeight="fontWeightBold" component="span" mr={1}>
+          Username:
+        </Box>
+        {profile.username}
+      </Typography>
+
+      <Typography component="div">
+        <Box pb={1}>
+          <Box fontWeight="fontWeightBold" component="span" mr={1}>
+            User roles:
+          </Box>
+          {profile.roles}
+        </Box>
+      </Typography>
 
       <NewTokenForm
         acls={profile.acls}
@@ -29,6 +39,7 @@ const Profile = () => {
       <TokenList tokens={profile.tokens} />
 
       <UIPreferences />
+
     </div>
   );
 };
