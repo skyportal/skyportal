@@ -79,7 +79,7 @@ class MainContent extends React.Component {
             <Switch>
 
               {% for route in app.routes %}
-              <PropsRoute exact="True" path="{{ route.path }}" component={ {{ route.component }} } />
+              <PropsRoute exact path="{{ route.path }}" component={ {{ route.component }} } />
               {% endfor %}
 
               <PropsRoute component={NoMatchingRoute} />
