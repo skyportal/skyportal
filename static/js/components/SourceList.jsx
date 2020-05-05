@@ -40,13 +40,13 @@ const SourceList = () => {
     }
   }, []);
 
+  const tableClasses = useStyles();
+
   if (sourceTableEmpty) {
     return <UninitializedDBMessage />;
   }
 
-  const tableClasses = useStyles();
-
-  if (sources) {
+  if (!!sources) {
     return (
       <div className={styles.SourceListWrapper}>
         <h2>Sources</h2>
@@ -163,7 +163,11 @@ const SourceList = () => {
       </div>
     );
   } else {
-    return "Loading sources...";
+    return (
+      <div>
+        "Loading sources..."
+      </div>
+    );
   }
 };
 
