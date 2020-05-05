@@ -1,16 +1,33 @@
-import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
+import React, { useEffect } from "react";
+import { Link } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
 
-import SearchBox from './SearchBox';
-import * as sourcesActions from '../ducks/sources';
-import UninitializedDBMessage from './UninitializedDBMessage';
+import { makeStyles } from "@material-ui/core/styles";
+import Table from "@material-ui/core/Table";
+import TableBody from "@material-ui/core/TableBody";
+import TableCell from "@material-ui/core/TableCell";
+import TableHead from "@material-ui/core/TableHead";
+import TableRow from "@material-ui/core/TableRow";
 
+import SearchBox from "./SearchBox";
+import * as sourcesActions from "../ducks/sources";
+import UninitializedDBMessage from "./UninitializedDBMessage";
+
+import styles from "./SourceList.css";
+
+const useStyles = makeStyles({
+  table: {
+    width: 80,
+    height: 12
+  },
+  cell: {
+    padding: 7
+  }
+});
 
 const SourceList = () => {
-  const sources = useSelector(
-    (state) => state.sources
-  );
+  const sources = useSelector((state) => state.sources);
+
   const sourceTableEmpty = useSelector(
     (state) => state.dbInfo.source_table_empty
   );
@@ -26,156 +43,123 @@ const SourceList = () => {
   if (sourceTableEmpty) {
     return <UninitializedDBMessage />;
   }
+
+  const tableClasses = useStyles();
+
   if (sources) {
     return (
-      <div style={{ border: "1px solid #DDD", padding: "10px" }}>
-        <h2>
-          Sources
-        </h2>
-
+      <div className={styles.SourceListWrapper}>
+        <h2>Sources</h2>
         <SearchBox sources={sources} />
-        {
-          !sources.queryInProgress && (
-            <table id="tab">
-              <thead>
-                <tr>
-                  <th />
-                  <th />
-                  <th colSpan="2">
-                    Position
-                  </th>
-                  <th colSpan="4">
-                    Type
-                  </th>
-                  <th colSpan="2">
-                    Gaia
-                  </th>
-                  <th />
-                  <th />
-                  <th />
-                  <th />
-                </tr>
-
-                <tr>
-                  <th>
+        {!sources.queryInProgress && (
+          <div>
+            <Table
+              className={tableClasses.table}
+              size="small"
+              aria-label="a dense table"
+            >
+              <TableHead>
+                <TableRow>
+                  <TableCell className={tableClasses.cell}>
                     Last detected
-                  </th>
-                  <th>
-                    Name
-                  </th>
-                  <th>
+                  </TableCell>
+                  <TableCell className={tableClasses.cell} align="left">
+                    ID
+                  </TableCell>
+                  <TableCell className={tableClasses.cell} align="left">
                     RA
-                  </th>
-                  <th>
+                  </TableCell>
+                  <TableCell className={tableClasses.cell} align="left">
                     DEC
-                  </th>
-                  <th>
+                  </TableCell>
+                  <TableCell className={tableClasses.cell} align="left">
                     varstar
-                  </th>
-                  <th>
+                  </TableCell>
+                  <TableCell className={tableClasses.cell} align="left">
                     transient
-                  </th>
-                  <th>
+                  </TableCell>
+                  <TableCell className={tableClasses.cell} align="left">
                     disagree
-                  </th>
-                  <th>
+                  </TableCell>
+                  <TableCell className={tableClasses.cell} align="left">
                     is_roid
-                  </th>
-                  <th>
+                  </TableCell>
+                  <TableCell className={tableClasses.cell} align="left">
                     Gmag
-                  </th>
-                  <th>
-                    T
-                    <sub>
-                      eff
-                    </sub>
-                  </th>
-                  <th>
+                  </TableCell>
+                  <TableCell className={tableClasses.cell} align="left">
+                    Teff
+                  </TableCell>
+                  <TableCell className={tableClasses.cell} align="left">
                     Score
-                  </th>
-                  <th>
-                    N
-                    <br />
-                    detections
-                  </th>
-                  <th>
-                    Simbad
-                    <br />
-                    Class
-                  </th>
-                  <th>
+                  </TableCell>
+                  <TableCell className={tableClasses.cell} align="left">
+                    N Detections
+                  </TableCell>
+                  <TableCell className={tableClasses.cell} align="left">
+                    Simbad Class
+                  </TableCell>
+                  <TableCell className={tableClasses.cell} align="left">
                     TNS Name
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {
-                  sources.latest && sources.latest.map((source) => (
-                    <tr key={source.id}>
-                      <td>
-                        {source.last_detected && String(source.last_detected).split(".")[0]}
-                      </td>
-                      <td>
-                        <Link to={`/source/${source.id}`}>
-                          {source.id}
-                        </Link>
-                      </td>
-                      <td>
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {sources.latest &&
+                  sources.latest.map((source) => (
+                    <TableRow key={source.id}>
+                      <TableCell className={tableClasses.cell} align="left">
+                        {source.last_detected &&
+                          String(source.last_detected).split(".")[0]}
+                      </TableCell>
+                      <TableCell className={tableClasses.cell} align="left">
+                        <Link to={`/source/${source.id}`}>{source.id}</Link>
+                      </TableCell>
+                      <TableCell className={tableClasses.cell} align="left">
                         {source.ra && Number(source.ra).toFixed(3)}
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell className={tableClasses.cell} align="left">
                         {source.dec && Number(source.dec.toFixed(4))}
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell className={tableClasses.cell} align="left">
                         {source.varstar.toString()}
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell className={tableClasses.cell} align="left">
                         {source.transient.toString()}
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell className={tableClasses.cell} align="left">
                         {(source.transient === source.varstar).toString()}
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell className={tableClasses.cell} align="left">
                         {source.is_roid.toString()}
-                      </td>
-                      <td>
-                        {source.gaia_info && Number(JSON.parse(source.gaia_info).Gmag).toFixed(2)}
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell className={tableClasses.cell} align="left">
                         {source.gaia_info &&
-                         JSON.parse(source.gaia_info).Teff &&
-                         Number(JSON.parse(source.gaia_info).Teff).toFixed(1)}
-                      </td>
-                      <td>
+                          Number(JSON.parse(source.gaia_info).Gmag).toFixed(2)}
+                      </TableCell>
+                      <TableCell className={tableClasses.cell} align="left">
+                        {source.gaia_info &&
+                          JSON.parse(source.gaia_info).Teff &&
+                          Number(JSON.parse(source.gaia_info).Teff).toFixed(1)}
+                      </TableCell>
+                      <TableCell className={tableClasses.cell} align="left">
                         {Number(source.score).toFixed(2)}
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell className={tableClasses.cell} align="left">
                         {source.detect_photometry_count}
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell className={tableClasses.cell} align="left">
                         {source.simbad_class}
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell className={tableClasses.cell} align="left">
                         {source.tns_name}
-                      </td>
-                    </tr>
-                  ))
-                }
-              </tbody>
-            </table>
-          )
-        }
-        {
-          sources.queryInProgress && (
-            <div>
-              <br />
-              <br />
-              <i>
-                Query in progress...
-              </i>
-            </div>
-          )
-        }
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
     );
   } else {

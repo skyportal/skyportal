@@ -13,9 +13,6 @@ const HomePage = () => {
   return (
     <div>
       <div className={styles.homePageWidgetDiv}>
-        <SourceList />
-      </div>
-      <div className={styles.homePageWidgetDiv}>
         <NewsFeed />
       </div>
       <div className={styles.homePageWidgetDiv}>
@@ -23,6 +20,9 @@ const HomePage = () => {
       </div>
       <div className={styles.homePageWidgetDiv}>
         <GroupList title="My Groups" groups={groups} />
+      </div>
+      <div className={styles.homePageWidgetDiv}>
+        <SourceList />
       </div>
     </div>
   );
