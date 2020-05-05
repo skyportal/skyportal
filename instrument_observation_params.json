@@ -1,0 +1,21 @@
+{
+  "P60 Camera": {
+    "filters": {
+      "type": "checkbox",
+      "options": ["u", "g", "r", "i", "z"]
+    },
+    "exposureTime": {
+      "type": "select",
+      "options": ["120s", "200s", "300s", "500s"],
+      "note": "Telescope goes up to 21.0 mag in 500s exposure."
+    },
+    "requestsEditable": true
+  },
+  "ALFOSC": {
+    "filters": {
+      "type": "select",
+      "options": ["u", "g", "z"]
+    },
+    "requestsEditable": false
+  }
+}

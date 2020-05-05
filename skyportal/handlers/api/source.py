@@ -12,7 +12,7 @@ from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
     DBSession, Comment, Instrument, Photometry, Source, SourceView,
-    Thumbnail, GroupSource, Token, User, Group
+    Thumbnail, GroupSource, Token, User, Group, FollowupRequest
 )
 from .internal.source_views import register_source_view
 from ...utils import (
@@ -78,6 +78,10 @@ class SourceHandler(BaseHandler):
             info['sources'] = Source.get_if_owned_by(
                 source_id, self.current_user,
                 options=[joinedload(Source.comments),
+                         joinedload(Source.followup_requests)
+                         .joinedload(FollowupRequest.requester),
+                         joinedload(Source.followup_requests)
+                         .joinedload(FollowupRequest.instrument),
                          joinedload(Source.thumbnails)
                          .joinedload(Thumbnail.photometry)
                          .joinedload(Photometry.instrument)
