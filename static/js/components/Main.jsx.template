@@ -34,6 +34,7 @@ import {{ route.component }} from './{{ route.component }}';
 import ProfileDropdown from './ProfileDropdown';
 import Logo from './Logo';
 import Footer from './Footer';
+import Sidebar from './Sidebar';
 
 messageHandler.init(store.dispatch, store.getState);
 
