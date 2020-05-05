@@ -46,7 +46,7 @@ const SourceList = () => {
     return <UninitializedDBMessage />;
   }
 
-  if (!!sources) {
+  if (sources) {
     return (
       <div className={styles.SourceListWrapper}>
         <h2>Sources</h2>
@@ -165,7 +165,7 @@ const SourceList = () => {
   } else {
     return (
       <div>
-        "Loading sources..."
+        Loading sources...
       </div>
     );
   }
