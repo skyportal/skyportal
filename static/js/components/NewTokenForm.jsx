@@ -1,119 +1,127 @@
-import React, { useState } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
 import { useDispatch } from 'react-redux';
 
-import * as Action from '../ducks/profile';
+import TextField from '@material-ui/core/TextField';
+import Checkbox from '@material-ui/core/Checkbox';
+import Button from '@material-ui/core/Button';
+import Card from '@material-ui/core/Card';
+import CardContent from '@material-ui/core/CardContent';
+import Box from '@material-ui/core/Box';
+import Typography from '@material-ui/core/Typography';
+import FormControlLabel from '@material-ui/core/FormControlLabel';
+
+/* For group selection:
+import Select from '@material-ui/core/Select';
+import MenuItem from '@material-ui/core/MenuItem';
+*/
+
+import { useForm, Controller } from "react-hook-form";
+
+import * as ProfileActions from '../ducks/profile';
 
 
-const NewTokenForm = ({ acls, groups }) => {
+// const NewTokenForm = ({ acls, groups }) => {
+const NewTokenForm = ({ acls }) => {
   const dispatch = useDispatch();
-  const [formState, setFormState] = useState({
-    group_id: "",
-    name: ""
-  });
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    dispatch(Action.createToken(formState));
-    const acls_state = {};
-    Object.keys(formState).forEach((k) => {
-      if (k.startsWith('acls_')) {
-        acls_state[k] = false;
-      }
-    });
-    setFormState({
-      group_id: "",
-      name: "",
-      ...acls_state
-    });
+  const defaultValues = {
+    name: '',
+    acls: Array(50).fill(false) // This should be `acls.length`, but see https://github.com/react-hook-form/react-hook-form/issues/1558
   };
 
-  const handleChange = (event) => {
-    const newState = {};
-    newState[event.target.name] = event.target.type === 'checkbox' ?
-      event.target.checked : event.target.value;
-    setFormState({
-      ...formState,
-      ...newState
-    });
+  const { handleSubmit, register, errors, reset, control } = useForm({
+    defaultValues
+  });
+
+  const onSubmit = async (data) => {
+    const selectedACLs = acls.filter((include, idx) => data.acls[idx]);
+    data.acls = selectedACLs;
+
+    // Token groups are not currently supported
+    /*
+    if (data.group === 'All') {
+      delete data.group;
+    }
+    */
+
+    const result = await dispatch(ProfileActions.createToken(data));
+    if (result.status === "success") {
+      reset();
+    }
   };
 
   return (
     <div>
-      <h3>
+      <Typography variant="h5">
         Generate New Token for Command-Line Authentication
-      </h3>
-      <form onSubmit={handleSubmit}>
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                Select Token ACLs:
-              </td>
-              <td>
-                {acls.map((acl) => (
-                  <label key={acl}>
-                    <input
-                      key={acl}
+      </Typography>
+
+      <Card>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <Box>
+              <TextField
+                label="Token name"
+                inputRef={register({ required: true })}
+                name="name"
+                error={!!errors.name}
+                helperText={errors.name ? 'Required' : ''}
+              />
+            </Box>
+            <Box>
+              <Box component="span" mr={1} fontWeight="bold">
+                ACLs:
+              </Box>
+              {acls.map((acl, idx) => (
+                <FormControlLabel
+                  key={acl}
+                  control={(
+                    <Controller
+                      as={Checkbox}
                       type="checkbox"
-                      name={`acls_${acl}`}
-                      checked={formState[`acls_${acl}`]}
-                      onChange={handleChange}
+                      name={`acls[${idx}]`}
+                      control={control}
                     />
-                    {acl}
-                  </label>
-                ))}
-              </td>
-            </tr>
-            <tr>
-              <td>
-                Select Token Group:
-              </td>
-              <td>
-                <select
-                  name="group_id"
-                  value={formState.group_id}
-                  onChange={handleChange}
-                >
-                  <option value="" />
+                  )}
+                  label={acl}
+                />
+              ))}
+            </Box>
+            { /*
+            For when we start to support group selection
+            Select Token Group:
+            <Controller
+              as={(
+                <Select>
+                  <MenuItem value="All" key="0">
+                    All
+                  </MenuItem>
                   {groups.map((group) => (
-                    <option value={group.id} key={group.id}>
+                    <MenuItem value={group.id} key={group.id}>
                       {group.name}
-                    </option>
+                    </MenuItem>
                   ))}
-                </select>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                Token name:&nbsp;&nbsp;
-              </td>
-              <td>
-                <input
-                  type="text"
-                  name="name"
-                  value={formState.name}
-                  onChange={handleChange}
-                />
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <input
-                  type="submit"
-                  value="Generate Token"
-                  onClick={handleSubmit}
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </form>
+                </Select>
+              )}
+              name="group"
+              control={control}
+              defaultValue="All"
+            /> */ }
+            <Button
+              variant="contained"
+              type="submit"
+            >
+              Generate Token
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 };
 NewTokenForm.propTypes = {
   acls: PropTypes.arrayOf(PropTypes.string).isRequired,
-  groups: PropTypes.arrayOf(PropTypes.object).isRequired
+//  groups: PropTypes.arrayOf(PropTypes.object).isRequired
 };
 
 export default NewTokenForm;

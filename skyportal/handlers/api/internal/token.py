@@ -34,9 +34,7 @@ class TokenHandler(BaseHandler):
         user = (User.query.filter(User.username == self.current_user.username)
                     .first())
         user_acls = {acl.id for acl in user.acls}
-        requested_acls = {k.replace('acls_', '') for k, v in data.items() if
-                          k.startswith('acls_') and v == True}
-        token_acls = requested_acls & user_acls
+        token_acls = set(data['acls']) & user_acls
         token_name = data['name']
         if Token.query.filter(Token.name == token_name).first():
             return self.error("Duplicate token name.")
