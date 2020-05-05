@@ -58,15 +58,19 @@ def test_submit_new_followup_request(
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//input[@name="start_date"]')
     )
-    driver.wait_for_xpath(
-        '//div[contains(@class,"react-datepicker__day react-datepicker__day--013")]'
-    ).click()
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath(
+            '//div[contains(@class,"react-datepicker__day react-datepicker__day--013")]'
+        )
+    )
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//input[@name="end_date"]')
     )
-    driver.wait_for_xpath(
-        '//div[contains(@class,"react-datepicker__day react-datepicker__day--014")]'
-    ).click()
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath(
+            '//div[contains(@class,"react-datepicker__day react-datepicker__day--014")]'
+        )
+    )
     driver.wait_for_xpath('//input[@value="u"]').click()
     exposure_select = Select(driver.wait_for_xpath('//select[@name="exposure_time"]'))
     exposure_select.select_by_visible_text("120s")
@@ -97,15 +101,19 @@ def test_edit_existing_followup_request(
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//input[@name="start_date"]')
     )
-    driver.wait_for_xpath(
-        '//div[contains(@class,"react-datepicker__day react-datepicker__day--013")]'
-    ).click()
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath(
+            '//div[contains(@class,"react-datepicker__day react-datepicker__day--013")]'
+        )
+    )
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//input[@name="end_date"]')
     )
-    driver.wait_for_xpath(
-        '//div[contains(@class,"react-datepicker__day react-datepicker__day--014")]'
-    ).click()
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath(
+            '//div[contains(@class,"react-datepicker__day react-datepicker__day--014")]'
+        )
+    )
     driver.wait_for_xpath('//input[@value="u"]').click()
     exposure_select = Select(driver.wait_for_xpath('//select[@name="exposure_time"]'))
     exposure_select.select_by_visible_text("120s")
@@ -140,15 +148,19 @@ def test_delete_followup_request(
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//input[@name="start_date"]')
     )
-    driver.wait_for_xpath(
-        '//div[contains(@class,"react-datepicker__day react-datepicker__day--013")]'
-    ).click()
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath(
+            '//div[contains(@class,"react-datepicker__day react-datepicker__day--013")]'
+        )
+    )
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//input[@name="end_date"]')
     )
-    driver.wait_for_xpath(
-        '//div[contains(@class,"react-datepicker__day react-datepicker__day--014")]'
-    ).click()
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath(
+            '//div[contains(@class,"react-datepicker__day react-datepicker__day--014")]'
+        )
+    )
     driver.wait_for_xpath('//input[@value="u"]').click()
     exposure_select = Select(driver.wait_for_xpath('//select[@name="exposure_time"]'))
     exposure_select.select_by_visible_text("120s")
@@ -186,15 +198,19 @@ def test_cannot_edit_uneditable_followup_request(
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//input[@name="start_date"]')
     )
-    driver.wait_for_xpath(
-        '//div[contains(@class,"react-datepicker__day react-datepicker__day--013")]'
-    ).click()
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath(
+            '//div[contains(@class,"react-datepicker__day react-datepicker__day--013")]'
+        )
+    )
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//input[@name="end_date"]')
     )
-    driver.wait_for_xpath(
-        '//div[contains(@class,"react-datepicker__day react-datepicker__day--014")]'
-    ).click()
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath(
+            '//div[contains(@class,"react-datepicker__day react-datepicker__day--014")]'
+        )
+    )
     filter_select = Select(driver.wait_for_xpath('//select[@name="filters"]'))
     filter_select.select_by_visible_text("u")
     priority_select = Select(driver.wait_for_xpath('//select[@name="priority"]'))
