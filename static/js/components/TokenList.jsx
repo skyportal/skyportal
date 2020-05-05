@@ -35,53 +35,55 @@ const TokenList = ({ tokens }) => {
       <h3>
         My Tokens
       </h3>
-      <Table size="small" component={Paper}>
-        <TableHead>
-          <TableRow>
-            <TableCell>Value</TableCell>
-            <TableCell />
-            <TableCell>Name</TableCell>
-            <TableCell>ACLS</TableCell>
-            <TableCell>Created</TableCell>
-            <TableCell>Delete</TableCell>
-          </TableRow>
-        </TableHead>
+      <Paper>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Value</TableCell>
+              <TableCell />
+              <TableCell>Name</TableCell>
+              <TableCell>ACLS</TableCell>
+              <TableCell>Created</TableCell>
+              <TableCell>Delete</TableCell>
+            </TableRow>
+          </TableHead>
 
-        <TableBody>
-          {
-            tokens.map((token) => (
-              <TableRow key={token.id}>
-                <TableCell>
-                  <TextField id={token.id} value={token.id} readOnly={1} />
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    onClick={() => copyToken(token.id)}
-                  >
-                    Copy to Clipboard
-                  </Button>
-                </TableCell>
-                <TableCell>
-                  {token.name}
-                </TableCell>
-                <TableCell>
-                  {token.acls.join(', ')}
-                </TableCell>
-                <TableCell>
-                  {token.created_at}
-                </TableCell>
-                <TableCell>
-                  <a href="#top" onClick={() => deleteToken(token.id)}>
-                    Delete
-                  </a>
-                </TableCell>
-              </TableRow>
-            ))
-          }
-        </TableBody>
-      </Table>
+          <TableBody>
+            {
+              tokens.map((token) => (
+                <TableRow key={token.id}>
+                  <TableCell>
+                    <TextField id={token.id} value={token.id} readOnly={1} />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      onClick={() => copyToken(token.id)}
+                    >
+                      Copy to Clipboard
+                    </Button>
+                  </TableCell>
+                  <TableCell>
+                    {token.name}
+                  </TableCell>
+                  <TableCell>
+                    {token.acls.join(', ')}
+                  </TableCell>
+                  <TableCell>
+                    {token.created_at}
+                  </TableCell>
+                  <TableCell>
+                    <a href="#top" onClick={() => deleteToken(token.id)}>
+                      Delete
+                    </a>
+                  </TableCell>
+                </TableRow>
+              ))
+            }
+          </TableBody>
+        </Table>
+      </Paper>
     </div>
   );
 };
