@@ -45,7 +45,7 @@ class NumpyArray(sa.types.TypeDecorator):
 class Group(Base):
     name = sa.Column(sa.String, unique=True, nullable=False)
 
-    sources = relationship('Source', secondary='group_sources')
+    sources = relationship('Obj', secondary='sources')
     streams = relationship('Stream', secondary='stream_groups',
                            back_populates='groups')
     telescopes = relationship('Telescope', secondary='group_telescopes')
@@ -88,7 +88,7 @@ def token_groups(self):
 Token.groups = token_groups
 
 
-class Source(Base):
+class Obj(Base):
     id = sa.Column(sa.String, primary_key=True)
     # TODO should this column type be decimal? fixed-precison numeric
     ra = sa.Column(sa.Float)
@@ -135,12 +135,11 @@ class Source(Base):
     tns_info = sa.Column(JSONB, nullable=True)
     tns_name = sa.Column(sa.Unicode, nullable=True)
 
-    groups = relationship('Group', secondary='group_sources')
-    comments = relationship('Comment', back_populates='source',
+    comments = relationship('Comment', back_populates='obj',
                             cascade='save-update, merge, refresh-expire, expunge',
                             passive_deletes=True,
                             order_by="Comment.created_at")
-    photometry = relationship('Photometry', back_populates='source',
+    photometry = relationship('Photometry', back_populates='obj',
                               cascade='save-update, merge, refresh-expire, expunge',
                               single_parent=True,
                               passive_deletes=True,
@@ -148,16 +147,16 @@ class Source(Base):
 
     detect_photometry_count = sa.Column(sa.Integer, nullable=True)
 
-    spectra = relationship('Spectrum', back_populates='source',
+    spectra = relationship('Spectrum', back_populates='obj',
                            cascade='save-update, merge, refresh-expire, expunge',
                            single_parent=True,
                            passive_deletes=True,
                            order_by="Spectrum.observed_at")
-    thumbnails = relationship('Thumbnail', back_populates='source',
+    thumbnails = relationship('Thumbnail', back_populates='obj',
                               secondary='photometry',
                               cascade='save-update, merge, refresh-expire, expunge')
 
-    followup_requests = relationship('FollowupRequest', back_populates='source')
+    followup_requests = relationship('FollowupRequest', back_populates='obj')
 
     def add_linked_thumbnails(self):
         sdss_thumb = Thumbnail(photometry=self.photometry[0],
@@ -183,19 +182,25 @@ class Source(Base):
                 f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz")
 
 
-GroupSource = join_model('group_sources', Group, Source)
+class Filter(Base):
+    query = sa.Column(sa.String, nullable=False, unique=False)
+
+
+Candidate = join_model('candidates', Filter, Obj)
+
+Source = join_model('sources', Group, Obj)
 """User.sources defines the logic for whether a user has access to a source;
    if this gets more complicated it should become a function/`hybrid_property`
    rather than a `relationship`.
 """
-User.sources = relationship('Source', backref='users',
-                            secondary='join(Group, group_sources).join(group_users)',
+User.sources = relationship('Obj', backref='users',
+                            secondary='join(Group, sources).join(group_users)',
                             primaryjoin='group_users.c.user_id == users.c.id')
 
 
 class SourceView(Base):
-    source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
-                          nullable=False, unique=False)
+    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
+                       nullable=False, unique=False)
     username_or_token_id = sa.Column(sa.String, nullable=False, unique=False)
     is_token = sa.Column(sa.Boolean, nullable=False, default=False)
     created_at = sa.Column(sa.DateTime, nullable=False, default=datetime.now,
@@ -244,9 +249,9 @@ class Comment(Base):
 
     origin = sa.Column(sa.String, nullable=True)
     author = sa.Column(sa.String, nullable=False)
-    source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
-                          nullable=False, index=True)
-    source = relationship('Source', back_populates='comments')
+    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
+                       nullable=False, index=True)
+    obj = relationship('Obj', back_populates='comments')
 
 
 class Photometry(Base):
@@ -275,9 +280,9 @@ class Photometry(Base):
 
     origin = sa.Column(sa.String, nullable=True)
 
-    source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
-                          nullable=False, index=True)
-    source = relationship('Source', back_populates='photometry')
+    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
+                       nullable=False, index=True)
+    obj = relationship('Obj', back_populates='photometry')
     instrument_id = sa.Column(sa.ForeignKey('instruments.id'),
                               nullable=False, index=True)
     instrument = relationship('Instrument', back_populates='photometry')
@@ -291,9 +296,9 @@ class Spectrum(Base):
     fluxes = sa.Column(NumpyArray, nullable=False)
     errors = sa.Column(NumpyArray)
 
-    source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
-                          nullable=False, index=True)
-    source = relationship('Source', back_populates='spectra')
+    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
+                       nullable=False, index=True)
+    obj = relationship('Obj', back_populates='spectra')
     observed_at = sa.Column(sa.DateTime, nullable=False)
     origin = sa.Column(sa.String, nullable=True)
     # TODO program?
@@ -303,13 +308,13 @@ class Spectrum(Base):
     instrument = relationship('Instrument', back_populates='spectra')
 
     @classmethod
-    def from_ascii(cls, filename, source_id, instrument_id, observed_at):
+    def from_ascii(cls, filename, obj_id, instrument_id, observed_at):
         data = np.loadtxt(filename)
         if data.shape[1] != 2:  # TODO support other formats
             raise ValueError(f"Expected 2 columns, got {data.shape[1]}")
 
         return cls(wavelengths=data[:, 0], fluxes=data[:, 1],
-                   source_id=source_id, instrument_id=instrument_id,
+                   obj_id=obj_id, instrument_id=instrument_id,
                    observed_at=observed_at)
 
 
@@ -337,17 +342,17 @@ class Thumbnail(Base):
     photometry_id = sa.Column(sa.ForeignKey('photometry.id', ondelete='CASCADE'),
                               nullable=False, index=True)
     photometry = relationship('Photometry', back_populates='thumbnails')
-    source = relationship('Source', back_populates='thumbnails', uselist=False,
-                          secondary='photometry')
+    obj = relationship('Obj', back_populates='thumbnails', uselist=False,
+                       secondary='photometry')
 
 
 class FollowupRequest(Base):
     requester = relationship(User, back_populates='followup_requests')
     requester_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
                              nullable=False, index=True)
-    source = relationship(Source, back_populates='followup_requests')
-    source_id = sa.Column(sa.ForeignKey('sources.id', ondelete='CASCADE'),
-                          nullable=False, index=True)
+    obj = relationship('Obj', back_populates='followup_requests')
+    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
+                       nullable=False, index=True)
     instrument = relationship(Instrument, back_populates='followup_requests')
     instrument_id = sa.Column(sa.ForeignKey('instruments.id'), nullable=False,
                               index=True)
