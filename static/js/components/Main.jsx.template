@@ -78,9 +78,9 @@ class MainContent extends React.Component {
 
             <Switch>
 
-              {% for route in app.routes %}
-              <PropsRoute exact path="{{ route.path }}" component={ {{ route.component }} } />
-              {% endfor %}
+              {%- for route in app.routes %}
+              <PropsRoute exact path="{{ route.path }}" component={{ '{' }}{{ route.component }}{{ '}' }} />
+              {%- endfor %}
 
               <PropsRoute component={NoMatchingRoute} />
 
@@ -110,3 +110,4 @@ ReactDOM.render(
   </Provider>,
   document.getElementById('content')
 );
+
