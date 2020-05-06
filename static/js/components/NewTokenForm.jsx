@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useDispatch } from 'react-redux';
 
@@ -27,11 +27,15 @@ const NewTokenForm = ({ acls }) => {
 
   const { handleSubmit, register, errors, reset, control } = useForm();
 
-  useEffect(() => {
+  const resetForm = useCallback(() => {
     reset({
       acls: Array(acls.length).fill(false)
     });
-  }, [reset, acls]);
+  }, [acls, reset]);
+
+  useEffect(() => {
+    resetForm();
+  }, [resetForm]);
 
   const onSubmit = async (data) => {
     const selectedACLs = acls.filter((include, idx) => data.acls[idx]);
