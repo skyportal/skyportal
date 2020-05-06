@@ -8,6 +8,7 @@ export const REFRESH_SOURCE = 'skyportal/REFRESH_SOURCE';
 
 export const FETCH_LOADED_SOURCE = 'skyportal/FETCH_LOADED_SOURCE';
 export const FETCH_LOADED_SOURCE_OK = 'skyportal/FETCH_LOADED_SOURCE_OK';
+export const FETCH_LOADED_SOURCE_ERROR = 'skyportal/FETCH_LOADED_SOURCE_ERROR';
 export const FETCH_LOADED_SOURCE_FAIL = 'skyportal/FETCH_LOADED_SOURCE_FAIL';
 
 export const ADD_COMMENT = 'skyportal/ADD_COMMENT';
@@ -100,13 +101,19 @@ const reducer = (state={ source: null, loadError: false }, action) => {
       return {
         ...state,
         ...source,
-        loadError: false
+        loadError: ""
       };
     }
+    case FETCH_LOADED_SOURCE_ERROR:
+      return {
+        ...state,
+        loadError: action.message
+      };
+
     case FETCH_LOADED_SOURCE_FAIL:
       return {
         ...state,
-        loadError: true
+        loadError: "Unknown error while loading source"
       };
     default:
       return state;
