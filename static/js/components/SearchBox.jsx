@@ -3,7 +3,6 @@ import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
 
 import {
-  Box,
   Paper,
   Button,
   ButtonGroup,
@@ -36,9 +35,9 @@ const SearchBox = ({ sources }) => {
   const handleInputChange = (event) => {
     const newState = {};
     newState[event.target.name] =
-      event.target.type === "checkbox"
-        ? event.target.checked
-        : event.target.value;
+      event.target.type === "checkbox" ?
+        event.target.checked :
+        event.target.value;
     setFormState({
       ...formState,
       ...newState,
@@ -100,11 +99,11 @@ const SearchBox = ({ sources }) => {
 
   const useStyles = makeStyles((theme) => ({
     paper: {
-      padding: "1rem"
+      padding: "1rem",
     },
     root: {
-      display: 'flex',
-      flexWrap: 'wrap',
+      display: "flex",
+      flexWrap: "wrap",
       width: "35rem",
       "& .MuiTextField-root": {
         margin: theme.spacing(0.2),
@@ -167,10 +166,7 @@ const SearchBox = ({ sources }) => {
           />
         </div>
         <div className={classes.blockWrapper}>
-          <h5 className={classes.title}>
-            {" "}
-            Filter by Time Last Detected (UTC){" "}
-          </h5>
+          <h5 className={classes.title}>Filter by Time Last Detected (UTC)</h5>
         </div>
         <div className={classes.blockWrapper}>
           <TextField
@@ -205,7 +201,7 @@ const SearchBox = ({ sources }) => {
           <FormControlLabel
             label="TNS Name"
             labelPlacement="start"
-            control={
+            control={(
               <Checkbox
                 color="primary"
                 type="checkbox"
@@ -213,23 +209,27 @@ const SearchBox = ({ sources }) => {
                 checked={formState.hasTNSname}
                 onChange={handleInputChange}
               />
-            }
+            )}
           />
         </div>
         <div className={classes.blockWrapper}>
-        <ButtonGroup variant="contained" color="primary" aria-label="contained primary button group">
-        <Button
+          <ButtonGroup
             variant="contained"
             color="primary"
-            onClick={handleSubmit}
-            disabled={sources.queryInProgress}
+            aria-label="contained primary button group"
           >
-            Submit
-          </Button>
-          <Button variant="contained" color="primary" onClick={handleReset}>
-            Reset
-          </Button>
-        </ButtonGroup>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleSubmit}
+              disabled={sources.queryInProgress}
+            >
+              Submit
+            </Button>
+            <Button variant="contained" color="primary" onClick={handleReset}>
+              Reset
+            </Button>
+          </ButtonGroup>
         </div>
       </form>
       {sources && (
@@ -247,7 +247,9 @@ const SearchBox = ({ sources }) => {
           <div style={{ display: "inline-block" }}>
             <i>
               Displaying&nbsp;
-              {sources.sourceNumberingStart}-{sources.sourceNumberingEnd}
+              {sources.sourceNumberingStart}
+              -
+              {sources.sourceNumberingEnd}
               &nbsp; of&nbsp;
               {sources.totalMatches}
               &nbsp; matching sources.
