@@ -1,33 +1,16 @@
-import React, { useEffect } from "react";
-import { Link } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
+import React, { useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 
-import { makeStyles } from "@material-ui/core/styles";
-import Table from "@material-ui/core/Table";
-import TableBody from "@material-ui/core/TableBody";
-import TableCell from "@material-ui/core/TableCell";
-import TableHead from "@material-ui/core/TableHead";
-import TableRow from "@material-ui/core/TableRow";
+import SearchBox from './SearchBox';
+import * as sourcesActions from '../ducks/sources';
+import UninitializedDBMessage from './UninitializedDBMessage';
 
-import SearchBox from "./SearchBox";
-import * as sourcesActions from "../ducks/sources";
-import UninitializedDBMessage from "./UninitializedDBMessage";
-
-import styles from "./SourceList.css";
-
-const useStyles = makeStyles({
-  table: {
-    width: 80,
-    height: 12
-  },
-  cell: {
-    padding: 7
-  }
-});
 
 const SourceList = () => {
-  const sources = useSelector((state) => state.sources);
-
+  const sources = useSelector(
+    (state) => state.sources
+  );
   const sourceTableEmpty = useSelector(
     (state) => state.dbInfo.source_table_empty
   );
@@ -43,123 +26,156 @@ const SourceList = () => {
   if (sourceTableEmpty) {
     return <UninitializedDBMessage />;
   }
-
-  const tableClasses = useStyles();
-
   if (sources) {
     return (
-      <div className={styles.SourceListWrapper}>
-        <h2>Sources</h2>
+      <div style={{ border: "1px solid #DDD", padding: "10px" }}>
+        <h2>
+          Sources
+        </h2>
+
         <SearchBox sources={sources} />
-        {!sources.queryInProgress && (
-          <div>
-            <Table
-              className={tableClasses.table}
-              size="small"
-              aria-label="a dense table"
-            >
-              <TableHead>
-                <TableRow>
-                  <TableCell className={tableClasses.cell}>
+        {
+          !sources.queryInProgress && (
+            <table id="tab">
+              <thead>
+                <tr>
+                  <th />
+                  <th />
+                  <th colSpan="2">
+                    Position
+                  </th>
+                  <th colSpan="4">
+                    Type
+                  </th>
+                  <th colSpan="2">
+                    Gaia
+                  </th>
+                  <th />
+                  <th />
+                  <th />
+                  <th />
+                </tr>
+
+                <tr>
+                  <th>
                     Last detected
-                  </TableCell>
-                  <TableCell className={tableClasses.cell} align="left">
-                    ID
-                  </TableCell>
-                  <TableCell className={tableClasses.cell} align="left">
+                  </th>
+                  <th>
+                    Name
+                  </th>
+                  <th>
                     RA
-                  </TableCell>
-                  <TableCell className={tableClasses.cell} align="left">
+                  </th>
+                  <th>
                     DEC
-                  </TableCell>
-                  <TableCell className={tableClasses.cell} align="left">
+                  </th>
+                  <th>
                     varstar
-                  </TableCell>
-                  <TableCell className={tableClasses.cell} align="left">
+                  </th>
+                  <th>
                     transient
-                  </TableCell>
-                  <TableCell className={tableClasses.cell} align="left">
+                  </th>
+                  <th>
                     disagree
-                  </TableCell>
-                  <TableCell className={tableClasses.cell} align="left">
+                  </th>
+                  <th>
                     is_roid
-                  </TableCell>
-                  <TableCell className={tableClasses.cell} align="left">
+                  </th>
+                  <th>
                     Gmag
-                  </TableCell>
-                  <TableCell className={tableClasses.cell} align="left">
-                    Teff
-                  </TableCell>
-                  <TableCell className={tableClasses.cell} align="left">
+                  </th>
+                  <th>
+                    T
+                    <sub>
+                      eff
+                    </sub>
+                  </th>
+                  <th>
                     Score
-                  </TableCell>
-                  <TableCell className={tableClasses.cell} align="left">
-                    N Detections
-                  </TableCell>
-                  <TableCell className={tableClasses.cell} align="left">
-                    Simbad Class
-                  </TableCell>
-                  <TableCell className={tableClasses.cell} align="left">
+                  </th>
+                  <th>
+                    N
+                    <br />
+                    detections
+                  </th>
+                  <th>
+                    Simbad
+                    <br />
+                    Class
+                  </th>
+                  <th>
                     TNS Name
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {sources.latest &&
-                  sources.latest.map((source) => (
-                    <TableRow key={source.id}>
-                      <TableCell className={tableClasses.cell} align="left">
-                        {source.last_detected &&
-                          String(source.last_detected).split(".")[0]}
-                      </TableCell>
-                      <TableCell className={tableClasses.cell} align="left">
-                        <Link to={`/source/${source.id}`}>{source.id}</Link>
-                      </TableCell>
-                      <TableCell className={tableClasses.cell} align="left">
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  sources.latest && sources.latest.map((source) => (
+                    <tr key={source.id}>
+                      <td>
+                        {source.last_detected && String(source.last_detected).split(".")[0]}
+                      </td>
+                      <td>
+                        <Link to={`/source/${source.id}`}>
+                          {source.id}
+                        </Link>
+                      </td>
+                      <td>
                         {source.ra && Number(source.ra).toFixed(3)}
-                      </TableCell>
-                      <TableCell className={tableClasses.cell} align="left">
+                      </td>
+                      <td>
                         {source.dec && Number(source.dec.toFixed(4))}
-                      </TableCell>
-                      <TableCell className={tableClasses.cell} align="left">
+                      </td>
+                      <td>
                         {source.varstar.toString()}
-                      </TableCell>
-                      <TableCell className={tableClasses.cell} align="left">
+                      </td>
+                      <td>
                         {source.transient.toString()}
-                      </TableCell>
-                      <TableCell className={tableClasses.cell} align="left">
+                      </td>
+                      <td>
                         {(source.transient === source.varstar).toString()}
-                      </TableCell>
-                      <TableCell className={tableClasses.cell} align="left">
+                      </td>
+                      <td>
                         {source.is_roid.toString()}
-                      </TableCell>
-                      <TableCell className={tableClasses.cell} align="left">
+                      </td>
+                      <td>
+                        {source.gaia_info && Number(JSON.parse(source.gaia_info).Gmag).toFixed(2)}
+                      </td>
+                      <td>
                         {source.gaia_info &&
-                          Number(JSON.parse(source.gaia_info).Gmag).toFixed(2)}
-                      </TableCell>
-                      <TableCell className={tableClasses.cell} align="left">
-                        {source.gaia_info &&
-                          JSON.parse(source.gaia_info).Teff &&
-                          Number(JSON.parse(source.gaia_info).Teff).toFixed(1)}
-                      </TableCell>
-                      <TableCell className={tableClasses.cell} align="left">
+                         JSON.parse(source.gaia_info).Teff &&
+                         Number(JSON.parse(source.gaia_info).Teff).toFixed(1)}
+                      </td>
+                      <td>
                         {Number(source.score).toFixed(2)}
-                      </TableCell>
-                      <TableCell className={tableClasses.cell} align="left">
+                      </td>
+                      <td>
                         {source.detect_photometry_count}
-                      </TableCell>
-                      <TableCell className={tableClasses.cell} align="left">
+                      </td>
+                      <td>
                         {source.simbad_class}
-                      </TableCell>
-                      <TableCell className={tableClasses.cell} align="left">
+                      </td>
+                      <td>
                         {source.tns_name}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+                      </td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          )
+        }
+        {
+          sources.queryInProgress && (
+            <div>
+              <br />
+              <br />
+              <i>
+                Query in progress...
+              </i>
+            </div>
+          )
+        }
       </div>
     );
   } else {
