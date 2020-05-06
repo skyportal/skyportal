@@ -2,14 +2,20 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
 
-import { Button, Checkbox, FormControlLabel } from "@material-ui/core";
+import {
+  Box,
+  Paper,
+  Button,
+  ButtonGroup,
+  Checkbox,
+  FormControlLabel,
+  TextField,
+} from "@material-ui/core";
+import { makeStyles } from "@material-ui/core/styles";
 
 import * as Actions from "../ducks/sources";
 
 import styles from "./SearchBox.css";
-
-import CustomInput from "./CustomInput";
-
 
 const SearchBox = ({ sources }) => {
   const dispatch = useDispatch();
@@ -22,7 +28,7 @@ const SearchBox = ({ sources }) => {
     startDate: "",
     endDate: "",
     simbadClass: "",
-    hasTNSname: false
+    hasTNSname: false,
   });
 
   const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
@@ -30,10 +36,12 @@ const SearchBox = ({ sources }) => {
   const handleInputChange = (event) => {
     const newState = {};
     newState[event.target.name] =
-      event.target.type === "checkbox" ? event.target.checked : event.target.value;
+      event.target.type === "checkbox"
+        ? event.target.checked
+        : event.target.value;
     setFormState({
       ...formState,
-      ...newState
+      ...newState,
     });
   };
 
@@ -51,7 +59,7 @@ const SearchBox = ({ sources }) => {
       startDate: "",
       endDate: "",
       simbadClass: "",
-      hasTNSname: false
+      hasTNSname: false,
     });
     dispatch(Actions.fetchSources());
   };
@@ -61,7 +69,7 @@ const SearchBox = ({ sources }) => {
     const vals = {
       ...formState,
       pageNumber: sources.pageNumber + 1,
-      totalMatches: sources.totalMatches
+      totalMatches: sources.totalMatches,
     };
     dispatch(Actions.fetchSources(vals));
   };
@@ -71,7 +79,7 @@ const SearchBox = ({ sources }) => {
     const vals = {
       ...formState,
       pageNumber: sources.pageNumber - 1,
-      totalMatches: sources.totalMatches
+      totalMatches: sources.totalMatches,
     };
     dispatch(Actions.fetchSources(vals));
   };
@@ -85,155 +93,145 @@ const SearchBox = ({ sources }) => {
     const vals = {
       ...formState,
       pageNumber: jumpToPageInputValue,
-      totalMatches: sources.totalMatches
+      totalMatches: sources.totalMatches,
     };
     dispatch(Actions.fetchSources(vals));
   };
 
+  const useStyles = makeStyles((theme) => ({
+    paper: {
+      padding: "1rem"
+    },
+    root: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      width: "35rem",
+      "& .MuiTextField-root": {
+        margin: theme.spacing(0.2),
+        width: "10rem",
+      },
+    },
+    blockWrapper: {
+      width: "100%",
+    },
+    title: {
+      margin: "1rem 0rem 0rem 0rem",
+    },
+  }));
+
+  const classes = useStyles();
+
   return (
-    <div className={styles.searchBoxWrapper}>
-      <h4> Filter Sources </h4>
-      <div className={styles.searchBox}>
-        <form className={styles.searchBoxForm}>
-          <div className={styles.searchBoxFormInner}>
-            <h5 className={styles.searchBoxFormHeader}>
-              Filter by Name or ID
-            </h5>
-            <div className={styles.searchBoxFormInputs}>
-              <div className={styles.col12}>
-                <CustomInput
-                  label="Source ID/Name (can be substring)"
-                  type="text"
-                  name="sourceID"
-                  value={formState.sourceID}
-                  onChange={handleInputChange}
-                  size="6"
-                />
-              </div>
-            </div>
-          </div>
-          <div className={styles.searchBoxFormInner}>
-            <h5 className={styles.searchBoxFormHeader}> Filter by Position </h5>
-            <div className={styles.searchBoxFormInputs}>
-              <div className={styles.col4}>
-                <CustomInput
-                  label="RA (degrees)"
-                  type="text"
-                  name="ra"
-                  value={formState.ra}
-                  onChange={handleInputChange}
-                  size="6"
-                />
-              </div>
-              <div className={styles.col4}>
-                <CustomInput
-                  label="Dec (degrees)"
-                  type="text"
-                  name="dec"
-                  value={formState.dec}
-                  onChange={handleInputChange}
-                  size="6"
-                />
-              </div>
-              <div className={styles.col4}>
-                <CustomInput
-                  label="Radius (degrees)"
-                  type="text"
-                  name="radius"
-                  value={formState.radius}
-                  onChange={handleInputChange}
-                  size="6"
-                />
-              </div>
-            </div>
-          </div>
-          <div className={styles.searchBoxFormInner}>
-            <h5 className={styles.searchBoxFormHeader}>
-              Filter by Time Last Detected (UTC)
-            </h5>
-            <div className={styles.searchBoxFormInputs}>
-              <div className={styles.col6}>
-                <CustomInput
-                  label="Start Date"
-                  type="text"
-                  name="startDate"
-                  value={formState.startDate}
-                  onChange={handleInputChange}
-                  placeholder="2012-08-30T00:00:00"
-                  size="6"
-                />
-              </div>
-              <div className={styles.col6}>
-                <CustomInput
-                  label="End Date"
-                  type="text"
-                  name="endDate"
-                  value={formState.endDate}
-                  onChange={handleInputChange}
-                  placeholder="2012-08-30T00:00:00"
-                  size="6"
-                />
-              </div>
-            </div>
-          </div>
-          <div className={styles.searchBoxFormInner}>
-            <h5 className={styles.searchBoxFormHeader}>
-              Filter by Simbad Class
-            </h5>
-            <div className={styles.searchBoxFormInputs}>
-              <div className={styles.col12}>
-                <CustomInput
-                  label="Class Name"
-                  type="text"
-                  name="simbadClass"
-                  value={formState.simbadClass}
-                  onChange={handleInputChange}
-                  size="6"
-                />
-              </div>
-            </div>
-          </div>
-          <div className={styles.searchBoxFormInner}>
-            <div className={styles.searchBoxFormInputs}>
-              <div className={styles.col4}>
-                <FormControlLabel
-                  label="TNS Name"
-                  labelPlacement="start"
-                  control={(
-                    <Checkbox
-                      color="primary"
-                      type="checkbox"
-                      name="hasTNSname"
-                      checked={formState.hasTNSname}
-                      onChange={handleInputChange}
-                      size="6"
-                    />
-                  )}
-                />
-              </div>
-              <div className={styles.col4}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleSubmit}
-                  disabled={sources.queryInProgress}
-                >
-                  Submit
-                </Button>
-              </div>
-              <div className={styles.col4}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleReset}
-                >
-                  Reset
-                </Button>
-              </div>
-            </div>
-          </div>
-        </form>
-      </div>
+    <Paper className={classes.paper} variant="outlined">
+      <form className={classes.root} noValidate autoComplete="off">
+        <div className={classes.blockWrapper}>
+          <h4> Filter Sources </h4>
+        </div>
+        <div className={classes.blockWrapper}>
+          <h5 className={classes.title}> Filter by Name or ID </h5>
+        </div>
+        <div className={classes.blockWrapper}>
+          <TextField
+            fullWidth
+            label="Source ID/Name"
+            name="sourceID"
+            value={formState.sourceID}
+            onChange={handleInputChange}
+          />
+        </div>
+
+        <div className={classes.blockWrapper}>
+          <h5 className={classes.title}> Filter by Position </h5>
+        </div>
+        <div className={classes.blockWrapper}>
+          <TextField
+            size="small"
+            label="RA (degrees)"
+            name="ra"
+            value={formState.ra}
+            onChange={handleInputChange}
+          />
+          <TextField
+            size="small"
+            label="Dec (degrees)"
+            name="dec"
+            value={formState.dec}
+            onChange={handleInputChange}
+          />
+          <TextField
+            size="small"
+            label="Radius (degrees)"
+            name="radius"
+            value={formState.radius}
+            onChange={handleInputChange}
+          />
+        </div>
+        <div className={classes.blockWrapper}>
+          <h5 className={classes.title}>
+            {" "}
+            Filter by Time Last Detected (UTC){" "}
+          </h5>
+        </div>
+        <div className={classes.blockWrapper}>
+          <TextField
+            size="small"
+            label="Start Date"
+            name="startDate"
+            value={formState.startDate}
+            onChange={handleInputChange}
+            placeholder="2012-08-30T00:00:00"
+          />
+          <TextField
+            size="small"
+            label="End Date"
+            name="endDate"
+            value={formState.endDate}
+            onChange={handleInputChange}
+            placeholder="2012-08-30T00:00:00"
+          />
+        </div>
+        <div className={classes.blockWrapper}>
+          <h5 className={classes.title}> Filter by Simbad Class </h5>
+        </div>
+        <div className={classes.blockWrapper}>
+          <TextField
+            size="small"
+            label="Class Name"
+            type="text"
+            name="simbadClass"
+            value={formState.simbadClass}
+            onChange={handleInputChange}
+          />
+          <FormControlLabel
+            label="TNS Name"
+            labelPlacement="start"
+            control={
+              <Checkbox
+                color="primary"
+                type="checkbox"
+                name="hasTNSname"
+                checked={formState.hasTNSname}
+                onChange={handleInputChange}
+              />
+            }
+          />
+        </div>
+        <div className={classes.blockWrapper}>
+        <ButtonGroup variant="contained" color="primary" aria-label="contained primary button group">
+        <Button
+            variant="contained"
+            color="primary"
+            onClick={handleSubmit}
+            disabled={sources.queryInProgress}
+          >
+            Submit
+          </Button>
+          <Button variant="contained" color="primary" onClick={handleReset}>
+            Reset
+          </Button>
+        </ButtonGroup>
+        </div>
+      </form>
       {sources && (
         <div className={styles.tableSubTitle}>
           <div style={{ display: "inline-block" }}>
@@ -249,9 +247,7 @@ const SearchBox = ({ sources }) => {
           <div style={{ display: "inline-block" }}>
             <i>
               Displaying&nbsp;
-              {sources.sourceNumberingStart}
-              -
-              {sources.sourceNumberingEnd}
+              {sources.sourceNumberingStart}-{sources.sourceNumberingEnd}
               &nbsp; of&nbsp;
               {sources.totalMatches}
               &nbsp; matching sources.
@@ -283,7 +279,7 @@ const SearchBox = ({ sources }) => {
           </div>
         </div>
       )}
-    </div>
+    </Paper>
   );
 };
 
@@ -296,8 +292,8 @@ SearchBox.propTypes = {
     sourcesNumberingEnd: PropTypes.any,
     totalMatches: PropTypes.any,
     queryInProgress: PropTypes.any,
-    sourceNumberingEnd: PropTypes.any
-  }).isRequired
+    sourceNumberingEnd: PropTypes.any,
+  }).isRequired,
 };
 
 export default SearchBox;
