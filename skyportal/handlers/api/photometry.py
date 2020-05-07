@@ -11,7 +11,7 @@ from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from .thumbnail import create_thumbnail
 from ...models import (
-    DBSession, Photometry, Comment, Instrument, Source, Thumbnail
+    DBSession, Photometry, Comment, Instrument, Source, Obj, Thumbnail
 )
 
 
@@ -54,9 +54,9 @@ class PhotometryHandler(BaseHandler):
         instrument = Instrument.query.get(data['instrument_id'])
         if not instrument:
             return self.error('Invalid instrument ID')
-        source = Source.get_if_owned_by(data['source_id'], self.current_user)
-        if not source:
-            return self.error('Invalid source ID')
+        obj = Obj.query.get(data['obj_id'])  # TODO : implement permissions checking
+        if not obj:
+            return self.error('Invalid object ID')
         for i in range(len(data['mag'])):
             if not (data['time_scale'] == 'tcb' and data['time_format'] == 'iso'):
                 t = Time(data['observed_at'][i],
@@ -65,7 +65,7 @@ class PhotometryHandler(BaseHandler):
                 observed_at = t.tcb.iso
             else:
                 observed_at = data['time'][i]
-            p = Photometry(source=source,
+            p = Photometry(obj=obj,
                            observed_at=observed_at,
                            mag=data['mag'][i],
                            e_mag=data['e_mag'][i],
@@ -80,7 +80,7 @@ class PhotometryHandler(BaseHandler):
         if 'thumbnails' in data:
             p = Photometry.query.get(ids[0])
             for thumb in data['thumbnails']:
-                create_thumbnail(thumb['data'], thumb['ttype'], source.id, p)
+                create_thumbnail(thumb['data'], thumb['ttype'], obj.id, p)
         DBSession().commit()
 
         return self.success(data={"ids": ids})

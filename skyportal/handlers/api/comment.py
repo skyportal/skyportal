@@ -61,9 +61,8 @@ class CommentHandler(BaseHandler):
                           description: Associated source ID
         """
         data = self.get_json()
-        source_id = data['source_id']
-        # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(source_id, self.current_user)
+        obj_id = data['obj_id']
+        # TODO : Implement permissions check
         if 'attachment' in data and 'body' in data['attachment']:
             attachment_bytes = str.encode(data['attachment']['body']
                                           .split('base64,')[-1])
@@ -74,7 +73,7 @@ class CommentHandler(BaseHandler):
         author = (self.current_user.username if hasattr(self.current_user, 'username')
                   else self.current_user.name)
         comment = Comment(text=data['text'],
-                          source_id=source_id, attachment_bytes=attachment_bytes,
+                          obj_id=obj_id, attachment_bytes=attachment_bytes,
                           attachment_name=attachment_name,
                           author=author)
 
@@ -82,7 +81,7 @@ class CommentHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'source_id': comment.source_id})
+                      payload={'source_id': comment.obj_id})
         return self.success(data={'comment_id': comment.id})
 
     @permissions(['Comment'])

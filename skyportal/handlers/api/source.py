@@ -11,8 +11,8 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
-    DBSession, Comment, Instrument, Photometry, Source, SourceView,
-    Thumbnail, GroupSource, Token, User, Group, FollowupRequest
+    DBSession, Comment, Instrument, Photometry, Obj, Source, SourceView,
+    Thumbnail, Token, User, Group, FollowupRequest
 )
 from .internal.source_views import register_source_view
 from ...utils import (
@@ -40,7 +40,7 @@ class SourceHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: SingleSource
+                  schema: SingleObj
             400:
               content:
                 application/json:
@@ -51,7 +51,7 @@ class SourceHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfSources
+                  schema: ArrayOfObjs
             400:
               content:
                 application/json:
@@ -164,7 +164,7 @@ class SourceHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: Source
+              schema: Obj
         responses:
           200:
             content:
@@ -179,7 +179,7 @@ class SourceHandler(BaseHandler):
                           description: New source ID
         """
         data = self.get_json()
-        schema = Source.__schema__()
+        schema = Obj.__schema__()
         user_group_ids = [g.id for g in self.current_user.groups]
         if not user_group_ids:
             return self.error("You must belong to one or more groups before "
@@ -192,7 +192,7 @@ class SourceHandler(BaseHandler):
             return self.error("Invalid group_ids field. Please specify at least "
                               "one valid group ID that you belong to.")
         try:
-            s = schema.load(data)
+            obj = schema.load(data)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
@@ -200,12 +200,12 @@ class SourceHandler(BaseHandler):
         if not groups:
             return self.error("Invalid group_ids field. Please specify at least "
                               "one valid group ID that you belong to.")
-        s.groups = groups
-        DBSession.add(s)
+        DBSession.add(obj)
+        DBSession.add_all([Source(obj=obj, group=group) for group in groups])
         DBSession().commit()
 
         self.push_all(action='skyportal/FETCH_SOURCES')
-        return self.success(data={"id": s.id})
+        return self.success(data={"id": obj.id})
 
     @permissions(['Manage sources'])
     def put(self, source_id):
@@ -221,7 +221,7 @@ class SourceHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: SourceNoID
+              schema: ObjNoID
         responses:
           200:
             content:
@@ -537,7 +537,7 @@ class SourceFinderHandler(BaseHandler):
 
         if imsize < 2.0 or imsize > 15.0:
             return \
-              self.error('The value for `imsize` is outside the allowed range')
+                self.error('The value for `imsize` is outside the allowed range')
 
         facility = self.get_query_argument('facility', 'Keck')
         image_source = self.get_query_argument('image_source', 'desi')

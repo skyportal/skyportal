@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Group, GroupUser, User, Token, Source
+from ...models import DBSession, Group, GroupUser, User, Token, Obj, Source
 
 
 class GroupHandler(BaseHandler):
@@ -104,11 +104,13 @@ class GroupHandler(BaseHandler):
             group_admins.append(self.current_user)
 
         source_ids = [s.strip() for s in data.get('source_ids', []) if s.strip()]
-        sources = list(Source.query.filter(Source.id.in_(source_ids)))
+        sources = list(Obj.query.filter(Obj.id.in_(source_ids)))
 
         g = Group(name=data['name'], sources=sources)
         DBSession().add_all(
             [GroupUser(group=g, user=user, admin=True) for user in group_admins])
+        DBSession.add_all(
+            [Source(group=g, obj=obj) for obj in sources])
         DBSession().commit()
 
         self.push_all(action='skyportal/FETCH_GROUPS')
@@ -265,7 +267,7 @@ class GroupUserHandler(BaseHandler):
         """
         user_id = User.query.filter(User.username == username).first().id
         (GroupUser.query.filter(GroupUser.group_id == group_id)
-                   .filter(GroupUser.user_id == user_id).delete())
+         .filter(GroupUser.user_id == user_id).delete())
         DBSession().commit()
         self.push_all(action='skyportal/REFRESH_GROUP',
                       payload={'group_id': int(group_id)})

@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Spectrum, Comment, Instrument, Source
+from ...models import DBSession, Spectrum, Comment, Instrument, Obj, Source
 
 
 class SpectrumHandler(BaseHandler):
@@ -34,9 +34,9 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        source_id = data.get('source_id')
+        obj_id = data.get('obj_id')
         instrument_id = data.get('instrument_id')
-        source = Source.get_if_owned_by(source_id, self.current_user)
+        obj = Obj.query.get(obj_id)  # TODO : Check permissions
         instrument = Instrument.query.get(instrument_id)
 
         schema = Spectrum.__schema__()
@@ -45,7 +45,7 @@ class SpectrumHandler(BaseHandler):
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
-        spec.source = source
+        spec.obj = obj
         spec.instrument = instrument
         DBSession().add(spec)
         DBSession().commit()

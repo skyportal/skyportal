@@ -1,7 +1,7 @@
 from sqlalchemy import desc
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, Comment, GroupSource
+from ...models import DBSession, Source, Comment
 
 
 class NewsFeedHandler(BaseHandler):
