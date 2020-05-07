@@ -11,7 +11,7 @@ import requests
 from baselayer.app.env import load_env
 from baselayer.app.model_util import status, create_tables, drop_tables
 from social_tornado.models import TornadoStorage
-from skyportal.models import init_db, Base, DBSession, Source, User
+from skyportal.models import init_db, Base, DBSession, Obj, User
 from skyportal.model_util import setup_permissions, create_token
 from skyportal.tests import api
 from baselayer.tools.test_frontend import verify_server_availability
@@ -197,7 +197,7 @@ if __name__ == "__main__":
                     for comment in comments:
                         data = assert_post(
                             "comment",
-                            data={"source_id": source_info["id"], "text": comment},
+                            data={"obj_id": source_info["id"], "text": comment},
                         )
 
                     phot_file = basedir / "skyportal/tests/data/phot.csv"
@@ -206,7 +206,7 @@ if __name__ == "__main__":
                     data = assert_post(
                         "photometry",
                         data={
-                            "source_id": source_info["id"],
+                            "obj_id": source_info["id"],
                             "time_format": "iso",
                             "time_scale": "utc",
                             "instrument_id": instrument1_id,
@@ -230,7 +230,7 @@ if __name__ == "__main__":
                         data = assert_post(
                             "spectrum",
                             data={
-                                "source_id": source_info["id"],
+                                "obj_id": source_info["id"],
                                 "observed_at": str(datetime.datetime(2014, 10, 24)),
                                 "instrument_id": 1,
                                 "wavelengths": df.wavelength.tolist(),
@@ -247,13 +247,13 @@ if __name__ == "__main__":
                         data = assert_post(
                             "thumbnail",
                             data={
-                                "source_id": source_info["id"],
+                                "obj_id": source_info["id"],
                                 "data": thumbnail_data,
                                 "ttype": ttype,
                             },
                         )
 
-                    source = Source.query.get(source_info["id"])
+                    source = Obj.query.get(source_info["id"])
                     source.add_linked_thumbnails()
         finally:
             if not app_already_running:
