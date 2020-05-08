@@ -6,8 +6,8 @@ from .... import plot
 # TODO this should distinguish between "no data to plot" and "plot failed"
 class PlotPhotometryHandler(BaseHandler):
     @auth_or_token
-    def get(self, source_id):
-        docs_json, render_items, custom_model_js = plot.photometry_plot(source_id)
+    def get(self, obj_id):
+        docs_json, render_items, custom_model_js = plot.photometry_plot(obj_id)
         if docs_json is None:
             self.success(data={'docs_json': None, 'url': self.request.path})
         else:
@@ -18,8 +18,8 @@ class PlotPhotometryHandler(BaseHandler):
 
 class PlotSpectroscopyHandler(BaseHandler):
     @auth_or_token
-    def get(self, source_id):
-        docs_json, render_items, custom_model_js = plot.spectroscopy_plot(source_id)
+    def get(self, obj_id):
+        docs_json, render_items, custom_model_js = plot.spectroscopy_plot(obj_id)
         if docs_json is None:
             self.success(data={'docs_json': None, 'url': self.request.path})
         else:

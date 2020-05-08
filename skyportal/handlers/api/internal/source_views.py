@@ -4,7 +4,7 @@ import tornado.web
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 from ....models import (
-    DBSession, Source, SourceView
+    DBSession, Obj, Source, SourceView
 )
 
 
@@ -25,28 +25,28 @@ class SourceViewsHandler(BaseHandler):
         since_days_ago = int(top_sources_prefs['sinceDaysAgo'])
 
         cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
-        q = (DBSession.query(func.count(SourceView.source_id).label('views'),
-                             SourceView.source_id).group_by(SourceView.source_id)
-             .filter(SourceView.source_id.in_(DBSession.query(
-                 GroupSource.source_id).filter(GroupSource.group_id.in_(
+        q = (DBSession.query(func.count(SourceView.obj_id).label('views'),
+                             SourceView.obj_id).group_by(SourceView.obj_id)
+             .filter(SourceView.obj_id.in_(DBSession.query(
+                 Source.obj_id).filter(Source.group_id.in_(
                      [g.id for g in self.current_user.groups]))))
              .filter(SourceView.created_at >= cutoff_day)
              .order_by(desc('views')).limit(max_num_sources))
         return self.success(data={'sourceViews': q.all()})
 
     @tornado.web.authenticated
-    def post(self, source_id):
+    def post(self, obj_id):
         # Ensure user has access to source
-        s = Source.get_if_owned_by(source_id, self.current_user)
+        s = Source.get_if_owned_by(obj_id, self.current_user)
         # This endpoint will only be hit by front-end, so this will never be a token
-        register_source_view(source_id=source_id,
+        register_source_view(obj_id=obj_id,
                              username_or_token_id=self.current_user.username,
                              is_token=False)
         return self.success()
 
 
-def register_source_view(source_id, username_or_token_id, is_token):
-    sv = SourceView(source_id=source_id,
+def register_source_view(obj_id, username_or_token_id, is_token):
+    sv = SourceView(obj_id=obj_id,
                     username_or_token_id=username_or_token_id,
                     is_token=is_token)
     DBSession.add(sv)

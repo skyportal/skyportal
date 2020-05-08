@@ -62,7 +62,8 @@ class CommentHandler(BaseHandler):
         """
         data = self.get_json()
         obj_id = data['obj_id']
-        # TODO : Implement permissions check
+        # Ensure user/token has access to parent source
+        _ = Source.get_if_owned_by(obj_id, self.current_user)
         if 'attachment' in data and 'body' in data['attachment']:
             attachment_bytes = str.encode(data['attachment']['body']
                                           .split('base64,')[-1])
@@ -113,7 +114,7 @@ class CommentHandler(BaseHandler):
         if c is None:
             return self.error('Invalid comment ID.')
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(c.source.id, self.current_user)
+        _ = Source.get_if_owned_by(c.obj_id, self.current_user)
 
         data = self.get_json()
         data['id'] = comment_id
@@ -128,7 +129,7 @@ class CommentHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'source_id': c.source_id})
+                      payload={'source_id': c.obj_id})
         return self.success()
 
     @permissions(['Comment'])
@@ -153,7 +154,7 @@ class CommentHandler(BaseHandler):
         c = Comment.query.get(comment_id)
         if c is None:
             return self.error("Invalid comment ID")
-        source_id = c.source_id
+        obj_id = c.obj_id
         author = c.author
         if ("Super admin" in [role.id for role in roles]) or (user == author):
             Comment.query.filter_by(id=comment_id).delete()
@@ -161,7 +162,7 @@ class CommentHandler(BaseHandler):
         else:
             return self.error('Insufficient user permissions.')
         self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'source_id': source_id})
+                      payload={'source_id': obj_id})
         return self.success()
 
 
@@ -190,7 +191,7 @@ class CommentAttachmentHandler(BaseHandler):
         if comment is None:
             return self.error('Invalid comment ID.')
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(comment.source.id, self.current_user)
+        _ = Source.get_if_owned_by(comment.obj_id, self.current_user)
         self.set_header(
             "Content-Disposition", "attachment; "
             f"filename={comment.attachment_name}")

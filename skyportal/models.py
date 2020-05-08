@@ -3,12 +3,13 @@ import numpy as np
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy_utils import ArrowType
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
+from baselayer.app.custom_exceptions import AccessError
 
 from . import schema
 
@@ -183,16 +184,54 @@ class Obj(Base):
 
 
 class Filter(Base):
-    query = sa.Column(sa.String, nullable=False, unique=False)
+    query_string = sa.Column(sa.String, nullable=False, unique=False)
 
 
 Candidate = join_model('candidates', Filter, Obj)
+
+
+def candidate_is_owned_by(self, user_or_token):
+    return bool(set(self.filter.groups) & set(user_or_token.groups))
+
+
+Candidate.is_owned_by = candidate_is_owned_by
+
 
 Source = join_model('sources', Group, Obj)
 """User.sources defines the logic for whether a user has access to a source;
    if this gets more complicated it should become a function/`hybrid_property`
    rather than a `relationship`.
 """
+Source.saved_by_id = sa.Column(sa.ForeignKey("users.id"), nullable=True, unique=False)
+Source.saved_by = relationship("User", foreign_keys=[Source.saved_by_id],
+                               backref="saved_sources")
+Source.saved_at = sa.Column(sa.DateTime, nullable=False, default=datetime.now)
+Source.active = sa.Column(sa.Boolean, default=True)
+Source.unsaved_by_id = sa.Column(sa.ForeignKey("users.id"), nullable=True, unique=False)
+Source.unsaved_by = relationship("User", foreign_keys=[Source.unsaved_by_id])
+
+
+# Not used in get_source_if_owned_by, but defined in case it's called elsewhere
+def source_is_owned_by(self, user_or_token):
+    source_group_ids = [row[0] for row in DBSession.query(
+        Source.group_id).filter(Source.obj_id == self.obj_id).all()]
+    return bool(set(source_group_ids) & {g.id for g in user_or_token.groups})
+
+
+def get_source_if_owned_by(obj_id, user_or_token, options=[]):
+    if Source.query.filter(Source.obj_id == obj_id).first() is None:
+        return None
+    user_group_ids = [g.id for g in user_or_token.groups]
+    s = (Source.query.filter(Source.obj_id == obj_id)
+         .filter(Source.group_id.in_(user_group_ids)).options(options).first())
+    if s is None:
+        raise AccessError("Insufficient permissions.")
+    return s.obj
+
+
+Source.is_owned_by = source_is_owned_by
+Source.get_if_owned_by = get_source_if_owned_by
+
 User.sources = relationship('Obj', backref='users',
                             secondary='join(Group, sources).join(group_users)',
                             primaryjoin='group_users.c.user_id == users.c.id')

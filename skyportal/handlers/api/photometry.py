@@ -111,8 +111,7 @@ class PhotometryHandler(BaseHandler):
         if info['photometry'] is None:
             return self.error('Invalid photometry ID')
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(info['photometry'].source_id,
-                                   self.current_user)
+        _ = Source.get_if_owned_by(info['photometry'].obj_id, self.current_user)
 
         return self.success(data=info)
 

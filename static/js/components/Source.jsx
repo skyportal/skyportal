@@ -122,7 +122,7 @@ const Source = ({ route }) => {
 
         </Responsive>
         <FollowupRequestForm
-          source_id={source.id}
+          obj_id={source.id}
           action="createNew"
           instrumentList={instrumentList}
           instrumentObsParams={instrumentObsParams}
