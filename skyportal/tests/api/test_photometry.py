@@ -181,7 +181,8 @@ def test_token_user_post_photometry_thumbnail(upload_data_token, public_source):
                              'fluxerr': 0.031,
                              'zp': 25.,
                              'zpsys': 'ab',
-                             'filter': 'bessellv'
+                             'filter': 'bessellv',
+                             'thumbnails': thumbnails
                        },
                        token=upload_data_token)
     assert status == 200

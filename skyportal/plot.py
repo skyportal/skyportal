@@ -143,8 +143,15 @@ def _plot_to_json(plot):
     return docs_json, render_items, custom_model_js
 
 
-tooltip_format = [('mjd', '@mjd{0.000000}'), ('flux', '@flux'), ('filter', '@filter'), ('fluxerr', '@fluxerr'),
-                  ('mag', '@mag'), ('magerr', '@magerr'), ('lim_mag', '@lim_mag')]
+tooltip_format = [('mjd', '@mjd{0.000000}'),
+                  ('flux', '@flux'),
+                  ('filter', '@filter'),
+                  ('fluxerr', '@fluxerr'),
+                  ('mag', '@mag'),
+                  ('magerr', '@magerr'),
+                  ('lim_mag', '@lim_mag'),
+                  ('instrument', '@instrument'),
+                  ('stacked', '@stacked')]
 
 
 # TODO make async so that thread isn't blocked
@@ -159,7 +166,9 @@ def photometry_plot(obj_id):
     (str, str)
         Returns (docs_json, render_items) json for the desired plot.
     """
-    color_map = {'ipr': 'yellow', 'rpr': 'red', 'ztfg': 'green', 'ztfi': 'orange', 'ztfr': 'red'}
+    color_map = {'ipr': 'yellow', 'rpr': 'red',
+                 'ztfg': 'green', 'ztfi': 'orange',
+                 'ztfr': 'red'}
 
     data = pd.read_sql(DBSession()
                        .query(Photometry, Telescope.nickname.label('telescope'),
@@ -171,10 +180,11 @@ def photometry_plot(obj_id):
         return None, None, None
 
     data['color'] = [color_map.get(f, 'black') for f in data['filter']]
-    data['label'] = [f'{i} {f}-band' for i, f in zip(data['instrument'], data['filter'])]
+    data['label'] = [f'{i} {f}-band' for i, f in zip(data['instrument'],
+                                                     data['filter'])]
 
     # normalize everything to a common zeropoint
-    columns = ['mjd', 'filter', 'flux', 'fluxerr', 'zp', 'zpsys', 'lim_mag']
+    columns = ['mjd', 'filter', 'flux', 'fluxerr', 'zp', 'zpsys']
     table = Table.from_pandas(data[columns])
     photdata = PhotometricData(table)
     normalized = photdata.normalized(zp=25., zpsys='ab')
@@ -184,29 +194,34 @@ def photometry_plot(obj_id):
     data['fluxerr'] = normalized.fluxerr
     data['zp'] = 25.
     data['alpha'] = 1.
+    data['lim_mag'] = -2.5 * np.log10(data['flux'] * DETECT_THRESH) + data['zp']
+
+    # keep track of things that are only upper limits
+    data['hasflux'] = ~data['flux'].isna()
 
     # calculate the magnitudes - a photometry point is considered "significant"
     # or "detected" (and thus can be represented by a magnitude) if its snr
     # is above DETECT_THRESH
-    obsind = data['flux'] / data['fluxerr'] >= DETECT_THRESH
-    data.ix[~obsind, 'mag'] = None
-    data.ix[obsind, 'mag'] = -2.5 * np.log10(data[obsind]['flux']) + 25.
+    obsind = data['hasflux'] & (data['flux'].fillna(0.) / data['fluxerr'] >= DETECT_THRESH)
+    data.loc[~obsind, 'mag'] = None
+    data.loc[obsind, 'mag'] = -2.5 * np.log10(data[obsind]['flux']) + 25.
 
     # calculate the magnitude errors using standard error propagation formulae
     # https://en.wikipedia.org/wiki/Propagation_of_uncertainty#Example_formulae
-    data.ix[~obsind, 'magerr'] = None
+    data.loc[~obsind, 'magerr'] = None
     coeff = 2.5 / np.log(10)
     magerrs = np.abs(coeff * data[obsind]['fluxerr'] / data[obsind]['flux'])
-    data.ix[obsind, 'magerr'] = magerrs
+    data.loc[obsind, 'magerr'] = magerrs
     data['obs'] = obsind
+    data['stacked'] = False
 
     split = data.groupby('label', sort=False)
 
     # show middle 98% of data
     finite = np.isfinite(data['flux'])
     fdata = data[finite]
-    lower = np.percentile(fdata['flux'], 2.)
-    upper = np.percentile(fdata['flux'], 98.)
+    lower = np.percentile(fdata['flux'], 1.)
+    upper = np.percentile(fdata['flux'], 99.)
 
     lower -= np.abs(lower) * 0.1
     upper += np.abs(upper) * 0.1
@@ -225,6 +240,10 @@ def photometry_plot(obj_id):
     model_dict = {}
 
     for i, (label, df) in enumerate(split):
+
+        # for the flux plot, we only show things that have a flux value
+        df = df[df['hasflux']]
+
         key = f'obs{i}'
         model_dict[key] = plot.scatter(
             x='mjd', y='flux',
@@ -245,7 +264,8 @@ def photometry_plot(obj_id):
             fill_color='color',
             source=ColumnDataSource(data=dict(mjd=[], flux=[], fluxerr=[],
                                               filter=[], color=[], lim_mag=[],
-                                              mag=[], magerr=[]))
+                                              mag=[], magerr=[], stacked=[],
+                                              instrument=[]))
         )
 
         imhover.renderers.append(model_dict[key])
@@ -262,14 +282,18 @@ def photometry_plot(obj_id):
             y_err_x.append((px, px))
             y_err_y.append((py - err, py + err))
 
-        model_dict[key] = plot.multi_line(xs='xs', ys='ys', color='color', alpha='alpha',
-                                          source=ColumnDataSource(data=dict(xs=y_err_x, ys=y_err_y,
-                                                                  color=df['color'],
-                                                                  alpha=[1.] * len(df))))
+        model_dict[key] = plot.multi_line(
+            xs='xs', ys='ys', color='color', alpha='alpha',
+            source=ColumnDataSource(data=dict(xs=y_err_x, ys=y_err_y,
+                                              color=df['color'],
+                                              alpha=[1.] * len(df)))
+        )
 
         key = f'binerr{i}'
-        model_dict[key] = plot.multi_line(xs='xs', ys='ys', color='color',
-                                          source=ColumnDataSource(data=dict(xs=[], ys=[], color=[])))
+        model_dict[key] = plot.multi_line(
+            xs='xs', ys='ys', color='color',
+            source=ColumnDataSource(data=dict(xs=[], ys=[], color=[]))
+        )
 
     plot.xaxis.axis_label = 'MJD'
     plot.yaxis.axis_label = 'Flux (AB Zeropoint = 25.)'
@@ -285,24 +309,23 @@ def photometry_plot(obj_id):
     # https://github.com/bokeh/bokeh/pull/6340
     toggle.callback = CustomJS(args={'toggle': toggle, **model_dict},
                                code=open(os.path.join(os.path.dirname(__file__),
-                                                      '../static/plotjs', 'togglef.js')).read())
+                                                      '../static/js/plotjs',
+                                                      'togglef.js')).read())
 
-    slider = Slider(start=0., end=15., value=0., step=1., title='binsize (days)')
+    slider = Slider(
+        start=0., end=15., value=0., step=1., title='binsize (days)'
+    )
 
     callback = CustomJS(args={'slider': slider, 'toggle': toggle, **model_dict},
-                        code=open(os.path.join(os.path.dirname(__file__), '../static/plotjs', 'stackf.js')).read())
+                        code=open(os.path.join(os.path.dirname(__file__),
+                                               '../static/js/plotjs',
+                                               'stackf.js')).read()
+                        )
 
     slider.js_on_change('value', callback)
 
-    button = Button(label="Export Bold Light Curve to CSV")
-    button.callback = CustomJS(args={'slider': slider, 'toggle': toggle, **model_dict},
-                               code=open(os.path.join(os.path.dirname(__file__), '../static/plotjs',
-                                                      "download.js")).read().replace('objname', source_id))
-
-
-    toplay = row(slider, button)
     layout = row(plot, toggle)
-    layout = column(toplay, layout)
+    layout = column(slider, layout)
 
     p1 = Panel(child=layout, title='flux')
 
@@ -364,7 +387,8 @@ def photometry_plot(obj_id):
             fill_color='color',
             source=ColumnDataSource(data=dict(mjd=[], flux=[], fluxerr=[],
                                               filter=[], color=[], lim_mag=[],
-                                              mag=[], magerr=[]))
+                                              mag=[], magerr=[], instrument=[],
+                                              stacked=[]))
         )
 
         imhover.renderers.append(model_dict[key])
@@ -381,14 +405,18 @@ def photometry_plot(obj_id):
             y_err_x.append((px, px))
             y_err_y.append((py - err, py + err))
 
-        model_dict[key] = plot.multi_line(xs='xs', ys='ys', color='color', alpha='alpha',
-                                          source=ColumnDataSource(data=dict(xs=y_err_x, ys=y_err_y,
-                                                                  color=df[df['obs']]['color'],
-                                                                  alpha=[1.] * len(df[df['obs']]))))
+        model_dict[key] = plot.multi_line(
+            xs='xs', ys='ys', color='color', alpha='alpha',
+            source=ColumnDataSource(data=dict(xs=y_err_x, ys=y_err_y,
+                                              color=df[df['obs']]['color'],
+                                              alpha=[1.] * len(df[df['obs']])))
+        )
 
         key = f'binerr{i}'
-        model_dict[key] = plot.multi_line(xs='xs', ys='ys', color='color',
-                                          source=ColumnDataSource(data=dict(xs=[], ys=[], color=[])))
+        model_dict[key] = plot.multi_line(
+            xs='xs', ys='ys', color='color',
+            source=ColumnDataSource(data=dict(xs=[], ys=[], color=[]))
+        )
 
         key = f'unobsbin{i}'
         model_dict[key] = plot.scatter(
@@ -399,13 +427,13 @@ def photometry_plot(obj_id):
             line_color='color',
             source=ColumnDataSource(data=dict(mjd=[], flux=[], fluxerr=[],
                                               filter=[], color=[], lim_mag=[],
-                                              mag=[], magerr=[]))
+                                              mag=[], magerr=[], instrument=[],
+                                              stacked=[]))
         )
         imhover.renderers.append(model_dict[key])
 
         key = f'all{i}'
         model_dict[key] = ColumnDataSource(df)
-
 
     plot.xaxis.axis_label = 'MJD'
     plot.yaxis.axis_label = 'mag'
@@ -418,17 +446,34 @@ def photometry_plot(obj_id):
 
     # TODO replace `eval` with Namespaces
     # https://github.com/bokeh/bokeh/pull/6340
-    toggle.callback = CustomJS(args={'toggle': toggle, **model_dict},
-                               code=open(os.path.join(os.path.dirname(__file__), '../static/plotjs', 'togglem.js')).read())
+    toggle.callback = CustomJS(
+        args={'toggle': toggle, **model_dict},
+        code=open(os.path.join(os.path.dirname(__file__),
+                               '../static/js/plotjs', 'togglem.js')
+                  ).read()
+    )
 
-    slider = Slider(start=0., end=15., value=0., step=1., title='binsize (days)')
+    slider = Slider(
+        start=0., end=15., value=0., step=1., title='binsize (days)'
+    )
 
+    button = Button(label="Export Bold Light Curve to CSV")
+    button.callback = CustomJS(
+        args={'slider': slider, 'toggle': toggle, **model_dict},
+        code=open(os.path.join(
+            os.path.dirname(__file__),
+            '../static/js/plotjs',
+            "download.js")).read().replace('objname', obj_id))
+
+    toplay = row(slider, button)
     callback = CustomJS(args={'slider': slider, 'toggle': toggle, **model_dict},
-                        code=open(os.path.join(os.path.dirname(__file__), '../static/plotjs', 'stackm.js')).read())
+                        code=open(os.path.join(os.path.dirname(__file__),
+                                               '../static/js/plotjs',
+                                               'stackm.js')).read())
     slider.js_on_change('value', callback)
 
     layout = row(plot, toggle)
-    layout = column(slider, layout)
+    layout = column(toplay, layout)
 
     p2 = Panel(child=layout, title='mag')
 

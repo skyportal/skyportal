@@ -1,6 +1,6 @@
 /* eslint-disable */
 const binsize = slider.value;
-const fluxalph = ((binsize == 0) ? 1.0 : 0.1);
+const fluxalph = ((binsize === 0) ? 1.0 : 0.1);
 
 for (let i = 0; i < toggle.labels.length; i++) {
   const fluxsource = eval(`obs${i}`).data_source;
@@ -23,14 +23,16 @@ for (let i = 0; i < toggle.labels.length; i++) {
   binsource.data.lim_mag = [];
   binsource.data.mag = [];
   binsource.data.magerr = [];
+  binsource.data.instrument = [];
+  binsource.data.stacked = [];
 
   binerrsource.data.xs = [];
   binerrsource.data.ys = [];
   binerrsource.data.color = [];
 
   for (let j = 0; j < fluxsource.get_length(); j++) {
-    fluxsource.data.alpha[j] = fluxalph;
-    fluxerrsource.data.alpha[j] = fluxalph;
+      fluxsource.data.alpha[j] = fluxalph;
+      fluxerrsource.data.alpha[j] = fluxalph;
   }
 
   if (binsize > 0) {
@@ -69,7 +71,7 @@ for (let i = 0; i < toggle.labels.length; i++) {
       let myflux = 0;
       let mymjd = 0;
 
-      if (weight.length == 0) {
+      if (weight.length === 0) {
         continue;
       }
 
@@ -99,6 +101,8 @@ for (let i = 0; i < toggle.labels.length; i++) {
       binsource.data.mag.push(mymag);
       binsource.data.magerr.push(mymagerr);
       binsource.data.lim_mag.push(mymaglim);
+      binsource.data.instrument.push(fluxsource.data.instrument[0]);
+      binsource.data.stacked.push(True);
 
       binerrsource.data.xs.push([mymjd, mymjd]);
       binerrsource.data.ys.push([myflux - myfluxerr, myflux + myfluxerr]);

@@ -316,16 +316,18 @@ class Comment(Base):
 class Photometry(Base):
     __tablename__ = 'photometry'
 
-    mjd = sa.Column(sa.Float)  # mjd date
+    mjd = sa.Column(sa.Float, nullable=False)  # mjd date
     flux = sa.Column(sa.Float)
-    fluxerr = sa.Column(sa.Float)
-    zp = sa.Column(sa.Float)
+    fluxerr = sa.Column(sa.Float, nullable=False)
+    zp = sa.Column(sa.Float, nullable=False)
     zpsys = sa.Column(sa.Enum(*ALLOWED_MAGSYSTEMS, name="zpsys",
-                              validate_strings=True))
+                              validate_strings=True), nullable=False)
+    filter = sa.Column(sa.Enum(*ALLOWED_BANDPASSES, name="bandpasses",
+                               validate_strings=True), nullable=False)
+
     ra = sa.Column(sa.Float)
     dec = sa.Column(sa.Float)
-    filter = sa.Column(sa.Enum(*ALLOWED_BANDPASSES, name='filters',
-                               validate_strings=True))
+
 
     isdiffpos = sa.Column(sa.Boolean, default=True)  # candidate from position?
 

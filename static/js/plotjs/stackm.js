@@ -1,6 +1,6 @@
 /* eslint-disable */
 const binsize = slider.value;
-const fluxalph = ((binsize == 0) ? 1.0 : 0.1);
+const fluxalph = ((binsize === 0) ? 1.0 : 0.1);
 
 for (let i = 0; i < toggle.labels.length; i++) {
   const fluxsource = eval(`obs${i}`).data_source;
@@ -28,6 +28,8 @@ for (let i = 0; i < toggle.labels.length; i++) {
   binsource.data.lim_mag = [];
   binsource.data.mag = [];
   binsource.data.magerr = [];
+  binsource.data.instrument = [];
+  binsource.data.stacked = [];
 
   binerrsource.data.xs = [];
   binerrsource.data.ys = [];
@@ -41,6 +43,8 @@ for (let i = 0; i < toggle.labels.length; i++) {
   unobsbinsource.data.mag = [];
   unobsbinsource.data.magerr = [];
   unobsbinsource.data.filter = [];
+  unobsbinsource.data.stacked = [];
+  unobsbinsource.data.instrument = [];
 
   for (var j = 0; j < fluxsource.get_length(); j++) {
     fluxsource.data.alpha[j] = fluxalph;
@@ -48,7 +52,9 @@ for (let i = 0; i < toggle.labels.length; i++) {
   }
 
   for (var j = 0; j < unobssource.get_length(); j++) {
-    unobssource.data.alpha[j] = fluxalph;
+    if (!unobssource.data.flux[j].isNaN()){
+      unobssource.data.alpha[j] = fluxalph;
+    }
   }
 
   if (binsize > 0) {
@@ -72,7 +78,9 @@ for (let i = 0; i < toggle.labels.length; i++) {
       let ivarsum = 0;
 
       for (let m = 0; m < allsource.get_length(); m++) {
-        if ((allsource.data.mjd[m] < mjdbins[l + 1]) && (allsource.data.mjd[m] >= mjdbins[l])) {
+        if ((allsource.data.mjd[m] < mjdbins[l + 1]) &&
+            (allsource.data.mjd[m] >= mjdbins[l]) &&
+            (!allsource.data.flux[m].isNaN())) {
           const fluxvar = allsource.data.fluxerr[m] * allsource.data.fluxerr[m];
           const ivar = 1 / fluxvar;
 
@@ -87,7 +95,7 @@ for (let i = 0; i < toggle.labels.length; i++) {
       let myflux = 0;
       let mymjd = 0;
 
-      if (weight.length == 0) {
+      if (weight.length === 0) {
         continue;
       }
 
@@ -127,6 +135,8 @@ for (let i = 0; i < toggle.labels.length; i++) {
       mysource.data.mag.push(mymag);
       mysource.data.magerr.push(mymagerr);
       mysource.data.lim_mag.push(mymaglim);
+      mysource.data.stacked.push(True);
+      mysource.data.instrument.push(allsource.data.instrument[0]);
     }
   }
 
