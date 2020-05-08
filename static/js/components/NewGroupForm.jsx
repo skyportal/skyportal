@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 
+import Box from '@material-ui/core/Box';
+
 import * as Action from '../ducks/groups';
 import styles from './NewGroupForm.css';
 
@@ -32,7 +34,7 @@ const NewGroupForm = () => {
   };
 
   return (
-    <div className={styles.newGroupFormDiv}>
+    <Box p={1}>
       <h3>
         Create New Group
       </h3>
@@ -73,7 +75,7 @@ const NewGroupForm = () => {
           </tbody>
         </table>
       </form>
-    </div>
+    </Box>
   );
 };
 

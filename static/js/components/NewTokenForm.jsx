@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useDispatch } from 'react-redux';
 
@@ -24,14 +24,14 @@ import * as ProfileActions from '../ducks/profile';
 // const NewTokenForm = ({ acls, groups }) => {
 const NewTokenForm = ({ acls }) => {
   const dispatch = useDispatch();
-  const defaultValues = {
-    name: '',
-    acls: Array(50).fill(false) // This should be `acls.length`, but see https://github.com/react-hook-form/react-hook-form/issues/1558
-  };
 
-  const { handleSubmit, register, errors, reset, control } = useForm({
-    defaultValues
-  });
+  const { handleSubmit, register, errors, reset, control } = useForm();
+
+  useEffect(() => {
+    reset({
+      acls: Array(acls.length).fill(false)
+    });
+  }, [reset, acls]);
 
   const onSubmit = async (data) => {
     const selectedACLs = acls.filter((include, idx) => data.acls[idx]);
@@ -78,9 +78,9 @@ const NewTokenForm = ({ acls }) => {
                   control={(
                     <Controller
                       as={Checkbox}
-                      type="checkbox"
                       name={`acls[${idx}]`}
                       control={control}
+                      defaultValue={false}
                     />
                   )}
                   label={acl}

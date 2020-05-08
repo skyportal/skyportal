@@ -21,7 +21,7 @@ const SourceList = () => {
     if (!sources.latest) {
       dispatch(sourcesActions.fetchSources());
     }
-  }, []);
+  }, [sources.latest, dispatch]);
 
   if (sourceTableEmpty) {
     return <UninitializedDBMessage />;
