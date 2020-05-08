@@ -46,7 +46,6 @@ class NumpyArray(sa.types.TypeDecorator):
 class Group(Base):
     name = sa.Column(sa.String, unique=True, nullable=False)
 
-    sources = relationship('Obj', secondary='sources')
     streams = relationship('Stream', secondary='stream_groups',
                            back_populates='groups')
     telescopes = relationship('Telescope', secondary='group_telescopes')

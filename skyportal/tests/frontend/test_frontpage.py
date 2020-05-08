@@ -24,10 +24,10 @@ def test_source_list(driver, user, public_source, private_source):
 
 
 def test_source_filtering_and_pagination(driver, user, public_group, upload_data_token):
-    source_id = str(uuid.uuid4())
+    obj_id = str(uuid.uuid4())
     for i in range(205):
         status, data = api('POST', 'sources',
-                           data={'id': f'{source_id}_{i}',
+                           data={'id': f'{obj_id}_{i}',
                                  'ra': 234.22,
                                  'dec': -22.33,
                                  'redshift': 3,
@@ -37,7 +37,7 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
                                  'group_ids': [public_group.id]},
                            token=upload_data_token)
         assert status == 200
-        assert data['data']['id'] == f'{source_id}_{i}'
+        assert data['data']['id'] == f'{obj_id}_{i}'
 
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     assert 'localhost' in driver.current_url
@@ -80,9 +80,9 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
     assert not prev_button.is_enabled()
     # Source filtering
     assert next_button.is_enabled()
-    source_id = driver.wait_for_xpath("//input[@name='sourceID']")
-    source_id.clear()
-    source_id.send_keys('aaaa')
+    obj_id = driver.wait_for_xpath("//input[@name='sourceID']")
+    obj_id.clear()
+    obj_id.send_keys('aaaa')
     submit = driver.wait_for_xpath("//input[@id='submitQueryButton']")
     driver.scroll_to_element_and_click(submit)
     time.sleep(1)

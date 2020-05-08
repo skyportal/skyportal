@@ -58,17 +58,16 @@ class ThumbnailHandler(BaseHandler):
         if 'photometry_id' in data:
             phot = Photometry.query.get(int(data['photometry_id']))
             obj_id = phot.obj.id
-            # TODO : Ensure user/token has access to parent obj
+            obj = Source.get_if_owned_by(obj_id, self.current_user)
         elif 'obj_id' in data:
             obj_id = data['obj_id']
-            # TODO : Ensure user/token has access to parent source
-            obj = Obj.query.get(obj_id)
+            obj = Source.get_if_owned_by(obj_id, self.current_user)
             try:
                 phot = obj.photometry[0]
             except IndexError:
                 return self.error('Specified source does not yet have any photometry data.')
         else:
-            return self.error('One of either source_id or photometry_id are required.')
+            return self.error('One of either obj_id or photometry_id are required.')
         try:
             t = create_thumbnail(data['data'], data['ttype'], obj_id, phot)
         except ValueError as e:
@@ -103,7 +102,7 @@ class ThumbnailHandler(BaseHandler):
             return self.error(f"Could not load thumbnail {thumbnail_id}",
                               data={"thumbnail_id": thumbnail_id})
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(t.source.id, self.current_user)
+        _ = Source.get_if_owned_by(t.obj.id, self.current_user)
 
         return self.success(data={'thumbnail': t})
 
@@ -136,7 +135,7 @@ class ThumbnailHandler(BaseHandler):
         if t is None:
             return self.error('Invalid thumbnail ID.')
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(t.source.id, self.current_user)
+        _ = Source.get_if_owned_by(t.obj.id, self.current_user)
 
         data = self.get_json()
         data['id'] = thumbnail_id
@@ -176,7 +175,7 @@ class ThumbnailHandler(BaseHandler):
         if t is None:
             return self.error('Invalid thumbnail ID.')
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(t.source.id, self.current_user)
+        _ = Source.get_if_owned_by(t.obj.id, self.current_user)
 
         DBSession.query(Thumbnail).filter(Thumbnail.id == int(thumbnail_id)).delete()
         DBSession().commit()

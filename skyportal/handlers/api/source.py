@@ -147,18 +147,16 @@ class SourceHandler(BaseHandler):
             if info['totalMatches'] == 0:
                 info['sourceNumberingStart'] = 0
         else:
-            if is_token_request:
-                token = self.current_user
-                info['sources'] = list(reduce(
-                    set.union, (set(group.sources) for group in token.groups)))
-            else:
-                info['sources'] = self.current_user.sources
+            info['sources'] = Obj.query.filter(Obj.id.in_(
+                DBSession.query(Source.obj_id).filter(Source.group_id.in_(
+                    [g.id for g in self.current_user.groups]
+                ))
+            )).all()
 
         if info['sources'] is not None:
             return self.success(data=info)
-        else:
-            return self.error(f"Could not load source {obj_id}",
-                              data={"source_id": obj_id})
+
+        return self.error("No matching sources found.")
 
     @permissions(['Upload data'])
     def post(self):
@@ -240,7 +238,7 @@ class SourceHandler(BaseHandler):
         data = self.get_json()
         data['id'] = obj_id
 
-        schema = Source.__schema__()
+        schema = Obj.__schema__()
         try:
             schema.load(data)
         except ValidationError as e:
@@ -251,7 +249,7 @@ class SourceHandler(BaseHandler):
         return self.success(action='skyportal/FETCH_SOURCES')
 
     @permissions(['Manage sources'])
-    def delete(self, obj_id):
+    def delete(self, obj_id, group_id):
         """
         ---
         description: Delete a source
@@ -267,8 +265,12 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        s = Source.get_if_owned_by(obj_id, self.current_user)
-        DBSession.query(Source).filter(Source.obj_id == obj_id).delete()
+        if group_id not in [g.id for g in self.current_user.groups]:
+            return self.error("Inadequate permissions.")
+        s = (DBSession.query(Source).filter(Source.obj_id == obj_id)
+             .filter(Source.group_id == group_id).first())
+        s.active = False
+        s.unsaved_by = self.current_user
         DBSession().commit()
 
         return self.success(action='skyportal/FETCH_SOURCES')

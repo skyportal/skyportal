@@ -141,7 +141,7 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(Photometry.query.get(photometry_id).source_id,
+        s = Source.get_if_owned_by(Photometry.query.get(photometry_id).obj_id,
                                    self.current_user)
         data = self.get_json()
         data['id'] = photometry_id
@@ -178,7 +178,7 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(Photometry.query.get(photometry_id).source_id,
+        s = Source.get_if_owned_by(Photometry.query.get(photometry_id).obj_id,
                                    self.current_user)
         DBSession.query(Photometry).filter(Photometry.id == int(photometry_id)).delete()
         DBSession().commit()

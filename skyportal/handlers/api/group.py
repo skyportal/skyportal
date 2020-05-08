@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Group, GroupUser, User, Token, Obj, Source
+from ...models import DBSession, Group, GroupUser, User, Token
 
 
 class GroupHandler(BaseHandler):
@@ -44,12 +44,11 @@ class GroupHandler(BaseHandler):
         if group_id is not None:
             if 'Manage groups' in [acl.id for acl in self.current_user.acls]:
                 group = Group.query.options(joinedload(Group.users)).options(
-                    joinedload(Group.group_users)).options(
-                        joinedload(Group.sources)).get(group_id)
+                    joinedload(Group.group_users)).get(group_id)
             else:
                 group = Group.query.options([
-                    joinedload(Group.users).load_only(User.id, User.username),
-                    joinedload(Group.sources)]).get(group_id)
+                    joinedload(Group.users).load_only(User.id, User.username)]
+                ).get(group_id)
                 if group is not None and group.id not in [
                         g.id for g in self.current_user.groups]:
                     return self.error('Insufficient permissions.')
@@ -103,14 +102,9 @@ class GroupHandler(BaseHandler):
         if self.current_user not in group_admins and not isinstance(self.current_user, Token):
             group_admins.append(self.current_user)
 
-        source_ids = [s.strip() for s in data.get('source_ids', []) if s.strip()]
-        sources = list(Obj.query.filter(Obj.id.in_(source_ids)))
-
-        g = Group(name=data['name'], sources=sources)
+        g = Group(name=data['name'])
         DBSession().add_all(
             [GroupUser(group=g, user=user, admin=True) for user in group_admins])
-        DBSession.add_all(
-            [Source(group=g, obj=obj) for obj in sources])
         DBSession().commit()
 
         self.push_all(action='skyportal/FETCH_GROUPS')

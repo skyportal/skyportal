@@ -3,7 +3,7 @@ from skyportal.tests import api
 from skyportal.model_util import create_token
 
 
-def test_token_user_create_new_group_no_sources(manage_groups_token, super_admin_user):
+def test_token_user_create_new_group(manage_groups_token, super_admin_user):
     group_name = str(uuid.uuid4())
     status, data = api(
         'POST',
@@ -19,7 +19,6 @@ def test_token_user_create_new_group_no_sources(manage_groups_token, super_admin
                        token=manage_groups_token)
     assert data['status'] == 'success'
     assert data['data']['group']['name'] == group_name
-    assert len(data['data']['group']['sources']) == 0
 
 
 def test_token_user_request_all_groups(manage_groups_token, super_admin_user):
@@ -39,27 +38,6 @@ def test_token_user_request_all_groups(manage_groups_token, super_admin_user):
     assert data['status'] == 'success'
     assert data['data']['user_groups'][-1]['name'] == group_name
     assert data['data']['all_groups'] is None
-
-
-def test_token_user_create_new_group_with_source(manage_groups_token, super_admin_user, public_source):
-    group_name = str(uuid.uuid4())
-    status, data = api(
-        'POST',
-        'groups',
-        data={'name': group_name,
-              'group_admins': [super_admin_user.username],
-              'source_ids': [public_source.id]},
-        token=manage_groups_token)
-    assert status == 200
-    assert data['status'] == 'success'
-    new_group_id = data['data']['id']
-
-    status, data = api('GET', f'groups/{new_group_id}',
-                       token=manage_groups_token)
-    assert data['status'] == 'success'
-    assert data['data']['group']['name'] == group_name
-    assert len(data['data']['group']['sources']) == 1
-    assert data['data']['group']['sources'][0]['id'] == public_source.id
 
 
 def test_token_user_update_group(manage_groups_token, public_group):

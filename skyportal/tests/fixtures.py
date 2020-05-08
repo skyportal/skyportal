@@ -2,9 +2,9 @@ import datetime
 from itertools import cycle, islice
 import uuid
 import numpy as np
-from skyportal.models import (DBSession, User, Source, Group, GroupUser,
-                              GroupSource, Photometry, Spectrum, Instrument,
-                              Telescope, Comment, Thumbnail)
+from skyportal.models import (DBSession, User, Group, GroupUser, Photometry,
+                              Spectrum, Instrument, Telescope, Obj,
+                              Comment, Thumbnail)
 from tempfile import mkdtemp
 
 import factory
@@ -85,9 +85,9 @@ class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
     users = []
 
 
-class SourceFactory(factory.alchemy.SQLAlchemyModelFactory):
+class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
-        model = Source
+        model = Obj
     id = factory.LazyFunction(lambda: str(uuid.uuid4()))
     ra = 0.0
     dec = 0.0
@@ -95,21 +95,21 @@ class SourceFactory(factory.alchemy.SQLAlchemyModelFactory):
     simbad_class = 'RRLyr'
 
     @factory.post_generation
-    def add_phot_spec(source, create, value, *args, **kwargs):
+    def add_phot_spec(obj, create, value, *args, **kwargs):
         instruments = [InstrumentFactory(), InstrumentFactory()]
         filters = ['g', 'rpr', 'ipr']
         for instrument, filter in islice(zip(cycle(instruments), cycle(filters)), 10):
-            phot1 = PhotometryFactory(source_id=source.id,
+            phot1 = PhotometryFactory(obj_id=obj.id,
                                       instrument=instrument,
                                       filter=filter)
             DBSession().add(phot1)
-            DBSession().add(PhotometryFactory(source_id=source.id, mag=99.,
+            DBSession().add(PhotometryFactory(obj_id=obj.id, mag=99.,
                                               e_mag=99., lim_mag=30.,
                                               instrument=instrument,
                                               filter=filter))
             DBSession().add(ThumbnailFactory(photometry=phot1))
-            DBSession().add(CommentFactory(source_id=source.id))
-        DBSession().add(SpectrumFactory(source_id=source.id,
+            DBSession().add(CommentFactory(obj_id=obj.id))
+        DBSession().add(SpectrumFactory(obj_id=obj.id,
                                         instrument=instruments[0]))
         DBSession().commit()
 

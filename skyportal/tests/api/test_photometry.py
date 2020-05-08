@@ -7,7 +7,7 @@ from skyportal.models import Thumbnail, DBSession, Photometry
 
 def test_token_user_post_get_photometry_data(upload_data_token, public_source):
     status, data = api('POST', 'photometry',
-                       data={'source_id': str(public_source.id),
+                       data={'obj_id': str(public_source.id),
                              'observed_at': str(datetime.datetime.now()),
                              'time_format': 'iso',
                              'time_scale': 'utc',
@@ -35,7 +35,7 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
     status, data = api(
         'POST',
         'photometry',
-        data={'source_id': str(public_source.id),
+        data={'obj_id': str(public_source.id),
               'observed_at': [str(datetime.datetime.now()),
                               str(datetime.datetime.now() + datetime.timedelta(days=1)),
                               str(datetime.datetime.now() + datetime.timedelta(days=2))],
@@ -62,7 +62,7 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
 
 def test_post_photometry_no_access_token(view_only_token, public_source):
     status, data = api('POST', 'photometry',
-                       data={'source_id': str(public_source.id),
+                       data={'obj_id': str(public_source.id),
                              'observed_at': str(datetime.datetime.now()),
                              'time_format': 'iso',
                              'time_scale': 'utc',
@@ -81,7 +81,7 @@ def test_token_user_update_photometry(upload_data_token,
                                       manage_sources_token,
                                       public_source):
     status, data = api('POST', 'photometry',
-                       data={'source_id': str(public_source.id),
+                       data={'obj_id': str(public_source.id),
                              'observed_at': str(datetime.datetime.now()),
                              'time_format': 'iso',
                              'time_scale': 'utc',
@@ -119,7 +119,7 @@ def test_token_user_update_photometry(upload_data_token,
 def test_delete_photometry_data(upload_data_token, manage_sources_token,
                                 public_source):
     status, data = api('POST', 'photometry',
-                       data={'source_id': str(public_source.id),
+                       data={'obj_id': str(public_source.id),
                              'observed_at': str(datetime.datetime.now()),
                              'time_format': 'iso',
                              'time_scale': 'utc',
@@ -181,7 +181,7 @@ def test_token_user_post_photometry_thumbnail(upload_data_token, public_source):
         for suffix in ['new', 'ref', 'sub']
     ]
     status, data = api('POST', 'photometry',
-                       data={'source_id': str(public_source.id),
+                       data={'obj_id': str(public_source.id),
                              'observed_at': str(datetime.datetime.now()),
                              'time_format': 'iso',
                              'time_scale': 'utc',

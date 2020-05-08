@@ -28,19 +28,19 @@ warnings.simplefilter('ignore', category=AstropyWarning)
 
 facility_parameters = {
     'Keck': {
-        "radius_degrees": 2.0/60,
+        "radius_degrees": 2.0 / 60,
         "mag_limit": 18.5,
         "mag_min": 11.0,
         "min_sep_arcsec": 4.0
     },
     'P200': {
-        "radius_degrees": 2.0/60,
+        "radius_degrees": 2.0 / 60,
         "mag_limit": 18.0,
         "mag_min": 10.0,
         "min_sep_arcsec": 5.0
     },
     'Shane': {
-        "radius_degrees": 2.5/60,
+        "radius_degrees": 2.5 / 60,
         "mag_limit": 17.0,
         "mag_min": 10.0,
         "min_sep_arcsec": 5.0
@@ -81,7 +81,7 @@ def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
         the URL to download the ZTF image
 
     """
-    imsize_deg = imsize/60
+    imsize_deg = imsize / 60
 
     url_ref_meta = os.path.join(
         irsa['url_search'],
@@ -147,7 +147,6 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
                             allowed_queries=2,
                             queries_issued=0
                             ):
-
     """Finds good list of nearby offset stars for spectroscopy
        and returns info about those stars, including their
        offsets calculated to the source of interest
@@ -235,7 +234,7 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
 
     # star needs to be this far away
     # from another star
-    min_sep = min_sep_arcsec*u.arcsec
+    min_sep = min_sep_arcsec * u.arcsec
     good_list = []
     for source in r:
         c = SkyCoord(

@@ -1,9 +1,8 @@
-import tornado.web
 import base64
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, User, Comment, Role
+from ...models import DBSession, Source, Comment
 
 
 class CommentHandler(BaseHandler):
@@ -32,11 +31,10 @@ class CommentHandler(BaseHandler):
         if comment is None:
             return self.error('Invalid comment ID.')
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(comment.source.id, self.current_user)
+        _ = Source.get_if_owned_by(comment.obj_id, self.current_user)
         if comment is not None:
             return self.success(data={'comment': comment})
-        else:
-            return self.error('Invalid comment ID.')
+        return self.error('Invalid comment ID.')
 
     @permissions(['Comment'])
     def post(self):
@@ -56,7 +54,7 @@ class CommentHandler(BaseHandler):
                     - Success
                     - type: object
                       properties:
-                        source_id:
+                        obj_id:
                           type: integer
                           description: Associated source ID
         """
