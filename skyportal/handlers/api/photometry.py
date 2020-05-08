@@ -1,5 +1,6 @@
 import arrow
 from astropy.time import Time
+import pandas as pd
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -8,6 +9,8 @@ from ...models import (
     DBSession, Photometry, Instrument, Source, Obj
 )
 
+
+PHOTOMETRY_COLUMNS = ['mjd', 'flux', 'fluxerr', 'zpsys', 'zp', 'filter']
 
 class PhotometryHandler(BaseHandler):
     @permissions(['Upload data'])
@@ -32,18 +35,20 @@ class PhotometryHandler(BaseHandler):
                           type: array
                           description: List of new photometry IDs
         """
+
         data = self.get_json()
 
-        # TODO should filters be a table/plaintext/limited set of strings?
-        if 'time_format' not in data or 'time_scale' not in data:
-            return self.error('Time scale (\'time_scale\') and time format '
-                              '(\'time_format\') are required parameters.')
-        if not isinstance(data['mag'], (list, tuple)):
-            data['observed_at'] = [data['observed_at']]
-            data['mag'] = [data['mag']]
-            data['e_mag'] = [data['e_mag']]
-            data['lim_mag'] = [data['lim_mag']]
-            data['filter'] = [data['filter']]
+        if 'mjd' not in data :
+            return self.error('mjd is a required parameter.')
+        if not isinstance(data['flux'], (list, tuple)):
+            for colname in PHOTOMETRY_COLUMNS:
+                data[colname] = [data[colname]]
+
+        try:
+            lc = pd.DataFrame(data)[PHOTOMETRY_COLUMNS]
+        except ValueError:
+            return self.error('Improperly formatted input data')
+
         ids = []
         instrument = Instrument.query.get(data['instrument_id'])
         if not instrument:
@@ -52,23 +57,17 @@ class PhotometryHandler(BaseHandler):
         if not obj:
             return self.error('Invalid object ID')
         converted_times = []
-        for i in range(len(data['mag'])):
-            t = Time(
-                data["observed_at"][i].replace("T", " ").split("+")[0],
-                format=data["time_format"],
-                scale=data["time_scale"],
-            )
-            observed_at = arrow.get(t.tcb.iso)
-            converted_times.append(observed_at)
+
+        for i, row in lc.iterrows():
             p = Photometry(obj=obj,
-                           observed_at=observed_at,
-                           mag=data['mag'][i],
-                           e_mag=data['e_mag'][i],
-                           time_scale='tcb',
-                           time_format='iso',
+                           mjd=row['mjd'],
+                           flux=row['flux'],
+                           fluxerr=row['fluxerr'],
                            instrument=instrument,
-                           lim_mag=data['lim_mag'][i],
-                           filter=data['filter'][i])
+                           filter=row['filter'],
+                           zpsys=row['zpsys'],
+                           zp=row['zp'])
+
             DBSession().add(p)
             DBSession().flush()
             ids.append(p.id)

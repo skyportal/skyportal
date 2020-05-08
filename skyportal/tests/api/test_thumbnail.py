@@ -20,16 +20,15 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group):
     assert status == 200
     assert data['data']['id'] == source_id
     status, data = api('POST', 'photometry',
-                       data={'source_id': source_id,
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                       data={'obj_id': source_id,
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
                              'filter': 'bessellv'
-                             },
+                       },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -80,14 +79,13 @@ def test_token_user_delete_thumbnail_cascade_source(upload_data_token,
     assert status == 200
     assert data['data']['id'] == source_id
     status, data = api('POST', 'photometry',
-                       data={'source_id': source_id,
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                       data={'obj_id': source_id,
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
                              'filter': 'bessellv'
                        },
                        token=upload_data_token)
@@ -148,14 +146,13 @@ def test_token_user_post_get_thumbnail_phot_id(upload_data_token, public_group):
     assert status == 200
     assert data['data']['id'] == source_id
     status, data = api('POST', 'photometry',
-                       data={'source_id': source_id,
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                       data={'obj_id': source_id,
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
                              'filter': 'bessellv'
                        },
                        token=upload_data_token)
@@ -207,14 +204,13 @@ def test_cannot_post_thumbnail_invalid_ttype(upload_data_token, public_group):
     assert status == 200
     assert data['data']['id'] == source_id
     status, data = api('POST', 'photometry',
-                       data={'source_id': source_id,
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                       data={'obj_id': source_id,
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
                              'filter': 'bessellv'
                        },
                        token=upload_data_token)
@@ -249,14 +245,13 @@ def test_cannot_post_thumbnail_invalid_image_type(upload_data_token, public_grou
     assert status == 200
     assert data['data']['id'] == source_id
     status, data = api('POST', 'photometry',
-                       data={'source_id': source_id,
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                       data={'obj_id': source_id,
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
                              'filter': 'bessellv'
                        },
                        token=upload_data_token)
@@ -291,14 +286,13 @@ def test_cannot_post_thumbnail_invalid_size(upload_data_token, public_group):
     assert status == 200
     assert data['data']['id'] == source_id
     status, data = api('POST', 'photometry',
-                       data={'source_id': source_id,
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                       data={'obj_id': source_id,
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
                              'filter': 'bessellv'
                        },
                        token=upload_data_token)
@@ -309,7 +303,7 @@ def test_cannot_post_thumbnail_invalid_size(upload_data_token, public_group):
                                  'rb').read())
     ttype = 'ref'
     status, data = api('POST', 'thumbnail',
-                       data={'source_id': source_id,
+                       data={'obj_id': source_id,
                              'data': data,
                              'ttype': ttype
                        },
@@ -334,14 +328,13 @@ def test_cannot_post_thumbnail_invalid_file_type(upload_data_token, public_group
     assert status == 200
     assert data['data']['id'] == source_id
     status, data = api('POST', 'photometry',
-                       data={'source_id': source_id,
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                       data={'obj_id': source_id,
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
                              'filter': 'bessellv'
                        },
                        token=upload_data_token)
@@ -352,7 +345,7 @@ def test_cannot_post_thumbnail_invalid_file_type(upload_data_token, public_group
                                  'rb').read())
     ttype = 'ref'
     status, data = api('POST', 'thumbnail',
-                       data={'source_id': source_id,
+                       data={'obj_id': source_id,
                              'data': data,
                              'ttype': ttype
                        },

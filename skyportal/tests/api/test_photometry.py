@@ -8,13 +8,12 @@ from skyportal.models import Thumbnail, DBSession, Photometry
 def test_token_user_post_get_photometry_data(upload_data_token, public_source):
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
                              'filter': 'bessellv'
                        },
                        token=upload_data_token)
@@ -28,7 +27,7 @@ def test_token_user_post_get_photometry_data(upload_data_token, public_source):
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['photometry']['mag'] == 12.24
+    assert data['data']['photometry']['flux'] == 12.24
 
 
 def test_token_user_post_photometry_data_series(upload_data_token, public_source):
@@ -36,16 +35,13 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
         'POST',
         'photometry',
         data={'obj_id': str(public_source.id),
-              'observed_at': [str(datetime.datetime.now()),
-                              str(datetime.datetime.now() + datetime.timedelta(days=1)),
-                              str(datetime.datetime.now() + datetime.timedelta(days=2))],
-              'time_format': 'iso',
-              'time_scale': 'utc',
+              'mjd': [58000., 58001., 58002.],
               'instrument_id': 1,
-              'mag': [12.24, 12.52, 12.70],
-              'e_mag': [0.031, 0.029, 0.030],
-              'lim_mag': [14.1, 14.1, 14.1],
-              'filter': ['bessellv', 'bessellv', 'bessellv']},
+              'flux': [12.24, 12.52, 12.70],
+              'fluxerr': [0.031, 0.029, 0.030],
+              'filter': ['bessellv', 'bessellv', 'bessellv'],
+              'zp': [25., 25., 25.],
+              'zpsys': ['ab', 'ab', 'ab']},
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -57,19 +53,18 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['photometry']['mag'] == 12.52
+    assert data['data']['photometry']['flux'] == 12.52
 
 
 def test_post_photometry_no_access_token(view_only_token, public_source):
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
                              'filter': 'bessellv'
                        },
                        token=view_only_token)
@@ -82,13 +77,12 @@ def test_token_user_update_photometry(upload_data_token,
                                       public_source):
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
                              'filter': 'bessellv'
                        },
                        token=upload_data_token)
@@ -102,31 +96,30 @@ def test_token_user_update_photometry(upload_data_token,
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['photometry']['mag'] == 12.24
+    assert data['data']['photometry']['flux'] == 12.24
 
     status, data = api(
         'PUT',
         f'photometry/{photometry_id}',
-        data={'mag': 11.0},
+        data={'flux': 11.0},
         token=manage_sources_token)
     status, data = api(
         'GET',
         f'photometry/{photometry_id}',
         token=upload_data_token)
-    assert data['data']['photometry']['mag'] == 11.0
+    assert data['data']['photometry']['flux'] == 11.0
 
 
 def test_delete_photometry_data(upload_data_token, manage_sources_token,
                                 public_source):
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
                              'filter': 'bessellv'
                        },
                        token=upload_data_token)
@@ -140,7 +133,7 @@ def test_delete_photometry_data(upload_data_token, manage_sources_token,
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['photometry']['mag'] == 12.24
+    assert data['data']['photometry']['flux'] == 12.24
 
     status, data = api(
         'DELETE',
@@ -182,15 +175,13 @@ def test_token_user_post_photometry_thumbnail(upload_data_token, public_source):
     ]
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
-                             'filter': 'bessellv',
-                             'thumbnails': thumbnails
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
+                             'filter': 'bessellv'
                        },
                        token=upload_data_token)
     assert status == 200
@@ -203,7 +194,7 @@ def test_token_user_post_photometry_thumbnail(upload_data_token, public_source):
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['photometry']['mag'] == 12.24
+    assert data['data']['photometry']['flux'] == 12.24
 
     assert len(DBSession.query(Photometry).filter(Photometry.id == photometry_id)
                .first().thumbnails) == 3
