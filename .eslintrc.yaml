@@ -2,8 +2,15 @@
 parser: babel-eslint
 env:
   browser: true
-extends: [airbnb, plugin:react/recommended]
-plugins: [import, react]
+plugins: [
+  "import",
+  "react",
+  "react-hooks"
+]
+extends: [
+  "airbnb",
+  "plugin:react/recommended"
+]
 settings:
   import/resolver:
     node: {}
@@ -23,3 +30,5 @@ rules:
   jsx-a11y/click-events-have-key-events: 0
   jsx-a11y/label-has-associated-control: 0
   jsx-a11y/control-has-associated-label: 0
+  react-hooks/rules-of-hooks: "error"
+  react-hooks/exhaustive-deps: "warn"

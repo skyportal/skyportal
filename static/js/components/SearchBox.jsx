@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import PropTypes from "prop-types";
-import { useDispatch } from "react-redux";
+import React, { useState } from 'react';
+import PropTypes from 'prop-types';
+import { useDispatch } from 'react-redux';
 
 import Paper from "@material-ui/core/Paper";
 import Button from "@material-ui/core/Button";
@@ -282,10 +282,8 @@ const SearchBox = ({ sources }) => {
 SearchBox.propTypes = {
   sources: PropTypes.shape({
     lastPage: PropTypes.bool,
-    latest: PropTypes.any,
     pageNumber: PropTypes.number,
     sourceNumberingStart: PropTypes.any,
-    sourcesNumberingEnd: PropTypes.any,
     totalMatches: PropTypes.any,
     queryInProgress: PropTypes.any,
     sourceNumberingEnd: PropTypes.any,

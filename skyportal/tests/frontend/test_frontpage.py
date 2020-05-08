@@ -96,15 +96,15 @@ def test_jump_to_page_invalid_values(driver):
     jump_to_page_input.send_keys('3')
     jump_to_page_button = driver.wait_for_xpath('//button[text()="Jump to page:"]')
     driver.scroll_to_element_and_click(jump_to_page_button)
-    driver.wait_for_xpath('//div[contains(.,"Backend error: Page number out of range")]')
+    driver.wait_for_xpath('//div[contains(.,"Page number out of range")]')
     jump_to_page_input.clear()
     jump_to_page_input.send_keys('0')
-    driver.scroll_to_element_and_click(jump_to_page_button)
-    driver.wait_for_xpath('//div[contains(.,"Backend error: Page number out of range")]')
+    jump_to_page_button.click()
+    driver.wait_for_xpath('//div[contains(.,"Page number out of range")]')
     jump_to_page_input.clear()
     jump_to_page_input.send_keys('abc')
     jump_to_page_button.click()
-    driver.wait_for_xpath('//div[contains(.,"Backend error: Invalid page number value")]')
+    driver.wait_for_xpath('//div[contains(.,"Invalid page number value")]')
 
 
 def test_skyportal_version_displayed(driver):

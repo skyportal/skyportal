@@ -9,7 +9,7 @@ const UserInfo = ({ route }) => {
   const dispatch = useDispatch();
   useEffect(() => {
     dispatch(Action.fetchUser(route.id));
-  }, []);
+  }, [route.id, dispatch]);
   const users = useSelector((state) => state.users);
   const user_info = users[route.id];
   if (user_info === undefined) {

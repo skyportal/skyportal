@@ -50,7 +50,7 @@ const Thumbnail = ({ ra, dec, telescope, observed_at, name, url }) => {
         </b>
         <br />
         <div className={styles.thumbnailimgdiv}>
-          <img className={name === "dr8" && styles.dr8crosshairs} src={url} alt={alt} title={alt} />
+          <img className={(name === "dr8" && styles.dr8crosshairs) || ""} src={url} alt={alt} title={alt} />
           {
             (name === "dr8") &&
             <img className={styles.dr8crosshairs} src="/static/images/crosshairs.png" alt="" />

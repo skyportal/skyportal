@@ -19,24 +19,30 @@ import FollowupRequestList from './FollowupRequestList';
 const Source = ({ route }) => {
   const dispatch = useDispatch();
   const source = useSelector((state) => state.source);
-  const isCached = () => {
-    const cachedSourceID = source ? source.id : null;
-    return route.id === cachedSourceID;
-  };
+  const cachedSourceId = source ? source.id : null;
+  const isCached = (route.id === cachedSourceId);
+
   useEffect(() => {
-    if (!isCached()) {
-      dispatch(Action.fetchSource(route.id));
-      dispatch(Action.addSourceView(route.id));
+    const fetchSource = async () => {
+      const data = await dispatch(Action.fetchSource(route.id));
+      if (data.status === "success") {
+        dispatch(Action.addSourceView(route.id));
+      }
+    };
+
+    if (!isCached) {
+      fetchSource();
     }
-  }, []);
+  }, [dispatch, isCached, route.id]);
   const { instrumentList, instrumentObsParams } = useSelector((state) => state.instruments);
   if (source.loadError) {
     return (
       <div>
-        Could not retrieve requested source
+        { source.loadError }
       </div>
     );
-  } else if (!isCached()) {
+  }
+  if (!isCached) {
     return (
       <div>
         <span>
@@ -44,104 +50,105 @@ const Source = ({ route }) => {
         </span>
       </div>
     );
-  } else if (source.id === undefined) {
+  }
+  if (source.id === undefined) {
     return (
       <div>
         Source not found
       </div>
     );
-  } else {
-    return (
-      <div className={styles.source}>
+  }
 
-        <div className={styles.leftColumn}>
+  return (
+    <div className={styles.source}>
 
-          <div className={styles.name}>
-            {source.id}
-          </div>
+      <div className={styles.leftColumn}>
 
-          <b>
-            Position (J2000):
-          </b>
-          &nbsp;
-          {source.ra}
-          ,
-          &nbsp;
-          {source.dec}
-          &nbsp;
-          (&alpha;,&delta;=
-          {ra_to_hours(source.ra)}
-          ,
-          &nbsp;
-          {dec_to_hours(source.dec)}
-          )
-          <br />
-          <b>
-            Redshift:
-            &nbsp;
-          </b>
-          {source.redshift}
-          <br />
-          <ThumbnailList ra={source.ra} dec={source.dec} thumbnails={source.thumbnails} />
-
-          <br />
-          <br />
-          <Responsive
-            element={FoldBox}
-            title="Photometry"
-            mobileProps={{ folded: true }}
-          >
-            <Plot className={styles.plot} url={`/api/internal/plot/photometry/${source.id}`} />
-          </Responsive>
-
-          <Responsive
-            element={FoldBox}
-            title="Spectroscopy"
-            mobileProps={{ folded: true }}
-          >
-
-            <Plot className={styles.plot} url={`/api/internal/plot/spectroscopy/${source.id}`} />
-          </Responsive>
-
-          { /* TODO 1) check for dead links; 2) simplify link formatting if possible */ }
-          <Responsive
-            element={FoldBox}
-            title="Surveys"
-            mobileProps={{ folded: true }}
-          >
-
-            <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
-
-          </Responsive>
-          <FollowupRequestForm
-            source_id={source.id}
-            action="createNew"
-            instrumentList={instrumentList}
-            instrumentObsParams={instrumentObsParams}
-          />
-          <FollowupRequestList
-            followupRequests={source.followup_requests}
-            instrumentList={instrumentList}
-            instrumentObsParams={instrumentObsParams}
-          />
+        <div className={styles.name}>
+          {source.id}
         </div>
 
-        <div className={styles.rightColumn}>
+        <b>
+          Position (J2000):
+        </b>
+        &nbsp;
+        {source.ra}
+        ,
+        &nbsp;
+        {source.dec}
+        &nbsp;
+        (&alpha;,&delta;=
+        {ra_to_hours(source.ra)}
+        ,
+        &nbsp;
+        {dec_to_hours(source.dec)}
+        )
+        <br />
+        <b>
+          Redshift:
+          &nbsp;
+        </b>
+        {source.redshift}
+        <br />
+        <ThumbnailList ra={source.ra} dec={source.dec} thumbnails={source.thumbnails} />
 
-          <Responsive
-            element={FoldBox}
-            title="Comments"
-            mobileProps={{ folded: true }}
-            className={styles.comments}
-          >
-            <CommentList />
-          </Responsive>
+        <br />
+        <br />
+        <Responsive
+          element={FoldBox}
+          title="Photometry"
+          mobileProps={{ folded: true }}
+        >
+          <Plot className={styles.plot} url={`/api/internal/plot/photometry/${source.id}`} />
+        </Responsive>
 
-        </div>
+        <Responsive
+          element={FoldBox}
+          title="Spectroscopy"
+          mobileProps={{ folded: true }}
+        >
+
+          <Plot className={styles.plot} url={`/api/internal/plot/spectroscopy/${source.id}`} />
+        </Responsive>
+
+        { /* TODO 1) check for dead links; 2) simplify link formatting if possible */ }
+        <Responsive
+          element={FoldBox}
+          title="Surveys"
+          mobileProps={{ folded: true }}
+        >
+
+          <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
+
+        </Responsive>
+        <FollowupRequestForm
+          source_id={source.id}
+          action="createNew"
+          instrumentList={instrumentList}
+          instrumentObsParams={instrumentObsParams}
+        />
+        <FollowupRequestList
+          followupRequests={source.followup_requests}
+          instrumentList={instrumentList}
+          instrumentObsParams={instrumentObsParams}
+        />
+      </div>
+
+      <div className={styles.rightColumn}>
+
+        <Responsive
+          element={FoldBox}
+          title="Comments"
+          mobileProps={{ folded: true }}
+          className={styles.comments}
+        >
+          <CommentList />
+        </Responsive>
 
       </div>
-    );
-  }
+
+    </div>
+  );
 };
 
 Source.propTypes = {

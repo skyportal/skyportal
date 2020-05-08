@@ -4,7 +4,6 @@ import store from '../store';
 
 export const FETCH_SOURCE_PLOT = 'skyportal/FETCH_SOURCE_PLOT';
 export const FETCH_SOURCE_PLOT_OK = 'skyportal/FETCH_SOURCE_PLOT_OK';
-export const FETCH_SOURCE_PLOT_FAIL = 'skyportal/FETCH_SOURCE_PLOT_FAIL';
 
 
 export function fetchPlotData(url) {
