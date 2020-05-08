@@ -2,19 +2,15 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
 
-import {
-  Paper,
-  Button,
-  ButtonGroup,
-  Checkbox,
-  FormControlLabel,
-  TextField,
-} from "@material-ui/core";
+import Paper from "@material-ui/core/Paper";
+import Button from "@material-ui/core/Button";
+import ButtonGroup from "@material-ui/core/ButtonGroup";
+import Checkbox from "@material-ui/core/Checkbox";
+import FormControlLabel from "@material-ui/core/FormControlLabel";
+import TextField from "@material-ui/core/TextField";
 import { makeStyles } from "@material-ui/core/styles";
 
 import * as Actions from "../ducks/sources";
-
-import styles from "./SearchBox.css";
 
 const SearchBox = ({ sources }) => {
   const dispatch = useDispatch();
@@ -233,16 +229,15 @@ const SearchBox = ({ sources }) => {
         </div>
       </form>
       {sources && (
-        <div className={styles.tableSubTitle}>
+        <div>
           <div style={{ display: "inline-block" }}>
-            <button
-              className={styles.inlineButton}
+            <Button
               type="button"
               onClick={handleClickPreviousPage}
               disabled={sources.pageNumber === 1}
             >
               View Previous 100 Sources
-            </button>
+            </Button>
           </div>
           <div style={{ display: "inline-block" }}>
             <i>
@@ -256,20 +251,19 @@ const SearchBox = ({ sources }) => {
             </i>
           </div>
           <div style={{ display: "inline-block" }}>
-            <button
-              className={styles.inlineButton}
+            <Button
               type="button"
               onClick={handleClickNextPage}
               disabled={sources.lastPage}
             >
               View Next 100 Sources
-            </button>
+            </Button>
           </div>
           <div>
             <i>or&nbsp;&nbsp;</i>
-            <button type="button" onClick={handleClickJumpToPage}>
+            <Button type="button" onClick={handleClickJumpToPage}>
               Jump to page:
-            </button>
+            </Button>
             &nbsp;&nbsp;
             <input
               type="text"
