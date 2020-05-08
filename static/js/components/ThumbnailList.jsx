@@ -11,7 +11,6 @@ dayjs.extend(calendar);
 
 
 const Thumbnail = ({ ra, dec, telescope, mjd, name, url }) => {
-
   const unixt = (mjd - 40587.0) * 86400000;
   const observed_at = new Date(unixt); // a new date
   const observed_at_str = dayjs(observed_at).toString();
