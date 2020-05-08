@@ -135,7 +135,7 @@ for (let i = 0; i < toggle.labels.length; i++) {
       mysource.data.mag.push(mymag);
       mysource.data.magerr.push(mymagerr);
       mysource.data.lim_mag.push(mymaglim);
-      mysource.data.stacked.push(True);
+      mysource.data.stacked.push(true);
       mysource.data.instrument.push(allsource.data.instrument[0]);
     }
   }

@@ -102,7 +102,7 @@ for (let i = 0; i < toggle.labels.length; i++) {
       binsource.data.magerr.push(mymagerr);
       binsource.data.lim_mag.push(mymaglim);
       binsource.data.instrument.push(fluxsource.data.instrument[0]);
-      binsource.data.stacked.push(True);
+      binsource.data.stacked.push(true);
 
       binerrsource.data.xs.push([mymjd, mymjd]);
       binerrsource.data.ys.push([myflux - myfluxerr, myflux + myfluxerr]);
