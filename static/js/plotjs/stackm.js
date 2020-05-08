@@ -14,11 +14,8 @@ for (let i = 0; i < toggle.labels.length; i++) {
 
   const allsource = eval(`all${i}`);
 
-  const minmjd = Math.min.apply(Math, allsource.data.mjd);
-
-  const date = new Date(); // a new date
-  const time = date.getTime(); // the timestamp, not neccessarely using UTC as current time
-  const maxmjd = ((time / 86400000) - (date.getTimezoneOffset()/1440) + 40587.0);
+  const minmjd = Math.min.apply(Math, fluxsource.data.mjd) - 15;
+  const maxmjd = Math.max.apply(Math, fluxsource.data.mjd) + 15;
 
   binsource.data.mjd = [];
   binsource.data.flux = [];
@@ -52,7 +49,7 @@ for (let i = 0; i < toggle.labels.length; i++) {
   }
 
   for (var j = 0; j < unobssource.get_length(); j++) {
-    if (!unobssource.data.flux[j].isNaN()){
+    if (isFinite(unobssource.data.flux[j])){
       unobssource.data.alpha[j] = fluxalph;
     }
   }
@@ -80,7 +77,7 @@ for (let i = 0; i < toggle.labels.length; i++) {
       for (let m = 0; m < allsource.get_length(); m++) {
         if ((allsource.data.mjd[m] < mjdbins[l + 1]) &&
             (allsource.data.mjd[m] >= mjdbins[l]) &&
-            (!allsource.data.flux[m].isNaN())) {
+            (isFinite(allsource.data.flux[m]))) {
           const fluxvar = allsource.data.fluxerr[m] * allsource.data.fluxerr[m];
           const ivar = 1 / fluxvar;
 
