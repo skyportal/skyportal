@@ -31,7 +31,7 @@ def add_telescope_and_instrument(instrument_name, group_ids, token):
         data={
             "name": instrument_name,
             "type": "type",
-            "band": "V",
+            "band": "bessellv",
             "telescope_id": telescope_id,
         },
         token=token,
@@ -71,7 +71,7 @@ def test_submit_new_followup_request(
             '//div[contains(@class,"react-datepicker__day react-datepicker__day--014")]'
         )
     )
-    driver.wait_for_xpath('//input[@value="u"]').click()
+    driver.wait_for_xpath('//input[@value="sdssu"]').click()
     exposure_select = Select(driver.wait_for_xpath('//select[@name="exposure_time"]'))
     exposure_select.select_by_visible_text("120s")
     priority_select = Select(driver.wait_for_xpath('//select[@name="priority"]'))
@@ -118,7 +118,7 @@ def test_edit_existing_followup_request(
             '//div[contains(@class,"react-datepicker__day react-datepicker__day--014")]'
         )
     )
-    driver.wait_for_xpath('//input[@value="u"]').click()
+    driver.wait_for_xpath('//input[@value="sdssu"]').click()
     exposure_select = Select(driver.wait_for_xpath('//select[@name="exposure_time"]'))
     exposure_select.select_by_visible_text("120s")
     priority_select = Select(driver.wait_for_xpath('//select[@name="priority"]'))
@@ -169,7 +169,7 @@ def test_delete_followup_request(
             '//div[contains(@class,"react-datepicker__day react-datepicker__day--014")]'
         )
     )
-    driver.wait_for_xpath('//input[@value="u"]').click()
+    driver.wait_for_xpath('//input[@value="sdssu"]').click()
     exposure_select = Select(driver.wait_for_xpath('//select[@name="exposure_time"]'))
     exposure_select.select_by_visible_text("120s")
     priority_select = Select(driver.wait_for_xpath('//select[@name="priority"]'))
@@ -224,7 +224,7 @@ def test_cannot_edit_uneditable_followup_request(
         )
     )
     filter_select = Select(driver.wait_for_xpath('//select[@name="filters"]'))
-    filter_select.select_by_visible_text("u")
+    filter_select.select_by_visible_text("sdssu")
     priority_select = Select(driver.wait_for_xpath('//select[@name="priority"]'))
     priority_select.select_by_visible_text("1")
     submit_button.click()
