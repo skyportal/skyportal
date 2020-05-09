@@ -45,9 +45,9 @@ class PhotometryHandler(BaseHandler):
                 data[colname] = [data[colname]]
 
         try:
-            lc = pd.DataFrame({k: data[k] for k in PHOTOMETRY_COLUMNS})
-        except ValueError as e:
-            return self.error(f'Improperly formatted input data: {e}')
+            lc = pd.DataFrame(data)[PHOTOMETRY_COLUMNS]
+        except ValueError:
+            return self.error('Improperly formatted input data')
 
         ids = []
         instrument = Instrument.query.get(data['instrument_id'])
@@ -67,6 +67,9 @@ class PhotometryHandler(BaseHandler):
                            filter=row['filter'],
                            zpsys=row['zpsys'],
                            zp=row['zp'])
+
+            t = Time(row['mjd'], format='mjd')
+            converted_times.append(t.iso)
 
             DBSession().add(p)
             DBSession().flush()
