@@ -13,10 +13,14 @@ from bokeh.util.compiler import bundle_all_models
 from bokeh.util.serialization import make_id
 from arrow.arrow import Arrow
 
+from matplotlib import cm
+from matplotlib.colors import rgb2hex
+
 import os
 from skyportal.models import (DBSession, Obj, Photometry,
                               Instrument, Telescope)
 
+import sncosmo
 from sncosmo.photdata import PhotometricData
 from astropy.table import Table
 
@@ -152,6 +156,21 @@ tooltip_format = [('mjd', '@mjd{0.000000}'),
                   ('lim_mag', '@lim_mag'),
                   ('instrument', '@instrument'),
                   ('stacked', '@stacked')]
+cmap = cm.get_cmap('jet_r')
+
+
+def get_color(bandpass_name, cmap_limits=(3000., 10000.)):
+    if bandpass_name.startswith('ztf'):
+        return {'ztfg': 'green', 'ztfi': 'orange', 'ztfr': 'red'}[bandpass_name]
+    else:
+        bandpass = sncosmo.get_bandpass(bandpass_name)
+        wave = bandpass.wave_eff
+        rgb = cmap((cmap_limits[1] - wave) /
+                   (cmap_limits[1] - cmap_limits[0])
+                   )[:3]
+        bandcolor = rgb2hex(rgb)
+
+        return bandcolor
 
 
 # TODO make async so that thread isn't blocked
@@ -166,9 +185,9 @@ def photometry_plot(obj_id):
     (str, str)
         Returns (docs_json, render_items) json for the desired plot.
     """
-    color_map = {'ipr': 'yellow', 'rpr': 'red',
-                 'ztfg': 'green', 'ztfi': 'orange',
-                 'ztfr': 'red'}
+
+
+
 
     data = pd.read_sql(DBSession()
                        .query(Photometry, Telescope.nickname.label('telescope'),
@@ -179,7 +198,7 @@ def photometry_plot(obj_id):
     if data.empty:
         return None, None, None
 
-    data['color'] = [color_map.get(f, 'black') for f in data['filter']]
+    data['color'] = [get_color(f) for f in data['filter']]
     data['label'] = [f'{i} {f}-band' for i, f in zip(data['instrument'],
                                                      data['filter'])]
 
