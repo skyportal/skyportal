@@ -54,6 +54,7 @@ class Group(Base):
                                passive_deletes=True)
     users = relationship('User', secondary='group_users',
                          back_populates='groups')
+    filters = relationship("Filter", secondary="group_filters", back_populates="groups")
 
 
 GroupUser = join_model('group_users', Group, User)
@@ -184,9 +185,12 @@ class Obj(Base):
 
 class Filter(Base):
     query_string = sa.Column(sa.String, nullable=False, unique=False)
+    groups = relationship("Group", secondary="group_filters", back_populates="filters")
 
 
-Candidate = join_model('candidates', Filter, Obj)
+GroupFilter = join_model("group_filters", Group, Filter)
+
+Candidate = join_model("candidates", Filter, Obj)
 
 
 def candidate_is_owned_by(self, user_or_token):
@@ -196,7 +200,7 @@ def candidate_is_owned_by(self, user_or_token):
 Candidate.is_owned_by = candidate_is_owned_by
 
 
-Source = join_model('sources', Group, Obj)
+Source = join_model("sources", Group, Obj)
 """User.sources defines the logic for whether a user has access to a source;
    if this gets more complicated it should become a function/`hybrid_property`
    rather than a `relationship`.
