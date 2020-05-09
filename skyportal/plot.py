@@ -454,6 +454,11 @@ def photometry_plot(obj_id):
         key = f'all{i}'
         model_dict[key] = ColumnDataSource(df)
 
+        key = f'bold{i}'
+        model_dict[key] = ColumnDataSource(df[['mjd', 'flux', 'fluxerr','mag',
+                                               'magerr', 'filter', 'zp',
+                                               'zpsys', 'lim_mag', 'stacked']])
+
     plot.xaxis.axis_label = 'MJD'
     plot.yaxis.axis_label = 'mag'
     plot.toolbar.logo = None

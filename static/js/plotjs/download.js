@@ -1,6 +1,7 @@
 /* eslint-disable */
 function table_to_csv(source, write_header) {
-  const columns = ['mjd', 'filter', 'flux', 'fluxerr', 'zp', 'zpsys', 'lim_mag'];
+  const columns = ['mjd', 'filter', 'flux', 'fluxerr', 'zp',
+      'zpsys', 'lim_mag', 'stacked'];
   const nrows = source.get_length();
   const lines = [];
 
@@ -26,6 +27,7 @@ function table_to_csv(source, write_header) {
     }
     lines.push(row.join(','));
   }
+
   return lines.join('\n').concat('\n');
 }
 
@@ -34,11 +36,7 @@ const filename = 'objname.csv';
 filetext = '';
 for (let i=0; i < toggle.labels.length; i++) {
   const write_header = i === 0;
-  if (slider.value > 0) {
-    filetext += table_to_csv(eval(`bin${i}`).data_source, write_header);
-  } else {
-    filetext += table_to_csv(eval(`obs${i}`).data_source, write_header);
-  }
+  filetext += table_to_csv(eval(`bold${i}`), write_header);
 }
 const blob = new Blob([filetext], { type: 'text/csv;charset=utf-8;' });
 
