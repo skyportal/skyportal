@@ -194,7 +194,7 @@ def photometry_plot(obj_id):
     data['fluxerr'] = normalized.fluxerr
     data['zp'] = 25.
     data['alpha'] = 1.
-    data['lim_mag'] = -2.5 * np.log10(data['flux'] * DETECT_THRESH) + data['zp']
+    data['lim_mag'] = -2.5 * np.log10(data['fluxerr'] * DETECT_THRESH) + data['zp']
 
     # keep track of things that are only upper limits
     data['hasflux'] = ~data['flux'].isna()
@@ -239,10 +239,10 @@ def photometry_plot(obj_id):
 
     model_dict = {}
 
-    for i, (label, df) in enumerate(split):
+    for i, (label, sdf) in enumerate(split):
 
         # for the flux plot, we only show things that have a flux value
-        df = df[df['hasflux']]
+        df = sdf[sdf['hasflux']]
 
         key = f'obs{i}'
         model_dict[key] = plot.scatter(
