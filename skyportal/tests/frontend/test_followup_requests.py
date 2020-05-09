@@ -1,6 +1,7 @@
 import uuid
 import time
 from selenium.webdriver.support.ui import Select
+from selenium.common.exceptions import ElementClickInterceptedException
 
 from skyportal.tests import api
 
@@ -51,7 +52,11 @@ def test_submit_new_followup_request(
     # Need to wait for plots to render & then scroll down again
     time.sleep(1.5)
     driver.execute_script("arguments[0].scrollIntoView();", instrument_select_element)
-    instrument_select.select_by_visible_text("P60 Camera")
+    try:
+        instrument_select.select_by_visible_text("P60 Camera")
+    except ElementClickInterceptedException:
+        driver.scroll_to_element_and_click(instrument_select_element)
+        instrument_select.select_by_visible_text("P60 Camera")
 
     submit_button = driver.find_element_by_css_selector("[type=submit]")
     driver.execute_script("arguments[0].scrollIntoView();", submit_button)
