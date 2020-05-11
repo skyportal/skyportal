@@ -191,6 +191,12 @@ class Filter(Base):
 GroupFilter = join_model("group_filters", Group, Filter)
 
 Candidate = join_model("candidates", Filter, Obj)
+Candidate.created_at = sa.Column(sa.DateTime, nullable=False, default=datetime.now,
+                                 index=True)
+Candidate.modified = sa.Column(sa.DateTime, nullable=False,
+                               server_default=sa.func.now(),
+                               server_onupdate=sa.func.now())
+Candidate.passing_alert_id = sa.Column(sa.Integer)
 
 
 def candidate_is_owned_by(self, user_or_token):
@@ -210,8 +216,14 @@ Source.saved_by = relationship("User", foreign_keys=[Source.saved_by_id],
                                backref="saved_sources")
 Source.saved_at = sa.Column(sa.DateTime, nullable=False, default=datetime.now)
 Source.active = sa.Column(sa.Boolean, default=True)
+Source.requested = sa.Column(sa.Boolean)
 Source.unsaved_by_id = sa.Column(sa.ForeignKey("users.id"), nullable=True, unique=False)
 Source.unsaved_by = relationship("User", foreign_keys=[Source.unsaved_by_id])
+Source.created_at = sa.Column(sa.DateTime, nullable=False, default=datetime.now,
+                              index=True)
+Source.modified = sa.Column(sa.DateTime, nullable=False,
+                            server_default=sa.func.now(),
+                            server_onupdate=sa.func.now())
 
 
 # Not used in get_source_if_owned_by, but defined in case it's called elsewhere
