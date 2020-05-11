@@ -452,7 +452,7 @@ class CommentHandler(BaseHandler):
         ...
 
         self.push_all(action='skyportal/REFRESH_SOURCE',
-                        payload={'source_id': comment.obj_id})
+                      payload={'source_id': comment.obj_id})
 
         return self.success(...)
 ```
