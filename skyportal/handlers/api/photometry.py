@@ -38,7 +38,7 @@ class PhotometryHandler(BaseHandler):
 
         data = self.get_json()
 
-        if 'mjd' not in data :
+        if 'mjd' not in data:
             return self.error('mjd is a required parameter.')
         if not isinstance(data['flux'], (list, tuple)):
             for colname in PHOTOMETRY_COLUMNS:
