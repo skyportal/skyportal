@@ -179,7 +179,11 @@ const SourceList = () => {
       </div>
     );
   } else {
-    return "Loading sources...";
+    return (
+      <div>
+        Loading sources...
+      </div>
+    );
   }
 };
 
