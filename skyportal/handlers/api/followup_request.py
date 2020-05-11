@@ -42,7 +42,7 @@ class FollowupRequestHandler(BaseHandler):
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
-            payload={"source_id": followup_request.obj_id},
+            payload={"obj_id": followup_request.obj_id},
         )
         return self.success(data={"id": followup_request.id})
 
@@ -87,7 +87,7 @@ class FollowupRequestHandler(BaseHandler):
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
-            payload={"source_id": followup_request.obj_id},
+            payload={"obj_id": followup_request.obj_id},
         )
         return self.success()
 
@@ -124,6 +124,6 @@ class FollowupRequestHandler(BaseHandler):
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
-            payload={"source_id": followup_request.obj_id},
+            payload={"obj_id": followup_request.obj_id},
         )
         return self.success()

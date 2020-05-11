@@ -241,10 +241,10 @@ def get_nearby_offset_stars(source_ra, source_dec, source_name,
             ra=source["ra"], dec=source["dec"],
             unit=(u.degree, u.degree),
             pm_ra_cosdec=(
-                np.cos(source["dec"]*np.pi/180.0)*source['pmra']*u.mas/u.yr
+                np.cos(source["dec"] * np.pi / 180.0) * source['pmra'] * u.mas / u.yr
             ),
-            pm_dec=source["pmdec"] * u.mas/u.yr,
-            frame='icrs', distance=min(abs(1/source["parallax"]), 10)*u.kpc,
+            pm_dec=source["pmdec"] * u.mas / u.yr,
+            frame='icrs', distance=min(abs(1 / source["parallax"]), 10) * u.kpc,
             obstime=gaia_obstime
         )
 

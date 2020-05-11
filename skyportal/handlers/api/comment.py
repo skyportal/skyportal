@@ -80,7 +80,7 @@ class CommentHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'source_id': comment.obj_id})
+                      payload={'obj_id': comment.obj_id})
         return self.success(data={'comment_id': comment.id})
 
     @permissions(['Comment'])
@@ -127,7 +127,7 @@ class CommentHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'source_id': c.obj_id})
+                      payload={'obj_id': c.obj_id})
         return self.success()
 
     @permissions(['Comment'])
@@ -160,7 +160,7 @@ class CommentHandler(BaseHandler):
         else:
             return self.error('Insufficient user permissions.')
         self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'source_id': obj_id})
+                      payload={'obj_id': obj_id})
         return self.success()
 
 

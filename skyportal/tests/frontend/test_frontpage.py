@@ -80,9 +80,9 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
     assert not prev_button.is_enabled()
     # Source filtering
     assert next_button.is_enabled()
-    source_id = driver.wait_for_xpath("//input[@name='sourceID']")
-    source_id.clear()
-    source_id.send_keys('aaaa')
+    obj_id = driver.wait_for_xpath("//input[@name='sourceID']")
+    obj_id.clear()
+    obj_id.send_keys('aaaa')
     submit = driver.wait_for_xpath("//button[contains(.,'Submit')]")
     driver.scroll_to_element_and_click(submit)
     time.sleep(1)
