@@ -23,8 +23,6 @@ const SourceList = () => {
     }
   }, [sources.latest, dispatch]);
 
-  const tableClasses = useStyles();
-
   if (sourceTableEmpty) {
     return <UninitializedDBMessage />;
   }
