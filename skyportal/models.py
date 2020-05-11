@@ -193,6 +193,7 @@ GroupFilter = join_model("group_filters", Group, Filter)
 Candidate = join_model("candidates", Filter, Obj)
 Candidate.created_at = sa.Column(sa.DateTime, nullable=False, default=datetime.now,
                                  index=True)
+Candidate.passed_at = sa.Column(sa.DateTime, nullable=True)
 Candidate.modified = sa.Column(sa.DateTime, nullable=False,
                                server_default=sa.func.now(),
                                server_onupdate=sa.func.now())
