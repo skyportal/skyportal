@@ -172,7 +172,7 @@ class Source(Base):
     @property
     def sdss_url(self):
         """Construct URL for public Sloan Digital Sky Survey (SDSS) cutout."""
-        return (f"http://skyservice.pha.jhu.edu/DR9/ImgCutout/getjpeg.aspx"
+        return (f"http://skyserver.sdss.org/dr12/SkyserverWS/ImgCutout/getjpeg"
                 f"?ra={self.ra}&dec={self.dec}&scale=0.3&width=200&height=200"
                 f"&opt=G&query=&Grid=on")
 
