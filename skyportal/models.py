@@ -54,7 +54,9 @@ class Group(Base):
                                passive_deletes=True)
     users = relationship('User', secondary='group_users',
                          back_populates='groups')
-    filters = relationship("Filter", secondary="group_filters", back_populates="groups")
+    filter_id = sa.Column(sa.ForeignKey("filters.id"))
+    filter = relationship("Filter", foreign_keys=[filter_id],
+                          back_populates="group")
 
 
 GroupUser = join_model('group_users', Group, User)
@@ -185,10 +187,8 @@ class Obj(Base):
 
 class Filter(Base):
     query_string = sa.Column(sa.String, nullable=False, unique=False)
-    groups = relationship("Group", secondary="group_filters", back_populates="filters")
+    group = relationship("Group", back_populates="filter")
 
-
-GroupFilter = join_model("group_filters", Group, Filter)
 
 Candidate = join_model("candidates", Filter, Obj)
 Candidate.passed_at = sa.Column(sa.DateTime, nullable=True)
