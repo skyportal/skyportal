@@ -89,6 +89,15 @@ def serialize(phot, outsys, format):
     return retval
 
 
+
+def nan_to_none(value):
+    """Coerce a value to None if it is nan, else return value."""
+    try:
+        return None if np.isnan(value) else value
+    except TypeError:
+        return value
+
+
 class PhotometryHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
