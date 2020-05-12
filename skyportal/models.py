@@ -371,7 +371,7 @@ class Photometry(Base):
     def mag(cls):
         return sa.case(
             [
-                (sa.and_(cls.flux > 0, cls.zp != None),
+                (sa.and_(cls.flux > 0, cls.zp.isnot(None)),
                  -2.5 * sa.func.log(cls.flux) + cls.zp),
             ],
             else_=None
