@@ -121,9 +121,10 @@ class SourceHandler(BaseHandler):
                 end_date = arrow.get(end_date.strip())
                 q = q.filter(Obj.last_detected <= end_date)
             if simbad_class:
-                q = q.filter(func.lower(Obj.simbad_class) == simbad_class.lower())
+                q = q.filter(func.lower(Obj.altdata['simbad']['class'].astext)
+                             == simbad_class.lower())
             if has_tns_name == 'true':
-                q = q.filter(Obj.tns_name.isnot(None))
+                q = q.filter(Obj.altdata['tns']['name'].isnot(None))
 
             if total_matches:
                 info['totalMatches'] = int(total_matches)

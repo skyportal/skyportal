@@ -171,6 +171,7 @@ if __name__ == "__main__":
                         "ra": 353.36647,
                         "dec": 33.646149,
                         "redshift": 0.063,
+                        "altdata": {"simbad": {"class": "RRLyr"}},
                         "group_ids": [group_id],
                         "comments": [
                             "No source at transient location to R>26 in LRIS imaging",
@@ -182,6 +183,7 @@ if __name__ == "__main__":
                         "ra": 322.718872,
                         "dec": 27.574113,
                         "redshift": 0.0,
+                        "altdata": {"simbad": {"class": "Mira"}},
                         "group_ids": [group_id],
                         "comments": ["Frogs in the pond", "The eagle has landed"],
                     },

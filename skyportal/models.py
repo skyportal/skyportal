@@ -106,6 +106,7 @@ class Obj(Base):
     offset = sa.Column(sa.Float, default=0.0)
     redshift = sa.Column(sa.Float, nullable=True)
 
+    # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
     altdata = sa.Column(JSONB, nullable=True)
 
     last_detected = sa.Column(ArrowType, nullable=True)
@@ -119,24 +120,7 @@ class Obj(Base):
 
     score = sa.Column(sa.Float, nullable=True)
 
-    # pan-starrs
-    sgmag1 = sa.Column(sa.Float, nullable=True)
-    srmag1 = sa.Column(sa.Float, nullable=True)
-    simag1 = sa.Column(sa.Float, nullable=True)
-    objectidps1 = sa.Column(sa.BigInteger, nullable=True)
-    sgscore1 = sa.Column(sa.Float, nullable=True)
-    distpsnr1 = sa.Column(sa.Float, nullable=True)
-
     origin = sa.Column(sa.String, nullable=True)
-    modified = sa.Column(sa.DateTime, nullable=False,
-                         server_default=sa.func.now(),
-                         server_onupdate=sa.func.now())
-
-    simbad_class = sa.Column(sa.Unicode, nullable=True, )
-    simbad_info = sa.Column(JSONB, nullable=True)
-    gaia_info = sa.Column(JSONB, nullable=True)
-    tns_info = sa.Column(JSONB, nullable=True)
-    tns_name = sa.Column(sa.Unicode, nullable=True)
 
     comments = relationship('Comment', back_populates='obj',
                             cascade='save-update, merge, refresh-expire, expunge',

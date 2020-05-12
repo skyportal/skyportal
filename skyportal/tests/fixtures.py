@@ -92,7 +92,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
     ra = 0.0
     dec = 0.0
     redshift = 0.0
-    simbad_class = 'RRLyr'
+    altdata = {"simbad": {"class": "RRLyr"}}
 
     @factory.post_generation
     def add_phot_spec(obj, create, value, *args, **kwargs):

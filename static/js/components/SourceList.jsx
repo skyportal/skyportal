@@ -139,12 +139,16 @@ const SourceList = () => {
                         {source.is_roid.toString()}
                       </td>
                       <td>
-                        {source.gaia_info && Number(JSON.parse(source.gaia_info).Gmag).toFixed(2)}
+                        {
+                          source.altdata?.gaia?.info?.Gmag &&
+                            Number(source.altdata.gaia.info.Gmag).toFixed(2)
+                        }
                       </td>
                       <td>
-                        {source.gaia_info &&
-                         JSON.parse(source.gaia_info).Teff &&
-                         Number(JSON.parse(source.gaia_info).Teff).toFixed(1)}
+                        {
+                          source.altdata?.gaia?.info?.Teff &&
+                            Number(source.altdata.gaia.info.Teff).toFixed(1)
+                        }
                       </td>
                       <td>
                         {Number(source.score).toFixed(2)}
@@ -153,10 +157,10 @@ const SourceList = () => {
                         {source.detect_photometry_count}
                       </td>
                       <td>
-                        {source.simbad_class}
+                        {source.altdata?.simbad?.class && source.altdata.simbad.class}
                       </td>
                       <td>
-                        {source.tns_name}
+                        {source.altdata?.tns?.name && source.altdata.tns.name}
                       </td>
                     </tr>
                   ))
