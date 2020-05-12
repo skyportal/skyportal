@@ -6,7 +6,7 @@ const path = require('path');
 const config = {
   entry: [
     'whatwg-fetch',
-    'babel-polyfill',
+    '@babel/polyfill',
     path.resolve(__dirname, 'static/js/components/Main.jsx')
   ],
   output: {
@@ -21,7 +21,7 @@ const config = {
         loader: 'babel-loader',
         options:
         {
-          presets: ['env'],
+          presets: ["@babel/preset-env","@babel/preset-react"],
           plugins: [
             'transform-object-rest-spread',
             'transform-async-to-generator',
@@ -38,7 +38,7 @@ const config = {
         loader: 'babel-loader',
         options:
         {
-          presets: ['env', 'react'],
+          presets: ["@babel/preset-env","@babel/preset-react"],
           plugins: [
             'transform-object-rest-spread',
             'transform-async-to-generator',
