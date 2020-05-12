@@ -140,15 +140,16 @@ const SourceList = () => {
                       </td>
                       <td>
                         {
-                          (source.altdata && source.altdata.gaia) &&
-                            Number(JSON.parse(source.altdata.gaia.info)["Gmag"]).toFixed(2)
+                          (source.altdata && source.altdata.gaia &&
+                           source.altdata.gaia.info && source.altdata.gaia.info.Gmag) &&
+                            Number(source.altdata.gaia.info.Gmag).toFixed(2)
                         }
                       </td>
                       <td>
                         {
-                          (source.altdata && source.altdata.gaia) &&
-                            JSON.parse(source.altdata.gaia.info)["Teff"] &&
-                            Number(JSON.parse(source.altdata.gaia.info)["Teff"]).toFixed(1)
+                          (source.altdata && source.altdata.gaia &&
+                           source.altdata.gaia.info && source.altdata.gaia.info.Teff) &&
+                            Number(source.altdata.gaia.info.Teff).toFixed(1)
                         }
                       </td>
                       <td>
