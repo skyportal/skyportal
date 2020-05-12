@@ -140,15 +140,13 @@ const SourceList = () => {
                       </td>
                       <td>
                         {
-                          (source.altdata && source.altdata.gaia &&
-                           source.altdata.gaia.info && source.altdata.gaia.info.Gmag) &&
+                          source.altdata?.gaia?.info?.Gmag &&
                             Number(source.altdata.gaia.info.Gmag).toFixed(2)
                         }
                       </td>
                       <td>
                         {
-                          (source.altdata && source.altdata.gaia &&
-                           source.altdata.gaia.info && source.altdata.gaia.info.Teff) &&
+                          source.altdata?.gaia?.info?.Teff &&
                             Number(source.altdata.gaia.info.Teff).toFixed(1)
                         }
                       </td>
@@ -159,10 +157,10 @@ const SourceList = () => {
                         {source.detect_photometry_count}
                       </td>
                       <td>
-                        {(source.altdata && source.altdata.simbad) && source.altdata.simbad.class}
+                        {source.altdata?.simbad?.class && source.altdata.simbad.class}
                       </td>
                       <td>
-                        {(source.altdata && source.altdata.tns) && source.altdata.tns.name}
+                        {source.altdata?.tns?.name && source.altdata.tns.name}
                       </td>
                     </tr>
                   ))
