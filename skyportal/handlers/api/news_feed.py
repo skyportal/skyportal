@@ -1,7 +1,7 @@
 from sqlalchemy import desc
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, Comment, GroupSource
+from ...models import DBSession, Source, Comment
 
 
 class NewsFeedHandler(BaseHandler):
@@ -34,21 +34,17 @@ class NewsFeedHandler(BaseHandler):
             n_items = 5
 
         def fetch_newest(model):
-            if model == Source:
-                source_id_attr = 'id'
-            else:
-                source_id_attr = 'source_id'
-            return model.query.filter(getattr(model, source_id_attr).in_(
-                DBSession.query(GroupSource.source_id).filter(
-                    GroupSource.group_id.in_([g.id for g in self.current_user.groups])
-                ))).order_by(desc(model.created_at)).limit(n_items).all()
+            return model.query.filter(model.obj_id.in_(
+                DBSession.query(Source.obj_id).filter(
+                    Source.group_id.in_([g.id for g in self.current_user.groups])
+                ))).order_by(desc(model.created_at or model.saved_at)).limit(n_items).all()
 
         sources = fetch_newest(Source)
         comments = fetch_newest(Comment)
         news_feed_items = [{'type': 'source', 'time': s.created_at,
-                            'message': f'New source {s.id}'} for s in sources]
+                            'message': f'New source {s.obj_id}'} for s in sources]
         news_feed_items.extend([{'type': 'comment', 'time': c.created_at,
-                                 'message': f'{c.author}: {c.text} ({c.source_id})'}
+                                 'message': f'{c.author}: {c.text} ({c.obj_id})'}
                                 for c in comments])
         news_feed_items.sort(key=lambda x: x['time'], reverse=True)
         news_feed_items = news_feed_items[:n_items]

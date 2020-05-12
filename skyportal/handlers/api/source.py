@@ -11,8 +11,8 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
-    DBSession, Comment, Instrument, Photometry, Source, SourceView,
-    Thumbnail, GroupSource, Token, User, Group, FollowupRequest
+    DBSession, Comment, Instrument, Photometry, Obj, Source, SourceView,
+    Thumbnail, Token, User, Group, FollowupRequest
 )
 from .internal.source_views import register_source_view
 from ...utils import (
@@ -25,14 +25,14 @@ SOURCES_PER_PAGE = 100
 
 class SourceHandler(BaseHandler):
     @auth_or_token
-    def get(self, source_id=None):
+    def get(self, obj_id=None):
         """
         ---
         single:
           description: Retrieve a source
           parameters:
             - in: path
-              name: source_id
+              name: obj_id
               required: false
               schema:
                 type: integer
@@ -40,7 +40,7 @@ class SourceHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: SingleSource
+                  schema: SingleObj
             400:
               content:
                 application/json:
@@ -51,7 +51,7 @@ class SourceHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfSources
+                  schema: ArrayOfObjs
             400:
               content:
                 application/json:
@@ -69,20 +69,24 @@ class SourceHandler(BaseHandler):
         has_tns_name = self.get_query_argument('hasTNSname', None)
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
-        if source_id:
+        if obj_id:
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
-                register_source_view(source_id=source_id,
+                register_source_view(obj_id=obj_id,
                                      username_or_token_id=self.current_user.id,
                                      is_token=True)
-            info['sources'] = Source.get_if_owned_by(
-                source_id, self.current_user,
-                options=[joinedload(Source.comments),
-                         joinedload(Source.followup_requests)
+            info['sources'] = Source.get_if_owned_by(  # Returns Source.obj
+                obj_id, self.current_user,
+                options=[joinedload(Source.obj)
+                         .joinedload(Obj.comments),
+                         joinedload(Source.obj)
+                         .joinedload(Obj.followup_requests)
                          .joinedload(FollowupRequest.requester),
-                         joinedload(Source.followup_requests)
+                         joinedload(Source.obj)
+                         .joinedload(Obj.followup_requests)
                          .joinedload(FollowupRequest.instrument),
-                         joinedload(Source.thumbnails)
+                         joinedload(Source.obj)
+                         .joinedload(Obj.thumbnails)
                          .joinedload(Thumbnail.photometry)
                          .joinedload(Photometry.instrument)
                          .joinedload(Instrument.telescope)])
@@ -91,11 +95,11 @@ class SourceHandler(BaseHandler):
                 page = int(page_number)
             except ValueError:
                 return self.error("Invalid page number value.")
-            q = Source.query.filter(Source.id.in_(DBSession.query(
-                GroupSource.source_id).filter(GroupSource.group_id.in_(
+            q = Obj.query.filter(Obj.id.in_(DBSession.query(
+                Source.obj_id).filter(Source.group_id.in_(
                     [g.id for g in self.current_user.groups]))))
             if sourceID:
-                q = q.filter(Source.id.contains(sourceID.strip()))
+                q = q.filter(Obj.id.contains(sourceID.strip()))
             if any([ra, dec, radius]):
                 if not all([ra, dec, radius]):
                     return self.error("If any of 'ra', 'dec' or 'radius' are "
@@ -106,20 +110,20 @@ class SourceHandler(BaseHandler):
                     radius = float(radius)
                 except ValueError:
                     return self.error("Invalid values for ra, dec or radius - could not convert to float")
-                q = q.filter(Source.ra <= ra + radius)\
-                     .filter(Source.ra >= ra - radius)\
-                     .filter(Source.dec <= dec + radius)\
-                     .filter(Source.dec >= dec - radius)
+                q = q.filter(Obj.ra <= ra + radius)\
+                     .filter(Obj.ra >= ra - radius)\
+                     .filter(Obj.dec <= dec + radius)\
+                     .filter(Obj.dec >= dec - radius)
             if start_date:
                 start_date = arrow.get(start_date.strip())
-                q = q.filter(Source.last_detected >= start_date)
+                q = q.filter(Obj.last_detected >= start_date)
             if end_date:
                 end_date = arrow.get(end_date.strip())
-                q = q.filter(Source.last_detected <= end_date)
+                q = q.filter(Obj.last_detected <= end_date)
             if simbad_class:
-                q = q.filter(func.lower(Source.simbad_class) == simbad_class.lower())
+                q = q.filter(func.lower(Obj.simbad_class) == simbad_class.lower())
             if has_tns_name == 'true':
-                q = q.filter(Source.tns_name.isnot(None))
+                q = q.filter(Obj.tns_name.isnot(None))
 
             if total_matches:
                 info['totalMatches'] = int(total_matches)
@@ -143,18 +147,16 @@ class SourceHandler(BaseHandler):
             if info['totalMatches'] == 0:
                 info['sourceNumberingStart'] = 0
         else:
-            if is_token_request:
-                token = self.current_user
-                info['sources'] = list(reduce(
-                    set.union, (set(group.sources) for group in token.groups)))
-            else:
-                info['sources'] = self.current_user.sources
+            info['sources'] = Obj.query.filter(Obj.id.in_(
+                DBSession.query(Source.obj_id).filter(Source.group_id.in_(
+                    [g.id for g in self.current_user.groups]
+                ))
+            )).all()
 
         if info['sources'] is not None:
             return self.success(data=info)
-        else:
-            return self.error(f"Could not load source {source_id}",
-                              data={"source_id": source_id})
+
+        return self.error("No matching sources found.")
 
     @permissions(['Upload data'])
     def post(self):
@@ -164,7 +166,7 @@ class SourceHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: Source
+              schema: Obj
         responses:
           200:
             content:
@@ -179,7 +181,7 @@ class SourceHandler(BaseHandler):
                           description: New source ID
         """
         data = self.get_json()
-        schema = Source.__schema__()
+        schema = Obj.__schema__()
         user_group_ids = [g.id for g in self.current_user.groups]
         if not user_group_ids:
             return self.error("You must belong to one or more groups before "
@@ -192,7 +194,7 @@ class SourceHandler(BaseHandler):
             return self.error("Invalid group_ids field. Please specify at least "
                               "one valid group ID that you belong to.")
         try:
-            s = schema.load(data)
+            obj = schema.load(data)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
@@ -200,28 +202,28 @@ class SourceHandler(BaseHandler):
         if not groups:
             return self.error("Invalid group_ids field. Please specify at least "
                               "one valid group ID that you belong to.")
-        s.groups = groups
-        DBSession.add(s)
+        DBSession.add(obj)
+        DBSession.add_all([Source(obj=obj, group=group) for group in groups])
         DBSession().commit()
 
         self.push_all(action='skyportal/FETCH_SOURCES')
-        return self.success(data={"id": s.id})
+        return self.success(data={"id": obj.id})
 
     @permissions(['Manage sources'])
-    def put(self, source_id):
+    def put(self, obj_id):
         """
         ---
         description: Update a source
         parameters:
           - in: path
-            name: source_id
+            name: obj_id
             required: True
             schema:
               type: string
         requestBody:
           content:
             application/json:
-              schema: SourceNoID
+              schema: ObjNoID
         responses:
           200:
             content:
@@ -232,11 +234,11 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        s = Source.get_if_owned_by(source_id, self.current_user)
+        s = Source.get_if_owned_by(obj_id, self.current_user)
         data = self.get_json()
-        data['id'] = source_id
+        data['id'] = obj_id
 
-        schema = Source.__schema__()
+        schema = Obj.__schema__()
         try:
             schema.load(data)
         except ValidationError as e:
@@ -247,13 +249,13 @@ class SourceHandler(BaseHandler):
         return self.success(action='skyportal/FETCH_SOURCES')
 
     @permissions(['Manage sources'])
-    def delete(self, source_id):
+    def delete(self, obj_id, group_id):
         """
         ---
         description: Delete a source
         parameters:
           - in: path
-            name: source_id
+            name: obj_id
             required: true
             schema:
               type: string
@@ -263,8 +265,12 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        s = Source.get_if_owned_by(source_id, self.current_user)
-        DBSession.query(Source).filter(Source.id == source_id).delete()
+        if group_id not in [g.id for g in self.current_user.groups]:
+            return self.error("Inadequate permissions.")
+        s = (DBSession.query(Source).filter(Source.obj_id == obj_id)
+             .filter(Source.group_id == group_id).first())
+        s.active = False
+        s.unsaved_by = self.current_user
         DBSession().commit()
 
         return self.success(action='skyportal/FETCH_SOURCES')
@@ -272,13 +278,13 @@ class SourceHandler(BaseHandler):
 
 class SourcePhotometryHandler(BaseHandler):
     @auth_or_token
-    def get(self, source_id):
+    def get(self, obj_id):
         """
         ---
         description: Retrieve a source's photometry
         parameters:
         - in: path
-          name: source_id
+          name: obj_id
           required: true
           schema:
             type: string
@@ -292,23 +298,19 @@ class SourcePhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.query.get(source_id)
-        if not source:
-            return self.error('Invalid source ID.')
-        if not set(source.groups).intersection(set(self.current_user.groups)):
-            return self.error('Inadequate permissions.')
+        source = Source.get_if_owned_by(obj_id, self.current_user)
         return self.success(data={'photometry': source.photometry})
 
 
 class SourceOffsetsHandler(BaseHandler):
     @auth_or_token
-    def get(self, source_id):
+    def get(self, obj_id):
         """
         ---
         description: Retrieve offset stars to aid in spectroscopy
         parameters:
         - in: path
-          name: source_id
+          name: obj_id
           required: true
           schema:
             type: string
@@ -412,7 +414,7 @@ class SourceOffsetsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_if_owned_by(source_id, self.current_user)
+        source = Source.get_if_owned_by(obj_id, self.current_user)
         if source is None:
             return self.error('Invalid source ID.')
 
@@ -442,7 +444,7 @@ class SourceOffsetsHandler(BaseHandler):
             starlist_info, query_string, queries_issued, noffsets = \
                 get_nearby_offset_stars(
                     source.ra, source.dec,
-                    source_id,
+                    obj_id,
                     how_many=how_many,
                     radius_degrees=radius_degrees,
                     mag_limit=mag_limit,
@@ -474,13 +476,13 @@ class SourceOffsetsHandler(BaseHandler):
 
 class SourceFinderHandler(BaseHandler):
     @auth_or_token
-    def get(self, source_id):
+    def get(self, obj_id):
         """
         ---
         description: Generate a PDF finding chart to aid in spectroscopy
         parameters:
         - in: path
-          name: source_id
+          name: obj_id
           required: true
           schema:
             type: string
@@ -524,7 +526,7 @@ class SourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_if_owned_by(source_id, self.current_user)
+        source = Source.get_if_owned_by(obj_id, self.current_user)
         if source is None:
             return self.error('Invalid source ID.')
 
@@ -537,7 +539,7 @@ class SourceFinderHandler(BaseHandler):
 
         if imsize < 2.0 or imsize > 15.0:
             return \
-              self.error('The value for `imsize` is outside the allowed range')
+                self.error('The value for `imsize` is outside the allowed range')
 
         facility = self.get_query_argument('facility', 'Keck')
         image_source = self.get_query_argument('image_source', 'desi')
@@ -561,7 +563,7 @@ class SourceFinderHandler(BaseHandler):
         mag_min = facility_parameters[facility]["mag_min"]
 
         rez = get_finding_chart(
-            source.ra, source.dec, source_id,
+            source.ra, source.dec, obj_id,
             image_source=image_source,
             output_format='pdf',
             imsize=imsize,

@@ -5,7 +5,7 @@ from skyportal.tests import api
 
 def test_token_user_post_get_spectrum_data(upload_data_token, public_source):
     status, data = api('POST', 'spectrum',
-                       data={'source_id': str(public_source.id),
+                       data={'obj_id': str(public_source.id),
                              'observed_at': str(datetime.datetime.now()),
                              'instrument_id': 1,
                              'wavelengths': [664, 665, 666],
@@ -23,12 +23,12 @@ def test_token_user_post_get_spectrum_data(upload_data_token, public_source):
     assert status == 200
     assert data['status'] == 'success'
     assert data['data']['spectrum']['fluxes'][0] == 234.2
-    assert data['data']['spectrum']['source_id'] == public_source.id
+    assert data['data']['spectrum']['obj_id'] == public_source.id
 
 
 def test_token_user_post_spectrum_no_access(view_only_token, public_source):
     status, data = api('POST', 'spectrum',
-                       data={'source_id': str(public_source.id),
+                       data={'obj_id': str(public_source.id),
                              'observed_at': str(datetime.datetime.now()),
                              'instrument_id': 1,
                              'wavelengths': [664, 665, 666],
@@ -44,7 +44,7 @@ def test_token_user_update_spectrum(upload_data_token,
                                     manage_sources_token,
                                     public_source):
     status, data = api('POST', 'spectrum',
-                       data={'source_id': str(public_source.id),
+                       data={'obj_id': str(public_source.id),
                              'observed_at': str(datetime.datetime.now()),
                              'instrument_id': 1,
                              'wavelengths': [664, 665, 666],
@@ -82,7 +82,7 @@ def test_token_user_update_spectrum(upload_data_token,
 def test_delete_spectrum_data(upload_data_token, manage_sources_token,
                               public_source):
     status, data = api('POST', 'spectrum',
-                       data={'source_id': str(public_source.id),
+                       data={'obj_id': str(public_source.id),
                              'observed_at': str(datetime.datetime.now()),
                              'instrument_id': 1,
                              'wavelengths': [664, 665, 666],
@@ -100,7 +100,7 @@ def test_delete_spectrum_data(upload_data_token, manage_sources_token,
     assert status == 200
     assert data['status'] == 'success'
     assert data['data']['spectrum']['fluxes'][0] == 234.2
-    assert data['data']['spectrum']['source_id'] == public_source.id
+    assert data['data']['spectrum']['obj_id'] == public_source.id
 
     status, data = api(
         'DELETE',

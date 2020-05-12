@@ -9,8 +9,9 @@ from baselayer.app import models
 from baselayer.app.config import load_config
 from baselayer.app.test_util import (driver, MyCustomWebDriver,
                                      set_server_url, reset_state)
-from skyportal.tests.fixtures import TMP_DIR, SourceFactory, GroupFactory, UserFactory
+from skyportal.tests.fixtures import TMP_DIR, ObjFactory, GroupFactory, UserFactory
 from skyportal.model_util import create_token
+from skyportal.models import DBSession, Source
 
 
 print('Loading test configuration from _test_config.yaml')
@@ -28,12 +29,15 @@ def public_group():
 
 @pytest.fixture()
 def public_source(public_group):
-    return SourceFactory(groups=[public_group])
+    obj = ObjFactory()
+    DBSession.add(Source(obj_id=obj.id, group_id=public_group.id))
+    DBSession.commit()
+    return obj
 
 
 @pytest.fixture()
 def private_source():
-    return SourceFactory(groups=[])
+    return ObjFactory()
 
 
 @pytest.fixture()

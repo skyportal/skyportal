@@ -13,7 +13,7 @@ from bokeh.util.compiler import bundle_all_models
 from bokeh.util.serialization import make_id
 from arrow.arrow import Arrow
 
-from skyportal.models import (DBSession, Source, Photometry,
+from skyportal.models import (DBSession, Obj, Photometry,
                               Instrument, Telescope)
 
 
@@ -138,12 +138,12 @@ def _plot_to_json(plot):
 
 
 # TODO make async so that thread isn't blocked
-def photometry_plot(source_id):
-    """Create scatter plot of photometry for source.
+def photometry_plot(obj_id):
+    """Create scatter plot of photometry for object.
     Parameters
     ----------
-    source_id : int
-        ID of source to be plotted.
+    obj_id : int
+        ID of object to be plotted.
     Returns
     -------
     (str, str)
@@ -154,7 +154,7 @@ def photometry_plot(source_id):
     data = pd.read_sql(DBSession()
                        .query(Photometry, Telescope.nickname.label('telescope'))
                        .join(Instrument).join(Telescope)
-                       .filter(Photometry.source_id == source_id)
+                       .filter(Photometry.obj_id == obj_id)
                        .statement, DBSession().bind)
     if data.empty:
         return None, None, None
@@ -221,10 +221,10 @@ def photometry_plot(source_id):
 
 
 # TODO make async so that thread isn't blocked
-def spectroscopy_plot(source_id):
+def spectroscopy_plot(obj_id):
     """TODO normalization? should this be handled at data ingestion or plot-time?"""
-    source = Source.query.get(source_id)
-    spectra = Source.query.get(source_id).spectra
+    obj = Obj.query.get(obj_id)
+    spectra = Obj.query.get(obj_id).spectra
     if len(spectra) == 0:
         return None, None, None
 
@@ -271,11 +271,11 @@ def spectroscopy_plot(source_id):
         active=[], width=80,
         colors=[c for w, c in SPEC_LINES.values()]
     )
-    z = TextInput(value=str(source.redshift), title="z:")
+    z = TextInput(value=str(obj.redshift), title="z:")
     v_exp = TextInput(value='0', title="v_exp:")
     for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
         el_data = pd.DataFrame({'wavelength': wavelengths})
-        el_data['x'] = el_data['wavelength'] * (1 + source.redshift)
+        el_data['x'] = el_data['wavelength'] * (1 + obj.redshift)
         model_dict[f'el{i}'] = plot.segment(x0='x', x1='x',
                                             # TODO change limits
                                             y0=0, y1=1e-13, color=color,

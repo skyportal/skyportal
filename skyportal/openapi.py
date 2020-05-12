@@ -18,7 +18,7 @@ def spec_from_handlers(handlers):
     description: Retrieve a source
     parameters:
       - in: path
-        name: source_id
+        name: obj_id
         required: false
         schema:
           type: integer
@@ -36,8 +36,8 @@ def spec_from_handlers(handlers):
     The yaml snippet may contain two top-level keywords, `single` and
     `multiple`, that can be used to disambiguate the OpenAPI spec for
     a single URL that is meant to return both single and multiple
-    objects.  E.g., `/api/sources/{source_id}` may return multiple
-    objects if `{source_id}` is left unspecified.  If these keywords
+    objects.  E.g., `/api/sources/{obj_id}` may return multiple
+    objects if `{obj_id}` is left unspecified.  If these keywords
     are not specified, the OpenAPI snippet is used as is.
 
     Schemas are automatically resolved to matching Marshmallow objects
