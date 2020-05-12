@@ -106,6 +106,7 @@ class Obj(Base):
     offset = sa.Column(sa.Float, default=0.0)
     redshift = sa.Column(sa.Float, nullable=True)
 
+    # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
     altdata = sa.Column(JSONB, nullable=True)
 
     last_detected = sa.Column(ArrowType, nullable=True)

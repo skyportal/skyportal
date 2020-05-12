@@ -12,7 +12,7 @@ def test_top_sources(driver, user, public_source, public_group, upload_data_toke
                              'ra': 50.4,
                              'dec': 22.33,
                              'redshift': 2.1,
-                             'simbad_class': 'RRLyr',
+                             "altdata": {"simbad": {"class": "RRLyr"}},
                              'transient': False,
                              'ra_dis': 2.3,
                              'group_ids': [public_group.id]},

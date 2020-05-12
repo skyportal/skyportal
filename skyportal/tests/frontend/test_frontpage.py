@@ -12,10 +12,12 @@ def test_source_list(driver, user, public_source, private_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     assert 'localhost' in driver.current_url
     driver.get('/')
+
+    simbad_class = public_source.altdata['simbad']['class']
     driver.wait_for_xpath("//div[contains(@title,'connected')]")
     driver.wait_for_xpath('//h2[contains(text(), "Sources")]')
     driver.wait_for_xpath(f'//a[text()="{public_source.id}"]')
-    driver.wait_for_xpath(f'//td[text()="{public_source.simbad_class}"]')
+    driver.wait_for_xpath(f'//td[text()="{simbad_class}"]')
     driver.wait_for_xpath_to_disappear(f'//a[text()="{private_source.id}"]')
     el = driver.wait_for_xpath('//button[contains(.,"View Next 100 Sources")]')
     assert not el.is_enabled()
@@ -31,7 +33,7 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
                                  'ra': 234.22,
                                  'dec': -22.33,
                                  'redshift': 3,
-                                 'simbad_class': 'RRLyr',
+                                 'altdata': {'simbad': {'class': 'RRLyr'}},
                                  'transient': False,
                                  'ra_dis': 2.3,
                                  'group_ids': [public_group.id]},
@@ -42,9 +44,10 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     assert 'localhost' in driver.current_url
     driver.get('/')
+
     driver.wait_for_xpath("//div[contains(@title,'connected')]")
     driver.wait_for_xpath('//h2[contains(text(), "Sources")]')
-    driver.wait_for_xpath(f'//td[text()="RRLyr"]')
+    driver.wait_for_xpath('//td[text()="RRLyr"]')
     # Pagination
     next_button = driver.wait_for_xpath('//button[contains(.,"View Next 100 Sources")]')
     prev_button = driver.wait_for_xpath('//button[contains(.,"View Previous 100 Sources")]')
