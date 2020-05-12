@@ -98,9 +98,6 @@ const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsPara
             ref={register({ required: true })}
             onChange={handleSelectedInstrumentChange}
           >
-            <option value={null}>
-              Select Instrument
-            </option>
             {
               instrumentList.map((instrument) => (
                 <option value={instrument.id} key={instrument.id}>
@@ -193,9 +190,6 @@ const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsPara
                         name="filters"
                         ref={register({ required: true, validate: validateFilters })}
                       >
-                        <option value="null">
-                          Select Filter
-                        </option>
                         {
                           obsParams[instIDToName[formState.instrument_id]].filters.options.map(
                             (filter) => (
@@ -225,9 +219,6 @@ const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsPara
                         name="exposure_time"
                         ref={register({ required: true })}
                       >
-                        <option value="null">
-                          Select Exposure Time
-                        </option>
                         {
                           obsParams[instIDToName[formState.instrument_id]].exposureTime.options.map(
                             (expTime) => (
@@ -262,9 +253,6 @@ const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsPara
                 </label>
                 &nbsp;
                 <select name="priority" ref={register({ required: true })}>
-                  <option value="null">
-                    Select Priority
-                  </option>
                   {
                     ["1", "2", "3", "4", "5"].map((val) => (
                       <option value={val} key={val}>
