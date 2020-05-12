@@ -31,6 +31,7 @@ RUN bash -c "\
 
 RUN bash -c "\
     \
+    (make -f baselayer/Makefile fill_conf_values || make -c baselayer fill_conf_values) && \
     (make -f baselayer/Makefile bundle || make -c baselayer bundle) && \
     rm -rf node_modules && \
     \
