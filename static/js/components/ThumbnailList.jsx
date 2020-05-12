@@ -11,8 +11,7 @@ dayjs.extend(calendar);
 
 
 const Thumbnail = ({ ra, dec, telescope, mjd, name, url }) => {
-
-  // convert mjd to unix timestamp *in ms*. 40587. is the mjd of the
+  // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
   // unix timestamp epoch (1970-01-01).
 
   const unixt = (mjd - 40587.0) * 86400000;
