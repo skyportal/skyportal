@@ -28,6 +28,7 @@ docker-images: docker-local
 	docker build -t skyportal/web . && docker push skyportal/web
 
 docker-local: ## Build docker images locally
+docker-local: fill_conf_values
 	cd baselayer && git submodule update --init --remote
 	docker build -t skyportal/web .
 
