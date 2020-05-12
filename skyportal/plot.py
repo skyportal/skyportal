@@ -1,17 +1,17 @@
 import numpy as np
 import pandas as pd
 
+
 from bokeh.core.json_encoder import serialize_json
 from bokeh.core.properties import List, String
 from bokeh.document import Document
 from bokeh.layouts import row, column
-from bokeh.models import CustomJS, DatetimeTickFormatter, HoverTool, Range1d, Slider, Button
+from bokeh.models import CustomJS, HoverTool, Range1d, Slider, Button
 from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs
 from bokeh.palettes import viridis
 from bokeh.plotting import figure, ColumnDataSource
 from bokeh.util.compiler import bundle_all_models
 from bokeh.util.serialization import make_id
-from arrow.arrow import Arrow
 
 from matplotlib import cm
 from matplotlib.colors import rgb2hex
@@ -26,6 +26,7 @@ from astropy.table import Table
 
 
 DETECT_THRESH = 5  # sigma
+DEFAULT_ZP = 8.9 + 15 # so that things are in muJy
 
 SPEC_LINES = {
     'H': ([3970, 4102, 4341, 4861, 6563], '#ff0000'),
@@ -186,9 +187,6 @@ def photometry_plot(obj_id):
         Returns (docs_json, render_items) json for the desired plot.
     """
 
-
-
-
     data = pd.read_sql(DBSession()
                        .query(Photometry, Telescope.nickname.label('telescope'),
                               Instrument.name.label('instrument'))
@@ -206,12 +204,15 @@ def photometry_plot(obj_id):
     columns = ['mjd', 'filter', 'flux', 'fluxerr', 'zp', 'zpsys']
     table = Table.from_pandas(data[columns])
     photdata = PhotometricData(table)
-    normalized = photdata.normalized(zp=25., zpsys='ab')
+
+    # normalize so that flux is in Jy
+    # (see https://en.wikipedia.org/wiki/AB_magnitude)
+    normalized = photdata.normalized(zp=DEFAULT_ZP, zpsys='ab')
 
     # write the normalized data to the dataframe
     data['flux'] = normalized.flux
     data['fluxerr'] = normalized.fluxerr
-    data['zp'] = 25.
+    data['zp'] = DEFAULT_ZP
     data['alpha'] = 1.
     data['lim_mag'] = -2.5 * np.log10(data['fluxerr'] * DETECT_THRESH) + data['zp']
 
@@ -223,7 +224,7 @@ def photometry_plot(obj_id):
     # is above DETECT_THRESH
     obsind = data['hasflux'] & (data['flux'].fillna(0.) / data['fluxerr'] >= DETECT_THRESH)
     data.loc[~obsind, 'mag'] = None
-    data.loc[obsind, 'mag'] = -2.5 * np.log10(data[obsind]['flux']) + 25.
+    data.loc[obsind, 'mag'] = -2.5 * np.log10(data[obsind]['flux']) + DEFAULT_ZP
 
     # calculate the magnitude errors using standard error propagation formulae
     # https://en.wikipedia.org/wiki/Propagation_of_uncertainty#Example_formulae
@@ -233,6 +234,7 @@ def photometry_plot(obj_id):
     data.loc[obsind, 'magerr'] = magerrs
     data['obs'] = obsind
     data['stacked'] = False
+
 
     split = data.groupby('label', sort=False)
 
@@ -249,7 +251,7 @@ def photometry_plot(obj_id):
         plot_width=600,
         plot_height=300,
         active_drag='box_zoom',
-        tools='box_zoom,wheel_zoom,pan,reset',
+        tools='box_zoom,wheel_zoom,pan,reset,save',
         y_range=(lower, upper)
     )
 
@@ -315,7 +317,7 @@ def photometry_plot(obj_id):
         )
 
     plot.xaxis.axis_label = 'MJD'
-    plot.yaxis.axis_label = 'Flux (AB Zeropoint = 25.)'
+    plot.yaxis.axis_label = 'Flux (μJy)'
     plot.toolbar.logo = None
 
 
@@ -324,12 +326,14 @@ def photometry_plot(obj_id):
         active=list(range(len(data.label.unique()))),
         colors=list(data.color.unique()))
 
+
     # TODO replace `eval` with Namespaces
     # https://github.com/bokeh/bokeh/pull/6340
     toggle.callback = CustomJS(args={'toggle': toggle, **model_dict},
                                code=open(os.path.join(os.path.dirname(__file__),
                                                       '../static/js/plotjs',
-                                                      'togglef.js')).read())
+                                                      'togglef.js')
+                                         ).read())
 
     slider = Slider(
         start=0., end=15., value=0., step=1., title='binsize (days)'
@@ -338,7 +342,11 @@ def photometry_plot(obj_id):
     callback = CustomJS(args={'slider': slider, 'toggle': toggle, **model_dict},
                         code=open(os.path.join(os.path.dirname(__file__),
                                                '../static/js/plotjs',
-                                               'stackf.js')).read()
+                                               'stackf.js')).read().replace(
+                                   'default_zp', str(DEFAULT_ZP)
+                               ).replace(
+                                   'detect_thresh', str(DETECT_THRESH)
+                               )
                         )
 
     slider.js_on_change('value', callback)
@@ -346,7 +354,7 @@ def photometry_plot(obj_id):
     layout = row(plot, toggle)
     layout = column(slider, layout)
 
-    p1 = Panel(child=layout, title='flux')
+    p1 = Panel(child=layout, title='Flux')
 
     # now make the mag light curve
     ymax = 1.1 * data['lim_mag']
@@ -360,13 +368,12 @@ def photometry_plot(obj_id):
         plot_width=600,
         plot_height=300,
         active_drag='box_zoom',
-        tools='box_zoom,wheel_zoom,pan,reset',
+        tools='box_zoom,wheel_zoom,pan,reset,save',
         y_range=(np.nanmax(ymax), np.nanmin(ymin)),
         toolbar_location='above'
     )
 
     imhover = HoverTool(tooltips=tooltip_format)
-    plot.add_tools(imhover)
     plot.add_tools(imhover)
 
     model_dict = {}
@@ -385,6 +392,9 @@ def photometry_plot(obj_id):
 
         imhover.renderers.append(model_dict[key])
 
+        unobs_source = df[~df['obs']]
+        unobs_source['alpha'] = 0.8
+
         key = f'unobs{i}'
         model_dict[key] = plot.scatter(
             x='mjd', y='lim_mag',
@@ -393,7 +403,7 @@ def photometry_plot(obj_id):
             fill_color='white',
             line_color='color',
             alpha='alpha',
-            source=ColumnDataSource(df[~df['obs']])
+            source=ColumnDataSource(unobs_source)
         )
 
         imhover.renderers.append(model_dict[key])
@@ -444,6 +454,7 @@ def photometry_plot(obj_id):
             marker='inverted_triangle',
             fill_color='white',
             line_color='color',
+            alpha=0.8,
             source=ColumnDataSource(data=dict(mjd=[], flux=[], fluxerr=[],
                                               filter=[], color=[], lim_mag=[],
                                               mag=[], magerr=[], instrument=[],
@@ -460,7 +471,7 @@ def photometry_plot(obj_id):
                                                'zpsys', 'lim_mag', 'stacked']])
 
     plot.xaxis.axis_label = 'MJD'
-    plot.yaxis.axis_label = 'mag'
+    plot.yaxis.axis_label = 'AB mag'
     plot.toolbar.logo = None
 
     toggle = CheckboxWithLegendGroup(
@@ -478,7 +489,7 @@ def photometry_plot(obj_id):
     )
 
     slider = Slider(
-        start=0., end=15., value=0., step=1., title='binsize (days)'
+        start=0., end=15., value=0., step=1., title='Binsize (days)'
     )
 
     button = Button(label="Export Bold Light Curve to CSV")
@@ -493,15 +504,19 @@ def photometry_plot(obj_id):
     callback = CustomJS(args={'slider': slider, 'toggle': toggle, **model_dict},
                         code=open(os.path.join(os.path.dirname(__file__),
                                                '../static/js/plotjs',
-                                               'stackm.js')).read())
+                                               'stackm.js')).read().replace(
+                                   'default_zp', str(DEFAULT_ZP)
+                               ).replace(
+                                   'detect_thresh', str(DETECT_THRESH)
+                               ))
     slider.js_on_change('value', callback)
 
     layout = row(plot, toggle)
     layout = column(toplay, layout)
 
-    p2 = Panel(child=layout, title='mag')
+    p2 = Panel(child=layout, title='Mag')
 
-    tabs = Tabs(tabs=[p1, p2])
+    tabs = Tabs(tabs=[p2, p1])
     return _plot_to_json(tabs)
 
 

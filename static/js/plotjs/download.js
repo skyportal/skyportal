@@ -6,6 +6,8 @@ function table_to_csv(source, write_header) {
   const lines = [];
 
   if (write_header) {
+    let now = new Date();
+    lines.push(`# source: "objname" downloaded at: ${now.getTime()} UTC`);
     lines.push(columns.join(','));
   }
 

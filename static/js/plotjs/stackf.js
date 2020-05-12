@@ -80,15 +80,15 @@ for (let i = 0; i < toggle.labels.length; i++) {
       const myfluxerr = Math.sqrt(1 / ivarsum);
 
 
-      if (myflux / myfluxerr > 5.0) {
-        var mymag = -2.5 * Math.log10(myflux) + 25;
+      if (myflux / myfluxerr > detect_thresh) {
+        var mymag = -2.5 * Math.log10(myflux) + default_zp;
         var mymagerr = Math.abs(-2.5 * myfluxerr / myflux / Math.log(10));
       } else {
         var mymag = NaN;
         var mymagerr = NaN;
       }
 
-      const mymaglim = -2.5 * Math.log10(5 * myfluxerr) + 25;
+      const mymaglim = -2.5 * Math.log10(detect_thresh * myfluxerr) + default_zp;
 
       binsource.data.mjd.push(mymjd);
       binsource.data.flux.push(myflux);

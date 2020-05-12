@@ -144,10 +144,10 @@ for (let i = 0; i < toggle.labels.length; i++) {
             }
 
             const myfluxerr = Math.sqrt(1 / ivarsum);
-            const obs = myflux / myfluxerr > 5;
+            const obs = myflux / myfluxerr > detect_thresh;
 
             if (obs) {
-                var mymag = -2.5 * Math.log10(myflux) + 25;
+                var mymag = -2.5 * Math.log10(myflux) + default_zp;
                 var mymagerr = Math.abs(-2.5 * myfluxerr / myflux / Math.log(10));
                 var mysource = binsource;
 
@@ -161,7 +161,7 @@ for (let i = 0; i < toggle.labels.length; i++) {
             }
 
             if (weight.length > 1) {
-                var mymaglim = -2.5 * Math.log10(5 * myfluxerr) + 25;
+                var mymaglim = -2.5 * Math.log10(detect_thresh * myfluxerr) + default_zp;
             } else {
                 var mymaglim = limmag[0];
             }
@@ -184,7 +184,7 @@ for (let i = 0; i < toggle.labels.length; i++) {
             boldsource.data.mag.push(mymag);
             boldsource.data.magerr.push(mymagerr);
             boldsource.data.lim_mag.push(mymaglim);
-            boldsource.data.zp.push(25.);
+            boldsource.data.zp.push(default_zp);
             boldsource.data.zpsys.push('ab');
             boldsource.data.stacked.push(true);
         }
