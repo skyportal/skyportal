@@ -17,7 +17,7 @@ from matplotlib import cm
 from matplotlib.colors import rgb2hex
 
 import os
-from skyportal.models import (DBSession, Obj, Photometry,
+from skyportal.models import (DBSession, Source, Photometry,
                               Instrument, Telescope)
 
 import sncosmo
@@ -175,12 +175,12 @@ def get_color(bandpass_name, cmap_limits=(3000., 10000.)):
 
 
 # TODO make async so that thread isn't blocked
-def photometry_plot(obj_id):
-    """Create scatter plot of photometry for object.
+def photometry_plot(source_id):
+    """Create scatter plot of photometry for source.
     Parameters
     ----------
-    obj_id : int
-        ID of object to be plotted.
+    source_id : str
+        ID of source to be plotted.
     Returns
     -------
     (str, str)
@@ -191,7 +191,7 @@ def photometry_plot(obj_id):
                        .query(Photometry, Telescope.nickname.label('telescope'),
                               Instrument.name.label('instrument'))
                        .join(Instrument).join(Telescope)
-                       .filter(Photometry.obj_id == obj_id)
+                       .filter(Photometry.source_id == source_id)
                        .statement, DBSession().bind)
     if data.empty:
         return None, None, None
@@ -498,7 +498,9 @@ def photometry_plot(obj_id):
         code=open(os.path.join(
             os.path.dirname(__file__),
             '../static/js/plotjs',
-            "download.js")).read().replace('objname', obj_id))
+            "download.js")).read().replace(
+            'objname', source_id
+        ).replace('default_zp', str(DEFAULT_ZP)))
 
     toplay = row(slider, button)
     callback = CustomJS(args={'slider': slider, 'toggle': toggle, **model_dict},
@@ -521,10 +523,10 @@ def photometry_plot(obj_id):
 
 
 # TODO make async so that thread isn't blocked
-def spectroscopy_plot(obj_id):
+def spectroscopy_plot(source_id):
     """TODO normalization? should this be handled at data ingestion or plot-time?"""
-    obj = Obj.query.get(obj_id)
-    spectra = Obj.query.get(obj_id).spectra
+    source = Source.query.get(source_id)
+    spectra = Source.query.get(source_id).spectra
     if len(spectra) == 0:
         return None, None, None
 
@@ -571,11 +573,11 @@ def spectroscopy_plot(obj_id):
         active=[], width=80,
         colors=[c for w, c in SPEC_LINES.values()]
     )
-    z = TextInput(value=str(obj.redshift), title="z:")
+    z = TextInput(value=str(source.redshift), title="z:")
     v_exp = TextInput(value='0', title="v_exp:")
     for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
         el_data = pd.DataFrame({'wavelength': wavelengths})
-        el_data['x'] = el_data['wavelength'] * (1 + obj.redshift)
+        el_data['x'] = el_data['wavelength'] * (1 + source.redshift)
         model_dict[f'el{i}'] = plot.segment(x0='x', x1='x',
                                             # TODO change limits
                                             y0=0, y1=1e-13, color=color,
