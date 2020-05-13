@@ -96,11 +96,11 @@ if __name__ == "__main__":
             verify_server_availability(server_url)
             print("App running - continuing with API calls")
 
-            with status("Creating dummy group & adding users"):
+            with status("Creating dummy groups & filter & adding users"):
                 data = assert_post(
                     "groups",
                     data={
-                        "name": "Stream A",
+                        "name": "Program A",
                         "group_admins": [
                             super_admin_user.username,
                             group_admin_user.username,
@@ -108,6 +108,25 @@ if __name__ == "__main__":
                     },
                 )
                 group_id = data["data"]["id"]
+
+                data = assert_post(
+                    "groups",
+                    data={
+                        "name": "Program B",
+                        "group_admins": [
+                            super_admin_user.username,
+                        ],
+                    },
+                )
+
+                data = assert_post(
+                    "filters",
+                    data={
+                        "group_id": group_id,
+                        "query_string": "sample_query_string",
+                    },
+                )
+                filter_id = data["data"]["id"]
 
                 for u in [view_only_user, full_user]:
                     data = assert_post(
@@ -164,7 +183,7 @@ if __name__ == "__main__":
                     },
                 )
 
-            with status("Creating dummy sources"):
+            with status("Creating dummy candidates & sources"):
                 SOURCES = [
                     {
                         "id": "14gqr",
@@ -194,6 +213,12 @@ if __name__ == "__main__":
                     comments = source_info.pop("comments")
 
                     data = assert_post("sources", data=source_info)
+                    assert data["data"]["id"] == source_info["id"]
+
+                    _ = source_info.pop("group_ids")
+
+                    data = assert_post("candidates", data={**source_info,
+                                                           "filter_ids": [filter_id]})
                     assert data["data"]["id"] == source_info["id"]
 
                     for comment in comments:
