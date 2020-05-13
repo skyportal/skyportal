@@ -125,7 +125,7 @@ class CandidateHandler(BaseHandler):
     def post(self):
         """
         ---
-        description: POST a new candidate. If group_ids is not specified, the user or token's groups will be used.
+        description: POST a new candidate.
         requestBody:
           content:
             application/json:
@@ -145,33 +145,35 @@ class CandidateHandler(BaseHandler):
         """
         data = self.get_json()
         schema = Obj.__schema__()
-        user_group_ids = [g.id for g in self.current_user.groups]
-        if not user_group_ids:
-            return self.error(
-                "You must belong to one or more groups before you can add candidates."
-            )
+        passing_alert_id = data.pop("passing_alert_id", None)
+        passed_at = data.pop("passed_at", None)
+        if passed_at is not None:
+            passed_at = arrow.get(passed_at)
         try:
-            group_ids = [id for id in data.pop("group_ids") if id in user_group_ids]
+            filter_ids = data.pop("filter_ids")
         except KeyError:
-            group_ids = user_group_ids
-        if not group_ids:
-            return self.error(
-                "Invalid group_ids field. Please specify at least "
-                "one valid group ID that you belong to."
-            )
+            return self.error("Missing required filter_ids parameter.")
+
         try:
             obj = schema.load(data)
         except ValidationError as e:
             return self.error(
                 "Invalid/missing parameters: " f"{e.normalized_messages()}"
             )
-        filters = Filter.query.filter(Filter.group_id.in_(group_ids)).all()
-        if not filters:
-            return self.error("Invalid group/filter association -- please specify "
-                              "at least one group associated with a valid filter.")
+        filters = Filter.query.filter(Filter.id.in_(filter_ids)).all()
 
         DBSession.add(obj)
-        DBSession.add_all([Candidate(obj=obj, filter=filter) for filter in filters])
+        DBSession.add_all(
+            [
+                Candidate(
+                    obj=obj,
+                    filter=filter,
+                    passing_alert_id=passing_alert_id,
+                    passed_at=passed_at,
+                )
+                for filter in filters
+            ]
+        )
         DBSession().commit()
 
         self.push_all(action="skyportal/FETCH_CANDIDATES")
