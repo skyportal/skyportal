@@ -94,7 +94,11 @@ def test_edit_existing_followup_request(
     # Need to wait for plots to render & then scroll down again
     time.sleep(1.5)
     driver.execute_script("arguments[0].scrollIntoView();", instrument_select_element)
-    instrument_select.select_by_visible_text("P60 Camera")
+    try:
+        instrument_select.select_by_visible_text("P60 Camera")
+    except:
+        driver.execute_script("arguments[0].scrollIntoView();", instrument_select_element)
+        instrument_select.select_by_visible_text("P60 Camera")
 
     submit_button = driver.find_element_by_css_selector("[type=submit]")
     driver.execute_script("arguments[0].scrollIntoView();", submit_button)
@@ -141,7 +145,11 @@ def test_delete_followup_request(
     # Need to wait for plots to render & then scroll down again
     time.sleep(1.5)
     driver.execute_script("arguments[0].scrollIntoView();", instrument_select_element)
-    instrument_select.select_by_visible_text("P60 Camera")
+    try:
+        instrument_select.select_by_visible_text("P60 Camera")
+    except:
+        driver.execute_script("arguments[0].scrollIntoView();", instrument_select_element)
+        instrument_select.select_by_visible_text("P60 Camera")
 
     submit_button = driver.find_element_by_css_selector("[type=submit]")
     driver.execute_script("arguments[0].scrollIntoView();", submit_button)
@@ -188,7 +196,11 @@ def test_cannot_edit_uneditable_followup_request(
     # Need to wait for plots to render & then scroll down again
     time.sleep(1.5)
     driver.execute_script("arguments[0].scrollIntoView();", instrument_select_element)
-    instrument_select.select_by_visible_text("ALFOSC")
+    try:
+        instrument_select.select_by_visible_text("ALFOSC")
+    except:
+        driver.execute_script("arguments[0].scrollIntoView();", instrument_select_element)
+        instrument_select.select_by_visible_text("ALFOSC")
 
     submit_button = driver.find_element_by_css_selector("[type=submit]")
     driver.execute_script("arguments[0].scrollIntoView();", submit_button)
