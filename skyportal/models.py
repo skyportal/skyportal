@@ -56,7 +56,7 @@ class Group(Base):
                                passive_deletes=True)
     users = relationship('User', secondary='group_users',
                          back_populates='groups')
-    filter = relationship("Filter", back_populates="group")
+    filter = relationship("Filter", uselist=False, back_populates="group")
 
 
 GroupUser = join_model('group_users', Group, User)
