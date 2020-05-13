@@ -238,6 +238,9 @@ class CandidateHandler(BaseHandler):
         self.push_all(action="skyportal/FETCH_CANDIDATES")
         return self.success()
 
+    # TODO Do we need a delete handler? If so, what should it do? Old, unsaved
+    # candidates will automatically be deleted by cron job.
+
 
 def grab_query_results_page(q, total_matches, page, n_items_per_page, items_name):
     info = {}

@@ -88,3 +88,61 @@ class FilterHandler(BaseHandler):
         DBSession().commit()
 
         return self.success(data={"id": fil.id})
+
+    @permissions(["Manage groups"])
+    def patch(self, filter_id):
+        """
+        ---
+        description: Update a filter
+        parameters:
+          - in: path
+            name: filter_id
+            required: True
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: FilterNoID
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json()
+        data["id"] = filter_id
+        schema = Filter.__schema__()
+        try:
+            schema.load(data)
+        except ValidationError as e:
+            return self.error('Invalid/missing parameters: '
+                              f'{e.normalized_messages()}')
+        DBSession().commit()
+        return self.success()
+
+    @permissions(["Manage groups"])
+    def delete(self, filter_id):
+        """
+        ---
+        description: Delete a filter
+        parameters:
+          - in: path
+            name: filter_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        DBSession.delete(Filter.query.get(filter_id))
+        DBSession().commit()
+
+        return self.success()
