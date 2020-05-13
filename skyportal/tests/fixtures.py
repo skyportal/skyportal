@@ -1,14 +1,12 @@
 import datetime
 from itertools import cycle, islice
 import uuid
-import numpy as np
-from skyportal.models import (DBSession, User, Group, GroupUser, Photometry,
-                              Spectrum, Instrument, Telescope, Obj,
-                              Comment, Thumbnail)
 from tempfile import mkdtemp
-
+import numpy as np
 import factory
-
+from skyportal.models import (DBSession, User, Group, Photometry,
+                              Spectrum, Instrument, Telescope, Obj,
+                              Comment, Thumbnail, Filter)
 
 TMP_DIR = mkdtemp()
 
@@ -83,6 +81,12 @@ class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Group
     name = factory.LazyFunction(lambda: str(uuid.uuid4()))
     users = []
+
+
+class FilterFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Filter
+    query_string = str(uuid.uuid4())
 
 
 class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):

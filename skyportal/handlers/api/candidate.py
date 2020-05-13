@@ -64,6 +64,7 @@ class CandidateHandler(BaseHandler):
         start_date = self.get_query_argument("startDate", None)
         end_date = self.get_query_argument("endDate", None)
         group_ids = self.get_query_argument("groupIDs", None)
+        filter_ids = self.get_query_argument("filterIDs", None)
         if group_ids is not None:
             if "," in group_ids:
                 group_ids = [int(g_id) for g_id in group_ids.split(",")]
@@ -71,9 +72,23 @@ class CandidateHandler(BaseHandler):
                 group_ids = [int(group_ids)]
             else:
                 return self.error("Invalid groupIDs value -- select at least one group")
+            filter_ids = [
+                f.id for f in Filter.query.filter(Filter.group_id.in_(group_ids))
+            ]
+        elif filter_ids is not None:
+            if "," in filter_ids:
+                filter_ids = [int(f_id) for f_id in filter_ids.split(",")]
+            elif filter_ids.isdigit():
+                filter_ids = [int(filter_ids)]
+            else:
+                return self.error("Invalid filterIDs paramter value.")
+            group_ids = [
+                f.group_id for f in Filter.query.filter(Filter.id.in_(filter_ids))
+            ]
         else:
-            # If 'groupIDs' param not present in request, use all user groups
+            # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
             group_ids = [g.id for g in self.current_user.groups]
+            filter_ids = [g.filter.id for g in self.current_user.groups]
         try:
             page = int(page_number)
         except ValueError:
@@ -91,7 +106,7 @@ class CandidateHandler(BaseHandler):
             .filter(
                 Obj.id.in_(
                     DBSession.query(Candidate.obj_id).filter(
-                        Candidate.group_id.in_(group_ids)
+                        Candidate.filter_id.in_(filter_ids)
                     )
                 )
             )
@@ -179,7 +194,7 @@ class CandidateHandler(BaseHandler):
         self.push_all(action="skyportal/FETCH_CANDIDATES")
         return self.success(data={"id": obj.id})
 
-    @auth_or_token
+    @permissions(["Manage sources"])
     def patch(self, obj_id):
         """
         ---
