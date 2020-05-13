@@ -77,6 +77,10 @@ function POST(endpoint, actionType, payload) {
   return API(endpoint, actionType, 'POST', payload);
 }
 
+function PATCH(endpoint, actionType, payload) {
+  return API(endpoint, actionType, 'PATCH', payload);
+}
+
 function PUT(endpoint, actionType, payload) {
   return API(endpoint, actionType, 'PUT', payload);
 }
@@ -85,4 +89,4 @@ function DELETE(endpoint, actionType, payload) {
   return API(endpoint, actionType, 'DELETE', payload);
 }
 
-export { GET, POST, PUT, DELETE, API, API_CALL };
+export { GET, POST, PUT, PATCH, DELETE, API, API_CALL };
