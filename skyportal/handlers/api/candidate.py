@@ -250,8 +250,8 @@ def grab_query_results_page(q, total_matches, page, n_items_per_page, items_name
 
     info["pageNumber"] = page
     info["lastPage"] = info["totalMatches"] <= page * n_items_per_page
-    info["candidateNumberingStart"] = (page - 1) * n_items_per_page + 1
-    info["candidateNumberingEnd"] = min(info["totalMatches"], page * n_items_per_page)
+    info["numberingStart"] = (page - 1) * n_items_per_page + 1
+    info["numberingEnd"] = min(info["totalMatches"], page * n_items_per_page)
     if info["totalMatches"] == 0:
-        info["candidateNumberingStart"] = 0
+        info["numberingStart"] = 0
     return info

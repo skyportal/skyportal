@@ -242,9 +242,9 @@ const SearchBox = ({ sources }) => {
           <div style={{ display: "inline-block" }}>
             <i>
               Displaying&nbsp;
-              {sources.sourceNumberingStart}
+              {sources.numberingStart}
               -
-              {sources.sourceNumberingEnd}
+              {sources.numberingEnd}
               &nbsp; of&nbsp;
               {sources.totalMatches}
               &nbsp; matching sources.
@@ -283,10 +283,10 @@ SearchBox.propTypes = {
   sources: PropTypes.shape({
     lastPage: PropTypes.bool,
     pageNumber: PropTypes.number,
-    sourceNumberingStart: PropTypes.any,
+    numberingStart: PropTypes.any,
     totalMatches: PropTypes.any,
     queryInProgress: PropTypes.any,
-    sourceNumberingEnd: PropTypes.any,
+    numberingEnd: PropTypes.any,
   }).isRequired,
 };
 
