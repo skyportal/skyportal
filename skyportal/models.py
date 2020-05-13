@@ -24,6 +24,8 @@ def is_owned_by(self, user_or_token):
         return user_or_token in self.tokens
     if hasattr(self, 'groups'):
         return bool(set(self.groups) & set(user_or_token.groups))
+    if hasattr(self, 'group'):
+        return self.group in user_or_token.groups
     if hasattr(self, 'users'):
         if hasattr(user_or_token, 'created_by'):
             if user_or_token.created_by in self.users:
