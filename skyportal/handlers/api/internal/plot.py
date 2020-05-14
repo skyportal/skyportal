@@ -17,7 +17,7 @@ class PlotPhotometryHandler(BaseHandler):
         else:
             self.success(data={'docs_json': docs_json, 'render_items': render_items,
                                'custom_model_js': custom_model_js,
-                               'url': self.request.path})
+                               'url': self.request.uri})
 
 
 class PlotSpectroscopyHandler(BaseHandler):
