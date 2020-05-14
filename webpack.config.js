@@ -1,4 +1,3 @@
-const webpack = require('webpack');
 const path = require('path');
 
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
@@ -88,12 +87,6 @@ const config = {
     ]
   },
   plugins: [
-    // We do not use JQuery for anything in this project; but Bootstrap
-    // depends on it
-    new webpack.ProvidePlugin({
-      $: 'jquery',
-      jQuery: 'jquery'
-    }),
 
     // Uncomment the following line to enable bundle size analysis
     //    new BundleAnalyzerPlugin()
