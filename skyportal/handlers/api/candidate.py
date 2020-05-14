@@ -136,6 +136,13 @@ class CandidateHandler(BaseHandler):
             if "Page number out of range" in str(e):
                 return self.error("Page number out of range.")
             raise
+        matching_source_ids = (
+            DBSession.query(Source.obj_id)
+            .filter(Source.obj_id.in_([obj.id for obj in query_results["candidates"]]))
+            .all()
+        )
+        for obj in query_results["candidates"]:
+            obj.is_source = (obj.id,) in matching_source_ids
         return self.success(data=query_results)
 
     @permissions(["Upload data"])
