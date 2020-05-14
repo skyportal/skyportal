@@ -88,7 +88,9 @@ class CandidateHandler(BaseHandler):
         else:
             # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
             group_ids = [g.id for g in self.current_user.groups]
-            filter_ids = [g.filter.id for g in self.current_user.groups]
+            filter_ids = [
+                g.filter.id for g in self.current_user.groups if g.filter is not None
+            ]
         try:
             page = int(page_number)
         except ValueError:
