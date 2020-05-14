@@ -52,19 +52,19 @@ const CandidateList = () => {
         </thead>
         <tbody>
           {
-            candidates.map((candidate) => {
-              const thumbnails = candidate.thumbnails.filter((t) => t.type !== "dr8");
+            candidates.map((candidateObj) => {
+              const thumbnails = candidateObj.thumbnails.filter((t) => t.type !== "dr8");
               return (
-                <tr key={candidate.id}>
+                <tr key={candidateObj.id}>
                   <td>
                     {
-                      candidate.last_detected && (
+                      candidateObj.last_detected && (
                         <div>
                           <div>
-                            {String(candidate.last_detected).split(".")[0].split("T")[1]}
+                            {String(candidateObj.last_detected).split(".")[0].split("T")[1]}
                           </div>
                           <div>
-                            {String(candidate.last_detected).split(".")[0].split("T")[0]}
+                            {String(candidateObj.last_detected).split(".")[0].split("T")[0]}
                           </div>
                         </div>
                       )
@@ -72,22 +72,22 @@ const CandidateList = () => {
                   </td>
                   <td>
                     <ThumbnailList
-                      ra={candidate.ra}
-                      dec={candidate.dec}
+                      ra={candidateObj.ra}
+                      dec={candidateObj.dec}
                       thumbnails={thumbnails}
                     />
                   </td>
                   <td>
                     ID:&nbsp;
-                    <Link to={`/candidate/${candidate.id}`}>
-                      {candidate.id}
+                    <Link to={`/candidate/${candidateObj.id}`}>
+                      {candidateObj.id}
                     </Link>
                     <br />
                     {
-                      candidate.is_source ? (
+                      candidateObj.is_source ? (
                         <div>
                           <Link
-                            to={`/source/${candidate.id}`}
+                            to={`/source/${candidateObj.id}`}
                             style={{ color: "red", textDecoration: "underline" }}
                           >
                             Previously Saved
@@ -98,7 +98,7 @@ const CandidateList = () => {
                           NOT SAVED
                           <br />
                           <SaveCandidateGroupSelectDialog
-                            candidateID={candidate.id}
+                            candidateID={candidateObj.id}
                             userGroups={userGroups}
                           />
                         </div>
@@ -106,21 +106,21 @@ const CandidateList = () => {
                     }
                     <b>Coordinates</b>
                     :&nbsp;
-                    {candidate.ra}
+                    {candidateObj.ra}
                     &nbsp;
-                    {candidate.dec}
+                    {candidateObj.dec}
                     <br />
                   </td>
                   <td>
                     <Plot
                       className={sourceStyles.smallPlot}
-                      url={`/api/internal/plot/photometry/${candidate.id}?plotHeight=200&plotWidth=300`}
+                      url={`/api/internal/plot/photometry/${candidateObj.id}?plotHeight=200&plotWidth=300`}
                     />
                   </td>
                   <td>
                     {
-                      candidate.candidate_comments &&
-                        <CandidateCommentList comments={candidate.candidate_comments} />
+                      candidateObj.comments &&
+                        <CandidateCommentList comments={candidateObj.comments} />
                     }
                   </td>
                 </tr>
