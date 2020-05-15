@@ -8,8 +8,8 @@ import FoldBox from "./FoldBox";
 
 
 const FilterCandidateList = ({ userGroups }) => {
-  const { pageNumber, lastPage, totalMatches, candidateNumberingStart,
-    candidateNumberingEnd } = useSelector((state) => state.candidates);
+  const { pageNumber, lastPage, totalMatches, numberingStart,
+    numberingEnd } = useSelector((state) => state.candidates);
 
   const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
   const today = new Date();
@@ -155,9 +155,9 @@ const FilterCandidateList = ({ userGroups }) => {
       <div style={{ display: "inline-block" }}>
         <i>
           Displaying&nbsp;
-          {candidateNumberingStart}
+          {numberingStart}
           -
-          {candidateNumberingEnd}
+          {numberingEnd}
           &nbsp;
           of&nbsp;
           {totalMatches}
