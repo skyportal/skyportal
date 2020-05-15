@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import PropTypes from 'prop-types';
+import React, { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import PropTypes from "prop-types";
 
-import * as candidatesActions from '../ducks/candidates';
+import * as candidatesActions from "../ducks/candidates";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 
@@ -63,7 +63,7 @@ const FilterCandidateList = ({ userGroups }) => {
         filterParamsCopy.groupIDs.splice(filterParams.groupIDs.indexOf(groupID), 1);
       }
     } else {
-      filterParamsCopy[e.target.name] = e.target.type === 'checkbox' ?
+      filterParamsCopy[e.target.name] = e.target.type === "checkbox" ?
         e.target.checked : e.target.value;
     }
     setFilterParams({

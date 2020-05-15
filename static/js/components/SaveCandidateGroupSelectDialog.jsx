@@ -1,25 +1,29 @@
-import React, { useState } from 'react';
-import PropTypes from 'prop-types';
-import { useDispatch } from 'react-redux';
-import Dialog from '@material-ui/core/Dialog';
-import DialogContent from '@material-ui/core/DialogContent';
-import DialogTitle from '@material-ui/core/DialogTitle';
-import Checkbox from '@material-ui/core/Checkbox';
+import React, { useState, useEffect } from "react";
+import PropTypes from "prop-types";
+import { useDispatch } from "react-redux";
+import Dialog from "@material-ui/core/Dialog";
+import DialogContent from "@material-ui/core/DialogContent";
+import DialogTitle from "@material-ui/core/DialogTitle";
+import Checkbox from "@material-ui/core/Checkbox";
+import Button from "@material-ui/core/Button";
+import FormControlLabel from "@material-ui/core/FormControlLabel";
+import { useForm, Controller } from "react-hook-form";
 
-import * as sourceActions from '../ducks/source';
+import * as sourceActions from "../ducks/source";
+import FormValidationError from "./FormValidationError";
 
 
 const SaveCandidateGroupSelect = ({ candidateID, userGroups }) => {
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
-  const initialState = {};
-  // Set as checked by default those groups that a candidate already belongs to
-  const userGroupIDs = userGroups.map((userGroup) => userGroup.id);
-  userGroupIDs.forEach((userGroupID) => {
-    initialState[userGroupID] = false;
-  });
 
-  const [state, setState] = useState(initialState);
+  const { handleSubmit, errors, reset, control, getValues } = useForm();
+
+  useEffect(() => {
+    reset({
+      group_ids: Array(userGroups.length).fill(false)
+    });
+  }, [reset, userGroups]);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -29,22 +33,20 @@ const SaveCandidateGroupSelect = ({ candidateID, userGroups }) => {
     setOpen(false);
   };
 
-  const handleInputChange = (event) => {
-    const newState = { ...state };
-    newState[event.target.name] = event.target.type === 'checkbox' ?
-      event.target.checked : event.target.value;
-    setState(newState);
+  const validateGroups = () => {
+    const formState = getValues({ nest: true });
+    return formState.group_ids.filter((value) => Boolean(value)).length >= 1;
   };
 
-  const handleSubmit = () => {
-    const payload = { id: candidateID, group_ids: [] };
-    Object.keys(state).forEach((key) => {
-      if (state[key] === true) {
-        payload.group_ids.push(key);
-      }
-    });
-    dispatch(sourceActions.saveSource(payload));
-    setOpen(false);
+  const onSubmit = async (data) => {
+    data.id = candidateID;
+    const selectedGroupIDs = data.group_ids.filter((ID, idx) => data.group_ids[idx]);
+    data.group_ids = selectedGroupIDs;
+    const result = await dispatch(sourceActions.saveSource(data));
+    if (result.status === "success") {
+      reset();
+      setOpen(false);
+    }
   };
 
   return (
@@ -61,27 +63,38 @@ const SaveCandidateGroupSelect = ({ candidateID, userGroups }) => {
           Select one or more groups:
         </DialogTitle>
         <DialogContent>
-          {
-            userGroups.map((userGroup) => (
-              <div key={userGroup.id}>
-                <Checkbox
-                  name={userGroup.id}
-                  checked={state[userGroup.id]}
-                  onChange={handleInputChange}
-                  type="checkbox"
-                  color="default"
+          <form onSubmit={handleSubmit(onSubmit)}>
+            {
+              errors.group_ids &&
+                <FormValidationError message="Select at least one group." />
+            }
+            {
+              userGroups.map((userGroup) => (
+                <FormControlLabel
+                  key={userGroup.id}
+                  control={(
+                    <Controller
+                      as={Checkbox}
+                      name={`group_ids[${userGroup.id}]`}
+                      control={control}
+                      rules={{ validate: validateGroups }}
+                      defaultValue={false}
+                    />
+                  )}
+                  label={userGroup.name}
                 />
-                &nbsp;
-                {userGroup.name}
-              </div>
-            ))
-          }
-          <br />
-          <div style={{ textAlign: "center" }}>
-            <button type="button" onClick={handleSubmit}>
-              Save
-            </button>
-          </div>
+              ))
+            }
+            <br />
+            <div style={{ textAlign: "center" }}>
+              <Button
+                variant="contained"
+                type="submit"
+              >
+                Save
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
