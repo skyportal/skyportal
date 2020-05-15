@@ -6,7 +6,7 @@ import DialogContent from '@material-ui/core/DialogContent';
 import DialogTitle from '@material-ui/core/DialogTitle';
 import Checkbox from '@material-ui/core/Checkbox';
 
-import * as Actions from '../ducks/candidate';
+import * as sourceActions from '../ducks/source';
 
 
 const SaveCandidateGroupSelect = ({ candidateID, userGroups }) => {
@@ -37,13 +37,13 @@ const SaveCandidateGroupSelect = ({ candidateID, userGroups }) => {
   };
 
   const handleSubmit = () => {
-    const payload = { groupIDs: [] };
+    const payload = { id: candidateID, group_ids: [] };
     Object.keys(state).forEach((key) => {
       if (state[key] === true) {
-        payload.groupIDs.push(key);
+        payload.group_ids.push(key);
       }
     });
-    dispatch(Actions.saveCandidate(candidateID, payload));
+    dispatch(sourceActions.saveSource(payload));
     setOpen(false);
   };
 
