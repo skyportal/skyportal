@@ -31,7 +31,7 @@ const FilterCandidateList = ({ userGroups }) => {
       userGroupIDs = userGroups.map((userGroup) => userGroup.id);
       setFilterParams({ ...filterParams, groupIDs: userGroupIDs });
     }
-  }, [userGroups]);
+  }, [userGroups, setFilterParams]);
 
   const dispatch = useDispatch();
 

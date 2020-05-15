@@ -22,7 +22,7 @@ const CandidateList = () => {
     if (!candidates.length) {
       dispatch(candidatesActions.fetchCandidates());
     }
-  }, []);
+  }, [candidates, dispatch]);
 
   return (
     <div style={{ border: "1px solid #DDD", padding: "10px" }}>
