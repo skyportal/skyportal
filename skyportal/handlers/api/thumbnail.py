@@ -62,6 +62,8 @@ class ThumbnailHandler(BaseHandler):
         elif 'obj_id' in data:
             obj_id = data['obj_id']
             obj = Source.get_if_owned_by(obj_id, self.current_user)
+            if obj is None:
+                return self.error(f"Invalid obj_id: {obj_id}")
             try:
                 phot = obj.photometry[0]
             except IndexError:

@@ -185,7 +185,8 @@ class CandidateHandler(BaseHandler):
                 "Invalid/missing parameters: " f"{e.normalized_messages()}"
             )
         filters = Filter.query.filter(Filter.id.in_(filter_ids)).all()
-
+        if not filters:
+            return self.error("At least one valid filter ID must be provided.")
         DBSession.add(obj)
         DBSession.add_all(
             [

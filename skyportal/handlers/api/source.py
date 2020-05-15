@@ -168,12 +168,13 @@ class SourceHandler(BaseHandler):
         """
         data = self.get_json()
         schema = Obj.__schema__()
-        user_group_ids = [g.id for g in self.current_user.groups]
+        user_group_ids = [int(g.id) for g in self.current_user.groups]
         if not user_group_ids:
             return self.error("You must belong to one or more groups before "
                               "you can add sources.")
         try:
-            group_ids = [id for id in data.pop('group_ids') if id in user_group_ids]
+            group_ids = [int(id) for id in data.pop('group_ids')
+                         if int(id) in user_group_ids]
         except KeyError:
             group_ids = user_group_ids
         if not group_ids:
@@ -192,7 +193,8 @@ class SourceHandler(BaseHandler):
         DBSession.add_all([Source(obj=obj, group=group) for group in groups])
         DBSession().commit()
 
-        self.push_all(action='skyportal/FETCH_SOURCES')
+        self.push_all(action="skyportal/FETCH_SOURCES")
+        self.push_all(action="skyportal/FETCH_CANDIDATES")
         return self.success(data={"id": obj.id})
 
     @permissions(['Manage sources'])

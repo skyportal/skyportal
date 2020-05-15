@@ -216,15 +216,24 @@ if __name__ == "__main__":
                     assert data["data"]["id"] == source_info["id"]
 
                     _ = source_info.pop("group_ids")
-
                     data = assert_post("candidates", data={**source_info,
                                                            "filter_ids": [filter_id]})
                     assert data["data"]["id"] == source_info["id"]
+
+                    # Add candidates with no associated sources
+                    data = assert_post("candidates", data={**source_info,
+                                                           "filter_ids": [filter_id],
+                                                           "id": f"{source_info['id']}_unsaved_copy"})
+                    assert data["data"]["id"] == f"{source_info['id']}_unsaved_copy"
 
                     for comment in comments:
                         data = assert_post(
                             "comment",
                             data={"obj_id": source_info["id"], "text": comment},
+                        )
+                        data = assert_post(
+                            "comment",
+                            data={"obj_id": f"{source_info['id']}_unsaved_copy", "text": comment},
                         )
 
                     phot_file = basedir / "skyportal/tests/data/phot.csv"
@@ -234,6 +243,20 @@ if __name__ == "__main__":
                         "photometry",
                         data={
                             "obj_id": source_info["id"],
+                            "time_format": "iso",
+                            "time_scale": "utc",
+                            "instrument_id": instrument1_id,
+                            "observed_at": phot_data.observed_at.tolist(),
+                            "mag": phot_data.mag.tolist(),
+                            "e_mag": phot_data.e_mag.tolist(),
+                            "lim_mag": phot_data.lim_mag.tolist(),
+                            "filter": phot_data["filter"].tolist(),
+                        },
+                    )
+                    data = assert_post(
+                        "photometry",
+                        data={
+                            "obj_id": f"{source_info['id']}_unsaved_copy",
                             "time_format": "iso",
                             "time_scale": "utc",
                             "instrument_id": instrument1_id,
@@ -264,6 +287,16 @@ if __name__ == "__main__":
                                 "fluxes": df.flux.tolist(),
                             },
                         )
+                        data = assert_post(
+                            "spectrum",
+                            data={
+                                "obj_id": f"{source_info['id']}_unsaved_copy",
+                                "observed_at": str(datetime.datetime(2014, 10, 24)),
+                                "instrument_id": 1,
+                                "wavelengths": df.wavelength.tolist(),
+                                "fluxes": df.flux.tolist(),
+                            },
+                        )
 
                     for ttype in ["new", "ref", "sub"]:
                         fname = f'{source_info["id"]}_{ttype}.png'
@@ -279,9 +312,17 @@ if __name__ == "__main__":
                                 "ttype": ttype,
                             },
                         )
+                        data = assert_post(
+                            "thumbnail",
+                            data={
+                                "obj_id": f"{source_info['id']}_unsaved_copy",
+                                "data": thumbnail_data,
+                                "ttype": ttype,
+                            },
+                        )
 
-                    source = Obj.query.get(source_info["id"])
-                    source.add_linked_thumbnails()
+                    Obj.query.get(source_info["id"]).add_linked_thumbnails()
+                    Obj.query.get(f"{source_info['id']}_unsaved_copy").add_linked_thumbnails()
         finally:
             if not app_already_running:
                 print("Terminating web app")
