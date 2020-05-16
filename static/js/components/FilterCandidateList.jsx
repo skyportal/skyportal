@@ -39,7 +39,7 @@ const FilterCandidateList = ({ userGroups }) => {
   const validateDates = () => {
     formState = getValues({ nest: true });
     if (!!formState.startDate && !!formState.endDate) {
-      return formState.startDate < formState.endDate;
+      return formState.startDate <= formState.endDate;
     }
     return true;
   };
@@ -48,6 +48,13 @@ const FilterCandidateList = ({ userGroups }) => {
     const groupIDs = userGroups.map((g) => g.id);
     const selectedGroupIDs = groupIDs.filter((ID, idx) => data.groupIDs[idx]);
     data.groupIDs = selectedGroupIDs;
+    // Convert dates to ISO for parsing on back-end
+    if (data.startDate) {
+      data.startDate = data.startDate.toISOString();
+    }
+    if (data.endDate) {
+      data.endDate = data.endDate.toISOString();
+    }
     dispatch(candidatesActions.fetchCandidates(data));
   };
 
