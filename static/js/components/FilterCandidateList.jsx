@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
+import FormControlLabel from "@material-ui/core/FormControlLabel";
+import Checkbox from "@material-ui/core/Checkbox";
+import Button from "@material-ui/core/Button";
+import DatePicker from "react-datepicker";
+import { useForm, Controller } from "react-hook-form";
 
 import * as candidatesActions from "../ducks/candidates";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
+import FormValidationError from "./FormValidationError";
 
 
 const FilterCandidateList = ({ userGroups }) => {
@@ -12,28 +18,38 @@ const FilterCandidateList = ({ userGroups }) => {
     numberingEnd } = useSelector((state) => state.candidates);
 
   const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
-  const today = new Date();
-  const todayYMD = (`${today.getFullYear()}-` +
-                    // eslint-disable-next-line prefer-template
-                    `${("0" + (today.getMonth() + 1)).slice(-2)}-` +
-                    // eslint-disable-next-line prefer-template
-                    `${("0" + today.getDate()).slice(-2)}`);
-  let userGroupIDs = userGroups.map((userGroup) => userGroup.id);
-  const [filterParams, setFilterParams] = useState({
-    unsavedOnly: false,
-    startDate: `${todayYMD}T00:00:00`,
-    endDate: `${todayYMD}T23:59:59`,
-    groupIDs: [...userGroupIDs]
-  });
-  // This is often initialized before userGroups data has been received, so we update
+
+  const { handleSubmit, getValues, control, errors, reset } = useForm();
+
   useEffect(() => {
-    if (filterParams.groupIDs.length === 0) {
-      userGroupIDs = userGroups.map((userGroup) => userGroup.id);
-      setFilterParams({ ...filterParams, groupIDs: userGroupIDs });
-    }
-  }, [userGroups, setFilterParams]);
+    reset({
+      groupIDs: Array(userGroups.length).fill(true)
+    });
+  }, [reset, userGroups]);
 
   const dispatch = useDispatch();
+
+  let formState = getValues({ nest: true });
+
+  const validateGroups = () => {
+    formState = getValues({ nest: true });
+    return formState.groupIDs.filter((value) => Boolean(value)).length >= 1;
+  };
+
+  const validateDates = () => {
+    formState = getValues({ nest: true });
+    if (!!formState.startDate && !!formState.endDate) {
+      return formState.startDate < formState.endDate;
+    }
+    return true;
+  };
+
+  const onSubmit = (data) => {
+    const groupIDs = userGroups.map((g) => g.id);
+    const selectedGroupIDs = groupIDs.filter((ID, idx) => data.groupIDs[idx]);
+    data.groupIDs = selectedGroupIDs;
+    dispatch(candidatesActions.fetchCandidates(data));
+  };
 
   const handleClickNextPage = () => {
     dispatch(candidatesActions.fetchCandidates({ pageNumber: pageNumber + 1 }));
@@ -51,98 +67,94 @@ const FilterCandidateList = ({ userGroups }) => {
     dispatch(candidatesActions.fetchCandidates({ pageNumber: jumpToPageInputValue }));
   };
 
-  const handleInputChange = (e) => {
-    const filterParamsCopy = { ...filterParams };
-    filterParamsCopy.groupIDs = [...filterParams.groupIDs];
-
-    if (e.target.name.startsWith("groupIDCheckBox_")) {
-      const groupID = parseInt(e.target.name.split("groupIDCheckBox_")[1], 10);
-      if (e.target.checked) {
-        filterParamsCopy.groupIDs.push(groupID);
-      } else if (!e.target.checked) {
-        filterParamsCopy.groupIDs.splice(filterParams.groupIDs.indexOf(groupID), 1);
-      }
-    } else {
-      filterParamsCopy[e.target.name] = e.target.type === "checkbox" ?
-        e.target.checked : e.target.value;
-    }
-    setFilterParams({
-      ...filterParamsCopy,
-      groupIDs: [...filterParamsCopy.groupIDs]
-    });
-  };
-
-  const handleClickSubmit = () => {
-    dispatch(candidatesActions.fetchCandidates(filterParams));
-  };
-
   return (
     <div>
-      <div>
-        <label>
-          Start Date (UTC):&nbsp;
-        </label>
-        <input
-          type="text"
-          name="startDate"
-          value={filterParams.startDate}
-          onChange={handleInputChange}
-          size="10"
-        />
-        &nbsp;&nbsp;
-        <label>
-          End Date (UTC):&nbsp;
-        </label>
-        <input
-          type="text"
-          name="endDate"
-          value={filterParams.endDate}
-          onChange={handleInputChange}
-          size="10"
-        />
-      </div>
-      <div>
-        <label>
-          <b>
-            Show only unsaved candidates:&nbsp;
-          </b>
-        </label>
-        <input
-          type="checkbox"
-          name="unsavedOnly"
-          checked={filterParams.unsavedOnly}
-          onChange={handleInputChange}
-        />
-      </div>
-      <div>
-        <Responsive
-          element={FoldBox}
-          title="Program Selection"
-          mobileProps={{ folded: true }}
-        >
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <div>
           {
-            userGroups.map((group) => (
-              <div key={`groupSelectDiv${group.id}`}>
-                <input
-                  type="checkbox"
-                  name={`groupIDCheckBox_${group.id}`}
-                  checked={filterParams.groupIDs.includes(group.id)}
-                  onChange={handleInputChange}
-                />
-                &nbsp;
-                {
-                  group.name
-                }
-              </div>
-            ))
+            (errors.startDate || errors.endDate) &&
+              <FormValidationError message="Invalid date range." />
           }
-        </Responsive>
-      </div>
-      <div>
-        <button type="button" onClick={handleClickSubmit}>
-          Submit
-        </button>
-      </div>
+          <Controller
+            as={(
+              <DatePicker
+                dateFormat="yyyy-MM-dd"
+                selected={formState.startDate}
+                placeholderText="Start Date"
+              />
+            )}
+            rules={{ validate: validateDates }}
+            name="startDate"
+            control={control}
+            valueName="selected"
+            onChange={([selected]) => selected}
+          />
+          <Controller
+            as={(
+              <DatePicker
+                dateFormat="yyyy-MM-dd"
+                selected={formState.endDate}
+                placeholderText="End Date"
+              />
+            )}
+            rules={{ validate: validateDates }}
+            name="endDate"
+            control={control}
+            valueName="selected"
+            onChange={([selected]) => selected}
+          />
+        </div>
+        <div>
+          <FormControlLabel
+            control={(
+              <Controller
+                as={Checkbox}
+                name="unsavedOnly"
+                control={control}
+                defaultValue={false}
+              />
+            )}
+            label="Show only unsaved candidates"
+          />
+        </div>
+        <div>
+          <Responsive
+            element={FoldBox}
+            title="Program Selection"
+            mobileProps={{ folded: true }}
+          >
+            {
+              errors.groupIDs &&
+                <FormValidationError message="Select at least one group." />
+            }
+            {
+              userGroups.map((group, idx) => (
+                <FormControlLabel
+                  key={group.id}
+                  control={(
+                    <Controller
+                      as={Checkbox}
+                      name={`groupIDs[${idx}]`}
+                      control={control}
+                      rules={{ validate: validateGroups }}
+                      defaultValue
+                    />
+                  )}
+                  label={group.name}
+                />
+              ))
+            }
+          </Responsive>
+        </div>
+        <div>
+          <Button
+            variant="contained"
+            type="submit"
+          >
+            Submit
+          </Button>
+        </div>
+      </form>
       <div style={{ display: "inline-block" }}>
         <button
           type="button"

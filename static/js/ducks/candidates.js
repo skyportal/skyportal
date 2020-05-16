@@ -26,7 +26,7 @@ messageHandler.add((actionType, payload, dispatch) => {
 });
 
 const initialState = {
-  candidates: [],
+  candidates: null,
   pageNumber: 1,
   lastPage: false,
   totalMatches: 0,

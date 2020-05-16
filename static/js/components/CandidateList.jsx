@@ -19,7 +19,7 @@ const CandidateList = () => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    if (!candidates.length) {
+    if (candidates === null) {
       dispatch(candidatesActions.fetchCandidates());
     }
   }, [candidates, dispatch]);
@@ -52,7 +52,7 @@ const CandidateList = () => {
         </thead>
         <tbody>
           {
-            candidates.map((candidateObj) => {
+            !!candidates && candidates.map((candidateObj) => {
               const thumbnails = candidateObj.thumbnails.filter((t) => t.type !== "dr8");
               return (
                 <tr key={candidateObj.id}>
