@@ -1,5 +1,6 @@
 import uuid
 import arrow
+from selenium.webdriver.common.keys import Keys
 
 from skyportal.tests import api
 
@@ -52,19 +53,15 @@ def test_candidate_group_filtering(
     for i in range(20):
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
     group_checkbox = driver.wait_for_xpath(
-        f'//input[starts-with(@name,"groupIDCheckBox_{public_group.id}")]'
+        f'//input[starts-with(@name,"groupIDs[0]")]'
     )
-    group_checkbox.click()
-    start_date_input = driver.wait_for_xpath("//input[@name='startDate']")
-    start_date_input.clear()
-    end_date_input = driver.wait_for_xpath("//input[@name='endDate']")
-    end_date_input.clear()
-    submit_button = driver.wait_for_xpath('//button[text()="Submit"]')
-    submit_button.click()
+    driver.scroll_to_element_and_click(group_checkbox)
+    submit_button = driver.wait_for_xpath('//span[text()="Submit"]')
+    driver.scroll_to_element_and_click(submit_button)
     for i in range(20):
         driver.wait_for_xpath_to_disappear(f'//a[text()="{candidate_id}_{i}"]')
-    group_checkbox.click()
-    submit_button.click()
+    driver.scroll_to_element_and_click(group_checkbox)
+    driver.scroll_to_element_and_click(submit_button)
     for i in range(20):
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
 
@@ -127,17 +124,13 @@ def test_candidate_unsaved_only_filtering(
     for i in range(20):
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
     unsaved_only_checkbox = driver.wait_for_xpath('//input[@name="unsavedOnly"]')
-    unsaved_only_checkbox.click()
-    start_date_input = driver.wait_for_xpath("//input[@name='startDate']")
-    start_date_input.clear()
-    end_date_input = driver.wait_for_xpath("//input[@name='endDate']")
-    end_date_input.clear()
-    submit_button = driver.wait_for_xpath('//button[text()="Submit"]')
-    submit_button.click()
+    driver.scroll_to_element_and_click(unsaved_only_checkbox)
+    submit_button = driver.wait_for_xpath('//span[text()="Submit"]')
+    driver.scroll_to_element_and_click(submit_button)
     for i in range(20):
         driver.wait_for_xpath_to_disappear(f'//a[text()="{candidate_id}_{i}"]')
-    unsaved_only_checkbox.click()
-    submit_button.click()
+    driver.scroll_to_element_and_click(unsaved_only_checkbox)
+    driver.scroll_to_element_and_click(submit_button)
     for i in range(20):
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
 
@@ -189,17 +182,17 @@ def test_candidate_date_filtering(
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
     start_date_input = driver.wait_for_xpath("//input[@name='startDate']")
     start_date_input.clear()
-    start_date_input.send_keys("2000-12-12T00:00:00")
+    start_date_input.send_keys("2000-12-12", Keys.ENTER)
     end_date_input = driver.wait_for_xpath("//input[@name='endDate']")
     end_date_input.clear()
-    end_date_input.send_keys("2001-12-12T00:00:01")
-    submit_button = driver.wait_for_xpath('//button[text()="Submit"]')
-    submit_button.click()
+    end_date_input.send_keys("2001-12-12", Keys.ENTER)
+    submit_button = driver.wait_for_xpath('//span[text()="Submit"]')
+    driver.scroll_to_element_and_click(submit_button)
     for i in range(20):
         driver.wait_for_xpath_to_disappear(f'//a[text()="{candidate_id}_{i}"]', 10)
     end_date_input.clear()
-    end_date_input.send_keys("2090-12-12T00:00:00")
-    submit_button.click()
+    end_date_input.send_keys("2090-12-12", Keys.ENTER)
+    driver.scroll_to_element_and_click(submit_button)
     for i in range(20):
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]', 10)
 
@@ -209,8 +202,8 @@ def test_save_candidate(driver, group_admin_user, public_group, public_candidate
     driver.get("/candidates")
     driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
     first_save_button = driver.wait_for_xpath('//button[text()="Save as source"]')
-    first_save_button.click()
-    driver.wait_for_xpath(f"//input[@name='group_ids[{public_group.id}]']").click()
+    driver.scroll_to_element_and_click(first_save_button)
+    driver.wait_for_xpath("//input[@name='group_ids[0]']").click()
     second_save_button = driver.wait_for_xpath('//span[text()="Save"]')
     second_save_button.click()
     driver.wait_for_xpath_to_disappear('//button[text()="Save as source"]')
@@ -224,8 +217,8 @@ def test_save_candidate_no_groups_error_message(
     driver.get("/candidates")
     driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
     first_save_button = driver.wait_for_xpath('//button[text()="Save as source"]')
-    first_save_button.click()
-    driver.wait_for_xpath(f"//input[@name='group_ids[{public_group.id}]']")
+    driver.scroll_to_element_and_click(first_save_button)
+    driver.wait_for_xpath("//input[@name='group_ids[0]']")
     second_save_button = driver.wait_for_xpath('//span[text()="Save"]')
     second_save_button.click()
     driver.wait_for_xpath('//*[contains(.,"Select at least one group")]')

@@ -40,7 +40,8 @@ const SaveCandidateGroupSelect = ({ candidateID, userGroups }) => {
 
   const onSubmit = async (data) => {
     data.id = candidateID;
-    const selectedGroupIDs = data.group_ids.filter((ID, idx) => data.group_ids[idx]);
+    const groupIDs = userGroups.map((g) => g.id);
+    const selectedGroupIDs = groupIDs.filter((ID, idx) => data.group_ids[idx]);
     data.group_ids = selectedGroupIDs;
     const result = await dispatch(sourceActions.saveSource(data));
     if (result.status === "success") {
@@ -69,13 +70,13 @@ const SaveCandidateGroupSelect = ({ candidateID, userGroups }) => {
                 <FormValidationError message="Select at least one group." />
             }
             {
-              userGroups.map((userGroup) => (
+              userGroups.map((userGroup, idx) => (
                 <FormControlLabel
                   key={userGroup.id}
                   control={(
                     <Controller
                       as={Checkbox}
-                      name={`group_ids[${userGroup.id}]`}
+                      name={`group_ids[${idx}]`}
                       control={control}
                       rules={{ validate: validateGroups }}
                       defaultValue={false}
