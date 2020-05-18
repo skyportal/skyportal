@@ -4,6 +4,7 @@ import PropTypes from "prop-types";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Checkbox from "@material-ui/core/Checkbox";
 import Button from "@material-ui/core/Button";
+import TextField from "@material-ui/core/TextField";
 import DatePicker from "react-datepicker";
 import { useForm, Controller } from "react-hook-form";
 
@@ -163,13 +164,13 @@ const FilterCandidateList = ({ userGroups }) => {
         </div>
       </form>
       <div style={{ display: "inline-block" }}>
-        <button
-          type="button"
+        <Button
+          variant="contained"
           onClick={handleClickPreviousPage}
           disabled={pageNumber === 1}
         >
           Previous Page
-        </button>
+        </Button>
       </div>
       <div style={{ display: "inline-block" }}>
         <i>
@@ -185,30 +186,31 @@ const FilterCandidateList = ({ userGroups }) => {
         </i>
       </div>
       <div style={{ display: "inline-block" }}>
-        <button
-          type="button"
+        <Button
+          variant="contained"
           onClick={handleClickNextPage}
           disabled={lastPage}
         >
           Next Page
-        </button>
+        </Button>
       </div>
       <div>
-        <i>
-          or&nbsp;&nbsp;
-        </i>
-        <button type="button" onClick={handleClickJumpToPage}>
-          Jump to page:
-        </button>
-        &nbsp;&nbsp;
-        <input
-          type="text"
-          style={{ width: "25px" }}
+        <TextField
+          label="Jump to Page Number"
+          type="number"
           onChange={handleJumpToPageInputChange}
           value={jumpToPageInputValue}
           name="jumpToPageInputField"
         />
+        <Button
+          variant="contained"
+          onClick={handleClickJumpToPage}
+        >
+          Jump to Page
+        </Button>
       </div>
+      <br />
+      <br />
     </div>
   );
 };

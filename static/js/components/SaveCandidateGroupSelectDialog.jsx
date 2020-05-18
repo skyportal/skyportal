@@ -52,13 +52,13 @@ const SaveCandidateGroupSelect = ({ candidateID, userGroups }) => {
 
   return (
     <div>
-      <button
-        type="button"
+      <Button
+        variant="contained"
         id={`saveCandidateButton_${candidateID}`}
         onClick={handleClickOpen}
       >
         Save as source
-      </button>
+      </Button>
       <Dialog open={open} onClose={handleClose} style={{ position: "fixed" }}>
         <DialogTitle>
           Select one or more groups:

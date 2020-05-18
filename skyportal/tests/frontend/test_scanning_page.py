@@ -201,12 +201,12 @@ def test_save_candidate(driver, group_admin_user, public_group, public_candidate
     driver.get(f"/become_user/{group_admin_user.id}")
     driver.get("/candidates")
     driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
-    first_save_button = driver.wait_for_xpath('//button[text()="Save as source"]')
+    first_save_button = driver.wait_for_xpath('//span[text()="Save as source"]')
     driver.scroll_to_element_and_click(first_save_button)
     driver.wait_for_xpath("//input[@name='group_ids[0]']").click()
     second_save_button = driver.wait_for_xpath('//span[text()="Save"]')
     second_save_button.click()
-    driver.wait_for_xpath_to_disappear('//button[text()="Save as source"]')
+    driver.wait_for_xpath_to_disappear('//span[text()="Save as source"]')
     driver.wait_for_xpath('//a[text()="Previously Saved"]')
 
 
@@ -216,7 +216,7 @@ def test_save_candidate_no_groups_error_message(
     driver.get(f"/become_user/{group_admin_user.id}")
     driver.get("/candidates")
     driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
-    first_save_button = driver.wait_for_xpath('//button[text()="Save as source"]')
+    first_save_button = driver.wait_for_xpath('//span[text()="Save as source"]')
     driver.scroll_to_element_and_click(first_save_button)
     driver.wait_for_xpath("//input[@name='group_ids[0]']")
     second_save_button = driver.wait_for_xpath('//span[text()="Save"]')
