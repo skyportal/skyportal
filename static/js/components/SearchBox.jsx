@@ -9,74 +9,45 @@ import Checkbox from "@material-ui/core/Checkbox";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import TextField from "@material-ui/core/TextField";
 import { makeStyles } from "@material-ui/core/styles";
+import { useForm, Controller } from "react-hook-form";
 
 import * as Actions from "../ducks/sources";
+
 
 const SearchBox = ({ sources }) => {
   const dispatch = useDispatch();
 
-  const [formState, setFormState] = useState({
-    sourceID: "",
-    ra: "",
-    dec: "",
-    radius: "",
-    startDate: "",
-    endDate: "",
-    simbadClass: "",
-    hasTNSname: false,
-  });
+  const { handleSubmit, register, getValues, control, reset } = useForm();
 
   const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
 
-  const handleInputChange = (event) => {
-    const newState = {};
-    newState[event.target.name] =
-      event.target.type === "checkbox" ?
-        event.target.checked :
-        event.target.value;
-    setFormState({
-      ...formState,
-      ...newState,
-    });
+  const onSubmit = (data) => {
+    dispatch(Actions.fetchSources(data));
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    dispatch(Actions.fetchSources(formState));
-  };
-
-  const handleReset = () => {
-    setFormState({
-      sourceID: "",
-      ra: "",
-      dec: "",
-      radius: "",
-      startDate: "",
-      endDate: "",
-      simbadClass: "",
-      hasTNSname: false,
-    });
+  const handleClickReset = () => {
+    reset();
     dispatch(Actions.fetchSources());
   };
 
   const handleClickNextPage = (event) => {
     event.preventDefault();
-    const vals = {
-      ...formState,
+    const data = {
+      ...getValues(),
       pageNumber: sources.pageNumber + 1,
       totalMatches: sources.totalMatches,
     };
-    dispatch(Actions.fetchSources(vals));
+    dispatch(Actions.fetchSources(data));
   };
 
   const handleClickPreviousPage = (event) => {
     event.preventDefault();
-    const vals = {
-      ...formState,
+    const data = {
+      ...getValues(),
       pageNumber: sources.pageNumber - 1,
       totalMatches: sources.totalMatches,
     };
-    dispatch(Actions.fetchSources(vals));
+    dispatch(Actions.fetchSources(data));
   };
 
   const handleJumpToPageInputChange = (event) => {
@@ -85,12 +56,12 @@ const SearchBox = ({ sources }) => {
 
   const handleClickJumpToPage = (event) => {
     event.preventDefault();
-    const vals = {
-      ...formState,
+    const data = {
+      ...getValues(),
       pageNumber: jumpToPageInputValue,
       totalMatches: sources.totalMatches,
     };
-    dispatch(Actions.fetchSources(vals));
+    dispatch(Actions.fetchSources(data));
   };
 
   const useStyles = makeStyles((theme) => ({
@@ -118,7 +89,7 @@ const SearchBox = ({ sources }) => {
 
   return (
     <Paper className={classes.paper} variant="outlined">
-      <form className={classes.root} noValidate autoComplete="off">
+      <form className={classes.root} onSubmit={handleSubmit(onSubmit)}>
         <div className={classes.blockWrapper}>
           <h4> Filter Sources </h4>
         </div>
@@ -130,8 +101,7 @@ const SearchBox = ({ sources }) => {
             fullWidth
             label="Source ID/Name"
             name="sourceID"
-            value={formState.sourceID}
-            onChange={handleInputChange}
+            inputRef={register}
           />
         </div>
 
@@ -143,22 +113,19 @@ const SearchBox = ({ sources }) => {
             size="small"
             label="RA (degrees)"
             name="ra"
-            value={formState.ra}
-            onChange={handleInputChange}
+            inputRef={register}
           />
           <TextField
             size="small"
             label="Dec (degrees)"
             name="dec"
-            value={formState.dec}
-            onChange={handleInputChange}
+            inputRef={register}
           />
           <TextField
             size="small"
             label="Radius (degrees)"
             name="radius"
-            value={formState.radius}
-            onChange={handleInputChange}
+            inputRef={register}
           />
         </div>
         <div className={classes.blockWrapper}>
@@ -169,16 +136,14 @@ const SearchBox = ({ sources }) => {
             size="small"
             label="Start Date"
             name="startDate"
-            value={formState.startDate}
-            onChange={handleInputChange}
+            inputRef={register}
             placeholder="2012-08-30T00:00:00"
           />
           <TextField
             size="small"
             label="End Date"
             name="endDate"
-            value={formState.endDate}
-            onChange={handleInputChange}
+            inputRef={register}
             placeholder="2012-08-30T00:00:00"
           />
         </div>
@@ -191,19 +156,17 @@ const SearchBox = ({ sources }) => {
             label="Class Name"
             type="text"
             name="simbadClass"
-            value={formState.simbadClass}
-            onChange={handleInputChange}
+            inputRef={register}
           />
           <FormControlLabel
             label="TNS Name"
             labelPlacement="start"
             control={(
-              <Checkbox
-                color="primary"
-                type="checkbox"
+              <Controller
+                as={<Checkbox color="primary" type="checkbox" />}
                 name="hasTNSname"
-                checked={formState.hasTNSname}
-                onChange={handleInputChange}
+                control={control}
+                defaultValue={false}
               />
             )}
           />
@@ -217,12 +180,12 @@ const SearchBox = ({ sources }) => {
             <Button
               variant="contained"
               color="primary"
-              onClick={handleSubmit}
+              type="submit"
               disabled={sources.queryInProgress}
             >
               Submit
             </Button>
-            <Button variant="contained" color="primary" onClick={handleReset}>
+            <Button variant="contained" color="primary" onClick={handleClickReset}>
               Reset
             </Button>
           </ButtonGroup>
