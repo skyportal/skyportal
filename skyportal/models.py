@@ -24,6 +24,8 @@ def is_owned_by(self, user_or_token):
         return user_or_token in self.tokens
     if hasattr(self, 'groups'):
         return bool(set(self.groups) & set(user_or_token.groups))
+    if hasattr(self, 'group'):
+        return self.group in user_or_token.groups
     if hasattr(self, 'users'):
         if hasattr(user_or_token, 'created_by'):
             if user_or_token.created_by in self.users:
@@ -54,9 +56,7 @@ class Group(Base):
                                passive_deletes=True)
     users = relationship('User', secondary='group_users',
                          back_populates='groups')
-    filter_id = sa.Column(sa.ForeignKey("filters.id"))
-    filter = relationship("Filter", foreign_keys=[filter_id],
-                          back_populates="group")
+    filter = relationship("Filter", uselist=False, back_populates="group")
 
 
 GroupUser = join_model('group_users', Group, User)
@@ -171,7 +171,8 @@ class Obj(Base):
 
 class Filter(Base):
     query_string = sa.Column(sa.String, nullable=False, unique=False)
-    group = relationship("Group", back_populates="filter")
+    group_id = sa.Column(sa.ForeignKey("groups.id"))
+    group = relationship("Group", foreign_keys=[group_id], back_populates="filter")
 
 
 Candidate = join_model("candidates", Filter, Obj)
@@ -179,10 +180,30 @@ Candidate.passed_at = sa.Column(sa.DateTime, nullable=True)
 Candidate.passing_alert_id = sa.Column(sa.Integer)
 
 
+def get_candidate_if_owned_by(obj_id, user_or_token, options=[]):
+    if Candidate.query.filter(Candidate.obj_id == obj_id).first() is None:
+        return None
+    user_group_ids = [g.id for g in user_or_token.groups]
+    c = (
+        Candidate.query.filter(Candidate.obj_id == obj_id)
+        .filter(
+            Candidate.filter_id.in_(
+                DBSession.query(Filter.id).filter(Filter.group_id.in_(user_group_ids))
+            )
+        )
+        .options(options)
+        .first()
+    )
+    if c is None:
+        raise AccessError("Insufficient permissions.")
+    return c.obj
+
+
 def candidate_is_owned_by(self, user_or_token):
-    return bool(set(self.filter.groups) & set(user_or_token.groups))
+    return self.filter.group in user_or_token.groups
 
 
+Candidate.get_if_owned_by = get_candidate_if_owned_by
 Candidate.is_owned_by = candidate_is_owned_by
 
 

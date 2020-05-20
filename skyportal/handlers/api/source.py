@@ -19,6 +19,7 @@ from ...utils import (
     get_nearby_offset_stars, facility_parameters, source_image_parameters,
     get_finding_chart
 )
+from .candidate import grab_query_results_page
 
 SOURCES_PER_PAGE = 100
 
@@ -57,7 +58,6 @@ class SourceHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        info = {}
         page_number = self.get_query_argument('pageNumber', None)
         ra = self.get_query_argument('ra', None)
         dec = self.get_query_argument('dec', None)
@@ -75,7 +75,7 @@ class SourceHandler(BaseHandler):
                 register_source_view(obj_id=obj_id,
                                      username_or_token_id=self.current_user.id,
                                      is_token=True)
-            info['sources'] = Source.get_if_owned_by(  # Returns Source.obj
+            s = Source.get_if_owned_by(  # Returns Source.obj
                 obj_id, self.current_user,
                 options=[joinedload(Source.obj)
                          .joinedload(Obj.comments),
@@ -90,6 +90,7 @@ class SourceHandler(BaseHandler):
                          .joinedload(Thumbnail.photometry)
                          .joinedload(Photometry.instrument)
                          .joinedload(Instrument.telescope)])
+            return self.success(data={"sources": s})
         elif page_number:
             try:
                 page = int(page_number)
@@ -126,38 +127,22 @@ class SourceHandler(BaseHandler):
             if has_tns_name == 'true':
                 q = q.filter(Obj.altdata['tns']['name'].isnot(None))
 
-            if total_matches:
-                info['totalMatches'] = int(total_matches)
-            else:
-                info['totalMatches'] = q.count()
-            if (((info['totalMatches'] < (page - 1) * SOURCES_PER_PAGE and
-                  info['totalMatches'] % SOURCES_PER_PAGE != 0) or
-                 (info['totalMatches'] < page * SOURCES_PER_PAGE and
-                  info['totalMatches'] % SOURCES_PER_PAGE == 0) and
-                 info['totalMatches'] != 0) or
-                    page <= 0 or (info['totalMatches'] == 0 and page != 1)):
-                return self.error("Page number out of range.")
-            info['sources'] = q.limit(SOURCES_PER_PAGE).offset(
-                (page - 1) * SOURCES_PER_PAGE).all()
-
-            info['pageNumber'] = page
-            info['lastPage'] = info['totalMatches'] <= page * SOURCES_PER_PAGE
-            info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
-            info['sourceNumberingEnd'] = min(info['totalMatches'],
-                                             page * SOURCES_PER_PAGE)
-            if info['totalMatches'] == 0:
-                info['sourceNumberingStart'] = 0
+            try:
+                query_results = grab_query_results_page(
+                    q, total_matches, page, SOURCES_PER_PAGE, "sources"
+                )
+            except ValueError as e:
+                if "Page number out of range" in str(e):
+                    return self.error("Page number out of range.")
+                raise
+            return self.success(data=query_results)
         else:
-            info['sources'] = Obj.query.filter(Obj.id.in_(
+            sources = Obj.query.filter(Obj.id.in_(
                 DBSession.query(Source.obj_id).filter(Source.group_id.in_(
                     [g.id for g in self.current_user.groups]
                 ))
             )).all()
-
-        if info['sources'] is not None:
-            return self.success(data=info)
-
-        return self.error("No matching sources found.")
+            return self.success(data={"sources": sources})
 
     @permissions(['Upload data'])
     def post(self):
@@ -183,12 +168,13 @@ class SourceHandler(BaseHandler):
         """
         data = self.get_json()
         schema = Obj.__schema__()
-        user_group_ids = [g.id for g in self.current_user.groups]
+        user_group_ids = [int(g.id) for g in self.current_user.groups]
         if not user_group_ids:
             return self.error("You must belong to one or more groups before "
                               "you can add sources.")
         try:
-            group_ids = [id for id in data.pop('group_ids') if id in user_group_ids]
+            group_ids = [int(id) for id in data.pop('group_ids')
+                         if int(id) in user_group_ids]
         except KeyError:
             group_ids = user_group_ids
         if not group_ids:
@@ -207,7 +193,8 @@ class SourceHandler(BaseHandler):
         DBSession.add_all([Source(obj=obj, group=group) for group in groups])
         DBSession().commit()
 
-        self.push_all(action='skyportal/FETCH_SOURCES')
+        self.push_all(action="skyportal/FETCH_SOURCES")
+        self.push_all(action="skyportal/FETCH_CANDIDATES")
         return self.success(data={"id": obj.id})
 
     @permissions(['Manage sources'])

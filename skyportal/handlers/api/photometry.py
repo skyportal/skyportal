@@ -1,17 +1,11 @@
-import os
-import io
-import base64
-from pathlib import Path
-import tornado.web
+import arrow
 from astropy.time import Time
-from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
-from PIL import Image
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from .thumbnail import create_thumbnail
 from ...models import (
-    DBSession, Photometry, Comment, Instrument, Source, Obj, Thumbnail
+    DBSession, Photometry, Instrument, Source, Obj
 )
 
 
@@ -57,14 +51,15 @@ class PhotometryHandler(BaseHandler):
         obj = Obj.query.get(data['obj_id'])  # TODO : implement permissions checking
         if not obj:
             return self.error('Invalid object ID')
+        converted_times = []
         for i in range(len(data['mag'])):
-            if not (data['time_scale'] == 'tcb' and data['time_format'] == 'iso'):
-                t = Time(data['observed_at'][i],
-                         format=data['time_format'],
-                         scale=data['time_scale'])
-                observed_at = t.tcb.iso
-            else:
-                observed_at = data['time'][i]
+            t = Time(
+                data["observed_at"][i].replace("T", " ").split("+")[0],
+                format=data["time_format"],
+                scale=data["time_scale"],
+            )
+            observed_at = arrow.get(t.tcb.iso)
+            converted_times.append(observed_at)
             p = Photometry(obj=obj,
                            observed_at=observed_at,
                            mag=data['mag'][i],
@@ -81,6 +76,14 @@ class PhotometryHandler(BaseHandler):
             p = Photometry.query.get(ids[0])
             for thumb in data['thumbnails']:
                 create_thumbnail(thumb['data'], thumb['ttype'], obj.id, p)
+        obj.last_detected = max(
+            converted_times
+            + [
+                obj.last_detected
+                if obj.last_detected is not None
+                else arrow.get("1000-01-01")
+            ]
+        )
         DBSession().commit()
 
         return self.success(data={"ids": ids})

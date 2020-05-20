@@ -22,8 +22,8 @@ const initialState = {
   pageNumber: 1,
   lastPage: false,
   totalMatches: 0,
-  sourceNumberingStart: 0,
-  sourceNumberingEnd: 0
+  numberingStart: 0,
+  numberingEnd: 0
 };
 
 const reducer = (state=initialState, action) => {
@@ -35,8 +35,8 @@ const reducer = (state=initialState, action) => {
       };
     }
     case FETCH_SOURCES_OK: {
-      const { sources, pageNumber, lastPage, totalMatches, sourceNumberingStart,
-        sourceNumberingEnd } = action.data;
+      const { sources, pageNumber, lastPage, totalMatches, numberingStart,
+        numberingEnd } = action.data;
       return {
         ...state,
         latest: sources,
@@ -44,8 +44,8 @@ const reducer = (state=initialState, action) => {
         pageNumber,
         lastPage,
         totalMatches,
-        sourceNumberingStart,
-        sourceNumberingEnd
+        numberingStart,
+        numberingEnd
       };
     }
     case FETCH_SOURCES_FAIL: {
