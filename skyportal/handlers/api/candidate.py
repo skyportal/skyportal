@@ -27,7 +27,7 @@ class CandidateHandler(BaseHandler):
           parameters:
             - in: path
               name: obj_id
-              required: false
+              required: true
               schema:
                 type: integer
           responses:
@@ -41,6 +41,58 @@ class CandidateHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all candidates
+          parameters:
+          - in: query
+            name: numPerPage
+            nullable: true
+            schema:
+              type: integer
+            description: |
+              Number of candidates to return per paginated request. Defaults to 25
+          - in: query
+            name: pageNumber
+            nullable: true
+            schema:
+              type: integer
+            description: Page number for paginated query results. Defaults to 1
+          - in: query
+            name: unsavedOnly
+            nullable: true
+            schema:
+              type: boolean
+            description: Boolean indicating whether to return only unsaved candidates
+          - in: query
+            name: startDate
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              last_detected >= startDate
+          - in: query
+            name: endDate
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              last_detected <= endDate
+          - in: query
+            name: groupIDs
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Comma-separated string of group IDs (e.g. "1,2"). Defaults to all of user's
+              groups if filterIDs is not provided.
+          - in: query
+            name: filterIDs
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of user's
+              groups' filters if groupIDs is not provided.
           responses:
             200:
               content:
@@ -58,7 +110,7 @@ class CandidateHandler(BaseHandler):
             return self.success(data={"candidates": c})
 
         page_number = self.get_query_argument("pageNumber", None) or 1
-        n_per_page = 25  # TODO grab this from URL param
+        n_per_page = self.get_query_argument("numPerPage", None) or 25
         unsaved_only = self.get_query_argument("unsavedOnly", False)
         total_matches = self.get_query_argument("totalMatches", None)
         start_date = self.get_query_argument("startDate", None)

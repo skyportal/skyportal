@@ -18,7 +18,7 @@ class FilterHandler(BaseHandler):
           parameters:
             - in: path
               name: filter_id
-              required: false
+              required: true
               schema:
                 type: integer
           responses:
