@@ -216,10 +216,10 @@ class CandidateHandler(BaseHandler):
                     )
                 )
             )
-        if start_date is not None and start_date.strip() != "" and start_date != "undefined":
+        if start_date is not None and start_date.strip() not in ["", "null", "undefined"]:
             start_date = arrow.get(start_date).datetime
             q = q.filter(Obj.last_detected >= start_date)
-        if end_date is not None and end_date.strip() != "" and end_date != "undefined":
+        if end_date is not None and end_date.strip() not in ["", "null", "undefined"]:
             end_date = arrow.get(end_date).datetime
             q = q.filter(Obj.last_detected <= end_date)
         try:
