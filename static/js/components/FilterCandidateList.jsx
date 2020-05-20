@@ -5,7 +5,7 @@ import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Checkbox from "@material-ui/core/Checkbox";
 import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
-import DatePicker from "react-datepicker";
+import { KeyboardDatePicker } from "@material-ui/pickers";
 import { useForm, Controller } from "react-hook-form";
 
 import * as candidatesActions from "../ducks/candidates";
@@ -24,7 +24,9 @@ const FilterCandidateList = ({ userGroups }) => {
 
   useEffect(() => {
     reset({
-      groupIDs: Array(userGroups.length).fill(true)
+      groupIDs: Array(userGroups.length).fill(true),
+      startDate: null,
+      endDate: null
     });
   }, [reset, userGroups]);
 
@@ -85,30 +87,27 @@ const FilterCandidateList = ({ userGroups }) => {
           }
           <Controller
             as={(
-              <DatePicker
-                dateFormat="yyyy-MM-dd"
-                selected={formState.startDate}
-                placeholderText="Start Date"
+              <KeyboardDatePicker
+                format="YYYY-MM-DD"
+                value={formState.startDate}
+                emptyLabel="Start Date"
               />
             )}
             rules={{ validate: validateDates }}
             name="startDate"
             control={control}
-            valueName="selected"
-            onChange={([selected]) => selected}
           />
           <Controller
             as={(
-              <DatePicker
-                dateFormat="yyyy-MM-dd"
-                selected={formState.endDate}
-                placeholderText="End Date"
+              <KeyboardDatePicker
+                format="YYYY-MM-DD"
+                value={formState.endDate}
+                emptyLabel="End Date"
               />
             )}
             rules={{ validate: validateDates }}
             name="endDate"
             control={control}
-            valueName="selected"
             onChange={([selected]) => selected}
           />
         </div>
