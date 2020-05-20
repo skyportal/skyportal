@@ -28,6 +28,8 @@ app:
       component: SourceList
     - path: "/user/:id"
       component: UserInfo
+    - path: "/upload_photometry/:id"
+      component: UploadPhotometry
 
 database:
     database: skyportal
