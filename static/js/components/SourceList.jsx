@@ -157,7 +157,7 @@ const SourceList = () => {
                         {source.detect_photometry_count}
                       </td>
                       <td>
-                        {source.altdata.simbad?.['class'] ?? ""}
+                        {source.altdata?.simbad?.['class'] ?? ""}
                       </td>
                       <td>
                         {source.altdata?.tns?.name ?? ""}
