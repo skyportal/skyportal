@@ -55,9 +55,9 @@ class PhotometryHandler(BaseHandler):
                 data[colname] = [data[colname]]
 
         try:
-            lc = pd.DataFrame(data)[PHOTOMETRY_COLUMNS]
-        except ValueError:
-            return self.error('Improperly formatted input data')
+            lc = pd.DataFrame({colname: data[colname] for colname in PHOTOMETRY_COLUMNS})
+        except ValueError as e:
+            return self.error(f'Improperly formatted input data: {e}')
 
         ids = []
         instrument = Instrument.query.get(data['instrument_id'])
