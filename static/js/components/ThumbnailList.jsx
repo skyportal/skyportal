@@ -10,7 +10,12 @@ import styles from "./ThumbnailList.css";
 dayjs.extend(calendar);
 
 
-const Thumbnail = ({ ra, dec, telescope, observed_at, name, url }) => {
+const Thumbnail = ({ ra, dec, telescope, mjd, name, url }) => {
+  // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
+  // unix timestamp epoch (1970-01-01).
+
+  const unixt = (mjd - 40587.0) * 86400000;
+  const observed_at = new Date(unixt); // a new date
   const observed_at_str = dayjs(observed_at).toString();
 
   let alt = null;
@@ -67,7 +72,7 @@ Thumbnail.propTypes = {
   telescope: PropTypes.string.isRequired,
   name: PropTypes.string.isRequired,
   url: PropTypes.string.isRequired,
-  observed_at: PropTypes.string.isRequired
+  mjd: PropTypes.number.isRequired
 };
 
 
@@ -87,7 +92,7 @@ const ThumbnailList = ({ ra, dec, thumbnails }) => {
           name={t.type}
           url={t.public_url}
           telescope={t.photometry.instrument.telescope.nickname}
-          observed_at={t.photometry.observed_at}
+          mjd={t.photometry.mjd}
         />
       ))}
     </div>

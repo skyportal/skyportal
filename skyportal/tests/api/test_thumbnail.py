@@ -3,10 +3,11 @@ import uuid
 import datetime
 import base64
 from skyportal.tests import api
-from skyportal.models import Thumbnail, DBSession, Obj
+from skyportal.models import Thumbnail, DBSession, Photometry, Obj
 
 
 def test_token_user_post_get_thumbnail(upload_data_token, public_group):
+
     obj_id = str(uuid.uuid4())
     status, data = api('POST', 'sources',
                        data={'id': obj_id,
@@ -19,20 +20,21 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group):
                        token=upload_data_token)
     assert status == 200
     assert data['data']['id'] == obj_id
+
     status, data = api('POST', 'photometry',
                        data={'obj_id': obj_id,
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
-                             'filter': 'V'
-                             },
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
+                             'filter': 'bessellv'
+                       },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
+
 
     orig_source_thumbnail_count = len(DBSession.query(Obj).filter(
         Obj.id == obj_id).first().thumbnails)
@@ -67,6 +69,7 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group):
 def test_token_user_delete_thumbnail_cascade_source(upload_data_token,
                                                     manage_sources_token,
                                                     public_group):
+
     obj_id = str(uuid.uuid4())
     status, data = api('POST', 'sources',
                        data={'id': obj_id,
@@ -79,17 +82,17 @@ def test_token_user_delete_thumbnail_cascade_source(upload_data_token,
                        token=upload_data_token)
     assert status == 200
     assert data['data']['id'] == obj_id
+
     status, data = api('POST', 'photometry',
                        data={'obj_id': obj_id,
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
-                             'filter': 'V'
-                             },
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
+                             'filter': 'bessellv'
+                       },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -135,6 +138,7 @@ def test_token_user_delete_thumbnail_cascade_source(upload_data_token,
 
 
 def test_token_user_post_get_thumbnail_phot_id(upload_data_token, public_group):
+
     obj_id = str(uuid.uuid4())
     status, data = api('POST', 'sources',
                        data={'id': obj_id,
@@ -147,17 +151,17 @@ def test_token_user_post_get_thumbnail_phot_id(upload_data_token, public_group):
                        token=upload_data_token)
     assert status == 200
     assert data['data']['id'] == obj_id
+
     status, data = api('POST', 'photometry',
                        data={'obj_id': obj_id,
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
-                             'filter': 'V'
-                             },
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
+                             'filter': 'bessellv'
+                       },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -208,14 +212,13 @@ def test_cannot_post_thumbnail_invalid_ttype(upload_data_token, public_group):
     assert data['data']['id'] == obj_id
     status, data = api('POST', 'photometry',
                        data={'obj_id': obj_id,
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
-                             'filter': 'V'
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
+                             'filter': 'bessellv'
                        },
                        token=upload_data_token)
     assert status == 200
@@ -250,14 +253,13 @@ def test_cannot_post_thumbnail_invalid_image_type(upload_data_token, public_grou
     assert data['data']['id'] == obj_id
     status, data = api('POST', 'photometry',
                        data={'obj_id': obj_id,
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
-                             'filter': 'V'
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
+                             'filter': 'bessellv'
                        },
                        token=upload_data_token)
     assert status == 200
@@ -292,14 +294,13 @@ def test_cannot_post_thumbnail_invalid_size(upload_data_token, public_group):
     assert data['data']['id'] == obj_id
     status, data = api('POST', 'photometry',
                        data={'obj_id': obj_id,
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
-                             'filter': 'V'
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
+                             'filter': 'bessellv'
                        },
                        token=upload_data_token)
     assert status == 200
@@ -319,7 +320,6 @@ def test_cannot_post_thumbnail_invalid_size(upload_data_token, public_group):
     assert 'Invalid thumbnail size.' in data['message']
 
 
-
 def test_cannot_post_thumbnail_invalid_file_type(upload_data_token, public_group):
     obj_id = str(uuid.uuid4())
     status, data = api('POST', 'sources',
@@ -335,14 +335,13 @@ def test_cannot_post_thumbnail_invalid_file_type(upload_data_token, public_group
     assert data['data']['id'] == obj_id
     status, data = api('POST', 'photometry',
                        data={'obj_id': obj_id,
-                             'observed_at': str(datetime.datetime.now()),
-                             'time_format': 'iso',
-                             'time_scale': 'utc',
+                             'mjd': 58000.,
                              'instrument_id': 1,
-                             'mag': 12.24,
-                             'e_mag': 0.031,
-                             'lim_mag': 14.1,
-                             'filter': 'V'
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'zpsys': 'ab',
+                             'filter': 'bessellv'
                        },
                        token=upload_data_token)
     assert status == 200
