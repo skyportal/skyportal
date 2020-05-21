@@ -242,28 +242,13 @@ if __name__ == "__main__":
                     data = assert_post(
                         "photometry",
                         data={
-                            "obj_id": source_info["id"],
-                            "time_format": "iso",
-                            "time_scale": "utc",
+                            "obj_id": source_info['id'],
                             "instrument_id": instrument1_id,
-                            "observed_at": phot_data.observed_at.tolist(),
-                            "mag": phot_data.mag.tolist(),
-                            "e_mag": phot_data.e_mag.tolist(),
-                            "lim_mag": phot_data.lim_mag.tolist(),
-                            "filter": phot_data["filter"].tolist(),
-                        },
-                    )
-                    data = assert_post(
-                        "photometry",
-                        data={
-                            "obj_id": f"{source_info['id']}_unsaved_copy",
-                            "time_format": "iso",
-                            "time_scale": "utc",
-                            "instrument_id": instrument1_id,
-                            "observed_at": phot_data.observed_at.tolist(),
-                            "mag": phot_data.mag.tolist(),
-                            "e_mag": phot_data.e_mag.tolist(),
-                            "lim_mag": phot_data.lim_mag.tolist(),
+                            "mjd": phot_data.mjd.tolist(),
+                            "flux": phot_data.flux.tolist(),
+                            "fluxerr": phot_data.fluxerr.tolist(),
+                            "zp": phot_data.zp.tolist(),
+                            "zpsys": phot_data.zpsys.tolist(),
                             "filter": phot_data["filter"].tolist(),
                         },
                     )

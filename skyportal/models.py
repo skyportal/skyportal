@@ -6,12 +6,21 @@ from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy_utils import ArrowType
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
 from baselayer.app.custom_exceptions import AccessError
 
 from . import schema
+
+from sncosmo.bandpasses import _BANDPASSES
+from sncosmo.magsystems import _MAGSYSTEMS
+
+ALLOWED_MAGSYSTEMS = tuple(l['name'] for l in _MAGSYSTEMS.get_loaders_metadata())
+ALLOWED_BANDPASSES = tuple(l['name'] for l in _BANDPASSES.get_loaders_metadata())
+
+FIDUCIAL_ZP = 25.
 
 
 def is_owned_by(self, user_or_token):
@@ -130,7 +139,7 @@ class Obj(Base):
                               cascade='save-update, merge, refresh-expire, expunge',
                               single_parent=True,
                               passive_deletes=True,
-                              order_by="Photometry.observed_at")
+                              order_by="Photometry.mjd")
 
     detect_photometry_count = sa.Column(sa.Integer, nullable=True)
 
@@ -306,14 +315,20 @@ class Comment(Base):
 
 class Photometry(Base):
     __tablename__ = 'photometry'
-    observed_at = sa.Column(ArrowType)  # iso date
-    mjd = sa.Column(sa.Float)  # mjd date
-    time_format = sa.Column(sa.String, default='iso')
-    time_scale = sa.Column(sa.String, default='utc')
-    mag = sa.Column(sa.Float)
-    e_mag = sa.Column(sa.Float)
-    lim_mag = sa.Column(sa.Float)
-    filter = sa.Column(sa.String)  # TODO Enum?
+
+    mjd = sa.Column(sa.Float, nullable=False)  # mjd date
+    flux = sa.Column(sa.Float)
+    fluxerr = sa.Column(sa.Float, nullable=False)
+    zp = sa.Column(sa.Float, nullable=False)
+    zpsys = sa.Column(sa.Enum(*ALLOWED_MAGSYSTEMS, name="zpsys",
+                              validate_strings=True), nullable=False)
+    filter = sa.Column(sa.Enum(*ALLOWED_BANDPASSES, name="bandpasses",
+                               validate_strings=True), nullable=False)
+
+    ra = sa.Column(sa.Float)
+    dec = sa.Column(sa.Float)
+
+
     isdiffpos = sa.Column(sa.Boolean, default=True)  # candidate from position?
 
     var_mag = sa.Column(sa.Float, nullable=True)
@@ -337,6 +352,40 @@ class Photometry(Base):
                               nullable=False, index=True)
     instrument = relationship('Instrument', back_populates='photometry')
     thumbnails = relationship('Thumbnail', passive_deletes=True)
+
+    @hybrid_property
+    def mag(self):
+        if self.flux > 0 and self.zp is not None:
+            return -2.5 * np.log10(self.flux) + self.zp
+        else:
+            return None
+
+    @hybrid_property
+    def e_mag(self):
+        if self.flux > 0 and self.fluxerr > 0:
+            return 2.5 / np.log(10) * self.fluxerr / self.flux
+        else:
+            return None
+
+    @mag.expression
+    def mag(cls):
+        return sa.case(
+            [
+                (sa.and_(cls.flux > 0, cls.zp.isnot(None)),
+                 -2.5 * sa.func.log(cls.flux) + cls.zp),
+            ],
+            else_=None
+        )
+
+    @e_mag.expression
+    def e_mag(cls):
+        return sa.case(
+            [
+                (sa.and_(cls.flux > 0, cls.fluxerr > 0),
+                 2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux)
+            ],
+            else_=None
+        )
 
 
 class Spectrum(Base):
