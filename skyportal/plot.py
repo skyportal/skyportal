@@ -175,12 +175,12 @@ def get_color(bandpass_name, cmap_limits=(3000., 10000.)):
 
 
 # TODO make async so that thread isn't blocked
-def photometry_plot(source_id):
+def photometry_plot(obj_id):
     """Create scatter plot of photometry for source.
     Parameters
     ----------
-    source_id : str
-        ID of source to be plotted.
+    obj_id : str
+        ID of Obj to be plotted.
     Returns
     -------
     (str, str)
@@ -191,7 +191,7 @@ def photometry_plot(source_id):
                        .query(Photometry, Telescope.nickname.label('telescope'),
                               Instrument.name.label('instrument'))
                        .join(Instrument).join(Telescope)
-                       .filter(Photometry.source_id == source_id)
+                       .filter(Photometry.obj_id == obj_id)
                        .statement, DBSession().bind)
     if data.empty:
         return None, None, None
@@ -393,7 +393,7 @@ def photometry_plot(source_id):
         imhover.renderers.append(model_dict[key])
 
         unobs_source = df[~df['obs']]
-        unobs_source['alpha'] = 0.8
+        unobs_source.loc[:, 'alpha'] = 0.8
 
         key = f'unobs{i}'
         model_dict[key] = plot.scatter(
@@ -499,7 +499,7 @@ def photometry_plot(source_id):
             os.path.dirname(__file__),
             '../static/js/plotjs',
             "download.js")).read().replace(
-            'objname', source_id
+            'objname', obj_id
         ).replace('default_zp', str(DEFAULT_ZP)))
 
     toplay = row(slider, button)

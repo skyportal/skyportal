@@ -79,7 +79,7 @@ class PhotometryHandler(BaseHandler):
                            zp=row['zp'])
 
             t = Time(row['mjd'], format='mjd')
-            converted_times.append(t.iso)
+            converted_times.append(arrow.get(t.iso))
 
             DBSession().add(p)
             DBSession().flush()
