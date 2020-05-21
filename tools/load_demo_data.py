@@ -267,6 +267,19 @@ if __name__ == "__main__":
                             "filter": phot_data["filter"].tolist(),
                         },
                     )
+                    data = assert_post(
+                        "photometry",
+                        data={
+                            "obj_id": f"{source_info['id']}_unsaved_copy",
+                            "instrument_id": instrument1_id,
+                            "mjd": phot_data.mjd.tolist(),
+                            "flux": phot_data.flux.tolist(),
+                            "fluxerr": phot_data.fluxerr.tolist(),
+                            "zp": phot_data.zp.tolist(),
+                            "zpsys": phot_data.zpsys.tolist(),
+                            "filter": phot_data["filter"].tolist(),
+                        },
+                    )
 
                     spec_file = os.path.join(
                         os.path.dirname(os.path.dirname(__file__)),
