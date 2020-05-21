@@ -17,7 +17,7 @@ from matplotlib import cm
 from matplotlib.colors import rgb2hex
 
 import os
-from skyportal.models import (DBSession, Source, Photometry,
+from skyportal.models import (DBSession, Obj, Photometry,
                               Instrument, Telescope)
 
 import sncosmo
@@ -523,10 +523,10 @@ def photometry_plot(source_id):
 
 
 # TODO make async so that thread isn't blocked
-def spectroscopy_plot(source_id):
+def spectroscopy_plot(obj_id):
     """TODO normalization? should this be handled at data ingestion or plot-time?"""
-    source = Source.query.get(source_id)
-    spectra = Source.query.get(source_id).spectra
+    source = Obj.query.get(obj_id)
+    spectra = Obj.query.get(obj_id).spectra
     if len(spectra) == 0:
         return None, None, None
 
