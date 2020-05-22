@@ -8,4 +8,4 @@ def test_db_info(view_only_token):
     assert data['status'] == 'success'
     assert isinstance(data['data']['source_table_empty'], bool)
     assert isinstance(data['data']['postgres_version'], str)
-    assert data['data']['version'] == skyportal.__version__
+    assert data['version'] == skyportal.__version__
