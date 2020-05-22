@@ -17,5 +17,4 @@ class SysInfoHandler(BaseHandler):
                     - Success
                     - type: object
         """
-        info = {}
-        return self.success(data=info)
+        return self.success(data={})
