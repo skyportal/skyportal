@@ -13,8 +13,13 @@ export function fetchSystemInfo() {
 
 function reducer(state={}, action) {
   switch (action.type) {
-    case FETCH_SYSINFO_OK:
-      return action.data;
+    case FETCH_SYSINFO_OK: {
+      const { version, data } = action;
+      return {
+        ...data,
+        version
+      };
+    }
     default:
       return state;
   }
