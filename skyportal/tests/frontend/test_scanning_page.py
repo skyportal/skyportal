@@ -1,4 +1,5 @@
 import uuid
+import time
 
 from skyportal.tests import api
 
@@ -186,11 +187,13 @@ def test_candidate_date_filtering(
     end_date_input.clear()
     end_date_input.send_keys("20011212")
     submit_button = driver.wait_for_xpath('//span[text()="Submit"]')
+    time.sleep(0.1)
     driver.scroll_to_element_and_click(submit_button)
     for i in range(20):
         driver.wait_for_xpath_to_disappear(f'//a[text()="{candidate_id}_{i}"]', 10)
     end_date_input.clear()
     end_date_input.send_keys("20901212")
+    time.sleep(0.1)
     driver.scroll_to_element_and_click(submit_button)
     for i in range(20):
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]', 10)
@@ -203,7 +206,7 @@ def test_save_candidate(driver, group_admin_user, public_group, public_candidate
     first_save_button = driver.wait_for_xpath('//span[text()="Save as source"]')
     driver.scroll_to_element_and_click(first_save_button)
     driver.wait_for_xpath("//input[@name='group_ids[0]']").click()
-    second_save_button = driver.wait_for_xpath('//span[text()="Save"]')
+    second_save_button = driver.wait_for_xpath_to_be_clickable('//span[text()="Save"]')
     second_save_button.click()
     driver.wait_for_xpath_to_disappear('//span[text()="Save as source"]')
     driver.wait_for_xpath('//a[text()="Previously Saved"]')
@@ -218,6 +221,6 @@ def test_save_candidate_no_groups_error_message(
     first_save_button = driver.wait_for_xpath('//span[text()="Save as source"]')
     driver.scroll_to_element_and_click(first_save_button)
     driver.wait_for_xpath("//input[@name='group_ids[0]']")
-    second_save_button = driver.wait_for_xpath('//span[text()="Save"]')
+    second_save_button = driver.wait_for_xpath_to_be_clickable('//span[text()="Save"]')
     second_save_button.click()
     driver.wait_for_xpath('//*[contains(.,"Select at least one group")]')
