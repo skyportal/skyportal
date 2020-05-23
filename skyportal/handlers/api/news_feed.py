@@ -16,12 +16,20 @@ class NewsFeedHandler(BaseHandler):
               application/json:
                 schema:
                   allOf:
-                    - Success
-                    - type: object
-                      properties:
-                        newsFeedItems:
-                          type: arrayOfNewsFeedItems
-                          description: List of recent activity
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            type:
+                              type: string
+                            time:
+                              type: string
+                            message:
+                              type: string
           400:
             content:
               application/json:
@@ -49,4 +57,4 @@ class NewsFeedHandler(BaseHandler):
         news_feed_items.sort(key=lambda x: x['time'], reverse=True)
         news_feed_items = news_feed_items[:n_items]
 
-        return self.success(data={'newsFeedItems': news_feed_items})
+        return self.success(data=news_feed_items)

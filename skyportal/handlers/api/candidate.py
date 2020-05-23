@@ -56,6 +56,14 @@ class CandidateHandler(BaseHandler):
               type: integer
             description: Page number for paginated query results. Defaults to 1
           - in: query
+            name: totalMatches
+            nullable: true
+            schema:
+              type: integer
+            description: |
+              Used only in the case of paginating query results - if provided, this
+              allows for avoiding a potentially expensive query.count() call.
+          - in: query
             name: unsavedOnly
             nullable: true
             schema:
@@ -81,7 +89,11 @@ class CandidateHandler(BaseHandler):
             name: groupIDs
             nullable: true
             schema:
-              type: string
+              type: array
+              items:
+                type: integer
+            explode: false
+            style: simple
             description: |
               Comma-separated string of group IDs (e.g. "1,2"). Defaults to all of user's
               groups if filterIDs is not provided.
@@ -89,7 +101,11 @@ class CandidateHandler(BaseHandler):
             name: filterIDs
             nullable: true
             schema:
-              type: string
+              type: array
+              items:
+                type: integer
+            explode: false
+            style: simple
             description: |
               Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of user's
               groups' filters if groupIDs is not provided.
@@ -97,7 +113,33 @@ class CandidateHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfObjs
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              candidates:
+                                type: array
+                                items:
+                                  allOf:
+                                    - $ref: '#/components/schemas/Obj'
+                                    - type: object
+                                      properties:
+                                        is_source:
+                                          type: boolean
+                              totalMatches:
+                                type: integer
+                              pageNumber:
+                                type: integer
+                              lastPage:
+                                type: boolean
+                              numberingStart:
+                                type: integer
+                              numberingEnd:
+                                type: integer
             400:
               content:
                 application/json:
@@ -107,7 +149,7 @@ class CandidateHandler(BaseHandler):
             c = Candidate.get_if_owned_by(obj_id, self.current_user)
             if c is None:
                 return self.error("Invalid ID")
-            return self.success(data={"candidates": c})
+            return self.success(data=c)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
         n_per_page = self.get_query_argument("numPerPage", None) or 25
@@ -205,19 +247,41 @@ class CandidateHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: Obj
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Obj'
+                  - type: object
+                    properties:
+                      filter_ids:
+                        type: array
+                        items:
+                          type: integer
+                        description: List of associated filter IDs
+                      passing_alert_id:
+                        type: integer
+                        description: ID of associated filter that created candidate
+                        nullable: true
+                      passed_at:
+                        type: string
+                        description: Arrow-parseable datetime string indicating when passed filter.
+                        nullable: true
+                    required:
+                      - filter_ids
         responses:
           200:
             content:
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        id:
-                          type: string
-                          description: New candidate ID
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: New candidate ID
         """
         data = self.get_json()
         schema = Obj.__schema__()

@@ -22,12 +22,15 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        id:
-                          type: integer
-                          description: New spectrum ID
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New spectrum ID
           400:
             content:
               application/json:
@@ -74,10 +77,9 @@ class SpectrumHandler(BaseHandler):
 
         if spectrum is not None:
             source = Source.get_if_owned_by(spectrum.obj_id, self.current_user)
-            return self.success(data={'spectrum': spectrum})
+            return self.success(data=spectrum)
         else:
-            return self.error(f"Could not load spectrum {spectrum_id}",
-                              data={"spectrum_id": spectrum_id})
+            return self.error(f"Could not load spectrum with ID {spectrum_id}")
 
     @permissions(['Manage sources'])
     def put(self, spectrum_id):

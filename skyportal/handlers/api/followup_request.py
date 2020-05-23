@@ -15,19 +15,22 @@ class FollowupRequestHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: FollowupRequest
+              schema: FollowupRequestNoID
         responses:
           200:
             content:
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        id:
-                          type: string
-                          description: New follow-up request ID
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New follow-up request ID
         """
         data = self.get_json()
         _ = Source.get_if_owned_by(data["obj_id"], self.current_user)
@@ -54,7 +57,7 @@ class FollowupRequestHandler(BaseHandler):
         parameters:
           - in: path
             name: request_id
-            required: True
+            required: true
             schema:
               type: string
         requestBody:

@@ -7,7 +7,7 @@ def test_filter_list(view_only_token, public_filter):
     assert status == 200
     assert data["status"] == "success"
     assert all(
-        k in data["data"]["filters"][0]
+        k in data["data"][0]
         for k in ["query_string", "group_id"]
     )
 
@@ -20,7 +20,7 @@ def test_token_user_retrieving_filter(view_only_token, public_filter):
     assert data["status"] == "success"
     print(data["data"])
     assert all(
-        k in data["data"]["filters"]
+        k in data["data"]
         for k in ["query_string", "group_id"]
     )
 
@@ -42,7 +42,7 @@ def test_token_user_update_filter(manage_groups_token, public_filter):
     )
     assert status == 200
     assert data["status"] == "success"
-    assert data["data"]["filters"]["query_string"] == "new_qstr"
+    assert data["data"]["query_string"] == "new_qstr"
 
 
 def test_cannot_update_filter_without_permission(view_only_token, public_filter):
@@ -73,4 +73,4 @@ def test_token_user_post_new_filter(manage_groups_token, public_group):
 
     status, data = api("GET", f"filters/{filter_id}", token=manage_groups_token)
     assert status == 200
-    assert data["data"]["filters"]["id"] == filter_id
+    assert data["data"]["id"] == filter_id

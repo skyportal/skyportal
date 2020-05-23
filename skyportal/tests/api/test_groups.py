@@ -18,7 +18,7 @@ def test_token_user_create_new_group(manage_groups_token, super_admin_user):
     status, data = api('GET', f'groups/{new_group_id}',
                        token=manage_groups_token)
     assert data['status'] == 'success'
-    assert data['data']['group']['name'] == group_name
+    assert data['data']['name'] == group_name
 
 
 def test_token_user_request_all_groups(manage_groups_token, super_admin_user):
@@ -53,7 +53,7 @@ def test_token_user_update_group(manage_groups_token, public_group):
     status, data = api('GET', f'groups/{public_group.id}',
                        token=manage_groups_token)
     assert data['status'] == 'success'
-    assert data['data']['group']['name'] == new_name
+    assert data['data']['name'] == new_name
 
 
 def test_token_user_delete_group(manage_groups_token, public_group):
@@ -90,4 +90,4 @@ def test_manage_groups_token_get_unowned_group(manage_groups_token, user,
     status, data = api('GET', f'groups/{new_group_id}',
                        token=token_id)
     assert data['status'] == 'success'
-    assert data['data']['group']['name'] == group_name
+    assert data['data']['name'] == group_name
