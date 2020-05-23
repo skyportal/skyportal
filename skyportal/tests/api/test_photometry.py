@@ -15,7 +15,7 @@ def test_token_user_post_get_photometry_data(upload_data_token, public_source):
                              'zp': 25.,
                              'zpsys': 'ab',
                              'filter': 'bessellv'
-                       },
+                             },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -27,7 +27,7 @@ def test_token_user_post_get_photometry_data(upload_data_token, public_source):
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['photometry']['flux'] == 12.24
+    assert data['data']['flux'] == 12.24
 
 
 def test_token_user_post_photometry_data_series(upload_data_token, public_source):
@@ -53,7 +53,7 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['photometry']['flux'] == 12.52
+    assert data['data']['flux'] == 12.52
 
 
 def test_post_photometry_no_access_token(view_only_token, public_source):
@@ -66,7 +66,7 @@ def test_post_photometry_no_access_token(view_only_token, public_source):
                              'zp': 25.,
                              'zpsys': 'ab',
                              'filter': 'bessellv'
-                       },
+                             },
                        token=view_only_token)
     assert status == 400
     assert data['status'] == 'error'
@@ -84,7 +84,7 @@ def test_token_user_update_photometry(upload_data_token,
                              'zp': 25.,
                              'zpsys': 'ab',
                              'filter': 'bessellv'
-                       },
+                             },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -96,7 +96,7 @@ def test_token_user_update_photometry(upload_data_token,
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['photometry']['flux'] == 12.24
+    assert data['data']['flux'] == 12.24
 
     status, data = api(
         'PUT',
@@ -107,7 +107,7 @@ def test_token_user_update_photometry(upload_data_token,
         'GET',
         f'photometry/{photometry_id}',
         token=upload_data_token)
-    assert data['data']['photometry']['flux'] == 11.0
+    assert data['data']['flux'] == 11.0
 
 
 def test_delete_photometry_data(upload_data_token, manage_sources_token,
@@ -121,7 +121,7 @@ def test_delete_photometry_data(upload_data_token, manage_sources_token,
                              'zp': 25.,
                              'zpsys': 'ab',
                              'filter': 'bessellv'
-                       },
+                             },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -133,7 +133,7 @@ def test_delete_photometry_data(upload_data_token, manage_sources_token,
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['photometry']['flux'] == 12.24
+    assert data['data']['flux'] == 12.24
 
     status, data = api(
         'DELETE',
@@ -183,7 +183,7 @@ def test_token_user_post_photometry_thumbnail(upload_data_token, public_source):
                              'zpsys': 'ab',
                              'filter': 'bessellv',
                              'thumbnails': thumbnails
-                       },
+                             },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -195,7 +195,7 @@ def test_token_user_post_photometry_thumbnail(upload_data_token, public_source):
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['photometry']['flux'] == 12.24
+    assert data['data']['flux'] == 12.24
 
     assert len(DBSession.query(Photometry).filter(Photometry.id == photometry_id)
                .first().thumbnails) == 3

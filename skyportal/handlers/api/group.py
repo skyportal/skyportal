@@ -23,7 +23,21 @@ class GroupHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: SingleGroup
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            allOf:
+                              - $ref: '#/components/schemas/Group'
+                              - type: object
+                                properties:
+                                  users:
+                                    type: array
+                                    items:
+                                      - $ref: '#/components/schemas/User'
+                                    description: List of group users
             400:
               content:
                 application/json:
@@ -34,13 +48,29 @@ class GroupHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfGroups
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              user_groups:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Group'
+                                description: List of groups current user is a member of.
+                              all_groups:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Group'
+                                description: List of all groups if current user is Super admin, else None.
             400:
               content:
                 application/json:
                   schema: Error
         """
-        info = {}
         if group_id is not None:
             if 'Manage groups' in [acl.id for acl in self.current_user.acls]:
                 group = Group.query.options(joinedload(Group.users)).options(
@@ -52,24 +82,21 @@ class GroupHandler(BaseHandler):
                 if group is not None and group.id not in [
                         g.id for g in self.current_user.groups]:
                     return self.error('Insufficient permissions.')
-            info['group'] = group
-        else:
-            info['user_groups'] = list(self.current_user.groups)
-            info['all_groups'] = (list(Group.query) if hasattr(self.current_user, 'roles')
-                                  and 'Super admin' in
-                                  [role.id for role in self.current_user.roles]
-                                  else None)
-            return self.success(data=info)
-        if 'group' in info:
-            if info['group'] is not None:
-                info['group'] = info['group'].to_dict()
+            if group is not None:
+                group = group.to_dict()
                 # Do not include User.groups to avoid circular reference
-                info['group']['users'] = [{'id': user.id, 'username': user.username}
-                                          for user in info['group']['users']]
-                return self.success(data=info)
-            else:
-                return self.error(f"Could not load group {group_id}",
-                                  data={"group_id": group_id})
+                group['users'] = [{'id': user.id, 'username': user.username}
+                                  for user in group['users']]
+                return self.success(data=group)
+            return self.error(f"Could not load group with ID {group_id}")
+
+        info = {}
+        info['user_groups'] = list(self.current_user.groups)
+        info['all_groups'] = (list(Group.query) if hasattr(self.current_user, 'roles')
+                              and 'Super admin' in
+                              [role.id for role in self.current_user.roles]
+                              else None)
+        return self.success(data=info)
 
     @permissions(['Manage groups'])
     def post(self):
@@ -79,19 +106,33 @@ class GroupHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: GroupNoID
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GroupNoID'
+                  - type: object
+                    properties:
+                      group_admins:
+                        type: array
+                        items:
+                          type: string
+                        description: |
+                          List of emails of users to be group admins. Current user will
+                          automatically be added as a group admin.
         responses:
           200:
             content:
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        id:
-                          type: integer
-                          description: New group ID
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New group ID
         """
         data = self.get_json()
 
@@ -206,18 +247,21 @@ class GroupUserHandler(BaseHandler):
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        group_id:
-                          type: integer
-                          description: Group ID
-                        user_id:
-                          type: integer
-                          description: User ID
-                        admin:
-                          type: boolean
-                          description: Boolean indicating whether user is group admin
+                        data:
+                          type: object
+                          properties:
+                            group_id:
+                              type: integer
+                              description: Group ID
+                            user_id:
+                              type: integer
+                              description: User ID
+                            admin:
+                              type: boolean
+                              description: Boolean indicating whether user is group admin
         """
         data = self.get_json()
         try:

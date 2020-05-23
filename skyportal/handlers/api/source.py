@@ -48,11 +48,106 @@ class SourceHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all sources
+          parameters:
+          - in: query
+            name: ra
+            nullable: true
+            schema:
+              type: number
+            description: RA for spatial filtering
+          - in: query
+            name: dec
+            nullable: true
+            schema:
+              type: number
+            description: Declination for spatial filtering
+          - in: query
+            name: radius
+            nullable: true
+            schema:
+              type: number
+            description: Radius for spatial filtering if ra & dec are provided
+          - in: query
+            name: sourceID
+            nullable: true
+            schema:
+              type: string
+            description: Portion of ID to filter on
+          - in: query
+            name: simbadClass
+            nullable: true
+            schema:
+              type: string
+            description: Simbad class to filter on
+          - in: query
+            name: hasTNSname
+            nullable: true
+            schema:
+              type: boolean
+            description: If true, return only those matches with TNS names
+          - in: query
+            name: numPerPage
+            nullable: true
+            schema:
+              type: integer
+            description: |
+              Number of sources to return per paginated request. Defaults to 100
+          - in: query
+            name: pageNumber
+            nullable: true
+            schema:
+              type: integer
+            description: Page number for paginated query results. Defaults to 1
+          - in: query
+            name: totalMatches
+            nullable: true
+            schema:
+              type: integer
+            description: |
+              Used only in the case of paginating query results - if provided, this
+              allows for avoiding a potentially expensive query.count() call.
+          - in: query
+            name: startDate
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              last_detected >= startDate
+          - in: query
+            name: endDate
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              last_detected <= endDate
           responses:
             200:
               content:
                 application/json:
-                  schema: ArrayOfObjs
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              sources:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Obj'
+                              totalMatches:
+                                type: integer
+                              pageNumber:
+                                type: integer
+                              lastPage:
+                                type: boolean
+                              numberingStart:
+                                type: integer
+                              numberingEnd:
+                                type: integer
             400:
               content:
                 application/json:
@@ -90,8 +185,8 @@ class SourceHandler(BaseHandler):
                          .joinedload(Thumbnail.photometry)
                          .joinedload(Photometry.instrument)
                          .joinedload(Instrument.telescope)])
-            return self.success(data={"sources": s})
-        elif page_number:
+            return self.success(data=s)
+        if page_number:
             try:
                 page = int(page_number)
             except ValueError:
@@ -124,7 +219,7 @@ class SourceHandler(BaseHandler):
             if simbad_class:
                 q = q.filter(func.lower(Obj.altdata['simbad']['class'].astext)
                              == simbad_class.lower())
-            if has_tns_name == 'true':
+            if has_tns_name in ['true', True]:
                 q = q.filter(Obj.altdata['tns']['name'].isnot(None))
 
             try:
@@ -136,35 +231,49 @@ class SourceHandler(BaseHandler):
                     return self.error("Page number out of range.")
                 raise
             return self.success(data=query_results)
-        else:
-            sources = Obj.query.filter(Obj.id.in_(
-                DBSession.query(Source.obj_id).filter(Source.group_id.in_(
-                    [g.id for g in self.current_user.groups]
-                ))
-            )).all()
-            return self.success(data={"sources": sources})
+
+        sources = Obj.query.filter(Obj.id.in_(
+            DBSession.query(Source.obj_id).filter(Source.group_id.in_(
+                [g.id for g in self.current_user.groups]
+            ))
+        )).all()
+        return self.success(data={"sources": sources})
 
     @permissions(['Upload data'])
     def post(self):
         """
         ---
-        description: Upload a source. If group_ids is not specified, the user or token's groups will be used.
+        description: Add a new source
         requestBody:
           content:
             application/json:
-              schema: Obj
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Obj'
+                  - type: object
+                    properties:
+                      group_ids:
+                        type: array
+                        items:
+                          type: integer
+                        description: |
+                          List of associated group IDs. If not specified, all of the
+                          user or token's groups will be used.
         responses:
           200:
             content:
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        id:
-                          type: string
-                          description: New source ID
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: New source ID
         """
         data = self.get_json()
         schema = Obj.__schema__()
@@ -247,6 +356,11 @@ class SourceHandler(BaseHandler):
             required: true
             schema:
               type: string
+          - in: path
+            name: group_id
+            required: true
+            schema:
+              type: string
         responses:
           200:
             content:
@@ -287,7 +401,7 @@ class SourcePhotometryHandler(BaseHandler):
                 schema: Error
         """
         source = Source.get_if_owned_by(obj_id, self.current_user)
-        return self.success(data={'photometry': source.photometry})
+        return self.success(data=source.photometry)
 
 
 class SourceOffsetsHandler(BaseHandler):
@@ -331,72 +445,74 @@ class SourceOffsetsHandler(BaseHandler):
             content:
               application/json:
                 schema:
-                  type: object
-                  properties:
-                    data:
-                      type: object
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
                       properties:
-                        facility:
-                          type: string
-                          enum: [Keck, Shane, P200]
-                          description: Facility queried for starlist
-                        starlist_str:
-                          type: string
-                          description: formatted starlist in facility format
-                        starlist_info:
-                          type: array
-                          description: |
-                            list of source and offset star information
-                          items:
-                            type: object
-                            properties:
-                              str:
-                                type: string
-                                description: single-line starlist format per object
-                              ra:
-                                type: number
-                                format: float
-                                description: object RA in degrees (J2000)
-                              dec:
-                                type: number
-                                format: float
-                                description: object DEC in degrees (J2000)
-                              name:
-                                type: string
-                                description: object name
-                              dras:
-                                type: string
-                                description: offset from object to source in RA
-                              ddecs:
-                                type: string
-                                description: offset from object to source in DEC
-                              mag:
-                                type: number
-                                format: float
-                                description: |
-                                  magnitude of object (from
-                                  Gaia phot_rp_mean_mag)
-                        ra:
-                          type: number
-                          format: float
-                          description: source RA in degrees (J2000)
-                        dec:
-                          type: number
-                          format: float
-                          description: source DEC in degrees (J2000)
-                        queries_issued:
-                          type: integer
-                          description: |
-                            Number of times the catalog was queried to find
-                            noffsets
-                        noffsets:
-                          type: integer
-                          description: |
-                            Number of suitable offset stars found (may be less)
-                            than requested
-                        query:
-                          type: string
-                          description: SQL query submitted to Gaia
+                        data:
+                          type: object
+                          properties:
+                            facility:
+                              type: string
+                              enum: [Keck, Shane, P200]
+                              description: Facility queried for starlist
+                            starlist_str:
+                              type: string
+                              description: formatted starlist in facility format
+                            starlist_info:
+                              type: array
+                              description: |
+                                list of source and offset star information
+                              items:
+                                type: object
+                                properties:
+                                  str:
+                                    type: string
+                                    description: single-line starlist format per object
+                                  ra:
+                                    type: number
+                                    format: float
+                                    description: object RA in degrees (J2000)
+                                  dec:
+                                    type: number
+                                    format: float
+                                    description: object DEC in degrees (J2000)
+                                  name:
+                                    type: string
+                                    description: object name
+                                  dras:
+                                    type: string
+                                    description: offset from object to source in RA
+                                  ddecs:
+                                    type: string
+                                    description: offset from object to source in DEC
+                                  mag:
+                                    type: number
+                                    format: float
+                                    description: |
+                                      magnitude of object (from
+                                      Gaia phot_rp_mean_mag)
+                            ra:
+                              type: number
+                              format: float
+                              description: source RA in degrees (J2000)
+                            dec:
+                              type: number
+                              format: float
+                              description: source DEC in degrees (J2000)
+                            queries_issued:
+                              type: integer
+                              description: |
+                                Number of times the catalog was queried to find
+                                noffsets
+                            noffsets:
+                              type: integer
+                              description: |
+                                Number of suitable offset stars found (may be less)
+                                than requested
+                            query:
+                              type: string
+                              description: SQL query submitted to Gaia
           400:
             content:
               application/json:

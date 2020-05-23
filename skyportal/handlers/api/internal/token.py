@@ -22,12 +22,15 @@ class TokenHandler(BaseHandler):
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        token_id:
-                          type: string
-                          description: Token ID
+                        data:
+                          type: object
+                          properties:
+                            token_id:
+                              type: string
+                              description: Token ID
         """
         data = self.get_json()
 

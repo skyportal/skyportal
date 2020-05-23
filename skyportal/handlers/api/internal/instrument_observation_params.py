@@ -14,4 +14,4 @@ class InstrumentObservationParamsHandler(BaseHandler):
         except json.JSONDecodeError:
             return self.error("JSON parse error: instrument observation parameters file "
                               "does not contain properly formatted JSON.")
-        return self.success(data={"instrumentObsParams": instrument_data})
+        return self.success(data=instrument_data)

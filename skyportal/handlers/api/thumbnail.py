@@ -43,12 +43,15 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        id:
-                          type: int
-                          description: New thumbnail ID
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New thumbnail ID
           400:
             content:
               application/json:
@@ -101,12 +104,11 @@ class ThumbnailHandler(BaseHandler):
         """
         t = Thumbnail.query.get(thumbnail_id)
         if t is None:
-            return self.error(f"Could not load thumbnail {thumbnail_id}",
-                              data={"thumbnail_id": thumbnail_id})
+            return self.error(f"Could not load thumbnail with ID {thumbnail_id}")
         # Ensure user/token has access to parent source
         _ = Source.get_if_owned_by(t.obj.id, self.current_user)
 
-        return self.success(data={'thumbnail': t})
+        return self.success(data=t)
 
     @permissions(['Manage sources'])
     def put(self, thumbnail_id):

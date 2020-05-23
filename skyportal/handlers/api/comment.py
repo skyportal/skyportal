@@ -33,7 +33,7 @@ class CommentHandler(BaseHandler):
         # Ensure user/token has access to parent source
         _ = Source.get_if_owned_by(comment.obj_id, self.current_user)
         if comment is not None:
-            return self.success(data={'comment': comment})
+            return self.success(data=comment)
         return self.error('Invalid comment ID.')
 
     @permissions(['Comment'])
@@ -44,19 +44,40 @@ class CommentHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: CommentNoID
+              schema:
+                type: object
+                properties:
+                  obj_id:
+                    type: string
+                  text:
+                    type: string
+                  attachment:
+                    type: object
+                    properties:
+                      body:
+                        type: string
+                        format: byte
+                        description: base64-encoded file contents
+                      name:
+                        type: string
+                required:
+                  - obj_id
+                  - text
         responses:
           200:
             content:
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        obj_id:
-                          type: integer
-                          description: Associated source ID
+                        data:
+                          type: object
+                          properties:
+                            comment_id:
+                              type: integer
+                              description: New comment ID
         """
         data = self.get_json()
         obj_id = data['obj_id']
