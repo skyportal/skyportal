@@ -59,12 +59,6 @@ class UpdateUserPreferencesRequestJSON(_Schema):
     preferences = fields.Nested(UserPreferences)
 
 
-class NewsFeedItem(_Schema):
-    type = fields.String()
-    time = fields.String()
-    message = fields.String()
-
-
 def success(schema_name, base_schema=None):
     schema_fields = {
         'status': ApispecEnumField(Enum('status', ['success']), required=True),
@@ -111,7 +105,8 @@ def setup_schema():
                 """
                 schema_class_meta = type(f'{schema_class_name}_meta', (),
                                          {'model': class_, 'sqla_session': _DBSession,
-                                          'ordered': True, 'exclude': [], 'include_fk': True}
+                                          'ordered': True, 'exclude': [], 'include_fk': True,
+                                          'include_relationships': False}
                                          )
                 for exclude_attr in exclude:
                     if hasattr(class_, exclude_attr) and getattr(class_, exclude_attr) is not None:
@@ -128,9 +123,9 @@ def setup_schema():
                         schema_class())
 
             schema_class_name = class_.__name__
-            add_schema(schema_class_name, exclude=['created_at'],
+            add_schema(schema_class_name, exclude=['created_at', 'modified'],
                        add_to_model=True)
-            add_schema(f'{schema_class_name}NoID', exclude=['created_at', 'id'])
+            add_schema(f'{schema_class_name}NoID', exclude=['created_at', 'id', 'modified'])
 
 
 def register_components(spec):

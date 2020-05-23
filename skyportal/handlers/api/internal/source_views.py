@@ -32,7 +32,7 @@ class SourceViewsHandler(BaseHandler):
                      [g.id for g in self.current_user.groups]))))
              .filter(SourceView.created_at >= cutoff_day)
              .order_by(desc('views')).limit(max_num_sources))
-        return self.success(data={'sourceViews': q.all()})
+        return self.success(data=q.all())
 
     @tornado.web.authenticated
     def post(self, obj_id):

@@ -14,7 +14,10 @@ class SysInfoHandler(BaseHandler):
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
+                      properties:
+                        data:
+                          type: object
         """
         return self.success(data={})

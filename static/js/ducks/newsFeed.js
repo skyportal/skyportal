@@ -26,7 +26,7 @@ const initialState = {
 const reducer = (state=initialState, action) => {
   switch (action.type) {
     case FETCH_NEWSFEED_OK: {
-      const { newsFeedItems } = action.data;
+      const newsFeedItems = action.data;
       return {
         ...state,
         items: newsFeedItems

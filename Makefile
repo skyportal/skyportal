@@ -36,7 +36,7 @@ doc_reqs:
 
 api-docs: | doc_reqs
 	@PYTHONPATH=. python tools/openapi/build-spec.py
-	npx redoc-cli@0.8.3 bundle openapi.json --title "SkyPortal API docs" --cdn
+	npx redoc-cli@0.9.8 bundle openapi.json --title "SkyPortal API docs" --cdn
 	rm -f openapi.{yml,json}
 	mkdir -p doc/_build/html
 	mv redoc-static.html doc/openapi.html

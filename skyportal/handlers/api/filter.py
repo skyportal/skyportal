@@ -46,13 +46,13 @@ class FilterHandler(BaseHandler):
             f = Filter.get_if_owned_by(filter_id, self.current_user)
             if f is None:
                 return self.error("Invalid filter ID.")
-            return self.success(data={"filters": f})
+            return self.success(data=f)
         filters = (
             DBSession.query(Filter)
             .filter(Filter.group_id.in_([g.id for g in self.current_user.groups]))
             .all()
         )
-        return self.success(data={"filters": filters})
+        return self.success(data=filters)
 
     @permissions(["Manage groups"])
     def post(self):
@@ -62,19 +62,22 @@ class FilterHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: Filter
+              schema: FilterNoID
         responses:
           200:
             content:
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        id:
-                          type: string
-                          description: New filter ID
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New filter ID
         """
         data = self.get_json()
         schema = Filter.__schema__()

@@ -9,7 +9,7 @@ class InstrumentHandler(BaseHandler):
     def post(self):
         """
         ---
-        description: Create instruments
+        description: Add a new instrument
         requestBody:
           content:
             application/json:
@@ -20,12 +20,15 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        id:
-                          type: integer
-                          description: New instrument ID
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New instrument ID
           400:
             content:
               application/json:
@@ -53,22 +56,34 @@ class InstrumentHandler(BaseHandler):
     def get(self, instrument_id=None):
         """
         ---
-        description: Retrieve an instrument
-        parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: integer
-        responses:
-          200:
-            content:
-              application/json:
-                schema: SingleInstrument
-          400:
-            content:
-              application/json:
-                schema: Error
+        single:
+          description: Retrieve an instrument
+          parameters:
+            - in: path
+              name: instrument_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleInstrument
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all instruments
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfInstruments
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
         if instrument_id is not None:
             instrument = Instrument.query.get(int(instrument_id))
@@ -79,12 +94,12 @@ class InstrumentHandler(BaseHandler):
             # Ensure permissions to parent telescope
             _ = Telescope.get_if_owned_by(instrument.telescope_id,
                                           self.current_user)
-            return self.success(data={'instrument': instrument})
+            return self.success(data=instrument)
         query = Instrument.query.filter(Instrument.telescope_id.in_(
             DBSession().query(GroupTelescope.telescope_id).filter(GroupTelescope.group_id.in_(
                 [g.id for g in self.current_user.groups]
             ))))
-        return self.success(data={'instruments': query.all()})
+        return self.success(data=query.all())
 
     @permissions(['Manage sources'])
     def put(self, instrument_id):

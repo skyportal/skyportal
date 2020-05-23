@@ -19,14 +19,14 @@ export const fetchInstrumentObsParams = () => (
 const reducer = (state={ instrumentList: [], instrumentObsParams: {} }, action) => {
   switch (action.type) {
     case FETCH_INSTRUMENTS_OK: {
-      const { instruments } = action.data;
+      const instruments = action.data;
       return {
         ...state,
         instrumentList: instruments
       };
     }
     case FETCH_INSTRUMENT_OBS_PARAMS_OK: {
-      const { instrumentObsParams } = action.data;
+      const instrumentObsParams = action.data;
       return {
         ...state,
         instrumentObsParams

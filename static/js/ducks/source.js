@@ -97,7 +97,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
 const reducer = (state={ source: null, loadError: false }, action) => {
   switch (action.type) {
     case FETCH_LOADED_SOURCE_OK: {
-      const source = action.data.sources;
+      const source = action.data;
       return {
         ...state,
         ...source,

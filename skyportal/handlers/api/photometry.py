@@ -38,12 +38,17 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        ids:
-                          type: array
-                          description: List of new photometry IDs
+                        data:
+                          type: object
+                          properties:
+                            ids:
+                              type: array
+                              items:
+                                type: integer
+                              description: List of new photometry IDs
         """
 
         data = self.get_json()
@@ -121,14 +126,13 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        info = {}
-        info['photometry'] = Photometry.query.get(photometry_id)
-        if info['photometry'] is None:
+        phot = Photometry.query.get(photometry_id)
+        if phot is None:
             return self.error('Invalid photometry ID')
         # Ensure user/token has access to parent source
-        _ = Source.get_if_owned_by(info['photometry'].obj_id, self.current_user)
+        _ = Source.get_if_owned_by(phot.obj_id, self.current_user)
 
-        return self.success(data=info)
+        return self.success(data=phot)
 
     @permissions(['Manage sources'])
     def put(self, photometry_id):

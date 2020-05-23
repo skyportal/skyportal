@@ -17,7 +17,7 @@ def test_token_user_retrieving_candidate(view_only_token, public_candidate):
     assert data["status"] == "success"
     print(data["data"])
     assert all(
-        k in data["data"]["candidates"]
+        k in data["data"]
         for k in ["ra", "dec", "redshift"]
     )
 
@@ -43,8 +43,8 @@ def test_token_user_update_candidate(manage_sources_token, public_candidate):
     )
     assert status == 200
     assert data["status"] == "success"
-    npt.assert_almost_equal(data["data"]["candidates"]["ra"], 234.22)
-    npt.assert_almost_equal(data["data"]["candidates"]["redshift"], 3.0)
+    npt.assert_almost_equal(data["data"]["ra"], 234.22)
+    npt.assert_almost_equal(data["data"]["redshift"], 3.0)
 
 
 def test_cannot_update_candidate_without_permission(view_only_token, public_candidate):
@@ -87,8 +87,8 @@ def test_token_user_post_new_candidate(
 
     status, data = api("GET", f"candidates/{candidate_id}", token=view_only_token)
     assert status == 200
-    assert data["data"]["candidates"]["id"] == candidate_id
-    npt.assert_almost_equal(data["data"]["candidates"]["ra"], 234.22)
+    assert data["data"]["id"] == candidate_id
+    npt.assert_almost_equal(data["data"]["ra"], 234.22)
 
 
 def test_cannot_add_candidate_without_filter_id(upload_data_token):

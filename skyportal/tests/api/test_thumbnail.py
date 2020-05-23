@@ -30,11 +30,10 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group):
                              'zp': 25.,
                              'zpsys': 'ab',
                              'filter': 'bessellv'
-                       },
+                             },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-
 
     orig_source_thumbnail_count = len(DBSession.query(Obj).filter(
         Obj.id == obj_id).first().thumbnails)
@@ -58,7 +57,7 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group):
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['thumbnail']['type'] == 'new'
+    assert data['data']['type'] == 'new'
 
     assert (DBSession.query(Thumbnail).filter(Thumbnail.id == thumbnail_id)
             .first().obj.id) == obj_id
@@ -92,7 +91,7 @@ def test_token_user_delete_thumbnail_cascade_source(upload_data_token,
                              'zp': 25.,
                              'zpsys': 'ab',
                              'filter': 'bessellv'
-                       },
+                             },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -119,7 +118,7 @@ def test_token_user_delete_thumbnail_cascade_source(upload_data_token,
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['thumbnail']['type'] == 'new'
+    assert data['data']['type'] == 'new'
 
     assert (DBSession.query(Thumbnail).filter(Thumbnail.id == thumbnail_id)
             .first().obj.id) == obj_id
@@ -161,7 +160,7 @@ def test_token_user_post_get_thumbnail_phot_id(upload_data_token, public_group):
                              'zp': 25.,
                              'zpsys': 'ab',
                              'filter': 'bessellv'
-                       },
+                             },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -189,7 +188,7 @@ def test_token_user_post_get_thumbnail_phot_id(upload_data_token, public_group):
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['thumbnail']['type'] == 'new'
+    assert data['data']['type'] == 'new'
 
     assert (DBSession.query(Thumbnail).filter(Thumbnail.id == thumbnail_id)
             .first().obj.id) == obj_id
@@ -219,7 +218,7 @@ def test_cannot_post_thumbnail_invalid_ttype(upload_data_token, public_group):
                              'zp': 25.,
                              'zpsys': 'ab',
                              'filter': 'bessellv'
-                       },
+                             },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -231,7 +230,7 @@ def test_cannot_post_thumbnail_invalid_ttype(upload_data_token, public_group):
                        data={'obj_id': obj_id,
                              'data': data,
                              'ttype': ttype
-                       },
+                             },
                        token=upload_data_token)
     assert status == 400
     assert data['status'] == 'error'
@@ -260,7 +259,7 @@ def test_cannot_post_thumbnail_invalid_image_type(upload_data_token, public_grou
                              'zp': 25.,
                              'zpsys': 'ab',
                              'filter': 'bessellv'
-                       },
+                             },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -272,7 +271,7 @@ def test_cannot_post_thumbnail_invalid_image_type(upload_data_token, public_grou
                        data={'obj_id': obj_id,
                              'data': data,
                              'ttype': ttype
-                       },
+                             },
                        token=upload_data_token)
     assert status == 400
     assert data['status'] == 'error'
@@ -301,7 +300,7 @@ def test_cannot_post_thumbnail_invalid_size(upload_data_token, public_group):
                              'zp': 25.,
                              'zpsys': 'ab',
                              'filter': 'bessellv'
-                       },
+                             },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -313,7 +312,7 @@ def test_cannot_post_thumbnail_invalid_size(upload_data_token, public_group):
                        data={'obj_id': obj_id,
                              'data': data,
                              'ttype': ttype
-                       },
+                             },
                        token=upload_data_token)
     assert status == 400
     assert data['status'] == 'error'
@@ -342,7 +341,7 @@ def test_cannot_post_thumbnail_invalid_file_type(upload_data_token, public_group
                              'zp': 25.,
                              'zpsys': 'ab',
                              'filter': 'bessellv'
-                       },
+                             },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -354,7 +353,7 @@ def test_cannot_post_thumbnail_invalid_file_type(upload_data_token, public_group
                        data={'obj_id': obj_id,
                              'data': data,
                              'ttype': ttype
-                       },
+                             },
                        token=upload_data_token)
     assert status == 400
     assert data['status'] == 'error'

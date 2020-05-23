@@ -15,8 +15,8 @@ def test_token_user_retrieving_source(view_only_token, public_source):
                        token=view_only_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert all(k in data['data']['sources'] for k in ['ra', 'dec', 'redshift',
-                                                      'created_at', 'id'])
+    assert all(k in data['data'] for k in ['ra', 'dec', 'redshift',
+                                           'created_at', 'id'])
 
 
 def test_token_user_retrieving_source_photometry(view_only_token, public_source):
@@ -24,8 +24,8 @@ def test_token_user_retrieving_source_photometry(view_only_token, public_source)
                        token=view_only_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert isinstance(data['data']['photometry'], list)
-    assert 'mjd' in data['data']['photometry'][0]
+    assert isinstance(data['data'], list)
+    assert 'mjd' in data['data'][0]
 
 
 def test_token_user_update_source(manage_sources_token, public_source):
@@ -43,8 +43,8 @@ def test_token_user_update_source(manage_sources_token, public_source):
                        token=manage_sources_token)
     assert status == 200
     assert data['status'] == 'success'
-    npt.assert_almost_equal(data['data']['sources']['ra'], 234.22)
-    npt.assert_almost_equal(data['data']['sources']['redshift'], 3.0)
+    npt.assert_almost_equal(data['data']['ra'], 234.22)
+    npt.assert_almost_equal(data['data']['redshift'], 3.0)
 
 
 def test_cannot_update_source_without_permission(view_only_token, public_source):
@@ -76,8 +76,8 @@ def test_token_user_post_new_source(upload_data_token, view_only_token, public_g
     status, data = api('GET', f'sources/{obj_id}',
                        token=view_only_token)
     assert status == 200
-    assert data['data']['sources']['id'] == obj_id
-    npt.assert_almost_equal(data['data']['sources']['ra'], 234.22)
+    assert data['data']['id'] == obj_id
+    npt.assert_almost_equal(data['data']['ra'], 234.22)
 
 
 def test_add_source_without_group_id(upload_data_token, view_only_token,
@@ -95,8 +95,8 @@ def test_add_source_without_group_id(upload_data_token, view_only_token,
     status, data = api('GET', f'sources/{obj_id}',
                        token=view_only_token)
     assert status == 200
-    assert data['data']['sources']['id'] == obj_id
-    npt.assert_almost_equal(data['data']['sources']['ra'], 234.22)
+    assert data['data']['id'] == obj_id
+    npt.assert_almost_equal(data['data']['ra'], 234.22)
 
 
 def test_starlist(manage_sources_token, public_source):

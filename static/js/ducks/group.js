@@ -34,7 +34,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
 const reducer = (state={}, action) => {
   switch (action.type) {
     case FETCH_GROUP_OK: {
-      const { group } = action.data;
+      const group = action.data;
       return group;
     }
     case FETCH_GROUP_FAIL:
