@@ -18,7 +18,7 @@ const CommentList = () => {
   const acls = useSelector((state) => state.profile.acls);
   let { comments } = source;
   const addComment = (formData) => dispatch(
-    sourceActions.addComment({ source_id: source.id, ...formData })
+    sourceActions.addComment({ obj_id: source.id, ...formData })
   );
 
   comments = comments || [];

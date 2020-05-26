@@ -35,11 +35,11 @@ const TopSources = () => {
       </p>
       <ul>
         {
-          sourceViews.map(({ source_id, views }) => (
-            <li key={`topSources_${source_id}_${views}`}>
+          sourceViews.map(({ obj_id, views }) => (
+            <li key={`topSources_${obj_id}_${views}`}>
               <span>
-                <Link to={`/source/${source_id}`}>
-                  {source_id}
+                <Link to={`/source/${obj_id}`}>
+                  {obj_id}
                 </Link>
               </span>
               <span>

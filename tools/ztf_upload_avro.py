@@ -132,7 +132,7 @@ class ZTFAvro():
                 new_source = False
 
             # let's see if we have already
-            comments = Comment.query.filter(Comment.source_id == packet["objectId"]) \
+            comments = Comment.query.filter(Comment.obj_id == packet["objectId"]) \
                                     .filter(Comment.origin == f"{os.path.basename(self.fname)}")
 
             skip = False
@@ -148,13 +148,13 @@ class ZTFAvro():
             if not skip:
                 print(f"packet id: {packet['objectId']}")
                 if new_source:
-                    s.comments = [Comment(text=comment, source_id=packet["objectId"],
+                    s.comments = [Comment(text=comment, obj_id=packet["objectId"],
                                   user=self.ztfpack.group_admin_user,
                                   origin=f"{os.path.basename(self.fname)}")
                                   for comment in ["Added by ztf_upload_avro", \
                                               f"filename = {os.path.basename(self.fname)}"]]
                 else:
-                    comment_list = [Comment(text=comment, source_id=packet["objectId"],
+                    comment_list = [Comment(text=comment, obj_id=packet["objectId"],
                                     user=self.ztfpack.group_admin_user,
                                     origin=f"{os.path.basename(self.fname)}")
                                     for comment in ["Added by ztf_upload_avro", \
@@ -249,7 +249,7 @@ class ZTFAvro():
                 phot.update({"altdata": altdata})
                 photdata.append(copy.copy(phot))
 
-            photometry = Photometry.query.filter(Photometry.source_id == packet["objectId"]) \
+            photometry = Photometry.query.filter(Photometry.obj_id == packet["objectId"]) \
                                          .filter(Photometry.origin == f"{os.path.basename(self.fname)}")
 
             skip = False
@@ -267,12 +267,12 @@ class ZTFAvro():
             if not skip:
                 if new_source:
                     s.photometry = [Photometry(instrument=self.ztfpack.i1,
-                                source_id=packet["objectId"],
+                                obj_id=packet["objectId"],
                                 origin=f"{os.path.basename(self.fname)}", **row)
                                 for j, row in enumerate(photdata)]
                 else:
                   phot_list = [Photometry(instrument=self.ztfpack.i1,
-                                source_id=packet["objectId"],
+                                obj_id=packet["objectId"],
                                 origin=f"{os.path.basename(self.fname)}", **row)
                                 for j, row in enumerate(photdata)]
 
@@ -332,7 +332,7 @@ class ZTFAvro():
             # ra, dec update
             dat = pd.read_sql(DBSession()
                               .query(Photometry)
-                              .filter(Photometry.source_id == packet["objectId"])
+                              .filter(Photometry.obj_id == packet["objectId"])
                               .filter(Photometry.mag < 30)
                               .statement, DBSession().bind)
             if not s.varstar:
@@ -406,7 +406,7 @@ class ZTFAvro():
                     pass
 
             if s.simbad_class:
-                comments = [Comment(text=comment, source_id=packet["objectId"],
+                comments = [Comment(text=comment, obj_id=packet["objectId"],
                             user=self.ztfpack.group_admin_user, ctype="classification",
                             origin=f"{os.path.basename(self.fname)}")
                             for comment in [f"Simbad class = {s.simbad_class}"]]

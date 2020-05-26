@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
 #    """
 #    DELETE FROM phot WHERE sourceid NOT IN (SELECT id FROM sources);
-#    ALTER TABLE phot ADD CONSTRAINT fk_phot_source_id FOREIGN KEY (sourceid) REFERENCES sources(id) ON DELETE CASCADE;
+#    ALTER TABLE phot ADD CONSTRAINT fk_phot_obj_id FOREIGN KEY (sourceid) REFERENCES sources(id) ON DELETE CASCADE;
 #    """
 
     import_table('users', 'users', ['id', 'username'], dedupe=['username'])
@@ -84,12 +84,12 @@ if __name__ == '__main__':
     import_table('sources', 'sources', ['name', 'ra', 'dec', 'redshift'],
                  {'name': 'id'})
     import_table('comments', 'comments', ['id', 'user_id', 'text',
-                                          'date_added', 'source_id'],
+                                          'date_added', 'obj_id'],
                  {'date_added': 'created_at'})
     import_table('phot', 'photometry', ['id', 'name', 'instrumentid',
                                         'obsdate', 'filter', 'mag', 'emag',
                                         'limmag'],
-                 {'name': 'source_id', 'instrumentid': 'instrument_id',
+                 {'name': 'obj_id', 'instrumentid': 'instrument_id',
                   'obsdate': 'obs_time', 'emag': 'e_mag', 'limmag': 'lim_mag'},
                   sql_statement=psession.query(pPhotometry, pSource.name)
                                         .join(pSource)
@@ -97,13 +97,13 @@ if __name__ == '__main__':
     spectra_files = glob(f'{args.data_dir}/spectra/*.ascii')
 
     for f in spectra_files:
-        source_id, obs_date, nickname = os.path.basename(f.strip('.ascii')).split('_')[:3]
+        obj_id, obs_date, nickname = os.path.basename(f.strip('.ascii')).split('_')[:3]
         telescope = psession.query(pTelescope).filter(pTelescope.nickname.like(f'{nickname}%')).first()
         instruments = psession.query(pInstrument).filter(pInstrument.telid == telescope.id).all()
         if len(instruments) > 1:
             instruments = [i for i in instruments if i.type != 'phot']
         try:
-            spectrum = Spectrum.from_ascii(f, source_id, instruments[0].id,
+            spectrum = Spectrum.from_ascii(f, obj_id, instruments[0].id,
                                            datetime.strptime(obs_date, '%Y%m%d'))
             DBSession().add(spectrum)
             DBSession().commit()
@@ -113,12 +113,12 @@ if __name__ == '__main__':
     # TODO can't serve from outside static/
     cutout_files = glob(f'{args.data_dir}/cutouts/*')
     phot_info = DBSession().query(sa.sql.functions.min(Photometry.id),
-                                  Photometry.source_id).group_by(Photometry.source_id).all()
-    phot_map = {source_id: phot_id for phot_id, source_id in phot_info}
+                                  Photometry.obj_id).group_by(Photometry.obj_id).all()
+    phot_map = {obj_id: phot_id for phot_id, obj_id in phot_info}
     for f in cutout_files:
-        source_id, thumb_type = re.split('[\/_\.]', f)[-3:-1]
+        obj_id, thumb_type = re.split('[\/_\.]', f)[-3:-1]
         DBSession().add(Thumbnail(file_uri=f, type=thumb_type,
-                                  photometry_id=phot_map[source_id]))
+                                  photometry_id=phot_map[obj_id]))
         DBSession().commit()
 
     g = Group(name="Public group", public=True, sources=list(Source.query))

@@ -21,7 +21,7 @@ messageHandler.add((actionType, payload, dispatch) => {
 const reducer = (state={ sourceViews: [] }, action) => {
   switch (action.type) {
     case FETCH_TOP_SOURCES_OK: {
-      const { sourceViews } = action.data;
+      const sourceViews = action.data;
       return {
         sourceViews
       };

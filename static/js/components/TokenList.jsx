@@ -2,6 +2,15 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { useDispatch } from 'react-redux';
 
+import Button from '@material-ui/core/Button';
+import TextField from '@material-ui/core/TextField';
+import Paper from '@material-ui/core/Paper';
+import Table from '@material-ui/core/Table';
+import TableHead from '@material-ui/core/TableHead';
+import TableBody from '@material-ui/core/TableBody';
+import TableRow from '@material-ui/core/TableRow';
+import TableCell from '@material-ui/core/TableCell';
+
 import * as Action from '../ducks/profile';
 
 
@@ -26,67 +35,55 @@ const TokenList = ({ tokens }) => {
       <h3>
         My Tokens
       </h3>
-      <table>
-        <tbody>
-          <tr>
-            <td>
-              <b>
-                Value
-              </b>
-              &nbsp;&nbsp;
-            </td>
-            <td>
-              <b>
-                Name
-              </b>
-              &nbsp;&nbsp;
-            </td>
-            <td>
-              <b>
-                ACLS
-              </b>
-              &nbsp;&nbsp;
-            </td>
-            <td>
-              <b>
-                Created
-              </b>
-              &nbsp;&nbsp;
-            </td>
-            <td>
-              <b>
-                Delete
-              </b>
-            </td>
-          </tr>
-          {
-            tokens.map((token) => (
-              <tr key={token.id}>
-                <td>
-                  <input type="text" id={token.id} value={token.id} readOnly />
-                  <button type="button" onClick={() => copyToken(token.id)}>
-                    Copy to Clipboard
-                  </button>
-                </td>
-                <td>
-                  {token.name}
-                </td>
-                <td>
-                  {token.acls.join(', ')}
-                </td>
-                <td>
-                  {token.created_at}
-                </td>
-                <td>
-                  <a href="#top" onClick={() => deleteToken(token.id)}>
-                    Delete
-                  </a>
-                </td>
-              </tr>
-            ))
-          }
-        </tbody>
-      </table>
+      <Paper>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Value</TableCell>
+              <TableCell />
+              <TableCell>Name</TableCell>
+              <TableCell>ACLS</TableCell>
+              <TableCell>Created</TableCell>
+              <TableCell>Delete</TableCell>
+            </TableRow>
+          </TableHead>
+
+          <TableBody>
+            {
+              tokens.map((token) => (
+                <TableRow key={token.id}>
+                  <TableCell>
+                    <TextField id={token.id} value={token.id} readOnly={1} />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      onClick={() => copyToken(token.id)}
+                    >
+                      Copy to Clipboard
+                    </Button>
+                  </TableCell>
+                  <TableCell>
+                    {token.name}
+                  </TableCell>
+                  <TableCell>
+                    {token.acls.join(', ')}
+                  </TableCell>
+                  <TableCell>
+                    {token.created_at}
+                  </TableCell>
+                  <TableCell>
+                    <a href="#top" onClick={() => deleteToken(token.id)}>
+                      Delete
+                    </a>
+                  </TableCell>
+                </TableRow>
+              ))
+            }
+          </TableBody>
+        </Table>
+      </Paper>
     </div>
   );
 };

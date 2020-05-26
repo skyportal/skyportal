@@ -11,28 +11,29 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
-    DBSession, Comment, Instrument, Photometry, Source, SourceView,
-    Thumbnail, GroupSource, Token, User, Group, FollowupRequest
+    DBSession, Comment, Instrument, Photometry, Obj, Source, SourceView,
+    Thumbnail, Token, User, Group, FollowupRequest
 )
 from .internal.source_views import register_source_view
 from ...utils import (
     get_nearby_offset_stars, facility_parameters, source_image_parameters,
     get_finding_chart
 )
+from .candidate import grab_query_results_page
 
 SOURCES_PER_PAGE = 100
 
 
 class SourceHandler(BaseHandler):
     @auth_or_token
-    def get(self, source_id=None):
+    def get(self, obj_id=None):
         """
         ---
         single:
           description: Retrieve a source
           parameters:
             - in: path
-              name: source_id
+              name: obj_id
               required: false
               schema:
                 type: integer
@@ -40,24 +41,118 @@ class SourceHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: SingleSource
+                  schema: SingleObj
             400:
               content:
                 application/json:
                   schema: Error
         multiple:
           description: Retrieve all sources
+          parameters:
+          - in: query
+            name: ra
+            nullable: true
+            schema:
+              type: number
+            description: RA for spatial filtering
+          - in: query
+            name: dec
+            nullable: true
+            schema:
+              type: number
+            description: Declination for spatial filtering
+          - in: query
+            name: radius
+            nullable: true
+            schema:
+              type: number
+            description: Radius for spatial filtering if ra & dec are provided
+          - in: query
+            name: sourceID
+            nullable: true
+            schema:
+              type: string
+            description: Portion of ID to filter on
+          - in: query
+            name: simbadClass
+            nullable: true
+            schema:
+              type: string
+            description: Simbad class to filter on
+          - in: query
+            name: hasTNSname
+            nullable: true
+            schema:
+              type: boolean
+            description: If true, return only those matches with TNS names
+          - in: query
+            name: numPerPage
+            nullable: true
+            schema:
+              type: integer
+            description: |
+              Number of sources to return per paginated request. Defaults to 100
+          - in: query
+            name: pageNumber
+            nullable: true
+            schema:
+              type: integer
+            description: Page number for paginated query results. Defaults to 1
+          - in: query
+            name: totalMatches
+            nullable: true
+            schema:
+              type: integer
+            description: |
+              Used only in the case of paginating query results - if provided, this
+              allows for avoiding a potentially expensive query.count() call.
+          - in: query
+            name: startDate
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              last_detected >= startDate
+          - in: query
+            name: endDate
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              last_detected <= endDate
           responses:
             200:
               content:
                 application/json:
-                  schema: ArrayOfSources
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              sources:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Obj'
+                              totalMatches:
+                                type: integer
+                              pageNumber:
+                                type: integer
+                              lastPage:
+                                type: boolean
+                              numberingStart:
+                                type: integer
+                              numberingEnd:
+                                type: integer
             400:
               content:
                 application/json:
                   schema: Error
         """
-        info = {}
         page_number = self.get_query_argument('pageNumber', None)
         ra = self.get_query_argument('ra', None)
         dec = self.get_query_argument('dec', None)
@@ -69,33 +164,38 @@ class SourceHandler(BaseHandler):
         has_tns_name = self.get_query_argument('hasTNSname', None)
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
-        if source_id:
+        if obj_id:
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
-                register_source_view(source_id=source_id,
+                register_source_view(obj_id=obj_id,
                                      username_or_token_id=self.current_user.id,
                                      is_token=True)
-            info['sources'] = Source.get_if_owned_by(
-                source_id, self.current_user,
-                options=[joinedload(Source.comments),
-                         joinedload(Source.followup_requests)
+            s = Source.get_if_owned_by(  # Returns Source.obj
+                obj_id, self.current_user,
+                options=[joinedload(Source.obj)
+                         .joinedload(Obj.comments),
+                         joinedload(Source.obj)
+                         .joinedload(Obj.followup_requests)
                          .joinedload(FollowupRequest.requester),
-                         joinedload(Source.followup_requests)
+                         joinedload(Source.obj)
+                         .joinedload(Obj.followup_requests)
                          .joinedload(FollowupRequest.instrument),
-                         joinedload(Source.thumbnails)
+                         joinedload(Source.obj)
+                         .joinedload(Obj.thumbnails)
                          .joinedload(Thumbnail.photometry)
                          .joinedload(Photometry.instrument)
                          .joinedload(Instrument.telescope)])
-        elif page_number:
+            return self.success(data=s)
+        if page_number:
             try:
                 page = int(page_number)
             except ValueError:
                 return self.error("Invalid page number value.")
-            q = Source.query.filter(Source.id.in_(DBSession.query(
-                GroupSource.source_id).filter(GroupSource.group_id.in_(
+            q = Obj.query.filter(Obj.id.in_(DBSession.query(
+                Source.obj_id).filter(Source.group_id.in_(
                     [g.id for g in self.current_user.groups]))))
             if sourceID:
-                q = q.filter(Source.id.contains(sourceID.strip()))
+                q = q.filter(Obj.id.contains(sourceID.strip()))
             if any([ra, dec, radius]):
                 if not all([ra, dec, radius]):
                     return self.error("If any of 'ra', 'dec' or 'radius' are "
@@ -106,93 +206,91 @@ class SourceHandler(BaseHandler):
                     radius = float(radius)
                 except ValueError:
                     return self.error("Invalid values for ra, dec or radius - could not convert to float")
-                q = q.filter(Source.ra <= ra + radius)\
-                     .filter(Source.ra >= ra - radius)\
-                     .filter(Source.dec <= dec + radius)\
-                     .filter(Source.dec >= dec - radius)
+                q = q.filter(Obj.ra <= ra + radius)\
+                     .filter(Obj.ra >= ra - radius)\
+                     .filter(Obj.dec <= dec + radius)\
+                     .filter(Obj.dec >= dec - radius)
             if start_date:
                 start_date = arrow.get(start_date.strip())
-                q = q.filter(Source.last_detected >= start_date)
+                q = q.filter(Obj.last_detected >= start_date)
             if end_date:
                 end_date = arrow.get(end_date.strip())
-                q = q.filter(Source.last_detected <= end_date)
+                q = q.filter(Obj.last_detected <= end_date)
             if simbad_class:
-                q = q.filter(func.lower(Source.simbad_class) == simbad_class.lower())
-            if has_tns_name == 'true':
-                q = q.filter(Source.tns_name.isnot(None))
+                q = q.filter(func.lower(Obj.altdata['simbad']['class'].astext)
+                             == simbad_class.lower())
+            if has_tns_name in ['true', True]:
+                q = q.filter(Obj.altdata['tns']['name'].isnot(None))
 
-            if total_matches:
-                info['totalMatches'] = int(total_matches)
-            else:
-                info['totalMatches'] = q.count()
-            if (((info['totalMatches'] < (page - 1) * SOURCES_PER_PAGE and
-                  info['totalMatches'] % SOURCES_PER_PAGE != 0) or
-                 (info['totalMatches'] < page * SOURCES_PER_PAGE and
-                  info['totalMatches'] % SOURCES_PER_PAGE == 0) and
-                 info['totalMatches'] != 0) or
-                    page <= 0 or (info['totalMatches'] == 0 and page != 1)):
-                return self.error("Page number out of range.")
-            info['sources'] = q.limit(SOURCES_PER_PAGE).offset(
-                (page - 1) * SOURCES_PER_PAGE).all()
+            try:
+                query_results = grab_query_results_page(
+                    q, total_matches, page, SOURCES_PER_PAGE, "sources"
+                )
+            except ValueError as e:
+                if "Page number out of range" in str(e):
+                    return self.error("Page number out of range.")
+                raise
+            return self.success(data=query_results)
 
-            info['pageNumber'] = page
-            info['lastPage'] = info['totalMatches'] <= page * SOURCES_PER_PAGE
-            info['sourceNumberingStart'] = (page - 1) * SOURCES_PER_PAGE + 1
-            info['sourceNumberingEnd'] = min(info['totalMatches'],
-                                             page * SOURCES_PER_PAGE)
-            if info['totalMatches'] == 0:
-                info['sourceNumberingStart'] = 0
-        else:
-            if is_token_request:
-                token = self.current_user
-                info['sources'] = list(reduce(
-                    set.union, (set(group.sources) for group in token.groups)))
-            else:
-                info['sources'] = self.current_user.sources
-
-        if info['sources'] is not None:
-            return self.success(data=info)
-        else:
-            return self.error(f"Could not load source {source_id}",
-                              data={"source_id": source_id})
+        sources = Obj.query.filter(Obj.id.in_(
+            DBSession.query(Source.obj_id).filter(Source.group_id.in_(
+                [g.id for g in self.current_user.groups]
+            ))
+        )).all()
+        return self.success(data={"sources": sources})
 
     @permissions(['Upload data'])
     def post(self):
         """
         ---
-        description: Upload a source. If group_ids is not specified, the user or token's groups will be used.
+        description: Add a new source
         requestBody:
           content:
             application/json:
-              schema: Source
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Obj'
+                  - type: object
+                    properties:
+                      group_ids:
+                        type: array
+                        items:
+                          type: integer
+                        description: |
+                          List of associated group IDs. If not specified, all of the
+                          user or token's groups will be used.
         responses:
           200:
             content:
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        id:
-                          type: string
-                          description: New source ID
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: New source ID
         """
         data = self.get_json()
-        schema = Source.__schema__()
-        user_group_ids = [g.id for g in self.current_user.groups]
+        schema = Obj.__schema__()
+        user_group_ids = [int(g.id) for g in self.current_user.groups]
         if not user_group_ids:
             return self.error("You must belong to one or more groups before "
                               "you can add sources.")
         try:
-            group_ids = [id for id in data.pop('group_ids') if id in user_group_ids]
+            group_ids = [int(id) for id in data.pop('group_ids')
+                         if int(id) in user_group_ids]
         except KeyError:
             group_ids = user_group_ids
         if not group_ids:
             return self.error("Invalid group_ids field. Please specify at least "
                               "one valid group ID that you belong to.")
         try:
-            s = schema.load(data)
+            obj = schema.load(data)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
@@ -200,28 +298,29 @@ class SourceHandler(BaseHandler):
         if not groups:
             return self.error("Invalid group_ids field. Please specify at least "
                               "one valid group ID that you belong to.")
-        s.groups = groups
-        DBSession.add(s)
+        DBSession.add(obj)
+        DBSession.add_all([Source(obj=obj, group=group) for group in groups])
         DBSession().commit()
 
-        self.push_all(action='skyportal/FETCH_SOURCES')
-        return self.success(data={"id": s.id})
+        self.push_all(action="skyportal/FETCH_SOURCES")
+        self.push_all(action="skyportal/FETCH_CANDIDATES")
+        return self.success(data={"id": obj.id})
 
     @permissions(['Manage sources'])
-    def put(self, source_id):
+    def put(self, obj_id):
         """
         ---
         description: Update a source
         parameters:
           - in: path
-            name: source_id
+            name: obj_id
             required: True
             schema:
               type: string
         requestBody:
           content:
             application/json:
-              schema: SourceNoID
+              schema: ObjNoID
         responses:
           200:
             content:
@@ -232,11 +331,11 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        s = Source.get_if_owned_by(source_id, self.current_user)
+        s = Source.get_if_owned_by(obj_id, self.current_user)
         data = self.get_json()
-        data['id'] = source_id
+        data['id'] = obj_id
 
-        schema = Source.__schema__()
+        schema = Obj.__schema__()
         try:
             schema.load(data)
         except ValidationError as e:
@@ -247,13 +346,18 @@ class SourceHandler(BaseHandler):
         return self.success(action='skyportal/FETCH_SOURCES')
 
     @permissions(['Manage sources'])
-    def delete(self, source_id):
+    def delete(self, obj_id, group_id):
         """
         ---
         description: Delete a source
         parameters:
           - in: path
-            name: source_id
+            name: obj_id
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: group_id
             required: true
             schema:
               type: string
@@ -263,8 +367,12 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        s = Source.get_if_owned_by(source_id, self.current_user)
-        DBSession.query(Source).filter(Source.id == source_id).delete()
+        if group_id not in [g.id for g in self.current_user.groups]:
+            return self.error("Inadequate permissions.")
+        s = (DBSession.query(Source).filter(Source.obj_id == obj_id)
+             .filter(Source.group_id == group_id).first())
+        s.active = False
+        s.unsaved_by = self.current_user
         DBSession().commit()
 
         return self.success(action='skyportal/FETCH_SOURCES')
@@ -272,13 +380,13 @@ class SourceHandler(BaseHandler):
 
 class SourcePhotometryHandler(BaseHandler):
     @auth_or_token
-    def get(self, source_id):
+    def get(self, obj_id):
         """
         ---
         description: Retrieve a source's photometry
         parameters:
         - in: path
-          name: source_id
+          name: obj_id
           required: true
           schema:
             type: string
@@ -292,23 +400,19 @@ class SourcePhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.query.get(source_id)
-        if not source:
-            return self.error('Invalid source ID.')
-        if not set(source.groups).intersection(set(self.current_user.groups)):
-            return self.error('Inadequate permissions.')
-        return self.success(data={'photometry': source.photometry})
+        source = Source.get_if_owned_by(obj_id, self.current_user)
+        return self.success(data=source.photometry)
 
 
 class SourceOffsetsHandler(BaseHandler):
     @auth_or_token
-    def get(self, source_id):
+    def get(self, obj_id):
         """
         ---
         description: Retrieve offset stars to aid in spectroscopy
         parameters:
         - in: path
-          name: source_id
+          name: obj_id
           required: true
           schema:
             type: string
@@ -341,78 +445,80 @@ class SourceOffsetsHandler(BaseHandler):
             content:
               application/json:
                 schema:
-                  type: object
-                  properties:
-                    data:
-                      type: object
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
                       properties:
-                        facility:
-                          type: string
-                          enum: [Keck, Shane, P200]
-                          description: Facility queried for starlist
-                        starlist_str:
-                          type: string
-                          description: formatted starlist in facility format
-                        starlist_info:
-                          type: array
-                          description: |
-                            list of source and offset star information
-                          items:
-                            type: object
-                            properties:
-                              str:
-                                type: string
-                                description: single-line starlist format per object
-                              ra:
-                                type: number
-                                format: float
-                                description: object RA in degrees (J2000)
-                              dec:
-                                type: number
-                                format: float
-                                description: object DEC in degrees (J2000)
-                              name:
-                                type: string
-                                description: object name
-                              dras:
-                                type: string
-                                description: offset from object to source in RA
-                              ddecs:
-                                type: string
-                                description: offset from object to source in DEC
-                              mag:
-                                type: number
-                                format: float
-                                description: |
-                                  magnitude of object (from
-                                  Gaia phot_rp_mean_mag)
-                        ra:
-                          type: number
-                          format: float
-                          description: source RA in degrees (J2000)
-                        dec:
-                          type: number
-                          format: float
-                          description: source DEC in degrees (J2000)
-                        queries_issued:
-                          type: integer
-                          description: |
-                            Number of times the catalog was queried to find
-                            noffsets
-                        noffsets:
-                          type: integer
-                          description: |
-                            Number of suitable offset stars found (may be less)
-                            than requested
-                        query:
-                          type: string
-                          description: SQL query submitted to Gaia
+                        data:
+                          type: object
+                          properties:
+                            facility:
+                              type: string
+                              enum: [Keck, Shane, P200]
+                              description: Facility queried for starlist
+                            starlist_str:
+                              type: string
+                              description: formatted starlist in facility format
+                            starlist_info:
+                              type: array
+                              description: |
+                                list of source and offset star information
+                              items:
+                                type: object
+                                properties:
+                                  str:
+                                    type: string
+                                    description: single-line starlist format per object
+                                  ra:
+                                    type: number
+                                    format: float
+                                    description: object RA in degrees (J2000)
+                                  dec:
+                                    type: number
+                                    format: float
+                                    description: object DEC in degrees (J2000)
+                                  name:
+                                    type: string
+                                    description: object name
+                                  dras:
+                                    type: string
+                                    description: offset from object to source in RA
+                                  ddecs:
+                                    type: string
+                                    description: offset from object to source in DEC
+                                  mag:
+                                    type: number
+                                    format: float
+                                    description: |
+                                      magnitude of object (from
+                                      Gaia phot_rp_mean_mag)
+                            ra:
+                              type: number
+                              format: float
+                              description: source RA in degrees (J2000)
+                            dec:
+                              type: number
+                              format: float
+                              description: source DEC in degrees (J2000)
+                            queries_issued:
+                              type: integer
+                              description: |
+                                Number of times the catalog was queried to find
+                                noffsets
+                            noffsets:
+                              type: integer
+                              description: |
+                                Number of suitable offset stars found (may be less)
+                                than requested
+                            query:
+                              type: string
+                              description: SQL query submitted to Gaia
           400:
             content:
               application/json:
                 schema: Error
         """
-        source = Source.get_if_owned_by(source_id, self.current_user)
+        source = Source.get_if_owned_by(obj_id, self.current_user)
         if source is None:
             return self.error('Invalid source ID.')
 
@@ -442,7 +548,7 @@ class SourceOffsetsHandler(BaseHandler):
             starlist_info, query_string, queries_issued, noffsets = \
                 get_nearby_offset_stars(
                     source.ra, source.dec,
-                    source_id,
+                    obj_id,
                     how_many=how_many,
                     radius_degrees=radius_degrees,
                     mag_limit=mag_limit,
@@ -474,13 +580,13 @@ class SourceOffsetsHandler(BaseHandler):
 
 class SourceFinderHandler(BaseHandler):
     @auth_or_token
-    def get(self, source_id):
+    def get(self, obj_id):
         """
         ---
         description: Generate a PDF finding chart to aid in spectroscopy
         parameters:
         - in: path
-          name: source_id
+          name: obj_id
           required: true
           schema:
             type: string
@@ -524,7 +630,7 @@ class SourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_if_owned_by(source_id, self.current_user)
+        source = Source.get_if_owned_by(obj_id, self.current_user)
         if source is None:
             return self.error('Invalid source ID.')
 
@@ -537,7 +643,7 @@ class SourceFinderHandler(BaseHandler):
 
         if imsize < 2.0 or imsize > 15.0:
             return \
-              self.error('The value for `imsize` is outside the allowed range')
+                self.error('The value for `imsize` is outside the allowed range')
 
         facility = self.get_query_argument('facility', 'Keck')
         image_source = self.get_query_argument('image_source', 'desi')
@@ -561,7 +667,7 @@ class SourceFinderHandler(BaseHandler):
         mag_min = facility_parameters[facility]["mag_min"]
 
         rez = get_finding_chart(
-            source.ra, source.dec, source_id,
+            source.ra, source.dec, obj_id,
             image_source=image_source,
             output_format='pdf',
             imsize=imsize,

@@ -1,47 +1,40 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
-import { useSelector } from 'react-redux';
 
-import SourceList from './SourceList';
+import Box from '@material-ui/core/Box';
+import List from '@material-ui/core/List';
+import ListItem from '@material-ui/core/ListItem';
+import ListItemText from '@material-ui/core/ListItemText';
+import Typography from '@material-ui/core/Typography';
 
 
-const GroupList = ({ title, listSources, groups }) => {
-  if (!groups || groups.length === 0) {
-    groups = useSelector((state) => state.groups.user);
-  }
-  return (
-    <div style={{ border: "1px solid #DDD", padding: "10px" }}>
-      <h2>
-        {title}
-      </h2>
-      <ul>
-        {
-          groups &&
-          groups.map((group) => (
-            <li key={group.id}>
-              <Link to={`/group/${group.id}`}>
-                {group.name}
-              </Link>
-              {
-                listSources &&
-                <SourceList sources={group.sources} showTitle={false} />
-              }
-            </li>
-          ))
-        }
-      </ul>
-    </div>
-  );
-};
+const GroupList = ({ title, groups }) => (
+  <Box p={1}>
+    <Typography variant="h6">
+      {title}
+    </Typography>
+
+    <List dense>
+      {
+        groups && groups.map((group) => (
+          <Link to={`/group/${group.id}`} key={group.id}>
+            <ListItem>
+              <ListItemText primary={group.name} />
+            </ListItem>
+          </Link>
+        ))
+      }
+    </List>
+  </Box>
+);
+
 
 GroupList.propTypes = {
   title: PropTypes.string.isRequired,
-  listSources: PropTypes.bool,
   groups: PropTypes.arrayOf(PropTypes.object)
 };
 GroupList.defaultProps = {
-  listSources: false,
   groups: []
 };
 

@@ -28,7 +28,7 @@ function API(endpoint, actionType, method='GET', body={}, otherArgs={}) {
   return (
     async (dispatch) => {
       if (!actionType) {
-        return dispatch(
+        dispatch(
           showNotification(
             'API invocation error: no actionType specified',
             'error'
@@ -47,19 +47,23 @@ function API(endpoint, actionType, method='GET', body={}, otherArgs={}) {
         }
 
         if (json.status !== "success") {
-          throw new Error(`Backend error: ${json.message}`);
+          dispatch(showNotification(`${json.message}`, 'error'));
+          return dispatch({ type: `${actionType}_ERROR`, ...json });
         }
+
         return dispatch({ type: `${actionType}_OK`, ...json });
       } catch (error) {
-        /* In case of an error, dispatch an action that contains
-           every piece of information we have about the request, including
-           JSON args, and the response that came back from the server.
+        /* In case of an unintentional error, dispatch an action that contains
+           every piece of information we have about the request.
 
            This information can be used in a reducer to set an error message.
         */
 
-        dispatch({ type: `${actionType}_FAIL`, parameters, error: error.message });
-        return dispatch(showNotification(`${error.message}`, 'error'));
+        dispatch(showNotification(`${error.message}`, 'error'));
+        return dispatch({
+          type: `${actionType}_FAIL`,
+          parameters
+        });
       }
     }
   );

@@ -1,18 +1,25 @@
-import os
-import io
-import base64
-from pathlib import Path
-import tornado.web
+import numpy as np
+import arrow
 from astropy.time import Time
-from sqlalchemy.orm import joinedload
+import pandas as pd
 from marshmallow.exceptions import ValidationError
-from PIL import Image
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from .thumbnail import create_thumbnail
 from ...models import (
-    DBSession, Photometry, Comment, Instrument, Source, Thumbnail
+    DBSession, Photometry, Instrument, Source, Obj
 )
+
+
+PHOTOMETRY_COLUMNS = ['mjd', 'flux', 'fluxerr', 'zpsys', 'zp', 'filter']
+
+
+def nan_to_none(value):
+    """Coerce a value to None if it is nan, else return value."""
+    try:
+        return None if np.isnan(value) else value
+    except TypeError:
+        return value
 
 
 class PhotometryHandler(BaseHandler):
@@ -31,56 +38,69 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        ids:
-                          type: array
-                          description: List of new photometry IDs
+                        data:
+                          type: object
+                          properties:
+                            ids:
+                              type: array
+                              items:
+                                type: integer
+                              description: List of new photometry IDs
         """
+
         data = self.get_json()
 
-        # TODO should filters be a table/plaintext/limited set of strings?
-        if 'time_format' not in data or 'time_scale' not in data:
-            return self.error('Time scale (\'time_scale\') and time format '
-                              '(\'time_format\') are required parameters.')
-        if not isinstance(data['mag'], (list, tuple)):
-            data['observed_at'] = [data['observed_at']]
-            data['mag'] = [data['mag']]
-            data['e_mag'] = [data['e_mag']]
-            data['lim_mag'] = [data['lim_mag']]
-            data['filter'] = [data['filter']]
+        if 'mjd' not in data:
+            return self.error('mjd is a required parameter.')
+        if not isinstance(data['flux'], (list, tuple)):
+            for colname in PHOTOMETRY_COLUMNS:
+                data[colname] = [data[colname]]
+
+        try:
+            lc = pd.DataFrame({colname: data[colname] for colname in PHOTOMETRY_COLUMNS})
+        except ValueError as e:
+            return self.error(f'Improperly formatted input data: {e}')
+
         ids = []
         instrument = Instrument.query.get(data['instrument_id'])
         if not instrument:
             return self.error('Invalid instrument ID')
-        source = Source.get_if_owned_by(data['source_id'], self.current_user)
-        if not source:
-            return self.error('Invalid source ID')
-        for i in range(len(data['mag'])):
-            if not (data['time_scale'] == 'tcb' and data['time_format'] == 'iso'):
-                t = Time(data['observed_at'][i],
-                         format=data['time_format'],
-                         scale=data['time_scale'])
-                observed_at = t.tcb.iso
-            else:
-                observed_at = data['time'][i]
-            p = Photometry(source=source,
-                           observed_at=observed_at,
-                           mag=data['mag'][i],
-                           e_mag=data['e_mag'][i],
-                           time_scale='tcb',
-                           time_format='iso',
+        obj = Obj.query.get(data['obj_id'])  # TODO : implement permissions checking
+        if not obj:
+            return self.error('Invalid object ID')
+        converted_times = []
+
+        for i, row in lc.iterrows():
+            p = Photometry(obj=obj,
+                           mjd=row['mjd'],
+                           flux=row['flux'],
+                           fluxerr=row['fluxerr'],
                            instrument=instrument,
-                           lim_mag=data['lim_mag'][i],
-                           filter=data['filter'][i])
+                           filter=row['filter'],
+                           zpsys=row['zpsys'],
+                           zp=row['zp'])
+
+            t = Time(row['mjd'], format='mjd')
+            converted_times.append(arrow.get(t.iso))
+
             DBSession().add(p)
             DBSession().flush()
             ids.append(p.id)
         if 'thumbnails' in data:
             p = Photometry.query.get(ids[0])
             for thumb in data['thumbnails']:
-                create_thumbnail(thumb['data'], thumb['ttype'], source.id, p)
+                create_thumbnail(thumb['data'], thumb['ttype'], obj.id, p)
+        obj.last_detected = max(
+            converted_times
+            + [
+                obj.last_detected
+                if obj.last_detected is not None
+                else arrow.get("1000-01-01")
+            ]
+        )
         DBSession().commit()
 
         return self.success(data={"ids": ids})
@@ -106,15 +126,13 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        info = {}
-        info['photometry'] = Photometry.query.get(photometry_id)
-        if info['photometry'] is None:
+        phot = Photometry.query.get(photometry_id)
+        if phot is None:
             return self.error('Invalid photometry ID')
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(info['photometry'].source_id,
-                                   self.current_user)
+        _ = Source.get_if_owned_by(phot.obj_id, self.current_user)
 
-        return self.success(data=info)
+        return self.success(data=phot)
 
     @permissions(['Manage sources'])
     def put(self, photometry_id):
@@ -142,7 +160,7 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(Photometry.query.get(photometry_id).source_id,
+        s = Source.get_if_owned_by(Photometry.query.get(photometry_id).obj_id,
                                    self.current_user)
         data = self.get_json()
         data['id'] = photometry_id
@@ -179,7 +197,7 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(Photometry.query.get(photometry_id).source_id,
+        s = Source.get_if_owned_by(Photometry.query.get(photometry_id).obj_id,
                                    self.current_user)
         DBSession.query(Photometry).filter(Photometry.id == int(photometry_id)).delete()
         DBSession().commit()

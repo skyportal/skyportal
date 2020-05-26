@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Spectrum, Comment, Instrument, Source
+from ...models import DBSession, Spectrum, Comment, Instrument, Obj, Source
 
 
 class SpectrumHandler(BaseHandler):
@@ -22,21 +22,22 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        id:
-                          type: integer
-                          description: New spectrum ID
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New spectrum ID
           400:
             content:
               application/json:
                 schema: Error
         """
         data = self.get_json()
-        source_id = data.get('source_id')
         instrument_id = data.get('instrument_id')
-        source = Source.get_if_owned_by(source_id, self.current_user)
         instrument = Instrument.query.get(instrument_id)
 
         schema = Spectrum.__schema__()
@@ -45,7 +46,6 @@ class SpectrumHandler(BaseHandler):
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
-        spec.source = source
         spec.instrument = instrument
         DBSession().add(spec)
         DBSession().commit()
@@ -76,11 +76,10 @@ class SpectrumHandler(BaseHandler):
         spectrum = Spectrum.query.get(spectrum_id)
 
         if spectrum is not None:
-            source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
-            return self.success(data={'spectrum': spectrum})
+            source = Source.get_if_owned_by(spectrum.obj_id, self.current_user)
+            return self.success(data=spectrum)
         else:
-            return self.error(f"Could not load spectrum {spectrum_id}",
-                              data={"spectrum_id": spectrum_id})
+            return self.error(f"Could not load spectrum with ID {spectrum_id}")
 
     @permissions(['Manage sources'])
     def put(self, spectrum_id):
@@ -108,7 +107,7 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
         spectrum = Spectrum.query.get(spectrum_id)
-        source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
+        source = Source.get_if_owned_by(spectrum.obj_id, self.current_user)
         data = self.get_json()
         data['id'] = spectrum_id
 
@@ -144,7 +143,7 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
         spectrum = Spectrum.query.get(spectrum_id)
-        source = Source.get_if_owned_by(spectrum.source_id, self.current_user)
+        source = Source.get_if_owned_by(spectrum.obj_id, self.current_user)
         DBSession().delete(spectrum)
         DBSession().commit()
 

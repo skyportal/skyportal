@@ -14,7 +14,7 @@ export function fetchUser(id) {
 const reducer = (state={}, action) => {
   switch (action.type) {
     case FETCH_USER_OK: {
-      const { id, ...user_info } = action.data.user;
+      const { id, ...user_info } = action.data;
       return {
         ...state,
         [id]: user_info
