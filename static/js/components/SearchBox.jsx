@@ -61,6 +61,11 @@ const SearchBox = ({ sources }) => {
       pageNumber: jumpToPageInputValue,
       totalMatches: sources.totalMatches,
     };
+    if (event.target.value < 1) {
+      data.pageNumber = 1;
+    } else if (event.target.value > Math.ceil(sources.totalMatches/100)) {
+      data.pageNumber = Math.ceil(sources.totalMatches/100);
+    }
     dispatch(Actions.fetchSources(data));
   };
 
