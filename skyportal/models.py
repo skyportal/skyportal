@@ -231,7 +231,6 @@ Source.unsaved_by_id = sa.Column(sa.ForeignKey("users.id"), nullable=True, uniqu
 Source.unsaved_by = relationship("User", foreign_keys=[Source.unsaved_by_id])
 
 
-# Not used in get_source_if_owned_by, but defined in case it's called elsewhere
 def source_is_owned_by(self, user_or_token):
     source_group_ids = [row[0] for row in DBSession.query(
         Source.group_id).filter(Source.obj_id == self.obj_id).all()]
@@ -251,6 +250,25 @@ def get_source_if_owned_by(obj_id, user_or_token, options=[]):
 
 Source.is_owned_by = source_is_owned_by
 Source.get_if_owned_by = get_source_if_owned_by
+
+
+def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
+    try:
+        obj = Source.get_if_owned_by(obj_id, user_or_token, options)
+    except AccessError:  # They may still be able to view the associated Candidate
+        obj = Candidate.get_if_owned_by(obj_id, user_or_token, options)
+        if obj is None:
+            # If user can't view associated Source, and there's no Candidate they can
+            # view, raise AccessError
+            raise
+    if obj is None:  # There is no associated Source, so just return the Obj
+        return Obj.query.options(options).get(obj_id)
+    # If we get here, the user has access to either the associated Source or Candidate
+    return obj
+
+
+Obj.get_if_owned_by = get_obj_if_owned_by
+
 
 User.sources = relationship('Obj', backref='users',
                             secondary='join(Group, sources).join(group_users)',
@@ -327,7 +345,6 @@ class Photometry(Base):
 
     ra = sa.Column(sa.Float)
     dec = sa.Column(sa.Float)
-
 
     isdiffpos = sa.Column(sa.Boolean, default=True)  # candidate from position?
 
