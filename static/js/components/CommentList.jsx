@@ -69,6 +69,7 @@ const CommentList = () => {
             variant="outlined"
             color="primary"
             type="button"
+            name={`deleteCommentButton${id}`}
             onClick={() => {
               dispatch(sourceActions.deleteComment(id));
             }}
