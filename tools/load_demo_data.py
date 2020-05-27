@@ -65,6 +65,7 @@ if __name__ == "__main__":
                 "Upload data",
                 "Comment",
                 "Manage users",
+                "System admin",
             ],
             super_admin_user.id,
             "load_demo_data token",
@@ -153,7 +154,7 @@ if __name__ == "__main__":
                     data={
                         "name": "P60 Camera",
                         "type": "phot",
-                        "band": "optical",
+                        "band": "V",
                         "telescope_id": telescope1_id,
                     },
                 )
@@ -178,7 +179,7 @@ if __name__ == "__main__":
                     data={
                         "name": "ALFOSC",
                         "type": "both",
-                        "band": "optical",
+                        "band": "V",
                         "telescope_id": telescope2_id,
                     },
                 )
