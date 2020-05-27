@@ -298,7 +298,7 @@ class ArrayOfEnum(ARRAY):
         super_rp = super(ArrayOfEnum, self).result_processor(dialect, coltype)
 
         def handle_raw_string(value):
-            if value==None:
+            if value == None or value == '{}':  # 2nd case, empty array
                 return []
             inner = re.match(r"^{(.*)}$", value).group(1)
             return inner.split(",")
@@ -311,6 +311,8 @@ class ArrayOfEnum(ARRAY):
 class Instrument(Base):
 
     name = sa.Column(sa.String, nullable=False)
+    type = sa.Column(sa.String)
+    band = sa.Column(sa.String)
     telescope_id = sa.Column(sa.ForeignKey('telescopes.id',
                                            ondelete='CASCADE'),
                              nullable=False, index=True)
