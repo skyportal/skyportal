@@ -6,7 +6,7 @@ from ...models import (DBSession, Instrument, Telescope, GroupTelescope,
 
 
 class InstrumentHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(['System admin'])
     def post(self):
         data = self.get_json()
         telescope_id = data.get('telescope_id')
@@ -75,7 +75,7 @@ class InstrumentHandler(BaseHandler):
             ))))
         return self.success(data=query.all())
 
-    @permissions(['Manage sources'])
+    @permissions(['System admin'])
     def put(self, instrument_id):
         """
         ---
@@ -116,7 +116,7 @@ class InstrumentHandler(BaseHandler):
 
         return self.success()
 
-    @permissions(['Manage sources'])
+    @permissions(['System admin'])
     def delete(self, instrument_id):
         """
         ---
