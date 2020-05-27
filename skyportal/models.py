@@ -13,14 +13,11 @@ from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
 from baselayer.app.custom_exceptions import AccessError
 
 from . import schema
+from .enum import allowed_bandpasses, thumbnail_types
 
-from sncosmo.bandpasses import _BANDPASSES
-from sncosmo.magsystems import _MAGSYSTEMS
 
-ALLOWED_MAGSYSTEMS = tuple(l['name'] for l in _MAGSYSTEMS.get_loaders_metadata())
-ALLOWED_BANDPASSES = tuple(l['name'] for l in _BANDPASSES.get_loaders_metadata())
-
-FIDUCIAL_ZP = 25.
+PHOT_ZP = 23.9
+PHOT_SYS = 'ab'
 
 
 def is_owned_by(self, user_or_token):
@@ -319,31 +316,11 @@ class Photometry(Base):
     mjd = sa.Column(sa.Float, nullable=False)  # mjd date
     flux = sa.Column(sa.Float)
     fluxerr = sa.Column(sa.Float, nullable=False)
-    zp = sa.Column(sa.Float, nullable=False)
-    zpsys = sa.Column(sa.Enum(*ALLOWED_MAGSYSTEMS, name="zpsys",
-                              validate_strings=True), nullable=False)
-    filter = sa.Column(sa.Enum(*ALLOWED_BANDPASSES, name="bandpasses",
-                               validate_strings=True), nullable=False)
+    filter = sa.Column(allowed_bandpasses, nullable=False)
 
     ra = sa.Column(sa.Float)
     dec = sa.Column(sa.Float)
-
-
-    isdiffpos = sa.Column(sa.Boolean, default=True)  # candidate from position?
-
-    var_mag = sa.Column(sa.Float, nullable=True)
-    var_e_mag = sa.Column(sa.Float, nullable=True)
-
-    dist_nearest_source = sa.Column(sa.Float, nullable=True)
-    mag_nearest_source = sa.Column(sa.Float, nullable=True)
-    e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
-
-    # external values
-    score = sa.Column(sa.Float, nullable=True)  # RB
-    candid = sa.Column(sa.BigInteger, nullable=True)  # candidate ID
     altdata = sa.Column(JSONB)
-
-    origin = sa.Column(sa.String, nullable=True)
 
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)
@@ -355,8 +332,8 @@ class Photometry(Base):
 
     @hybrid_property
     def mag(self):
-        if self.flux > 0 and self.zp is not None:
-            return -2.5 * np.log10(self.flux) + self.zp
+        if self.flux > 0:
+            return -2.5 * np.log10(self.flux) + PHOT_ZP
         else:
             return None
 
@@ -371,8 +348,8 @@ class Photometry(Base):
     def mag(cls):
         return sa.case(
             [
-                (sa.and_(cls.flux > 0, cls.zp.isnot(None)),
-                 -2.5 * sa.func.log(cls.flux) + cls.zp),
+                cls.flux > 0,
+                -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
             ],
             else_=None
         )
@@ -432,9 +409,7 @@ class Spectrum(Base):
 
 class Thumbnail(Base):
     # TODO delete file after deleting row
-    type = sa.Column(sa.Enum('new', 'ref', 'sub', 'sdss', 'dr8', "new_gz",
-                             'ref_gz', 'sub_gz',
-                             name='thumbnail_types', validate_strings=True))
+    type = sa.Column(thumbnail_types)
     file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     public_url = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     origin = sa.Column(sa.String, nullable=True)
