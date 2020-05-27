@@ -148,7 +148,6 @@ def super_admin_token(super_admin_user):
     return token_id
 
 
-
 @pytest.fixture()
 def comment_token(user):
     token_id = create_token(
