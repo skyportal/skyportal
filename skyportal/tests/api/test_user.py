@@ -7,7 +7,7 @@ from skyportal.models import DBSession, Token
 def test_get_user_info(manage_users_token, user):
     status, data = api('GET', f'user/{user.id}', token=manage_users_token)
     assert status == 200
-    assert data['data']['user']['id'] == user.id
+    assert data['data']['id'] == user.id
 
 
 def test_get_user_info_access_denied(view_only_token, user):
@@ -18,7 +18,6 @@ def test_get_user_info_access_denied(view_only_token, user):
 def test_delete_user(manage_users_token, user):
     status, data = api('DELETE', f'user/{user.id}', token=manage_users_token)
     assert status == 200
-    assert data['data']['user_id'] == user.id
 
     status, data = api('GET', f'user/{user.id}', token=manage_users_token)
     assert status == 400
@@ -32,7 +31,6 @@ def test_delete_user_cascades_to_tokens(manage_users_token, user, public_group):
 
     status, data = api('DELETE', f'user/{user.id}', token=manage_users_token)
     assert status == 200
-    assert data['data']['user_id'] == user.id
 
     status, data = api('GET', f'user/{user.id}', token=manage_users_token)
     assert status == 400
@@ -44,15 +42,14 @@ def test_delete_user_cascades_to_groupuser(manage_users_token, manage_groups_tok
                                            user, public_group):
     status, data = api('GET', f'groups/{public_group.id}',
                        token=manage_groups_token)
-    orig_num_users = len(data['data']['group']['users'])
+    orig_num_users = len(data['data']['users'])
 
     status, data = api('DELETE', f'user/{user.id}', token=manage_users_token)
     assert status == 200
-    assert data['data']['user_id'] == user.id
 
     status, data = api('GET', f'user/{user.id}', token=manage_users_token)
     assert status == 400
 
     status, data = api('GET', f'groups/{public_group.id}',
                        token=manage_groups_token)
-    assert len(data['data']['group']['users']) == orig_num_users - 1
+    assert len(data['data']['users']) == orig_num_users - 1

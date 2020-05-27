@@ -326,6 +326,7 @@ import store from '../store';
 
 export const FETCH_RANDOM_STRING = 'skyportal/FETCH_RANDOM_STRING';
 export const FETCH_RANDOM_STRING_OK = 'skyportal/FETCH_RANDOM_STRING_OK';
+export const FETCH_RANDOM_STRING_ERROR = 'skyportal/FETCH_RANDOM_STRING_ERROR';
 export const FETCH_RANDOM_STRING_FAIL = 'skyportal/FETCH_RANDOM_STRING_FAIL';
 
 export function fetchRandomString() {
@@ -338,8 +339,11 @@ const reducer = (state="null", action) => {
       const { value } = action.data;
       return value;
     }
+    case FETCH_RANDOM_STRING_ERROR: {
+      return action.message;
+    }
     case FETCH_RANDOM_STRING_FAIL: {
-      return "err";
+      return "uncaught error";
     }
     default:
       return state;
@@ -448,7 +452,7 @@ class CommentHandler(BaseHandler):
         ...
 
         self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'source_id': comment.source_id})
+                      payload={'obj_id': comment.obj_id})
 
         return self.success(...)
 ```
@@ -476,10 +480,10 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   const { source } = getState();
 
   if (actionType === REFRESH_SOURCE) {
-    const loaded_source_id = source ? source.id : null;
+    const loaded_obj_id = source ? source.id : null;
 
-    if (loaded_source_id === payload.source_id) {
-      dispatch(fetchSource(loaded_source_id));
+    if (loaded_obj_id === payload.obj_id) {
+      dispatch(fetchSource(loaded_obj_id));
     }
   }
 });

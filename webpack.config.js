@@ -1,4 +1,3 @@
-const webpack = require('webpack');
 const path = require('path');
 
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
@@ -6,7 +5,7 @@ const path = require('path');
 const config = {
   entry: [
     'whatwg-fetch',
-    'babel-polyfill',
+    '@babel/polyfill',
     path.resolve(__dirname, 'static/js/components/Main.jsx')
   ],
   output: {
@@ -21,7 +20,7 @@ const config = {
         loader: 'babel-loader',
         options:
         {
-          presets: ['env'],
+          presets: ["@babel/preset-env", "@babel/preset-react"],
           plugins: [
             'transform-object-rest-spread',
             'transform-async-to-generator',
@@ -38,7 +37,7 @@ const config = {
         loader: 'babel-loader',
         options:
         {
-          presets: ['env', 'react'],
+          presets: ["@babel/preset-env", "@babel/preset-react"],
           plugins: [
             'transform-object-rest-spread',
             'transform-async-to-generator',
@@ -88,12 +87,6 @@ const config = {
     ]
   },
   plugins: [
-    // We do not use JQuery for anything in this project; but Bootstrap
-    // depends on it
-    new webpack.ProvidePlugin({
-      $: 'jquery',
-      jQuery: 'jquery'
-    }),
 
     // Uncomment the following line to enable bundle size analysis
     //    new BundleAnalyzerPlugin()

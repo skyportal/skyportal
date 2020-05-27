@@ -31,6 +31,7 @@ import Responsive from './Responsive';
 import {{ route.component }} from './{{ route.component }}';
 {% endfor %}
 
+import Theme from './Theme';
 import ProfileDropdown from './ProfileDropdown';
 import Logo from './Logo';
 import Footer from './Footer';
@@ -47,23 +48,27 @@ class MainContent extends React.Component {
 
   render() {
     const { root } = this.props;
+
     return (
-      <div className={styles.main}>
-        <Sidebar />
-        <div className={styles.contentWrapper}>
-          <div className={styles.topBanner}>
-            <div className={styles.topBannerContent}>
-              <Logo className={styles.logo} />
-              <Link className={styles.title} to="/">
-                SkyPortal ∝
-              </Link>
-              <div className={styles.websocket}>
-                <WebSocket
-                  url={`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${root}websocket`}
-                  auth_url={`${window.location.protocol}//${root}baselayer/socket_auth_token`}
-                  messageHandler={messageHandler}
-                  dispatch={store.dispatch}
-                />
+      <Theme>
+        <div className={styles.main}>
+          <Sidebar />
+          <div className={styles.contentWrapper}>
+            <div className={styles.topBanner}>
+              <div className={styles.topBannerContent}>
+                <Logo className={styles.logo} />
+                <Link className={styles.title} to="/">
+                  SkyPortal ∝
+                </Link>
+                <div className={styles.websocket}>
+                  <WebSocket
+                    url={`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${root}websocket`}
+                    auth_url={`${window.location.protocol}//${root}baselayer/socket_auth_token`}
+                    messageHandler={messageHandler}
+                    dispatch={store.dispatch}
+                  />
+                </div>
+                <Responsive desktopElement={ProfileDropdown} />
               </div>
               <Responsive desktopElement={ProfileDropdown} />
             </div>
@@ -75,19 +80,22 @@ class MainContent extends React.Component {
 
             <Notifications />
 
-          <Switch>
-            {% for route in app.routes %}
-            <PropsRoute exact="True" path="{{ route.path }}" component={ {{ route.component }} } />
-            {% endfor %}
-            <PropsRoute component={NoMatchingRoute} />
-          </Switch>
+            <Switch>
+
+              {%- for route in app.routes %}
+              <PropsRoute exact path="{{ route.path }}" component={{ '{' }}{{ route.component }}{{ '}' }} />
+              {%- endfor %}
+
+              <PropsRoute component={NoMatchingRoute} />
+
+            </Switch>
+
 
           </div>
         </div>
 
         <Footer />
-
-      </div>
+      </Theme>
     );
   }
 }

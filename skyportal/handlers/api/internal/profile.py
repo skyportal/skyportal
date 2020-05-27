@@ -16,7 +16,41 @@ class ProfileHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: SingleUser
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            username:
+                              type: string
+                            acls:
+                              type: array
+                              items:
+                                type: string
+                            roles:
+                              type: array
+                              items:
+                                type: string
+                            tokens:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  id:
+                                    type: string
+                                  name:
+                                    type: string
+                                  acls:
+                                    type: array
+                                    items:
+                                      type: string
+                                  created_at:
+                                    type: string
+                            preferences:
+                              type: object
         """
         user = (User.query.filter(User.username == self.current_user.username)
                     .first())

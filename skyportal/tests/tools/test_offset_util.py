@@ -1,9 +1,11 @@
 import pytest
 import uuid
+import requests
+from requests.exceptions import HTTPError, Timeout, ConnectionError
 
 from skyportal.utils import (
     get_nearby_offset_stars,
-    source_image_parameters, get_finding_chart, get_ztfref_url
+    get_finding_chart, get_ztfref_url
 )
 
 
@@ -36,7 +38,23 @@ def test_get_nearby_offset_stars():
         )
 
 
-def test_get_finding_chart():
+desi_url = (
+    "http://legacysurvey.org/viewer/fits-cutout/"
+    "?ra=123.0&dec=33.0&layer=dr8&pixscale=2.0&bands=r"
+)
+
+# check to see if the DESI server is up. If not, do not run test.
+run_desi_test = True
+try:
+    r = requests.get(desi_url)
+    r.raise_for_status()
+except (HTTPError, Timeout, ConnectionError) as e:
+    run_desi_test = False
+    print(e)
+
+
+@pytest.mark.skipif(not run_desi_test, reason="DESI server down")
+def test_get_desi_finding_chart():
 
     rez = get_finding_chart(
         123.0, 33.3, "testSource",
@@ -49,11 +67,12 @@ def test_get_finding_chart():
     assert rez["name"].find("testSource") != -1
     assert rez["data"].find(bytes("PDF", encoding='utf8')) != -1
 
-
-
+# test for failure on a too-small image size
+def test_get_finding_chart():
     rez = get_finding_chart(
         123.0, 33.3, "testSource",
-        imsize=1.0
+        imsize=1.0,
+        image_source='dss'
     )
     assert not rez["success"]
 
@@ -63,4 +82,3 @@ def test_get_finding_chart():
     )
     assert isinstance(rez, dict)
     assert not rez["success"]
-

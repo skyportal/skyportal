@@ -25,7 +25,7 @@ const EditFollowupRequestDialog = ({ followupRequest, instrumentList, instrument
       <Dialog open={open} onClose={handleClose} style={{ position: "fixed" }}>
         <DialogContent>
           <FollowupRequestForm
-            source_id={followupRequest.source_id}
+            obj_id={followupRequest.obj_id}
             action="editExisting"
             followupRequest={followupRequest}
             instrumentList={instrumentList}
@@ -47,7 +47,7 @@ EditFollowupRequestDialog.propTypes = {
     end_date: PropTypes.string,
     priority: PropTypes.string,
     status: PropTypes.string,
-    source_id: PropTypes.string,
+    obj_id: PropTypes.string,
     id: PropTypes.number
   }).isRequired,
   instrumentList: PropTypes.arrayOf(PropTypes.shape({

@@ -27,7 +27,8 @@ RUN bash -c "\
     source /skyportal_env/bin/activate && \
     \
     make -C baselayer paths && \
-    (make -f baselayer/Makefile baselayer dependencies || make -C baselayer dependencies)"
+    (make -f baselayer/Makefile baselayer dependencies || make -C baselayer dependencies) && \
+    (make -f baselayer/Makefile baselayer fill_conf_values || make -C baselayer fill_conf_values)"
 
 RUN bash -c "\
     \

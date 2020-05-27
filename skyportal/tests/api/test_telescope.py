@@ -13,7 +13,7 @@ def test_token_user_post_get_telescope(upload_data_token, public_group):
                              'elevation': 0.0,
                              'diameter': 10.0,
                              'group_ids': [public_group.id]
-                       },
+                             },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -25,7 +25,7 @@ def test_token_user_post_get_telescope(upload_data_token, public_group):
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['telescope']['diameter'] == 10.0
+    assert data['data']['diameter'] == 10.0
 
 
 def test_token_user_update_telescope(upload_data_token, manage_sources_token,
@@ -39,7 +39,7 @@ def test_token_user_update_telescope(upload_data_token, manage_sources_token,
                              'elevation': 0.0,
                              'diameter': 10.0,
                              'group_ids': [public_group.id]
-                       },
+                             },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -51,7 +51,7 @@ def test_token_user_update_telescope(upload_data_token, manage_sources_token,
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['telescope']['diameter'] == 10.0
+    assert data['data']['diameter'] == 10.0
 
     status, data = api(
         'PUT',
@@ -62,7 +62,7 @@ def test_token_user_update_telescope(upload_data_token, manage_sources_token,
               'lon': 0.0,
               'elevation': 0.0,
               'diameter': 12.0
-        },
+              },
         token=manage_sources_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -73,7 +73,7 @@ def test_token_user_update_telescope(upload_data_token, manage_sources_token,
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['telescope']['diameter'] == 12.0
+    assert data['data']['diameter'] == 12.0
 
 
 def test_token_user_delete_telescope(upload_data_token, manage_sources_token,
@@ -87,7 +87,7 @@ def test_token_user_delete_telescope(upload_data_token, manage_sources_token,
                              'elevation': 0.0,
                              'diameter': 10.0,
                              'group_ids': [public_group.id]
-                       },
+                             },
                        token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -99,7 +99,7 @@ def test_token_user_delete_telescope(upload_data_token, manage_sources_token,
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['telescope']['diameter'] == 10.0
+    assert data['data']['diameter'] == 10.0
 
     status, data = api(
         'DELETE',

@@ -10,7 +10,7 @@ import FormValidationError from './FormValidationError';
 import 'react-datepicker/dist/react-datepicker-cssmodules.css';
 
 
-const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsParams, followupRequest = null, title = "Submit new follow-up request", afterSubmit = null }) => {
+const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsParams, followupRequest = null, title = "Submit new follow-up request", afterSubmit = null }) => {
   const dispatch = useDispatch();
   const obsParams = instrumentObsParams; // Shorten to reduce line length below
 
@@ -20,7 +20,7 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
   });
 
   const initialFormState = followupRequest !== null ? {
-    source_id: followupRequest.source_id,
+    obj_id: followupRequest.obj_id,
     instrument_id: followupRequest.instrument_id,
     start_date: new Date(followupRequest.start_date),
     end_date: new Date(followupRequest.end_date),
@@ -29,7 +29,7 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
     priority: followupRequest.priority,
     editable: followupRequest.editable
   } : {
-    source_id,
+    obj_id,
     instrument_id: "",
     start_date: new Date(),
     end_date: new Date(),
@@ -66,7 +66,7 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
 
   const onSubmit = () => {
     const formData = {
-      // Need to add source_id, etc to form data for request
+      // Need to add obj_id, etc to form data for request
       ...initialFormState,
       ...getValues({ nest: true })
     };
@@ -98,9 +98,6 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
             ref={register({ required: true })}
             onChange={handleSelectedInstrumentChange}
           >
-            <option value={null}>
-              Select Instrument
-            </option>
             {
               instrumentList.map((instrument) => (
                 <option value={instrument.id} key={instrument.id}>
@@ -193,9 +190,6 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
                         name="filters"
                         ref={register({ required: true, validate: validateFilters })}
                       >
-                        <option value="null">
-                          Select Filter
-                        </option>
                         {
                           obsParams[instIDToName[formState.instrument_id]].filters.options.map(
                             (filter) => (
@@ -225,9 +219,6 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
                         name="exposure_time"
                         ref={register({ required: true })}
                       >
-                        <option value="null">
-                          Select Exposure Time
-                        </option>
                         {
                           obsParams[instIDToName[formState.instrument_id]].exposureTime.options.map(
                             (expTime) => (
@@ -262,9 +253,6 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
                 </label>
                 &nbsp;
                 <select name="priority" ref={register({ required: true })}>
-                  <option value="null">
-                    Select Priority
-                  </option>
                   {
                     ["1", "2", "3", "4", "5"].map((val) => (
                       <option value={val} key={val}>
@@ -285,7 +273,7 @@ const FollowupRequestForm = ({ source_id, action, instrumentList, instrumentObsP
 };
 
 FollowupRequestForm.propTypes = {
-  source_id: PropTypes.string.isRequired,
+  obj_id: PropTypes.string.isRequired,
   action: PropTypes.string.isRequired,
   instrumentList: PropTypes.arrayOf(PropTypes.shape({
     band: PropTypes.string,
@@ -303,7 +291,7 @@ FollowupRequestForm.propTypes = {
     end_date: PropTypes.string,
     priority: PropTypes.string,
     status: PropTypes.string,
-    source_id: PropTypes.string,
+    obj_id: PropTypes.string,
     id: PropTypes.number
   }),
   title: PropTypes.string,
