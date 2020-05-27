@@ -1,18 +1,20 @@
 import numpy as np
 import arrow
 from astropy.time import Time
+from astropy.table import Table
 import pandas as pd
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from .thumbnail import create_thumbnail
 from ...models import (
-    DBSession, Photometry, Instrument, Source, Obj
+    DBSession, Photometry, Instrument, Source, Obj,
+    PHOT_ZP, PHOT_SYS, Thumbnail
 )
 
-
-PHOTOMETRY_COLUMNS = ['mjd', 'flux', 'fluxerr', 'zpsys', 'zp', 'filter']
-
+from ...schema import (PhotometryMag, PhotometryFlux, PhotometryThumbnailURL,
+                       PhotometryThumbnailData)
+from sncosmo.photdata import PhotometricData
+import operator
 
 def nan_to_none(value):
     """Coerce a value to None if it is nan, else return value."""
@@ -35,26 +37,8 @@ class PhotometryHandler(BaseHandler):
                 type: array
                 items:
                   anyOf:
-                    - allOf:
-                      - $ref: "#/components/schemas/PhotometryMag"
-                      - type: object
-                        properties:
-                          thumbnails:
-                            type: array
-                            items:
-                              anyOf:
-                                - $ref: "#/components/schemas/PhotometryThumbnailURL"
-                                - $ref: "#/components/schemas/PhotometryThumbnailData"
-                    - allOf:
-                      - $ref: "#/components/schemas/PhotometryFlux"
-                      - type: object
-                        properties:
-                          thumbnails:
-                            type: array
-                            items:
-                              anyOf:
-                                - $ref: "#/components/schemas/PhotometryThumbnailURL"
-                                - $ref: "#/components/schemas/PhotometryThumbnailData"
+                    - $ref: "#/components/schemas/PhotometryMag"
+                    - $ref: "#/components/schemas/PhotometryFlux"
         responses:
           200:
             content:
@@ -75,59 +59,41 @@ class PhotometryHandler(BaseHandler):
         """
 
         data = self.get_json()
+        if not isinstance(data, list):
+            return self.error('Invalid input format: input data must be a list '
+                              'of photometry objects.')
 
-        if 'mjd' not in data:
-            return self.error('mjd is a required parameter.')
-        if not isinstance(data['flux'], (list, tuple)):
-            for colname in PHOTOMETRY_COLUMNS:
-                data[colname] = [data[colname]]
-
-        try:
-            lc = pd.DataFrame({colname: data[colname] for colname in PHOTOMETRY_COLUMNS})
-        except ValueError as e:
-            return self.error(f'Improperly formatted input data: {e}')
+        # pop out thumbnails and process what's left using schemas
 
         ids = []
-        instrument = Instrument.query.get(data['instrument_id'])
-        if not instrument:
-            return self.error('Invalid instrument ID')
-        obj = Obj.query.get(data['obj_id'])  # TODO : implement permissions checking
-        if not obj:
-            return self.error('Invalid object ID')
-        converted_times = []
+        for packet in data:
+            try:
+                phot = PhotometryFlux.load(packet)
+            except ValidationError as e1:
+                try:
+                    phot = PhotometryMag.load(packet)
+                except ValidationError as e2:
+                    return self.error('Invalid input format: Tried to parse '
+                                      f'{packet} as PhotometryFlux, got: '
+                                      f'"{e1.normalized_messages()}." Tried '
+                                      f'to parse {packet} as PhotometryMag, got:'
+                                      f' "{e2.normalized_messages()}."')
 
+            DBSession().add(phot)
 
-
-        for i, row in lc.iterrows():
-            p = Photometry(obj=obj,
-                           mjd=row['mjd'],
-                           flux=row['flux'],
-                           fluxerr=row['fluxerr'],
-                           instrument=instrument,
-                           filter=row['filter'],
-                           zpsys=row['zpsys'],
-                           zp=row['zp'])
-
-            t = Time(row['mjd'], format='mjd')
-            converted_times.append(arrow.get(t.iso))
-
-            DBSession().add(p)
+            # to set up obj link
             DBSession().flush()
-            ids.append(p.id)
-        if 'thumbnails' in data:
-            p = Photometry.query.get(ids[0])
-            for thumb in data['thumbnails']:
-                create_thumbnail(thumb['data'], thumb['ttype'], obj.id, p)
-        obj.last_detected = max(
-            converted_times
-            + [
-                obj.last_detected
-                if obj.last_detected is not None
-                else arrow.get("1000-01-01")
-            ]
-        )
-        DBSession().commit()
 
+            time = Time(phot.mjd, format='mjd').iso
+            phot.obj.last_detected = max(
+                time,
+                phot.obj.last_detected
+                if phot.obj.last_detected is not None
+                else arrow.get("1000-01-01")
+            )
+            ids.append(phot.id)
+
+        DBSession().commit()
         return self.success(data={"ids": ids})
 
     @auth_or_token
@@ -173,7 +139,10 @@ class PhotometryHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: PhotometryNoID
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/PhotometryMag"
+                  - $ref: "#/components/schemas/PhotometryFlux"
         responses:
           200:
             content:
@@ -187,17 +156,23 @@ class PhotometryHandler(BaseHandler):
         # Ensure user/token has access to parent source
         s = Source.get_if_owned_by(Photometry.query.get(photometry_id).obj_id,
                                    self.current_user)
-        data = self.get_json()
-        data['id'] = photometry_id
+        packet = self.get_json()
 
-        schema = Photometry.__schema__()
         try:
-            schema.load(data, partial=True)
-        except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
-        DBSession().commit()
+            phot = PhotometryFlux.load(packet)
+        except ValidationError as e1:
+            try:
+                phot = PhotometryMag.load(packet)
+            except ValidationError as e2:
+                return self.error('Invalid input format: Tried to parse '
+                                  f'{packet} as PhotometryFlux, got: '
+                                  f'"{e1.normalized_messages()}." Tried '
+                                  f'to parse {packet} as PhotometryMag, got:'
+                                  f' "{e2.normalized_messages()}."')
 
+        phot.id = photometry_id
+        DBSession().merge(phot)
+        DBSession().commit()
         return self.success()
 
     @permissions(['Manage sources'])

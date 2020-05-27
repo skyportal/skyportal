@@ -11,7 +11,8 @@ from marshmallow_sqlalchemy import (
     ModelSchema as _ModelSchema
 )
 
-from marshmallow import (Schema as _Schema, fields, validate)
+from marshmallow import (Schema as _Schema, fields, validate, post_load,
+                         ValidationError)
 from marshmallow_enum import EnumField
 
 import sqlalchemy as sa
@@ -28,8 +29,12 @@ from skyportal.enum import (
     py_thumbnail_types
 )
 
+from astropy.table import Table
+import operator
+
 import sys
 import inspect
+import numpy as np
 from uuid import uuid4
 from enum import Enum
 from typing import Any
@@ -198,7 +203,8 @@ class PhotometryFlux(_Schema, PhotBase):
                                      'limits from ZTF1, where no flux is measured '
                                      'for non-detections. If flux is null, '
                                      'the flux error is used to derive a '
-                                     'limiting magnitude.', required=False)
+                                     'limiting magnitude.', required=False,
+                         missing=None)
     fluxerr = fields.Number(description='Gaussian error on the flux in counts.',
                             required=True)
     zp = fields.Number(description='Magnitude zeropoint, given by `ZP` in the '
@@ -207,18 +213,166 @@ class PhotometryFlux(_Schema, PhotBase):
                                    'magnitude system `zpsys`.',
                        required=True)
 
+    @post_load
+    def parse_flux(self, data, **kwargs):
+        """Return a `Photometry` object from a `PhotometryFlux` marshmallow
+        schema.
+
+        Parameters
+        ----------
+        data : dict
+            The instance of the PhotometryFlux schema to convert to Photometry.
+
+        Returns
+        -------
+        Photometry
+            The Photometry object generated from the PhotometryFlux object.
+        """
+
+        from skyportal.models import Instrument, Obj, PHOT_SYS, PHOT_ZP, Photometry
+        from sncosmo.photdata import PhotometricData
+
+        # get the instrument
+        instrument = Instrument.query.get(data['instrument_id'])
+        if not instrument:
+            raise ValidationError(f'Invalid instrument ID: {data["instrument_id"]}')
+
+        # get the object
+        obj = Obj.query.get(data['obj_id'])  # TODO : implement permissions checking
+        if not obj:
+            raise ValidationError(f'Invalid object ID: {data["obj_id"]}')
+
+        if data["filter"] not in instrument.filters:
+            raise ValidationError(f"Error in packet '{data}': "
+                                  f"Instrument {instrument} has no filter "
+                                  f"{data['filter']}.")
+
+        # convert flux to microJanskies.
+        table = Table([data])
+        if data['flux'] is None:
+            # this needs to be non-null for the conversion step
+            # will be replaced later with null
+            table['flux'] = 0.
+
+        # conversion happens here
+        photdata = PhotometricData(table).normalized(zp=PHOT_ZP,
+                                                     zpsys=PHOT_SYS)
+
+        # replace with null if needed
+        final_flux = None if data['flux'] is None else photdata.flux[0]
+
+        p = Photometry(obj_id=data['obj_id'],
+                       mjd=data['mjd'],
+                       flux=final_flux,
+                       fluxerr=photdata.fluxerr[0],
+                       instrument_id=data['instrument_id'],
+                       filter=data['filter'])
+
+        return p
+
+
 class PhotometryMag(_Schema, PhotBase):
     mag = fields.Number(description='Magnitude of the observation in the '
                                     'magnitude system `magsys`. Can be null '
                                     'in the case of a non-detection.',
-                        required=False)
+                        required=False, missing=None)
     magerr = fields.Number(description='Magnitude error of the observation in '
                                        'the magnitude system `magsys`. Can be '
                                        'null in the case of a non-detection.',
-                           required=False)
+                           required=False, missing=None)
     limiting_mag = fields.Number(description='Limiting magnitude of the image '
-                                             'in the magnituee system `magsys`.',
+                                             'in the magnitude system `magsys`.',
                                  required=True)
+
+    @post_load
+    def parse_mag(self, data, **kwargs):
+        """Return a `Photometry` object from a `PhotometryMag` marshmallow
+        schema.
+
+        Parameters
+        ----------
+        data : dict
+            The instance of the PhotometryMag schema to convert to Photometry.
+
+        Returns
+        -------
+        Photometry
+            The Photometry object generated from the PhotometryMag dict.
+        """
+
+        from skyportal.models import Instrument, Obj, PHOT_SYS, PHOT_ZP, Photometry
+        from sncosmo.photdata import PhotometricData
+
+        # check that mag and magerr are both null or both not null, not a mix
+        ok = any(
+            [
+                all(
+                    [
+                        op(field, None) for field in [data['mag'], data['magerr']]
+                    ]
+                ) for op in [operator.is_, operator.is_not]
+            ]
+        )
+
+        if not ok:
+            raise ValidationError(f'Error parsing packet "{data}": mag '
+                                  f'and magerr must both be null, or both be '
+                                  f'not null.')
+
+        # get the instrument
+        instrument = Instrument.query.get(data['instrument_id'])
+        if not instrument:
+            raise ValidationError(f'Invalid instrument ID: {data["instrument_id"]}')
+
+        # get the object
+        obj = Obj.query.get(data['obj_id'])  # TODO: implement permissions checking
+        if not obj:
+            raise ValidationError(f'Invalid object ID: {data["obj_id"]}')
+
+        if data["filter"] not in instrument.filters:
+            raise ValidationError(f"Error in packet '{data}': "
+                                  f"Instrument {instrument} has no filter "
+                                  f"{data['filter']}.")
+
+        # determine if this is a limit or a measurement
+        hasmag = data['mag'] is not None
+
+        if hasmag:
+            flux = 10**(-0.4 * (data['mag'] - PHOT_ZP))
+            fluxerr = data['magerr'] / (2.5 / np.log(10)) * flux
+        else:
+            fivesigflux = 10**(-0.4 * (data['limiting_mag'] - PHOT_ZP))
+            flux = None
+            fluxerr = fivesigflux / 5
+
+
+        # convert flux to microJanskies.
+        table = Table([{'flux': flux,
+                        'fluxerr': fluxerr,
+                        'zpsys': data['magsys'],
+                        'zp': PHOT_ZP,
+                        'filter': data['filter'],
+                        'mjd': data['mjd']}])
+        if data['flux'] is None:
+            # this needs to be non-null for the conversion step
+            # will be replaced later with null
+            table['flux'] = 0.
+
+        # conversion happens here
+        photdata = PhotometricData(table).normalized(zp=PHOT_ZP,
+                                                     zpsys=PHOT_SYS)
+
+        # replace with null if needed
+        final_flux = None if data['flux'] is None else photdata.flux[0]
+
+        p = Photometry(obj_id=data['obj_id'],
+                       mjd=data['mjd'],
+                       flux=final_flux,
+                       fluxerr=photdata.fluxerr[0],
+                       instrument_id=data['instrument_id'],
+                       filter=data['filter'])
+
+        return p
 
 
 def register_components(spec):

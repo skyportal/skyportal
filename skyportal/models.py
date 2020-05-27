@@ -17,6 +17,7 @@ from .enum import allowed_bandpasses, thumbnail_types
 
 
 PHOT_ZP = 23.9
+PHOT_SYS = 'ab'
 
 
 def is_owned_by(self, user_or_token):
