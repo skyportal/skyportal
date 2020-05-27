@@ -18,7 +18,7 @@ from matplotlib.colors import rgb2hex
 
 import os
 from skyportal.models import (DBSession, Obj, Photometry,
-                              Instrument, Telescope)
+                              Instrument, Telescope, PHOT_ZP)
 
 import sncosmo
 from sncosmo.photdata import PhotometricData
@@ -26,7 +26,7 @@ from astropy.table import Table
 
 
 DETECT_THRESH = 5  # sigma
-DEFAULT_ZP = 8.9 + 15 # so that things are in muJy
+uMJY_ZP = 8.9 + 15 # so that things are in muJy
 
 SPEC_LINES = {
     'H': ([3970, 4102, 4341, 4861, 6563], '#ff0000'),
@@ -201,18 +201,19 @@ def photometry_plot(obj_id):
                                                      data['filter'])]
 
     # normalize everything to a common zeropoint
-    columns = ['mjd', 'filter', 'flux', 'fluxerr', 'zp', 'zpsys']
+    columns = ['mjd', 'filter', 'flux', 'fluxerr', 'zpsys']
     table = Table.from_pandas(data[columns])
+    table['zp'] = PHOT_ZP
     photdata = PhotometricData(table)
 
     # normalize so that flux is in Jy
     # (see https://en.wikipedia.org/wiki/AB_magnitude)
-    normalized = photdata.normalized(zp=DEFAULT_ZP, zpsys='ab')
+    normalized = photdata.normalized(zp=uMJY_ZP, zpsys='ab')
 
     # write the normalized data to the dataframe
     data['flux'] = normalized.flux
     data['fluxerr'] = normalized.fluxerr
-    data['zp'] = DEFAULT_ZP
+    data['zp'] = uMJY_ZP
     data['alpha'] = 1.
     data['lim_mag'] = -2.5 * np.log10(data['fluxerr'] * DETECT_THRESH) + data['zp']
 
@@ -224,7 +225,7 @@ def photometry_plot(obj_id):
     # is above DETECT_THRESH
     obsind = data['hasflux'] & (data['flux'].fillna(0.) / data['fluxerr'] >= DETECT_THRESH)
     data.loc[~obsind, 'mag'] = None
-    data.loc[obsind, 'mag'] = -2.5 * np.log10(data[obsind]['flux']) + DEFAULT_ZP
+    data.loc[obsind, 'mag'] = -2.5 * np.log10(data[obsind]['flux']) + uMJY_ZP
 
     # calculate the magnitude errors using standard error propagation formulae
     # https://en.wikipedia.org/wiki/Propagation_of_uncertainty#Example_formulae
@@ -343,7 +344,7 @@ def photometry_plot(obj_id):
                         code=open(os.path.join(os.path.dirname(__file__),
                                                '../static/js/plotjs',
                                                'stackf.js')).read().replace(
-                                   'default_zp', str(DEFAULT_ZP)
+                                   'default_zp', str(uMJY_ZP)
                                ).replace(
                                    'detect_thresh', str(DETECT_THRESH)
                                )
@@ -500,14 +501,14 @@ def photometry_plot(obj_id):
             '../static/js/plotjs',
             "download.js")).read().replace(
             'objname', obj_id
-        ).replace('default_zp', str(DEFAULT_ZP)))
+        ).replace('default_zp', str(uMJY_ZP)))
 
     toplay = row(slider, button)
     callback = CustomJS(args={'slider': slider, 'toggle': toggle, **model_dict},
                         code=open(os.path.join(os.path.dirname(__file__),
                                                '../static/js/plotjs',
                                                'stackm.js')).read().replace(
-                                   'default_zp', str(DEFAULT_ZP)
+                                   'default_zp', str(uMJY_ZP)
                                ).replace(
                                    'detect_thresh', str(DETECT_THRESH)
                                ))
