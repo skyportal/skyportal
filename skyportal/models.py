@@ -326,7 +326,6 @@ class Photometry(Base):
 
     ra = sa.Column(sa.Float)
     dec = sa.Column(sa.Float)
-
     altdata = sa.Column(JSONB)
 
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
@@ -370,43 +369,6 @@ class Photometry(Base):
             ],
             else_=None
         )
-
-
-class PhotometryMag(Base):
-    __tablename__ = 'photometrymag'
-    __abstract__ = True
-
-    mjd = sa.Column(sa.Float, nullable=False)  # mjd date
-    mag = sa.Column(sa.Float)
-    magerr = sa.Column(sa.Float)
-    magsystem = sa.Column(allowed_magsystems, nullable=False)
-    filter = sa.Column(allowed_bandpasses, nullable=False)
-    mag_limit = sa.Column(sa.Float, nullable=False)
-
-    ra = sa.Column(sa.Float)
-    dec = sa.Column(sa.Float)
-
-
-    isdiffpos = sa.Column(sa.Boolean, default=True)  # candidate from position?
-
-    var_mag = sa.Column(sa.Float, nullable=True)
-    var_e_mag = sa.Column(sa.Float, nullable=True)
-
-    dist_nearest_source = sa.Column(sa.Float, nullable=True)
-    mag_nearest_source = sa.Column(sa.Float, nullable=True)
-    e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
-
-    # external values
-    score = sa.Column(sa.Float, nullable=True)  # RB
-    candid = sa.Column(sa.BigInteger, nullable=True)  # candidate ID
-    altdata = sa.Column(JSONB)
-
-    origin = sa.Column(sa.String, nullable=True)
-
-    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
-                       nullable=False, index=True)
-    instrument_id = sa.Column(sa.ForeignKey('instruments.id'),
-                              nullable=False, index=True)
 
 
 class Spectrum(Base):
