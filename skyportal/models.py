@@ -22,6 +22,8 @@ ALLOWED_BANDPASSES = tuple(l['name'] for l in _BANDPASSES.get_loaders_metadata()
 
 FIDUCIAL_ZP = 25.
 
+allowed_magsystems = sa.Enum(*ALLOWED_MAGSYSTEMS, name="zpsys", validate_strings=True)
+allowed_bandpasses = sa.Enum(*ALLOWED_BANDPASSES, name="bandpasses", validate_strings=True)
 
 def is_owned_by(self, user_or_token):
     """Generic ownership logic for any `skyportal` ORM model.
@@ -320,30 +322,13 @@ class Photometry(Base):
     flux = sa.Column(sa.Float)
     fluxerr = sa.Column(sa.Float, nullable=False)
     zp = sa.Column(sa.Float, nullable=False)
-    zpsys = sa.Column(sa.Enum(*ALLOWED_MAGSYSTEMS, name="zpsys",
-                              validate_strings=True), nullable=False)
-    filter = sa.Column(sa.Enum(*ALLOWED_BANDPASSES, name="bandpasses",
-                               validate_strings=True), nullable=False)
+    zpsys = sa.Column(allowed_magsystems, nullable=False)
+    filter = sa.Column(allowed_bandpasses, nullable=False)
 
     ra = sa.Column(sa.Float)
     dec = sa.Column(sa.Float)
 
-
-    isdiffpos = sa.Column(sa.Boolean, default=True)  # candidate from position?
-
-    var_mag = sa.Column(sa.Float, nullable=True)
-    var_e_mag = sa.Column(sa.Float, nullable=True)
-
-    dist_nearest_source = sa.Column(sa.Float, nullable=True)
-    mag_nearest_source = sa.Column(sa.Float, nullable=True)
-    e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
-
-    # external values
-    score = sa.Column(sa.Float, nullable=True)  # RB
-    candid = sa.Column(sa.BigInteger, nullable=True)  # candidate ID
     altdata = sa.Column(JSONB)
-
-    origin = sa.Column(sa.String, nullable=True)
 
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)
