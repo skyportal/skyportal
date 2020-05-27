@@ -54,8 +54,8 @@ const SaveCandidateGroupSelect = ({ candidateID, userGroups }) => {
     <div>
       <Button
         variant="contained"
-        id={`saveCandidateButton_${candidateID}`}
         onClick={handleClickOpen}
+        name={`initialSaveCandidateButton${candidateID}`}
       >
         Save as source
       </Button>
@@ -91,6 +91,7 @@ const SaveCandidateGroupSelect = ({ candidateID, userGroups }) => {
               <Button
                 variant="contained"
                 type="submit"
+                name={`finalSaveCandidateButton${candidateID}`}
               >
                 Save
               </Button>
