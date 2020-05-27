@@ -20,7 +20,7 @@ def test_candidate_group_filtering(
     manage_groups_token,
 ):
     candidate_id = str(uuid.uuid4())
-    for i in range(20):
+    for i in range(5):
         status, data = api(
             "POST",
             "candidates",
@@ -49,7 +49,7 @@ def test_candidate_group_filtering(
 
     driver.get(f"/become_user/{user.id}")
     driver.get("/candidates")
-    for i in range(20):
+    for i in range(5):
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
     group_checkbox = driver.wait_for_xpath(
         f'//input[starts-with(@name,"groupIDs[0]")]'
@@ -57,11 +57,11 @@ def test_candidate_group_filtering(
     driver.scroll_to_element_and_click(group_checkbox)
     submit_button = driver.wait_for_xpath('//span[text()="Submit"]')
     driver.scroll_to_element_and_click(submit_button)
-    for i in range(20):
+    for i in range(5):
         driver.wait_for_xpath_to_disappear(f'//a[text()="{candidate_id}_{i}"]')
     driver.scroll_to_element_and_click(group_checkbox)
     driver.scroll_to_element_and_click(submit_button)
-    for i in range(20):
+    for i in range(5):
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
 
 
@@ -75,7 +75,7 @@ def test_candidate_unsaved_only_filtering(
     manage_groups_token,
 ):
     candidate_id = str(uuid.uuid4())
-    for i in range(20):
+    for i in range(5):
         status, data = api(
             "POST",
             "sources",
@@ -120,17 +120,17 @@ def test_candidate_unsaved_only_filtering(
 
     driver.get(f"/become_user/{user.id}")
     driver.get("/candidates")
-    for i in range(20):
+    for i in range(5):
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
     unsaved_only_checkbox = driver.wait_for_xpath('//input[@name="unsavedOnly"]')
     driver.scroll_to_element_and_click(unsaved_only_checkbox)
     submit_button = driver.wait_for_xpath('//span[text()="Submit"]')
     driver.scroll_to_element_and_click(submit_button)
-    for i in range(20):
+    for i in range(5):
         driver.wait_for_xpath_to_disappear(f'//a[text()="{candidate_id}_{i}"]')
     driver.scroll_to_element_and_click(unsaved_only_checkbox)
     driver.scroll_to_element_and_click(submit_button)
-    for i in range(20):
+    for i in range(5):
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
 
 
@@ -138,7 +138,7 @@ def test_candidate_date_filtering(
     driver, user, public_candidate, public_filter, public_group, upload_data_token
 ):
     candidate_id = str(uuid.uuid4())
-    for i in range(20):
+    for i in range(5):
         status, data = api(
             "POST",
             "candidates",
@@ -178,7 +178,7 @@ def test_candidate_date_filtering(
 
     driver.get(f"/become_user/{user.id}")
     driver.get("/candidates")
-    for i in range(20):
+    for i in range(5):
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
     start_date_input = driver.wait_for_xpath("//input[@name='startDate']")
     start_date_input.clear()
@@ -186,16 +186,16 @@ def test_candidate_date_filtering(
     end_date_input = driver.wait_for_xpath("//input[@name='endDate']")
     end_date_input.clear()
     end_date_input.send_keys("20011212")
-    submit_button = driver.wait_for_xpath('//span[text()="Submit"]')
     time.sleep(0.1)
+    submit_button = driver.wait_for_xpath('//span[text()="Submit"]')
     driver.scroll_to_element_and_click(submit_button)
-    for i in range(20):
+    for i in range(5):
         driver.wait_for_xpath_to_disappear(f'//a[text()="{candidate_id}_{i}"]', 10)
     end_date_input.clear()
     end_date_input.send_keys("20901212")
     time.sleep(0.1)
     driver.scroll_to_element_and_click(submit_button)
-    for i in range(20):
+    for i in range(5):
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]', 10)
 
 
