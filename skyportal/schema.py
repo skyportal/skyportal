@@ -22,10 +22,18 @@ from baselayer.app.models import (
     DBSession as _DBSession
 )
 
+from skyportal.enum import (
+    py_allowed_bandpasses,
+    py_allowed_magsystems,
+    py_thumbnail_types
+)
+
 import sys
 import inspect
 from uuid import uuid4
 from enum import Enum
+from typing import Any
+import base64
 
 
 class ApispecEnumField(EnumField):
@@ -128,6 +136,91 @@ def setup_schema():
             add_schema(f'{schema_class_name}NoID', exclude=['created_at', 'id', 'modified'])
 
 
+class Bytes(fields.Field):
+    """
+    A Marshmallow Field that serializes bytes to a base64-encoded string, and deserializes
+    a base64-encoded string to bytes.
+    Args:
+        - *args (Any): the arguments accepted by `marshmallow.Field`
+        - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+    def _serialize(self, value, attr, obj, **kwargs):  # type: ignore
+        if value is not None:
+            return base64.b64encode(value).decode("utf-8")
+
+    def _deserialize(self, value, attr, data, **kwargs):  # type: ignore
+        if value is not None:
+            return base64.b64decode(value)
+
+
+class TypeMixin(object):
+    ttype = ApispecEnumField(py_thumbnail_types, required=True,
+                             description='Thumbnail type.')
+
+
+class PhotometryThumbnailData(_Schema, TypeMixin):
+    data = Bytes(description='Base64-encoded bytestring of thumbnail PNG image.'
+                             'Only thumbnails between (16, 16) and (500, 500) '
+                             'pixels are allowed.',
+                 required=True)
+
+
+class PhotometryThumbnailURL(_Schema, TypeMixin):
+    url = fields.String(description='URL of the thumbnail PNG image.',
+                        required=True)
+
+
+class PhotBase(object):
+    # Mixin class containing columns common to PhotometryFlux and PhotometryMag
+    mjd = fields.Number(description='MJD of the observation.', required=True)
+    magsys = ApispecEnumField(py_allowed_magsystems, required=True,
+                              description='The magnitude system to which the '
+                                          'flux and the zeropoint are tied.')
+    filter = ApispecEnumField(py_allowed_bandpasses, required=True,
+                              description='The bandpass of the observation.')
+
+    obj_id = fields.Integer(description='ID of the Object to which the '
+                                        'photometry will be attached.',
+                            required=True)
+    instrument_id = fields.Integer(description='ID of the instrument with which'
+                                               ' the observation was carried '
+                                               'out.', required=True)
+
+
+class PhotometryFlux(_Schema, PhotBase):
+
+    flux = fields.Number(description='Flux of the observation in counts. '
+                                     'Can be null to accommodate upper '
+                                     'limits from ZTF1, where no flux is measured '
+                                     'for non-detections. If flux is null, '
+                                     'the flux error is used to derive a '
+                                     'limiting magnitude.', required=False)
+    fluxerr = fields.Number(description='Gaussian error on the flux in counts.',
+                            required=True)
+    zp = fields.Number(description='Magnitude zeropoint, given by `ZP` in the '
+                                   'equation m = -2.5 log10(flux) + `ZP`. '
+                                   'm is the magnitude of the object in the '
+                                   'magnitude system `zpsys`.',
+                       required=True)
+
+class PhotometryMag(_Schema, PhotBase):
+    mag = fields.Number(description='Magnitude of the observation in the '
+                                    'magnitude system `magsys`. Can be null '
+                                    'in the case of a non-detection.',
+                        required=False)
+    magerr = fields.Number(description='Magnitude error of the observation in '
+                                       'the magnitude system `magsys`. Can be '
+                                       'null in the case of a non-detection.',
+                           required=False)
+    limiting_mag = fields.Number(description='Limiting magnitude of the image '
+                                             'in the magnituee system `magsys`.',
+                                 required=True)
+
+
 def register_components(spec):
     print('Registering schemas with APISpec')
 
@@ -150,3 +243,7 @@ def register_components(spec):
 Response = Response()
 Error = Error()
 Success = success('Success')
+PhotometryFlux = PhotometryFlux()
+PhotometryMag = PhotometryMag()
+PhotometryThumbnailURL = PhotometryThumbnailURL()
+PhotometryThumbnailData = PhotometryThumbnailData()

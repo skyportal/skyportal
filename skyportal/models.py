@@ -13,17 +13,11 @@ from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
 from baselayer.app.custom_exceptions import AccessError
 
 from . import schema
+from .enum import allowed_bandpasses, thumbnail_types
 
-from sncosmo.bandpasses import _BANDPASSES
-from sncosmo.magsystems import _MAGSYSTEMS
-
-ALLOWED_MAGSYSTEMS = tuple(l['name'] for l in _MAGSYSTEMS.get_loaders_metadata())
-ALLOWED_BANDPASSES = tuple(l['name'] for l in _BANDPASSES.get_loaders_metadata())
 
 PHOT_ZP = 23.9
 
-allowed_magsystems = sa.Enum(*ALLOWED_MAGSYSTEMS, name="zpsys", validate_strings=True)
-allowed_bandpasses = sa.Enum(*ALLOWED_BANDPASSES, name="bandpasses", validate_strings=True)
 
 def is_owned_by(self, user_or_token):
     """Generic ownership logic for any `skyportal` ORM model.
@@ -321,7 +315,6 @@ class Photometry(Base):
     mjd = sa.Column(sa.Float, nullable=False)  # mjd date
     flux = sa.Column(sa.Float)
     fluxerr = sa.Column(sa.Float, nullable=False)
-    zpsys = sa.Column(allowed_magsystems, nullable=False)
     filter = sa.Column(allowed_bandpasses, nullable=False)
 
     ra = sa.Column(sa.Float)
@@ -415,9 +408,7 @@ class Spectrum(Base):
 
 class Thumbnail(Base):
     # TODO delete file after deleting row
-    type = sa.Column(sa.Enum('new', 'ref', 'sub', 'sdss', 'dr8', "new_gz",
-                             'ref_gz', 'sub_gz',
-                             name='thumbnail_types', validate_strings=True))
+    type = sa.Column(thumbnail_types)
     file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     public_url = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     origin = sa.Column(sa.String, nullable=True)

@@ -31,7 +31,30 @@ class PhotometryHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: PhotometryNoID
+              schema:
+                type: array
+                items:
+                  anyOf:
+                    - allOf:
+                      - $ref: "#/components/schemas/PhotometryMag"
+                      - type: object
+                        properties:
+                          thumbnails:
+                            type: array
+                            items:
+                              anyOf:
+                                - $ref: "#/components/schemas/PhotometryThumbnailURL"
+                                - $ref: "#/components/schemas/PhotometryThumbnailData"
+                    - allOf:
+                      - $ref: "#/components/schemas/PhotometryFlux"
+                      - type: object
+                        properties:
+                          thumbnails:
+                            type: array
+                            items:
+                              anyOf:
+                                - $ref: "#/components/schemas/PhotometryThumbnailURL"
+                                - $ref: "#/components/schemas/PhotometryThumbnailData"
         responses:
           200:
             content:
@@ -72,6 +95,8 @@ class PhotometryHandler(BaseHandler):
         if not obj:
             return self.error('Invalid object ID')
         converted_times = []
+
+
 
         for i, row in lc.iterrows():
             p = Photometry(obj=obj,
