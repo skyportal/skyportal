@@ -8,6 +8,9 @@ from ...models import (DBSession, Instrument, Telescope, GroupTelescope,
 class InstrumentHandler(BaseHandler):
     @permissions(['System admin'])
     def post(self):
+        # See bottom of this file for redoc docstring -- moved it there so that
+        # it could be made an f-string.
+
         data = self.get_json()
         telescope_id = data.get('telescope_id')
         telescope = Telescope.get_if_owned_by(telescope_id, self.current_user)
