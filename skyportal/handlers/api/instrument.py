@@ -146,6 +146,8 @@ class InstrumentHandler(BaseHandler):
         return self.success()
 
 
+fdoc = "List of filters on the instrument. If the instrument has no filters " \
+       "(e.g., because it is a spectrograph) leave blank or pass the empty list."
 InstrumentHandler.post.__doc__ = f"""
         ---
         description: Add a new instrument
@@ -162,6 +164,8 @@ InstrumentHandler.post.__doc__ = f"""
                       items:
                         type: string
                         enum: {list(ALLOWED_BANDPASSES)}
+                      description: "{fdoc}" 
+                      default: []
         responses:
           200:
             content:

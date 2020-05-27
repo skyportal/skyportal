@@ -311,15 +311,6 @@ class ArrayOfEnum(ARRAY):
 class Instrument(Base):
 
     name = sa.Column(sa.String, nullable=False)
-    modes = sa.Column(psql.ARRAY(instrument_modes), nullable=False)
-
-    # example
-    # name: 'ZTF'
-    # modes: ['imaging']
-    # properties: {'imaging': {'filters': ['ztfg', 'ztfr', 'ztfi']}}
-
-    properties = sa.Column(psql.JSONB, nullable=False)
-
     telescope_id = sa.Column(sa.ForeignKey('telescopes.id',
                                            ondelete='CASCADE'),
                              nullable=False, index=True)
@@ -332,7 +323,8 @@ class Instrument(Base):
     spectra = relationship('Spectrum', back_populates='instrument')
 
     # can be [] if an instrument is spec only
-    filters = sa.Column(ArrayOfEnum(allowed_bandpasses), nullable=False)
+    filters = sa.Column(ArrayOfEnum(allowed_bandpasses), nullable=False,
+                        default=[])
 
 
 class Comment(Base):
