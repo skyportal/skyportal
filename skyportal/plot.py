@@ -25,7 +25,7 @@ from astropy.table import Table
 
 
 DETECT_THRESH = 5  # sigma
-DEFAULT_ZP = 8.9 + 15 # so that things are in muJy
+DEFAULT_ZP = 8.9 + 15  # so that things are in muJy
 
 SPEC_LINES = {
     'H': ([3970, 4102, 4341, 4861, 6563], '#ff0000'),
@@ -234,7 +234,6 @@ def photometry_plot(obj_id, width=600, height=300):
     data['obs'] = obsind
     data['stacked'] = False
 
-
     split = data.groupby('label', sort=False)
 
     # show middle 98% of data
@@ -363,8 +362,8 @@ def photometry_plot(obj_id, width=600, height=300):
         ymin[data['obs']] = (data['mag'] - data['magerr']) * 0.9
 
     plot = figure(
-        plot_width=600,
-        plot_height=300,
+        plot_width=width,
+        plot_height=height,
         active_drag='box_zoom',
         tools='box_zoom,wheel_zoom,pan,reset,save',
         y_range=(np.nanmax(ymax), np.nanmin(ymin)),
