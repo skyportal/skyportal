@@ -20,6 +20,9 @@ from sncosmo.magsystems import _MAGSYSTEMS
 ALLOWED_MAGSYSTEMS = tuple(l['name'] for l in _MAGSYSTEMS.get_loaders_metadata())
 ALLOWED_BANDPASSES = tuple(l['name'] for l in _BANDPASSES.get_loaders_metadata())
 
+allowed_magsystems = sa.Enum(*ALLOWED_MAGSYSTEMS, name="zpsys", validate_strings=True)
+allowed_bandpasses = sa.Enum(*ALLOWED_BANDPASSES, name="bandpasses", validate_strings=True)
+
 FIDUCIAL_ZP = 25.
 
 
@@ -282,19 +285,48 @@ class Telescope(Base):
 
 GroupTelescope = join_model('group_telescopes', Group, Telescope)
 
+import re
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy import cast
+
+
+class ArrayOfEnum(ARRAY):
+    def bind_expression(self, bindvalue):
+        return cast(bindvalue, self)
+
+    def result_processor(self, dialect, coltype):
+        super_rp = super(ArrayOfEnum, self).result_processor(dialect, coltype)
+
+        def handle_raw_string(value):
+            if value == None or value == '{}':  # 2nd case, empty array
+                return []
+            inner = re.match(r"^{(.*)}$", value).group(1)
+            return inner.split(",")
+
+        def process(value):
+            return super_rp(handle_raw_string(value))
+        return process
+
 
 class Instrument(Base):
-    name = sa.Column(sa.String, nullable=False)
-    type = sa.Column(sa.String, nullable=False)
-    band = sa.Column(sa.String, nullable=False)
 
+    name = sa.Column(sa.String, nullable=False)
+    type = sa.Column(sa.String)
+    band = sa.Column(sa.String)
     telescope_id = sa.Column(sa.ForeignKey('telescopes.id',
                                            ondelete='CASCADE'),
                              nullable=False, index=True)
     telescope = relationship('Telescope', back_populates='instruments')
+
+    followup_requests = relationship('FollowupRequest',
+                                     back_populates='instrument')
+
     photometry = relationship('Photometry', back_populates='instrument')
     spectra = relationship('Spectrum', back_populates='instrument')
-    followup_requests = relationship('FollowupRequest', back_populates='instrument')
+
+    # can be [] if an instrument is spec only
+    filters = sa.Column(ArrayOfEnum(allowed_bandpasses), nullable=False,
+                        default=[])
 
 
 class Comment(Base):
@@ -320,10 +352,8 @@ class Photometry(Base):
     flux = sa.Column(sa.Float)
     fluxerr = sa.Column(sa.Float, nullable=False)
     zp = sa.Column(sa.Float, nullable=False)
-    zpsys = sa.Column(sa.Enum(*ALLOWED_MAGSYSTEMS, name="zpsys",
-                              validate_strings=True), nullable=False)
-    filter = sa.Column(sa.Enum(*ALLOWED_BANDPASSES, name="bandpasses",
-                               validate_strings=True), nullable=False)
+    zpsys = sa.Column(allowed_magsystems, nullable=False)
+    filter = sa.Column(allowed_bandpasses, nullable=False)
 
     ra = sa.Column(sa.Float)
     dec = sa.Column(sa.Float)
