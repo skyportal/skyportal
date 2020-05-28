@@ -13,7 +13,7 @@ from ...models import (
 
 from ...schema import (PhotometryMag, PhotometryFlux, PhotometryThumbnailURL,
                        PhotometryThumbnailData)
-from sncosmo.photdata import PhotometricData
+import sncosmo
 import operator
 
 def nan_to_none(value):
@@ -81,6 +81,7 @@ class PhotometryHandler(BaseHandler):
                                       f'to parse {packet} as PhotometryMag, got:'
                                       f' "{e2.normalized_messages()}."')
 
+            phot.packet = packet
             DBSession().add(phot)
 
             # to set up obj link
@@ -109,11 +110,24 @@ class PhotometryHandler(BaseHandler):
             required: true
             schema:
               type: integer
+          - in: query
+            name: format
+            required: false
+            default: mag
+            description: Return the photometry in flux or magnitude space?
+            schema:
+              type: string
+              enum:
+                - mag
+                - flux
         responses:
           200:
             content:
               application/json:
-                schema: SinglePhotometry
+                schema:
+                  oneOf:
+                    - SinglePhotometryFlux
+                    - SinglePhotometryMag
           400:
             content:
               application/json:
@@ -125,7 +139,45 @@ class PhotometryHandler(BaseHandler):
         # Ensure user/token has access to parent source
         _ = Source.get_if_owned_by(phot.obj_id, self.current_user)
 
-        return self.success(data=phot)
+        retval = {
+            'obj_id': phot.obj_id,
+            'ra': phot.ra,
+            'dec': phot.dec,
+            'filter': phot.filter,
+            'mjd': phot.mjd,
+            'instrument_id': phot.instrument_id
+        }
+
+        if format == 'mag':
+            if 'limiting_mag' in phot.packet:
+                maglimit = phot.packet['limiting_mag']
+                magsys = sncosmo.get_magsystem(phot.packet['magsys'])
+                filter = phot.packet['filter']
+                ab = sncosmo.get_magsystem('ab')
+                zp_magsys = 2.5 * np.log10(magsys.zpbandflux(filter))
+                zp_ab = 2.5 * np.log10(ab.zpbandflux(filter))
+                maglimit_ab = maglimit - zp_magsys + zp_ab
+            else:
+                # calculate the limiting mag
+                fluxerr = phot.fluxerr
+                fivesigma = 5 * fluxerr
+                maglimit_ab = -2.5 * np.log10(fivesigma) + PHOT_ZP
+
+            retval.update({
+                'mag': phot.mag,
+                'magerr': phot.e_mag,
+                'magsys': 'ab',
+                'limiting_mag': maglimit_ab
+            })
+        else:
+            retval.update({
+                'flux': phot.flux,
+                'magsys': 'ab',
+                'zp': PHOT_ZP,
+                'fluxerr': phot.fluxerr
+            })
+
+        return self.success(data=retval)
 
     @permissions(['Manage sources'])
     def put(self, photometry_id):
@@ -142,7 +194,7 @@ class PhotometryHandler(BaseHandler):
           content:
             application/json:
               schema:
-                anyOf:
+                oneOf:
                   - $ref: "#/components/schemas/PhotometryMag"
                   - $ref: "#/components/schemas/PhotometryFlux"
         responses:

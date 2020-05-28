@@ -195,6 +195,11 @@ class PhotBase(object):
                                                ' the observation was carried '
                                                'out.', required=True)
 
+    ra = fields.Number(description='ICRS Right Ascension of the centroid '
+                                   'of the photometric aperture [deg].')
+    dec = fields.Number(description='ICRS Declination of the centroid '
+                                    'of the photometric aperture [deg].')
+
     @post_load
     def enum_to_string(self, data, **kwargs):
         # convert enumified data back to strings
@@ -211,7 +216,7 @@ class PhotometryFlux(_Schema, PhotBase):
                                      'for non-detections. If flux is null, '
                                      'the flux error is used to derive a '
                                      'limiting magnitude.', required=False,
-                         missing=None)
+                         missing=None, default=None)
     fluxerr = fields.Number(description='Gaussian error on the flux in counts.',
                             required=True)
     zp = fields.Number(description='Magnitude zeropoint, given by `ZP` in the '
@@ -282,11 +287,11 @@ class PhotometryMag(_Schema, PhotBase):
     mag = fields.Number(description='Magnitude of the observation in the '
                                     'magnitude system `magsys`. Can be null '
                                     'in the case of a non-detection.',
-                        required=False, missing=None)
+                        required=False, missing=None, default=None)
     magerr = fields.Number(description='Magnitude error of the observation in '
                                        'the magnitude system `magsys`. Can be '
                                        'null in the case of a non-detection.',
-                           required=False, missing=None)
+                           required=False, missing=None, default=None)
     limiting_mag = fields.Number(description='Limiting magnitude of the image '
                                              'in the magnitude system `magsys`.',
                                  required=True)
@@ -404,6 +409,8 @@ def register_components(spec):
 Response = Response()
 Error = Error()
 Success = success('Success')
+SinglePhotometryFlux = success('SinglePhotometryFlux', PhotometryFlux)
+SinglePhotometryMag = success('SinglePhotometryMag', PhotometryMag)
 PhotometryFlux = PhotometryFlux()
 PhotometryMag = PhotometryMag()
 PhotometryThumbnailURL = PhotometryThumbnailURL()

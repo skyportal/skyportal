@@ -27,7 +27,7 @@ def test_token_user_post_get_photometry_data(upload_data_token, public_source,
     photometry_id = data['data']['ids'][0]
     status, data = api(
         'GET',
-        f'photometry/{photometry_id}',
+        f'photometry/{photometry_id}?format=flux',
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -56,7 +56,7 @@ def test_token_user_post_mag_photometry_data(upload_data_token, public_source,
     photometry_id = data['data']['ids'][0]
     status, data = api(
         'GET',
-        f'photometry/{photometry_id}',
+        f'photometry/{photometry_id}?format=flux',
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -88,7 +88,7 @@ def test_token_user_post_photometry_limits(upload_data_token, public_source,
     photometry_id = data['data']['ids'][0]
     status, data = api(
         'GET',
-        f'photometry/{photometry_id}',
+        f'photometry/{photometry_id}?format=flux',
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -96,7 +96,6 @@ def test_token_user_post_photometry_limits(upload_data_token, public_source,
     assert data['data']['flux'] == None
     np.testing.assert_allclose(data['data']['fluxerr'],
                                10**(-0.4 * (22.3 - 23.9)) / 5)
-
 
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
@@ -115,7 +114,7 @@ def test_token_user_post_photometry_limits(upload_data_token, public_source,
     photometry_id = data['data']['ids'][0]
     status, data = api(
         'GET',
-        f'photometry/{photometry_id}',
+        f'photometry/{photometry_id}?format=flux',
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -141,8 +140,6 @@ def test_token_user_post_invalid_filter(upload_data_token, public_source,
                        token=upload_data_token)
     assert status == 400
     assert data['status'] == 'error'
-
-
 
 
 def test_token_user_post_photometry_data_series(upload_data_token, public_source,
@@ -198,7 +195,7 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
     photometry_id = data['data']['ids'][1]
     status, data = api(
         'GET',
-        f'photometry/{photometry_id}',
+        f'photometry/{photometry_id}?format=flux',
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -243,7 +240,7 @@ def test_token_user_update_photometry(upload_data_token,
     photometry_id = data['data']['ids'][0]
     status, data = api(
         'GET',
-        f'photometry/{photometry_id}',
+        f'photometry/{photometry_id}?format=flux',
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -266,7 +263,7 @@ def test_token_user_update_photometry(upload_data_token,
 
     status, data = api(
         'GET',
-        f'photometry/{photometry_id}',
+        f'photometry/{photometry_id}?format=flux',
         token=upload_data_token)
     np.testing.assert_allclose(data['data']['flux'],
                                11.0 * 10**(-0.4 * (25 - 23.9)))
@@ -291,7 +288,7 @@ def test_delete_photometry_data(upload_data_token, manage_sources_token,
     photometry_id = data['data']['ids'][0]
     status, data = api(
         'GET',
-        f'photometry/{photometry_id}',
+        f'photometry/{photometry_id}?format=flux',
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -306,7 +303,7 @@ def test_delete_photometry_data(upload_data_token, manage_sources_token,
 
     status, data = api(
         'GET',
-        f'photometry/{photometry_id}',
+        f'photometry/{photometry_id}?format=flux',
         token=upload_data_token)
     assert status == 400
 
