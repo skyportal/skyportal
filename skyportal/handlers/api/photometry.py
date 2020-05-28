@@ -34,11 +34,14 @@ class PhotometryHandler(BaseHandler):
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  anyOf:
-                    - $ref: "#/components/schemas/PhotometryMag"
-                    - $ref: "#/components/schemas/PhotometryFlux"
+                anyOf:
+                  - type: array
+                    items:
+                      anyOf:
+                        - $ref: "#/components/schemas/PhotometryMag"
+                        - $ref: "#/components/schemas/PhotometryFlux"
+                  - $ref: "#/components/schemas/PhotometryMag"
+                  - $ref: "#/components/schemas/PhotometryFlux"
         responses:
           200:
             content:
@@ -60,8 +63,7 @@ class PhotometryHandler(BaseHandler):
 
         data = self.get_json()
         if not isinstance(data, list):
-            return self.error('Invalid input format: input data must be a list '
-                              'of photometry objects.')
+            data = [data]
 
         # pop out thumbnails and process what's left using schemas
 
@@ -84,7 +86,7 @@ class PhotometryHandler(BaseHandler):
             # to set up obj link
             DBSession().flush()
 
-            time = Time(phot.mjd, format='mjd').iso
+            time = arrow.get(Time(phot.mjd, format='mjd').iso)
             phot.obj.last_detected = max(
                 time,
                 phot.obj.last_detected

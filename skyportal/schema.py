@@ -188,12 +188,19 @@ class PhotBase(object):
     filter = ApispecEnumField(py_allowed_bandpasses, required=True,
                               description='The bandpass of the observation.')
 
-    obj_id = fields.Integer(description='ID of the Object to which the '
-                                        'photometry will be attached.',
+    obj_id = fields.String(description='ID of the Object to which the '
+                                       'photometry will be attached.',
                             required=True)
     instrument_id = fields.Integer(description='ID of the instrument with which'
                                                ' the observation was carried '
                                                'out.', required=True)
+
+    @post_load
+    def enum_to_string(self, data, **kwargs):
+        # convert enumified data back to strings
+        data['filter'] = data['filter'].name
+        data['magsys'] = data['magsys'].name
+        return data
 
 
 class PhotometryFlux(_Schema, PhotBase):

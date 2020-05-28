@@ -19,6 +19,7 @@ from skyportal.tests.fixtures import (
     GroupFactory,
     UserFactory,
     FilterFactory,
+    InstrumentFactory
 )
 from skyportal.model_util import create_token
 from skyportal.models import DBSession, Source, Candidate, Role
@@ -56,6 +57,10 @@ def public_candidate(public_filter):
     DBSession.add(Candidate(obj=obj, filter=public_filter))
     DBSession.commit()
     return obj
+
+@pytest.fixture()
+def ztf_camera():
+    return InstrumentFactory()
 
 
 @pytest.fixture()
