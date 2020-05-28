@@ -34,7 +34,7 @@ class PhotometryHandler(BaseHandler):
           content:
             application/json:
               schema:
-                anyOf:
+                oneOf:
                   - type: array
                     items:
                       anyOf:
