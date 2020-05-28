@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useSelector, useDispatch } from 'react-redux';
+import { Link } from "react-router-dom";
+import Button from "@material-ui/core/Button";
 
 import * as Action from '../ducks/source';
 import Plot from './Plot';
@@ -100,6 +102,11 @@ const Source = ({ route }) => {
           mobileProps={{ folded: true }}
         >
           <Plot className={styles.plot} url={`/api/internal/plot/photometry/${source.id}`} />
+          <Link to={`/upload_photometry/${source.id}`} role="link">
+            <Button variant="contained">
+              Upload additional photometry
+            </Button>
+          </Link>
         </Responsive>
 
         <Responsive
