@@ -113,8 +113,7 @@ class PhotometryHandler(BaseHandler):
           - in: query
             name: format
             required: false
-            default: mag
-            description: Return the photometry in flux or magnitude space?
+            description: Return the photometry in flux or magnitude space? (Default: mag)
             schema:
               type: string
               enum:
@@ -126,8 +125,8 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema:
                   oneOf:
-                    - SinglePhotometryFlux
-                    - SinglePhotometryMag
+                    - $ref: "#/components/schemas/SinglePhotometryFlux"
+                    - $ref: "#/components/schemas/SinglePhotometryMag"
           400:
             content:
               application/json:
