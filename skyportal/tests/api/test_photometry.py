@@ -244,7 +244,8 @@ def test_token_user_update_photometry(upload_data_token,
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['flux'] == 12.24 * 10**(-0.4 * (25 - 23.9))
+    np.testing.assert_allclose(data['data']['flux'],
+                               12.24 * 10**(-0.4 * (25 - 23.9)))
 
     status, data = api(
         'PUT',
