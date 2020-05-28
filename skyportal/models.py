@@ -313,13 +313,22 @@ class Comment(Base):
 class Photometry(Base):
     __tablename__ = 'photometry'
 
-    mjd = sa.Column(sa.Float, nullable=False)  # mjd date
-    flux = sa.Column(sa.Float)
-    fluxerr = sa.Column(sa.Float, nullable=False)
-    filter = sa.Column(allowed_bandpasses, nullable=False)
+    mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.')
+    flux = sa.Column(sa.Float,
+                     doc='Flux of the observation in µJy. '
+                         'Corresponds to an AB Zeropoint of 23.9 in all '
+                         'filters.')
+    fluxerr = sa.Column(sa.Float, nullable=False,
+                        doc='Gaussian error on the flux in µJy.')
+    filter = sa.Column(allowed_bandpasses, nullable=False,
+                       doc='Filter with which the observation was taken.')
 
-    ra = sa.Column(sa.Float)
-    dec = sa.Column(sa.Float)
+    ra = sa.Column(sa.Float, doc='ICRS Right Ascension of the centroid '
+                                 'of the photometric aperture [deg].')
+    dec = sa.Column(sa.Float, doc='ICRS Declination of the centroid of '
+                                  'the photometric aperture [deg].')
+
+    packet = sa.Column(JSONB)
     altdata = sa.Column(JSONB)
 
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
@@ -332,14 +341,14 @@ class Photometry(Base):
 
     @hybrid_property
     def mag(self):
-        if self.flux > 0:
+        if self.flux is not None and self.flux > 0:
             return -2.5 * np.log10(self.flux) + PHOT_ZP
         else:
             return None
 
     @hybrid_property
     def e_mag(self):
-        if self.flux > 0 and self.fluxerr > 0:
+        if self.flux is not None and self.flux > 0 and self.fluxerr > 0:
             return 2.5 / np.log(10) * self.fluxerr / self.flux
         else:
             return None
@@ -348,7 +357,7 @@ class Photometry(Base):
     def mag(cls):
         return sa.case(
             [
-                cls.flux > 0,
+                sa.and_(cls.flux != None, cls.flux > 0),
                 -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
             ],
             else_=None
@@ -358,7 +367,7 @@ class Photometry(Base):
     def e_mag(cls):
         return sa.case(
             [
-                (sa.and_(cls.flux > 0, cls.fluxerr > 0),
+                (sa.and_(cls.flux != None, cls.flux > 0, cls.fluxerr > 0),
                  2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux)
             ],
             else_=None

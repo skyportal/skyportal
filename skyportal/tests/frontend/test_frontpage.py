@@ -19,9 +19,9 @@ def test_source_list(driver, user, public_source, private_source):
     driver.wait_for_xpath(f'//a[text()="{public_source.id}"]')
     driver.wait_for_xpath(f'//td[text()="{simbad_class}"]')
     driver.wait_for_xpath_to_disappear(f'//a[text()="{private_source.id}"]')
-    el = driver.wait_for_xpath('//button[contains(.,"View Next 100 Sources")]')
+    el = driver.wait_for_xpath('//button[contains(.,"Next Page")]')
     assert not el.is_enabled()
-    el = driver.wait_for_xpath('//button[contains(.,"View Previous 100 Sources")]')
+    el = driver.wait_for_xpath('//button[contains(.,"Previous Page")]')
     assert not el.is_enabled()
 
 
@@ -49,8 +49,8 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
     driver.wait_for_xpath('//h2[contains(text(), "Sources")]')
     driver.wait_for_xpath('//td[text()="RRLyr"]')
     # Pagination
-    next_button = driver.wait_for_xpath('//button[contains(.,"View Next 100 Sources")]')
-    prev_button = driver.wait_for_xpath('//button[contains(.,"View Previous 100 Sources")]')
+    next_button = driver.wait_for_xpath('//button[contains(.,"Next Page")]')
+    prev_button = driver.wait_for_xpath('//button[contains(.,"Previous Page")]')
     assert next_button.is_enabled()
     assert not prev_button.is_enabled()
     driver.scroll_to_element_and_click(next_button)

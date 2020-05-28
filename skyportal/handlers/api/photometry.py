@@ -11,9 +11,8 @@ from ...models import (
     PHOT_ZP, PHOT_SYS, Thumbnail
 )
 
-from ...schema import (PhotometryMag, PhotometryFlux, PhotometryThumbnailURL,
-                       PhotometryThumbnailData)
-from sncosmo.photdata import PhotometricData
+from ...schema import (PhotometryMag, PhotometryFlux)
+import sncosmo
 import operator
 
 def nan_to_none(value):
@@ -22,6 +21,9 @@ def nan_to_none(value):
         return None if np.isnan(value) else value
     except TypeError:
         return value
+
+def allscalar(d):
+    return all(np.isscalar(v) or v is None for v in d.values())
 
 
 class PhotometryHandler(BaseHandler):
@@ -34,11 +36,9 @@ class PhotometryHandler(BaseHandler):
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  anyOf:
-                    - $ref: "#/components/schemas/PhotometryMag"
-                    - $ref: "#/components/schemas/PhotometryFlux"
+                oneOf:
+                  - $ref: "#/components/schemas/PhotMagFlexible"
+                  - $ref: "#/components/schemas/PhotFluxFlexible"
         responses:
           200:
             content:
@@ -59,14 +59,30 @@ class PhotometryHandler(BaseHandler):
         """
 
         data = self.get_json()
-        if not isinstance(data, list):
-            return self.error('Invalid input format: input data must be a list '
-                              'of photometry objects.')
+
+        if not isinstance(data, dict):
+            return self.error('Top level JSON must be an instance of `dict`, got '
+                              f'{type(data)}.')
+
+        if allscalar(data):
+            data = [data]
+
+        try:
+            df = pd.DataFrame(data)
+        except ValueError as e:
+            return self.error('Unable to coerce passed JSON to a series of packets. '
+                              f'Error was: "{e}"')
 
         # pop out thumbnails and process what's left using schemas
 
         ids = []
-        for packet in data:
+        for i, row in df.iterrows():
+            packet = row.to_dict()
+
+            # coerce nans to nones
+            for key in packet:
+                packet[key] = nan_to_none(packet[key])
+
             try:
                 phot = PhotometryFlux.load(packet)
             except ValidationError as e1:
@@ -79,12 +95,13 @@ class PhotometryHandler(BaseHandler):
                                       f'to parse {packet} as PhotometryMag, got:'
                                       f' "{e2.normalized_messages()}."')
 
+            phot.packet = packet
             DBSession().add(phot)
 
             # to set up obj link
             DBSession().flush()
 
-            time = Time(phot.mjd, format='mjd').iso
+            time = arrow.get(Time(phot.mjd, format='mjd').iso)
             phot.obj.last_detected = max(
                 time,
                 phot.obj.last_detected
@@ -107,11 +124,26 @@ class PhotometryHandler(BaseHandler):
             required: true
             schema:
               type: integer
+          - in: query
+            name: format
+            required: false
+            description: >-
+              Return the photometry in flux or magnitude space?
+              If a value for this query parameter is not provided, the
+              result will be returned in magnitude space.
+            schema:
+              type: string
+              enum:
+                - mag
+                - flux
         responses:
           200:
             content:
               application/json:
-                schema: SinglePhotometry
+                schema:
+                  oneOf:
+                    - $ref: "#/components/schemas/SinglePhotometryFlux"
+                    - $ref: "#/components/schemas/SinglePhotometryMag"
           400:
             content:
               application/json:
@@ -123,7 +155,51 @@ class PhotometryHandler(BaseHandler):
         # Ensure user/token has access to parent source
         _ = Source.get_if_owned_by(phot.obj_id, self.current_user)
 
-        return self.success(data=phot)
+        # get the desired output format
+        format = self.get_query_argument('format', 'mag')
+
+        retval = {
+            'obj_id': phot.obj_id,
+            'ra': phot.ra,
+            'dec': phot.dec,
+            'filter': phot.filter,
+            'mjd': phot.mjd,
+            'instrument_id': phot.instrument_id
+        }
+
+        if format == 'mag':
+            if 'limiting_mag' in phot.packet:
+                maglimit = phot.packet['limiting_mag']
+                magsys = sncosmo.get_magsystem(phot.packet['magsys'])
+                filter = phot.packet['filter']
+                ab = sncosmo.get_magsystem('ab')
+                zp_magsys = 2.5 * np.log10(magsys.zpbandflux(filter))
+                zp_ab = 2.5 * np.log10(ab.zpbandflux(filter))
+                maglimit_ab = maglimit - zp_magsys + zp_ab
+            else:
+                # calculate the limiting mag
+                fluxerr = phot.fluxerr
+                fivesigma = 5 * fluxerr
+                maglimit_ab = -2.5 * np.log10(fivesigma) + PHOT_ZP
+
+            retval.update({
+                'mag': phot.mag,
+                'magerr': phot.e_mag,
+                'magsys': 'ab',
+                'limiting_mag': maglimit_ab
+            })
+        elif format == 'flux':
+            retval.update({
+                'flux': phot.flux,
+                'magsys': 'ab',
+                'zp': PHOT_ZP,
+                'fluxerr': phot.fluxerr
+            })
+        else:
+            return self.error('Invalid output format specified. Must be one of '
+                              f"['flux', 'mag'], got '{format}'.")
+
+        return self.success(data=retval)
 
     @permissions(['Manage sources'])
     def put(self, photometry_id):
@@ -140,7 +216,7 @@ class PhotometryHandler(BaseHandler):
           content:
             application/json:
               schema:
-                anyOf:
+                oneOf:
                   - $ref: "#/components/schemas/PhotometryMag"
                   - $ref: "#/components/schemas/PhotometryFlux"
         responses:

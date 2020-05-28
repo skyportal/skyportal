@@ -42,9 +42,9 @@ def add_telescope_and_instrument(instrument_name, group_ids, token):
 
 
 def test_submit_new_followup_request(
-    driver, user, public_source, public_group, upload_data_token
+    driver, user, public_source, public_group, super_admin_token
 ):
-    add_telescope_and_instrument("P60 Camera", [public_group.id], upload_data_token)
+    add_telescope_and_instrument("P60 Camera", [public_group.id], super_admin_token)
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     instrument_select_element = driver.wait_for_xpath('//select[@name="instrument_id"]')
@@ -88,9 +88,9 @@ def test_submit_new_followup_request(
 
 
 def test_edit_existing_followup_request(
-    driver, user, public_source, public_group, upload_data_token
+    driver, user, public_source, public_group, super_admin_token
 ):
-    add_telescope_and_instrument("P60 Camera", [public_group.id], upload_data_token)
+    add_telescope_and_instrument("P60 Camera", [public_group.id], super_admin_token)
 
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -139,9 +139,9 @@ def test_edit_existing_followup_request(
 
 
 def test_delete_followup_request(
-    driver, user, public_source, public_group, upload_data_token
+    driver, user, public_source, public_group, super_admin_token
 ):
-    add_telescope_and_instrument("P60 Camera", [public_group.id], upload_data_token)
+    add_telescope_and_instrument("P60 Camera", [public_group.id], super_admin_token)
 
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -190,9 +190,9 @@ def test_delete_followup_request(
 
 
 def test_cannot_edit_uneditable_followup_request(
-    driver, user, public_source, public_group, upload_data_token
+    driver, user, public_source, public_group, super_admin_token
 ):
-    add_telescope_and_instrument("ALFOSC", [public_group.id], upload_data_token)
+    add_telescope_and_instrument("ALFOSC", [public_group.id], super_admin_token)
 
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")

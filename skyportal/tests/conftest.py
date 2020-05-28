@@ -19,9 +19,10 @@ from skyportal.tests.fixtures import (
     GroupFactory,
     UserFactory,
     FilterFactory,
+    InstrumentFactory
 )
 from skyportal.model_util import create_token
-from skyportal.models import DBSession, Source, Candidate
+from skyportal.models import DBSession, Source, Candidate, Role
 
 
 print("Loading test configuration from _test_config.yaml")
@@ -56,6 +57,10 @@ def public_candidate(public_filter):
     DBSession.add(Candidate(obj=obj, filter=public_filter))
     DBSession.commit()
     return obj
+
+@pytest.fixture()
+def ztf_camera():
+    return InstrumentFactory()
 
 
 @pytest.fixture()
@@ -131,6 +136,17 @@ def manage_groups_token(super_admin_user):
 def manage_users_token(super_admin_user):
     token_id = create_token(
         permissions=["Manage users"],
+        created_by_id=super_admin_user.id,
+        name=str(uuid.uuid4()),
+    )
+    return token_id
+
+
+@pytest.fixture()
+def super_admin_token(super_admin_user):
+    role = Role.query.get('Super admin')
+    token_id = create_token(
+        permissions=[a.id for a in role.acls],
         created_by_id=super_admin_user.id,
         name=str(uuid.uuid4()),
     )

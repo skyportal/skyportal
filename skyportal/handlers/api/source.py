@@ -91,7 +91,7 @@ class SourceHandler(BaseHandler):
             schema:
               type: integer
             description: |
-              Number of sources to return per paginated request. Defaults to 100
+              Number of sources to return per paginated request. Defaults to 100. Max 1000.
           - in: query
             name: pageNumber
             nullable: true
@@ -154,6 +154,9 @@ class SourceHandler(BaseHandler):
                   schema: Error
         """
         page_number = self.get_query_argument('pageNumber', None)
+        num_per_page = min(
+            int(self.get_query_argument("numPerPage", SOURCES_PER_PAGE)), 1000
+        )
         ra = self.get_query_argument('ra', None)
         dec = self.get_query_argument('dec', None)
         radius = self.get_query_argument('radius', None)
@@ -224,7 +227,7 @@ class SourceHandler(BaseHandler):
 
             try:
                 query_results = grab_query_results_page(
-                    q, total_matches, page, SOURCES_PER_PAGE, "sources"
+                    q, total_matches, page, num_per_page, "sources"
                 )
             except ValueError as e:
                 if "Page number out of range" in str(e):
