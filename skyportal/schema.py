@@ -360,7 +360,7 @@ class PhotometryMag(_Schema, PhotBase):
                         'zp': PHOT_ZP,
                         'filter': data['filter'],
                         'mjd': data['mjd']}])
-        if data['flux'] is None:
+        if flux is None:
             # this needs to be non-null for the conversion step
             # will be replaced later with null
             table['flux'] = 0.
@@ -370,7 +370,7 @@ class PhotometryMag(_Schema, PhotBase):
                                                      zpsys=PHOT_SYS)
 
         # replace with null if needed
-        final_flux = None if data['flux'] is None else photdata.flux[0]
+        final_flux = None if flux is None else photdata.flux[0]
 
         p = Photometry(obj_id=data['obj_id'],
                        mjd=data['mjd'],
