@@ -113,7 +113,10 @@ class PhotometryHandler(BaseHandler):
           - in: query
             name: format
             required: false
-            description: Return the photometry in flux or magnitude space? (Default: mag)
+            description: >-
+              Return the photometry in flux or magnitude space?
+              If a value for this query parameter is not provided, the
+              result will be returned in magnitude space.
             schema:
               type: string
               enum:
