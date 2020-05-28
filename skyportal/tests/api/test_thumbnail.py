@@ -6,7 +6,8 @@ from skyportal.tests import api
 from skyportal.models import Thumbnail, DBSession, Photometry, Obj
 
 
-def test_token_user_post_get_thumbnail(upload_data_token, public_group):
+def test_token_user_post_get_thumbnail(upload_data_token, public_group,
+                                       ztf_camera):
 
     obj_id = str(uuid.uuid4())
     status, data = api('POST', 'sources',
@@ -24,12 +25,12 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group):
     status, data = api('POST', 'photometry',
                        data={'obj_id': obj_id,
                              'mjd': 58000.,
-                             'instrument_id': 1,
+                             'instrument_id': ztf_camera.id,
                              'flux': 12.24,
                              'fluxerr': 0.031,
                              'zp': 25.,
-                             'zpsys': 'ab',
-                             'filter': 'bessellv'
+                             'magsys': 'ab',
+                             'filter': 'ztfg'
                              },
                        token=upload_data_token)
     assert status == 200
@@ -67,7 +68,8 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group):
 
 def test_token_user_delete_thumbnail_cascade_source(upload_data_token,
                                                     manage_sources_token,
-                                                    public_group):
+                                                    public_group,
+                                                    ztf_camera):
 
     obj_id = str(uuid.uuid4())
     status, data = api('POST', 'sources',
@@ -85,12 +87,12 @@ def test_token_user_delete_thumbnail_cascade_source(upload_data_token,
     status, data = api('POST', 'photometry',
                        data={'obj_id': obj_id,
                              'mjd': 58000.,
-                             'instrument_id': 1,
+                             'instrument_id': ztf_camera.id,
                              'flux': 12.24,
                              'fluxerr': 0.031,
                              'zp': 25.,
-                             'zpsys': 'ab',
-                             'filter': 'bessellv'
+                             'magsys': 'ab',
+                             'filter': 'ztfr'
                              },
                        token=upload_data_token)
     assert status == 200
@@ -136,7 +138,8 @@ def test_token_user_delete_thumbnail_cascade_source(upload_data_token,
                .thumbnails) == orig_source_thumbnail_count
 
 
-def test_token_user_post_get_thumbnail_phot_id(upload_data_token, public_group):
+def test_token_user_post_get_thumbnail_phot_id(upload_data_token, public_group,
+                                               ztf_camera):
 
     obj_id = str(uuid.uuid4())
     status, data = api('POST', 'sources',
@@ -154,12 +157,12 @@ def test_token_user_post_get_thumbnail_phot_id(upload_data_token, public_group):
     status, data = api('POST', 'photometry',
                        data={'obj_id': obj_id,
                              'mjd': 58000.,
-                             'instrument_id': 1,
+                             'instrument_id': ztf_camera.id,
                              'flux': 12.24,
                              'fluxerr': 0.031,
                              'zp': 25.,
-                             'zpsys': 'ab',
-                             'filter': 'bessellv'
+                             'magsys': 'ab',
+                             'filter': 'ztfg'
                              },
                        token=upload_data_token)
     assert status == 200
@@ -196,7 +199,8 @@ def test_token_user_post_get_thumbnail_phot_id(upload_data_token, public_group):
                .thumbnails) == orig_source_thumbnail_count + 1
 
 
-def test_cannot_post_thumbnail_invalid_ttype(upload_data_token, public_group):
+def test_cannot_post_thumbnail_invalid_ttype(upload_data_token, public_group,
+                                             ztf_camera):
     obj_id = str(uuid.uuid4())
     status, data = api('POST', 'sources',
                        data={'id': obj_id,
@@ -212,12 +216,12 @@ def test_cannot_post_thumbnail_invalid_ttype(upload_data_token, public_group):
     status, data = api('POST', 'photometry',
                        data={'obj_id': obj_id,
                              'mjd': 58000.,
-                             'instrument_id': 1,
+                             'instrument_id': ztf_camera.id,
                              'flux': 12.24,
                              'fluxerr': 0.031,
                              'zp': 25.,
-                             'zpsys': 'ab',
-                             'filter': 'bessellv'
+                             'magsys': 'ab',
+                             'filter': 'ztfi'
                              },
                        token=upload_data_token)
     assert status == 200
@@ -237,7 +241,8 @@ def test_cannot_post_thumbnail_invalid_ttype(upload_data_token, public_group):
     assert 'is not among the defined enum values' in data['message']
 
 
-def test_cannot_post_thumbnail_invalid_image_type(upload_data_token, public_group):
+def test_cannot_post_thumbnail_invalid_image_type(upload_data_token, public_group,
+                                                  ztf_camera):
     obj_id = str(uuid.uuid4())
     status, data = api('POST', 'sources',
                        data={'id': obj_id,
@@ -253,12 +258,12 @@ def test_cannot_post_thumbnail_invalid_image_type(upload_data_token, public_grou
     status, data = api('POST', 'photometry',
                        data={'obj_id': obj_id,
                              'mjd': 58000.,
-                             'instrument_id': 1,
+                             'instrument_id': ztf_camera.id,
                              'flux': 12.24,
                              'fluxerr': 0.031,
                              'zp': 25.,
-                             'zpsys': 'ab',
-                             'filter': 'bessellv'
+                             'magsys': 'ab',
+                             'filter': 'ztfr'
                              },
                        token=upload_data_token)
     assert status == 200
@@ -278,7 +283,7 @@ def test_cannot_post_thumbnail_invalid_image_type(upload_data_token, public_grou
     assert 'Invalid thumbnail image type. Only PNG are supported.' in data['message']
 
 
-def test_cannot_post_thumbnail_invalid_size(upload_data_token, public_group):
+def test_cannot_post_thumbnail_invalid_size(upload_data_token, public_group, ztf_camera):
     obj_id = str(uuid.uuid4())
     status, data = api('POST', 'sources',
                        data={'id': obj_id,
@@ -294,12 +299,12 @@ def test_cannot_post_thumbnail_invalid_size(upload_data_token, public_group):
     status, data = api('POST', 'photometry',
                        data={'obj_id': obj_id,
                              'mjd': 58000.,
-                             'instrument_id': 1,
+                             'instrument_id': ztf_camera.id,
                              'flux': 12.24,
                              'fluxerr': 0.031,
                              'zp': 25.,
-                             'zpsys': 'ab',
-                             'filter': 'bessellv'
+                             'magsys': 'ab',
+                             'filter': 'ztfg'
                              },
                        token=upload_data_token)
     assert status == 200
@@ -319,7 +324,8 @@ def test_cannot_post_thumbnail_invalid_size(upload_data_token, public_group):
     assert 'Invalid thumbnail size.' in data['message']
 
 
-def test_cannot_post_thumbnail_invalid_file_type(upload_data_token, public_group):
+def test_cannot_post_thumbnail_invalid_file_type(upload_data_token, public_group,
+                                                 ztf_camera):
     obj_id = str(uuid.uuid4())
     status, data = api('POST', 'sources',
                        data={'id': obj_id,
@@ -335,12 +341,12 @@ def test_cannot_post_thumbnail_invalid_file_type(upload_data_token, public_group
     status, data = api('POST', 'photometry',
                        data={'obj_id': obj_id,
                              'mjd': 58000.,
-                             'instrument_id': 1,
+                             'instrument_id': ztf_camera.id,
                              'flux': 12.24,
                              'fluxerr': 0.031,
                              'zp': 25.,
-                             'zpsys': 'ab',
-                             'filter': 'bessellv'
+                             'magsys': 'ab',
+                             'filter': 'ztfi'
                              },
                        token=upload_data_token)
     assert status == 200
