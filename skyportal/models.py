@@ -279,19 +279,48 @@ class Telescope(Base):
 
 GroupTelescope = join_model('group_telescopes', Group, Telescope)
 
+import re
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy import cast
+
+
+class ArrayOfEnum(ARRAY):
+    def bind_expression(self, bindvalue):
+        return cast(bindvalue, self)
+
+    def result_processor(self, dialect, coltype):
+        super_rp = super(ArrayOfEnum, self).result_processor(dialect, coltype)
+
+        def handle_raw_string(value):
+            if value == None or value == '{}':  # 2nd case, empty array
+                return []
+            inner = re.match(r"^{(.*)}$", value).group(1)
+            return inner.split(",")
+
+        def process(value):
+            return super_rp(handle_raw_string(value))
+        return process
+
 
 class Instrument(Base):
-    name = sa.Column(sa.String, nullable=False)
-    type = sa.Column(sa.String, nullable=False)
-    band = sa.Column(sa.String, nullable=False)
 
+    name = sa.Column(sa.String, nullable=False)
+    type = sa.Column(sa.String)
+    band = sa.Column(sa.String)
     telescope_id = sa.Column(sa.ForeignKey('telescopes.id',
                                            ondelete='CASCADE'),
                              nullable=False, index=True)
     telescope = relationship('Telescope', back_populates='instruments')
+
+    followup_requests = relationship('FollowupRequest',
+                                     back_populates='instrument')
+
     photometry = relationship('Photometry', back_populates='instrument')
     spectra = relationship('Spectrum', back_populates='instrument')
-    followup_requests = relationship('FollowupRequest', back_populates='instrument')
+
+    # can be [] if an instrument is spec only
+    filters = sa.Column(ArrayOfEnum(allowed_bandpasses), nullable=False,
+                        default=[])
 
 
 class Comment(Base):

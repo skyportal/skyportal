@@ -8,6 +8,10 @@ import ButtonGroup from "@material-ui/core/ButtonGroup";
 import Checkbox from "@material-ui/core/Checkbox";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import TextField from "@material-ui/core/TextField";
+import InputLabel from "@material-ui/core/InputLabel";
+import FormControl from "@material-ui/core/FormControl";
+import Select from "@material-ui/core/Select";
+import MenuItem from "@material-ui/core/MenuItem";
 import { makeStyles } from "@material-ui/core/styles";
 import { useForm, Controller } from "react-hook-form";
 
@@ -26,7 +30,7 @@ const SearchBox = ({ sources }) => {
   };
 
   const handleClickReset = () => {
-    reset();
+    reset({ numPerPage: 100 });
     dispatch(Actions.fetchSources());
   };
 
@@ -61,10 +65,19 @@ const SearchBox = ({ sources }) => {
       pageNumber: jumpToPageInputValue,
       totalMatches: sources.totalMatches,
     };
+    if (event.target.value < 1) {
+      data.pageNumber = 1;
+    } else if (event.target.value > Math.ceil(sources.totalMatches/100)) {
+      data.pageNumber = Math.ceil(sources.totalMatches/100);
+    }
     dispatch(Actions.fetchSources(data));
   };
 
   const useStyles = makeStyles((theme) => ({
+    formControl: {
+      margin: theme.spacing(1),
+      minWidth: 120,
+    },
     paper: {
       padding: "1rem",
     },
@@ -190,54 +203,71 @@ const SearchBox = ({ sources }) => {
             </Button>
           </ButtonGroup>
         </div>
-      </form>
-      {sources && (
-        <div>
-          <div style={{ display: "inline-block" }}>
-            <Button
-              type="button"
-              onClick={handleClickPreviousPage}
-              disabled={sources.pageNumber === 1}
-            >
-              View Previous 100 Sources
-            </Button>
-          </div>
-          <div style={{ display: "inline-block" }}>
-            <i>
-              Displaying&nbsp;
-              {sources.numberingStart}
-              -
-              {sources.numberingEnd}
-              &nbsp; of&nbsp;
-              {sources.totalMatches}
-              &nbsp; matching sources.
-            </i>
-          </div>
-          <div style={{ display: "inline-block" }}>
-            <Button
-              type="button"
-              onClick={handleClickNextPage}
-              disabled={sources.lastPage}
-            >
-              View Next 100 Sources
-            </Button>
-          </div>
+        {sources && (
           <div>
-            <i>or&nbsp;&nbsp;</i>
-            <Button type="button" onClick={handleClickJumpToPage}>
-              Jump to page:
-            </Button>
-            &nbsp;&nbsp;
-            <input
-              type="text"
-              style={{ width: "25px" }}
-              onChange={handleJumpToPageInputChange}
-              value={jumpToPageInputValue}
-              name="jumpToPageInputField"
-            />
+            <div>
+              <Button
+                type="button"
+                onClick={handleClickPreviousPage}
+                disabled={sources.pageNumber === 1}
+              >
+                Previous Page
+              </Button>
+              <i>
+                Displaying&nbsp;
+                {sources.numberingStart}
+                -
+                {sources.numberingEnd}
+                &nbsp; of&nbsp;
+                {sources.totalMatches}
+                &nbsp; matching sources.
+              </i>
+              <Button
+                type="button"
+                onClick={handleClickNextPage}
+                disabled={sources.lastPage}
+              >
+                Next Page
+              </Button>
+            </div>
+            <div>
+              <FormControl variant="filled" className={classes.formControl}>
+                <InputLabel id="nPerPageInputLabel">
+                  Num Per Page
+                </InputLabel>
+                <Controller
+                  as={(
+                    <Select labelId="nPerPageInputLabel">
+                      {[10, 25, 50, 100, 500].map((n) => (
+                        <MenuItem value={n} key={n}>
+                          {n}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  )}
+                  name="numPerPage"
+                  control={control}
+                  defaultValue={100}
+                />
+              </FormControl>
+            </div>
+            <div>
+              <i>or&nbsp;&nbsp;</i>
+              <Button type="button" onClick={handleClickJumpToPage}>
+                Jump to page:
+              </Button>
+              &nbsp;&nbsp;
+              <input
+                type="text"
+                style={{ width: "25px" }}
+                onChange={handleJumpToPageInputChange}
+                value={jumpToPageInputValue}
+                name="jumpToPageInputField"
+              />
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </form>
     </Paper>
   );
 };

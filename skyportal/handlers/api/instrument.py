@@ -1,39 +1,16 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Instrument, Telescope, GroupTelescope
+from ...models import (DBSession, Instrument, Telescope, GroupTelescope,
+                       ALLOWED_BANDPASSES)
 
 
 class InstrumentHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(['System admin'])
     def post(self):
-        """
-        ---
-        description: Add a new instrument
-        requestBody:
-          content:
-            application/json:
-              schema: InstrumentNoID
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New instrument ID
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
+        # See bottom of this file for redoc docstring -- moved it there so that
+        # it could be made an f-string.
+
         data = self.get_json()
         telescope_id = data.get('telescope_id')
         telescope = Telescope.get_if_owned_by(telescope_id, self.current_user)
@@ -101,7 +78,7 @@ class InstrumentHandler(BaseHandler):
             ))))
         return self.success(data=query.all())
 
-    @permissions(['Manage sources'])
+    @permissions(['System admin'])
     def put(self, instrument_id):
         """
         ---
@@ -142,7 +119,7 @@ class InstrumentHandler(BaseHandler):
 
         return self.success()
 
-    @permissions(['Manage sources'])
+    @permissions(['System admin'])
     def delete(self, instrument_id):
         """
         ---
@@ -170,3 +147,46 @@ class InstrumentHandler(BaseHandler):
         DBSession().commit()
 
         return self.success()
+
+
+InstrumentHandler.post.__doc__ = f"""
+        ---
+        description: Add a new instrument
+        requestBody:
+          content:
+            application/json:
+              schema: 
+                allOf:
+                - $ref: "#/components/schemas/InstrumentNoID"
+                - type: object
+                  properties:
+                    filters:
+                      type: array
+                      items:
+                        type: string
+                        enum: {list(ALLOWED_BANDPASSES)}
+                      description: >-
+                        List of filters on the instrument. If the instrument
+                        has no filters (e.g., because it is a spectrograph),
+                        leave blank or pass the empty list. 
+                      default: []
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New instrument ID
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
