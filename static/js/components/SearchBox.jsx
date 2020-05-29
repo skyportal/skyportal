@@ -60,15 +60,16 @@ const SearchBox = ({ sources }) => {
 
   const handleClickJumpToPage = (event) => {
     event.preventDefault();
+    const formState = getValues();
     const data = {
-      ...getValues(),
+      ...formState,
       pageNumber: jumpToPageInputValue,
       totalMatches: sources.totalMatches,
     };
-    if (event.target.value < 1) {
+    if (jumpToPageInputValue < 1) {
       data.pageNumber = 1;
-    } else if (event.target.value > Math.ceil(sources.totalMatches/100)) {
-      data.pageNumber = Math.ceil(sources.totalMatches/100);
+    } else if (jumpToPageInputValue > Math.ceil(sources.totalMatches/formState.numPerPage)) {
+      data.pageNumber = Math.ceil(sources.totalMatches/formState.numPerPage);
     }
     dispatch(Actions.fetchSources(data));
   };
