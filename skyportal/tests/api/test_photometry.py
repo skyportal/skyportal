@@ -32,6 +32,11 @@ def test_token_user_post_get_photometry_data(upload_data_token, public_source,
     assert status == 200
     assert data['status'] == 'success'
 
+    assert data['data']['ra'] is None
+    assert data['data']['dec'] is None
+    assert data['data']['ra_unc'] is None
+    assert data['data']['dec_unc'] is None
+
     np.testing.assert_allclose(data['data']['flux'],
                                12.24 * 10**(-0.4 * (25. - 23.9)))
 
@@ -358,7 +363,10 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
               'fluxerr': [0.031, 0.029, 0.030],
               'filter': ['ztfg', 'ztfg', 'ztfg'],
               'zp': [25., 30., 21.2],
-              'magsys': ['ab', 'ab', 'ab']},
+              'magsys': ['ab', 'ab', 'ab'],
+              'ra': 264.1947917,
+              'dec': [50.5478333, 50.5478333 + 0.00001, 50.5478333],
+              'dec_unc': 0.2},
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -373,6 +381,13 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
     assert data['status'] == 'success'
     assert np.allclose(data['data']['flux'],
                        15.24 * 10**(-0.4 * (30 - 23.9)))
+
+    assert np.allclose(data['data']['dec'],
+                       50.5478333 + 0.00001)
+
+    assert np.allclose(data['data']['dec_unc'], 0.2)
+    assert data['data']['ra_unc'] is None
+
 
     # invalid request
     status, data = api(

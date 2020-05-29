@@ -34,7 +34,9 @@ def serialize(phot, outsys, format):
         'dec': phot.dec,
         'filter': phot.filter,
         'mjd': phot.mjd,
-        'instrument_id': phot.instrument_id
+        'instrument_id': phot.instrument_id,
+        'ra_unc': phot.ra_unc,
+        'dec_unc': phot.dec_unc
     }
 
     filter = phot.filter
