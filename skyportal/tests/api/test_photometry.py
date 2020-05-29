@@ -144,21 +144,32 @@ def test_token_user_post_invalid_filter(upload_data_token, public_source,
 
 def test_token_user_post_photometry_data_series(upload_data_token, public_source,
                                                 ztf_camera):
-    # invalid request
+    # valid request
     status, data = api(
         'POST',
         'photometry',
         data={'obj_id': str(public_source.id),
               'mjd': [58000., 58001., 58002.],
               'instrument_id': ztf_camera.id,
-              'flux': [12.24, 12.52, 12.70],
+              'flux': [12.24, 15.24, 12.24],
               'fluxerr': [0.031, 0.029, 0.030],
-              'filter': ['bessellv', 'bessellv', 'bessellv'],
-              'zp': [25., 25., 25.],
+              'filter': ['ztfg', 'ztfg', 'ztfg'],
+              'zp': [25., 30., 21.2],
               'magsys': ['ab', 'ab', 'ab']},
         token=upload_data_token)
-    assert status == 400
-    assert data['status'] == 'error'
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']['ids']) == 3
+
+    photometry_id = data['data']['ids'][1]
+    status, data = api(
+        'GET',
+        f'photometry/{photometry_id}?format=flux',
+        token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert np.allclose(data['data']['flux'],
+                       15.24 * 10**(-0.4 * (30 - 23.9)))
 
     # invalid request
     status, data = api(
@@ -190,17 +201,8 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
                'magsys': 'vega'}],
         token=upload_data_token)
 
-    assert len(data['data']['ids']) == 3
-
-    photometry_id = data['data']['ids'][1]
-    status, data = api(
-        'GET',
-        f'photometry/{photometry_id}?format=flux',
-        token=upload_data_token)
-    assert status == 200
-    assert data['status'] == 'success'
-    assert np.allclose(data['data']['flux'],
-                       15.24 * 10**(-0.4 * (30 - 23.9)))
+    assert status == 400
+    assert data['status'] == 'error'
 
 
 def test_post_photometry_no_access_token(view_only_token, public_source,

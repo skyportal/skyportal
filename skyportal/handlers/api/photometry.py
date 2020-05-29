@@ -23,6 +23,9 @@ def nan_to_none(value):
     except TypeError:
         return value
 
+def allscalar(d):
+    return all(np.isscalar(v) or v is None for v in d.values())
+
 
 class PhotometryHandler(BaseHandler):
     @permissions(['Upload data'])
@@ -35,13 +38,8 @@ class PhotometryHandler(BaseHandler):
             application/json:
               schema:
                 oneOf:
-                  - type: array
-                    items:
-                      anyOf:
-                        - $ref: "#/components/schemas/PhotometryMag"
-                        - $ref: "#/components/schemas/PhotometryFlux"
-                  - $ref: "#/components/schemas/PhotometryMag"
-                  - $ref: "#/components/schemas/PhotometryFlux"
+                  - $ref: "#/components/schemas/PhotMagFlexible"
+                  - $ref: "#/components/schemas/PhotFluxFlexible"
         responses:
           200:
             content:
@@ -62,13 +60,30 @@ class PhotometryHandler(BaseHandler):
         """
 
         data = self.get_json()
-        if not isinstance(data, list):
+
+        if not isinstance(data, dict):
+            return self.error('Top level JSON must be an instance of `dict`, got '
+                              f'{type(data)}.')
+
+        if allscalar(data):
             data = [data]
+
+        try:
+            df = pd.DataFrame(data)
+        except ValueError as e:
+            return self.error('Unable to coerce passed JSON to a series of packets. '
+                              f'Error was: "{e}"')
 
         # pop out thumbnails and process what's left using schemas
 
         ids = []
-        for packet in data:
+        for i, row in df.iterrows():
+            packet = row.to_dict()
+
+            # coerce nans to nones
+            for key in packet:
+                packet[key] = nan_to_none(packet[key])
+
             try:
                 phot = PhotometryFlux.load(packet)
             except ValidationError as e1:
