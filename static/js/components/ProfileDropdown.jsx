@@ -39,6 +39,14 @@ const ProfileDropdown = () => {
 
           <div className={styles.rule} />
 
+          <Link to="/candidates" role="link">
+            <div className={styles.entry} onClick={collapseDropdown} role="menuitem" tabIndex="-1">
+              Scan Candidates
+            </div>
+          </Link>
+
+          <div className={styles.rule} />
+
           <Link to="/sources" role="link">
             <div className={styles.entry} onClick={collapseDropdown} role="menuitem" tabIndex="-1">
               Sources

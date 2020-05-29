@@ -22,6 +22,8 @@ app:
       component: Group
     - path: "/profile"
       component: Profile
+    - path: "/candidates"
+      component: CandidateList
     - path: "/sources"
       component: SourceList
     - path: "/user/:id"
