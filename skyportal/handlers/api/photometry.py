@@ -12,8 +12,8 @@ from ...models import (
 )
 
 from ...schema import (PhotometryMag, PhotometryFlux)
+from ...enum import ALLOWED_MAGSYSTEMS
 import sncosmo
-import operator
 
 def nan_to_none(value):
     """Coerce a value to None if it is nan, else return value."""
@@ -115,40 +115,8 @@ class PhotometryHandler(BaseHandler):
 
     @auth_or_token
     def get(self, photometry_id):
-        """
-        ---
-        description: Retrieve photometry
-        parameters:
-          - in: path
-            name: photometry_id
-            required: true
-            schema:
-              type: integer
-          - in: query
-            name: format
-            required: false
-            description: >-
-              Return the photometry in flux or magnitude space?
-              If a value for this query parameter is not provided, the
-              result will be returned in magnitude space.
-            schema:
-              type: string
-              enum:
-                - mag
-                - flux
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  oneOf:
-                    - $ref: "#/components/schemas/SinglePhotometryFlux"
-                    - $ref: "#/components/schemas/SinglePhotometryMag"
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
+        # Moved to bottom of page as f-string
+
         phot = Photometry.query.get(photometry_id)
         if phot is None:
             return self.error('Invalid photometry ID')
@@ -157,6 +125,7 @@ class PhotometryHandler(BaseHandler):
 
         # get the desired output format
         format = self.get_query_argument('format', 'mag')
+        outsys = self.get_query_argument('magsys', 'ab')
 
         retval = {
             'obj_id': phot.obj_id,
@@ -167,32 +136,47 @@ class PhotometryHandler(BaseHandler):
             'instrument_id': phot.instrument_id
         }
 
+        filter = phot.packet['filter']
+        magsys_packet = sncosmo.get_magsystem(phot.packet['magsys'])
+        magsys_db = sncosmo.get_magsystem('ab')
+        outsys = sncosmo.get_magsystem(outsys)
+
+        relzp_out = 2.5 * np.log10(outsys.zpbandflux(filter))
+
+        # note: these are not the actual zeropoints for magnitudes in the db or
+        # packet, just ones that can be used to derive corrections when
+        # compared to relzp_out
+        relzp_packet = 2.5 * np.log10(magsys_packet.zpbandflux(filter))
+        relzp_db = 2.5 * np.log10(magsys_db.zpbandflux(filter))
+
+        packet_correction = relzp_out - relzp_packet
+        db_correction = relzp_out - relzp_db
+
+        # this is the zeropoint for fluxes in the database that is tied
+        # to the new magnitude system
+        corrected_db_zp = PHOT_ZP + db_correction
+
         if format == 'mag':
             if 'limiting_mag' in phot.packet:
                 maglimit = phot.packet['limiting_mag']
-                magsys = sncosmo.get_magsystem(phot.packet['magsys'])
-                filter = phot.packet['filter']
-                ab = sncosmo.get_magsystem('ab')
-                zp_magsys = 2.5 * np.log10(magsys.zpbandflux(filter))
-                zp_ab = 2.5 * np.log10(ab.zpbandflux(filter))
-                maglimit_ab = maglimit - zp_magsys + zp_ab
+                maglimit_out = maglimit + packet_correction
             else:
                 # calculate the limiting mag
                 fluxerr = phot.fluxerr
                 fivesigma = 5 * fluxerr
-                maglimit_ab = -2.5 * np.log10(fivesigma) + PHOT_ZP
+                maglimit_out = -2.5 * np.log10(fivesigma) + corrected_db_zp
 
             retval.update({
-                'mag': phot.mag,
+                'mag': phot.mag + db_correction,
                 'magerr': phot.e_mag,
                 'magsys': 'ab',
-                'limiting_mag': maglimit_ab
+                'limiting_mag': maglimit_out
             })
         elif format == 'flux':
             retval.update({
                 'flux': phot.flux,
                 'magsys': 'ab',
-                'zp': PHOT_ZP,
+                'zp': corrected_db_zp,
                 'fluxerr': phot.fluxerr
             })
         else:
@@ -279,3 +263,48 @@ class PhotometryHandler(BaseHandler):
         DBSession().commit()
 
         return self.success()
+
+
+PhotometryHandler.get.__doc__ = f"""
+        ---
+        description: Retrieve photometry
+        parameters:
+          - in: path
+            name: photometry_id
+            required: true
+            schema:
+              type: integer
+          - in: query
+            name: format
+            required: false
+            description: >-
+              Return the photometry in flux or magnitude space?
+              If a value for this query parameter is not provided, the
+              result will be returned in magnitude space.
+            schema:
+              type: string
+              enum:
+                - mag
+                - flux
+          - in: query
+            name: magsys
+            required: false
+            description: >- 
+              The magnitude or zeropoint system of the output. (Default AB) 
+            schema:
+              type: string
+              enum: {list(ALLOWED_MAGSYSTEMS)}
+            
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  oneOf:
+                    - $ref: "#/components/schemas/SinglePhotometryFlux"
+                    - $ref: "#/components/schemas/SinglePhotometryMag"
+          400:
+            content:
+              application/json:
+                schema: Error
+        """

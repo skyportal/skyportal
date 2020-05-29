@@ -85,6 +85,100 @@ def test_token_user_post_mag_photometry_data_and_convert(upload_data_token,
     np.testing.assert_allclose(data['data']['magerr'],
                                0.2)
 
+
+def test_token_user_post_and_get_different_systems_mag(upload_data_token,
+                                                   public_source,
+                                                   ztf_camera):
+
+    status, data = api('POST', 'photometry',
+                       data={'obj_id': str(public_source.id),
+                             'mjd': 58000.,
+                             'instrument_id': ztf_camera.id,
+                             'mag': 21.,
+                             'magerr': 0.2,
+                             'limiting_mag': 22.3,
+                             'magsys': 'vega',
+                             'filter': 'ztfg'
+                             },
+                       token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    photometry_id = data['data']['ids'][0]
+    status, data = api(
+        'GET',
+        f'photometry/{photometry_id}?format=mag&magsys=vega',
+        token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    ab = sncosmo.get_magsystem('ab')
+    vega = sncosmo.get_magsystem('vega')
+    correction = 2.5 * np.log10(vega.zpbandflux('ztfg') / ab.zpbandflux('ztfg'))
+
+    np.testing.assert_allclose(data['data']['mag'], 21.)
+    np.testing.assert_allclose(data['data']['magerr'], 0.2)
+    np.testing.assert_allclose(data['data']['limiting_mag'], 22.3)
+
+    status, data = api(
+        'GET',
+        f'photometry/{photometry_id}?format=mag&magsys=ab',
+        token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    np.testing.assert_allclose(data['data']['mag'], 21. - correction)
+    np.testing.assert_allclose(data['data']['magerr'], 0.2)
+    np.testing.assert_allclose(data['data']['limiting_mag'], 22.3 - correction)
+
+
+def test_token_user_post_and_get_different_systems_flux(upload_data_token,
+                                                   public_source,
+                                                   ztf_camera):
+
+    status, data = api('POST', 'photometry',
+                       data={'obj_id': str(public_source.id),
+                             'mjd': 58000.,
+                             'instrument_id': ztf_camera.id,
+                             'mag': 21.,
+                             'magerr': 0.2,
+                             'limiting_mag': 22.3,
+                             'magsys': 'vega',
+                             'filter': 'ztfg'
+                             },
+                       token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    photometry_id = data['data']['ids'][0]
+    status, data = api(
+        'GET',
+        f'photometry/{photometry_id}?format=flux&magsys=vega',
+        token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    ab = sncosmo.get_magsystem('ab')
+    vega = sncosmo.get_magsystem('vega')
+    correction = 2.5 * np.log10(vega.zpbandflux('ztfg') / ab.zpbandflux('ztfg'))
+
+
+    np.testing.assert_allclose(data['data']['flux'], 10**(-0.4 * (21 - correction - 23.9)))
+    np.testing.assert_allclose(data['data']['fluxerr'], 0.2 / (2.5 / np.log(10)) * data['data']['flux'])
+    np.testing.assert_allclose(data['data']['zp'], 23.9 + correction)
+
+    status, data = api(
+        'GET',
+        f'photometry/{photometry_id}?format=flux&magsys=ab',
+        token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    np.testing.assert_allclose(data['data']['flux'], 10**(-0.4 * (21 - correction - 23.9)))
+    np.testing.assert_allclose(data['data']['fluxerr'], 0.2 / (2.5 / np.log(10)) * data['data']['flux'])
+    np.testing.assert_allclose(data['data']['zp'], 23.9)
+
+
 def test_token_user_mixed_photometry_post(upload_data_token, public_source,
                                           ztf_camera):
 
