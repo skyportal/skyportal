@@ -1,3 +1,4 @@
+import uuid
 import numpy as np
 import arrow
 from astropy.time import Time
@@ -138,6 +139,9 @@ class PhotometryHandler(BaseHandler):
 
         if allscalar(data):
             data = [data]
+            bulk_upload_id = None
+        else:
+            bulk_upload_id = str(uuid.uuid4())
 
         try:
             df = pd.DataFrame(data)
@@ -291,6 +295,36 @@ class SourcePhotometryHandler(BaseHandler):
         return self.success(
             data=[serialize(phot, outsys, format) for phot in source.photometry]
         )
+
+
+class BulkDeletePhotometryHandler(BaseHandler):
+    @auth_or_token
+    def delete(self, bulk_upload_id):
+        """
+        ---
+        description: Delete bulk-uploaded photometry set
+        parameters:
+          - in: path
+            name: bulk_upload_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        # TODO Permissions check
+        n_deleted = DBSession.query(Photometry).filter(
+            Photometry.bulk_upload_id == bulk_upload_id).delete()
+        DBSession().commit()
+
+        return self.success(f"Deleted {n_deleted} photometry points.")
 
 
 PhotometryHandler.get.__doc__ = f"""
