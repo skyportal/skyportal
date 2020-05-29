@@ -160,9 +160,9 @@ class CandidateHandler(BaseHandler):
         group_ids = self.get_query_argument("groupIDs", None)
         filter_ids = self.get_query_argument("filterIDs", None)
         if group_ids is not None:
-            if "," in group_ids:
+            if isinstance(group_ids, str) and "," in group_ids:
                 group_ids = [int(g_id) for g_id in group_ids.split(",")]
-            elif group_ids.isdigit():
+            elif isinstance(group_ids, str) and group_ids.isdigit():
                 group_ids = [int(group_ids)]
             else:
                 return self.error("Invalid groupIDs value -- select at least one group")
@@ -216,11 +216,11 @@ class CandidateHandler(BaseHandler):
                     )
                 )
             )
-        if start_date is not None and start_date.strip() != "":
-            start_date = arrow.get(start_date.strip())
+        if start_date is not None and start_date.strip() not in ["", "null", "undefined"]:
+            start_date = arrow.get(start_date).datetime
             q = q.filter(Obj.last_detected >= start_date)
-        if end_date is not None and end_date.strip() != "":
-            end_date = arrow.get(end_date.strip())
+        if end_date is not None and end_date.strip() not in ["", "null", "undefined"]:
+            end_date = arrow.get(end_date).datetime
             q = q.filter(Obj.last_detected <= end_date)
         try:
             query_results = grab_query_results_page(

@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 
-
 from bokeh.core.json_encoder import serialize_json
 from bokeh.core.properties import List, String
 from bokeh.document import Document
@@ -174,8 +173,8 @@ def get_color(bandpass_name, cmap_limits=(3000., 10000.)):
 
 
 # TODO make async so that thread isn't blocked
-def photometry_plot(obj_id):
-    """Create scatter plot of photometry for source.
+def photometry_plot(obj_id, width=600, height=300):
+    """Create scatter plot of photometry for object.
     Parameters
     ----------
     obj_id : str
@@ -237,7 +236,6 @@ def photometry_plot(obj_id):
     data['obs'] = obsind
     data['stacked'] = False
 
-
     split = data.groupby('label', sort=False)
 
     # show middle 98% of data
@@ -250,8 +248,8 @@ def photometry_plot(obj_id):
     upper += np.abs(upper) * 0.1
 
     plot = figure(
-        plot_width=600,
-        plot_height=300,
+        plot_width=width,
+        plot_height=height,
         active_drag='box_zoom',
         tools='box_zoom,wheel_zoom,pan,reset,save',
         y_range=(lower, upper)
@@ -328,7 +326,6 @@ def photometry_plot(obj_id):
         active=list(range(len(data.label.unique()))),
         colors=list(data.color.unique()))
 
-
     # TODO replace `eval` with Namespaces
     # https://github.com/bokeh/bokeh/pull/6340
     toggle.callback = CustomJS(args={'toggle': toggle, **model_dict},
@@ -367,8 +364,8 @@ def photometry_plot(obj_id):
         ymin[data['obs']] = (data['mag'] - data['magerr']) * 0.9
 
     plot = figure(
-        plot_width=600,
-        plot_height=300,
+        plot_width=width,
+        plot_height=height,
         active_drag='box_zoom',
         tools='box_zoom,wheel_zoom,pan,reset,save',
         y_range=(np.nanmax(ymax), np.nanmin(ymin)),
@@ -527,7 +524,7 @@ def photometry_plot(obj_id):
 # TODO make async so that thread isn't blocked
 def spectroscopy_plot(obj_id):
     """TODO normalization? should this be handled at data ingestion or plot-time?"""
-    source = Obj.query.get(obj_id)
+    obj = Obj.query.get(obj_id)
     spectra = Obj.query.get(obj_id).spectra
     if len(spectra) == 0:
         return None, None, None
@@ -575,11 +572,11 @@ def spectroscopy_plot(obj_id):
         active=[], width=80,
         colors=[c for w, c in SPEC_LINES.values()]
     )
-    z = TextInput(value=str(source.redshift), title="z:")
+    z = TextInput(value=str(obj.redshift), title="z:")
     v_exp = TextInput(value='0', title="v_exp:")
     for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
         el_data = pd.DataFrame({'wavelength': wavelengths})
-        el_data['x'] = el_data['wavelength'] * (1 + source.redshift)
+        el_data['x'] = el_data['wavelength'] * (1 + obj.redshift)
         model_dict[f'el{i}'] = plot.segment(x0='x', x1='x',
                                             # TODO change limits
                                             y0=0, y1=1e-13, color=color,
