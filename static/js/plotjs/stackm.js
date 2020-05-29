@@ -26,7 +26,7 @@ for (let i = 0; i < toggle.labels.length; i++) {
     boldsource.data.magerr = [];
     boldsource.data.lim_mag = [];
     boldsource.data.zp = [];
-    boldsource.data.zpsys = [];
+    boldsource.data.magsys = [];
     boldsource.data.stacked = [];
 
     binsource.data.mjd = [];
@@ -66,7 +66,7 @@ for (let i = 0; i < toggle.labels.length; i++) {
             boldsource.data.magerr.push(allsource.data.magerr[j]);
             boldsource.data.lim_mag.push(allsource.data.lim_mag[j]);
             boldsource.data.zp.push(allsource.data.zp[j]);
-            boldsource.data.zpsys.push(allsource.data.zpsys[j]);
+            boldsource.data.magsys.push(allsource.data.magsys[j]);
             boldsource.data.stacked.push(false);
 
         }
@@ -90,7 +90,7 @@ for (let i = 0; i < toggle.labels.length; i++) {
                 boldsource.data.magerr.push(unobssource.data.magerr[j]);
                 boldsource.data.lim_mag.push(unobssource.data.lim_mag[j]);
                 boldsource.data.zp.push(unobssource.data.zp[j]);
-                boldsource.data.zpsys.push(unobssource.data.zpsys[j]);
+                boldsource.data.magsys.push(unobssource.data.magsys[j]);
                 boldsource.data.stacked.push(false);
             }
         }
@@ -185,7 +185,7 @@ for (let i = 0; i < toggle.labels.length; i++) {
             boldsource.data.magerr.push(mymagerr);
             boldsource.data.lim_mag.push(mymaglim);
             boldsource.data.zp.push(default_zp);
-            boldsource.data.zpsys.push('ab');
+            boldsource.data.magsys.push('ab');
             boldsource.data.stacked.push(true);
         }
     }

@@ -61,10 +61,10 @@ class ThumbnailHandler(BaseHandler):
         if 'photometry_id' in data:
             phot = Photometry.query.get(int(data['photometry_id']))
             obj_id = phot.obj.id
-            obj = Source.get_if_owned_by(obj_id, self.current_user)
+            obj = Obj.get_if_owned_by(obj_id, self.current_user)
         elif 'obj_id' in data:
             obj_id = data['obj_id']
-            obj = Source.get_if_owned_by(obj_id, self.current_user)
+            obj = Obj.get_if_owned_by(obj_id, self.current_user)
             if obj is None:
                 return self.error(f"Invalid obj_id: {obj_id}")
             try:

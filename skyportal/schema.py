@@ -341,7 +341,7 @@ class PhotometryFlux(_Schema, PhotBase):
     zp = fields.Number(description='Magnitude zeropoint, given by `ZP` in the '
                                    'equation m = -2.5 log10(flux) + `ZP`. '
                                    'm is the magnitude of the object in the '
-                                   'magnitude system `zpsys`.',
+                                   'magnitude system `magsys`.',
                        required=True)
 
     @post_load
@@ -480,7 +480,7 @@ class PhotometryMag(_Schema, PhotBase):
         # convert flux to microJanskies.
         table = Table([{'flux': flux,
                         'fluxerr': fluxerr,
-                        'zpsys': data['magsys'],
+                        'magsys': data['magsys'],
                         'zp': PHOT_ZP,
                         'filter': data['filter'],
                         'mjd': data['mjd']}])

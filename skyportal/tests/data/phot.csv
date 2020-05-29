@@ -1,4 +1,4 @@
-lim_mag,filter,mjd,flux,zp,zpsys,fluxerr
+lim_mag,filter,mjd,flux,zp,magsys,fluxerr
 21.7691,ztfg,56901.28349999999,,25.0,ab,3.920938186069242
 20.0532,ztfg,56907.20175,,25.0,ab,19.043641432332453
 20.9128,ztfg,56915.40202999999,,25.0,ab,8.627997203433516

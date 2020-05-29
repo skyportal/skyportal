@@ -26,6 +26,9 @@ export const SUBMIT_FOLLOWUP_REQUEST_OK = 'skyportal/SUBMIT_FOLLOWUP_REQUEST_OK'
 export const EDIT_FOLLOWUP_REQUEST = 'skyportal/EDIT_FOLLOWUP_REQUEST';
 export const EDIT_FOLLOWUP_REQUEST_OK = 'skyportal/EDIT_FOLLOWUP_REQUEST_OK';
 
+export const SAVE_SOURCE = 'skyportal/SAVE_SOURCE';
+export const SAVE_SOURCE_OK = 'skyportal/SAVE_SOURCE_OK';
+
 export const DELETE_FOLLOWUP_REQUEST = 'skyportal/DELETE_FOLLOWUP_REQUEST';
 export const DELETE_FOLLOWUP_REQUEST_OK = 'skyportal/DELETE_FOLLOWUP_REQUEST_OK';
 
@@ -63,6 +66,10 @@ export function fetchSource(id) {
 export function addSourceView(id) {
   return API.POST(`/api/internal/source_views/${id}`, ADD_SOURCE_VIEW);
 }
+
+export const saveSource = (payload) => (
+  API.POST(`/api/sources`, SAVE_SOURCE, payload)
+);
 
 export const submitFollowupRequest = (params) => {
   const { instrument_name, ...paramsToSubmit } = params;

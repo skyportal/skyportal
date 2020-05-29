@@ -13,9 +13,11 @@ from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
 from baselayer.app.custom_exceptions import AccessError
 
 from . import schema
-from .enum import allowed_bandpasses, thumbnail_types
+from .phot_enum import allowed_bandpasses, thumbnail_types
 
 
+# In the AB system, a brightness of 23.9 mag corresponds to 1 microJy. Using this
+# will put our converted fluxes to microJy.
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
 
@@ -228,7 +230,6 @@ Source.unsaved_by_id = sa.Column(sa.ForeignKey("users.id"), nullable=True, uniqu
 Source.unsaved_by = relationship("User", foreign_keys=[Source.unsaved_by_id])
 
 
-# Not used in get_source_if_owned_by, but defined in case it's called elsewhere
 def source_is_owned_by(self, user_or_token):
     source_group_ids = [row[0] for row in DBSession.query(
         Source.group_id).filter(Source.obj_id == self.obj_id).all()]
@@ -248,6 +249,25 @@ def get_source_if_owned_by(obj_id, user_or_token, options=[]):
 
 Source.is_owned_by = source_is_owned_by
 Source.get_if_owned_by = get_source_if_owned_by
+
+
+def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
+    try:
+        obj = Source.get_if_owned_by(obj_id, user_or_token, options)
+    except AccessError:  # They may still be able to view the associated Candidate
+        obj = Candidate.get_if_owned_by(obj_id, user_or_token, options)
+        if obj is None:
+            # If user can't view associated Source, and there's no Candidate they can
+            # view, raise AccessError
+            raise
+    if obj is None:  # There is no associated Source, so just return the Obj
+        return Obj.query.options(options).get(obj_id)
+    # If we get here, the user has access to either the associated Source or Candidate
+    return obj
+
+
+Obj.get_if_owned_by = get_obj_if_owned_by
+
 
 User.sources = relationship('Obj', backref='users',
                             secondary='join(Group, sources).join(group_users)',
@@ -279,19 +299,48 @@ class Telescope(Base):
 
 GroupTelescope = join_model('group_telescopes', Group, Telescope)
 
+import re
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy import cast
+
+
+class ArrayOfEnum(ARRAY):
+    def bind_expression(self, bindvalue):
+        return cast(bindvalue, self)
+
+    def result_processor(self, dialect, coltype):
+        super_rp = super(ArrayOfEnum, self).result_processor(dialect, coltype)
+
+        def handle_raw_string(value):
+            if value == None or value == '{}':  # 2nd case, empty array
+                return []
+            inner = re.match(r"^{(.*)}$", value).group(1)
+            return inner.split(",")
+
+        def process(value):
+            return super_rp(handle_raw_string(value))
+        return process
+
 
 class Instrument(Base):
-    name = sa.Column(sa.String, nullable=False)
-    type = sa.Column(sa.String, nullable=False)
-    band = sa.Column(sa.String, nullable=False)
 
+    name = sa.Column(sa.String, nullable=False)
+    type = sa.Column(sa.String)
+    band = sa.Column(sa.String)
     telescope_id = sa.Column(sa.ForeignKey('telescopes.id',
                                            ondelete='CASCADE'),
                              nullable=False, index=True)
     telescope = relationship('Telescope', back_populates='instruments')
+
+    followup_requests = relationship('FollowupRequest',
+                                     back_populates='instrument')
+
     photometry = relationship('Photometry', back_populates='instrument')
     spectra = relationship('Spectrum', back_populates='instrument')
-    followup_requests = relationship('FollowupRequest', back_populates='instrument')
+
+    # can be [] if an instrument is spec only
+    filters = sa.Column(ArrayOfEnum(allowed_bandpasses), nullable=False,
+                        default=[])
 
 
 class Comment(Base):
@@ -312,7 +361,6 @@ class Comment(Base):
 
 class Photometry(Base):
     __tablename__ = 'photometry'
-
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.')
     flux = sa.Column(sa.Float,
                      doc='Flux of the observation in µJy. '
@@ -328,7 +376,16 @@ class Photometry(Base):
     dec = sa.Column(sa.Float, doc='ICRS Declination of the centroid of '
                                   'the photometric aperture [deg].')
 
-    packet = sa.Column(JSONB)
+    ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
+    dec_unc = sa.Column(sa.Float, doc="Uncertainty of dec position [arcsec]")
+
+    original_user_data = sa.Column(JSONB, doc='Original data passed by the user '
+                                              'through the PhotometryHandler.POST '
+                                              'API or the PhotometryHandler.PUT '
+                                              'API. The schema of this JSON '
+                                              'validates under either '
+                                              'schema.PhotometryFlux or schema.PhotometryMag '
+                                              '(depending on how the data was passed).')
     altdata = sa.Column(JSONB)
 
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
@@ -349,7 +406,7 @@ class Photometry(Base):
     @hybrid_property
     def e_mag(self):
         if self.flux is not None and self.flux > 0 and self.fluxerr > 0:
-            return 2.5 / np.log(10) * self.fluxerr / self.flux
+            return (2.5 / np.log(10)) * (self.fluxerr / self.flux)
         else:
             return None
 
@@ -418,7 +475,7 @@ class Spectrum(Base):
 
 class Thumbnail(Base):
     # TODO delete file after deleting row
-    type = sa.Column(thumbnail_types)
+    type = sa.Column(thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ...)')
     file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     public_url = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     origin = sa.Column(sa.String, nullable=True)
@@ -452,3 +509,4 @@ class FollowupRequest(Base):
 User.followup_requests = relationship('FollowupRequest', back_populates='requester')
 
 schema.setup_schema()
+
