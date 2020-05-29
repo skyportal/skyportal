@@ -24,11 +24,14 @@ const UploadPhotometryForm = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const [showPreview, setShowPreview] = useState(false);
   const [csvData, setCsvData] = useState({});
+  const [successMessage, setSuccessMessage] = useState("");
   const { id } = useParams();
   const { handleSubmit, errors, reset, control, getValues } = useForm();
+  let formState = getValues();
 
   const validateCsvData = () => {
-    const formState = getValues();
+    setSuccessMessage(null);
+    formState = getValues();
     if (!formState.csvData) {
       return "Missing CSV data";
     }
@@ -78,12 +81,14 @@ const UploadPhotometryForm = () => {
       delimiter: ",",
       csvData: "",
       instrumentID: ""
+    }, {
+      dirty: false
     });
     setCsvData({});
   };
 
   const handleClickSubmit = async () => {
-    const formState = getValues();
+    formState = getValues();
     const data = {
       obj_id: id,
       instrument_id: formState.instrumentID,
@@ -94,6 +99,11 @@ const UploadPhotometryForm = () => {
     const result = await dispatch(Actions.uploadPhotometry(data));
     if (result.status === "success") {
       handleReset();
+      const rootURL = `${window.location.protocol}//${window.location.host}`;
+      setSuccessMessage(`Upload successful. Your bulk upload ID is ${result.data.bulk_upload_id}
+                        To delete these data, use a valid token to make a request of the form:
+                        curl -X DELETE -i -H "Authorization: token <your_token_id>" \
+                        ${rootURL}/api/photometry/bulk_delete/${result.data.bulk_upload_id}`);
     }
   };
 
@@ -244,6 +254,16 @@ const UploadPhotometryForm = () => {
                 Upload Photometry
               </Button>
             </Box>
+          </div>
+        )
+      }
+      {
+        (successMessage && !formState.dirty) && (
+          <div style={{ whiteSpace: "pre-line" }}>
+            <br />
+            <font color="blue">
+              {successMessage}
+            </font>
           </div>
         )
       }
