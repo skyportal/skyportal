@@ -198,20 +198,6 @@ def photometry_plot(obj_id, width=600, height=300):
     data['label'] = [f'{i} {f}-band' for i, f in zip(data['instrument'],
                                                      data['filter'])]
 
-    # normalize everything to a common zeropoint
-    columns = ['mjd', 'filter', 'flux', 'fluxerr']
-    table = Table.from_pandas(data[columns])
-    table['zpsys'] = 'ab'
-    table['zp'] = PHOT_ZP
-    photdata = PhotometricData(table)
-
-    # normalize so that flux is in uJy
-    # (see https://en.wikipedia.org/wiki/AB_magnitude)
-    normalized = photdata.normalized(zp=PHOT_ZP, zpsys='ab')
-
-    # write the normalized data to the dataframe
-    data['flux'] = normalized.flux
-    data['fluxerr'] = normalized.fluxerr
     data['zp'] = PHOT_ZP
     data['zpsys'] = 'ab'
     data['alpha'] = 1.
