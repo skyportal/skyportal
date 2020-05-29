@@ -199,7 +199,7 @@ def photometry_plot(obj_id, width=600, height=300):
                                                      data['filter'])]
 
     data['zp'] = PHOT_ZP
-    data['zpsys'] = 'ab'
+    data['magsys'] = 'ab'
     data['alpha'] = 1.
     data['lim_mag'] = -2.5 * np.log10(data['fluxerr'] * DETECT_THRESH) + data['zp']
 
@@ -453,7 +453,7 @@ def photometry_plot(obj_id, width=600, height=300):
         key = f'bold{i}'
         model_dict[key] = ColumnDataSource(df[['mjd', 'flux', 'fluxerr','mag',
                                                'magerr', 'filter', 'zp',
-                                               'zpsys', 'lim_mag', 'stacked']])
+                                               'magsys', 'lim_mag', 'stacked']])
 
     plot.xaxis.axis_label = 'MJD'
     plot.yaxis.axis_label = 'AB mag'
