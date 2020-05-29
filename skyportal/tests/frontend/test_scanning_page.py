@@ -135,7 +135,8 @@ def test_candidate_unsaved_only_filtering(
 
 
 def test_candidate_date_filtering(
-    driver, user, public_candidate, public_filter, public_group, upload_data_token
+    driver, user, public_candidate, public_filter, public_group, upload_data_token,
+    ztf_camera
 ):
     candidate_id = str(uuid.uuid4())
     for i in range(5):
@@ -163,14 +164,12 @@ def test_candidate_date_filtering(
             data={
                 "obj_id": f"{candidate_id}_{i}",
                 "mjd": 58000.,
-                "time_format": "iso",
-                "time_scale": "utc",
-                "instrument_id": 1,
+                "instrument_id": ztf_camera.id,
                 "flux": 12.24,
                 "fluxerr": 0.031,
                 "zp": 25.,
                 "zpsys": "ab",
-                "filter": "bessellv",
+                "filter": "ztfr",
             },
             token=upload_data_token,
         )
