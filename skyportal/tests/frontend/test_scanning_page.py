@@ -168,7 +168,7 @@ def test_candidate_date_filtering(
                 "flux": 12.24,
                 "fluxerr": 0.031,
                 "zp": 25.,
-                "zpsys": "ab",
+                "magsys": "ab",
                 "filter": "ztfr",
             },
             token=upload_data_token,
