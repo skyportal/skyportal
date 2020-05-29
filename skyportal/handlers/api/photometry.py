@@ -16,7 +16,7 @@ from ...phot_enum import ALLOWED_MAGSYSTEMS
 import sncosmo
 
 def nan_to_none(value):
-    """Coerce a value to None if it is nan, else return value."""
+    """Coerce a value to None if it is nan, else return value."""
     try:
         return None if np.isnan(value) else value
     except TypeError:
@@ -58,11 +58,11 @@ def serialize(phot, outsys, format):
     corrected_db_zp = PHOT_ZP + db_correction
 
     if format == 'mag':
-        if phot.packet is not None and 'limiting_mag' in phot.packet:
-            magsys_packet = sncosmo.get_magsystem(phot.packet['magsys'])
+        if phot.original_user_data is not None and 'limiting_mag' in phot.original_user_data:
+            magsys_packet = sncosmo.get_magsystem(phot.original_user_data['magsys'])
             relzp_packet = 2.5 * np.log10(magsys_packet.zpbandflux(filter))
             packet_correction = relzp_out - relzp_packet
-            maglimit = phot.packet['limiting_mag']
+            maglimit = phot.original_user_data['limiting_mag']
             maglimit_out = maglimit + packet_correction
         else:
             # calculate the limiting mag
@@ -158,7 +158,7 @@ class PhotometryHandler(BaseHandler):
                                       f'to parse {packet} as PhotometryMag, got:'
                                       f' "{e2.normalized_messages()}."')
 
-            phot.packet = packet
+            phot.original_user_data = packet
             DBSession().add(phot)
 
             # to set up obj link
@@ -236,7 +236,8 @@ class PhotometryHandler(BaseHandler):
                                   f'"{e1.normalized_messages()}." Tried '
                                   f'to parse {packet} as PhotometryMag, got:'
                                   f' "{e2.normalized_messages()}."')
-
+            
+        phot.original_user_data = packet
         phot.id = photometry_id
         DBSession().merge(phot)
         DBSession().commit()

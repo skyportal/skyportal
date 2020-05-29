@@ -528,3 +528,57 @@ def test_delete_photometry_data(upload_data_token, manage_sources_token,
         token=upload_data_token)
     assert status == 400
 
+
+def test_token_user_retrieving_source_photometry_and_convert(view_only_token, public_source):
+    status, data = api('GET', f'sources/{public_source.id}/photometry?format=flux&magsys=ab',
+                       token=view_only_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert isinstance(data['data'], list)
+    assert 'mjd' in data['data'][0]
+    assert 'ra_unc' in data['data'][0]
+
+    mag1_ab = -2.5 * np.log10(data['data'][0]['flux']) + data['data'][0]['zp']
+    magerr1_ab = 2.5 / np.log(10) * data['data'][0]['fluxerr']/ data['data'][0]['flux']
+
+    maglast_ab = -2.5 * np.log10(data['data'][-1]['flux']) + data['data'][-1]['zp']
+    magerrlast_ab = 2.5 / np.log(10) * data['data'][-1]['fluxerr']/ data['data'][-1]['flux']
+
+    status, data = api('GET', f'sources/{public_source.id}/photometry?format=mag&magsys=ab',
+                       token=view_only_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    assert np.allclose(mag1_ab, data['data'][0]['mag'])
+    assert np.allclose(magerr1_ab, data['data'][0]['magerr'])
+
+    assert np.allclose(maglast_ab, data['data'][-1]['mag'])
+    assert np.allclose(magerrlast_ab, data['data'][-1]['magerr'])
+
+
+    status, data = api('GET', f'sources/{public_source.id}/photometry?format=flux&magsys=vega',
+                       token=view_only_token)
+
+    mag1_vega = -2.5 * np.log10(data['data'][0]['flux']) + data['data'][0]['zp']
+    magerr1_vega = 2.5 / np.log(10) * data['data'][0]['fluxerr']/ data['data'][0]['flux']
+
+    maglast_vega = -2.5 * np.log10(data['data'][-1]['flux']) + data['data'][-1]['zp']
+    magerrlast_vega = 2.5 / np.log(10) * data['data'][-1]['fluxerr']/ data['data'][-1]['flux']
+
+
+    assert status == 200
+    assert data['status'] == 'success'
+
+    ab = sncosmo.get_magsystem('ab')
+    vega = sncosmo.get_magsystem('vega')
+    vega_to_ab = {
+        filter: 2.5 * np.log10(ab.zpbandflux(filter) / vega.zpbandflux(filter))
+        for filter in ['ztfg', 'ztfr', 'ztfi']
+    }
+
+
+    assert np.allclose(mag1_ab, mag1_vega + vega_to_ab[data['data'][0]['filter']])
+    assert np.allclose(magerr1_ab, magerr1_vega)
+
+    assert np.allclose(maglast_ab, maglast_vega + vega_to_ab[data['data'][-1]['filter']])
+    assert np.allclose(magerrlast_ab, magerrlast_vega)
