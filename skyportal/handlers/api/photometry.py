@@ -11,8 +11,7 @@ from ...models import (
     PHOT_ZP, PHOT_SYS, Thumbnail
 )
 
-from ...schema import (PhotometryMag, PhotometryFlux, PhotometryThumbnailURL,
-                       PhotometryThumbnailData)
+from ...schema import (PhotometryMag, PhotometryFlux)
 import sncosmo
 import operator
 
@@ -156,6 +155,9 @@ class PhotometryHandler(BaseHandler):
         # Ensure user/token has access to parent source
         _ = Source.get_if_owned_by(phot.obj_id, self.current_user)
 
+        # get the desired output format
+        format = self.get_query_argument('format', 'mag')
+
         retval = {
             'obj_id': phot.obj_id,
             'ra': phot.ra,
@@ -186,13 +188,16 @@ class PhotometryHandler(BaseHandler):
                 'magsys': 'ab',
                 'limiting_mag': maglimit_ab
             })
-        else:
+        elif format == 'flux':
             retval.update({
                 'flux': phot.flux,
                 'magsys': 'ab',
                 'zp': PHOT_ZP,
                 'fluxerr': phot.fluxerr
             })
+        else:
+            return self.error('Invalid output format specified. Must be one of '
+                              f"['flux', 'mag'], got '{format}'.")
 
         return self.success(data=retval)
 

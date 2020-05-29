@@ -5,7 +5,7 @@ from skyportal.tests import api
 from skyportal.models import Thumbnail, DBSession, Photometry
 
 import numpy as np
-from sncosmo.photdata import PhotometricData
+import sncosmo
 
 
 def test_token_user_post_get_photometry_data(upload_data_token, public_source,
@@ -36,8 +36,9 @@ def test_token_user_post_get_photometry_data(upload_data_token, public_source,
                                12.24 * 10**(-0.4 * (25. - 23.9)))
 
 
-def test_token_user_post_mag_photometry_data(upload_data_token, public_source,
-                                             ztf_camera):
+def test_token_user_post_mag_photometry_data_and_convert(upload_data_token,
+                                                         public_source,
+                                                         ztf_camera):
 
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
@@ -46,7 +47,7 @@ def test_token_user_post_mag_photometry_data(upload_data_token, public_source,
                              'mag': 21.,
                              'magerr': 0.2,
                              'limiting_mag': 22.3,
-                             'magsys': 'ab',
+                             'magsys': 'vega',
                              'filter': 'ztfg'
                              },
                        token=upload_data_token)
@@ -61,11 +62,74 @@ def test_token_user_post_mag_photometry_data(upload_data_token, public_source,
     assert status == 200
     assert data['status'] == 'success'
 
+    ab = sncosmo.get_magsystem('ab')
+    vega = sncosmo.get_magsystem('vega')
+    correction = 2.5 * np.log10(vega.zpbandflux('ztfg') / ab.zpbandflux('ztfg'))
+
     np.testing.assert_allclose(data['data']['flux'],
-                               10**(-0.4 * (21. - 23.9)))
+                               10**(-0.4 * (21. - correction - 23.9 )))
 
     np.testing.assert_allclose(data['data']['fluxerr'],
                                0.2 / (2.5 / np.log(10)) * data['data']['flux'])
+
+    status, data = api(
+        'GET',
+        f'photometry/{photometry_id}',
+        token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    np.testing.assert_allclose(data['data']['mag'],
+                               21. - correction)
+
+    np.testing.assert_allclose(data['data']['magerr'],
+                               0.2)
+
+def test_token_user_mixed_photometry_post(upload_data_token, public_source,
+                                          ztf_camera):
+
+    status, data = api('POST', 'photometry',
+                       data={'obj_id': str(public_source.id),
+                             'mjd': 58000.,
+                             'instrument_id': ztf_camera.id,
+                             'mag': 21.,
+                             'magerr': [0.2, 0.1],
+                             'limiting_mag': 22.3,
+                             'magsys': 'ab',
+                             'filter': 'ztfg'
+                             },
+                       token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    photometry_id = data['data']['ids'][1]
+    status, data = api(
+        'GET',
+        f'photometry/{photometry_id}?format=flux',
+        token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    np.testing.assert_allclose(data['data']['flux'],
+                               10**(-0.4 * (21. - 23.9 )))
+
+    np.testing.assert_allclose(data['data']['fluxerr'],
+                               0.1 / (2.5 / np.log(10)) * data['data']['flux'])
+
+    # should fail as len(mag) != len(magerr)
+    status, data = api('POST', 'photometry',
+                       data={'obj_id': str(public_source.id),
+                             'mjd': 58000.,
+                             'instrument_id': ztf_camera.id,
+                             'mag': [21.],
+                             'magerr': [0.2, 0.1],
+                             'limiting_mag': 22.3,
+                             'magsys': 'ab',
+                             'filter': 'ztfg'
+                             },
+                       token=upload_data_token)
+    assert status == 400
+    assert data['status'] == 'error'
 
 
 def test_token_user_post_photometry_limits(upload_data_token, public_source,
