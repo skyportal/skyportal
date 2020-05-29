@@ -132,7 +132,6 @@ def test_token_user_mixed_photometry_post(upload_data_token, public_source,
     assert data['status'] == 'error'
 
 
-
 def test_token_user_mixed_mag_none_photometry_post(upload_data_token, public_source,
                                                    ztf_camera):
 
@@ -177,7 +176,6 @@ def test_token_user_mixed_mag_none_photometry_post(upload_data_token, public_sou
                        token=upload_data_token)
     assert status == 400
     assert data['status'] == 'error'
-
 
 def test_token_user_post_photometry_limits(upload_data_token, public_source,
                                            ztf_camera):
