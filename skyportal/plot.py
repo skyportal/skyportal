@@ -203,6 +203,10 @@ def photometry_plot(obj_id, width=600, height=300):
     data['alpha'] = 1.
     data['lim_mag'] = -2.5 * np.log10(data['fluxerr'] * DETECT_THRESH) + data['zp']
 
+    # Passing a dictionary to a bokeh datasource causes the frontend to die, 
+    # deleting the dictionary column fixes that 
+    del data['packet']
+
     # keep track of things that are only upper limits
     data['hasflux'] = ~data['flux'].isna()
 
