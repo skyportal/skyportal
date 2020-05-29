@@ -132,6 +132,53 @@ def test_token_user_mixed_photometry_post(upload_data_token, public_source,
     assert data['status'] == 'error'
 
 
+
+def test_token_user_mixed_mag_none_photometry_post(upload_data_token, public_source,
+                                                   ztf_camera):
+
+    status, data = api('POST', 'photometry',
+                       data={'obj_id': str(public_source.id),
+                             'mjd': 58000.,
+                             'instrument_id': ztf_camera.id,
+                             'mag': None,
+                             'magerr': [0.2, 0.1],
+                             'limiting_mag': 22.3,
+                             'magsys': 'ab',
+                             'filter': 'ztfg'
+                             },
+                       token=upload_data_token)
+    assert status == 400
+    assert data['status'] == 'error'
+
+    status, data = api('POST', 'photometry',
+                       data={'obj_id': str(public_source.id),
+                             'mjd': 58000.,
+                             'instrument_id': ztf_camera.id,
+                             'mag': [21.3, None],
+                             'magerr': [0.2, 0.1],
+                             'limiting_mag': 22.3,
+                             'magsys': 'ab',
+                             'filter': 'ztfg'
+                             },
+                       token=upload_data_token)
+    assert status == 400
+    assert data['status'] == 'error'
+
+    status, data = api('POST', 'photometry',
+                       data={'obj_id': str(public_source.id),
+                             'mjd': 58000.,
+                             'instrument_id': ztf_camera.id,
+                             'mag': [21.3, None],
+                             'magerr': [None, 0.1],
+                             'limiting_mag': 22.3,
+                             'magsys': 'ab',
+                             'filter': 'ztfg'
+                             },
+                       token=upload_data_token)
+    assert status == 400
+    assert data['status'] == 'error'
+
+
 def test_token_user_post_photometry_limits(upload_data_token, public_source,
                                            ztf_camera):
 
