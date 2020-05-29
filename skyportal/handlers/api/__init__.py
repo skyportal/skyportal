@@ -5,9 +5,8 @@ from .followup_request import FollowupRequestHandler
 from .group import GroupHandler, GroupUserHandler
 from .instrument import InstrumentHandler
 from .news_feed import NewsFeedHandler
-from .photometry import PhotometryHandler
-from .source import (SourceHandler, SourcePhotometryHandler,
-                     SourceOffsetsHandler, SourceFinderHandler)
+from .photometry import PhotometryHandler, SourcePhotometryHandler
+from .source import (SourceHandler, SourceOffsetsHandler, SourceFinderHandler)
 from .spectrum import SpectrumHandler
 from .sysinfo import SysInfoHandler
 from .telescope import TelescopeHandler

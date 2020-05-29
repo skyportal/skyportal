@@ -23,7 +23,7 @@ from baselayer.app.models import (
     DBSession as _DBSession
 )
 
-from skyportal.enum import (
+from skyportal.phot_enum import (
     py_allowed_bandpasses,
     py_allowed_magsystems,
     py_thumbnail_types,
@@ -145,6 +145,10 @@ def setup_schema():
 
 
 class PhotBaseFlexible(object):
+    """This is the base class for two classes that are used for rendering the
+    input data to `PhotometryHandler.post` in redoc. These classes are only
+    used for generating documentation and not for validation, serialization,
+    or deserialization."""
     mjd = fields.Field(description='MJD of the observation(s). Can be a given as a '
                                    'scalar or a 1D list. If a scalar, will be '
                                    'broadcast to all values given as lists. '
@@ -202,6 +206,11 @@ class PhotBaseFlexible(object):
 
 
 class PhotFluxFlexible(_Schema, PhotBaseFlexible):
+    """This is one of two classes used for rendering the
+    input data to `PhotometryHandler.post` in redoc. These classes are only
+    used for generating documentation and not for validation, serialization,
+    or deserialization."""
+
 
     magsys = fields.Field(required=True,
                           description='The magnitude system to which the flux, flux error, '
@@ -250,6 +259,11 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
 
 
 class PhotMagFlexible(_Schema, PhotBaseFlexible):
+    """This is one of two classes used for rendering the
+    input data to `PhotometryHandler.post` in redoc. These classes are only
+    used for generating documentation and not for validation, serialization,
+    or deserialization."""
+
 
     magsys = fields.Field(required=True,
                           description='The magnitude system to which the magnitude, '
@@ -299,7 +313,13 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
 
 
 class PhotBase(object):
-    # Mixin class containing columns common to PhotometryFlux and PhotometryMag
+    """This is the base class of two classes that are used for deserializing
+    and validating the postprocessed input data of `PhotometryHandler.post`
+    and `PhotometryHandler.put` and for generating the API docs of
+    PhotometryHandler.get`.
+    """
+
+
     mjd = fields.Number(description='MJD of the observation.', required=True)
     magsys = ApispecEnumField(py_allowed_magsystems, required=True,
                               description='The magnitude system to which the '
@@ -328,6 +348,12 @@ class PhotBase(object):
 
 
 class PhotometryFlux(_Schema, PhotBase):
+    """This is one of  two classes that are used for deserializing
+    and validating the postprocessed input data of `PhotometryHandler.post`
+    and `PhotometryHandler.put` and for generating the API docs of
+    PhotometryHandler.get`.
+    """
+
 
     flux = fields.Number(description='Flux of the observation in counts. '
                                      'Can be null to accommodate upper '
@@ -403,6 +429,12 @@ class PhotometryFlux(_Schema, PhotBase):
 
 
 class PhotometryMag(_Schema, PhotBase):
+    """This is one of  two classes that are used for deserializing
+     and validating the postprocessed input data of `PhotometryHandler.post`
+     and `PhotometryHandler.put` and for generating the API docs of
+     `PhotometryHandler.get`.
+     """
+
     mag = fields.Number(description='Magnitude of the observation in the '
                                     'magnitude system `magsys`. Can be null '
                                     'in the case of a non-detection.',
