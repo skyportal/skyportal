@@ -144,44 +144,6 @@ def setup_schema():
             add_schema(f'{schema_class_name}NoID', exclude=['created_at', 'id', 'modified'])
 
 
-class Bytes(fields.Field):
-    """
-    A Marshmallow Field that serializes bytes to a base64-encoded string, and deserializes
-    a base64-encoded string to bytes.
-    Args:
-        - *args (Any): the arguments accepted by `marshmallow.Field`
-        - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
-    """
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-
-    def _serialize(self, value, attr, obj, **kwargs):  # type: ignore
-        if value is not None:
-            return base64.b64encode(value).decode("utf-8")
-
-    def _deserialize(self, value, attr, data, **kwargs):  # type: ignore
-        if value is not None:
-            return base64.b64decode(value)
-
-
-class TypeMixin(object):
-    ttype = ApispecEnumField(py_thumbnail_types, required=True,
-                             description='Thumbnail type.')
-
-
-class PhotometryThumbnailData(_Schema, TypeMixin):
-    data = Bytes(description='Base64-encoded bytestring of thumbnail PNG image.'
-                             'Only thumbnails between (16, 16) and (500, 500) '
-                             'pixels are allowed.',
-                 required=True)
-
-
-class PhotometryThumbnailURL(_Schema, TypeMixin):
-    url = fields.String(description='URL of the thumbnail PNG image.',
-                        required=True)
-
-
 class PhotBaseFlexible(object):
     mjd = fields.Field(description='MJD of the observation(s). Can be a given as a '
                                    'scalar or a 1D list. If a scalar, will be '
@@ -570,7 +532,5 @@ SinglePhotometryFlux = success('SinglePhotometryFlux', PhotometryFlux)
 SinglePhotometryMag = success('SinglePhotometryMag', PhotometryMag)
 PhotometryFlux = PhotometryFlux()
 PhotometryMag = PhotometryMag()
-PhotometryThumbnailURL = PhotometryThumbnailURL()
-PhotometryThumbnailData = PhotometryThumbnailData()
 PhotMagFlexible = PhotMagFlexible()
 PhotFluxFlexible = PhotFluxFlexible()
