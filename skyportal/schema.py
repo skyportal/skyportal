@@ -387,7 +387,7 @@ class PhotometryFlux(_Schema, PhotBase):
 
         # conversion happens here
         photdata = PhotometricData(table).normalized(zp=PHOT_ZP,
-                                                     magsys=PHOT_SYS)
+                                                     zpsys=PHOT_SYS)
 
         # replace with null if needed
         final_flux = None if data['flux'] is None else photdata.flux[0]
@@ -491,7 +491,7 @@ class PhotometryMag(_Schema, PhotBase):
 
         # conversion happens here
         photdata = PhotometricData(table).normalized(zp=PHOT_ZP,
-                                                     magsys=PHOT_SYS)
+                                                     zpsys=PHOT_SYS)
 
         # replace with null if needed
         final_flux = None if flux is None else photdata.flux[0]
