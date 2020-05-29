@@ -377,7 +377,7 @@ def photometry_plot(obj_id, width=600, height=300):
 
         imhover.renderers.append(model_dict[key])
 
-        unobs_source = df[~df['obs']]
+        unobs_source = df[~df['obs']].copy()
         unobs_source.loc[:, 'alpha'] = 0.8
 
         key = f'unobs{i}'
