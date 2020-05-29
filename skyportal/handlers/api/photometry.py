@@ -319,7 +319,11 @@ class BulkDeletePhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        # TODO Permissions check
+        # Permissions check:
+        obj_id = Photometry.query.filter(
+            Photometry.bulk_upload_id == bulk_upload_id).first().obj_id
+        _ = Obj.get_if_owned_by(obj_id, self.current_user)
+
         n_deleted = DBSession.query(Photometry).filter(
             Photometry.bulk_upload_id == bulk_upload_id).delete()
         DBSession().commit()
