@@ -96,17 +96,9 @@ def test_jump_to_page_invalid_values(driver):
     driver.get('/')
     jump_to_page_input = driver.wait_for_xpath("//input[@name='jumpToPageInputField']")
     jump_to_page_input.clear()
-    jump_to_page_input.send_keys('3')
+    jump_to_page_input.send_keys('abc')
     jump_to_page_button = driver.wait_for_xpath('//button[contains(.,"Jump to page:")]')
     driver.scroll_to_element_and_click(jump_to_page_button)
-    driver.wait_for_xpath('//div[contains(.,"Page number out of range")]')
-    jump_to_page_input.clear()
-    jump_to_page_input.send_keys('0')
-    jump_to_page_button.click()
-    driver.wait_for_xpath('//div[contains(.,"Page number out of range")]')
-    jump_to_page_input.clear()
-    jump_to_page_input.send_keys('abc')
-    jump_to_page_button.click()
     driver.wait_for_xpath('//div[contains(.,"Invalid page number value")]')
 
 
