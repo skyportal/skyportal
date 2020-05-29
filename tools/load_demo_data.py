@@ -134,7 +134,7 @@ if __name__ == "__main__":
                         f"groups/{group_id}/users/{u.username}", data={"admin": False}
                     )
 
-            with status("Creating dummy instruments"):
+            with status("Creating dummy telescopes & instruments"):
                 data = assert_post(
                     "telescope",
                     data={
