@@ -37,8 +37,8 @@ def serialize(phot, outsys, format):
         'instrument_id': phot.instrument_id
     }
 
-    filter = phot.packet['filter']
-    magsys_packet = sncosmo.get_magsystem(phot.packet['magsys'])
+    filter = phot.filter
+
     magsys_db = sncosmo.get_magsystem('ab')
     outsys = sncosmo.get_magsystem(outsys)
 
@@ -47,10 +47,8 @@ def serialize(phot, outsys, format):
     # note: these are not the actual zeropoints for magnitudes in the db or
     # packet, just ones that can be used to derive corrections when
     # compared to relzp_out
-    relzp_packet = 2.5 * np.log10(magsys_packet.zpbandflux(filter))
-    relzp_db = 2.5 * np.log10(magsys_db.zpbandflux(filter))
 
-    packet_correction = relzp_out - relzp_packet
+    relzp_db = 2.5 * np.log10(magsys_db.zpbandflux(filter))
     db_correction = relzp_out - relzp_db
 
     # this is the zeropoint for fluxes in the database that is tied
@@ -58,7 +56,10 @@ def serialize(phot, outsys, format):
     corrected_db_zp = PHOT_ZP + db_correction
 
     if format == 'mag':
-        if 'limiting_mag' in phot.packet:
+        if phot.packet is not None and 'limiting_mag' in phot.packet:
+            magsys_packet = sncosmo.get_magsystem(phot.packet['magsys'])
+            relzp_packet = 2.5 * np.log10(magsys_packet.zpbandflux(filter))
+            packet_correction = relzp_out - relzp_packet
             maglimit = phot.packet['limiting_mag']
             maglimit_out = maglimit + packet_correction
         else:
@@ -324,7 +325,7 @@ PhotometryHandler.get.__doc__ = f"""
                 schema: Error
         """
 
-SourcePhotometryHandler.get.__doc__ = f'''        
+SourcePhotometryHandler.get.__doc__ = f"""        
         ---
         description: Retrieve photometry
         parameters:
@@ -368,5 +369,5 @@ SourcePhotometryHandler.get.__doc__ = f'''
               application/json:
                 schema: Error
         """
-'''
+
 
