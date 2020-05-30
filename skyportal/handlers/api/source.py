@@ -381,32 +381,6 @@ class SourceHandler(BaseHandler):
         return self.success(action='skyportal/FETCH_SOURCES')
 
 
-class SourcePhotometryHandler(BaseHandler):
-    @auth_or_token
-    def get(self, obj_id):
-        """
-        ---
-        description: Retrieve a source's photometry
-        parameters:
-        - in: path
-          name: obj_id
-          required: true
-          schema:
-            type: string
-        responses:
-          200:
-            content:
-              application/json:
-                schema: ArrayOfPhotometrys
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
-        source = Source.get_if_owned_by(obj_id, self.current_user)
-        return self.success(data=source.photometry)
-
-
 class SourceOffsetsHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
