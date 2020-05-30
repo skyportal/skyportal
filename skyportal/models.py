@@ -379,7 +379,7 @@ class Photometry(Base):
     ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
     dec_unc = sa.Column(sa.Float, doc="Uncertainty of dec position [arcsec]")
 
-    packet = sa.Column(JSONB)
+    original_user_data = sa.Column(JSONB)
     altdata = sa.Column(JSONB)
 
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),

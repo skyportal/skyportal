@@ -205,7 +205,7 @@ def photometry_plot(obj_id, width=600, height=300):
 
     # Passing a dictionary to a bokeh datasource causes the frontend to die, 
     # deleting the dictionary column fixes that 
-    del data['packet']
+    del data['original_user_data']
 
     # keep track of things that are only upper limits
     data['hasflux'] = ~data['flux'].isna()
