@@ -366,7 +366,6 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
               'magsys': ['ab', 'ab', 'ab'],
               'ra': 264.1947917,
               'dec': [50.5478333, 50.5478333 + 0.00001, 50.5478333],
-              'ra_unc': 1,
               'dec_unc': 0.2},
         token=upload_data_token)
     assert status == 200
@@ -387,6 +386,7 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
                        50.5478333 + 0.00001)
 
     assert np.allclose(data['data']['dec_unc'], 0.2)
+    assert data['data']['ra_unc'] is None
 
 
     # invalid request
