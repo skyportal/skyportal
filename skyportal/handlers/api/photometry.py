@@ -83,6 +83,7 @@ def serialize(phot, outsys, format):
     else:
         raise ValueError('Invalid output format specified. Must be one of '
                          f"['flux', 'mag'], got '{format}'.")
+    return retval
 
 
 class PhotometryHandler(BaseHandler):
