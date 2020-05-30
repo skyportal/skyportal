@@ -176,7 +176,7 @@ class PhotometryHandler(BaseHandler):
 
     @auth_or_token
     def get(self, photometry_id):
-        # Moved to bottom of page as f-string
+        # The full docstring/API spec is below as an f-string
 
         phot = Photometry.query.get(photometry_id)
         if phot is None:
@@ -369,5 +369,4 @@ SourcePhotometryHandler.get.__doc__ = f"""
               application/json:
                 schema: Error
         """
-
 
