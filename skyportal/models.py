@@ -398,7 +398,7 @@ dec_unc = sa.Column(sa.Float, doc="uncertainty of dec position [arcsec]")
     @hybrid_property
     def e_mag(self):
         if self.flux is not None and self.flux > 0 and self.fluxerr > 0:
-            return 2.5 / np.log(10) * self.fluxerr / self.flux
+            return (2.5 / np.log(10)) * (self.fluxerr / self.flux)
         else:
             return None
 
