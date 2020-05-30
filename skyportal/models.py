@@ -467,7 +467,7 @@ class Spectrum(Base):
 
 class Thumbnail(Base):
     # TODO delete file after deleting row
-    type = sa.Column(thumbnail_types)
+    type = sa.Column(thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ...)')
     file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     public_url = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     origin = sa.Column(sa.String, nullable=True)
