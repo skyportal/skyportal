@@ -410,7 +410,8 @@ class PhotometryFlux(_Schema, PhotBase):
                        ra=data['ra'],
                        dec=data['dec'],
                        ra_unc=data['ra_unc'],
-                       dec_unc=data['dec_unc'])
+                       dec_unc=data['dec_unc']
+                       )
 
         return p
 
@@ -520,7 +521,11 @@ class PhotometryMag(_Schema, PhotBase):
                        flux=final_flux,
                        fluxerr=photdata.fluxerr[0],
                        instrument_id=data['instrument_id'],
-                       filter=data['filter'])
+                       filter=data['filter'],
+                       ra=data['ra'],
+                       dec=data['dec'],
+                       ra_unc=data['ra_unc'],
+                       dec_unc=data['dec_unc'])
 
         return p
 
