@@ -13,7 +13,7 @@ from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
 from baselayer.app.custom_exceptions import AccessError
 
 from . import schema
-from .enum import allowed_bandpasses, thumbnail_types
+from .phot_enum import allowed_bandpasses, thumbnail_types
 
 
 PHOT_ZP = 23.9

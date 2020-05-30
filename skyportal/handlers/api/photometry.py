@@ -12,7 +12,7 @@ from ...models import (
 )
 
 from ...schema import (PhotometryMag, PhotometryFlux)
-from ...enum import ALLOWED_MAGSYSTEMS
+from ...phot_enum import ALLOWED_MAGSYSTEMS
 import sncosmo
 
 def nan_to_none(value):

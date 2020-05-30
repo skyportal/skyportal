@@ -23,7 +23,7 @@ from baselayer.app.models import (
     DBSession as _DBSession
 )
 
-from skyportal.enum import (
+from skyportal.phot_enum import (
     py_allowed_bandpasses,
     py_allowed_magsystems,
     py_thumbnail_types,
