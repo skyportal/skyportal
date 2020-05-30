@@ -152,57 +152,55 @@ class PhotBaseFlexible(object):
     mjd = fields.Field(description='MJD of the observation(s). Can be a given as a '
                                    'scalar or a 1D list. If a scalar, will be '
                                    'broadcast to all values given as lists. '
-                                   'If given as a list, list items cannot be '
-                                   'null. If given as a scalar, the scalar value '
-                                   'can not be null.',
+                                   'Null values not allowed.',
                        required=True)
 
     filter = fields.Field(required=True,
                           description='The bandpass of the observation(s). '
                                       'Can be given as a scalar or a 1D list. '
                                       'If a scalar, will be broadcast to all values '
-                                      'given as lists. If given as a list, list '
-                                      'items cannot be null. If given as a scalar, '
-                                      'the scalar value cannot be null. Allowed values: '
+                                      'given as lists. Null values not allowed. Allowed values: '
                                       f'{force_render_enum_markdown(ALLOWED_BANDPASSES)}')
 
     obj_id = fields.Field(description='ID of the `Obj`(s) to which the '
                                       'photometry will be attached. '
                                       'Can be given as a scalar or a 1D list. '
                                       'If a scalar, will be broadcast to all values '
-                                      'given as lists. If given as a list, list '
-                                      'items cannot be null. If given as a scalar, '
-                                      'the scalar value cannot be null.',
+                                      'given as lists. Null values are not allowed.',
                           required=True)
 
     instrument_id = fields.Field(description='ID of the `Instrument`(s) with which the '
                                       'photometry was acquired. '
                                       'Can be given as a scalar or a 1D list. '
                                       'If a scalar, will be broadcast to all values '
-                                      'given as lists. If given as a list, list '
-                                      'items cannot be null. If given as a scalar, '
-                                      'the scalar value cannot be null.',
+                                      'given as lists. Null values are not allowed.',
                                  required=True)
 
     ra = fields.Field(description='ICRS Right Ascension of the centroid '
                                   'of the photometric aperture [deg]. '
                                   'Can be given as a scalar or a 1D list. '
                                   'If a scalar, will be broadcast to all values '
-                                  'given as lists. If given as a list, list '
-                                  'items CAN be null, but must explicitly be declared `null`. '
-                                  'If given as a scalar, the scalar value CAN be null, '
-                                  'but must explicitly be declared `null`.',
-                      required=True)
+                                  'given as lists. Null values allowed.',
+                      required=False)
 
     dec = fields.Field(description='ICRS Declination of the centroid '
-                                  'of the photometric aperture [deg]. '
-                                  'Can be given as a scalar or a 1D list. '
-                                  'If a scalar, will be broadcast to all values '
-                                  'given as lists. If given as a list, list '
-                                  'items CAN be null, but must explicitly be declared `null`. '
-                                  'If given as a scalar, the scalar value CAN be null, '
-                                  'but must explicitly be declared `null`.',
-                      required=True)
+                                   'of the photometric aperture [deg]. '
+                                   'Can be given as a scalar or a 1D list. '
+                                   'If a scalar, will be broadcast to all values '
+                                   'given as lists. Null values allowed.',
+                      required=False)
+
+    ra_unc = fields.Field(description='Uncertainty on RA [arcsec]. '
+                                      'Can be given as a scalar or a 1D list. '
+                                      'If a scalar, will be broadcast to all values '
+                                      'given as lists. Null values allowed.',
+                      required=False)
+
+    dec_unc = fields.Field(description='Uncertainty on dec [arcsec]. '
+                                       'Can be given as a scalar or a 1D list. '
+                                       'If a scalar, will be broadcast to all values '
+                                       'given as lists. Null values allowed.',
+                      required=False)
 
 
 class PhotFluxFlexible(_Schema, PhotBaseFlexible):
@@ -217,33 +215,25 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
                                       'and the zeropoint are tied. '
                                       'Can be given as a scalar or a 1D list. '
                                       'If a scalar, will be broadcast to all values '
-                                      'given as lists. If given as a list, list '
-                                      'items cannot be null. If given as a scalar, '
-                                      'the scalar value cannot be null. Allowed values: '
+                                      'given as lists. Null values not allowed. Allowed values: '
                                       f'{force_render_enum_markdown(ALLOWED_MAGSYSTEMS)}')
 
     flux = fields.Field(description='Flux of the observation(s) in counts. '
                                     'Can be given as a scalar or a 1D list. '
                                     'If a scalar, will be broadcast to all values '
-                                    'given as lists. If given as a list, list '
-                                    'items CAN be null, e.g., to accommodate upper '
-                                    'limits from ZTF1, where no flux is measured '
-                                    'for non-detections, but must explicitly be '
-                                    'declared `null`. If given as a scalar, the '
-                                    'scalar value CAN be null, but must explicitly '
-                                    'be declared `null`. For a given photometry '
+                                    'given as lists. Null values allowed, to accommodate,'
+                                    'e.g., upper limits from ZTF1, where flux is not provided '
+                                    'for non-detections. For a given photometry '
                                     'point, if `flux` is null, `fluxerr` is '
                                     'used to derive a 5-sigma limiting magnitude '
                                     'when the photometry point is requested in '
-                                    'magnitude space from the GET api.',
-                        required=True)
+                                    'magnitude space from the Photomety GET api.',
+                        required=False)
 
     fluxerr = fields.Field(description='Gaussian error on the flux in counts. '
                                        'Can be given as a scalar or a 1D list. '
                                        'If a scalar, will be broadcast to all values '
-                                       'given as lists. If given as a list, list '
-                                       'items cannot be null. If given as a scalar, '
-                                       'the scalar value cannot be null.',
+                                       'given as lists. Null values not allowed.',
                             required=True)
 
     zp = fields.Field(description='Magnitude zeropoint, given by `zp` in the '
@@ -251,10 +241,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
                                    '`m` is the magnitude of the object in the '
                                    'magnitude system `magsys`. '
                                    'Can be given as a scalar or a 1D list. '
-                                   'If a scalar, will be broadcast to all values '
-                                   'given as lists. If given as a list, list '
-                                   'items cannot be null. If given as a scalar, '
-                                   'the scalar value cannot be null.',
+                                   'Null values not allowed.',
                        required=True)
 
 
@@ -270,9 +257,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
                                       'magnitude error, and limiting magnitude are tied. '
                                       'Can be given as a scalar or a 1D list. '
                                       'If a scalar, will be broadcast to all values '
-                                      'given as lists. If given as a list, list '
-                                      'items cannot be null. If given as a scalar, '
-                                      'the scalar value cannot be null. Allowed values: '
+                                      'given as lists. Null values not allowed. Allowed values: '
                                       f'{force_render_enum_markdown(ALLOWED_MAGSYSTEMS)}')
 
 
@@ -280,35 +265,25 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
                                    'magnitude system `magsys`. '
                                    'Can be given as a scalar or a 1D list. '
                                    'If a scalar, will be broadcast to all values '
-                                   'given as lists. If given as a list, list '
-                                   'items CAN be null, e.g., to accommodate upper '
-                                   'limits from ZTF1, but must explicitly be '
-                                   'declared `null`. If given as a scalar, scalar '
-                                   'values CAN be null, but must explicitly be '
-                                   'declared `null`. If `mag` is null, the corresponding '
+                                   'given as lists. Null values allowed for non-detections. '
+                                   'If `mag` is null, the corresponding '
                                    '`magerr` must also be null.',
-                        required=True)
+                        required=False)
 
     magerr = fields.Field(description='Magnitude of the observation in the '
                                       'magnitude system `magsys`. '
                                       'Can be given as a scalar or a 1D list. '
                                       'If a scalar, will be broadcast to all values '
-                                      'given as lists. If given as a list, list '
-                                      'items CAN be null, e.g., to accommodate upper '
-                                      'limits from ZTF1, but must explicitly be '
-                                      'declared `null`. If given as a scalar, scalar '
-                                      'values CAN be null, but must explicitly be '
-                                      'declared `null`. If `magerr` is null, the '
-                                      'corresponding `mag` must also be null.',
-                           required=True)
+                                      'given as lists. Null values allowed for non-detections. '
+                                      'If `magerr` is null, the corresponding `mag` '
+                                      'must also be null.',
+                           required=False)
 
     limiting_mag = fields.Field(description='Limiting magnitude of the image '
                                             'in the magnitude system `magsys`. '
                                             'Can be given as a scalar or a 1D list. '
                                             'If a scalar, will be broadcast to all values '
-                                            'given as lists. If given as a list, list '
-                                            'items cannot be null. If given as a scalar, '
-                                            'the scalar value cannot be null.',
+                                            'given as lists. Null values not allowed.',
                                  required=True)
 
 
@@ -335,9 +310,17 @@ class PhotBase(object):
                                                'out.', required=True)
 
     ra = fields.Number(description='ICRS Right Ascension of the centroid '
-                                   'of the photometric aperture [deg].')
+                                   'of the photometric aperture [deg].',
+                       missing=None, default=None)
     dec = fields.Number(description='ICRS Declination of the centroid '
-                                    'of the photometric aperture [deg].')
+                                    'of the photometric aperture [deg].',
+                        missing=None, default=None)
+
+    ra_unc = fields.Number(description='Uncertainty on RA [arcsec].',
+                           missing=None, default=None)
+
+    dec_unc = fields.Number(description='Uncertainty on dec [arcsec].',
+                           missing=None, default=None)
 
     @post_load
     def enum_to_string(self, data, **kwargs):

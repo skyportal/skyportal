@@ -376,8 +376,8 @@ class Photometry(Base):
     dec = sa.Column(sa.Float, doc='ICRS Declination of the centroid of '
                                   'the photometric aperture [deg].')
 
-    ra_unc = sa.Column(sa.Float, doc="uncertainty of ra position [arcsec]")
-    dec_unc = sa.Column(sa.Float, doc="uncertainty of dec position [arcsec]")
+    ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
+    dec_unc = sa.Column(sa.Float, doc="Uncertainty of dec position [arcsec]")
 
     packet = sa.Column(JSONB)
     altdata = sa.Column(JSONB)
