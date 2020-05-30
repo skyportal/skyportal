@@ -476,6 +476,7 @@ class Thumbnail(Base):
 
 
 class FollowupRequest(Base):
+
     requester = relationship(User, back_populates='followup_requests')
     requester_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
                              nullable=False, index=True)
@@ -485,16 +486,55 @@ class FollowupRequest(Base):
     instrument = relationship(Instrument, back_populates='followup_requests')
     instrument_id = sa.Column(sa.ForeignKey('instruments.id'), nullable=False,
                               index=True)
-    start_date = sa.Column(ArrowType, nullable=False)
-    end_date = sa.Column(ArrowType, nullable=False)
-    filters = sa.Column(psql.ARRAY(sa.String), nullable=True)
-    exposure_time = sa.Column(sa.String, nullable=True)
-    priority = sa.Column(sa.Enum('1', '2', '3', '4', '5',
-                                 name='priority'))
+
+    run = relationship('ObservingRun', back_populates='assignments')
+    run_id = sa.Column(sa.ForeignKey('observingruns.id', ondelete='CASCADE'),
+                       nullable=True, index=True)
+
+    parameters = sa.Column(
+        psql.JSONB,
+        required=True,
+        doc='The parameters of the followup request. For spectroscopy, contains '
+            'the number of exposures and  the exposure time (potentially on '
+            'the red or blue sides of the instrument). For imaging, contains '
+            'the number of exposures, the exposure time, and the filters.'
+    )
+
     editable = sa.Column(sa.Boolean, nullable=False, default=True)
     status = sa.Column(sa.String(), nullable=False, default="pending")
 
 
 User.followup_requests = relationship('FollowupRequest', back_populates='requester')
+
+
+class ObservingRun(Base):
+
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id', ondelete='CASCADE'), nullable=False
+    )
+    instrument = relationship(
+        'Instrument', cascade='save-update, merge, refresh-expire, expunge',
+        uselist=False, back_populates='observing_runs'
+    )
+
+    # name of the PI
+    pi = sa.Column(sa.Text)
+    observers = sa.Column(sa.Text)
+
+    sources = relationship(
+        'Source', secondary='assignments',
+        cascade='save-update, merge, refresh-expire, expunge'
+    )
+
+    # let this be nullable to accommodate external groups' runs
+    group = relationship('Group', back_populates='observing_runs')
+    group_id = sa.Column(sa.ForeignKey('groups.id', ondelete='CASCADE'),
+                         nullable=True)
+
+    assignments = relationship(
+        'FollowupRequest', cascade='save-update, merge, refresh-expire, expunge'
+    )
+
+    calendar_date = sa.Column(ArrowType, nullable=False, index=True)
 
 schema.setup_schema()
