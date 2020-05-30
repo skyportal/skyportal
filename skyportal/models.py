@@ -379,7 +379,13 @@ class Photometry(Base):
     ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
     dec_unc = sa.Column(sa.Float, doc="Uncertainty of dec position [arcsec]")
 
-    original_user_data = sa.Column(JSONB)
+    original_user_data = sa.Column(JSONB, doc='Original data passed by the user '
+                                              'through the PhotometryHandler.POST '
+                                              'API or the PhotometryHandler.PUT '
+                                              'API. The schema of this JSON '
+                                              'validates under either '
+                                              'schema.PhotometryFlux or schema.PhotometryMag '
+                                              '(depending on how the data was passed).')
     altdata = sa.Column(JSONB)
 
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
