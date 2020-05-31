@@ -1,7 +1,7 @@
 /* eslint-disable */
 function table_to_csv(source, write_header) {
   const columns = ['mjd', 'filter', 'flux', 'fluxerr', 'zp',
-      'zpsys', 'lim_mag', 'stacked'];
+      'magsys', 'lim_mag', 'stacked'];
   const nrows = source.get_length();
   const lines = [];
 
@@ -20,7 +20,7 @@ function table_to_csv(source, write_header) {
       } catch (error) {
         if (column === 'zp') {
           row.push(default_zp);
-        } else if (column === 'zpsys') {
+        } else if (column === 'magsys') {
           row.push('ab');
         } else {
           throw error;
