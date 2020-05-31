@@ -13,17 +13,13 @@ from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
 from baselayer.app.custom_exceptions import AccessError
 
 from . import schema
+from .phot_enum import allowed_bandpasses, thumbnail_types
 
-from sncosmo.bandpasses import _BANDPASSES
-from sncosmo.magsystems import _MAGSYSTEMS
 
-ALLOWED_MAGSYSTEMS = tuple(l['name'] for l in _MAGSYSTEMS.get_loaders_metadata())
-ALLOWED_BANDPASSES = tuple(l['name'] for l in _BANDPASSES.get_loaders_metadata())
-
-allowed_magsystems = sa.Enum(*ALLOWED_MAGSYSTEMS, name="zpsys", validate_strings=True)
-allowed_bandpasses = sa.Enum(*ALLOWED_BANDPASSES, name="bandpasses", validate_strings=True)
-
-FIDUCIAL_ZP = 25.
+# In the AB system, a brightness of 23.9 mag corresponds to 1 microJy. Using this
+# will put our converted fluxes to microJy.
+PHOT_ZP = 23.9
+PHOT_SYS = 'ab'
 
 
 def is_owned_by(self, user_or_token):
@@ -365,32 +361,32 @@ class Comment(Base):
 
 class Photometry(Base):
     __tablename__ = 'photometry'
+    mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.')
+    flux = sa.Column(sa.Float,
+                     doc='Flux of the observation in µJy. '
+                         'Corresponds to an AB Zeropoint of 23.9 in all '
+                         'filters.')
+    fluxerr = sa.Column(sa.Float, nullable=False,
+                        doc='Gaussian error on the flux in µJy.')
+    filter = sa.Column(allowed_bandpasses, nullable=False,
+                       doc='Filter with which the observation was taken.')
 
-    mjd = sa.Column(sa.Float, nullable=False)  # mjd date
-    flux = sa.Column(sa.Float)
-    fluxerr = sa.Column(sa.Float, nullable=False)
-    zp = sa.Column(sa.Float, nullable=False)
-    zpsys = sa.Column(allowed_magsystems, nullable=False)
-    filter = sa.Column(allowed_bandpasses, nullable=False)
+    ra = sa.Column(sa.Float, doc='ICRS Right Ascension of the centroid '
+                                 'of the photometric aperture [deg].')
+    dec = sa.Column(sa.Float, doc='ICRS Declination of the centroid of '
+                                  'the photometric aperture [deg].')
 
-    ra = sa.Column(sa.Float)
-    dec = sa.Column(sa.Float)
+    ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
+    dec_unc = sa.Column(sa.Float, doc="Uncertainty of dec position [arcsec]")
 
-    isdiffpos = sa.Column(sa.Boolean, default=True)  # candidate from position?
-
-    var_mag = sa.Column(sa.Float, nullable=True)
-    var_e_mag = sa.Column(sa.Float, nullable=True)
-
-    dist_nearest_source = sa.Column(sa.Float, nullable=True)
-    mag_nearest_source = sa.Column(sa.Float, nullable=True)
-    e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
-
-    # external values
-    score = sa.Column(sa.Float, nullable=True)  # RB
-    candid = sa.Column(sa.BigInteger, nullable=True)  # candidate ID
+    original_user_data = sa.Column(JSONB, doc='Original data passed by the user '
+                                              'through the PhotometryHandler.POST '
+                                              'API or the PhotometryHandler.PUT '
+                                              'API. The schema of this JSON '
+                                              'validates under either '
+                                              'schema.PhotometryFlux or schema.PhotometryMag '
+                                              '(depending on how the data was passed).')
     altdata = sa.Column(JSONB)
-
-    origin = sa.Column(sa.String, nullable=True)
 
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)
@@ -402,15 +398,15 @@ class Photometry(Base):
 
     @hybrid_property
     def mag(self):
-        if self.flux > 0 and self.zp is not None:
-            return -2.5 * np.log10(self.flux) + self.zp
+        if self.flux is not None and self.flux > 0:
+            return -2.5 * np.log10(self.flux) + PHOT_ZP
         else:
             return None
 
     @hybrid_property
     def e_mag(self):
-        if self.flux > 0 and self.fluxerr > 0:
-            return 2.5 / np.log(10) * self.fluxerr / self.flux
+        if self.flux is not None and self.flux > 0 and self.fluxerr > 0:
+            return (2.5 / np.log(10)) * (self.fluxerr / self.flux)
         else:
             return None
 
@@ -418,8 +414,8 @@ class Photometry(Base):
     def mag(cls):
         return sa.case(
             [
-                (sa.and_(cls.flux > 0, cls.zp.isnot(None)),
-                 -2.5 * sa.func.log(cls.flux) + cls.zp),
+                sa.and_(cls.flux != None, cls.flux > 0),
+                -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
             ],
             else_=None
         )
@@ -428,7 +424,7 @@ class Photometry(Base):
     def e_mag(cls):
         return sa.case(
             [
-                (sa.and_(cls.flux > 0, cls.fluxerr > 0),
+                (sa.and_(cls.flux != None, cls.flux > 0, cls.fluxerr > 0),
                  2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux)
             ],
             else_=None
@@ -479,9 +475,7 @@ class Spectrum(Base):
 
 class Thumbnail(Base):
     # TODO delete file after deleting row
-    type = sa.Column(sa.Enum('new', 'ref', 'sub', 'sdss', 'dr8', "new_gz",
-                             'ref_gz', 'sub_gz',
-                             name='thumbnail_types', validate_strings=True))
+    type = sa.Column(thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ...)')
     file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     public_url = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     origin = sa.Column(sa.String, nullable=True)
@@ -515,3 +509,4 @@ class FollowupRequest(Base):
 User.followup_requests = relationship('FollowupRequest', back_populates='requester')
 
 schema.setup_schema()
+

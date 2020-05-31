@@ -20,12 +20,12 @@ class TelescopeFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Telescope
 
-    name = 'Test telescope'
-    nickname = 'test_scope'
-    lat = 0.0
-    lon = 0.0
-    elevation = 0.0
-    diameter = 1.0
+    name = 'Palomar 48 inch'
+    nickname = 'P48'
+    lat = 33.3563
+    lon = 116.8650
+    elevation = 1712.
+    diameter = 1.2
 
 
 class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -41,10 +41,11 @@ class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Instrument
 
-    name = 'Test instrument'
-    type = 'Type 1'
-    band = 'Band 1'
+    name = 'ZTF'
+    type = 'Imager'
+    band = 'Optical'
     telescope = factory.SubFactory(TelescopeFactory)
+    filters = ['ztfg', 'ztfr', 'ztfi']
 
 
 class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -55,9 +56,6 @@ class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
     mjd = factory.LazyFunction(lambda: 58000. + np.random.random())
     flux = factory.LazyFunction(lambda: 20 + 10 * np.random.random())
     fluxerr = factory.LazyFunction(lambda: 2 * np.random.random())
-
-    zp = factory.LazyFunction(lambda: 25. + 1 * np.random.random())
-    zpsys = 'ab'
 
 
 class ThumbnailFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -109,7 +107,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
                                       filter=filter)
             DBSession().add(phot1)
             DBSession().add(PhotometryFactory(obj_id=obj.id, flux=99.,
-                                              fluxerr=99., zp=25., zpsys='ab',
+                                              fluxerr=99.,
                                               instrument=instrument,
                                               filter=filter))
 

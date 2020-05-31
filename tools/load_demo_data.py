@@ -156,6 +156,7 @@ if __name__ == "__main__":
                         "type": "phot",
                         "band": "V",
                         "telescope_id": telescope1_id,
+                        "filters": ["ztfg", "ztfr", "ztfi"]
                     },
                 )
                 instrument1_id = data["data"]["id"]
@@ -249,7 +250,7 @@ if __name__ == "__main__":
                             "flux": phot_data.flux.tolist(),
                             "fluxerr": phot_data.fluxerr.tolist(),
                             "zp": phot_data.zp.tolist(),
-                            "zpsys": phot_data.zpsys.tolist(),
+                            "magsys": phot_data.magsys.tolist(),
                             "filter": phot_data["filter"].tolist(),
                         },
                     )
@@ -262,7 +263,7 @@ if __name__ == "__main__":
                             "flux": phot_data.flux.tolist(),
                             "fluxerr": phot_data.fluxerr.tolist(),
                             "zp": phot_data.zp.tolist(),
-                            "zpsys": phot_data.zpsys.tolist(),
+                            "magsys": phot_data.magsys.tolist(),
                             "filter": phot_data["filter"].tolist(),
                         },
                     )
