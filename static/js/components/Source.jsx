@@ -65,7 +65,7 @@ const Source = ({ route }) => {
       <div className={styles.leftColumn}>
 
         <div className={styles.name}>
-            {source.id}
+          {source.id}
         </div>
 
         <br />
@@ -89,8 +89,11 @@ const Source = ({ route }) => {
           Redshift:
           &nbsp;
         </b>
-        {source.redshift} | <a href={`/api/sources/${source.id}/finder`}>
-          Generate Finding Chart </a>
+        {source.redshift}
+        |
+        <a href={`/api/sources/${source.id}/finder`}>
+          Generate Finding Chart
+        </a>
         <br />
         <ThumbnailList ra={source.ra} dec={source.dec} thumbnails={source.thumbnails} />
 
