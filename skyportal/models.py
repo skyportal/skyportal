@@ -13,9 +13,11 @@ from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
 from baselayer.app.custom_exceptions import AccessError
 
 from . import schema
-from .enum import allowed_bandpasses, thumbnail_types
+from .phot_enum import allowed_bandpasses, thumbnail_types
 
 
+# In the AB system, a brightness of 23.9 mag corresponds to 1 microJy. Using this
+# will put our converted fluxes to microJy.
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
 
@@ -374,7 +376,16 @@ class Photometry(Base):
     dec = sa.Column(sa.Float, doc='ICRS Declination of the centroid of '
                                   'the photometric aperture [deg].')
 
-    packet = sa.Column(JSONB)
+    ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
+    dec_unc = sa.Column(sa.Float, doc="Uncertainty of dec position [arcsec]")
+
+    original_user_data = sa.Column(JSONB, doc='Original data passed by the user '
+                                              'through the PhotometryHandler.POST '
+                                              'API or the PhotometryHandler.PUT '
+                                              'API. The schema of this JSON '
+                                              'validates under either '
+                                              'schema.PhotometryFlux or schema.PhotometryMag '
+                                              '(depending on how the data was passed).')
     altdata = sa.Column(JSONB)
 
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
@@ -395,7 +406,7 @@ class Photometry(Base):
     @hybrid_property
     def e_mag(self):
         if self.flux is not None and self.flux > 0 and self.fluxerr > 0:
-            return 2.5 / np.log(10) * self.fluxerr / self.flux
+            return (2.5 / np.log(10)) * (self.fluxerr / self.flux)
         else:
             return None
 
@@ -464,7 +475,7 @@ class Spectrum(Base):
 
 class Thumbnail(Base):
     # TODO delete file after deleting row
-    type = sa.Column(thumbnail_types)
+    type = sa.Column(thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ...)')
     file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     public_url = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     origin = sa.Column(sa.String, nullable=True)
