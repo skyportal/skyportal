@@ -58,8 +58,8 @@ const UploadPhotometryForm = () => {
     if (!header.includes("flux") && !header.includes("mag")) {
       return "Invalid input: Missing required column: one of either mag or flux";
     }
-    if (header.includes("flux") && (!header.includes("zp") || !header.includes("zpsys"))) {
-      return "Invalid input: missing required column(s) zp and/or zpsys";
+    if (header.includes("flux") && (!header.includes("zp") || !header.includes("magsys"))) {
+      return "Invalid input: missing required column(s) zp and/or magsys";
     }
     return true;
   };

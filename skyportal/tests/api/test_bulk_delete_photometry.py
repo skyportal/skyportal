@@ -11,7 +11,7 @@ def test_bulk_delete_photometry(upload_data_token, public_source):
             "instrument_id": 1,
             "flux": [12.24, 12.52, 12.70],
             "fluxerr": [0.031, 0.029, 0.030],
-            "filter": ["bessellv", "bessellv", "bessellv"],
+            "filter": ["ztfg", "ztfg", "ztfg"],
             "zp": [25.0, 25.0, 25.0],
             "magsys": ["ab", "ab", "ab"],
         },
