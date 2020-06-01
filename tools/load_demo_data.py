@@ -276,7 +276,7 @@ if __name__ == "__main__":
                             "flux": phot_data.flux.tolist(),
                             "fluxerr": phot_data.fluxerr.tolist(),
                             "zp": phot_data.zp.tolist(),
-                            "zpsys": phot_data.zpsys.tolist(),
+                            "magsys": phot_data.magsys.tolist(),
                             "filter": phot_data["filter"].tolist(),
                         },
                     )
