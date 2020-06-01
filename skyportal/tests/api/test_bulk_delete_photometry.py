@@ -13,7 +13,7 @@ def test_bulk_delete_photometry(upload_data_token, public_source):
             "fluxerr": [0.031, 0.029, 0.030],
             "filter": ["bessellv", "bessellv", "bessellv"],
             "zp": [25.0, 25.0, 25.0],
-            "zpsys": ["ab", "ab", "ab"],
+            "magsys": ["ab", "ab", "ab"],
         },
         token=upload_data_token,
     )

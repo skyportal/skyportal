@@ -11,7 +11,7 @@ def test_upload_photometry(
     driver.get(f"/upload_photometry/{public_source.id}")
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
     csv_text_input.send_keys(
-        "mjd,flux,fluxerr,zp,zpsys,filter\n"
+        "mjd,flux,fluxerr,zp,magsys,filter\n"
         "58001,55,1,25,ab,bessellv\n"
         "58002,53,1,25,ab,bessellv"
     )
@@ -33,7 +33,7 @@ def test_upload_photometry_form_validation(
     driver.get(f"/upload_photometry/{public_source.id}")
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
     csv_text_input.send_keys(
-        "mjd,flux,fluxerr,zp,zpsys,OTHER\n"
+        "mjd,flux,fluxerr,zp,magsys,OTHER\n"
         "58001,55,1,25,ab,bessellv\n"
         "58002,53,1,25,ab,bessellv"
     )
@@ -43,7 +43,7 @@ def test_upload_photometry_form_validation(
     )
     csv_text_input.clear()
     csv_text_input.send_keys(
-        "mjd,flux,fluxerr,zp,zpsys,filter\n"
+        "mjd,flux,fluxerr,zp,magsys,filter\n"
         "58001,55,1,25,ab,bessellv\n"
         "58002,53,1,25,ab"
     )
@@ -51,13 +51,13 @@ def test_upload_photometry_form_validation(
         '//div[contains(.,"Invalid input: All data rows must have the same number of columns as header row")]'
     )
     csv_text_input.clear()
-    csv_text_input.send_keys("mjd,flux,fluxerr,zp,zpsys,filter")
+    csv_text_input.send_keys("mjd,flux,fluxerr,zp,magsys,filter")
     driver.wait_for_xpath(
         '//div[contains(.,"Invalid input: There must be a header row and one or more data rows")]'
     )
     csv_text_input.clear()
     csv_text_input.send_keys(
-        "mjd,flux,fluxerr,zp,zpsys,filter\n"
+        "mjd,flux,fluxerr,zp,magsys,filter\n"
         "58001,55,1,25,ab,bessellv\n"
         "58002,53,1,25,ab,bessellv"
     )
