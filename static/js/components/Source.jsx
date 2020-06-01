@@ -65,9 +65,10 @@ const Source = ({ route }) => {
       <div className={styles.leftColumn}>
 
         <div className={styles.name}>
-          {source.id}
+            {source.id}
         </div>
 
+        <br />
         <b>
           Position (J2000):
         </b>
@@ -88,7 +89,8 @@ const Source = ({ route }) => {
           Redshift:
           &nbsp;
         </b>
-        {source.redshift}
+        {source.redshift} | <a href={`/api/sources/${source.id}/finder`}>
+          Generate Finding Chart </a>
         <br />
         <ThumbnailList ra={source.ra} dec={source.dec} thumbnails={source.thumbnails} />
 
