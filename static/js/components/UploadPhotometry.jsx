@@ -19,10 +19,10 @@ import FormValidationError from "./FormValidationError";
 import * as Actions from "../ducks/source";
 
 
-const textAreaPlaceholderText = `mjd,flux,fluxerr,zp,magsys,filter
-58001.,22.,1.,30.,ab,ztfg
-58002.,23.,1.,30.,ab,ztfg
-58003.,22.,1.,30.,ab,ztfg`;
+const textAreaPlaceholderText = `mjd,flux,fluxerr,zp,magsys,instrument_id,filter
+58001.,22.,1.,30.,ab,1,ztfg
+58002.,23.,1.,30.,ab,1,ztfg
+58003.,22.,1.,30.,ab,1,ztfg`;
 
 const UploadPhotometryForm = () => {
   const dispatch = useDispatch();
@@ -66,6 +66,9 @@ const UploadPhotometryForm = () => {
     if (header.includes("flux") && (!header.includes("zp") || !header.includes("magsys"))) {
       return "Invalid input: missing required column(s) zp and/or magsys";
     }
+    if (formState.instrumentID === "multiple" && !header.includes("instrument_id")) {
+      return "Invalid input: missing required column: instrument_id";
+    }
     return true;
   };
 
@@ -85,7 +88,7 @@ const UploadPhotometryForm = () => {
     reset({
       delimiter: ",",
       csvData: "",
-      instrumentID: ""
+      instrumentID: "multiple"
     }, {
       dirty: false
     });
@@ -96,8 +99,10 @@ const UploadPhotometryForm = () => {
     formState = getValues();
     const data = {
       obj_id: id,
-      instrument_id: formState.instrumentID,
     };
+    if (formState.instrumentID !== "multiple") {
+      data.instrument_id = formState.instrumentID;
+    }
     csvData.columns.forEach((col, idx) => {
       data[col] = csvData.data.map((row) => row[idx]);
     });
@@ -146,10 +151,13 @@ const UploadPhotometryForm = () => {
                 <Controller
                   as={(
                     <Select labelId="instrumentSelectLabel">
+                      <MenuItem value="multiple" key={0}>
+                        Multiple (requires instrument_id column below)
+                      </MenuItem>
                       {
                         instrumentList.map((instrument) => (
                           <MenuItem value={instrument.id} key={instrument.id}>
-                            {instrument.name}
+                            {`${instrument.name} (ID: ${instrument.id})`}
                           </MenuItem>
                         ))
                       }
@@ -164,9 +172,11 @@ const UploadPhotometryForm = () => {
             </Box>
             <Box m={1}>
               <em>
-                Required fields (flux-space): mjd,flux,fluxerr,zp,magsys,filter
+                Required fields (flux-space):
+                mjd,flux,fluxerr,zp,magsys,filter[,instrument_id]
                 <br />
-                Required fields (mag-space): mjd,mag,magerr,limiting_mag,magsys,filter
+                Required fields (mag-space):
+                mjd,mag,magerr,limiting_mag,magsys,filter[,instrument_id]
               </em>
             </Box>
             <Box component="span" m={1}>
