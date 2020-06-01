@@ -21,7 +21,7 @@ def test_upload_photometry(
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
     driver.wait_for_xpath(f'//li[text()="P60 Camera (ID: {inst_id})"]').click()
     driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]')
+        driver.wait_for_xpath_to_be_clickable('//*[text()="Preview in Tabular Form"]')
     )
     driver.wait_for_xpath('//td[text()="58001"]')
     driver.scroll_to_element_and_click(
@@ -50,7 +50,7 @@ def test_upload_photometry_with_altdata(
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
     driver.wait_for_xpath(f'//li[text()="P60 Camera (ID: {inst_id})"]').click()
     driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]')
+        driver.wait_for_xpath_to_be_clickable('//*[text()="Preview in Tabular Form"]')
     )
     driver.wait_for_xpath('//td[text()="58001"]')
     driver.scroll_to_element_and_click(
@@ -103,5 +103,5 @@ def test_upload_photometry_form_validation(
     driver.wait_for_xpath('//div[contains(.,"Select an instrument")]')
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
     driver.wait_for_xpath(f'//li[text()="P60 Camera (ID: {inst_id})"]').click()
-    driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]').click()
+    driver.wait_for_xpath_to_be_clickable('//*[text()="Preview in Tabular Form"]').click()
     driver.wait_for_xpath('//td[text()="58001"]')
