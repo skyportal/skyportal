@@ -121,6 +121,12 @@ class PhotometryHandler(BaseHandler):
                               items:
                                 type: integer
                               description: List of new photometry IDs
+                            bulk_upload_id:
+                              type: string
+                              description: |
+                                If multiple data points are posted, a bulk upload ID is
+                                provided so that they may all be deleted in one request.
+                                Otherwise null.
         """
 
         data = self.get_json()
@@ -180,7 +186,7 @@ class PhotometryHandler(BaseHandler):
             ids.append(phot.id)
 
         DBSession().commit()
-        return self.success(data={"ids": ids})
+        return self.success(data={"ids": ids, "bulk_upload_id": bulk_upload_id})
 
     @auth_or_token
     def get(self, photometry_id):
