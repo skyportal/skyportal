@@ -1,12 +1,14 @@
+import re
 from datetime import datetime
 import numpy as np
-
 import sqlalchemy as sa
+from sqlalchemy import cast
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.orm import relationship, joinedload
+from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy_utils import ArrowType
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy_utils import ArrowType
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
@@ -299,10 +301,6 @@ class Telescope(Base):
 
 GroupTelescope = join_model('group_telescopes', Group, Telescope)
 
-import re
-from sqlalchemy.dialects.postgresql import ARRAY
-from sqlalchemy import cast
-
 
 class ArrayOfEnum(ARRAY):
     def bind_expression(self, bindvalue):
@@ -386,6 +384,7 @@ class Photometry(Base):
                                               'schema.PhotometryFlux or schema.PhotometryMag '
                                               '(depending on how the data was passed).')
     altdata = sa.Column(JSONB)
+    bulk_upload_id = sa.Column(sa.String, nullable=True)
 
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)

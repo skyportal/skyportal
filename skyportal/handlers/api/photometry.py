@@ -2,9 +2,9 @@ import uuid
 import numpy as np
 import arrow
 from astropy.time import Time
-from astropy.table import Table
 import pandas as pd
 from marshmallow.exceptions import ValidationError
+import sncosmo
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
@@ -14,7 +14,7 @@ from ...models import (
 
 from ...schema import (PhotometryMag, PhotometryFlux)
 from ...phot_enum import ALLOWED_MAGSYSTEMS
-import sncosmo
+
 
 def nan_to_none(value):
     """Coerce a value to None if it is nan, else return value."""
@@ -22,6 +22,7 @@ def nan_to_none(value):
         return None if np.isnan(value) else value
     except TypeError:
         return value
+
 
 def allscalar(d):
     return all(np.isscalar(v) or v is None for v in d.values())
@@ -88,15 +89,6 @@ def serialize(phot, outsys, format):
         raise ValueError('Invalid output format specified. Must be one of '
                          f"['flux', 'mag'], got '{format}'.")
     return retval
-
-
-
-def nan_to_none(value):
-    """Coerce a value to None if it is nan, else return value."""
-    try:
-        return None if np.isnan(value) else value
-    except TypeError:
-        return value
 
 
 class PhotometryHandler(BaseHandler):
@@ -172,6 +164,7 @@ class PhotometryHandler(BaseHandler):
                                       f' "{e2.normalized_messages()}."')
 
             phot.original_user_data = packet
+            phot.bulk_upload_id = bulk_upload_id
             DBSession().add(phot)
 
             # to set up obj link
@@ -249,7 +242,7 @@ class PhotometryHandler(BaseHandler):
                                   f'"{e1.normalized_messages()}." Tried '
                                   f'to parse {packet} as PhotometryMag, got:'
                                   f' "{e2.normalized_messages()}."')
-            
+
         phot.original_user_data = packet
         phot.id = photometry_id
         DBSession().merge(phot)
@@ -355,12 +348,12 @@ PhotometryHandler.get.__doc__ = f"""
           - in: query
             name: magsys
             required: false
-            description: >- 
-              The magnitude or zeropoint system of the output. (Default AB) 
+            description: >-
+              The magnitude or zeropoint system of the output. (Default AB)
             schema:
               type: string
               enum: {list(ALLOWED_MAGSYSTEMS)}
-            
+
         responses:
           200:
             content:
@@ -375,7 +368,7 @@ PhotometryHandler.get.__doc__ = f"""
                 schema: Error
         """
 
-SourcePhotometryHandler.get.__doc__ = f"""        
+SourcePhotometryHandler.get.__doc__ = f"""
         ---
         description: Retrieve photometry
         parameters:
@@ -400,12 +393,12 @@ SourcePhotometryHandler.get.__doc__ = f"""
           - in: query
             name: magsys
             required: false
-            description: >- 
-              The magnitude or zeropoint system of the output. (Default AB) 
+            description: >-
+              The magnitude or zeropoint system of the output. (Default AB)
             schema:
               type: string
               enum: {list(ALLOWED_MAGSYSTEMS)}
-            
+
         responses:
           200:
             content:
@@ -419,4 +412,3 @@ SourcePhotometryHandler.get.__doc__ = f"""
               application/json:
                 schema: Error
         """
-
