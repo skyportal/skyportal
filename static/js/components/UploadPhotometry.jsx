@@ -55,7 +55,7 @@ const UploadPhotometryForm = () => {
       return "Invalid input: All data rows must have the same number of columns as header row";
     }
     // eslint-disable-next-line no-restricted-syntax
-    for (const col of ["mjd", "filter"]) {
+    for (const col of ["mjd", "filter", "magsys"]) {
       if (!header.includes(col)) {
         return `Invalid input: Missing required column: ${col}`;
       }
@@ -63,8 +63,14 @@ const UploadPhotometryForm = () => {
     if (!header.includes("flux") && !header.includes("mag")) {
       return "Invalid input: Missing required column: one of either mag or flux";
     }
-    if (header.includes("flux") && (!header.includes("zp") || !header.includes("magsys"))) {
-      return "Invalid input: missing required column(s) zp and/or magsys";
+    if (header.includes("flux") && (!header.includes("zp"))) {
+      return "Invalid input: missing required column: zp";
+    }
+    if (header.includes("flux") && (!header.includes("fluxerr"))) {
+      return "Invalid input: missing required column: fluxerr";
+    }
+    if (header.includes("mag") && (!header.includes("limiting_mag"))) {
+      return "Invalid input: missing required column: limiting_mag";
     }
     if (formState.instrumentID === "multiple" && !header.includes("instrument_id")) {
       return "Invalid input: missing required column: instrument_id";
