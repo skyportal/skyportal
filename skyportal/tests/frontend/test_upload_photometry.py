@@ -32,6 +32,35 @@ def test_upload_photometry(
     )
 
 
+def test_upload_photometry_with_altdata(
+    driver, user, public_group, public_source, super_admin_token
+):
+    data = add_telescope_and_instrument(
+        "P60 Camera", [public_group.id], super_admin_token
+    )
+    inst_id = data["data"]["id"]
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/upload_photometry/{public_source.id}")
+    csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
+    csv_text_input.send_keys(
+        "mjd,flux,fluxerr,zp,magsys,filter,altdata\n"
+        "58001,55,1,25,ab,ztfg,{\"metadataKey\": 44.4}\n"
+        "58002,53,1,25,ab,ztfg,{\"metadataKey\": 44.2}"
+    )
+    driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
+    driver.wait_for_xpath(f'//li[text()="P60 Camera (ID: {inst_id})"]').click()
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]')
+    )
+    driver.wait_for_xpath('//td[text()="58001"]')
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath('//*[text()="Upload Photometry"]')
+    )
+    driver.wait_for_xpath(
+        '//*[contains(.,"Upload successful. Your bulk upload ID is")]'
+    )
+
+
 def test_upload_photometry_form_validation(
     driver, user, public_group, public_source, super_admin_token
 ):
