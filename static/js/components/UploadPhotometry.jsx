@@ -19,6 +19,11 @@ import FormValidationError from "./FormValidationError";
 import * as Actions from "../ducks/source";
 
 
+const textAreaPlaceholderText = `mjd,flux,fluxerr,zp,magsys,filter
+58001.,22.,1.,30.,ab,ztfg
+58002.,23.,1.,30.,ab,ztfg
+58003.,22.,1.,30.,ab,ztfg`;
+
 const UploadPhotometryForm = () => {
   const dispatch = useDispatch();
   const { instrumentList } = useSelector((state) => state.instruments);
@@ -157,6 +162,13 @@ const UploadPhotometryForm = () => {
                 />
               </FormControl>
             </Box>
+            <Box m={1}>
+              <em>
+                Required fields (flux-space): mjd,flux,fluxerr,zp,magsys,filter
+                <br />
+                Required fields (mag-space): mjd,mag,magerr,limiting_mag,magsys,filter
+              </em>
+            </Box>
             <Box component="span" m={1}>
               {
                 errors.csvData && (
@@ -170,7 +182,7 @@ const UploadPhotometryForm = () => {
                   as={(
                     <TextareaAutosize
                       name="csvData"
-                      placeholder="Paste CSV Text Here"
+                      placeholder={textAreaPlaceholderText}
                       style={{ height: "20em", width: "40em" }}
                     />
                   )}
