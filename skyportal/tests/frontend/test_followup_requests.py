@@ -40,6 +40,7 @@ def add_telescope_and_instrument(instrument_name, group_ids, token):
     )
     assert status == 200
     assert data["status"] == "success"
+    return data
 
 
 def test_submit_new_followup_request(

@@ -183,6 +183,12 @@ const UploadPhotometryForm = () => {
                 <br />
                 Required fields (mag-space):
                 mjd,mag,magerr,limiting_mag,magsys,filter[,instrument_id]
+                <br />
+                See the&nbsp;
+                <a href="https://skyportal.io/docs/api.html#/paths/~1api~1photometry/post">
+                  API docs
+                </a>
+                &nbsp;for other allowable fields (note: omit obj_id here).
               </em>
             </Box>
             <Box component="span" m={1}>

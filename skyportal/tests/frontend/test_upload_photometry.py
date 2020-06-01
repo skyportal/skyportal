@@ -6,7 +6,10 @@ from .test_followup_requests import add_telescope_and_instrument
 def test_upload_photometry(
     driver, user, public_group, public_source, super_admin_token
 ):
-    add_telescope_and_instrument("P60 Camera", [public_group.id], super_admin_token)
+    data = add_telescope_and_instrument(
+        "P60 Camera", [public_group.id], super_admin_token
+    )
+    inst_id = data["data"]["id"]
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/upload_photometry/{public_source.id}")
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
@@ -16,10 +19,14 @@ def test_upload_photometry(
         "58002,53,1,25,ab,ztfg"
     )
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
-    driver.wait_for_xpath('//li[text()="P60 Camera"]').click()
-    driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]').click()
+    driver.wait_for_xpath(f'//li[text()="P60 Camera (ID: {inst_id})"]').click()
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]')
+    )
     driver.wait_for_xpath('//td[text()="58001"]')
-    driver.wait_for_xpath('//*[text()="Upload Photometry"]').click()
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath('//*[text()="Upload Photometry"]')
+    )
     driver.wait_for_xpath(
         '//*[contains(.,"Upload successful. Your bulk upload ID is")]'
     )
@@ -28,7 +35,10 @@ def test_upload_photometry(
 def test_upload_photometry_form_validation(
     driver, user, public_group, public_source, super_admin_token
 ):
-    add_telescope_and_instrument("P60 Camera", [public_group.id], super_admin_token)
+    data = add_telescope_and_instrument(
+        "P60 Camera", [public_group.id], super_admin_token
+    )
+    inst_id = data["data"]["id"]
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/upload_photometry/{public_source.id}")
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
@@ -63,6 +73,6 @@ def test_upload_photometry_form_validation(
     )
     driver.wait_for_xpath('//div[contains(.,"Select an instrument")]')
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
-    driver.wait_for_xpath('//li[text()="P60 Camera"]').click()
+    driver.wait_for_xpath(f'//li[text()="P60 Camera (ID: {inst_id})"]').click()
     driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]').click()
     driver.wait_for_xpath('//td[text()="58001"]')
