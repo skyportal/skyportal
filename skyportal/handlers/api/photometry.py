@@ -71,15 +71,15 @@ def serialize(phot, outsys, format):
             maglimit_out = -2.5 * np.log10(fivesigma) + corrected_db_zp
 
         retval.update({
-            'mag': phot.mag + db_correction,
-            'magerr': phot.e_mag,
-            'magsys': 'ab',
+            'mag': phot.mag + db_correction if phot.mag is not None else None,
+            'magerr': phot.e_mag if phot.e_mag is not None else None,
+            'magsys': outsys.name,
             'limiting_mag': maglimit_out
         })
     elif format == 'flux':
         retval.update({
             'flux': phot.flux,
-            'magsys': 'ab',
+            'magsys': outsys.name,
             'zp': corrected_db_zp,
             'fluxerr': phot.fluxerr
         })
@@ -236,7 +236,7 @@ class PhotometryHandler(BaseHandler):
                                   f'"{e1.normalized_messages()}." Tried '
                                   f'to parse {packet} as PhotometryMag, got:'
                                   f' "{e2.normalized_messages()}."')
-            
+
         phot.original_user_data = packet
         phot.id = photometry_id
         DBSession().merge(phot)
@@ -277,6 +277,8 @@ class SourcePhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
         source = Source.get_if_owned_by(obj_id, self.current_user)
+        if source is None:
+            return self.error('Invalid source id.')
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
         return self.success(

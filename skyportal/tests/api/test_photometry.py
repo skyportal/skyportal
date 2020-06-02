@@ -116,6 +116,7 @@ def test_token_user_post_and_get_different_systems_mag(upload_data_token,
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
+    assert data['data']['magsys'] == 'vega'
 
     ab = sncosmo.get_magsystem('ab')
     vega = sncosmo.get_magsystem('vega')
@@ -582,3 +583,41 @@ def test_token_user_retrieving_source_photometry_and_convert(view_only_token, pu
 
     assert np.allclose(maglast_ab, maglast_vega + vega_to_ab[data['data'][-1]['filter']])
     assert np.allclose(magerrlast_ab, magerrlast_vega)
+
+
+def test_token_user_retrieve_null_photometry(upload_data_token, public_source,
+                                             ztf_camera):
+
+    status, data = api('POST', 'photometry',
+                       data={'obj_id': str(public_source.id),
+                             'mjd': 58000.,
+                             'instrument_id': ztf_camera.id,
+                             'mag': None,
+                             'magerr': None,
+                             'limiting_mag': 22.3,
+                             'magsys': 'ab',
+                             'filter': 'ztfg'
+                             },
+                       token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    photometry_id = data['data']['ids'][0]
+    status, data = api(
+        'GET',
+        f'photometry/{photometry_id}?format=flux',
+        token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['flux'] is None
+
+    np.testing.assert_allclose(data['data']['fluxerr'], 10**(-0.4 * (22.3 - 23.9)) / 5.)
+
+    status, data = api(
+        'GET',
+        f'photometry/{photometry_id}?format=mag',
+        token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['mag'] is None
+    assert data['data']['magerr'] is None
