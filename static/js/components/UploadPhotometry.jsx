@@ -19,10 +19,10 @@ import FormValidationError from "./FormValidationError";
 import * as Actions from "../ducks/source";
 
 
-const textAreaPlaceholderText = `mjd,flux,fluxerr,zp,magsys,instrument_id,filter,altdata
-58001.,22.,1.,30.,ab,1,ztfg,{"metadataKey": 44.4}
-58002.,23.,1.,30.,ab,1,ztfg,{"metadataKey": 43.1}
-58003.,22.,1.,30.,ab,1,ztfg,{"metadataKey": 42.5}`;
+const textAreaPlaceholderText = `mjd,flux,fluxerr,zp,magsys,instrument_id,filter,altdata.meta1
+58001.,22.,1.,30.,ab,1,ztfg,44.4
+58002.,23.,1.,30.,ab,1,ztfg,43.1
+58003.,22.,1.,30.,ab,1,ztfg,42.5`;
 
 const UploadPhotometryForm = () => {
   const dispatch = useDispatch();
@@ -35,6 +35,8 @@ const UploadPhotometryForm = () => {
   let formState = getValues();
 
   const validateCsvData = () => {
+    setShowPreview(false);
+    setCsvData({});
     setSuccessMessage(null);
     formState = getValues();
     if (!formState.csvData) {
@@ -75,6 +77,7 @@ const UploadPhotometryForm = () => {
     if (formState.instrumentID === "multiple" && !header.includes("instrument_id")) {
       return "Invalid input: missing required column: instrument_id";
     }
+    setShowPreview(true);
     return true;
   };
 
@@ -105,16 +108,18 @@ const UploadPhotometryForm = () => {
     formState = getValues();
     const data = {
       obj_id: id,
+      altdata: {}
     };
     if (formState.instrumentID !== "multiple") {
       data.instrument_id = formState.instrumentID;
     }
     csvData.columns.forEach((col, idx) => {
-      data[col] = csvData.data.map((row) => row[idx]);
+      if (col.startsWith("altdata.")) {
+        data.altdata[col.split("altdata.")[1]] = csvData.data.map((row) => row[idx]);
+      } else {
+        data[col] = csvData.data.map((row) => row[idx]);
+      }
     });
-    if (Object.keys(data).includes("altdata")) {
-      data.altdata = data.altdata.map((val) => JSON.parse(val));
-    }
     const result = await dispatch(Actions.uploadPhotometry(data));
     if (result.status === "success") {
       handleReset();

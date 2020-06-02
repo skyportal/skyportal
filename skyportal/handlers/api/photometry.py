@@ -134,6 +134,8 @@ class PhotometryHandler(BaseHandler):
         if not isinstance(data, dict):
             return self.error('Top level JSON must be an instance of `dict`, got '
                               f'{type(data)}.')
+        if "altdata" in data and not data["altdata"]:
+            del data["altdata"]
 
         if allscalar(data):
             data = [data]
@@ -144,8 +146,16 @@ class PhotometryHandler(BaseHandler):
         try:
             df = pd.DataFrame(data)
         except ValueError as e:
-            return self.error('Unable to coerce passed JSON to a series of packets. '
-                              f'Error was: "{e}"')
+            if "altdata" in data and "Mixing dicts with non-Series" in str(e):
+                try:
+                    data["altdata"] = [
+                        {key: value[i] for key, value in data["altdata"].items()}
+                        for i in range(len(data["altdata"][list(data["altdata"].keys())[-1]]))
+                    ]
+                    df = pd.DataFrame(data)
+                except ValueError:
+                    return self.error('Unable to coerce passed JSON to a series of packets. '
+                                      f'Error was: "{e}"')
 
         # pop out thumbnails and process what's left using schemas
 
