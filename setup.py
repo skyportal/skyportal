@@ -2,9 +2,11 @@ from setuptools import setup
 
 import locale
 import os
+import re
 import subprocess
 import warnings
 
+from pathlib import Path
 from skyportal import __version__
 
 
@@ -149,6 +151,41 @@ RELEASE = 'dev' not in VERSION
 if not RELEASE:
     VERSION += get_git_devstr(sha=False)
 
+
+# parse depenency versions from requirements.txt
+deps = ['numpy',
+        'scipy',
+        'astropy',
+        'sqlalchemy-utils',
+        'marshmallow',
+        'marshmallow-sqlalchemy',
+        'marshmallow-enum',
+        'simplejson',
+        'arrow',
+        'tornado',
+        'sncosmo']
+
+
+# these are where the version numbers of the dependencies can be found
+reqfiles = map(lambda f: Path(__file__).parent / f, [
+    'requirements.txt',
+    'baselayer/requirements.txt'
+])
+
+depdict = {}
+for r in reqfiles:
+    with open(r, 'r') as f:
+        for line in f:
+            line = line.strip()
+            m = re.match('([^<=>]+).*', line)
+            packagename = m.group(1)
+            depdict[packagename] = line
+
+# match the dependencies to their version numbers
+deps = [depdict[dep] for dep in deps]
+print(deps)
+
+
 setup(name=PACKAGENAME,
       version=VERSION,
       description=DESCRIPTION,
@@ -159,19 +196,7 @@ setup(name=PACKAGENAME,
                   'baselayer.app.models',
                   'baselayer.app.json_util',
                   'baselayer.app.custom_exceptions'],
-      install_requires=[
-          'numpy>=1.18.1',
-          'scipy>=0.16.0',
-          'astropy>=4.0',
-          'sqlalchemy-utils',
-          'marshmallow>=3.4.0',
-          'marshmallow-sqlalchemy>=0.21.0',
-          'marshmallow-enum>=1.5.1',
-          'simplejson',
-          'arrow==0.15.4',
-          'tornado==6.0.3',
-          'sncosmo>=2.1.0'
-      ],
+      install_requires=deps,
       author=AUTHOR,
       author_email=AUTHOR_EMAIL,
       license=LICENSE,
