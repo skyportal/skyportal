@@ -11,8 +11,10 @@ import FormControl from "@material-ui/core/FormControl";
 import Card from "@material-ui/core/Card";
 import CardContent from "@material-ui/core/CardContent";
 import Box from "@material-ui/core/Box";
+import Tooltip from "@material-ui/core/Tooltip";
+import HelpOutlineIcon from '@material-ui/icons/HelpOutline';
 import Typography from "@material-ui/core/Typography";
-import { makeStyles } from "@material-ui/core/styles";
+import { makeStyles, withStyles } from "@material-ui/core/styles";
 import { useForm, Controller } from "react-hook-form";
 
 import FormValidationError from "./FormValidationError";
@@ -23,6 +25,16 @@ const textAreaPlaceholderText = `mjd,flux,fluxerr,zp,magsys,instrument_id,filter
 58001.,22.,1.,30.,ab,1,ztfg,44.4
 58002.,23.,1.,30.,ab,1,ztfg,43.1
 58003.,22.,1.,30.,ab,1,ztfg,42.5`;
+
+const HtmlTooltip = withStyles((theme) => ({
+  tooltip: {
+    backgroundColor: '#f9f9ff',
+    color: 'rgba(0, 0, 0, 0.87)',
+    maxWidth: 700,
+    fontSize: theme.typography.pxToRem(12),
+    border: '1px solid #dadde9',
+  },
+}))(Tooltip);
 
 const UploadPhotometryForm = () => {
   const dispatch = useDispatch();
@@ -135,6 +147,17 @@ const UploadPhotometryForm = () => {
     formControl: {
       margin: theme.spacing(1),
       minWidth: 120,
+    },
+    textarea: {
+      "::-webkit-input-placeholder": {
+        opacity: 0.2
+      },
+      "::-moz-placeholder": {
+        opacity: 0.2
+      },
+      ":-ms-input-placeholder": {
+        opacity: 0.2
+      }
     }
   }));
   const classes = useStyles();
@@ -151,21 +174,59 @@ const UploadPhotometryForm = () => {
         <CardContent>
           <form onSubmit={handleSubmit(handleClickPreview)}>
             <Box m={1} style={{ display: "inline-block" }}>
-              <em>
-                Required fields (flux-space):
-                mjd,flux,fluxerr,zp,magsys,filter[,instrument_id]
-                <br />
-                Required fields (mag-space):
-                mjd,mag,magerr,limiting_mag,magsys,filter[,instrument_id]
-                <br />
-                See the&nbsp;
-                <a href="https://skyportal.io/docs/api.html#/paths/~1api~1photometry/post">
-                  API docs
-                </a>
-                &nbsp;for other allowable fields (note: omit obj_id here).
-              </em>
+              <HtmlTooltip
+                interactive
+                title={(
+                  <>
+                    <p>
+                      Use this form to upload flux- or mag-space photometry data
+                      (only one type per request, not mixed).
+                    </p>
+                    <p>
+                      Required fields (flux-space):&nbsp;
+                      <code>mjd,flux,fluxerr,zp,magsys,filter[,instrument_id]</code>
+                      <br />
+                      Required fields (mag-space):&nbsp;
+                      <code>mjd,mag,magerr,limiting_mag,magsys,filter[,instrument_id]</code>
+                      <br />
+                      See the&nbsp;
+                      <a href="https://skyportal.io/docs/api.html#/paths/~1api~1photometry/post">
+                        API docs
+                      </a>
+                      &nbsp;for other allowable fields (note: omit
+                      {' '}
+                      <code>obj_id</code>
+                      {' '}
+                      here).
+                    </p>
+                    <p>
+                      Other miscellanous metadata can be supplied by preceding the column
+                      name with
+                      {' '}
+                      <code>&quot;altdata.&quot;</code>
+                      {' '}
+                      (e.g.
+                      {' '}
+                      <code>&quot;altdata.metdata1&quot;</code>
+                      ).
+                      Such fields will ultimately be stored in the photometry table&apos;s
+                      {' '}
+                      <code>altdata</code>
+                      &nbsp;JSONB column, e.g.
+                      {' '}
+                      <code>
+                        {"{"}
+                        &quot;metadata1&quot;: &quot;value&quot;, ...
+                        {"}"}
+                      </code>
+                      .
+                    </p>
+                  </>
+                )}
+              >
+                <HelpOutlineIcon />
+              </HtmlTooltip>
             </Box>
-            <br />
             <br />
             <Box component="span" m={1}>
               {
@@ -182,6 +243,7 @@ const UploadPhotometryForm = () => {
                       name="csvData"
                       placeholder={textAreaPlaceholderText}
                       style={{ height: "20em", width: "40em" }}
+                      className={classes.textarea}
                     />
                   )}
                   name="csvData"
