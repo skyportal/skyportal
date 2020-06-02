@@ -183,7 +183,6 @@ for r in reqfiles:
 
 # match the dependencies to their version numbers
 deps = [depdict[dep] for dep in deps]
-print(deps)
 
 
 setup(name=PACKAGENAME,
