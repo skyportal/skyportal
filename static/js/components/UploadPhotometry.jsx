@@ -150,41 +150,7 @@ const UploadPhotometryForm = () => {
       <Card>
         <CardContent>
           <form onSubmit={handleSubmit(handleClickPreview)}>
-            <Box m={1}>
-              {
-                errors.instrumentID && (
-                  <FormValidationError
-                    message="Select an instrument"
-                  />
-                )
-              }
-              <FormControl variant="filled" className={classes.formControl}>
-                <InputLabel id="instrumentSelectLabel">
-                  Instrument
-                </InputLabel>
-                <Controller
-                  as={(
-                    <Select labelId="instrumentSelectLabel">
-                      <MenuItem value="multiple" key={0}>
-                        Multiple (requires instrument_id column below)
-                      </MenuItem>
-                      {
-                        instrumentList.map((instrument) => (
-                          <MenuItem value={instrument.id} key={instrument.id}>
-                            {`${instrument.name} (ID: ${instrument.id})`}
-                          </MenuItem>
-                        ))
-                      }
-                    </Select>
-                  )}
-                  name="instrumentID"
-                  rules={{ required: true }}
-                  control={control}
-                  defaultValue=""
-                />
-              </FormControl>
-            </Box>
-            <Box m={1}>
+            <Box m={1} style={{ display: "inline-block" }}>
               <em>
                 Required fields (flux-space):
                 mjd,flux,fluxerr,zp,magsys,filter[,instrument_id]
@@ -199,6 +165,8 @@ const UploadPhotometryForm = () => {
                 &nbsp;for other allowable fields (note: omit obj_id here).
               </em>
             </Box>
+            <br />
+            <br />
             <Box component="span" m={1}>
               {
                 errors.csvData && (
@@ -222,26 +190,63 @@ const UploadPhotometryForm = () => {
                 />
               </FormControl>
             </Box>
-            <Box component="span" m={1}>
-              <FormControl>
-                <InputLabel id="delimiter-label">Delimiter</InputLabel>
-                <Controller
-                  as={(
-                    <Select labelId="delimiter-label">
-                      <MenuItem value=",">
-                        Comma
-                      </MenuItem>
-                      <MenuItem value={`\\s+`}>
-                        Whitespace
-                      </MenuItem>
-                    </Select>
-                  )}
-                  name="delimiter"
-                  control={control}
-                  rules={{ required: true }}
-                  defaultValue=","
-                />
-              </FormControl>
+            <Box m={1} style={{ display: "inline-block" }}>
+              <Box component="span" m={1}>
+                <FormControl className={classes.formControl}>
+                  <InputLabel id="delimiter-label">Delimiter</InputLabel>
+                  <Controller
+                    as={(
+                      <Select labelId="delimiter-label">
+                        <MenuItem value=",">
+                          Comma
+                        </MenuItem>
+                        <MenuItem value={`\\s+`}>
+                          Whitespace
+                        </MenuItem>
+                      </Select>
+                    )}
+                    name="delimiter"
+                    control={control}
+                    rules={{ required: true }}
+                    defaultValue=","
+                  />
+                </FormControl>
+              </Box>
+              <br />
+              <Box component="span" m={1}>
+                {
+                  errors.instrumentID && (
+                    <FormValidationError
+                      message="Select an instrument"
+                    />
+                  )
+                }
+                <FormControl className={classes.formControl}>
+                  <InputLabel id="instrumentSelectLabel">
+                    Instrument
+                  </InputLabel>
+                  <Controller
+                    as={(
+                      <Select labelId="instrumentSelectLabel">
+                        <MenuItem value="multiple" key={0}>
+                          Multiple (requires instrument_id column below)
+                        </MenuItem>
+                        {
+                          instrumentList.map((instrument) => (
+                            <MenuItem value={instrument.id} key={instrument.id}>
+                              {`${instrument.name} (ID: ${instrument.id})`}
+                            </MenuItem>
+                          ))
+                        }
+                      </Select>
+                    )}
+                    name="instrumentID"
+                    rules={{ required: true }}
+                    control={control}
+                    defaultValue=""
+                  />
+                </FormControl>
+              </Box>
             </Box>
             <Box m={1}>
               <Box component="span" m={1}>
