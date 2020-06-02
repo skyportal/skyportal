@@ -159,7 +159,6 @@ setup(name=PACKAGENAME,
                   'baselayer.app.models',
                   'baselayer.app.json_util',
                   'baselayer.app.custom_exceptions'],
-      setup_requires=['Cython>=0.29'],
       install_requires=[
           'numpy>=1.18.1',
           'scipy>=0.16.0',
