@@ -173,61 +173,6 @@ const UploadPhotometryForm = () => {
       <Card>
         <CardContent>
           <form onSubmit={handleSubmit(handleClickPreview)}>
-            <Box m={1} style={{ display: "inline-block" }}>
-              <HtmlTooltip
-                interactive
-                title={(
-                  <>
-                    <p>
-                      Use this form to upload flux- or mag-space photometry data
-                      (only one type per request, not mixed).
-                    </p>
-                    <p>
-                      Required fields (flux-space):&nbsp;
-                      <code>mjd,flux,fluxerr,zp,magsys,filter[,instrument_id]</code>
-                      <br />
-                      Required fields (mag-space):&nbsp;
-                      <code>mjd,mag,magerr,limiting_mag,magsys,filter[,instrument_id]</code>
-                      <br />
-                      See the&nbsp;
-                      <a href="https://skyportal.io/docs/api.html#/paths/~1api~1photometry/post">
-                        API docs
-                      </a>
-                      &nbsp;for other allowable fields (note: omit
-                      {' '}
-                      <code>obj_id</code>
-                      {' '}
-                      here).
-                    </p>
-                    <p>
-                      Other miscellanous metadata can be supplied by preceding the column
-                      name with
-                      {' '}
-                      <code>&quot;altdata.&quot;</code>
-                      {' '}
-                      (e.g.
-                      {' '}
-                      <code>&quot;altdata.metdata1&quot;</code>
-                      ).
-                      Such fields will ultimately be stored in the photometry table&apos;s
-                      {' '}
-                      <code>altdata</code>
-                      &nbsp;JSONB column, e.g.
-                      {' '}
-                      <code>
-                        {"{"}
-                        &quot;metadata1&quot;: &quot;value&quot;, ...
-                        {"}"}
-                      </code>
-                      .
-                    </p>
-                  </>
-                )}
-              >
-                <HelpOutlineIcon />
-              </HtmlTooltip>
-            </Box>
-            <br />
             <Box component="span" m={1}>
               {
                 errors.csvData && (
@@ -309,6 +254,60 @@ const UploadPhotometryForm = () => {
                   />
                 </FormControl>
               </Box>
+            </Box>
+            <Box m={1}>
+              <HtmlTooltip
+                interactive
+                title={(
+                  <>
+                    <p>
+                      Use this form to upload flux- or mag-space photometry data
+                      (only one type per request, not mixed).
+                    </p>
+                    <p>
+                      Required fields (flux-space):&nbsp;
+                      <code>mjd,flux,fluxerr,zp,magsys,filter[,instrument_id]</code>
+                      <br />
+                      Required fields (mag-space):&nbsp;
+                      <code>mjd,mag,magerr,limiting_mag,magsys,filter[,instrument_id]</code>
+                      <br />
+                      See the&nbsp;
+                      <a href="https://skyportal.io/docs/api.html#/paths/~1api~1photometry/post">
+                        API docs
+                      </a>
+                      &nbsp;for other allowable fields (note: omit
+                      {' '}
+                      <code>obj_id</code>
+                      {' '}
+                      here).
+                    </p>
+                    <p>
+                      Other miscellanous metadata can be supplied by preceding the column
+                      name with
+                      {' '}
+                      <code>&quot;altdata.&quot;</code>
+                      {' '}
+                      (e.g.
+                      {' '}
+                      <code>&quot;altdata.metdata1&quot;</code>
+                      ).
+                      Such fields will ultimately be stored in the photometry table&apos;s
+                      {' '}
+                      <code>altdata</code>
+                      &nbsp;JSONB column, e.g.
+                      {' '}
+                      <code>
+                        {"{"}
+                        &quot;metadata1&quot;: &quot;value&quot;, ...
+                        {"}"}
+                      </code>
+                      .
+                    </p>
+                  </>
+                )}
+              >
+                <HelpOutlineIcon />
+              </HtmlTooltip>
             </Box>
             <Box m={1}>
               <Box component="span" m={1}>
