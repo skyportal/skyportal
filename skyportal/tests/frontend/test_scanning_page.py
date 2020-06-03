@@ -110,14 +110,6 @@ def test_candidate_unsaved_only_filtering(
         assert status == 200
         assert data["data"]["id"] == f"{candidate_id}_{i}"
 
-    status, data = api(
-        "POST",
-        "groups",
-        data={"name": str(uuid.uuid4()), "group_admins": [user.username]},
-        token=manage_groups_token,
-    )
-    assert status == 200
-
     driver.get(f"/become_user/{user.id}")
     driver.get("/candidates")
     for i in range(5):

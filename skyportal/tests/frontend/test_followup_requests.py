@@ -32,13 +32,15 @@ def add_telescope_and_instrument(instrument_name, group_ids, token):
         data={
             "name": instrument_name,
             "type": "type",
-            "band": "bessellv",
+            "band": "Optical",
             "telescope_id": telescope_id,
+            "filters": ["ztfg"]
         },
         token=token,
     )
     assert status == 200
     assert data["status"] == "success"
+    return data
 
 
 def test_submit_new_followup_request(
