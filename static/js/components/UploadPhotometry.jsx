@@ -292,7 +292,7 @@ const UploadPhotometryForm = () => {
                       {' '}
                       (e.g.
                       {' '}
-                      <code>&quot;altdata.metadata1&quot;</code>
+                      <code>&quot;altdata.calibrated_to&quot;</code>
                       ).
                       Such fields will ultimately be stored in the photometry table&apos;s
                       {' '}
@@ -301,7 +301,7 @@ const UploadPhotometryForm = () => {
                       {' '}
                       <code>
                         {"{"}
-                        &quot;metadata1&quot;: &quot;value&quot;, ...
+                        &quot;calibrated_to&quot;: &quot;ps1&quot;, ...
                         {"}"}
                       </code>
                       .
