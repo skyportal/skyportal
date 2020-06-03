@@ -24,7 +24,7 @@ import FormValidationError from "./FormValidationError";
 const options = ["Save as Source", "Save (select groups)"];
 
 const SaveCandidateButton = ({ candidate, userGroups }) => {
-  // Dialog logic
+  // Dialog logic:
 
   const dispatch = useDispatch();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -62,7 +62,8 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
     }
   };
 
-  // Split button logic
+  // Split button logic (largely copied from
+  // https://material-ui.com/components/button-group/#split-button):
 
   const [splitButtonMenuOpen, setSplitButtonMenuOpen] = useState(false);
   const anchorRef = useRef(null);
