@@ -33,9 +33,9 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
 
   useEffect(() => {
     reset({
-      group_ids: Array(userGroups.length).fill(false)
+      group_ids: userGroups.map((userGroup) => candidate.passing_group_ids.includes(userGroup.id))
     });
-  }, [reset, userGroups]);
+  }, [reset, userGroups, candidate]);
 
   const handleClickOpenDialog = () => {
     setDialogOpen(true);
@@ -176,7 +176,6 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
                       name={`group_ids[${idx}]`}
                       control={control}
                       rules={{ validate: validateGroups }}
-                      defaultValue={false}
                     />
                   )}
                   label={userGroup.name}

@@ -233,7 +233,7 @@ def test_save_candidate_select_groups(
     )
     driver.scroll_to_element_and_click(save_button)
 
-    driver.wait_for_xpath("//input[@name='group_ids[0]']").click()
+    assert driver.wait_for_xpath("//input[@name='group_ids[0]']").is_selected()
     second_save_button = driver.wait_for_xpath(
         f'//button[@name="finalSaveCandidateButton{public_candidate.id}"]'
     )
@@ -248,7 +248,7 @@ def test_save_candidate_no_groups_error_message(
     driver.get(f"/become_user/{group_admin_user.id}")
     driver.get("/candidates")
     driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
-    carat = driver.wait_for_xpath(
+    carat = driver.wait_for_xpath_to_be_clickable(
         f'//button[@name="saveCandidateButtonDropDownArrow{public_candidate.id}"]'
     )
     driver.scroll_to_element_and_click(carat)
@@ -260,7 +260,11 @@ def test_save_candidate_no_groups_error_message(
     )
     driver.scroll_to_element_and_click(save_button)
 
-    second_save_button = driver.wait_for_xpath(
+    group_checkbox = driver.wait_for_xpath("//input[@name='group_ids[0]']")
+    assert group_checkbox.is_selected()
+    group_checkbox.click()
+    assert not group_checkbox.is_selected()
+    second_save_button = driver.wait_for_xpath_to_be_clickable(
         f'//button[@name="finalSaveCandidateButton{public_candidate.id}"]'
     )
     second_save_button.click()
