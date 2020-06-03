@@ -89,6 +89,9 @@ const UploadPhotometryForm = () => {
     if (formState.instrumentID === "multiple" && !header.includes("instrument_id")) {
       return "Invalid input: missing required column: instrument_id";
     }
+    if (formState.instrumentID !== "multiple" && header.includes("instrument_id")) {
+      return "Invalid input: instrument_id already specified in select input";
+    }
     setShowPreview(true);
     return true;
   };
@@ -289,7 +292,7 @@ const UploadPhotometryForm = () => {
                       {' '}
                       (e.g.
                       {' '}
-                      <code>&quot;altdata.metdata1&quot;</code>
+                      <code>&quot;altdata.metadata1&quot;</code>
                       ).
                       Such fields will ultimately be stored in the photometry table&apos;s
                       {' '}
