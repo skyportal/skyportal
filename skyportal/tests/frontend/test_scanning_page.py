@@ -51,9 +51,7 @@ def test_candidate_group_filtering(
     driver.get("/candidates")
     for i in range(5):
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
-    group_checkbox = driver.wait_for_xpath(
-        f'//input[starts-with(@name,"groupIDs[0]")]'
-    )
+    group_checkbox = driver.wait_for_xpath(f'//input[starts-with(@name,"groupIDs[0]")]')
     driver.scroll_to_element_and_click(group_checkbox)
     submit_button = driver.wait_for_xpath('//span[text()="Submit"]')
     driver.scroll_to_element_and_click(submit_button)
@@ -135,8 +133,13 @@ def test_candidate_unsaved_only_filtering(
 
 
 def test_candidate_date_filtering(
-    driver, user, public_candidate, public_filter, public_group, upload_data_token,
-    ztf_camera
+    driver,
+    user,
+    public_candidate,
+    public_filter,
+    public_group,
+    upload_data_token,
+    ztf_camera,
 ):
     candidate_id = str(uuid.uuid4())
     for i in range(5):
@@ -163,11 +166,11 @@ def test_candidate_date_filtering(
             "photometry",
             data={
                 "obj_id": f"{candidate_id}_{i}",
-                "mjd": 58000.,
+                "mjd": 58000.0,
                 "instrument_id": ztf_camera.id,
                 "flux": 12.24,
                 "fluxerr": 0.031,
-                "zp": 25.,
+                "zp": 25.0,
                 "magsys": "ab",
                 "filter": "ztfr",
             },
@@ -198,18 +201,44 @@ def test_candidate_date_filtering(
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]', 10)
 
 
-def test_save_candidate(driver, group_admin_user, public_group, public_candidate):
+def test_save_candidate_quick_save(
+    driver, group_admin_user, public_group, public_candidate
+):
     driver.get(f"/become_user/{group_admin_user.id}")
     driver.get("/candidates")
     driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
-    first_save_button = driver.wait_for_xpath(
-        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]')
-    driver.scroll_to_element_and_click(first_save_button)
+    save_button = driver.wait_for_xpath(
+        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
+    )
+    driver.scroll_to_element_and_click(save_button)
+    driver.wait_for_xpath_to_disappear('//span[text()="Save as Source"]')
+    driver.wait_for_xpath('//a[text()="Previously Saved"]')
+
+
+def test_save_candidate_select_groups(
+    driver, group_admin_user, public_group, public_candidate
+):
+    driver.get(f"/become_user/{group_admin_user.id}")
+    driver.get("/candidates")
+    driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
+    carat = driver.wait_for_xpath(
+        f'//button[@name="saveCandidateButtonDropDownArrow{public_candidate.id}"]'
+    )
+    driver.scroll_to_element_and_click(carat)
+    driver.wait_for_xpath_to_be_clickable(
+        f'//*[@name="buttonMenuOption{public_candidate.id}_Save (select groups)"]'
+    ).click()
+    save_button = driver.wait_for_xpath_to_be_clickable(
+        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
+    )
+    driver.scroll_to_element_and_click(save_button)
+
     driver.wait_for_xpath("//input[@name='group_ids[0]']").click()
     second_save_button = driver.wait_for_xpath(
-        f'//button[@name="finalSaveCandidateButton{public_candidate.id}"]')
+        f'//button[@name="finalSaveCandidateButton{public_candidate.id}"]'
+    )
     second_save_button.click()
-    driver.wait_for_xpath_to_disappear('//span[text()="Save as source"]')
+    driver.wait_for_xpath_to_disappear('//span[text()="Save as Source"]')
     driver.wait_for_xpath('//a[text()="Previously Saved"]')
 
 
@@ -219,10 +248,20 @@ def test_save_candidate_no_groups_error_message(
     driver.get(f"/become_user/{group_admin_user.id}")
     driver.get("/candidates")
     driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
-    first_save_button = driver.wait_for_xpath(
-        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]')
-    driver.scroll_to_element_and_click(first_save_button)
+    carat = driver.wait_for_xpath(
+        f'//button[@name="saveCandidateButtonDropDownArrow{public_candidate.id}"]'
+    )
+    driver.scroll_to_element_and_click(carat)
+    driver.wait_for_xpath_to_be_clickable(
+        f'//*[@name="buttonMenuOption{public_candidate.id}_Save (select groups)"]'
+    ).click()
+    save_button = driver.wait_for_xpath_to_be_clickable(
+        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
+    )
+    driver.scroll_to_element_and_click(save_button)
+
     second_save_button = driver.wait_for_xpath(
-        f'//button[@name="finalSaveCandidateButton{public_candidate.id}"]')
+        f'//button[@name="finalSaveCandidateButton{public_candidate.id}"]'
+    )
     second_save_button.click()
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')

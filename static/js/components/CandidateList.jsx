@@ -7,7 +7,7 @@ import sourceStyles from "./Source.css";
 import Plot from './Plot';
 import ThumbnailList from './ThumbnailList';
 import CandidateCommentList from './CandidateCommentList';
-import SaveCandidateGroupSelectDialog from './SaveCandidateGroupSelectDialog';
+import SaveCandidateButton from './SaveCandidateButton';
 import FilterCandidateList from './FilterCandidateList';
 
 
@@ -97,8 +97,8 @@ const CandidateList = () => {
                         <div>
                           NOT SAVED
                           <br />
-                          <SaveCandidateGroupSelectDialog
-                            candidateID={candidateObj.id}
+                          <SaveCandidateButton
+                            candidate={candidateObj}
                             userGroups={userGroups}
                           />
                         </div>
