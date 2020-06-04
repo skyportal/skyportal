@@ -525,9 +525,9 @@ class FollowupRequest(Base):
     parameters = sa.Column(
         psql.JSONB,
         nullable=False,
-        doc='The parameters of the followup request. For spectroscopy, contains '
+        doc='The parameters of the followup request. For spectroscopy, may contain, e.g., '
             'the number of exposures and  the exposure time (potentially on '
-            'the red or blue sides of the instrument). For imaging, contains '
+            'the red or blue sides of the instrument). For imaging, may contain, e.g.,  '
             'the number of exposures, the exposure time, and the filters.'
     )
 

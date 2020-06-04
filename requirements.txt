@@ -21,5 +21,6 @@ apispec>=3.2.0
 marshmallow>=3.4.0
 marshmallow-sqlalchemy>=0.21.0
 marshmallow-enum>=1.5.1
+marshmallow-oneofschema>=2.0.1
 Pillow>=6
 sncosmo>=2.1.0
