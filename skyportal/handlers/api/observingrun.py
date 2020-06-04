@@ -127,9 +127,10 @@ class ObservingRunHandler(BaseHandler):
 
         data = self.get_json()
         data['id'] = int(run_id)
+        is_superadmin = 'Super admin' in self.current_user.roles
 
         orun = ObservingRun.query.get(run_id)
-        if orun.owner_id != self.current_user.id:
+        if orun.owner_id != self.current_user.id and not is_superadmin:
             return self.error('Only the owner of an observing run can modify '
                               'the run.')
 
@@ -170,7 +171,9 @@ class ObservingRunHandler(BaseHandler):
         """
         run_id = int(run_id)
         run = ObservingRun.query.get(run_id)
-        if run.owner_id != self.current_user.id:
+        is_superadmin = 'Super admin' in self.current_user.roles
+
+        if run.owner_id != self.current_user.id and not is_superadmin:
             return self.error('Only the owner of an observing run can modify '
                               'the run.')
 
