@@ -591,7 +591,7 @@ class ObservingRunPost(_Schema):
     pi = fields.String(description='The PI of the observing run.')
     observers = fields.String(description='The names of the observers')
     group_id = fields.Integer(description='The ID of the group this run is associated with.')
-    calendar_date = fields.DateTime(
+    calendar_date = fields.Date(
         description='The local calendar date of the run.', required=True
     )
 

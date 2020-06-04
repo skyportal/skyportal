@@ -574,6 +574,6 @@ class ObservingRun(Base):
         'FollowupRequest', cascade='save-update, merge, refresh-expire, expunge'
     )
 
-    calendar_date = sa.Column(ArrowType, nullable=False, index=True)
+    calendar_date = sa.Column(sa.Date, nullable=False, index=True)
 
 schema.setup_schema()
