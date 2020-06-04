@@ -94,6 +94,23 @@ class FollowupRequestHandler(BaseHandler):
             if run is None:
                 return self.error(f'Invalid observing run: "{run_id}"')
             followup_request.run = run
+        else:
+            # it's robotic, validate the start and end dates
+            hasstart = 'start_date' in request
+            hasend = 'end_date' in request
+            bools = [hasstart, hasend]
+
+            if any(bools) and not all(bools):
+                return self.error('Both start_date and end_date must be '
+                                  'provided, or be null, for robotic requests.')
+
+            start = arrow.get(request['start_date'])
+            end = arrow.get(request['end_date'])
+
+            if end < start:
+                return self.error('End date must be greater than or equal to '
+                                  f'start date, got end_date: {end}, start_'
+                                  f'date: {start}.')
 
         # shove whatever's left after the pops into parameters
         followup_request.parameters = request
