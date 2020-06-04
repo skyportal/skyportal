@@ -187,7 +187,7 @@ class Filter(Base):
 
 Candidate = join_model("candidates", Filter, Obj)
 Candidate.passed_at = sa.Column(sa.DateTime, nullable=True)
-Candidate.passing_alert_id = sa.Column(sa.Integer)
+Candidate.passing_alert_id = sa.Column(sa.BigInteger)
 
 
 def get_candidate_if_owned_by(obj_id, user_or_token, options=[]):
