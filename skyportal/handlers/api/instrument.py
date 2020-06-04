@@ -4,8 +4,6 @@ from ..base import BaseHandler
 from ...models import DBSession, Instrument, Telescope, GroupTelescope
 from ...enum_types import ALLOWED_BANDPASSES
 
-import jsonschema
-
 
 class InstrumentHandler(BaseHandler):
     @permissions(['System admin'])
@@ -158,7 +156,21 @@ InstrumentHandler.post.__doc__ = f"""
         requestBody:
           content:
             application/json:
-              schema: InstrumentNoID
+              schema: 
+                allOf:
+                - $ref: "#/components/schemas/InstrumentNoID"
+                - type: object
+                  properties:
+                    filters:
+                      type: array
+                      items:
+                        type: string
+                        enum: {list(ALLOWED_BANDPASSES)}
+                      description: >-
+                        List of filters on the instrument. If the instrument
+                        has no filters (e.g., because it is a spectrograph),
+                        leave blank or pass the empty list. 
+                      default: []
         responses:
           200:
             content:
