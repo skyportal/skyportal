@@ -264,8 +264,10 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
             # If user can't view associated Source, and there's no Candidate they can
             # view, raise AccessError
             raise
-    if obj is None:  # There is no associated Source, so just return the Obj
-        return Obj.query.options(options).get(obj_id)
+    if obj is None:  # There is no associated Source/Cand, so check based on photometry
+        if Obj.get_photometry_owned_by_user(obj_id, user_or_token):
+            return Obj.query.options(options).get(obj_id)
+        raise AccessError("Insufficient permissions.")
     # If we get here, the user has access to either the associated Source or Candidate
     return obj
 
