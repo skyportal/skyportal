@@ -24,6 +24,7 @@ import FormValidationError from "./FormValidationError";
 const options = ["Save as Source", "Save (select groups)"];
 
 const SaveCandidateButton = ({ candidate, userGroups }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // Dialog logic:
 
   const dispatch = useDispatch();
@@ -50,7 +51,8 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
     return formState.group_ids.filter((value) => Boolean(value)).length >= 1;
   };
 
-  const onSubmit = async (data) => {
+  const onSubmitGroupSelectSave = async (data) => {
+    setIsSubmitting(true);
     data.id = candidate.id;
     const groupIDs = userGroups.map((g) => g.id);
     const selectedGroupIDs = groupIDs.filter((ID, idx) => data.group_ids[idx]);
@@ -59,6 +61,8 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
     if (result.status === "success") {
       reset();
       setDialogOpen(false);
+    } else if (result.status === "error") {
+      setIsSubmitting(false);
     }
   };
 
@@ -69,13 +73,17 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
   const anchorRef = useRef(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const handleClickMainButton = () => {
+  const handleClickMainButton = async () => {
     if (selectedIndex === 0) {
+      setIsSubmitting(true);
       const data = {
         id: candidate.id,
         group_ids: candidate.passing_group_ids
       };
-      dispatch(sourceActions.saveSource(data));
+      const result = await dispatch(sourceActions.saveSource(data));
+      if (result.status === "error") {
+        setIsSubmitting(false);
+      }
     } else if (selectedIndex === 1) {
       handleClickOpenDialog();
     }
@@ -107,6 +115,7 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
         <Button
           onClick={handleClickMainButton}
           name={`initialSaveCandidateButton${candidate.id}`}
+          disabled={isSubmitting}
         >
           {options[selectedIndex]}
         </Button>
@@ -162,7 +171,7 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
           Select one or more groups:
         </DialogTitle>
         <DialogContent>
-          <form onSubmit={handleSubmit(onSubmit)}>
+          <form onSubmit={handleSubmit(onSubmitGroupSelectSave)}>
             {
               errors.group_ids &&
                 <FormValidationError message="Select at least one group." />
