@@ -581,6 +581,22 @@ class FollowUpRequestSchema(OneOfSchema):
     }
 
 
+class ObservingRunPost(_Schema):
+    instrument_id = fields.Integer(
+        required=True, description='The ID of the instrument to be '
+                                   'used in this run.'
+    )
+
+    # name of the PI
+    pi = fields.String(description='The PI of the observing run.')
+    observers = fields.String(description='The names of the observers')
+    group_id = fields.Integer(description='The ID of the group this run is associated with.')
+    calendar_date = fields.DateTime(
+        description='The local calendar date of the run.', required=True
+    )
+
+
+
 def register_components(spec):
     print('Registering schemas with APISpec')
 

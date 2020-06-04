@@ -532,6 +532,7 @@ class FollowupRequest(Base):
     )
 
     status = sa.Column(sa.String(), nullable=False, default="pending")
+
     def submit(self):
         # TODO: implement this method for SEDM and LT
         pass
@@ -563,6 +564,11 @@ class ObservingRun(Base):
     group = relationship('Group', back_populates='observing_runs')
     group_id = sa.Column(sa.ForeignKey('groups.id', ondelete='CASCADE'),
                          nullable=True)
+
+    # the person who uploaded the run
+    owner = relationship('User', back_populates='observing_runs'),
+    owner_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
+                         nullable=False, index=True)
 
     assignments = relationship(
         'FollowupRequest', cascade='save-update, merge, refresh-expire, expunge'
