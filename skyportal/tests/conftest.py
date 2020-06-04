@@ -19,10 +19,12 @@ from skyportal.tests.fixtures import (
     GroupFactory,
     UserFactory,
     FilterFactory,
-    InstrumentFactory
+    InstrumentFactory,
+    TelescopeFactory
 )
 from skyportal.model_util import create_token
 from skyportal.models import DBSession, Source, Candidate, Role
+import astroplan
 
 
 print("Loading test configuration from _test_config.yaml")
@@ -58,10 +60,38 @@ def public_candidate(public_filter):
     DBSession.commit()
     return obj
 
+
+@pytest.fixture()
+def red_transients_group(group_admin_user, view_only_user):
+    return GroupFactory(name=f'red transients-{uuid.uuid4().hex}',
+                        users=[group_admin_user,
+                               view_only_user])
+
 @pytest.fixture()
 def ztf_camera():
     return InstrumentFactory()
 
+
+@pytest.fixture()
+def keck1_telescope():
+    observer = astroplan.Observer.at_site('Keck')
+    return TelescopeFactory(name='Keck I Telescope',
+                            nickname='Keck1',
+                            lat=observer.location.lat.to('deg').value,
+                            lon=observer.location.lon.to('deg').value,
+                            elevation=observer.location.height.to('m').value,
+                            diameter=10.)
+
+
+@pytest.fixture()
+def lris(keck1_telescope):
+    return InstrumentFactory(name='LRIS', type='imaging spectrograph',
+                             robotic=False, telescope=keck1_telescope,
+                             band='Optical', filters=['sdssu', 'sdssg',
+                                                      'sdssr', 'sdssi',
+                                                      'sdssz', 'bessellux',
+                                                      'bessellv', 'bessellb',
+                                                      'bessellr', 'besselli'])
 
 @pytest.fixture()
 def private_source():

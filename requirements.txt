@@ -24,3 +24,4 @@ marshmallow-enum>=1.5.1
 marshmallow-oneofschema>=2.0.1
 Pillow>=6
 sncosmo>=2.1.0
+astroplan>=0.6

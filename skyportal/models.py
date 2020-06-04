@@ -566,14 +566,17 @@ class ObservingRun(Base):
                          nullable=True)
 
     # the person who uploaded the run
-    owner = relationship('User', back_populates='observing_runs'),
+    owner = relationship('User', back_populates='observing_runs')
     owner_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
                          nullable=False, index=True)
 
     assignments = relationship(
         'FollowupRequest', cascade='save-update, merge, refresh-expire, expunge'
     )
-
     calendar_date = sa.Column(sa.Date, nullable=False, index=True)
+
+User.observing_runs = relationship(
+    'ObservingRun', cascade='save-update, merge, refresh-expire, expunge'
+)
 
 schema.setup_schema()

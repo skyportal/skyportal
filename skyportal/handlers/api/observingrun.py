@@ -42,15 +42,17 @@ class ObservingRunHandler(BaseHandler):
 
         data = self.get_json()
 
-        schema = ObservingRunPost.__schema__()
         try:
-            rund = schema.load(data)
+            rund = ObservingRunPost.load(data)
         except ValidationError as exc:
             return self.error('Invalid/missing parameters: '
                               f'{exc.normalized_messages()}')
 
         run = ObservingRun(**rund)
-        run.user_id = self.current_user.id
+
+        current_user_id = self.current_user.id if \
+            hasattr(self.current_user, 'username') else self.current_user.created_by_id
+        run.owner_id = current_user_id
 
         DBSession().add(run)
         DBSession().commit()
@@ -126,17 +128,19 @@ class ObservingRunHandler(BaseHandler):
         """
 
         data = self.get_json()
-        data['id'] = int(run_id)
-        is_superadmin = 'Super admin' in self.current_user.roles
+        run_id = int(run_id)
+        is_superadmin = 'System admin' in [a.id for a in self.current_user.acls]
 
         orun = ObservingRun.query.get(run_id)
-        if orun.owner_id != self.current_user.id and not is_superadmin:
+
+        current_user_id = self.current_user.id if \
+            hasattr(self.current_user, 'username') else self.current_user.created_by_id
+
+        if orun.owner_id != current_user_id and not is_superadmin:
             return self.error('Only the owner of an observing run can modify '
                               'the run.')
-
-        schema = ObservingRunPost.__schema__()
         try:
-            new_params = schema.load(data, partial=True)
+            new_params = ObservingRunPost.load(data, partial=True)
         except ValidationError as exc:
             return self.error('Invalid/missing parameters: '
                               f'{exc.normalized_messages()}')
@@ -170,10 +174,14 @@ class ObservingRunHandler(BaseHandler):
                 schema: Error
         """
         run_id = int(run_id)
-        run = ObservingRun.query.get(run_id)
-        is_superadmin = 'Super admin' in self.current_user.roles
+        is_superadmin = 'System admin' in [a.id for a in self.current_user.acls]
 
-        if run.owner_id != self.current_user.id and not is_superadmin:
+        run = ObservingRun.query.get(run_id)
+
+        current_user_id = self.current_user.id if \
+            hasattr(self.current_user, 'username') else self.current_user.created_by_id
+
+        if run.owner_id != current_user_id and not is_superadmin:
             return self.error('Only the owner of an observing run can modify '
                               'the run.')
 
