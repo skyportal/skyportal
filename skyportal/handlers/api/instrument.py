@@ -2,7 +2,9 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Instrument, Telescope, GroupTelescope
-from ...phot_enum import ALLOWED_BANDPASSES
+from ...enum_types import ALLOWED_BANDPASSES
+
+import jsonschema
 
 
 class InstrumentHandler(BaseHandler):
@@ -23,6 +25,7 @@ class InstrumentHandler(BaseHandler):
         except ValidationError as exc:
             return self.error('Invalid/missing parameters: '
                               f'{exc.normalized_messages()}')
+
         instrument.telescope = telescope
         DBSession().add(instrument)
         DBSession().commit()
@@ -115,8 +118,8 @@ class InstrumentHandler(BaseHandler):
         except ValidationError as exc:
             return self.error('Invalid/missing parameters: '
                               f'{exc.normalized_messages()}')
-        DBSession().commit()
 
+        DBSession().commit()
         return self.success()
 
     @permissions(['System admin'])
@@ -155,21 +158,7 @@ InstrumentHandler.post.__doc__ = f"""
         requestBody:
           content:
             application/json:
-              schema: 
-                allOf:
-                - $ref: "#/components/schemas/InstrumentNoID"
-                - type: object
-                  properties:
-                    filters:
-                      type: array
-                      items:
-                        type: string
-                        enum: {list(ALLOWED_BANDPASSES)}
-                      description: >-
-                        List of filters on the instrument. If the instrument
-                        has no filters (e.g., because it is a spectrograph),
-                        leave blank or pass the empty list. 
-                      default: []
+              schema: InstrumentNoID
         responses:
           200:
             content:

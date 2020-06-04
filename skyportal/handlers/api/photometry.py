@@ -12,7 +12,7 @@ from ...models import (
 )
 
 from ...schema import (PhotometryMag, PhotometryFlux)
-from ...phot_enum import ALLOWED_MAGSYSTEMS
+from ...enum_types import ALLOWED_MAGSYSTEMS
 import sncosmo
 
 def nan_to_none(value):
@@ -236,7 +236,7 @@ class PhotometryHandler(BaseHandler):
                                   f'"{e1.normalized_messages()}." Tried '
                                   f'to parse {packet} as PhotometryMag, got:'
                                   f' "{e2.normalized_messages()}."')
-            
+
         phot.original_user_data = packet
         phot.id = photometry_id
         DBSession().merge(phot)

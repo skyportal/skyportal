@@ -13,11 +13,11 @@ from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
 from baselayer.app.custom_exceptions import AccessError
 
 from . import schema
-from .phot_enum import allowed_bandpasses, thumbnail_types
+from .enum_types import (allowed_bandpasses, thumbnail_types, instrument_types,
+                         followup_request_types)
 
 
-# In the AB system, a brightness of 23.9 mag corresponds to 1 microJy. Using this
-# will put our converted fluxes to microJy.
+# In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
 
@@ -65,6 +65,7 @@ class Group(Base):
     users = relationship('User', secondary='group_users',
                          back_populates='groups')
     filter = relationship("Filter", uselist=False, back_populates="group")
+    observing_runs = relationship('ObservingRun', back_populates='group')
 
 
 GroupUser = join_model('group_users', Group, User)
@@ -325,10 +326,11 @@ class ArrayOfEnum(ARRAY):
 class Instrument(Base):
 
     name = sa.Column(sa.String, nullable=False)
-    type = sa.Column(sa.String)
+    type = sa.Column(instrument_types, nullable=False)
+    robotic = sa.Column(sa.Boolean, default=False, nullable=False)
     band = sa.Column(sa.String)
-    telescope_id = sa.Column(sa.ForeignKey('telescopes.id',
-                                           ondelete='CASCADE'),
+
+    telescope_id = sa.Column(sa.ForeignKey('telescopes.id', ondelete='CASCADE'),
                              nullable=False, index=True)
     telescope = relationship('Telescope', back_populates='instruments')
 
@@ -340,7 +342,24 @@ class Instrument(Base):
 
     # can be [] if an instrument is spec only
     filters = sa.Column(ArrayOfEnum(allowed_bandpasses), nullable=False,
-                        default=[])
+                        default=[], doc='List of filters on the instrument '
+                                        '(if any).')
+
+    observing_runs = relationship('ObservingRun', back_populates='instrument')
+
+    @property
+    def does_spectroscopy(self):
+        return 'spec' in self.type
+
+    @property
+    def does_imaging(self):
+        return 'imag' in self.type
+
+    @property
+    def request_schema(self):
+        # this is for rendering the form
+        pass
+
 
 
 class Comment(Base):
@@ -488,6 +507,7 @@ class Thumbnail(Base):
 
 class FollowupRequest(Base):
 
+    type = sa.Column(followup_request_types, doc='The type of observation being requested.')
     requester = relationship(User, back_populates='followup_requests')
     requester_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
                              nullable=False, index=True)
@@ -504,15 +524,17 @@ class FollowupRequest(Base):
 
     parameters = sa.Column(
         psql.JSONB,
-        required=True,
+        nullable=False,
         doc='The parameters of the followup request. For spectroscopy, contains '
             'the number of exposures and  the exposure time (potentially on '
             'the red or blue sides of the instrument). For imaging, contains '
             'the number of exposures, the exposure time, and the filters.'
     )
 
-    editable = sa.Column(sa.Boolean, nullable=False, default=True)
     status = sa.Column(sa.String(), nullable=False, default="pending")
+    def submit(self):
+        # TODO: implement this method for SEDM and LT
+        pass
 
 
 User.followup_requests = relationship('FollowupRequest', back_populates='requester')
@@ -533,7 +555,7 @@ class ObservingRun(Base):
     observers = sa.Column(sa.Text)
 
     sources = relationship(
-        'Source', secondary='assignments',
+        'Obj', secondary='followuprequests',
         cascade='save-update, merge, refresh-expire, expunge'
     )
 

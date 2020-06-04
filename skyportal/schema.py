@@ -14,6 +14,7 @@ from marshmallow_sqlalchemy import (
 from marshmallow import (Schema as _Schema, fields, validate, post_load,
                          ValidationError)
 from marshmallow_enum import EnumField
+from marshmallow_oneofschema import OneOfSchema
 
 import sqlalchemy as sa
 from sqlalchemy.orm import mapper
@@ -23,7 +24,7 @@ from baselayer.app.models import (
     DBSession as _DBSession
 )
 
-from skyportal.phot_enum import (
+from skyportal.enum_types import (
     py_allowed_bandpasses,
     py_allowed_magsystems,
     py_thumbnail_types,
@@ -382,7 +383,7 @@ class PhotometryFlux(_Schema, PhotBase):
         if not obj:
             raise ValidationError(f'Invalid object ID: {data["obj_id"]}')
 
-        if data["filter"] not in instrument.filters:
+        if data["filter"] not in instrument.properties['imaging']['filters']:
             raise ValidationError(f"Error in packet '{data}': "
                                   f"Instrument {instrument} has no filter "
                                   f"{data['filter']}.")
@@ -480,7 +481,7 @@ class PhotometryMag(_Schema, PhotBase):
         if not obj:
             raise ValidationError(f'Invalid object ID: {data["obj_id"]}')
 
-        if data["filter"] not in instrument.filters:
+        if data["filter"] not in instrument.properties['imaging']['filters']:
             raise ValidationError(f"Error in packet '{data}': "
                                   f"Instrument {instrument} has no filter "
                                   f"{data['filter']}.")
@@ -530,6 +531,56 @@ class PhotometryMag(_Schema, PhotBase):
         return p
 
 
+# These are for generating API docs and extremely basic validation
+class FollowupRequestBase(_Schema):
+    type = fields.String(required=True)
+    instrument_id = fields.Integer(required=True)
+    obj_id = fields.Integer(required=True)
+    priority = ApispecEnumField(Enum('priority', ['1', '2', '3', '4', '5']),
+                                required=True)
+    comment = fields.String()
+
+
+class RoboticMixin(object):
+    exposure_time = fields.Number(validate=validate.Range(0., 10800.))
+    start_date = fields.DateTime()
+    end_date = fields.DateTime()
+
+
+class RoboticImagingRequest(FollowupRequestBase, RoboticMixin):
+    filters = fields.List(fields.String(), validate=validate.Length(min=1),
+                          required=True)
+
+
+class RoboticSpectroscopyRequest(FollowupRequestBase, RoboticMixin):
+    pass
+
+
+class ClassicalImagingRequest(FollowupRequestBase):
+    exposure_time = fields.Number(validate=validate.Range(0., 10800.),
+                                  required=True)
+    filters = fields.List(fields.String(), validate=validate.Length(min=1),
+                          required=True)
+    run_id = fields.Integer(required=True)
+
+
+class ClassicalSpectroscopyRequest(FollowupRequestBase):
+    exposure_time_red = fields.Integer(validate=validate.Range(0, 10800.))
+    exposure_time_blue = fields.Integer(validate=validate.Range(1, 10800.))
+    n_exposures_red = fields.Integer(validate=validate.Range(1, 10))
+    n_exposures_blue = fields.Integer(validate=validate.Range(1, 10))
+    run_id = fields.Integer(required=True)
+
+
+class FollowUpRequestSchema(OneOfSchema):
+    type_schemas = {
+        'robotic_imaging': RoboticImagingRequest,
+        'robotic_spectroscopy': RoboticSpectroscopyRequest,
+        'classical_imaging': ClassicalImagingRequest,
+        'classical_spectroscopy': ClassicalSpectroscopyRequest
+    }
+
+
 def register_components(spec):
     print('Registering schemas with APISpec')
 
@@ -558,3 +609,8 @@ PhotometryFlux = PhotometryFlux()
 PhotometryMag = PhotometryMag()
 PhotMagFlexible = PhotMagFlexible()
 PhotFluxFlexible = PhotFluxFlexible()
+RoboticImagingRequest = RoboticImagingRequest()
+RoboticSpectroscopyRequest = RoboticSpectroscopyRequest()
+ClassicalImagingRequest = ClassicalImagingRequest()
+ClassicalSpectroscopyRequest = ClassicalSpectroscopyRequest()
+FollowUpRequestSchema = FollowUpRequestSchema()
