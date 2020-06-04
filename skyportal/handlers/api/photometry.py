@@ -8,7 +8,7 @@ import sncosmo
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
-    DBSession, Photometry, Instrument, Source, Obj,
+    DBSession, Group, Photometry, Instrument, Source, Obj,
     PHOT_ZP, PHOT_SYS, Thumbnail
 )
 
@@ -136,6 +136,11 @@ class PhotometryHandler(BaseHandler):
                               f'{type(data)}.')
         if "altdata" in data and not data["altdata"]:
             del data["altdata"]
+        try:
+            group_ids = data.pop("group_ids")
+        except KeyError:
+            return self.error("Missing required field: group_ids")
+        groups = Group.query.filter(Group.id.in_(group_ids)).all()
 
         if allscalar(data):
             data = [data]
@@ -181,6 +186,7 @@ class PhotometryHandler(BaseHandler):
 
             phot.original_user_data = packet
             phot.bulk_upload_id = bulk_upload_id
+            phot.groups = groups
             DBSession().add(phot)
 
             # to set up obj link
@@ -246,6 +252,7 @@ class PhotometryHandler(BaseHandler):
         s = Source.get_if_owned_by(Photometry.query.get(photometry_id).obj_id,
                                    self.current_user)
         packet = self.get_json()
+        group_ids = packet.pop("group_ids", None)
 
         try:
             phot = PhotometryFlux.load(packet)
@@ -261,6 +268,8 @@ class PhotometryHandler(BaseHandler):
 
         phot.original_user_data = packet
         phot.id = photometry_id
+        if group_ids is not None:
+            phot.groups = Group.query.filter(Group.id.in_(group_ids)).all()
         DBSession().merge(phot)
         DBSession().commit()
         return self.success()

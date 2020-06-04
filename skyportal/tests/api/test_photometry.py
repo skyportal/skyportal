@@ -9,7 +9,7 @@ import sncosmo
 
 
 def test_token_user_post_get_photometry_data(upload_data_token, public_source,
-                                             ztf_camera):
+                                             public_group, ztf_camera):
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
                              'mjd': 58000.,
@@ -18,7 +18,8 @@ def test_token_user_post_get_photometry_data(upload_data_token, public_source,
                              'fluxerr': 0.031,
                              'zp': 25.,
                              'magsys': 'ab',
-                             'filter': 'ztfg'
+                             'filter': 'ztfg',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 200
@@ -43,7 +44,8 @@ def test_token_user_post_get_photometry_data(upload_data_token, public_source,
 
 def test_token_user_post_mag_photometry_data_and_convert(upload_data_token,
                                                          public_source,
-                                                         ztf_camera):
+                                                         ztf_camera,
+                                                         public_group):
 
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
@@ -53,7 +55,8 @@ def test_token_user_post_mag_photometry_data_and_convert(upload_data_token,
                              'magerr': 0.2,
                              'limiting_mag': 22.3,
                              'magsys': 'vega',
-                             'filter': 'ztfg'
+                             'filter': 'ztfg',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 200
@@ -72,7 +75,7 @@ def test_token_user_post_mag_photometry_data_and_convert(upload_data_token,
     correction = 2.5 * np.log10(vega.zpbandflux('ztfg') / ab.zpbandflux('ztfg'))
 
     np.testing.assert_allclose(data['data']['flux'],
-                               10**(-0.4 * (21. - correction - 23.9 )))
+                               10**(-0.4 * (21. - correction - 23.9)))
 
     np.testing.assert_allclose(data['data']['fluxerr'],
                                0.2 / (2.5 / np.log(10)) * data['data']['flux'])
@@ -92,8 +95,9 @@ def test_token_user_post_mag_photometry_data_and_convert(upload_data_token,
 
 
 def test_token_user_post_and_get_different_systems_mag(upload_data_token,
-                                                   public_source,
-                                                   ztf_camera):
+                                                       public_source,
+                                                       ztf_camera,
+                                                       public_group):
 
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
@@ -103,7 +107,8 @@ def test_token_user_post_and_get_different_systems_mag(upload_data_token,
                              'magerr': 0.2,
                              'limiting_mag': 22.3,
                              'magsys': 'vega',
-                             'filter': 'ztfg'
+                             'filter': 'ztfg',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 200
@@ -139,8 +144,9 @@ def test_token_user_post_and_get_different_systems_mag(upload_data_token,
 
 
 def test_token_user_post_and_get_different_systems_flux(upload_data_token,
-                                                   public_source,
-                                                   ztf_camera):
+                                                        public_source,
+                                                        ztf_camera,
+                                                        public_group):
 
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
@@ -150,7 +156,8 @@ def test_token_user_post_and_get_different_systems_flux(upload_data_token,
                              'magerr': 0.2,
                              'limiting_mag': 22.3,
                              'magsys': 'vega',
-                             'filter': 'ztfg'
+                             'filter': 'ztfg',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 200
@@ -167,7 +174,6 @@ def test_token_user_post_and_get_different_systems_flux(upload_data_token,
     ab = sncosmo.get_magsystem('ab')
     vega = sncosmo.get_magsystem('vega')
     correction = 2.5 * np.log10(vega.zpbandflux('ztfg') / ab.zpbandflux('ztfg'))
-
 
     np.testing.assert_allclose(data['data']['flux'], 10**(-0.4 * (21 - correction - 23.9)))
     np.testing.assert_allclose(data['data']['fluxerr'], 0.2 / (2.5 / np.log(10)) * data['data']['flux'])
@@ -186,7 +192,7 @@ def test_token_user_post_and_get_different_systems_flux(upload_data_token,
 
 
 def test_token_user_mixed_photometry_post(upload_data_token, public_source,
-                                          ztf_camera):
+                                          ztf_camera, public_group):
 
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
@@ -196,7 +202,8 @@ def test_token_user_mixed_photometry_post(upload_data_token, public_source,
                              'magerr': [0.2, 0.1],
                              'limiting_mag': 22.3,
                              'magsys': 'ab',
-                             'filter': 'ztfg'
+                             'filter': 'ztfg',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 200
@@ -211,7 +218,7 @@ def test_token_user_mixed_photometry_post(upload_data_token, public_source,
     assert data['status'] == 'success'
 
     np.testing.assert_allclose(data['data']['flux'],
-                               10**(-0.4 * (21. - 23.9 )))
+                               10**(-0.4 * (21. - 23.9)))
 
     np.testing.assert_allclose(data['data']['fluxerr'],
                                0.1 / (2.5 / np.log(10)) * data['data']['flux'])
@@ -233,7 +240,7 @@ def test_token_user_mixed_photometry_post(upload_data_token, public_source,
 
 
 def test_token_user_mixed_mag_none_photometry_post(upload_data_token, public_source,
-                                                   ztf_camera):
+                                                   ztf_camera, public_group):
 
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
@@ -243,7 +250,8 @@ def test_token_user_mixed_mag_none_photometry_post(upload_data_token, public_sou
                              'magerr': [0.2, 0.1],
                              'limiting_mag': 22.3,
                              'magsys': 'ab',
-                             'filter': 'ztfg'
+                             'filter': 'ztfg',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 400
@@ -277,8 +285,9 @@ def test_token_user_mixed_mag_none_photometry_post(upload_data_token, public_sou
     assert status == 400
     assert data['status'] == 'error'
 
+
 def test_token_user_post_photometry_limits(upload_data_token, public_source,
-                                           ztf_camera):
+                                           ztf_camera, public_group):
 
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
@@ -288,7 +297,8 @@ def test_token_user_post_photometry_limits(upload_data_token, public_source,
                              'magerr': None,
                              'limiting_mag': 22.3,
                              'magsys': 'ab',
-                             'filter': 'ztfg'
+                             'filter': 'ztfg',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 200
@@ -314,7 +324,8 @@ def test_token_user_post_photometry_limits(upload_data_token, public_source,
                              'fluxerr': 0.031,
                              'zp': 25.,
                              'magsys': 'ab',
-                             'filter': 'ztfg'
+                             'filter': 'ztfg',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 200
@@ -334,7 +345,7 @@ def test_token_user_post_photometry_limits(upload_data_token, public_source,
 
 
 def test_token_user_post_invalid_filter(upload_data_token, public_source,
-                                        ztf_camera):
+                                        ztf_camera, public_group):
 
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
@@ -344,7 +355,8 @@ def test_token_user_post_invalid_filter(upload_data_token, public_source,
                              'magerr': None,
                              'limiting_mag': 22.3,
                              'magsys': 'ab',
-                             'filter': 'bessellv'
+                             'filter': 'bessellv',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 400
@@ -352,7 +364,7 @@ def test_token_user_post_invalid_filter(upload_data_token, public_source,
 
 
 def test_token_user_post_photometry_data_series(upload_data_token, public_source,
-                                                ztf_camera):
+                                                ztf_camera, public_group):
     # valid request
     status, data = api(
         'POST',
@@ -367,7 +379,9 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
               'magsys': ['ab', 'ab', 'ab'],
               'ra': 264.1947917,
               'dec': [50.5478333, 50.5478333 + 0.00001, 50.5478333],
-              'dec_unc': 0.2},
+              'dec_unc': 0.2,
+              'group_ids': [public_group.id]
+              },
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -389,19 +403,19 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
     assert np.allclose(data['data']['dec_unc'], 0.2)
     assert data['data']['ra_unc'] is None
 
-
     # invalid request
     status, data = api(
         'POST',
         'photometry',
         data=[{'obj_id': str(public_source.id),
-              'mjd': 58000,
-              'instrument_id': ztf_camera.id,
-              'flux': 12.24,
-              'fluxerr': 0.031,
-              'filter': 'ztfg',
-              'zp': 25.,
-              'magsys': 'ab'},
+               'mjd': 58000,
+               'instrument_id': ztf_camera.id,
+               'flux': 12.24,
+               'fluxerr': 0.031,
+               'filter': 'ztfg',
+               'zp': 25.,
+               'magsys': 'ab',
+               'group_ids': [public_group.id]},
               {'obj_id': str(public_source.id),
                'mjd': 58001,
                'instrument_id': ztf_camera.id,
@@ -409,7 +423,8 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
                'fluxerr': 0.031,
                'filter': 'ztfg',
                'zp': 30.,
-               'magsys': 'ab'},
+               'magsys': 'ab',
+               'group_ids': [public_group.id]},
               {'obj_id': str(public_source.id),
                'mjd': 58002,
                'instrument_id': ztf_camera.id,
@@ -417,7 +432,8 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
                'fluxerr': 0.031,
                'filter': 'ztfg',
                'zp': 21.2,
-               'magsys': 'vega'}],
+               'magsys': 'vega',
+               'group_ids': [public_group.id]}],
         token=upload_data_token)
 
     assert status == 400
@@ -425,7 +441,7 @@ def test_token_user_post_photometry_data_series(upload_data_token, public_source
 
 
 def test_post_photometry_no_access_token(view_only_token, public_source,
-                                         ztf_camera):
+                                         ztf_camera, public_group):
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
                              'mjd': 58000.,
@@ -434,7 +450,8 @@ def test_post_photometry_no_access_token(view_only_token, public_source,
                              'fluxerr': 0.031,
                              'zp': 25.,
                              'magsys': 'ab',
-                             'filter': 'ztfg'
+                             'filter': 'ztfg',
+                             'group_ids': [public_group.id]
                              },
                        token=view_only_token)
     assert status == 400
@@ -443,7 +460,8 @@ def test_post_photometry_no_access_token(view_only_token, public_source,
 
 def test_token_user_update_photometry(upload_data_token,
                                       manage_sources_token,
-                                      public_source, ztf_camera):
+                                      public_source, ztf_camera,
+                                      public_group):
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
                              'mjd': 58000.,
@@ -452,7 +470,8 @@ def test_token_user_update_photometry(upload_data_token,
                              'fluxerr': 0.031,
                              'zp': 25.,
                              'magsys': 'ab',
-                             'filter': 'ztfi'
+                             'filter': 'ztfi',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 200
@@ -478,7 +497,8 @@ def test_token_user_update_photometry(upload_data_token,
               'fluxerr': 0.031,
               'zp': 25.,
               'magsys': 'ab',
-              'filter': 'ztfi'},
+              'filter': 'ztfi'
+              },
         token=manage_sources_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -492,7 +512,7 @@ def test_token_user_update_photometry(upload_data_token,
 
 
 def test_delete_photometry_data(upload_data_token, manage_sources_token,
-                                public_source, ztf_camera):
+                                public_source, ztf_camera, public_group):
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
                              'mjd': 58000.,
@@ -501,7 +521,8 @@ def test_delete_photometry_data(upload_data_token, manage_sources_token,
                              'fluxerr': 0.031,
                              'zp': 25.,
                              'magsys': 'ab',
-                             'filter': 'ztfi'
+                             'filter': 'ztfi',
+                             'group_ids': [public_group.id],
                              },
                        token=upload_data_token)
     assert status == 200
@@ -540,10 +561,10 @@ def test_token_user_retrieving_source_photometry_and_convert(view_only_token, pu
     assert 'ra_unc' in data['data'][0]
 
     mag1_ab = -2.5 * np.log10(data['data'][0]['flux']) + data['data'][0]['zp']
-    magerr1_ab = 2.5 / np.log(10) * data['data'][0]['fluxerr']/ data['data'][0]['flux']
+    magerr1_ab = 2.5 / np.log(10) * data['data'][0]['fluxerr'] / data['data'][0]['flux']
 
     maglast_ab = -2.5 * np.log10(data['data'][-1]['flux']) + data['data'][-1]['zp']
-    magerrlast_ab = 2.5 / np.log(10) * data['data'][-1]['fluxerr']/ data['data'][-1]['flux']
+    magerrlast_ab = 2.5 / np.log(10) * data['data'][-1]['fluxerr'] / data['data'][-1]['flux']
 
     status, data = api('GET', f'sources/{public_source.id}/photometry?format=mag&magsys=ab',
                        token=view_only_token)
@@ -556,16 +577,14 @@ def test_token_user_retrieving_source_photometry_and_convert(view_only_token, pu
     assert np.allclose(maglast_ab, data['data'][-1]['mag'])
     assert np.allclose(magerrlast_ab, data['data'][-1]['magerr'])
 
-
     status, data = api('GET', f'sources/{public_source.id}/photometry?format=flux&magsys=vega',
                        token=view_only_token)
 
     mag1_vega = -2.5 * np.log10(data['data'][0]['flux']) + data['data'][0]['zp']
-    magerr1_vega = 2.5 / np.log(10) * data['data'][0]['fluxerr']/ data['data'][0]['flux']
+    magerr1_vega = 2.5 / np.log(10) * data['data'][0]['fluxerr'] / data['data'][0]['flux']
 
     maglast_vega = -2.5 * np.log10(data['data'][-1]['flux']) + data['data'][-1]['zp']
-    magerrlast_vega = 2.5 / np.log(10) * data['data'][-1]['fluxerr']/ data['data'][-1]['flux']
-
+    magerrlast_vega = 2.5 / np.log(10) * data['data'][-1]['fluxerr'] / data['data'][-1]['flux']
 
     assert status == 200
     assert data['status'] == 'success'
@@ -577,7 +596,6 @@ def test_token_user_retrieving_source_photometry_and_convert(view_only_token, pu
         for filter in ['ztfg', 'ztfr', 'ztfi']
     }
 
-
     assert np.allclose(mag1_ab, mag1_vega + vega_to_ab[data['data'][0]['filter']])
     assert np.allclose(magerr1_ab, magerr1_vega)
 
@@ -586,7 +604,7 @@ def test_token_user_retrieving_source_photometry_and_convert(view_only_token, pu
 
 
 def test_token_user_retrieve_null_photometry(upload_data_token, public_source,
-                                             ztf_camera):
+                                             ztf_camera, public_group):
 
     status, data = api('POST', 'photometry',
                        data={'obj_id': str(public_source.id),
@@ -596,7 +614,8 @@ def test_token_user_retrieve_null_photometry(upload_data_token, public_source,
                              'magerr': None,
                              'limiting_mag': 22.3,
                              'magsys': 'ab',
-                             'filter': 'ztfg'
+                             'filter': 'ztfg',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 200

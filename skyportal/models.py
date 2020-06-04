@@ -67,6 +67,8 @@ class Group(Base):
     users = relationship('User', secondary='group_users',
                          back_populates='groups')
     filter = relationship("Filter", uselist=False, back_populates="group")
+    photometry = relationship("Photometry", secondary="group_photometry",
+                              back_populates="groups")
 
 
 GroupUser = join_model('group_users', Group, User)
@@ -389,6 +391,8 @@ class Photometry(Base):
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)
     obj = relationship('Obj', back_populates='photometry')
+    groups = relationship("Group", secondary="group_photometry",
+                          back_populates="photometry")
     instrument_id = sa.Column(sa.ForeignKey('instruments.id'),
                               nullable=False, index=True)
     instrument = relationship('Instrument', back_populates='photometry')
@@ -427,6 +431,9 @@ class Photometry(Base):
             ],
             else_=None
         )
+
+
+GroupPhotometry = join_model("group_photometry", Group, Photometry)
 
 
 class Spectrum(Base):
