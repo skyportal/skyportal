@@ -21,8 +21,6 @@ import * as sourceActions from "../ducks/source";
 import FormValidationError from "./FormValidationError";
 
 
-const options = ["Save as Source", "Save (select groups)"];
-
 const SaveCandidateButton = ({ candidate, userGroups }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Dialog logic:
@@ -68,6 +66,14 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
 
   // Split button logic (largely copied from
   // https://material-ui.com/components/button-group/#split-button):
+
+  const passingGroupNames = userGroups.filter(
+    (g) => candidate.passing_group_ids.includes(g.id)
+  ).map(
+    (g) => g.name
+  ).join(",");
+
+  const options = [`Save to ${passingGroupNames}`, "Select groups & save"];
 
   const [splitButtonMenuOpen, setSplitButtonMenuOpen] = useState(false);
   const anchorRef = useRef(null);
