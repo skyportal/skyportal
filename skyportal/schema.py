@@ -381,8 +381,7 @@ class PhotometryFlux(_Schema, PhotBase):
             raise ValidationError(f'Invalid object ID: {data["obj_id"]}')
 
         if data["filter"] not in instrument.filters:
-            raise ValidationError(f"Error in packet '{data}': "
-                                  f"Instrument {instrument} has no filter "
+            raise ValidationError(f"Instrument {instrument.name} has no filter "
                                   f"{data['filter']}.")
 
         # convert flux to microJanskies.
@@ -479,8 +478,7 @@ class PhotometryMag(_Schema, PhotBase):
             raise ValidationError(f'Invalid object ID: {data["obj_id"]}')
 
         if data["filter"] not in instrument.filters:
-            raise ValidationError(f"Error in packet '{data}': "
-                                  f"Instrument {instrument} has no filter "
+            raise ValidationError(f"Instrument {instrument.name} has no filter "
                                   f"{data['filter']}.")
 
         # determine if this is a limit or a measurement

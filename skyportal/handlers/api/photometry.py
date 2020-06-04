@@ -173,10 +173,10 @@ class PhotometryHandler(BaseHandler):
                 try:
                     phot = PhotometryMag.load(packet)
                 except ValidationError as e2:
-                    return self.error('Invalid input format: Tried to parse '
-                                      f'{packet} as PhotometryFlux, got: '
+                    return self.error('Invalid input format: Tried to parse packet '
+                                      f'{i} as PhotometryFlux, got: '
                                       f'"{e1.normalized_messages()}." Tried '
-                                      f'to parse {packet} as PhotometryMag, got:'
+                                      f'to parse packet {i} as PhotometryMag, got:'
                                       f' "{e2.normalized_messages()}."')
 
             phot.original_user_data = packet
