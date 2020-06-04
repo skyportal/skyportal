@@ -36,7 +36,7 @@ class FollowupRequestHandler(BaseHandler):
         _ = Source.get_if_owned_by(data["obj_id"], self.current_user)
         data["start_date"] = arrow.get(data["start_date"]).datetime
         data["end_date"] = arrow.get(data["end_date"]).datetime
-        data["requester_id"] = self.current_user.id
+        data["requester_id"] = self.associated_user_object.id
         if isinstance(data["filters"], str):
             data["filters"] = [data["filters"]]
         followup_request = FollowupRequest(**data)
