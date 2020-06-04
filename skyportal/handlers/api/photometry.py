@@ -208,11 +208,9 @@ class PhotometryHandler(BaseHandler):
     def get(self, photometry_id):
         # The full docstring/API spec is below as an f-string
 
-        phot = Photometry.query.get(photometry_id)
+        phot = Photometry.get_if_owned_by(photometry_id, self.current_user)
         if phot is None:
             return self.error('Invalid photometry ID')
-        # Ensure user/token has access to parent source
-        _ = Source.get_if_owned_by(phot.obj_id, self.current_user)
 
         # get the desired output format
         format = self.get_query_argument('format', 'mag')
@@ -248,9 +246,7 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(Photometry.query.get(photometry_id).obj_id,
-                                   self.current_user)
+        _ = Photometry.get_if_owned_by(photometry_id, self.current_user)
         packet = self.get_json()
         group_ids = packet.pop("group_ids", None)
 
@@ -295,9 +291,7 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(Photometry.query.get(photometry_id).obj_id,
-                                   self.current_user)
+        _ = Photometry.get_if_owned_by(photometry_id, self.current_user)
         DBSession.query(Photometry).filter(Photometry.id == int(photometry_id)).delete()
         DBSession().commit()
 
@@ -307,13 +301,14 @@ class PhotometryHandler(BaseHandler):
 class SourcePhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
-        source = Source.get_if_owned_by(obj_id, self.current_user)
-        if source is None:
+        obj = Obj.query.get(obj_id)
+        if obj is None:
             return self.error('Invalid source id.')
+        photometry = Obj.get_photometry_owned_by_user(obj_id, self.current_user)
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
         return self.success(
-            data=[serialize(phot, outsys, format) for phot in source.photometry]
+            data=[serialize(phot, outsys, format) for phot in photometry]
         )
 
 
@@ -340,9 +335,9 @@ class BulkDeletePhotometryHandler(BaseHandler):
                 schema: Error
         """
         # Permissions check:
-        obj_id = Photometry.query.filter(
-            Photometry.bulk_upload_id == bulk_upload_id).first().obj_id
-        _ = Obj.get_if_owned_by(obj_id, self.current_user)
+        phot_id = Photometry.query.filter(
+            Photometry.bulk_upload_id == bulk_upload_id).first().id
+        _ = Photometry.get_if_owned_by(phot_id, self.current_user)
 
         n_deleted = DBSession.query(Photometry).filter(
             Photometry.bulk_upload_id == bulk_upload_id).delete()

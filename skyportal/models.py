@@ -273,6 +273,19 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
 Obj.get_if_owned_by = get_obj_if_owned_by
 
 
+def get_photometry_owned_by_user(obj_id, user_or_token):
+    return (
+        Photometry.query.filter(Photometry.obj_id == obj_id)
+        .filter(
+            Photometry.groups.any(Group.id.in_([g.id for g in user_or_token.groups]))
+        )
+        .all()
+    )
+
+
+Obj.get_photometry_owned_by_user = get_photometry_owned_by_user
+
+
 User.sources = relationship('Obj', backref='users',
                             secondary='join(Group, sources).join(group_users)',
                             primaryjoin='group_users.c.user_id == users.c.id')
