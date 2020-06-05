@@ -159,6 +159,10 @@ class CandidateHandler(BaseHandler):
         end_date = self.get_query_argument("endDate", None)
         group_ids = self.get_query_argument("groupIDs", None)
         filter_ids = self.get_query_argument("filterIDs", None)
+        user_group_ids = [g.id for g in self.current_user.groups]
+        user_filter_ids = [
+            g.filter.id for g in self.current_user.groups if g.filter is not None
+        ]
         if group_ids is not None:
             if isinstance(group_ids, str) and "," in group_ids:
                 group_ids = [int(g_id) for g_id in group_ids.split(",")]
@@ -181,10 +185,8 @@ class CandidateHandler(BaseHandler):
             ]
         else:
             # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
-            group_ids = [g.id for g in self.current_user.groups]
-            filter_ids = [
-                g.filter.id for g in self.current_user.groups if g.filter is not None
-            ]
+            group_ids = user_group_ids
+            filter_ids = user_filter_ids
         try:
             page = int(page_number)
         except ValueError:
@@ -216,7 +218,11 @@ class CandidateHandler(BaseHandler):
                     )
                 )
             )
-        if start_date is not None and start_date.strip() not in ["", "null", "undefined"]:
+        if start_date is not None and start_date.strip() not in [
+            "",
+            "null",
+            "undefined",
+        ]:
             start_date = arrow.get(start_date).datetime
             q = q.filter(Obj.last_detected >= start_date)
         if end_date is not None and end_date.strip() not in ["", "null", "undefined"]:
@@ -237,6 +243,20 @@ class CandidateHandler(BaseHandler):
         )
         for obj in query_results["candidates"]:
             obj.is_source = (obj.id,) in matching_source_ids
+            obj.passing_group_ids = [
+                f.group_id
+                for f in (
+                    Filter.query.filter(Filter.id.in_(user_filter_ids))
+                    .filter(
+                        Filter.id.in_(
+                            DBSession.query(Candidate.filter_id).filter(
+                                Candidate.obj_id == obj.id
+                            )
+                        )
+                    )
+                    .all()
+                )
+            ]
         return self.success(data=query_results)
 
     @permissions(["Upload data"])
