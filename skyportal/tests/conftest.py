@@ -45,7 +45,7 @@ def public_filter(public_group):
 
 @pytest.fixture()
 def public_source(public_group):
-    obj = ObjFactory()
+    obj = ObjFactory(groups=[public_group])
     DBSession.add(Source(obj_id=obj.id, group_id=public_group.id))
     DBSession.commit()
     return obj
@@ -53,10 +53,11 @@ def public_source(public_group):
 
 @pytest.fixture()
 def public_candidate(public_filter):
-    obj = ObjFactory()
+    obj = ObjFactory(groups=[public_filter.group])
     DBSession.add(Candidate(obj=obj, filter=public_filter))
     DBSession.commit()
     return obj
+
 
 @pytest.fixture()
 def ztf_camera():
@@ -65,7 +66,7 @@ def ztf_camera():
 
 @pytest.fixture()
 def private_source():
-    return ObjFactory()
+    return ObjFactory(groups=[])
 
 
 @pytest.fixture()

@@ -165,6 +165,7 @@ def test_candidate_date_filtering(
                 "zp": 25.0,
                 "magsys": "ab",
                 "filter": "ztfr",
+                "group_ids": [public_group.id],
             },
             token=upload_data_token,
         )
