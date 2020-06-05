@@ -30,7 +30,8 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group,
                              'fluxerr': 0.031,
                              'zp': 25.,
                              'magsys': 'ab',
-                             'filter': 'ztfg'
+                             'filter': 'ztfg',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 200
@@ -92,7 +93,8 @@ def test_token_user_delete_thumbnail_cascade_source(upload_data_token,
                              'fluxerr': 0.031,
                              'zp': 25.,
                              'magsys': 'ab',
-                             'filter': 'ztfr'
+                             'filter': 'ztfr',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 200
@@ -162,7 +164,8 @@ def test_token_user_post_get_thumbnail_phot_id(upload_data_token, public_group,
                              'fluxerr': 0.031,
                              'zp': 25.,
                              'magsys': 'ab',
-                             'filter': 'ztfg'
+                             'filter': 'ztfg',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 200
@@ -221,7 +224,8 @@ def test_cannot_post_thumbnail_invalid_ttype(upload_data_token, public_group,
                              'fluxerr': 0.031,
                              'zp': 25.,
                              'magsys': 'ab',
-                             'filter': 'ztfi'
+                             'filter': 'ztfi',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 200
@@ -263,7 +267,8 @@ def test_cannot_post_thumbnail_invalid_image_type(upload_data_token, public_grou
                              'fluxerr': 0.031,
                              'zp': 25.,
                              'magsys': 'ab',
-                             'filter': 'ztfr'
+                             'filter': 'ztfr',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 200
@@ -304,7 +309,8 @@ def test_cannot_post_thumbnail_invalid_size(upload_data_token, public_group, ztf
                              'fluxerr': 0.031,
                              'zp': 25.,
                              'magsys': 'ab',
-                             'filter': 'ztfg'
+                             'filter': 'ztfg',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 200
@@ -346,7 +352,8 @@ def test_cannot_post_thumbnail_invalid_file_type(upload_data_token, public_group
                              'fluxerr': 0.031,
                              'zp': 25.,
                              'magsys': 'ab',
-                             'filter': 'ztfi'
+                             'filter': 'ztfi',
+                             'group_ids': [public_group.id]
                              },
                        token=upload_data_token)
     assert status == 200
