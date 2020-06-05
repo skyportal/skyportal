@@ -60,6 +60,10 @@ def public_candidate(public_filter):
     DBSession.commit()
     return obj
 
+@pytest.fixture()
+def ztf_camera():
+    return InstrumentFactory()
+
 
 @pytest.fixture()
 def red_transients_group(group_admin_user, view_only_user):

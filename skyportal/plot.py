@@ -593,3 +593,4 @@ def spectroscopy_plot(obj_id):
 
     layout = row(plot, toggle, elements, column(z, v_exp))
     return _plot_to_json(layout)
+

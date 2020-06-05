@@ -1,9 +1,11 @@
+import uuid
 import numpy as np
 import arrow
 from astropy.time import Time
-from astropy.table import Table
+
 import pandas as pd
 from marshmallow.exceptions import ValidationError
+import sncosmo
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
@@ -21,6 +23,7 @@ def nan_to_none(value):
         return None if np.isnan(value) else value
     except TypeError:
         return value
+
 
 def allscalar(d):
     return all(np.isscalar(v) or v is None for v in d.values())
@@ -71,15 +74,15 @@ def serialize(phot, outsys, format):
             maglimit_out = -2.5 * np.log10(fivesigma) + corrected_db_zp
 
         retval.update({
-            'mag': phot.mag + db_correction,
-            'magerr': phot.e_mag,
-            'magsys': 'ab',
+            'mag': phot.mag + db_correction if phot.mag is not None else None,
+            'magerr': phot.e_mag if phot.e_mag is not None else None,
+            'magsys': outsys.name,
             'limiting_mag': maglimit_out
         })
     elif format == 'flux':
         retval.update({
             'flux': phot.flux,
-            'magsys': 'ab',
+            'magsys': outsys.name,
             'zp': corrected_db_zp,
             'fluxerr': phot.fluxerr
         })
@@ -119,6 +122,12 @@ class PhotometryHandler(BaseHandler):
                               items:
                                 type: integer
                               description: List of new photometry IDs
+                            bulk_upload_id:
+                              type: string
+                              description: |
+                                If multiple data points are posted, a bulk upload ID is
+                                provided so that they may all be deleted in one request.
+                                Otherwise null.
         """
 
         data = self.get_json()
@@ -127,14 +136,28 @@ class PhotometryHandler(BaseHandler):
             return self.error('Top level JSON must be an instance of `dict`, got '
                               f'{type(data)}.')
 
+        if "altdata" in data and not data["altdata"]:
+            del data["altdata"]
+
         if allscalar(data):
             data = [data]
+            bulk_upload_id = None
+        else:
+            bulk_upload_id = str(uuid.uuid4())
 
         try:
             df = pd.DataFrame(data)
         except ValueError as e:
-            return self.error('Unable to coerce passed JSON to a series of packets. '
-                              f'Error was: "{e}"')
+            if "altdata" in data and "Mixing dicts with non-Series" in str(e):
+                try:
+                    data["altdata"] = [
+                        {key: value[i] for key, value in data["altdata"].items()}
+                        for i in range(len(data["altdata"][list(data["altdata"].keys())[-1]]))
+                    ]
+                    df = pd.DataFrame(data)
+                except ValueError:
+                    return self.error('Unable to coerce passed JSON to a series of packets. '
+                                      f'Error was: "{e}"')
 
         # pop out thumbnails and process what's left using schemas
 
@@ -159,6 +182,7 @@ class PhotometryHandler(BaseHandler):
                                       f' "{e2.normalized_messages()}."')
 
             phot.original_user_data = packet
+            phot.bulk_upload_id = bulk_upload_id
             DBSession().add(phot)
 
             # to set up obj link
@@ -174,7 +198,7 @@ class PhotometryHandler(BaseHandler):
             ids.append(phot.id)
 
         DBSession().commit()
-        return self.success(data={"ids": ids})
+        return self.success(data={"ids": ids, "bulk_upload_id": bulk_upload_id})
 
     @auth_or_token
     def get(self, photometry_id):
@@ -277,11 +301,47 @@ class SourcePhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
         source = Source.get_if_owned_by(obj_id, self.current_user)
+        if source is None:
+            return self.error('Invalid source id.')
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
         return self.success(
             data=[serialize(phot, outsys, format) for phot in source.photometry]
         )
+
+
+class BulkDeletePhotometryHandler(BaseHandler):
+    @auth_or_token
+    def delete(self, bulk_upload_id):
+        """
+        ---
+        description: Delete bulk-uploaded photometry set
+        parameters:
+          - in: path
+            name: bulk_upload_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        # Permissions check:
+        obj_id = Photometry.query.filter(
+            Photometry.bulk_upload_id == bulk_upload_id).first().obj_id
+        _ = Obj.get_if_owned_by(obj_id, self.current_user)
+
+        n_deleted = DBSession.query(Photometry).filter(
+            Photometry.bulk_upload_id == bulk_upload_id).delete()
+        DBSession().commit()
+
+        return self.success(f"Deleted {n_deleted} photometry points.")
 
 
 PhotometryHandler.get.__doc__ = f"""
@@ -308,12 +368,11 @@ PhotometryHandler.get.__doc__ = f"""
           - in: query
             name: magsys
             required: false
-            description: >- 
-              The magnitude or zeropoint system of the output. (Default AB) 
+            description: >-
+              The magnitude or zeropoint system of the output. (Default AB)
             schema:
               type: string
               enum: {list(ALLOWED_MAGSYSTEMS)}
-            
         responses:
           200:
             content:
@@ -328,7 +387,7 @@ PhotometryHandler.get.__doc__ = f"""
                 schema: Error
         """
 
-SourcePhotometryHandler.get.__doc__ = f"""        
+SourcePhotometryHandler.get.__doc__ = f"""
         ---
         description: Retrieve photometry
         parameters:
@@ -353,12 +412,11 @@ SourcePhotometryHandler.get.__doc__ = f"""
           - in: query
             name: magsys
             required: false
-            description: >- 
-              The magnitude or zeropoint system of the output. (Default AB) 
+            description: >-
+              The magnitude or zeropoint system of the output. (Default AB)
             schema:
               type: string
               enum: {list(ALLOWED_MAGSYSTEMS)}
-            
         responses:
           200:
             content:
@@ -372,4 +430,3 @@ SourcePhotometryHandler.get.__doc__ = f"""
               application/json:
                 schema: Error
         """
-

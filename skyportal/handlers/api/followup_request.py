@@ -32,7 +32,6 @@ class FollowupRequestHandler(BaseHandler):
                     robotic_imaging: "#/components/schemas/RoboticImagingRequest"
                     classical_spectroscopy: "#/components/schemas/ClassicalSpectroscopyRequest"
                     classical_imaging: "#/components/schemas/ClassicalImagingRequest"
-
         responses:
           200:
             content:

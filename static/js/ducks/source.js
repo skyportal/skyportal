@@ -32,6 +32,13 @@ export const SAVE_SOURCE_OK = 'skyportal/SAVE_SOURCE_OK';
 export const DELETE_FOLLOWUP_REQUEST = 'skyportal/DELETE_FOLLOWUP_REQUEST';
 export const DELETE_FOLLOWUP_REQUEST_OK = 'skyportal/DELETE_FOLLOWUP_REQUEST_OK';
 
+export const UPLOAD_PHOTOMETRY = "skyportal/UPLOAD_PHOTOMETRY";
+export const UPLOAD_PHOTOMETRY_OK = "skyportal/UPLOAD_PHOTOMETRY_OK";
+
+export const uploadPhotometry = (data) => (
+  API.POST("/api/photometry", UPLOAD_PHOTOMETRY, data)
+);
+
 export function addComment(form) {
   function fileReaderPromise(file) {
     return new Promise((resolve) => {

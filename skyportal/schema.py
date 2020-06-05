@@ -189,19 +189,19 @@ class PhotBaseFlexible(object):
                                    'Can be given as a scalar or a 1D list. '
                                    'If a scalar, will be broadcast to all values '
                                    'given as lists. Null values allowed.',
-                      required=False)
+                       required=False)
 
     ra_unc = fields.Field(description='Uncertainty on RA [arcsec]. '
                                       'Can be given as a scalar or a 1D list. '
                                       'If a scalar, will be broadcast to all values '
                                       'given as lists. Null values allowed.',
-                      required=False)
+                          required=False)
 
     dec_unc = fields.Field(description='Uncertainty on dec [arcsec]. '
                                        'Can be given as a scalar or a 1D list. '
                                        'If a scalar, will be broadcast to all values '
                                        'given as lists. Null values allowed.',
-                      required=False)
+                           required=False)
 
 
 class PhotFluxFlexible(_Schema, PhotBaseFlexible):
@@ -209,7 +209,6 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
     input data to `PhotometryHandler.post` in redoc. These classes are only
     used for generating documentation and not for validation, serialization,
     or deserialization."""
-
 
     magsys = fields.Field(required=True,
                           description='The magnitude system to which the flux, flux error, '
@@ -235,15 +234,15 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
                                        'Can be given as a scalar or a 1D list. '
                                        'If a scalar, will be broadcast to all values '
                                        'given as lists. Null values not allowed.',
-                            required=True)
+                           required=True)
 
     zp = fields.Field(description='Magnitude zeropoint, given by `zp` in the '
-                                   'equation `m = -2.5 log10(flux) + zp`. '
-                                   '`m` is the magnitude of the object in the '
-                                   'magnitude system `magsys`. '
-                                   'Can be given as a scalar or a 1D list. '
-                                   'Null values not allowed.',
-                       required=True)
+                      'equation `m = -2.5 log10(flux) + zp`. '
+                      '`m` is the magnitude of the object in the '
+                      'magnitude system `magsys`. '
+                      'Can be given as a scalar or a 1D list. '
+                      'Null values not allowed.',
+                      required=True)
 
 
 class PhotMagFlexible(_Schema, PhotBaseFlexible):
@@ -252,7 +251,6 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
     used for generating documentation and not for validation, serialization,
     or deserialization."""
 
-
     magsys = fields.Field(required=True,
                           description='The magnitude system to which the magnitude, '
                                       'magnitude error, and limiting magnitude are tied. '
@@ -260,7 +258,6 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
                                       'If a scalar, will be broadcast to all values '
                                       'given as lists. Null values not allowed. Allowed values: '
                                       f'{force_render_enum_markdown(ALLOWED_MAGSYSTEMS)}')
-
 
     mag = fields.Field(description='Magnitude of the observation in the '
                                    'magnitude system `magsys`. '
@@ -278,14 +275,14 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
                                       'given as lists. Null values allowed for non-detections. '
                                       'If `magerr` is null, the corresponding `mag` '
                                       'must also be null.',
-                           required=False)
+                          required=False)
 
     limiting_mag = fields.Field(description='Limiting magnitude of the image '
                                             'in the magnitude system `magsys`. '
                                             'Can be given as a scalar or a 1D list. '
                                             'If a scalar, will be broadcast to all values '
                                             'given as lists. Null values not allowed.',
-                                 required=True)
+                                required=True)
 
 
 class PhotBase(object):
@@ -294,7 +291,6 @@ class PhotBase(object):
     and `PhotometryHandler.put` and for generating the API docs of
     PhotometryHandler.get`.
     """
-
 
     mjd = fields.Number(description='MJD of the observation.', required=True)
     magsys = ApispecEnumField(py_allowed_magsystems, required=True,
@@ -305,7 +301,8 @@ class PhotBase(object):
 
     obj_id = fields.String(description='ID of the Object to which the '
                                        'photometry will be attached.',
-                            required=True)
+                           required=True)
+
     instrument_id = fields.Integer(description='ID of the instrument with which'
                                                ' the observation was carried '
                                                'out.', required=True)
@@ -321,7 +318,10 @@ class PhotBase(object):
                            missing=None, default=None)
 
     dec_unc = fields.Number(description='Uncertainty on dec [arcsec].',
-                           missing=None, default=None)
+                            missing=None, default=None)
+
+    altdata = fields.Dict(description='Misc. alternative metadata.',
+                          missing=None, default=None)
 
     @post_load
     def enum_to_string(self, data, **kwargs):
@@ -338,7 +338,6 @@ class PhotometryFlux(_Schema, PhotBase):
     PhotometryHandler.get`.
     """
 
-
     flux = fields.Number(description='Flux of the observation in counts. '
                                      'Can be null to accommodate upper '
                                      'limits from ZTF1, where no flux is measured '
@@ -346,8 +345,10 @@ class PhotometryFlux(_Schema, PhotBase):
                                      'the flux error is used to derive a '
                                      'limiting magnitude.', required=False,
                          missing=None, default=None)
+
     fluxerr = fields.Number(description='Gaussian error on the flux in counts.',
                             required=True)
+
     zp = fields.Number(description='Magnitude zeropoint, given by `ZP` in the '
                                    'equation m = -2.5 log10(flux) + `ZP`. '
                                    'm is the magnitude of the object in the '
@@ -383,7 +384,7 @@ class PhotometryFlux(_Schema, PhotBase):
         if not obj:
             raise ValidationError(f'Invalid object ID: {data["obj_id"]}')
 
-        if data["filter"] not in instrument.properties['imaging']['filters']:
+        if data["filter"] not in instrument.filters:
             raise ValidationError(f"Error in packet '{data}': "
                                   f"Instrument {instrument} has no filter "
                                   f"{data['filter']}.")
@@ -481,7 +482,7 @@ class PhotometryMag(_Schema, PhotBase):
         if not obj:
             raise ValidationError(f'Invalid object ID: {data["obj_id"]}')
 
-        if data["filter"] not in instrument.properties['imaging']['filters']:
+        if data["filter"] not in instrument.filters:
             raise ValidationError(f"Error in packet '{data}': "
                                   f"Instrument {instrument} has no filter "
                                   f"{data['filter']}.")
@@ -496,7 +497,6 @@ class PhotometryMag(_Schema, PhotBase):
             fivesigflux = 10**(-0.4 * (data['limiting_mag'] - PHOT_ZP))
             flux = None
             fluxerr = fivesigflux / 5
-
 
         # convert flux to microJanskies.
         table = Table([{'flux': flux,
@@ -594,7 +594,6 @@ class ObservingRunPost(_Schema):
     calendar_date = fields.Date(
         description='The local calendar date of the run.', required=True
     )
-
 
 
 def register_components(spec):
