@@ -70,6 +70,7 @@ const Source = ({ route }) => {
           {source.id}
         </div>
 
+        <br />
         <b>
           Position (J2000):
         </b>
@@ -91,6 +92,10 @@ const Source = ({ route }) => {
           &nbsp;
         </b>
         {source.redshift}
+        |
+        <a href={`/api/sources/${source.id}/finder`}>
+          Generate PDF Finding Chart
+        </a>
         <br />
         <ThumbnailList ra={source.ra} dec={source.dec} thumbnails={source.thumbnails} />
 
