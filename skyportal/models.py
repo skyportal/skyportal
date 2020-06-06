@@ -401,7 +401,7 @@ class Photometry(Base):
                                               'schema.PhotometryFlux or schema.PhotometryMag '
                                               '(depending on how the data was passed).')
     altdata = sa.Column(JSONB)
-    bulk_upload_id = sa.Column(sa.String, nullable=True)
+    bulk_upload_id = sa.Column(sa.String, nullable=False)
 
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)

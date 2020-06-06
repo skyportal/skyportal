@@ -144,9 +144,8 @@ class PhotometryHandler(BaseHandler):
 
         if allscalar(data):
             data = [data]
-            bulk_upload_id = None
-        else:
-            bulk_upload_id = str(uuid.uuid4())
+
+        bulk_upload_id = str(uuid.uuid4())
 
         try:
             df = pd.DataFrame(data)
