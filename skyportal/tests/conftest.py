@@ -19,7 +19,7 @@ from skyportal.tests.fixtures import (
     GroupFactory,
     UserFactory,
     FilterFactory,
-    InstrumentFactory
+    InstrumentFactory,
 )
 from skyportal.model_util import create_token
 from skyportal.models import DBSession, Source, Candidate, Role
@@ -52,6 +52,15 @@ def public_filter(public_group):
 def public_source(public_group):
     obj = ObjFactory(groups=[public_group])
     DBSession.add(Source(obj_id=obj.id, group_id=public_group.id))
+    DBSession.commit()
+    return obj
+
+
+@pytest.fixture()
+def public_source_two_groups(public_group, public_group2):
+    obj = ObjFactory(groups=[public_group, public_group2])
+    for group in [public_group, public_group2]:
+        DBSession.add(Source(obj_id=obj.id, group_id=group.id))
     DBSession.commit()
     return obj
 
@@ -112,7 +121,8 @@ def super_admin_user(public_group):
 @pytest.fixture()
 def super_admin_user_two_groups(public_group, public_group2):
     return UserFactory(
-        groups=[public_group, public_group2], roles=[models.Role.query.get("Super admin")]
+        groups=[public_group, public_group2],
+        roles=[models.Role.query.get("Super admin")],
     )
 
 
@@ -153,7 +163,9 @@ def upload_data_token(user):
 @pytest.fixture()
 def upload_data_token_two_groups(user_two_groups):
     token_id = create_token(
-        permissions=["Upload data"], created_by_id=user_two_groups.id, name=str(uuid.uuid4())
+        permissions=["Upload data"],
+        created_by_id=user_two_groups.id,
+        name=str(uuid.uuid4()),
     )
     return token_id
 
@@ -180,7 +192,7 @@ def manage_users_token(super_admin_user):
 
 @pytest.fixture()
 def super_admin_token(super_admin_user):
-    role = Role.query.get('Super admin')
+    role = Role.query.get("Super admin")
     token_id = create_token(
         permissions=[a.id for a in role.acls],
         created_by_id=super_admin_user.id,
@@ -191,7 +203,7 @@ def super_admin_token(super_admin_user):
 
 @pytest.fixture()
 def super_admin_token_two_groups(super_admin_user_two_groups):
-    role = Role.query.get('Super admin')
+    role = Role.query.get("Super admin")
     token_id = create_token(
         permissions=[a.id for a in role.acls],
         created_by_id=super_admin_user_two_groups.id,

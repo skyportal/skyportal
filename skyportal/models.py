@@ -1,3 +1,4 @@
+import uuid
 import re
 from datetime import datetime
 import numpy as np
@@ -401,7 +402,8 @@ class Photometry(Base):
                                               'schema.PhotometryFlux or schema.PhotometryMag '
                                               '(depending on how the data was passed).')
     altdata = sa.Column(JSONB)
-    upload_id = sa.Column(sa.String, nullable=False)
+    upload_id = sa.Column(sa.String, nullable=False,
+                          default=lambda: str(uuid.uuid4()))
 
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)
