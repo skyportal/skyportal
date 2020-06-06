@@ -121,7 +121,7 @@ class PhotometryHandler(BaseHandler):
                               items:
                                 type: integer
                               description: List of new photometry IDs
-                            bulk_upload_id:
+                            upload_id:
                               type: string
                               description: |
                                 If multiple data points are posted, a bulk upload ID is
@@ -145,7 +145,7 @@ class PhotometryHandler(BaseHandler):
         if allscalar(data):
             data = [data]
 
-        bulk_upload_id = str(uuid.uuid4())
+        upload_id = str(uuid.uuid4())
 
         try:
             df = pd.DataFrame(data)
@@ -184,7 +184,7 @@ class PhotometryHandler(BaseHandler):
                                       f' "{e2.normalized_messages()}."')
 
             phot.original_user_data = packet
-            phot.bulk_upload_id = bulk_upload_id
+            phot.upload_id = upload_id
             phot.groups = groups
             DBSession().add(phot)
 
@@ -201,7 +201,7 @@ class PhotometryHandler(BaseHandler):
             ids.append(phot.id)
 
         DBSession().commit()
-        return self.success(data={"ids": ids, "bulk_upload_id": bulk_upload_id})
+        return self.success(data={"ids": ids, "upload_id": upload_id})
 
     @auth_or_token
     def get(self, photometry_id):
@@ -313,13 +313,13 @@ class SourcePhotometryHandler(BaseHandler):
 
 class BulkDeletePhotometryHandler(BaseHandler):
     @auth_or_token
-    def delete(self, bulk_upload_id):
+    def delete(self, upload_id):
         """
         ---
         description: Delete bulk-uploaded photometry set
         parameters:
           - in: path
-            name: bulk_upload_id
+            name: upload_id
             required: true
             schema:
               type: string
@@ -335,11 +335,11 @@ class BulkDeletePhotometryHandler(BaseHandler):
         """
         # Permissions check:
         phot_id = Photometry.query.filter(
-            Photometry.bulk_upload_id == bulk_upload_id).first().id
+            Photometry.upload_id == upload_id).first().id
         _ = Photometry.get_if_owned_by(phot_id, self.current_user)
 
         n_deleted = DBSession.query(Photometry).filter(
-            Photometry.bulk_upload_id == bulk_upload_id).delete()
+            Photometry.upload_id == upload_id).delete()
         DBSession().commit()
 
         return self.success(f"Deleted {n_deleted} photometry points.")

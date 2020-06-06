@@ -158,10 +158,10 @@ const UploadPhotometryForm = () => {
     if (result.status === "success") {
       handleReset();
       const rootURL = `${window.location.protocol}//${window.location.host}`;
-      setSuccessMessage(`Upload successful. Your bulk upload ID is ${result.data.bulk_upload_id}
+      setSuccessMessage(`Upload successful. Your upload ID is ${result.data.upload_id}
                         To delete these data, use a valid token to make a request of the form:
                         curl -X DELETE -i -H "Authorization: token <your_token_id>" \
-                        ${rootURL}/api/photometry/bulk_delete/${result.data.bulk_upload_id}`);
+                        ${rootURL}/api/photometry/bulk_delete/${result.data.upload_id}`);
     }
   };
 

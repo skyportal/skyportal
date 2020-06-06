@@ -20,10 +20,10 @@ def test_bulk_delete_photometry(upload_data_token, public_source, public_group):
     )
     assert status == 200
     assert data["status"] == "success"
-    bulk_upload_id = data["data"]["bulk_upload_id"]
+    upload_id = data["data"]["upload_id"]
 
     status, data = api(
-        "DELETE", f"photometry/bulk_delete/{bulk_upload_id}", token=upload_data_token
+        "DELETE", f"photometry/bulk_delete/{upload_id}", token=upload_data_token
     )
     assert status == 200
     assert data["data"] == "Deleted 3 photometry points."
