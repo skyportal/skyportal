@@ -124,9 +124,9 @@ class PhotometryHandler(BaseHandler):
                             upload_id:
                               type: string
                               description: |
-                                If multiple data points are posted, a bulk upload ID is
-                                provided so that they may all be deleted in one request.
-                                Otherwise null.
+                                Upload ID associated with all photometry points
+                                added in request. Can be used to later delete all
+                                points in a single request.
         """
 
         data = self.get_json()
