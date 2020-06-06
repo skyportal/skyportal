@@ -141,6 +141,10 @@ class PhotometryHandler(BaseHandler):
         except KeyError:
             return self.error("Missing required field: group_ids")
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
+        if "Super admin" not in [r.id for r in self.associated_user_object.roles]:
+            if not all([group in self.current_user.groups for group in groups]):
+                return self.error("Cannot upload photometry to groups that you "
+                                  "are not a member of.")
 
         if allscalar(data):
             data = [data]
