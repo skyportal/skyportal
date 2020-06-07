@@ -270,10 +270,21 @@ class PhotometryHandler(BaseHandler):
 
         phot.original_user_data = packet
         phot.id = photometry_id
-        if group_ids is not None:
-            phot.groups = Group.query.filter(Group.id.in_(group_ids)).all()
         DBSession().merge(phot)
-        DBSession().commit()
+        DBSession.commit()
+        # Update groups, if relevant
+        if group_ids is not None:
+            photometry = Photometry.query.get(photometry_id)
+            groups = Group.query.filter(Group.id.in_(group_ids)).all()
+            if not groups:
+                return self.error("Invalid group_ids field. "
+                                  "Specify at least one valid group ID.")
+            if "Super admin" not in [r.id for r in self.associated_user_object.roles]:
+                if not all([group in self.current_user.groups for group in groups]):
+                    return self.error("Cannot upload photometry to groups you "
+                                      "are not a member of.")
+            photometry.groups = groups
+            DBSession().commit()
         return self.success()
 
     @permissions(['Manage sources'])

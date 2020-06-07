@@ -681,6 +681,65 @@ def test_token_user_update_photometry(upload_data_token,
                                11.0 * 10**(-0.4 * (25 - 23.9)))
 
 
+def test_token_user_update_photometry_groups(upload_data_token_two_groups,
+                                             manage_sources_token_two_groups,
+                                             public_source_two_groups, ztf_camera,
+                                             public_group, public_group2,
+                                             view_only_token):
+    upload_data_token = upload_data_token_two_groups
+    manage_sources_token = manage_sources_token_two_groups
+    public_source = public_source_two_groups
+
+    status, data = api('POST', 'photometry',
+                       data={'obj_id': str(public_source.id),
+                             'mjd': 58000.,
+                             'instrument_id': ztf_camera.id,
+                             'flux': 12.24,
+                             'fluxerr': 0.031,
+                             'zp': 25.,
+                             'magsys': 'ab',
+                             'filter': 'ztfi',
+                             'group_ids': [public_group.id,
+                                           public_group2.id]
+                             },
+                       token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    photometry_id = data['data']['ids'][0]
+    status, data = api(
+        'GET',
+        f'photometry/{photometry_id}?format=flux',
+        token=view_only_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'PUT',
+        f'photometry/{photometry_id}',
+        data={'obj_id': str(public_source.id),
+              'flux': 11.0,
+              'mjd': 58000.,
+              'instrument_id': ztf_camera.id,
+              'fluxerr': 0.031,
+              'zp': 25.,
+              'magsys': 'ab',
+              'filter': 'ztfi',
+              'group_ids': [public_group2.id]
+              },
+        token=manage_sources_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'GET',
+        f'photometry/{photometry_id}?format=flux',
+        token=view_only_token)
+    assert status == 400
+    assert data['status'] == 'error'
+    assert "Insufficient permissions" in data["message"]
+
+
 def test_delete_photometry_data(upload_data_token, manage_sources_token,
                                 public_source, ztf_camera, public_group):
     status, data = api('POST', 'photometry',

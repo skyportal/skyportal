@@ -69,7 +69,8 @@ class Group(Base):
                          back_populates='groups')
     filter = relationship("Filter", uselist=False, back_populates="group")
     photometry = relationship("Photometry", secondary="group_photometry",
-                              back_populates="groups")
+                              back_populates="groups",
+                              cascade="save-update, merge, refresh-expire, expunge")
 
 
 GroupUser = join_model('group_users', Group, User)
@@ -409,7 +410,8 @@ class Photometry(Base):
                        nullable=False, index=True)
     obj = relationship('Obj', back_populates='photometry')
     groups = relationship("Group", secondary="group_photometry",
-                          back_populates="photometry")
+                          back_populates="photometry",
+                          cascade="save-update, merge, refresh-expire, expunge")
     instrument_id = sa.Column(sa.ForeignKey('instruments.id'),
                               nullable=False, index=True)
     instrument = relationship('Instrument', back_populates='photometry')

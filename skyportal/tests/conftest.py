@@ -112,6 +112,14 @@ def group_admin_user(public_group):
 
 
 @pytest.fixture()
+def group_admin_user_two_groups(public_group, public_group2):
+    return UserFactory(
+        groups=[public_group, public_group2],
+        roles=[models.Role.query.get("Group admin")],
+    )
+
+
+@pytest.fixture()
 def super_admin_user(public_group):
     return UserFactory(
         groups=[public_group], roles=[models.Role.query.get("Super admin")]
@@ -147,6 +155,16 @@ def manage_sources_token(group_admin_user):
     token_id = create_token(
         permissions=["Manage sources"],
         created_by_id=group_admin_user.id,
+        name=str(uuid.uuid4()),
+    )
+    return token_id
+
+
+@pytest.fixture()
+def manage_sources_token_two_groups(group_admin_user_two_groups):
+    token_id = create_token(
+        permissions=["Manage sources"],
+        created_by_id=group_admin_user_two_groups.id,
         name=str(uuid.uuid4()),
     )
     return token_id
