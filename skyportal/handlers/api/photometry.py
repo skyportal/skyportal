@@ -274,7 +274,7 @@ class PhotometryHandler(BaseHandler):
         phot.original_user_data = packet
         phot.id = photometry_id
         DBSession().merge(phot)
-        DBSession.commit()
+        DBSession.flush()
         # Update groups, if relevant
         if group_ids is not None:
             photometry = Photometry.query.get(photometry_id)
@@ -287,7 +287,7 @@ class PhotometryHandler(BaseHandler):
                     return self.error("Cannot upload photometry to groups you "
                                       "are not a member of.")
             photometry.groups = groups
-            DBSession().commit()
+        DBSession().commit()
         return self.success()
 
     @permissions(['Manage sources'])
