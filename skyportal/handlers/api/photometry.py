@@ -318,12 +318,12 @@ class PhotometryHandler(BaseHandler):
         return self.success()
 
 
-class SourcePhotometryHandler(BaseHandler):
+class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
         obj = Obj.query.get(obj_id)
         if obj is None:
-            return self.error('Invalid source id.')
+            return self.error('Invalid object id.')
         photometry = Obj.get_photometry_owned_by_user(obj_id, self.current_user)
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
@@ -410,16 +410,16 @@ PhotometryHandler.get.__doc__ = f"""
                 schema: Error
         """
 
-SourcePhotometryHandler.get.__doc__ = f"""
+ObjPhotometryHandler.get.__doc__ = f"""
         ---
-        description: Retrieve photometry
+        description: Retrieve all photometry associated with an Object
         parameters:
           - in: path
-            name: source_id
+            name: obj_id
             required: true
             schema:
-              type: integer
-            description: ID of the source to retrieve photometry for
+              type: string
+            description: ID of the object to retrieve photometry for
           - in: query
             name: format
             required: false
