@@ -202,6 +202,11 @@ class PhotBaseFlexible(object):
                                        'given as lists. Null values allowed.',
                            required=False)
 
+    group_ids = fields.List(fields.Integer(),
+                            description="List of group IDs to which photometry "
+                                        "points will be visible.",
+                            required=True)
+
 
 class PhotFluxFlexible(_Schema, PhotBaseFlexible):
     """This is one of two classes used for rendering the
@@ -330,7 +335,7 @@ class PhotBase(object):
 
 
 class PhotometryFlux(_Schema, PhotBase):
-    """This is one of  two classes that are used for deserializing
+    """This is one of two classes that are used for deserializing
     and validating the postprocessed input data of `PhotometryHandler.post`
     and `PhotometryHandler.put` and for generating the API docs of
     PhotometryHandler.get`.

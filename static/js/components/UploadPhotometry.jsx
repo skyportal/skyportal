@@ -8,13 +8,15 @@ import MenuItem from "@material-ui/core/MenuItem";
 import Button from "@material-ui/core/Button";
 import InputLabel from "@material-ui/core/InputLabel";
 import FormControl from "@material-ui/core/FormControl";
+import Chip from "@material-ui/core/Chip";
+import Input from "@material-ui/core/Input";
 import Card from "@material-ui/core/Card";
 import CardContent from "@material-ui/core/CardContent";
 import Box from "@material-ui/core/Box";
 import Tooltip from "@material-ui/core/Tooltip";
-import HelpOutlineIcon from '@material-ui/icons/HelpOutline';
+import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
 import Typography from "@material-ui/core/Typography";
-import { makeStyles, withStyles } from "@material-ui/core/styles";
+import { makeStyles, withStyles, useTheme } from "@material-ui/core/styles";
 import { useForm, Controller } from "react-hook-form";
 
 import FormValidationError from "./FormValidationError";
@@ -28,17 +30,27 @@ const textAreaPlaceholderText = `mjd,flux,fluxerr,zp,magsys,instrument_id,filter
 
 const HtmlTooltip = withStyles((theme) => ({
   tooltip: {
-    backgroundColor: '#f9f9ff',
-    color: 'rgba(0, 0, 0, 0.87)',
+    backgroundColor: "#f9f9ff",
+    color: "rgba(0, 0, 0, 0.87)",
     maxWidth: 700,
     fontSize: theme.typography.pxToRem(12),
-    border: '1px solid #dadde9',
+    border: "1px solid #dadde9",
   },
 }))(Tooltip);
+
+const getStyles = (groupID, groupIDs, theme) => (
+  {
+    fontWeight:
+      groupIDs.indexOf(groupID) === -1 ?
+        theme.typography.fontWeightRegular :
+        theme.typography.fontWeightMedium,
+  }
+);
 
 const UploadPhotometryForm = () => {
   const dispatch = useDispatch();
   const { instrumentList } = useSelector((state) => state.instruments);
+  const userGroups = useSelector((state) => state.groups.user);
   const [showPreview, setShowPreview] = useState(false);
   const [csvData, setCsvData] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
@@ -96,6 +108,11 @@ const UploadPhotometryForm = () => {
     return true;
   };
 
+  const validateGroups = () => {
+    formState = getValues({ nest: true });
+    return formState.groupIDs.length >= 1;
+  };
+
   const handleClickPreview = async (data) => {
     let [header, ...dataRows] = data.csvData.trim().split("\n");
     const delim = new RegExp(data.delimiter);
@@ -112,7 +129,8 @@ const UploadPhotometryForm = () => {
     reset({
       delimiter: ",",
       csvData: "",
-      instrumentID: "multiple"
+      instrumentID: "",
+      groupIDs: []
     }, {
       dirty: false
     });
@@ -123,6 +141,7 @@ const UploadPhotometryForm = () => {
     formState = getValues();
     const data = {
       obj_id: id,
+      group_ids: formState.groupIDs,
       altdata: {}
     };
     if (formState.instrumentID !== "multiple") {
@@ -139,17 +158,29 @@ const UploadPhotometryForm = () => {
     if (result.status === "success") {
       handleReset();
       const rootURL = `${window.location.protocol}//${window.location.host}`;
-      setSuccessMessage(`Upload successful. Your bulk upload ID is ${result.data.bulk_upload_id}
+      setSuccessMessage(`Upload successful. Your upload ID is ${result.data.upload_id}
                         To delete these data, use a valid token to make a request of the form:
                         curl -X DELETE -i -H "Authorization: token <your_token_id>" \
-                        ${rootURL}/api/photometry/bulk_delete/${result.data.bulk_upload_id}`);
+                        ${rootURL}/api/photometry/bulk_delete/${result.data.upload_id}`);
     }
   };
+
+  const groupIDToName = {};
+  userGroups.forEach((g) => {
+    groupIDToName[g.id] = g.name;
+  });
 
   const useStyles = makeStyles((theme) => ({
     formControl: {
       margin: theme.spacing(1),
       minWidth: 120,
+    },
+    chips: {
+      display: "flex",
+      flexWrap: "wrap",
+    },
+    chip: {
+      margin: 2,
     },
     textarea: {
       "::-webkit-input-placeholder": {
@@ -164,6 +195,18 @@ const UploadPhotometryForm = () => {
     }
   }));
   const classes = useStyles();
+  const theme = useTheme();
+
+  const ITEM_HEIGHT = 48;
+  const ITEM_PADDING_TOP = 8;
+  const MenuProps = {
+    PaperProps: {
+      style: {
+        maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
+        width: 250,
+      },
+    },
+  };
 
   return (
     <div>
@@ -257,6 +300,55 @@ const UploadPhotometryForm = () => {
                   />
                 </FormControl>
               </Box>
+              <br />
+              <Box component="span" m={1}>
+                {
+                  errors.groupIDs && (
+                    <FormValidationError
+                      message="Select at least one group"
+                    />
+                  )
+                }
+                <FormControl className={classes.formControl}>
+                  <InputLabel id="select-groups-label">Groups</InputLabel>
+                  <Controller
+                    as={(
+                      <Select
+                        labelId="select-groups-label"
+                        id="selectGroups"
+                        multiple
+                        input={<Input id="selectGroupsChip" />}
+                        renderValue={(selected) => (
+                          <div className={classes.chips}>
+                            {selected.map((value) => (
+                              <Chip
+                                key={value}
+                                label={groupIDToName[value]}
+                                className={classes.chip}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        MenuProps={MenuProps}
+                      >
+                        {userGroups.map((group) => (
+                          <MenuItem
+                            key={group.id}
+                            value={group.id}
+                            style={getStyles(group.name, formState.groupIDs, theme)}
+                          >
+                            {group.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    )}
+                    name="groupIDs"
+                    rules={{ validate: validateGroups }}
+                    control={control}
+                    defaultValue={[]}
+                  />
+                </FormControl>
+              </Box>
             </Box>
             <Box m={1}>
               <HtmlTooltip
@@ -279,26 +371,26 @@ const UploadPhotometryForm = () => {
                         API docs
                       </a>
                       &nbsp;for other allowable fields (note: omit
-                      {' '}
+                      {" "}
                       <code>obj_id</code>
-                      {' '}
+                      {" "}
                       here).
                     </p>
                     <p>
                       Other miscellanous metadata can be supplied by preceding the column
                       name with
-                      {' '}
+                      {" "}
                       <code>&quot;altdata.&quot;</code>
-                      {' '}
+                      {" "}
                       (e.g.
-                      {' '}
+                      {" "}
                       <code>&quot;altdata.calibrated_to&quot;</code>
                       ).
                       Such fields will ultimately be stored in the photometry table&apos;s
-                      {' '}
+                      {" "}
                       <code>altdata</code>
                       &nbsp;JSONB column, e.g.
-                      {' '}
+                      {" "}
                       <code>
                         {"{"}
                         &quot;calibrated_to&quot;: &quot;ps1&quot;, ...

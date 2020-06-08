@@ -8,7 +8,7 @@ import sncosmo
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
-    DBSession, Photometry, Instrument, Source, Obj,
+    DBSession, Group, Photometry, Instrument, Source, Obj,
     PHOT_ZP, PHOT_SYS, Thumbnail
 )
 
@@ -121,12 +121,12 @@ class PhotometryHandler(BaseHandler):
                               items:
                                 type: integer
                               description: List of new photometry IDs
-                            bulk_upload_id:
+                            upload_id:
                               type: string
                               description: |
-                                If multiple data points are posted, a bulk upload ID is
-                                provided so that they may all be deleted in one request.
-                                Otherwise null.
+                                Upload ID associated with all photometry points
+                                added in request. Can be used to later delete all
+                                points in a single request.
         """
 
         data = self.get_json()
@@ -136,12 +136,23 @@ class PhotometryHandler(BaseHandler):
                               f'{type(data)}.')
         if "altdata" in data and not data["altdata"]:
             del data["altdata"]
+        try:
+            group_ids = data.pop("group_ids")
+        except KeyError:
+            return self.error("Missing required field: group_ids")
+        groups = Group.query.filter(Group.id.in_(group_ids)).all()
+        if not groups:
+            return self.error("Invalid group_ids field. "
+                              "Specify at least one valid group ID.")
+        if "Super admin" not in [r.id for r in self.associated_user_object.roles]:
+            if not all([group in self.current_user.groups for group in groups]):
+                return self.error("Cannot upload photometry to groups that you "
+                                  "are not a member of.")
 
         if allscalar(data):
             data = [data]
-            bulk_upload_id = None
-        else:
-            bulk_upload_id = str(uuid.uuid4())
+
+        upload_id = str(uuid.uuid4())
 
         try:
             df = pd.DataFrame(data)
@@ -156,6 +167,9 @@ class PhotometryHandler(BaseHandler):
                 except ValueError:
                     return self.error('Unable to coerce passed JSON to a series of packets. '
                                       f'Error was: "{e}"')
+            else:
+                return self.error('Unable to coerce passed JSON to a series of packets. '
+                                  f'Error was: "{e}"')
 
         # pop out thumbnails and process what's left using schemas
 
@@ -180,7 +194,8 @@ class PhotometryHandler(BaseHandler):
                                       f' "{e2.normalized_messages()}."')
 
             phot.original_user_data = packet
-            phot.bulk_upload_id = bulk_upload_id
+            phot.upload_id = upload_id
+            phot.groups = groups
             DBSession().add(phot)
 
             # to set up obj link
@@ -196,17 +211,15 @@ class PhotometryHandler(BaseHandler):
             ids.append(phot.id)
 
         DBSession().commit()
-        return self.success(data={"ids": ids, "bulk_upload_id": bulk_upload_id})
+        return self.success(data={"ids": ids, "upload_id": upload_id})
 
     @auth_or_token
     def get(self, photometry_id):
         # The full docstring/API spec is below as an f-string
 
-        phot = Photometry.query.get(photometry_id)
+        phot = Photometry.get_if_owned_by(photometry_id, self.current_user)
         if phot is None:
             return self.error('Invalid photometry ID')
-        # Ensure user/token has access to parent source
-        _ = Source.get_if_owned_by(phot.obj_id, self.current_user)
 
         # get the desired output format
         format = self.get_query_argument('format', 'mag')
@@ -242,10 +255,9 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(Photometry.query.get(photometry_id).obj_id,
-                                   self.current_user)
+        _ = Photometry.get_if_owned_by(photometry_id, self.current_user)
         packet = self.get_json()
+        group_ids = packet.pop("group_ids", None)
 
         try:
             phot = PhotometryFlux.load(packet)
@@ -262,6 +274,19 @@ class PhotometryHandler(BaseHandler):
         phot.original_user_data = packet
         phot.id = photometry_id
         DBSession().merge(phot)
+        DBSession.flush()
+        # Update groups, if relevant
+        if group_ids is not None:
+            photometry = Photometry.query.get(photometry_id)
+            groups = Group.query.filter(Group.id.in_(group_ids)).all()
+            if not groups:
+                return self.error("Invalid group_ids field. "
+                                  "Specify at least one valid group ID.")
+            if "Super admin" not in [r.id for r in self.associated_user_object.roles]:
+                if not all([group in self.current_user.groups for group in groups]):
+                    return self.error("Cannot upload photometry to groups you "
+                                      "are not a member of.")
+            photometry.groups = groups
         DBSession().commit()
         return self.success()
 
@@ -286,9 +311,7 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(Photometry.query.get(photometry_id).obj_id,
-                                   self.current_user)
+        _ = Photometry.get_if_owned_by(photometry_id, self.current_user)
         DBSession.query(Photometry).filter(Photometry.id == int(photometry_id)).delete()
         DBSession().commit()
 
@@ -298,25 +321,26 @@ class PhotometryHandler(BaseHandler):
 class SourcePhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
-        source = Source.get_if_owned_by(obj_id, self.current_user)
-        if source is None:
+        obj = Obj.query.get(obj_id)
+        if obj is None:
             return self.error('Invalid source id.')
+        photometry = Obj.get_photometry_owned_by_user(obj_id, self.current_user)
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
         return self.success(
-            data=[serialize(phot, outsys, format) for phot in source.photometry]
+            data=[serialize(phot, outsys, format) for phot in photometry]
         )
 
 
 class BulkDeletePhotometryHandler(BaseHandler):
     @auth_or_token
-    def delete(self, bulk_upload_id):
+    def delete(self, upload_id):
         """
         ---
         description: Delete bulk-uploaded photometry set
         parameters:
           - in: path
-            name: bulk_upload_id
+            name: upload_id
             required: true
             schema:
               type: string
@@ -331,12 +355,12 @@ class BulkDeletePhotometryHandler(BaseHandler):
                 schema: Error
         """
         # Permissions check:
-        obj_id = Photometry.query.filter(
-            Photometry.bulk_upload_id == bulk_upload_id).first().obj_id
-        _ = Obj.get_if_owned_by(obj_id, self.current_user)
+        phot_id = Photometry.query.filter(
+            Photometry.upload_id == upload_id).first().id
+        _ = Photometry.get_if_owned_by(phot_id, self.current_user)
 
         n_deleted = DBSession.query(Photometry).filter(
-            Photometry.bulk_upload_id == bulk_upload_id).delete()
+            Photometry.upload_id == upload_id).delete()
         DBSession().commit()
 
         return self.success(f"Deleted {n_deleted} photometry points.")
