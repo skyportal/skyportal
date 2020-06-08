@@ -65,8 +65,8 @@ def test_download_comment_attachment(driver, user, public_source):
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
     time.sleep(0.1)
-    driver.wait_for_xpath('//a[text()="spec.csv"]').click()
-    time.sleep(0.5)
+    driver.wait_for_xpath_to_be_clickable('//a[text()="spec.csv"]').click()
+    time.sleep(1)
     fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'spec.csv')))
     assert(os.path.exists(fpath))
     try:
