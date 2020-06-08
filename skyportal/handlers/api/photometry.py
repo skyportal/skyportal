@@ -167,6 +167,9 @@ class PhotometryHandler(BaseHandler):
                 except ValueError:
                     return self.error('Unable to coerce passed JSON to a series of packets. '
                                       f'Error was: "{e}"')
+            else:
+                return self.error('Unable to coerce passed JSON to a series of packets. '
+                                  f'Error was: "{e}"')
 
         # pop out thumbnails and process what's left using schemas
 
