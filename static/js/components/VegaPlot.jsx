@@ -12,6 +12,7 @@ const spec = (url) => ({
       property: "data" // where on the JSON does the data live
     }
   },
+  background: "transparent",
   layer: [
     {
       mark: {
