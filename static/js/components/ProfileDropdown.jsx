@@ -63,7 +63,7 @@ const ProfileDropdown = () => {
 
           <div className={styles.rule} />
 
-          <Link to="/skyportal_info" role="link">
+          <Link to="/about" role="link">
             <div role="menuitem" tabIndex="-1" className={styles.entry} onClick={collapseDropdown}>
               About
             </div>

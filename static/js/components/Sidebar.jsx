@@ -52,7 +52,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 
-const MyDrawer = () => {
+const Sidebar = () => {
   const classes = useStyles();
   const iconMap = {
     // Dashboard: <img className={classes.icon} src="/static/images/home.png" alt="" />,
@@ -109,7 +109,7 @@ const MyDrawer = () => {
             <ListItemText primary="Profile" />
           </ListItem>
         </Link>
-        <Link to="/skyportal_info" className={classes.link}>
+        <Link to="/about" className={classes.link}>
           <ListItem button name="sidebarAboutButton">
             <ListItemIcon>
               {' '}
@@ -125,4 +125,4 @@ const MyDrawer = () => {
   );
 };
 
-export default MyDrawer;
+export default Sidebar;

@@ -2,7 +2,7 @@ import React from "react";
 import { useSelector } from "react-redux";
 
 
-const SkyPortalInfo = () => {
+const About = () => {
   const version = useSelector((state) => state.sysInfo.version);
   return (
     <div style={{ display: "inline-block", paddingLeft: "3em" }}>
@@ -26,4 +26,4 @@ const SkyPortalInfo = () => {
   );
 };
 
-export default SkyPortalInfo;
+export default About;
