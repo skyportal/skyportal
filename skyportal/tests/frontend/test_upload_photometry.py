@@ -22,8 +22,8 @@ def test_upload_photometry(
     driver.wait_for_xpath(f'//li[text()="P60 Camera (ID: {inst_id})"]').click()
     driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
     driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
-    # Click away (blank area) to close group select pop-up
-    driver.wait_for_xpath("//html").click()
+    # Click away to close group select pop-up
+    driver.execute_script("arguments[0].click();", driver.wait_for_xpath('//h5'))
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath_to_be_clickable('//*[text()="Preview in Tabular Form"]')
     )
@@ -65,8 +65,8 @@ def test_upload_photometry_multiple_groups(
     driver.wait_for_xpath_to_be_clickable(
         f'//li[text()="{public_group2.name}"]'
     ).click()
-    # Click away (blank area) to close group select pop-up
-    driver.wait_for_xpath("//html").click()
+    # Click away to close group select pop-up
+    driver.wait_for_xpath('//h5').click()
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath_to_be_clickable('//*[text()="Preview in Tabular Form"]')
     )
@@ -98,8 +98,8 @@ def test_upload_photometry_with_altdata(
     driver.wait_for_xpath(f'//li[text()="P60 Camera (ID: {inst_id})"]').click()
     driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
     driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
-    # Click away (blank area) to close group select pop-up
-    driver.wait_for_xpath("//html").click()
+    # Click away to close group select pop-up
+    driver.wait_for_xpath('//h5').click()
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath_to_be_clickable('//*[text()="Preview in Tabular Form"]')
     )
@@ -157,8 +157,8 @@ def test_upload_photometry_form_validation(
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
     driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
     driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
-    # Click away (blank area) to close group select pop-up
-    driver.wait_for_xpath("//html").click()
+    # Click away to close group select pop-up
+    driver.wait_for_xpath('//h5').click()
     driver.wait_for_xpath_to_be_clickable(
         '//*[text()="Preview in Tabular Form"]'
     ).click()
