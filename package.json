@@ -36,6 +36,9 @@
     "redux-thunk": "2.3.0",
     "semver": "7.3.2",
     "style-loader": "1.2.1",
+    "vega": "5.13.0",
+    "vega-embed": "6.8.0",
+    "vega-lite": "4.13.1",
     "whatwg-fetch": "3.0.0"
   },
   "devDependencies": {
