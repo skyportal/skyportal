@@ -63,17 +63,11 @@ const ProfileDropdown = () => {
 
           <div className={styles.rule} />
 
-          <a href="https://github.com/skyportal/skyportal/issues/new">
+          <Link to="/skyportal_info" role="link">
             <div role="menuitem" tabIndex="-1" className={styles.entry} onClick={collapseDropdown}>
-              File an issue
+              About
             </div>
-          </a>
-
-          <a href="https://github.com/skyportal/skyportal">
-            <div role="menuitem" tabIndex="-1" className={styles.entry} onClick={collapseDropdown}>
-              Help
-            </div>
-          </a>
+          </Link>
 
           <div className={styles.rule} />
 

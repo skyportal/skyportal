@@ -11,6 +11,7 @@ import { blue } from "@material-ui/core/colors";
 import HomeIcon from "@material-ui/icons/Home";
 import SearchIcon from "@material-ui/icons/Search";
 import AccountBoxIcon from "@material-ui/icons/AccountBox";
+import InfoIcon from "@material-ui/icons/Info";
 
 
 const drawerWidth = "13rem";
@@ -63,7 +64,8 @@ const MyDrawer = () => {
     // Profile: <img className={classes.icon} src="/static/images/profile.png" alt="" />
     Dashboard: <HomeIcon style={{ color: blue[200] }} />,
     Candidates: <SearchIcon style={{ color: blue[200] }} />,
-    Profile: <AccountBoxIcon style={{ color: blue[200] }} />
+    Profile: <AccountBoxIcon style={{ color: blue[200] }} />,
+    Info: <InfoIcon style={{ color: blue[200] }} />,
 
   };
 
@@ -105,6 +107,16 @@ const MyDrawer = () => {
               {' '}
             </ListItemIcon>
             <ListItemText primary="Profile" />
+          </ListItem>
+        </Link>
+        <Link to="/skyportal_info" className={classes.link}>
+          <ListItem button name="sidebarInfoButton">
+            <ListItemIcon>
+              {' '}
+              {iconMap.Info}
+              {' '}
+            </ListItemIcon>
+            <ListItemText primary="Info" />
           </ListItem>
         </Link>
       </List>

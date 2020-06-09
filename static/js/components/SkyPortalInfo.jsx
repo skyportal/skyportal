@@ -6,7 +6,7 @@ const SkyPortalInfo = () => {
   const version = useSelector((state) => state.sysInfo.version);
   return (
     <div style={{ display: "inline-block", paddingLeft: "3em" }}>
-      <p style={{ color: "#FFF" }}>
+      <p>
         SkyPortal v
         {version}
         . Please file issues at&nbsp;
@@ -14,6 +14,13 @@ const SkyPortalInfo = () => {
           https://github.com/skyportal/skyportal
         </a>
         .
+      </p>
+      <p>
+        Project Homepage:
+        &nbsp;
+        <a href="https://skyportal.io">
+          https://skyportal.io
+        </a>
       </p>
     </div>
   );
