@@ -65,7 +65,7 @@ const MyDrawer = () => {
     Dashboard: <HomeIcon style={{ color: blue[200] }} />,
     Candidates: <SearchIcon style={{ color: blue[200] }} />,
     Profile: <AccountBoxIcon style={{ color: blue[200] }} />,
-    Info: <InfoIcon style={{ color: blue[200] }} />,
+    About: <InfoIcon style={{ color: blue[200] }} />,
 
   };
 
@@ -110,13 +110,13 @@ const MyDrawer = () => {
           </ListItem>
         </Link>
         <Link to="/skyportal_info" className={classes.link}>
-          <ListItem button name="sidebarInfoButton">
+          <ListItem button name="sidebarAboutButton">
             <ListItemIcon>
               {' '}
-              {iconMap.Info}
+              {iconMap.About}
               {' '}
             </ListItemIcon>
-            <ListItemText primary="Info" />
+            <ListItemText primary="About" />
           </ListItem>
         </Link>
       </List>

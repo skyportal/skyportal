@@ -1,10 +1,6 @@
 import uuid
-import pytest
-from selenium import webdriver
-from selenium.webdriver.common.by import By
 import time
 
-import skyportal
 from skyportal.tests import api
 
 
@@ -100,8 +96,3 @@ def test_jump_to_page_invalid_values(driver):
     jump_to_page_button = driver.wait_for_xpath('//button[contains(.,"Jump to page:")]')
     driver.scroll_to_element_and_click(jump_to_page_button)
     driver.wait_for_xpath('//div[contains(.,"Invalid page number value")]')
-
-
-def test_skyportal_version_displayed(driver):
-    driver.get('/')
-    driver.wait_for_xpath(f"//div[contains(.,'SkyPortal v{skyportal.__version__}')]")
