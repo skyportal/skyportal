@@ -1,14 +1,12 @@
-import React from 'react';
-import { useSelector } from 'react-redux';
-
-import styles from './Footer.css';
+import React from "react";
+import { useSelector } from "react-redux";
 
 
-const Footer = () => {
+const SkyPortalInfo = () => {
   const version = useSelector((state) => state.sysInfo.version);
   return (
-    <div className={styles.footer}>
-      <div className={styles.footerContent}>
+    <div style={{ display: "inline-block", paddingLeft: "3em" }}>
+      <p style={{ color: "#FFF" }}>
         SkyPortal v
         {version}
         . Please file issues at&nbsp;
@@ -16,9 +14,9 @@ const Footer = () => {
           https://github.com/skyportal/skyportal
         </a>
         .
-      </div>
+      </p>
     </div>
   );
 };
 
-export default Footer;
+export default SkyPortalInfo;

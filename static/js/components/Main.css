@@ -46,7 +46,6 @@
     height: auto;
     padding-left: 13.1rem; /* same as sidebar width + 0.1rem */
     padding-top: 6em; /* same as top banner height */
-    padding-bottom: 6em; /* same as footer height */
 }
 
 .content a {

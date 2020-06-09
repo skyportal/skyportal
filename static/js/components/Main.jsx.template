@@ -37,8 +37,8 @@ import {{ route.component }} from './{{ route.component }}';
 import Theme from './Theme';
 import ProfileDropdown from './ProfileDropdown';
 import Logo from './Logo';
-import Footer from './Footer';
 import Sidebar from './Sidebar';
+import SkyPortalInfo from './SkyPortalInfo';
 
 messageHandler.init(store.dispatch, store.getState);
 
@@ -64,6 +64,7 @@ class MainContent extends React.Component {
                 <Link className={styles.title} to="/">
                   SkyPortal ∝
                 </Link>
+                <SkyPortalInfo />
                 <div className={styles.websocket}>
                   <WebSocket
                     url={`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${root}websocket`}
@@ -94,8 +95,6 @@ class MainContent extends React.Component {
 
 
             </div>
-
-            <Footer />
 
           </div>
         </MuiPickersUtilsProvider>
