@@ -13,7 +13,7 @@ import SearchIcon from "@material-ui/icons/Search";
 import AccountBoxIcon from "@material-ui/icons/AccountBox";
 
 
-const drawerWidth = 190;
+const drawerWidth = "13rem";
 
 const useStyles = makeStyles(() => ({
   drawer: {
