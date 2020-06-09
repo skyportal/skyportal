@@ -1,13 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
 
 import * as candidatesActions from '../ducks/candidates';
-import VegaPlot from './VegaPlot';
 import ThumbnailList from './ThumbnailList';
 import CandidateCommentList from './CandidateCommentList';
 import SaveCandidateButton from './SaveCandidateButton';
 import FilterCandidateList from './FilterCandidateList';
+
+const VegaPlot = React.lazy(() => import(/* webpackChunkName: "VegaPlot" */ './VegaPlot'));
 
 
 const CandidateList = () => {
@@ -111,9 +112,11 @@ const CandidateList = () => {
                     <br />
                   </td>
                   <td>
-                    <VegaPlot
-                      dataUrl={`/api/sources/${candidateObj.id}/photometry`}
-                    />
+                    <Suspense fallback={<div>Loading plot...</div>}>
+                      <VegaPlot
+                        dataUrl={`/api/sources/${candidateObj.id}/photometry`}
+                      />
+                    </Suspense>
                   </td>
                   <td>
                     {
