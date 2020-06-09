@@ -54,6 +54,7 @@ class MainContent extends React.Component {
 
     return (
       <Theme>
+        <Sidebar />
         <MuiPickersUtilsProvider utils={DayJSUtils}>
           <div className={styles.main}>
 

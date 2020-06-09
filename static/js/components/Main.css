@@ -10,15 +10,15 @@
 }
 
 .topBanner {
-    position: relative;
-    display: inline-block;
+    position: fixed;
     top: 0;
     margin: 0;
     background: #38B0DE;
     border-bottom: 0.25em solid lightgray;
-    z-index: 10;
+    z-index: 999999;
     width: 100%;
     height: 6em;
+    width: 100%;
 }
 
 .topBannerContent {
@@ -43,8 +43,9 @@
 }
 
 .content {
-    padding: 1em;
     height: auto;
+    padding-left: 195px; /* same as sidebar width + 5px */
+    padding-top: 6em; /* same as top banner height */
     padding-bottom: 6em; /* same as footer height */
 }
 
