@@ -3,8 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
 
 import * as candidatesActions from '../ducks/candidates';
-import sourceStyles from "./Source.css";
-import Plot from './Plot';
+import VegaPlot from './VegaPlot';
 import ThumbnailList from './ThumbnailList';
 import CandidateCommentList from './CandidateCommentList';
 import SaveCandidateButton from './SaveCandidateButton';
@@ -112,9 +111,8 @@ const CandidateList = () => {
                     <br />
                   </td>
                   <td>
-                    <Plot
-                      className={sourceStyles.smallPlot}
-                      url={`/api/internal/plot/photometry/${candidateObj.id}?plotHeight=200&plotWidth=300`}
+                    <VegaPlot
+                      dataUrl={`/api/sources/${candidateObj.id}/photometry`}
                     />
                   </td>
                   <td>
