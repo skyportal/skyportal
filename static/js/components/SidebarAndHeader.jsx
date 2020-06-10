@@ -28,20 +28,6 @@ import * as Actions from "../ducks/sidebar";
 const SidebarAndHeader = ({ open, root }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
-  const iconMap = {
-    // Dashboard: <img className={classes.icon} src="/static/images/home.png" alt="" />,
-    // Dashboard: <img className={classes.icon}
-    // src="/static/images/figma_icon/iconfinder_house_384890.svg" alt="" />,
-    // Source: <img className={classes.icon} src="/static/images/search.png" alt="" />,
-    // Source: <img className={classes.icon}
-    // src="/static/images/figma_icon/iconfinder_search_322497.svg" alt="" />,
-    // Profile: <img className={classes.icon} src="/static/images/profile.png" alt="" />
-    Dashboard: <HomeIcon style={{ color: blue[200] }} />,
-    Candidates: <SearchIcon style={{ color: blue[200] }} />,
-    Profile: <AccountBoxIcon style={{ color: blue[200] }} />,
-    About: <InfoIcon style={{ color: blue[200] }} />,
-
-  };
 
   const handleToggleSidebarOpen = () => {
     dispatch(Actions.toggleSidebar());
@@ -87,9 +73,7 @@ const SidebarAndHeader = ({ open, root }) => {
           <Link to="/" className={classes.link}>
             <ListItem button name="sidebarDashboardButton">
               <ListItemIcon>
-                {" "}
-                {iconMap.Dashboard}
-                {" "}
+                <HomeIcon style={{ color: blue[200] }} />
               </ListItemIcon>
               <ListItemText primary="Dashboard" />
             </ListItem>
@@ -97,9 +81,7 @@ const SidebarAndHeader = ({ open, root }) => {
           <Link to="/candidates" className={classes.link}>
             <ListItem button name="sidebarCandidatesButton">
               <ListItemIcon>
-                {" "}
-                {iconMap.Candidates}
-                {" "}
+                <SearchIcon style={{ color: blue[200] }} />
               </ListItemIcon>
               <ListItemText primary="Candidates" />
             </ListItem>
@@ -107,9 +89,7 @@ const SidebarAndHeader = ({ open, root }) => {
           <Link to="/profile" className={classes.link}>
             <ListItem button name="sidebarProfileButton">
               <ListItemIcon>
-                {" "}
-                {iconMap.Profile}
-                {" "}
+                <AccountBoxIcon style={{ color: blue[200] }} />
               </ListItemIcon>
               <ListItemText primary="Profile" />
             </ListItem>
@@ -117,9 +97,7 @@ const SidebarAndHeader = ({ open, root }) => {
           <Link to="/about" className={classes.link}>
             <ListItem button name="sidebarAboutButton">
               <ListItemIcon>
-                {" "}
-                {iconMap.About}
-                {" "}
+                <InfoIcon style={{ color: blue[200] }} />
               </ListItemIcon>
               <ListItemText primary="About" />
             </ListItem>
