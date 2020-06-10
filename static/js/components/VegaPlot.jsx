@@ -44,12 +44,12 @@ const spec = (url) => ({
     // // Render error bars
     // {
     //   transform: [
-    //     {filter: "datum.mag != null && datum.magerr != null"},
-    //     {calculate: "datum.mag - 0.1", "as": "magMin"},
-    //     {calculate: "datum.mag + 0.1", "as": "magMax"},
+    //     { filter: "datum.mag != null && datum.magerr != null" },
+    //     { calculate: "datum.mag - 0.1", as: "magMin" },
+    //     { calculate: "datum.mag + 0.1", as: "magMax" }
     //   ],
     //   mark: {
-    //     type: rule,
+    //     type: "rule",
     //   },
     //   encoding: {
     //     x: {
