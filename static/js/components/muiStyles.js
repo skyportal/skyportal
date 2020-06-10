@@ -63,6 +63,11 @@ const useStyles = makeStyles((theme) => ({
     }),
     marginTop: "6em", // top bar height
     marginLeft: drawerWidth,
+    "& a": {
+      textDecoration: "none",
+      color: "gray",
+      fontWeight: "bold",
+    },
   },
   contentShift: {
     transition: theme.transitions.create('margin', {
@@ -73,7 +78,7 @@ const useStyles = makeStyles((theme) => ({
   },
   link: {
     color: "#B8D2FF",
-    textDecoration: "none"
+    textDecoration: "none",
   }
 }));
 
