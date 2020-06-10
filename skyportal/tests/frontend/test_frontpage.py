@@ -4,6 +4,19 @@ import time
 from skyportal.tests import api
 
 
+def test_foldable_sidebar(driver):
+    driver.get('/')
+    sidebar_text = driver.wait_for_xpath('//span[contains(text(),"Dashboard")]')
+    assert sidebar_text.is_displayed()
+
+    hamburger = driver.wait_for_xpath(f'//button[@aria-label="open drawer"]')
+    hamburger.click()
+    assert not sidebar_text.is_displayed()
+
+    hamburger.click()
+    assert sidebar_text.is_displayed()
+
+
 def test_source_list(driver, user, public_source, private_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     assert 'localhost' in driver.current_url
