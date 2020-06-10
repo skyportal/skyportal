@@ -1,105 +1,85 @@
 // Baselayer components
-import WebSocket from 'baselayer/components/WebSocket';
-import { Notifications } from 'baselayer/components/Notifications';
+import { Notifications } from "baselayer/components/Notifications";
 
 // React and Redux
-import React from 'react';
-import PropTypes from 'prop-types';
-import { Provider } from 'react-redux';
-import ReactDOM from 'react-dom';
+import React, { useEffect } from "react";
+import PropTypes from "prop-types";
+import { Provider, useSelector } from "react-redux";
+import ReactDOM from "react-dom";
 
-import { BrowserRouter, Link, Switch } from 'react-router-dom';
+import { BrowserRouter, Switch } from "react-router-dom";
 
-import { MuiPickersUtilsProvider } from '@material-ui/pickers';
-import DayJSUtils from '@date-io/dayjs';
+import { MuiPickersUtilsProvider } from "@material-ui/pickers";
+import DayJSUtils from "@date-io/dayjs";
 
-// Message Handler
-import messageHandler from 'baselayer/MessageHandler';
+import clsx from "clsx";
 
 // Main style
-import styles from './Main.css';
+import styles from "./Main.css";
 
 // Store
-import store from '../store';
+import store from "../store";
 
 // Actions
-import hydrate from '../actions';
-import * as rotateLogoActions from '../ducks/logo';
+import hydrate from "../actions";
+import * as rotateLogoActions from "../ducks/logo";
 
-import PropsRoute from '../route';
-import NoMatchingRoute from './NoMatchingRoute';
-import Responsive from './Responsive';
+import PropsRoute from "../route";
+import NoMatchingRoute from "./NoMatchingRoute";
+import Responsive from "./Responsive";
 
 {% for route in app.routes %}
-import {{ route.component }} from './{{ route.component }}';
+import {{ route.component }} from "./{{ route.component }}";
 {% endfor %}
 
-import Theme from './Theme';
-import ProfileDropdown from './ProfileDropdown';
-import Logo from './Logo';
-import Sidebar from './Sidebar';
-
-messageHandler.init(store.dispatch, store.getState);
+import Theme from "./Theme";
+import ProfileDropdown from "./ProfileDropdown";
+import SidebarAndHeader from "./SidebarAndHeader";
+import useStyles from "./muiStyles";
 
 
-class MainContent extends React.Component {
-  async componentDidMount() {
-    await store.dispatch(hydrate());
+const MainContent = ({ root }) => {
+  const { open } = useSelector((state) => state.sidebar);
+
+  const classes = useStyles();
+
+  useEffect(() => {
+    store.dispatch(hydrate());
     store.dispatch(rotateLogoActions.rotateLogo());
-  }
+  }, []);
 
-  render() {
-    const { root } = this.props;
+  return (
+    <Theme>
+      <SidebarAndHeader root={root} open={open} />
+      <MuiPickersUtilsProvider utils={DayJSUtils}>
 
-    return (
-      <Theme>
-        <Sidebar />
-        <MuiPickersUtilsProvider utils={DayJSUtils}>
-          <div className={styles.main}>
+        <Responsive mobileElement={ProfileDropdown} />
 
-            <div className={styles.topBanner}>
-              <div className={styles.topBannerContent}>
-                <Logo className={styles.logo} />
-                <Link className={styles.title} to="/">
-                  SkyPortal ∝
-                </Link>
-                <div className={styles.websocket}>
-                  <WebSocket
-                    url={`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${root}websocket`}
-                    auth_url={`${window.location.protocol}//${root}baselayer/socket_auth_token`}
-                    messageHandler={messageHandler}
-                    dispatch={store.dispatch}
-                  />
-                </div>
-                <Responsive desktopElement={ProfileDropdown} />
-              </div>
-            </div>
+        <main
+          role="main"
+          className={clsx(classes.content, {
+            [classes.contentShift]: !open,
+          })}
+        >
 
-            <Responsive mobileElement={ProfileDropdown} />
+          <Notifications />
 
-            <div className={styles.content}>
+          <Switch>
 
-              <Notifications />
+            {%- for route in app.routes %}
+            <PropsRoute exact path="{{ route.path }}" component={{ "{" }}{{ route.component }}{{ "}" }} />
+            {%- endfor %}
 
-              <Switch>
+            <PropsRoute component={NoMatchingRoute} />
 
-                {%- for route in app.routes %}
-                <PropsRoute exact path="{{ route.path }}" component={{ '{' }}{{ route.component }}{{ '}' }} />
-                {%- endfor %}
+          </Switch>
 
-                <PropsRoute component={NoMatchingRoute} />
+        </main>
 
-              </Switch>
-
-
-            </div>
-
-          </div>
-        </MuiPickersUtilsProvider>
-      </Theme>
-    );
-  }
-}
+      </MuiPickersUtilsProvider>
+    </Theme>
+  );
+};
 
 MainContent.propTypes = {
   root: PropTypes.string.isRequired
@@ -111,5 +91,5 @@ ReactDOM.render(
       <MainContent root={`${window.location.host}/`} />
     </BrowserRouter>
   </Provider>,
-  document.getElementById('content')
+  document.getElementById("content")
 );
