@@ -10,8 +10,9 @@ import ReactDOM from "react-dom";
 import { BrowserRouter, Switch } from "react-router-dom";
 
 import { MuiPickersUtilsProvider } from "@material-ui/pickers";
-import DayJSUtils from "@date-io/dayjs";
+import { makeStyles } from "@material-ui/core/styles";
 
+import DayJSUtils from "@date-io/dayjs";
 import clsx from "clsx";
 
 // Main style
@@ -19,6 +20,10 @@ import styles from "./Main.css";
 
 // Store
 import store from "../store";
+
+// WebSocket
+import WebSocket from "baselayer/components/WebSocket";
+import messageHandler from "baselayer/MessageHandler";
 
 // Actions
 import hydrate from "../actions";
@@ -35,7 +40,35 @@ import {{ route.component }} from "./{{ route.component }}";
 import Theme from "./Theme";
 import ProfileDropdown from "./ProfileDropdown";
 import SidebarAndHeader from "./SidebarAndHeader";
-import useStyles from "./muiStyles";
+
+
+messageHandler.init(store.dispatch, store.getState);
+
+
+const useStyles = makeStyles((theme) => ({
+  content: {
+    flexGrow: 1,
+    padding: theme.spacing(2),
+    transition: theme.transitions.create('margin', {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.leavingScreen,
+    }),
+    marginTop: "6em", // top bar height
+    marginLeft: "190px",
+    "& a": {
+      textDecoration: "none",
+      color: "gray",
+      fontWeight: "bold",
+    },
+  },
+  contentShift: {
+    transition: theme.transitions.create('margin', {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+    marginLeft: 0,
+  }
+}));
 
 
 const MainContent = ({ root }) => {
@@ -50,12 +83,23 @@ const MainContent = ({ root }) => {
 
   return (
     <Theme>
-      <SidebarAndHeader root={root} open={open} />
+
+      <div className={styles.websocket}>
+        <WebSocket
+          url={`${window.location.protocol === "https:" ? "wss" : "ws"}://${root}websocket`}
+          auth_url={`${window.location.protocol}//${root}baselayer/socket_auth_token`}
+          messageHandler={messageHandler}
+          dispatch={store.dispatch}
+        />
+      </div>
+
       <MuiPickersUtilsProvider utils={DayJSUtils}>
+
+        <SidebarAndHeader root={root} open={open} />
 
         <Responsive mobileElement={ProfileDropdown} />
 
-        <main
+        <div
           role="main"
           className={clsx(classes.content, {
             [classes.contentShift]: !open,
@@ -74,7 +118,7 @@ const MainContent = ({ root }) => {
 
           </Switch>
 
-        </main>
+        </div>
 
       </MuiPickersUtilsProvider>
     </Theme>
