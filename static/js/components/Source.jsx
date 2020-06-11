@@ -100,8 +100,8 @@ const Source = ({ route }) => {
           PDF Finding Chart
         </Button>
         &nbsp;|&nbsp;
-        <Button onClick={() => setShowStarList(true)}>
-          Show Starlist
+        <Button onClick={() => setShowStarList(!showStarList)}>
+          { showStarList ? "Hide Starlist" : "Show Starlist" }
         </Button>
         <br />
         {showStarList && <StarList sourceId={source.id} />}
