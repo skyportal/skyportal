@@ -6,7 +6,6 @@ import { GET } from '../API';
 
 import styles from './StarList.css';
 
-
 const StarList = ({ sourceId }) => {
   const [starList, setStarList] = useState([{ str: 'Loading starlist...' }]);
   const dispatch = useDispatch();
