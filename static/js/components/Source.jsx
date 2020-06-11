@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link } from "react-router-dom";
@@ -9,6 +9,8 @@ import Plot from './Plot';
 import CommentList from './CommentList';
 import ThumbnailList from './ThumbnailList';
 import SurveyLinkList from './SurveyLinkList';
+import StarList from './StarList';
+
 import { ra_to_hours, dec_to_hours } from '../units';
 
 import styles from "./Source.css";
@@ -22,6 +24,7 @@ const Source = ({ route }) => {
   const source = useSelector((state) => state.source);
   const cachedSourceId = source ? source.id : null;
   const isCached = (route.id === cachedSourceId);
+  const [showStarList, setShowStarList] = useState(false);
 
   useEffect(() => {
     const fetchSource = async () => {
@@ -91,11 +94,16 @@ const Source = ({ route }) => {
           &nbsp;
         </b>
         {source.redshift}
-        |
-        <a href={`/api/sources/${source.id}/finder`}>
-          Generate PDF Finding Chart
-        </a>
+        &nbsp;|&nbsp;
+        <Button href={`/api/sources/${source.id}/finder`}>
+          PDF Finding Chart
+        </Button>
+        &nbsp;|&nbsp;
+        <Button onClick={() => setShowStarList(!showStarList)}>
+          { showStarList ? "Hide Starlist" : "Show Starlist" }
+        </Button>
         <br />
+        {showStarList && <StarList sourceId={source.id} />}
         <ThumbnailList ra={source.ra} dec={source.dec} thumbnails={source.thumbnails} />
 
         <br />

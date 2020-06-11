@@ -1,0 +1,10 @@
+.starListDiv {
+    background: #eee;
+    padding: 1rem;
+    margin: 1rem;
+    line-height: 0.8rem;
+}
+
+.starList {
+    font-size: 0.5rem;
+}

@@ -156,3 +156,11 @@ def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
     time.sleep(0.1)
     delete_button = comment_div.find_element_by_tag_name("button")
     assert delete_button.is_displayed()
+
+
+def test_show_starlist(driver, user, public_source):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    button = driver.wait_for_xpath(f'//span[text()="Show Starlist"]')
+    button.click()
+    driver.wait_for_xpath(f'//code[contains(text(), _off1)]')
