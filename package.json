@@ -33,6 +33,7 @@
     "redux-thunk": "2.3.0",
     "semver": "7.3.2",
     "style-loader": "1.2.1",
+    "styled-components": "5.1.1",
     "whatwg-fetch": "3.0.0"
   },
   "devDependencies": {
