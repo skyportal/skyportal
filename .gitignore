@@ -22,4 +22,3 @@ static/thumbnails
 package-lock.json
 .jobs_timestamps.yaml
 skyportal_image_cache
-static/js/components/Main.jsx
