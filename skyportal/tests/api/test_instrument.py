@@ -20,9 +20,11 @@ def test_token_user_post_get_instrument(super_admin_token, public_group):
     telescope_id = data['data']['id']
 
     status, data = api('POST', 'instrument',
-                       data={'name': 'instrument_name',
-                             'type': 'type',
-                             'band': 'V',
+                       data={'name': 'Gattini',
+                             'type': 'imager',
+                             'robotic': True,
+                             'band': 'NIR',
+                             'filters': ['f110w'],
                              'telescope_id': telescope_id
                              },
                        token=super_admin_token)
@@ -36,7 +38,7 @@ def test_token_user_post_get_instrument(super_admin_token, public_group):
         token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['band'] == 'V'
+    assert data['data']['band'] == 'NIR'
 
 
 def test_token_user_update_instrument(super_admin_token, manage_sources_token,
@@ -57,9 +59,11 @@ def test_token_user_update_instrument(super_admin_token, manage_sources_token,
     telescope_id = data['data']['id']
 
     status, data = api('POST', 'instrument',
-                       data={'name': 'instrument_name',
-                             'type': 'type',
-                             'band': 'V',
+                       data={'name': 'Gattini',
+                             'type': 'imager',
+                             'robotic': True,
+                             'band': 'NIR',
+                             'filters': ['f110w'],
                              'telescope_id': telescope_id
                              },
                        token=super_admin_token)
@@ -73,14 +77,17 @@ def test_token_user_update_instrument(super_admin_token, manage_sources_token,
         token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['band'] == 'V'
+    assert data['data']['band'] == 'NIR'
 
     status, data = api(
         'PUT',
         f'instrument/{instrument_id}',
-        data={'name': 'new_name',
-              'band': 'V',
-              'type': 'type'
+        data={'name': 'Gattini2',
+              'type': 'imager',
+              'robotic': True,
+              'band': 'NIR',
+              'filters': ['f110w'],
+              'telescope_id': telescope_id
               },
         token=manage_sources_token)
     assert status == 400
@@ -89,9 +96,12 @@ def test_token_user_update_instrument(super_admin_token, manage_sources_token,
     status, data = api(
         'PUT',
         f'instrument/{instrument_id}',
-        data={'name': 'new_name',
-              'band': 'V',
-              'type': 'type'
+        data={'name': 'Gattini2',
+              'type': 'imager',
+              'robotic': True,
+              'band': 'NIR',
+              'filters': ['f110w'],
+              'telescope_id': telescope_id
               },
         token=super_admin_token)
     assert status == 200
@@ -103,7 +113,7 @@ def test_token_user_update_instrument(super_admin_token, manage_sources_token,
         token=view_only_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['name'] == 'new_name'
+    assert data['data']['name'] == 'Gattini2'
 
 
 def test_token_user_delete_instrument(super_admin_token, view_only_token,
@@ -124,12 +134,15 @@ def test_token_user_delete_instrument(super_admin_token, view_only_token,
     telescope_id = data['data']['id']
 
     status, data = api('POST', 'instrument',
-                       data={'name': 'instrument_name',
-                             'type': 'type',
-                             'band': 'V',
+                       data={'name': 'Gattini',
+                             'type': 'imager',
+                             'robotic': True,
+                             'band': 'NIR',
+                             'filters': ['f110w'],
                              'telescope_id': telescope_id
                              },
                        token=super_admin_token)
+
     assert status == 200
     assert data['status'] == 'success'
     instrument_id = data['data']['id']

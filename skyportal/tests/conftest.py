@@ -20,6 +20,7 @@ from skyportal.tests.fixtures import (
     UserFactory,
     FilterFactory,
     InstrumentFactory,
+    ObservingRunFactory,
     TelescopeFactory
 )
 from skyportal.model_util import create_token
@@ -96,6 +97,12 @@ def lris(keck1_telescope):
                                                       'sdssz', 'bessellux',
                                                       'bessellv', 'bessellb',
                                                       'bessellr', 'besselli'])
+
+
+@pytest.fixture()
+def red_transients_run():
+    return ObservingRunFactory()
+
 
 @pytest.fixture()
 def private_source():

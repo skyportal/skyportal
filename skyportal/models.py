@@ -578,6 +578,7 @@ class ObservingRun(Base):
     )
     calendar_date = sa.Column(sa.Date, nullable=False, index=True)
 
+
 User.observing_runs = relationship(
     'ObservingRun', cascade='save-update, merge, refresh-expire, expunge'
 )

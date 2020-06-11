@@ -534,7 +534,6 @@ class PhotometryMag(_Schema, PhotBase):
 # These are for generating API docs and extremely basic validation
 class FollowupRequestBase(_Schema):
     type = fields.String(required=True)
-    instrument_id = fields.Integer(required=True)
     obj_id = fields.Integer(required=True)
     priority = ApispecEnumField(Enum('priority', ['1', '2', '3', '4', '5']),
                                 required=True)
@@ -542,6 +541,7 @@ class FollowupRequestBase(_Schema):
 
 
 class RoboticMixin(object):
+    instrument_id = fields.Integer(required=True)
     exposure_time = fields.Number(validate=validate.Range(0., 10800.))
     start_date = fields.DateTime()
     end_date = fields.DateTime()
@@ -556,15 +556,19 @@ class RoboticSpectroscopyRequest(FollowupRequestBase, RoboticMixin):
     pass
 
 
-class ClassicalImagingRequest(FollowupRequestBase):
+class ClassicalMixin(object):
+    run_id = fields.Integer(required=True)
+
+
+class ClassicalImagingRequest(FollowupRequestBase, ClassicalMixin):
     exposure_time = fields.Number(validate=validate.Range(0., 10800.),
                                   required=True)
     filters = fields.List(fields.String(), validate=validate.Length(min=1),
                           required=True)
-    run_id = fields.Integer(required=True)
 
 
-class ClassicalSpectroscopyRequest(FollowupRequestBase):
+
+class ClassicalSpectroscopyRequest(FollowupRequestBase, ClassicalMixin):
     exposure_time_red = fields.Integer(validate=validate.Range(0, 10800.))
     exposure_time_blue = fields.Integer(validate=validate.Range(1, 10800.))
     n_exposures_red = fields.Integer(validate=validate.Range(1, 10))

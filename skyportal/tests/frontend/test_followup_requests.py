@@ -31,10 +31,11 @@ def add_telescope_and_instrument(instrument_name, group_ids, token):
         "instrument",
         data={
             "name": instrument_name,
-            "type": "type",
-            "band": "Optical",
+            "type": "imaging spectrograph",
+            "band": "optical",
+            "robotic": True,
             "telescope_id": telescope_id,
-            "filters": ["ztfg"]
+            "filters": ['sdssu', 'sdssg', 'sdssr', 'sdssi']
         },
         token=token,
     )
@@ -46,7 +47,7 @@ def add_telescope_and_instrument(instrument_name, group_ids, token):
 def test_submit_new_followup_request(
     driver, user, public_source, public_group, super_admin_token
 ):
-    add_telescope_and_instrument("P60 Camera", [public_group.id], super_admin_token)
+    add_telescope_and_instrument("SEDM", [public_group.id], super_admin_token)
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     instrument_select_element = driver.wait_for_xpath('//select[@name="instrument_id"]')
@@ -55,10 +56,10 @@ def test_submit_new_followup_request(
     time.sleep(1.5)
     driver.execute_script("arguments[0].scrollIntoView();", instrument_select_element)
     try:
-        instrument_select.select_by_visible_text("P60 Camera")
+        instrument_select.select_by_visible_text("SEDM")
     except ElementClickInterceptedException:
         driver.scroll_to_element_and_click(instrument_select_element)
-        instrument_select.select_by_visible_text("P60 Camera")
+        instrument_select.select_by_visible_text("SEDM")
 
     submit_button = driver.find_element_by_css_selector("[type=submit]")
     driver.execute_script("arguments[0].scrollIntoView();", submit_button)
@@ -84,7 +85,7 @@ def test_submit_new_followup_request(
     priority_select = Select(driver.wait_for_xpath('//select[@name="priority"]'))
     priority_select.select_by_visible_text("1")
     driver.scroll_to_element_and_click(submit_button)
-    driver.wait_for_xpath("//td[contains(.,'P60 Camera')]")
+    driver.wait_for_xpath("//td[contains(.,'SEDM')]")
     driver.wait_for_xpath("//td[contains(.,'pending')]")
     driver.wait_for_xpath("//td[contains(.,'1')]")
 
