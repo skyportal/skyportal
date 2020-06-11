@@ -21,7 +21,6 @@ import { makeStyles } from "@material-ui/core/styles";
 import HeaderContent from "./HeaderContent";
 import * as Actions from "../ducks/sidebar";
 
-
 const drawerWidth = 190;
 
 const useStyles = makeStyles((theme) => ({
@@ -84,7 +83,6 @@ const useStyles = makeStyles((theme) => ({
     textDecoration: "none",
   }
 }));
-
 
 const SidebarAndHeader = ({ open, root }) => {
   const dispatch = useDispatch();

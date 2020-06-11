@@ -6,7 +6,6 @@ import Dropdown, { DropdownTrigger, DropdownContent } from 'react-simple-dropdow
 import styles from "./ProfileDropdown.css";
 import Responsive from "./Responsive";
 
-
 const ProfileDropdown = () => {
   const profile = useSelector((state) => state.profile);
   const dropdown = useRef(null);

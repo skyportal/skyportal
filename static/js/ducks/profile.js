@@ -3,7 +3,6 @@ import messageHandler from 'baselayer/MessageHandler';
 import * as API from '../API';
 import store from '../store';
 
-
 export const FETCH_USER_PROFILE = 'skyportal/FETCH_USER_PROFILE';
 export const FETCH_USER_PROFILE_OK = 'skyportal/FETCH_USER_PROFILE_OK';
 
@@ -15,7 +14,6 @@ export const UPDATE_USER_PREFERENCES_OK = 'skyportal/UPDATE_USER_PREFERENCES_OK'
 
 export const DELETE_TOKEN = 'skyportal/DELETE_TOKEN';
 export const DELETE_TOKEN_OK = 'skyportal/DELETE_TOKEN_OK';
-
 
 export function updateUserPreferences(preferences) {
   return API.PUT('/api/internal/profile',
@@ -38,14 +36,12 @@ export function deleteToken(tokenID) {
   );
 }
 
-
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {
   if (actionType === FETCH_USER_PROFILE) {
     dispatch(fetchUserProfile());
   }
 });
-
 
 const initialState = {
   username: '',

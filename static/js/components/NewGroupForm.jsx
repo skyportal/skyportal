@@ -6,7 +6,6 @@ import Box from '@material-ui/core/Box';
 import * as Action from '../ducks/groups';
 import styles from './NewGroupForm.css';
 
-
 const NewGroupForm = () => {
   const dispatch = useDispatch();
   const [formState, setState] = useState({

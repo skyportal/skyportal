@@ -4,11 +4,9 @@ import { createLogger } from 'redux-logger';
 
 import { reducer as notificationsReducer } from 'baselayer/components/Notifications';
 
-
 const logger = createLogger({
   collapsed: (getState, action, logEntry) => !logEntry.error
 });
-
 
 // Compose function that hooks up the Chrome/FF developer plugin
 // https://github.com/zalmoxisus/redux-devtools-extension

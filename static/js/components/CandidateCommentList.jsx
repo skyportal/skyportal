@@ -8,7 +8,6 @@ import styles from './CommentList.css';
 
 dayjs.extend(relativeTime);
 
-
 const CandidateCommentList = ({ comments }) => {
   const items = comments.map(({ id, author, created_at, text }) => (
     <span key={id} className={styles.comment}>

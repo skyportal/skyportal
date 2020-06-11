@@ -9,7 +9,6 @@ import styles from "./ThumbnailList.css";
 
 dayjs.extend(calendar);
 
-
 const Thumbnail = ({ ra, dec, telescope, mjd, name, url }) => {
   // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
   // unix timestamp epoch (1970-01-01).
@@ -85,7 +84,6 @@ Thumbnail.propTypes = {
   mjd: PropTypes.number.isRequired
 };
 
-
 const ThumbnailList = ({ ra, dec, thumbnails }) => {
   const thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8'];
   // Sort thumbnails by order of appearance in `thumbnail_order`
@@ -114,6 +112,5 @@ ThumbnailList.propTypes = {
   dec: PropTypes.number.isRequired,
   thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired
 };
-
 
 export default ThumbnailList;

@@ -10,11 +10,9 @@ import styles from './NewsFeed.css';
 
 dayjs.extend(relativeTime);
 
-
 const defaultPrefs = {
   numItems: ""
 };
-
 
 const NewsFeed = () => {
   const { items } = useSelector((state) => state.newsFeed);

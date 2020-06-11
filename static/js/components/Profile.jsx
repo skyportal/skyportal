@@ -8,7 +8,6 @@ import NewTokenForm from './NewTokenForm';
 import TokenList from './TokenList';
 import UIPreferences from './UIPreferences';
 
-
 const Profile = () => {
   const profile = useSelector((state) => state.profile);
   const groups = useSelector((state) => state.groups.user);

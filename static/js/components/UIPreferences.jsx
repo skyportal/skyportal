@@ -9,7 +9,6 @@ import Switch from '@material-ui/core/Switch';
 
 import * as profileActions from '../ducks/profile';
 
-
 const UIPreferences = () => {
   const currentTheme = useSelector((state) => state.profile.preferences.theme);
   const dispatch = useDispatch();

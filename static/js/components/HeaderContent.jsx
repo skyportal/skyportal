@@ -7,7 +7,6 @@ import Logo from "./Logo";
 
 import styles from "./Main.css";
 
-
 const HeaderContent = () => (
   <div className={styles.topBannerContent}>
     <div style={{ display: "inline-block", float: "left" }}>

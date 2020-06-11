@@ -20,7 +20,6 @@ import { useForm, Controller } from "react-hook-form";
 
 import * as ProfileActions from '../ducks/profile';
 
-
 // const NewTokenForm = ({ acls, groups }) => {
 const NewTokenForm = ({ acls }) => {
   const dispatch = useDispatch();

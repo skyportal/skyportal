@@ -22,7 +22,6 @@ import { useForm, Controller } from "react-hook-form";
 import FormValidationError from "./FormValidationError";
 import * as Actions from "../ducks/source";
 
-
 const textAreaPlaceholderText = `mjd,flux,fluxerr,zp,magsys,instrument_id,filter,altdata.meta1
 58001.,22.,1.,30.,ab,1,ztfg,44.4
 58002.,23.,1.,30.,ab,1,ztfg,43.1
