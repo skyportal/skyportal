@@ -3,7 +3,6 @@ import messageHandler from 'baselayer/MessageHandler';
 import * as API from '../API';
 import store from '../store';
 
-
 export const REFRESH_SOURCE = 'skyportal/REFRESH_SOURCE';
 
 export const FETCH_LOADED_SOURCE = 'skyportal/FETCH_LOADED_SOURCE';
@@ -92,7 +91,6 @@ export const deleteFollowupRequest = (id) => (
   API.DELETE(`/api/followup_request/${id}`, DELETE_FOLLOWUP_REQUEST)
 );
 
-
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { source } = getState();
@@ -105,7 +103,6 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     }
   }
 });
-
 
 // Reducer for currently displayed source
 const reducer = (state={ source: null, loadError: false }, action) => {

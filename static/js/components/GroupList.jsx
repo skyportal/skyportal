@@ -8,7 +8,6 @@ import ListItem from '@material-ui/core/ListItem';
 import ListItemText from '@material-ui/core/ListItemText';
 import Typography from '@material-ui/core/Typography';
 
-
 const GroupList = ({ title, groups }) => (
   <Box p={1}>
     <Typography variant="h6">
@@ -29,7 +28,6 @@ const GroupList = ({ title, groups }) => (
   </Box>
 );
 
-
 GroupList.propTypes = {
   title: PropTypes.string.isRequired,
   groups: PropTypes.arrayOf(PropTypes.object)
@@ -37,6 +35,5 @@ GroupList.propTypes = {
 GroupList.defaultProps = {
   groups: []
 };
-
 
 export default GroupList;

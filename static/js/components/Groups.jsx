@@ -4,7 +4,6 @@ import { useSelector } from 'react-redux';
 import GroupManagement from './GroupManagement';
 import GroupList from './GroupList';
 
-
 const Groups = () => {
   const roles = useSelector((state) => state.profile.roles);
   const groups = useSelector((state) => state.groups.user);

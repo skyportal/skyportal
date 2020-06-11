@@ -1,14 +1,13 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import classnames from 'classnames';
 
 import dayjs from 'dayjs';
 import calendar from 'dayjs/plugin/calendar';
+import clsx from "clsx";
 
 import styles from "./ThumbnailList.css";
 
 dayjs.extend(calendar);
-
 
 const Thumbnail = ({ ra, dec, telescope, mjd, name, url }) => {
   // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
@@ -44,7 +43,17 @@ const Thumbnail = ({ ra, dec, telescope, mjd, name, url }) => {
   }
 
   // Always apply Thumbnail style; conditionally apply DR8 style
-  const thumbnailDivClassNames = classnames(styles.Thumbnail, { [styles.dr8]: name === "dr8" });
+  const thumbnailDivClassNames = clsx(
+    styles.Thumbnail, {
+      [styles.dr8]: name === "dr8"
+    }
+  );
+
+  const thumbnailClassNames = clsx(
+    {
+      [styles.dr8crosshairs]: name === "dr8"
+    }
+  );
 
   return (
     <a href={link}>
@@ -55,10 +64,10 @@ const Thumbnail = ({ ra, dec, telescope, mjd, name, url }) => {
         </b>
         <br />
         <div className={styles.thumbnailimgdiv}>
-          <img className={(name === "dr8" && styles.dr8crosshairs) || ""} src={url} alt={alt} title={alt} />
+          <img className={thumbnailClassNames} src={url} alt={alt} title={alt} />
           {
             (name === "dr8") &&
-            <img className={styles.dr8crosshairs} src="/static/images/crosshairs.png" alt="" />
+              <img className={thumbnailClassNames} src="/static/images/crosshairs.png" alt="" />
           }
         </div>
       </div>
@@ -74,7 +83,6 @@ Thumbnail.propTypes = {
   url: PropTypes.string.isRequired,
   mjd: PropTypes.number.isRequired
 };
-
 
 const ThumbnailList = ({ ra, dec, thumbnails }) => {
   const thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8'];
@@ -104,6 +112,5 @@ ThumbnailList.propTypes = {
   dec: PropTypes.number.isRequired,
   thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired
 };
-
 
 export default ThumbnailList;

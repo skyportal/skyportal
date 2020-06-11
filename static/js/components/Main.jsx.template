@@ -1,106 +1,129 @@
 // Baselayer components
-import WebSocket from 'baselayer/components/WebSocket';
-import { Notifications } from 'baselayer/components/Notifications';
+import { Notifications } from "baselayer/components/Notifications";
 
 // React and Redux
-import React from 'react';
-import PropTypes from 'prop-types';
-import { Provider } from 'react-redux';
-import ReactDOM from 'react-dom';
+import React, { useEffect } from "react";
+import PropTypes from "prop-types";
+import { Provider, useSelector } from "react-redux";
+import ReactDOM from "react-dom";
 
-import { BrowserRouter, Link, Switch } from 'react-router-dom';
+import { BrowserRouter, Switch } from "react-router-dom";
 
-import { MuiPickersUtilsProvider } from '@material-ui/pickers';
-import DayJSUtils from '@date-io/dayjs';
+import { MuiPickersUtilsProvider } from "@material-ui/pickers";
+import { makeStyles } from "@material-ui/core/styles";
 
-// Message Handler
-import messageHandler from 'baselayer/MessageHandler';
+import DayJSUtils from "@date-io/dayjs";
+import clsx from "clsx";
 
 // Main style
-import styles from './Main.css';
+import styles from "./Main.css";
 
 // Store
-import store from '../store';
+import store from "../store";
+
+// WebSocket
+import WebSocket from "baselayer/components/WebSocket";
+import messageHandler from "baselayer/MessageHandler";
 
 // Actions
-import hydrate from '../actions';
-import * as rotateLogoActions from '../ducks/logo';
+import hydrate from "../actions";
+import * as rotateLogoActions from "../ducks/logo";
 
-import PropsRoute from '../route';
-import NoMatchingRoute from './NoMatchingRoute';
-import Responsive from './Responsive';
+import PropsRoute from "../route";
+import NoMatchingRoute from "./NoMatchingRoute";
+import Responsive from "./Responsive";
 
 {% for route in app.routes %}
-import {{ route.component }} from './{{ route.component }}';
+import {{ route.component }} from "./{{ route.component }}";
 {% endfor %}
 
-import Theme from './Theme';
-import ProfileDropdown from './ProfileDropdown';
-import Logo from './Logo';
-import Footer from './Footer';
+import Theme from "./Theme";
+import ProfileDropdown from "./ProfileDropdown";
+import SidebarAndHeader from "./SidebarAndHeader";
+
 
 messageHandler.init(store.dispatch, store.getState);
 
 
-class MainContent extends React.Component {
-  async componentDidMount() {
-    await store.dispatch(hydrate());
+const useStyles = makeStyles((theme) => ({
+  content: {
+    flexGrow: 1,
+    padding: theme.spacing(2),
+    transition: theme.transitions.create('margin', {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.leavingScreen,
+    }),
+    marginTop: "6em", // top bar height
+    marginLeft: "190px",
+    "& a": {
+      textDecoration: "none",
+      color: "gray",
+      fontWeight: "bold",
+    },
+  },
+  contentShift: {
+    transition: theme.transitions.create('margin', {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+    marginLeft: 0,
+  }
+}));
+
+
+const MainContent = ({ root }) => {
+  const { open } = useSelector((state) => state.sidebar);
+
+  const classes = useStyles();
+
+  useEffect(() => {
+    store.dispatch(hydrate());
     store.dispatch(rotateLogoActions.rotateLogo());
-  }
+  }, []);
 
-  render() {
-    const { root } = this.props;
+  return (
+    <Theme>
 
-    return (
-      <Theme>
-        <MuiPickersUtilsProvider utils={DayJSUtils}>
-          <div className={styles.main}>
+      <div className={styles.websocket}>
+        <WebSocket
+          url={`${window.location.protocol === "https:" ? "wss" : "ws"}://${root}websocket`}
+          auth_url={`${window.location.protocol}//${root}baselayer/socket_auth_token`}
+          messageHandler={messageHandler}
+          dispatch={store.dispatch}
+        />
+      </div>
 
-            <div className={styles.topBanner}>
-              <div className={styles.topBannerContent}>
-                <Logo className={styles.logo} />
-                <Link className={styles.title} to="/">
-                  SkyPortal ∝
-                </Link>
-                <div className={styles.websocket}>
-                  <WebSocket
-                    url={`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${root}websocket`}
-                    auth_url={`${window.location.protocol}//${root}baselayer/socket_auth_token`}
-                    messageHandler={messageHandler}
-                    dispatch={store.dispatch}
-                  />
-                </div>
-                <Responsive desktopElement={ProfileDropdown} />
-              </div>
-            </div>
+      <MuiPickersUtilsProvider utils={DayJSUtils}>
 
-            <Responsive mobileElement={ProfileDropdown} />
+        <SidebarAndHeader root={root} open={open} />
 
-            <div className={styles.content}>
+        <Responsive mobileElement={ProfileDropdown} />
 
-              <Notifications />
+        <div
+          role="main"
+          className={clsx(classes.content, {
+            [classes.contentShift]: !open,
+          })}
+        >
 
-              <Switch>
+          <Notifications />
 
-                {%- for route in app.routes %}
-                <PropsRoute exact path="{{ route.path }}" component={{ '{' }}{{ route.component }}{{ '}' }} />
-                {%- endfor %}
+          <Switch>
 
-                <PropsRoute component={NoMatchingRoute} />
+            {%- for route in app.routes %}
+            <PropsRoute exact path="{{ route.path }}" component={{ "{" }}{{ route.component }}{{ "}" }} />
+            {%- endfor %}
 
-              </Switch>
+            <PropsRoute component={NoMatchingRoute} />
 
+          </Switch>
 
-            </div>
+        </div>
 
-            <Footer />
-
-          </div>
-        </MuiPickersUtilsProvider>
-      </Theme>
-    );
-  }
-}
+      </MuiPickersUtilsProvider>
+    </Theme>
+  );
+};
 
 MainContent.propTypes = {
   root: PropTypes.string.isRequired
@@ -112,5 +135,5 @@ ReactDOM.render(
       <MainContent root={`${window.location.host}/`} />
     </BrowserRouter>
   </Provider>,
-  document.getElementById('content')
+  document.getElementById("content")
 );

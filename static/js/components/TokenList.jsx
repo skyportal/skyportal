@@ -13,7 +13,6 @@ import TableCell from '@material-ui/core/TableCell';
 
 import * as Action from '../ducks/profile';
 
-
 const copyToken = (elementID) => {
   const el = document.getElementById(elementID);
   el.select();

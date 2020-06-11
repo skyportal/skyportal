@@ -10,7 +10,6 @@ import CandidateCommentList from './CandidateCommentList';
 import SaveCandidateButton from './SaveCandidateButton';
 import FilterCandidateList from './FilterCandidateList';
 
-
 const CandidateList = () => {
   const { candidates } = useSelector((state) => state.candidates);
 

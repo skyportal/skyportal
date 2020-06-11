@@ -17,7 +17,6 @@ import FoldBox from "./FoldBox";
 import FollowupRequestForm from './FollowupRequestForm';
 import FollowupRequestList from './FollowupRequestList';
 
-
 const Source = ({ route }) => {
   const dispatch = useDispatch();
   const source = useSelector((state) => state.source);

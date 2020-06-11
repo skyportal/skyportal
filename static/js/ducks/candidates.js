@@ -3,11 +3,9 @@ import messageHandler from 'baselayer/MessageHandler';
 import * as API from '../API';
 import store from '../store';
 
-
 export const FETCH_CANDIDATES = 'skyportal/FETCH_CANDIDATES';
 export const FETCH_CANDIDATES_OK = 'skyportal/FETCH_CANDIDATES_OK';
 export const FETCH_CANDIDATES_FAIL = 'skyportal/FETCH_CANDIDATES_FAIL';
-
 
 export const fetchCandidates = (filterParams={}) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
