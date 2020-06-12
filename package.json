@@ -19,6 +19,8 @@
     "imports-loader": "0.8.0",
     "mui-datatables": "2.14.0",
     "npm-check": "5.9.2",
+    "plotly.js": "1.54.2",
+    "react-plotly.js": "2.4.0",
     "prop-types": "15.7.2",
     "raw-loader": "4.0.1",
     "react": "16.13.1",
@@ -36,9 +38,6 @@
     "redux-thunk": "2.3.0",
     "semver": "7.3.2",
     "style-loader": "1.2.1",
-    "vega": "5.13.0",
-    "vega-embed": "6.8.0",
-    "vega-lite": "4.13.1",
     "whatwg-fetch": "3.0.0"
   },
   "devDependencies": {

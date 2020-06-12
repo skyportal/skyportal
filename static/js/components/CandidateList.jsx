@@ -8,7 +8,7 @@ import CandidateCommentList from './CandidateCommentList';
 import SaveCandidateButton from './SaveCandidateButton';
 import FilterCandidateList from './FilterCandidateList';
 
-const VegaPlot = React.lazy(() => import(/* webpackChunkName: "VegaPlot" */ './VegaPlot'));
+const CandidatePlot = React.lazy(() => import(/* webpackChunkName: "CandidatePlot" */ './CandidatePlot'));
 
 
 const CandidateList = () => {
@@ -113,7 +113,7 @@ const CandidateList = () => {
                   </td>
                   <td>
                     <Suspense fallback={<div>Loading plot...</div>}>
-                      <VegaPlot
+                      <CandidatePlot
                         dataUrl={`/api/sources/${candidateObj.id}/photometry`}
                       />
                     </Suspense>
