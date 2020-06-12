@@ -337,11 +337,10 @@ class Instrument(Base):
                              nullable=False, index=True)
     telescope = relationship('Telescope', back_populates='instruments')
 
-    followup_requests = relationship('FollowupRequest',
-                                     back_populates='instrument')
-
     photometry = relationship('Photometry', back_populates='instrument')
     spectra = relationship('Spectrum', back_populates='instrument')
+
+
 
     # can be [] if an instrument is spec only
     filters = sa.Column(ArrayOfEnum(allowed_bandpasses), nullable=False,
@@ -508,44 +507,12 @@ class Thumbnail(Base):
                        secondary='photometry')
 
 
-class FollowupRequest(Base):
 
-    type = sa.Column(followup_request_types, doc='The type of observation being requested.')
-    requester = relationship(User, back_populates='followup_requests')
-    requester_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
-                             nullable=False, index=True)
-    obj = relationship('Obj', back_populates='followup_requests')
-    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
-                       nullable=False, index=True)
-    instrument = relationship(Instrument, back_populates='followup_requests')
-    instrument_id = sa.Column(sa.ForeignKey('instruments.id'), nullable=False,
-                              index=True)
-
-    run = relationship('ObservingRun', back_populates='assignments')
-    run_id = sa.Column(sa.ForeignKey('observingruns.id', ondelete='CASCADE'),
-                       nullable=True, index=True)
-
-    parameters = sa.Column(
-        psql.JSONB,
-        nullable=False,
-        doc='The parameters of the followup request. For spectroscopy, may contain, e.g., '
-            'the number of exposures and  the exposure time (potentially on '
-            'the red or blue sides of the instrument). For imaging, may contain, e.g.,  '
-            'the number of exposures, the exposure time, and the filters.'
-    )
-
-    status = sa.Column(sa.String(), nullable=False, default="pending")
-
-    def submit(self):
-        # TODO: implement this method for SEDM and LT
-        pass
-
-
-User.followup_requests = relationship('FollowupRequest', back_populates='requester')
+User.followup_requests = relationship('FollowupRequest',
+                                      back_populates='requester')
 
 
 class ObservingRun(Base):
-
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id', ondelete='CASCADE'), nullable=False
     )
@@ -559,7 +526,7 @@ class ObservingRun(Base):
     observers = sa.Column(sa.Text)
 
     sources = relationship(
-        'Obj', secondary='followuprequests',
+        'Obj', secondary='join(Assignment, Obj)',
         cascade='save-update, merge, refresh-expire, expunge'
     )
 
@@ -574,7 +541,7 @@ class ObservingRun(Base):
                          nullable=False, index=True)
 
     assignments = relationship(
-        'FollowupRequest', cascade='save-update, merge, refresh-expire, expunge'
+        'Assignment', cascade='save-update, merge, refresh-expire, expunge'
     )
     calendar_date = sa.Column(sa.Date, nullable=False, index=True)
 
@@ -582,5 +549,61 @@ class ObservingRun(Base):
 User.observing_runs = relationship(
     'ObservingRun', cascade='save-update, merge, refresh-expire, expunge'
 )
+
+
+class FollowupRequest(Base):
+
+    __mapper_args__ = {'polymorphic_identity': 'base',
+                       'polymorphic_on': 'type'}
+
+    type = sa.Column(sa.String(), doc='The type of the follow-up request.')
+    requester = relationship(User, back_populates='followup_requests')
+    requester_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
+                             nullable=False, index=True)
+    obj = relationship('Obj', back_populates='followup_requests')
+    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
+                       nullable=False, index=True)
+
+    observations = sa.Column(
+        psql.JSONB,
+        nullable=False,
+        doc='The observations'
+    )
+
+    status = sa.Column(sa.String(), nullable=False, default="pending")
+
+
+class RoboticFollowupRequest(FollowupRequest):
+
+    id = sa.Column(sa.Integer, sa.ForeignKey('followuprequests.id',
+                                             ondelete='CASCADE'),
+                   primary_key=True)
+    __mapper_args__ = {'polymorphic_identity': 'robotic',
+                       'inherit_condition': id == FollowupRequest.id}
+
+    instrument = relationship(Instrument)
+    instrument_id = sa.Column(sa.ForeignKey('instruments.id'), nullable=False,
+                              index=True)
+
+    start_date = sa.Column(ArrowType)
+    end_date = sa.Column(ArrowType)
+
+    def submit(self):
+        # TODO: implement this method for SEDM and LT
+        pass
+
+
+class Assignment(FollowupRequest):
+
+    id = sa.Column(sa.Integer, sa.ForeignKey('followuprequests.id',
+                                             ondelete='CASCADE'),
+                   primary_key=True)
+    __mapper_args__ = {'polymorphic_identity': 'classical',
+                       'inherit_condition': id == FollowupRequest.id}
+
+    run = relationship(ObservingRun, back_populates='assignments')
+    run_id = sa.Column(sa.ForeignKey('observingruns.id'), nullable=False,
+                       index=True)
+
 
 schema.setup_schema()

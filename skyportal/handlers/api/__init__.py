@@ -1,7 +1,7 @@
 from .candidate import CandidateHandler
 from .comment import CommentHandler, CommentAttachmentHandler
 from .filter import FilterHandler
-from .followup_request import FollowupRequestHandler
+from .followup_request import FollowupRequestHandler, AssignmentHandler
 from .group import GroupHandler, GroupUserHandler
 from .instrument import InstrumentHandler
 from .news_feed import NewsFeedHandler

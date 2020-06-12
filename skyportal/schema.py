@@ -16,9 +16,6 @@ from marshmallow import (Schema as _Schema, fields, validate, post_load,
 from marshmallow_enum import EnumField
 from marshmallow_oneofschema import OneOfSchema
 
-import sqlalchemy as sa
-from sqlalchemy.orm import mapper
-
 from baselayer.app.models import (
     Base as _Base,
     DBSession as _DBSession
@@ -27,7 +24,7 @@ from baselayer.app.models import (
 from skyportal.enum_types import (
     py_allowed_bandpasses,
     py_allowed_magsystems,
-    py_thumbnail_types,
+    py_followup_request_types,
     ALLOWED_BANDPASSES,
     ALLOWED_MAGSYSTEMS,
     force_render_enum_markdown
@@ -39,10 +36,9 @@ import operator
 import sys
 import inspect
 import numpy as np
-from uuid import uuid4
+import arrow
 from enum import Enum
-from typing import Any
-import base64
+
 
 
 class ApispecEnumField(EnumField):
@@ -532,57 +528,155 @@ class PhotometryMag(_Schema, PhotBase):
 
 
 # These are for generating API docs and extremely basic validation
-class FollowupRequestBase(_Schema):
-    type = fields.String(required=True)
-    obj_id = fields.Integer(required=True)
+class FollowupRequestSchemaBase(_Schema):
+    obj_id = fields.String(required=True, description='The ID of the object to observe.')
     priority = ApispecEnumField(Enum('priority', ['1', '2', '3', '4', '5']),
-                                required=True)
-    comment = fields.String()
+                                required=True, description='Priority of the request, '
+                                                           '(lowest = 1, highest = 5).')
+    comment = fields.String(description='An optional comment describing the request.')
+
+    observations = fields.List(fields.Field(), required=True,
+                               validate=validate.Length(min=1),
+                               description='Array of objects describing the '
+                                           'requested observations.')
 
 
-class RoboticMixin(object):
-    instrument_id = fields.Integer(required=True)
+class ObservationBase(_Schema):
+    type = ApispecEnumField(py_followup_request_types, required=True,
+                            description='The type of observation requested.')
+    comment = fields.String(description='An optional comment for the observation request.')
+
+
+class RoboticImaging(ObservationBase):
+    filter = fields.Field(required=True,
+                          description='The bandpass of the observation(s). '
+                                      'Can be given as a scalar or a 1D list. '
+                                      'If a scalar, will be broadcast to all values '
+                                      'given as lists. Null values not allowed. Allowed values: '
+                                      f'{force_render_enum_markdown(ALLOWED_BANDPASSES)}')
     exposure_time = fields.Number(validate=validate.Range(0., 10800.))
-    start_date = fields.DateTime()
-    end_date = fields.DateTime()
 
 
-class RoboticImagingRequest(FollowupRequestBase, RoboticMixin):
-    filters = fields.List(fields.String(), validate=validate.Length(min=1),
-                          required=True)
+class RoboticSpectroscopy(ObservationBase):
+    exposure_time = fields.Number(validate=validate.Range(0., 10800.))
 
 
-class RoboticSpectroscopyRequest(FollowupRequestBase, RoboticMixin):
-    pass
-
-
-class ClassicalMixin(object):
-    run_id = fields.Integer(required=True)
-
-
-class ClassicalImagingRequest(FollowupRequestBase, ClassicalMixin):
+class ClassicalImaging(ObservationBase):
     exposure_time = fields.Number(validate=validate.Range(0., 10800.),
                                   required=True)
-    filters = fields.List(fields.String(), validate=validate.Length(min=1),
-                          required=True)
+    filter = fields.Field(required=True,
+                          description='The bandpass of the observation(s). '
+                                      'Can be given as a scalar or a 1D list. '
+                                      'If a scalar, will be broadcast to all values '
+                                      'given as lists. Null values not allowed. Allowed values: '
+                                      f'{force_render_enum_markdown(ALLOWED_BANDPASSES)}')
 
 
-
-class ClassicalSpectroscopyRequest(FollowupRequestBase, ClassicalMixin):
+class ClassicalSpectroscopy(ObservationBase):
     exposure_time_red = fields.Integer(validate=validate.Range(0, 10800.))
     exposure_time_blue = fields.Integer(validate=validate.Range(1, 10800.))
     n_exposures_red = fields.Integer(validate=validate.Range(1, 10))
     n_exposures_blue = fields.Integer(validate=validate.Range(1, 10))
+
+
+class RoboticRequestSchema(FollowupRequestSchemaBase):
+    # For rendering docs
+
+    instrument_id = fields.Integer(required=True)
+    start_date = fields.DateTime(required=True)
+    end_date = fields.DateTime(required=True)
+
+
+    @post_load
+    def parse(self, data, **kwargs):
+        from .models import Instrument, RoboticFollowupRequest
+
+        for row in data['observations']:
+            if 'type' not in row:
+                raise ValidationError(f'Observation {row} missing '
+                                      f'required field "type".')
+
+            otype = row['type']
+            if otype == 'imaging':
+                RoboticImaging().load(row)
+            elif otype == 'spectroscopy':
+                RoboticSpectroscopy().load(row)
+            else:
+                raise ValidationError(f'Observation type "{otype}" not in '
+                                      f'allowed list of enums')
+
+
+        instrument_id = data['instrument_id']
+        instrument = Instrument.query.get(instrument_id)
+        if instrument is None:
+            raise ValidationError(f'Invalid observing run: "{run_id}"')
+
+        for observation in data['observations']:
+            if observation['type'] == 'imaging':
+                filter = observation['filter']
+                if filter not in instrument.filters:
+                    raise ValidationError(f"Error in packet '{observation}': "
+                                          f"Instrument {instrument} has no filter "
+                                          f"{filter}.")
+
+            otype = observation['type']
+            if ('spectroscopy' == otype and not instrument.does_spectroscopy) or \
+                    ('imaging' == otype and not instrument.does_imaging) or \
+                    not instrument.robotic:
+                raise ValidationError(f'Invalid request type "{otype}" for instrument '
+                                      f'"{instrument.name}".')
+
+        request = RoboticFollowupRequest(**data)
+        return request
+
+
+class AssignmentSchema(FollowupRequestSchemaBase):
+    # For rendering docs
+
     run_id = fields.Integer(required=True)
 
+    @post_load
+    def parse(self, data, **kwargs):
+        # check that request type is valid given the instrument
+        from .models import ObservingRun, Assignment
 
-class FollowUpRequestSchema(OneOfSchema):
-    type_schemas = {
-        'robotic_imaging': RoboticImagingRequest,
-        'robotic_spectroscopy': RoboticSpectroscopyRequest,
-        'classical_imaging': ClassicalImagingRequest,
-        'classical_spectroscopy': ClassicalSpectroscopyRequest
-    }
+        for row in data['observations']:
+            if 'type' not in row:
+                raise ValidationError(f'Observation {row} missing '
+                                      f'required field "type".')
+
+            otype = row['type']
+            if otype == 'imaging':
+                ClassicalImaging().load(row)
+            elif otype == 'spectroscopy':
+                ClassicalSpectroscopy().load(row)
+            else:
+                raise ValidationError(f'Observation type "{otype}" not in '
+                                      f'allowed list of enums')
+
+        run_id = data['run_id']
+        run = ObservingRun.query.get(run_id)
+        if run is None:
+            raise ValidationError(f'Invalid observing run: "{run_id}"')
+        instrument = run.instrument
+
+        for observation in data['observations']:
+            if observation['type'] == 'imaging':
+                filter = observation['filter']
+                if filter not in instrument.filters:
+                    raise ValidationError(f"Error in packet '{observation}': "
+                                          f"Instrument {instrument} has no filter "
+                                          f"{filter}.")
+
+            otype = observation['type']
+            if ('spectroscopy' == otype and not instrument.does_spectroscopy) or \
+                    ('imaging' == otype and not instrument.does_imaging):
+                raise ValidationError(f'Invalid request type "{otype}" for instrument '
+                                      f'"{instrument.name}".')
+
+        # check the object
+        assignment = Assignment(**data)
+        return assignment
 
 
 class ObservingRunPost(_Schema):
@@ -628,9 +722,10 @@ PhotometryFlux = PhotometryFlux()
 PhotometryMag = PhotometryMag()
 PhotMagFlexible = PhotMagFlexible()
 PhotFluxFlexible = PhotFluxFlexible()
-RoboticImagingRequest = RoboticImagingRequest()
-RoboticSpectroscopyRequest = RoboticSpectroscopyRequest()
-ClassicalImagingRequest = ClassicalImagingRequest()
-ClassicalSpectroscopyRequest = ClassicalSpectroscopyRequest()
-FollowUpRequestSchema = FollowUpRequestSchema()
 ObservingRunPost = ObservingRunPost()
+RoboticImaging = RoboticImaging()
+RoboticSpectroscopy = RoboticSpectroscopy()
+ClassicalImaging = ClassicalImaging()
+ClassicalSpectroscopy = ClassicalSpectroscopy()
+AssignmentSchema = AssignmentSchema()
+RoboticRequestSchema = RoboticRequestSchema()

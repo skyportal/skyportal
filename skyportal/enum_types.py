@@ -11,8 +11,7 @@ ALLOWED_MAGSYSTEMS = tuple(l['name'] for l in _MAGSYSTEMS.get_loaders_metadata()
 ALLOWED_BANDPASSES = tuple(l['name'] for l in _BANDPASSES.get_loaders_metadata())
 THUMBNAIL_TYPES = ('new', 'ref', 'sub', 'sdss', 'dr8', "new_gz", 'ref_gz', 'sub_gz')
 INSTRUMENT_TYPES = ('imager', 'spectrograph', 'imaging spectrograph')
-FOLLOWUP_REQUEST_TYPES = ('classical_imaging', 'classical_spectroscopy',
-                          'robotic_imaging', 'robotic_spectroscopy')
+FOLLOWUP_REQUEST_TYPES = ('imaging', 'spectroscopy')
 
 allowed_magsystems = sa.Enum(*ALLOWED_MAGSYSTEMS, name="magsystems", validate_strings=True)
 allowed_bandpasses = sa.Enum(*ALLOWED_BANDPASSES, name="bandpasses", validate_strings=True)
@@ -24,3 +23,4 @@ followup_request_types = sa.Enum(*FOLLOWUP_REQUEST_TYPES, name='followup_request
 py_allowed_magsystems = Enum('magsystems', ALLOWED_MAGSYSTEMS)
 py_allowed_bandpasses = Enum('bandpasses', ALLOWED_BANDPASSES)
 py_thumbnail_types = Enum('thumbnail_types', THUMBNAIL_TYPES)
+py_followup_request_types = Enum('followup_request_types', FOLLOWUP_REQUEST_TYPES)
