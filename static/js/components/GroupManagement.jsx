@@ -8,7 +8,6 @@ import Typography from '@material-ui/core/Typography';
 import NewGroupForm from './NewGroupForm';
 import GroupList from './GroupList';
 
-
 const GroupManagement = () => {
   const allGroups = useSelector((state) => state.groups.all);
 

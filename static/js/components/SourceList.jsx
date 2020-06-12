@@ -6,7 +6,6 @@ import SearchBox from './SearchBox';
 import * as sourcesActions from '../ducks/sources';
 import UninitializedDBMessage from './UninitializedDBMessage';
 
-
 const SourceList = () => {
   const sources = useSelector(
     (state) => state.sources

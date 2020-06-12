@@ -20,7 +20,6 @@ import { useForm, Controller } from "react-hook-form";
 import * as sourceActions from "../ducks/source";
 import FormValidationError from "./FormValidationError";
 
-
 const SaveCandidateButton = ({ candidate, userGroups }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Dialog logic:

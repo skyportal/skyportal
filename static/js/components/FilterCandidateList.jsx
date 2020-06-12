@@ -13,7 +13,6 @@ import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 import FormValidationError from "./FormValidationError";
 
-
 const FilterCandidateList = ({ userGroups }) => {
   const { pageNumber, lastPage, totalMatches, numberingStart,
     numberingEnd } = useSelector((state) => state.candidates);

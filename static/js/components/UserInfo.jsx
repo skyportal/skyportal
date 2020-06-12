@@ -4,7 +4,6 @@ import { useSelector, useDispatch } from 'react-redux';
 
 import * as Action from '../ducks/users';
 
-
 const UserInfo = ({ route }) => {
   const dispatch = useDispatch();
   useEffect(() => {

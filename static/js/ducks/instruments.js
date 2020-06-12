@@ -1,7 +1,6 @@
 import * as API from '../API';
 import store from '../store';
 
-
 const FETCH_INSTRUMENTS = 'skyportal/FETCH_INSTRUMENTS';
 const FETCH_INSTRUMENTS_OK = 'skyportal/FETCH_INSTRUMENTS_OK';
 

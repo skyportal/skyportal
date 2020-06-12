@@ -30,6 +30,8 @@ app:
       component: UserInfo
     - path: "/upload_photometry/:id"
       component: UploadPhotometry
+    - path: "/about"
+      component: About
 
 database:
     database: skyportal

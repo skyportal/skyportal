@@ -1,11 +1,9 @@
 import * as API from '../API';
 import store from '../store';
 
-
 export const FETCH_SOURCES = 'skyportal/FETCH_SOURCES';
 export const FETCH_SOURCES_OK = 'skyportal/FETCH_SOURCES_OK';
 export const FETCH_SOURCES_FAIL = 'skyportal/FETCH_SOURCES_FAIL';
-
 
 export function fetchSources(filterParams={}) {
   if (!Object.keys(filterParams).includes("pageNumber")) {
@@ -15,7 +13,6 @@ export function fetchSources(filterParams={}) {
   const queryString = params.toString();
   return API.GET(`/api/sources?${queryString}`, FETCH_SOURCES);
 }
-
 
 const initialState = {
   latest: null,
