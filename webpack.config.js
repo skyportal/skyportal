@@ -3,46 +3,33 @@ const path = require('path');
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
 const config = {
-  entry: [
-    'whatwg-fetch',
-    '@babel/polyfill',
-    path.resolve(__dirname, 'static/js/components/Main.jsx')
-  ],
+  entry: {
+    main: [
+      '@babel/polyfill',
+      path.resolve(__dirname, 'static/js/components/Main.jsx')
+    ]
+  },
   output: {
     path: path.resolve(__dirname, 'static/build'),
-    filename: 'bundle.js'
+    publicPath: '/static/build/',
+    filename: '[name].bundle.js',
+    chunkFilename: '[name].[chunkHash].bundle.js'
   },
   module: {
     rules: [
       {
-        test: /\.js?$/,
-        include: /static\/js/,
+        test: /\.(js|jsx)?$/,
         loader: 'babel-loader',
+        include: /static\/js/,
+        exclude: /node_modules/,
         options:
         {
-          presets: ["@babel/preset-env","@babel/preset-react"],
+          presets: ["@babel/preset-env", "@babel/preset-react"],
           plugins: [
-            'transform-object-rest-spread',
-            'transform-async-to-generator',
-            'transform-es2015-arrow-functions',
-            'transform-class-properties'
-          ],
-          compact: false
-        }
-      },
-
-      {
-        test: /\.jsx?$/,
-        include: /static\/js/,
-        loader: 'babel-loader',
-        options:
-        {
-          presets: ["@babel/preset-env","@babel/preset-react"],
-          plugins: [
-            'transform-object-rest-spread',
-            'transform-async-to-generator',
-            'transform-es2015-arrow-functions',
-            'transform-class-properties'
+            '@babel/plugin-transform-async-to-generator',
+            '@babel/plugin-transform-arrow-functions',
+            '@babel/plugin-proposal-class-properties',
+            '@babel/plugin-proposal-object-rest-spread'
           ],
           compact: false
         }
@@ -83,7 +70,6 @@ const config = {
         // does not support the Universal Module spec
         use: 'imports-loader?this=>window'
       }
-
     ]
   },
   plugins: [
@@ -105,7 +91,8 @@ const config = {
     // Set to true if you have trouble with JS change monitoring
     poll: false
   },
-  mode: 'development'
+  mode: 'development',
+  devtool: 'eval-source-map'
 };
 
 module.exports = config;
