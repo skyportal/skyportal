@@ -17,7 +17,6 @@ import { useForm, Controller } from "react-hook-form";
 
 import * as Actions from "../ducks/sources";
 
-
 const SearchBox = ({ sources }) => {
   const dispatch = useDispatch();
 

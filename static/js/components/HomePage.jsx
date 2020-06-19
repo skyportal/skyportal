@@ -7,7 +7,6 @@ import NewsFeed from './NewsFeed';
 import TopSources from './TopSources';
 import styles from './HomePage.css';
 
-
 const HomePage = () => {
   const groups = useSelector((state) => state.groups.user);
   return (

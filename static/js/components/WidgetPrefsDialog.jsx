@@ -6,7 +6,6 @@ import DialogContent from '@material-ui/core/DialogContent';
 import DialogTitle from '@material-ui/core/DialogTitle';
 import SettingsIcon from '@material-ui/icons/Settings';
 
-
 const WidgetPrefsDialog = ({ title, formValues, onSubmit, stateBranchName }) => {
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);

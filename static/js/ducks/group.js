@@ -3,7 +3,6 @@ import messageHandler from 'baselayer/MessageHandler';
 import * as API from '../API';
 import store from '../store';
 
-
 export const REFRESH_GROUP = 'skyportal/REFRESH_GROUP';
 
 export const FETCH_GROUP = 'skyportal/FETCH_GROUP';
@@ -11,11 +10,9 @@ export const FETCH_GROUP_OK = 'skyportal/FETCH_GROUP_OK';
 const FETCH_GROUP_ERROR = 'skyportal/FETCH_GROUP_ERROR';
 const FETCH_GROUP_FAIL = 'skyportal/FETCH_GROUP_FAIL';
 
-
 export function fetchGroup(id) {
   return API.GET(`/api/groups/${id}`, FETCH_GROUP);
 }
-
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
@@ -29,7 +26,6 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     }
   }
 });
-
 
 const reducer = (state={}, action) => {
   switch (action.type) {

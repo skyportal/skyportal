@@ -5,7 +5,6 @@ import { Link } from 'react-router-dom';
 import * as profileActions from '../ducks/profile';
 import WidgetPrefsDialog from './WidgetPrefsDialog';
 
-
 const defaultPrefs = {
   maxNumSources: "",
   sinceDaysAgo: ""

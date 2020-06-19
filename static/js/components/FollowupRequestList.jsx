@@ -6,7 +6,6 @@ import EditFollowupRequestDialog from './EditFollowupRequestDialog';
 import * as Actions from '../ducks/source';
 import styles from './FollowupRequestList.css';
 
-
 const FollowupRequestList = ({ followupRequests, instrumentList, instrumentObsParams }) => {
   const dispatch = useDispatch();
   const deleteRequest = (id) => {

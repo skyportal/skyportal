@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import { ra_to_hours, dec_to_hours } from '../units';
 import styles from "./SurveyLinkList.css";
 
-
 const SurveyLink = ({ name, url }) => (
   <div className={styles.SurveyLink}>
     <a href={url}>
@@ -20,7 +19,6 @@ SurveyLink.propTypes = {
 SurveyLink.defaultProps = {
   url: null
 };
-
 
 const SurveyLinkList = ({ ra, dec, id }) => {
   const ra_hrs = ra_to_hours(ra);
@@ -121,6 +119,5 @@ SurveyLinkList.propTypes = {
   dec: PropTypes.number.isRequired,
   id: PropTypes.string.isRequired
 };
-
 
 export default SurveyLinkList;

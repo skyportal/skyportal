@@ -1,7 +1,6 @@
 import * as API from '../API';
 import store from '../store';
 
-
 export const FETCH_CANDIDATE = 'skyportal/FETCH_CANDIDATE';
 export const FETCH_CANDIDATE_OK = 'skyportal/FETCH_CANDIDATE_OK';
 export const FETCH_CANDIDATE_FAIL = 'skyportal/FETCH_CANDIDATE_FAIL';

@@ -10,7 +10,6 @@ import FilterCandidateList from './FilterCandidateList';
 
 const VegaPlot = React.lazy(() => import(/* webpackChunkName: "VegaPlot" */ './VegaPlot'));
 
-
 const CandidateList = () => {
   const { candidates } = useSelector((state) => state.candidates);
 

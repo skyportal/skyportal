@@ -220,9 +220,12 @@ def test_save_candidate_select_groups(
         f'//button[@name="saveCandidateButtonDropDownArrow{public_candidate.id}"]'
     )
     driver.scroll_to_element_and_click(carat)
-    driver.wait_for_xpath_to_be_clickable(
-        f'//*[@name="buttonMenuOption{public_candidate.id}_Select groups & save"]'
-    ).click()
+    driver.execute_script(
+        "arguments[0].click();",
+        driver.wait_for_xpath_to_be_clickable(
+            f'//*[@name="buttonMenuOption{public_candidate.id}_Select groups & save"]'
+        )
+    )
     save_button = driver.wait_for_xpath_to_be_clickable(
         f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
     )
@@ -249,9 +252,12 @@ def test_save_candidate_no_groups_error_message(
         f'//button[@name="saveCandidateButtonDropDownArrow{public_candidate.id}"]'
     )
     driver.scroll_to_element_and_click(carat)
-    driver.wait_for_xpath_to_be_clickable(
-        f'//*[@name="buttonMenuOption{public_candidate.id}_Select groups & save"]'
-    ).click()
+    driver.execute_script(
+        "arguments[0].click();",
+        driver.wait_for_xpath_to_be_clickable(
+            f'//*[@name="buttonMenuOption{public_candidate.id}_Select groups & save"]'
+        )
+    )
     save_button = driver.wait_for_xpath_to_be_clickable(
         f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
     )

@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 
 import styles from './CommentEntry.css';
 
-
 class CommentEntry extends React.Component {
   constructor(props) {
     super(props);

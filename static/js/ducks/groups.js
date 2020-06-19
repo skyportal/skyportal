@@ -3,7 +3,6 @@ import messageHandler from 'baselayer/MessageHandler';
 import * as API from '../API';
 import store from '../store';
 
-
 export const FETCH_GROUPS = 'skyportal/FETCH_GROUPS';
 export const FETCH_GROUPS_OK = 'skyportal/FETCH_GROUPS_OK';
 
@@ -18,7 +17,6 @@ export const ADD_GROUP_USER_OK = 'skyportal/ADD_GROUP_USER_OK';
 
 export const DELETE_GROUP_USER = 'skyportal/DELETE_GROUP_USER';
 export const DELETE_GROUP_USER_OK = 'skyportal/DELETE_GROUP_USER_OK';
-
 
 export function fetchGroups() {
   return API.GET('/api/groups', FETCH_GROUPS);
@@ -48,14 +46,12 @@ export function deleteGroupUser({ username, group_id }) {
   );
 }
 
-
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {
   if (actionType === FETCH_GROUPS) {
     dispatch(fetchGroups());
   }
 });
-
 
 function reducer(state={ user: [], all: null }, action) {
   switch (action.type) {
