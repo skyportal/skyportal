@@ -202,6 +202,11 @@ class PhotBaseFlexible(object):
                                        'given as lists. Null values allowed.',
                            required=False)
 
+    alert_id = fields.Field(description="Corresponding alert ID. If a record is "
+                            "already present with identical alert ID, only the "
+                            "groups list will be updated (other alert data assumed "
+                            "identical). If omitted, defaults to random integer.")
+
     group_ids = fields.List(fields.Integer(),
                             description="List of group IDs to which photometry "
                                         "points will be visible.",
@@ -323,6 +328,12 @@ class PhotBase(object):
     dec_unc = fields.Number(description='Uncertainty on dec [arcsec].',
                             missing=None, default=None)
 
+    alert_id = fields.Integer(description="Corresponding alert ID. If a record is "
+                              "already present with identical alert ID, only the "
+                              "groups list will be updated (other alert data assumed "
+                              "identical). If omitted, defaults to random integer.",
+                              missing=None, default=None)
+
     altdata = fields.Dict(description='Misc. alternative metadata.',
                           missing=None, default=None)
 
@@ -412,9 +423,10 @@ class PhotometryFlux(_Schema, PhotBase):
                        ra=data['ra'],
                        dec=data['dec'],
                        ra_unc=data['ra_unc'],
-                       dec_unc=data['dec_unc']
+                       dec_unc=data['dec_unc'],
                        )
-
+        if 'alert_id' in data and data['alert_id'] is not None:
+            p.alert_id = data['alert_id']
         return p
 
 
@@ -525,8 +537,10 @@ class PhotometryMag(_Schema, PhotBase):
                        ra=data['ra'],
                        dec=data['dec'],
                        ra_unc=data['ra_unc'],
-                       dec_unc=data['dec_unc'])
-
+                       dec_unc=data['dec_unc'],
+                       )
+        if 'alert_id' in data and data['alert_id'] is not None:
+            p.alert_id = data['alert_id']
         return p
 
 
