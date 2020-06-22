@@ -46,6 +46,9 @@ section "run.make.dependencies"
 make dependencies
 pip install -r requirements.docs.txt
 pip list --format=columns
+set +ex
+npm ls --depth 0
+set -ex
 nginx -v
 section_end "run.make.dependencies"
 
