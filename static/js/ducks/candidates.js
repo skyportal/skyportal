@@ -17,9 +17,11 @@ export const fetchCandidates = (filterParams={}) => {
 };
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType, payload, dispatch, getState) => {
   if (actionType === FETCH_CANDIDATES) {
-    dispatch(fetchCandidates());
+    const { candidates } = getState();
+    const pageNumber = candidates.pageNumber ? candidates.pageNumber : 1;
+    dispatch(fetchCandidates({ pageNumber }));
   }
 });
 
