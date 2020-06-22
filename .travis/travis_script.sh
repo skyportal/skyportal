@@ -5,7 +5,6 @@ set -ex
 
 section "ESLint"
 
-make lint-install
 make lint
 
 section_end "ESLint"

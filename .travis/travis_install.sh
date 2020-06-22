@@ -46,6 +46,7 @@ section "run.make.dependencies"
 make dependencies
 pip install -r requirements.docs.txt
 pip list --format=columns
+nginx -v
 section_end "run.make.dependencies"
 
 
@@ -59,10 +60,3 @@ geckodriver --version
 pip install --upgrade selenium
 python -c "import selenium; print(f'Selenium {selenium.__version__}')"
 section_end "install.geckodriver.and.selenium"
-
-
-section "install.deps"
-make dependencies
-pip list --format=columns
-nginx -v
-section_end "install.deps"
