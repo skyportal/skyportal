@@ -1,9 +1,6 @@
 import datetime
 import arrow
-
 from skyportal.tests import api
-
-
 
 
 def test_token_user_post_classical_followup_request(red_transients_run,
@@ -70,8 +67,9 @@ def test_token_user_post_robotic_followup_request(sedm, public_source,
             assert t1 == t2
 
 
-def test_token_user_post_robotic_followup_request_invalid_filter(sedm, public_source,
-                                                  upload_data_token):
+def test_token_user_post_robotic_followup_request_invalid_filter(sedm,
+                                                                 public_source,
+                                                                 upload_data_token):
 
     request_data = {'instrument_id': sedm.id,
                     'obj_id': public_source.id,
@@ -96,3 +94,67 @@ def test_token_user_post_robotic_followup_request_invalid_filter(sedm, public_so
     assert data['status'] == 'error'
 
 
+def test_owner_delete_followup_request(sedm, public_source,
+                                       upload_data_token):
+
+    request_data = {'instrument_id': sedm.id,
+                    'obj_id': public_source.id,
+                    'priority': '5',
+                    'comment': 'Classification',
+                    'start_date': datetime.datetime.utcnow().isoformat(),
+                    'end_date': (
+                            datetime.datetime.utcnow() + datetime.timedelta(days=7)
+                    ).isoformat(),
+                    'observations': [
+                        {'type': 'spectroscopy',
+                         'exposure_time': 60.},
+                        {'type': 'imaging',
+                         'filter': 'sdssg',
+                         'exposure_time': 360.}
+                    ]}
+
+    status, data = api('POST', 'followup_request',
+                       data=request_data,
+                       token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    id = data['data']['id']
+
+    status, data = api('DELETE', f'followup_request/{id}',
+                       token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+def test_super_admin_delete_followup_request(sedm, public_source,
+                                             upload_data_token,
+                                             super_admin_token):
+
+
+    request_data = {'instrument_id': sedm.id,
+                    'obj_id': public_source.id,
+                    'priority': '5',
+                    'comment': 'Classification',
+                    'start_date': datetime.datetime.utcnow().isoformat(),
+                    'end_date': (
+                            datetime.datetime.utcnow() + datetime.timedelta(days=7)
+                    ).isoformat(),
+                    'observations': [
+                        {'type': 'spectroscopy',
+                         'exposure_time': 60.},
+                        {'type': 'imaging',
+                         'filter': 'sdssg',
+                         'exposure_time': 360.}
+                    ]}
+
+    status, data = api('POST', 'followup_request',
+                       data=request_data,
+                       token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    id = data['data']['id']
+
+    status, data = api('DELETE', f'followup_request/{id}',
+                       token=super_admin_token)
+
+    assert status == 200
+    assert data['status'] == 'success'

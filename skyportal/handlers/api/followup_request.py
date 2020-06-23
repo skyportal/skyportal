@@ -137,16 +137,13 @@ class AssignmentHandler(BaseHandler):
                 schema: Success
         """
         assignment = Assignment.query.get(int(assignment_id))
-        if hasattr(self.current_user, "roles"):
-            if not (
-                "Super admin" in [role.id for role in self.current_user.roles]
-                or "Group admin" in [role.id for role in self.current_user.roles]
-                or assignment.requester.username == self.current_user.username
-            ):
-                return self.error("Insufficient permissions.")
-        elif isinstance(self.current_user, Token):
-            if self.current_user.created_by_id != assignment.requester.id:
-                return self.error("Insufficient permissions.")
+        user = self.associated_user_object
+        delok = "Super admin" in [role.id for role in user.roles] \
+                or "Group admin" in [role.id for role in user.roles] \
+                or assignment.requester.username == user.username
+        if not delok:
+            return self.error("Insufficient permissions.")
+
         DBSession.delete(assignment)
         DBSession.commit()
 
@@ -289,16 +286,14 @@ class FollowupRequestHandler(BaseHandler):
                 schema: Success
         """
         followup_request = RoboticFollowupRequest.query.get(int(request_id))
-        if hasattr(self.current_user, "roles"):
-            if not (
-                "Super admin" in [role.id for role in self.current_user.roles]
-                or "Group admin" in [role.id for role in self.current_user.roles]
-                or followup_request.requester.username == self.current_user.username
-            ):
-                return self.error("Insufficient permissions.")
-        elif isinstance(self.current_user, Token):
-            if self.current_user.created_by_id != followup_request.requester.id:
-                return self.error("Insufficient permissions.")
+
+        user = self.associated_user_object
+        delok = "Super admin" in [role.id for role in user.roles] \
+                or "Group admin" in [role.id for role in user.roles] \
+                or followup_request.requester.username == user.username
+        if not delok:
+            return self.error("Insufficient permissions.")
+
         DBSession.delete(followup_request)
         DBSession.commit()
 
