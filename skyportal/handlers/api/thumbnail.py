@@ -4,7 +4,7 @@ import base64
 from pathlib import Path
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.exc import StatementError
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Photometry, Obj, Source, Thumbnail
@@ -79,7 +79,12 @@ class ThumbnailHandler(BaseHandler):
         except ValueError as e:
             return self.error(f"Error in creating new thumbnail: invalid value(s): {e}")
         except (LookupError, StatementError) as e:
-            return self.error(f"Invalid ttype: {e}")
+            if "enum" in str(e):
+                return self.error(f"Invalid ttype: {e}")
+            else:
+                return self.error(f"Error creating new thumbnail: {e}")
+        except UnidentifiedImageError as e:
+            return self.error(f"Invalid file type: {e}")
         DBSession().commit()
 
         return self.success(data={"id": t.id})
