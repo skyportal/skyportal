@@ -1,7 +1,8 @@
 ---
-parser: babel-eslint
+parser: "babel-eslint"
 env:
   browser: true
+  es6: true
 plugins: [
   "import",
   "react",
@@ -16,7 +17,11 @@ settings:
     node: {}
     webpack:
       config: webpack.config.js
-
+parserOptions:
+  ecmaVersion: 2020
+  sourceType: module
+  ecmaFeatures:
+    jsx: true
 rules:
   camelcase: off
   comma-dangle: [1, only-multiline]
