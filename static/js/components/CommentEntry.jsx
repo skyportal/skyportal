@@ -1,67 +1,53 @@
-import React from 'react';
-import PropTypes from 'prop-types';
+import React, { useState } from "react";
+import PropTypes from "prop-types";
 
-import styles from './CommentEntry.css';
+import styles from "./CommentEntry.css";
 
-class CommentEntry extends React.Component {
-  constructor(props) {
-    super(props);
+const CommentEntry = ({ addComment }) => {
+  const [state, setState] = useState({ text: "", attachment: "" });
 
-    this.state = {
-      text: '',
-      attachment: ''
-    };
-    this._handleSubmit = this._handleSubmit.bind(this);
-    this._handleChange = this._handleChange.bind(this);
-  }
-
-  _handleSubmit(event) {
-    const { addComment } = this.props;
-
+  const handleSubmit = (event) => {
     event.preventDefault();
-    addComment(this.state);
+    addComment(state);
     this.fileInput.value = "";
-    this.setState({
+    setState({
       text: "",
       attachment: ""
     });
-  }
+  };
 
-  _handleChange(event) {
+  const handleChange = (event) => {
     if (event.target.files) {
-      this.setState({ attachment: event.target.files[0] });
+      setState({ ...state, attachment: event.target.files[0] });
     } else {
-      this.setState({ text: event.target.value });
+      setState({ ...state, text: event.target.value });
     }
-  }
+  };
 
-  render() {
-    const { text } = this.state;
-    return (
-      <form className={styles.commentEntry} onSubmit={this._handleSubmit}>
-        <div>
+  return (
+    <form className={styles.commentEntry} onSubmit={handleSubmit}>
+      <div>
+        <input
+          type="text"
+          name="comment"
+          value={state.text}
+          onChange={handleChange}
+        />
+      </div>
+      <div>
+        <label>
+          Attachment &nbsp;
           <input
-            type="text"
-            name="comment"
-            value={text}
-            onChange={this._handleChange}
+            ref={(el) => { this.fileInput = el; }}
+            type="file"
+            onChange={handleChange}
           />
-        </div>
-        <div>
-          <label>
-            Attachment &nbsp;
-            <input
-              ref={(el) => { this.fileInput = el; }}
-              type="file"
-              onChange={this._handleChange}
-            />
-          </label>
-        </div>
-        <input type="submit" value="↵" />
-      </form>
-    );
-  }
-}
+        </label>
+      </div>
+      <input type="submit" value="↵" />
+    </form>
+  );
+};
 
 CommentEntry.propTypes = {
   addComment: PropTypes.func.isRequired
