@@ -266,8 +266,6 @@ class FollowupRequestHandler(BaseHandler):
         )
         return self.success(data={"id": request.id})
 
-
-
     @auth_or_token
     def delete(self, request_id):
         """

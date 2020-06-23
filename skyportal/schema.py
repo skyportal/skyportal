@@ -607,10 +607,15 @@ class RoboticRequestSchema(FollowupRequestSchemaBase):
 
             otype = observation['type']
             if ('spectroscopy' == otype and not instrument.does_spectroscopy) or \
-                    ('imaging' == otype and not instrument.does_imaging) or \
-                    not instrument.robotic:
+                    ('imaging' == otype and not instrument.does_imaging):
                 raise ValidationError(f'Invalid request type "{otype}" for instrument '
                                       f'"{instrument.name}".')
+
+            if not instrument.robotic:
+                raise ValidationError(
+                    f'Cannot request robotic follow-up for classical instrument '
+                    f'"{instrument.name}".')
+
 
         request = RoboticFollowupRequest(**data)
         return request
