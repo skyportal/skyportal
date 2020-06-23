@@ -3,6 +3,7 @@ import io
 import base64
 from pathlib import Path
 from marshmallow.exceptions import ValidationError
+from sqlalchemy.exc import StatementError
 from PIL import Image
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -77,6 +78,8 @@ class ThumbnailHandler(BaseHandler):
             t = create_thumbnail(data['data'], data['ttype'], obj_id, phot)
         except ValueError as e:
             return self.error(f"Error in creating new thumbnail: invalid value(s): {e}")
+        except (LookupError, StatementError) as e:
+            return self.error(f"Invalid ttype: {e}")
         DBSession().commit()
 
         return self.success(data={"id": t.id})
