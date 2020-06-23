@@ -7,6 +7,7 @@ make load_demo_data
 section_end "load_demo_data"
 
 section "ESLint"
+npx eslint --version
 make lint
 section_end "ESLint"
 
