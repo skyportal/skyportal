@@ -242,6 +242,7 @@ class CandidateHandler(BaseHandler):
             .all()
         )
         for obj in query_results["candidates"]:
+            obj.comments = obj.get_comments_owned_by(self.current_user)
             obj.is_source = (obj.id,) in matching_source_ids
             obj.passing_group_ids = [
                 f.group_id

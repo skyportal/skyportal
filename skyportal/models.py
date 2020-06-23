@@ -277,6 +277,13 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
 Obj.get_if_owned_by = get_obj_if_owned_by
 
 
+def get_obj_comments_owned_by(self, user_or_token):
+    return [comment for comment in self.comments if comment.is_owned_by(user_or_token)]
+
+
+Obj.get_comments_owned_by = get_obj_comments_owned_by
+
+
 def get_photometry_owned_by_user(obj_id, user_or_token):
     return (
         Photometry.query.filter(Photometry.obj_id == obj_id)
@@ -373,6 +380,11 @@ class Comment(Base):
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)
     obj = relationship('Obj', back_populates='comments')
+    groups = relationship("Group", secondary="group_comments",
+                          cascade="save-update, merge, refresh-expire, expunge")
+
+
+GroupComment = join_model("group_comments", Group, Comment)
 
 
 class Photometry(Base):
