@@ -557,6 +557,10 @@ class RoboticSpectroscopy(ObservationBase):
     exposure_time = fields.Number(validate=validate.Range(0., 10800.))
 
 
+RoboticImaging = RoboticImaging()
+RoboticSpectroscopy = RoboticSpectroscopy()
+
+
 class RoboticRequestSchema(FollowupRequestSchemaBase):
     # For rendering docs
 
@@ -580,9 +584,9 @@ class RoboticRequestSchema(FollowupRequestSchemaBase):
 
             otype = row['type']
             if otype == 'imaging':
-                RoboticImaging().load(row)
+                RoboticImaging.load(row)
             elif otype == 'spectroscopy':
-                RoboticSpectroscopy().load(row)
+                RoboticSpectroscopy.load(row)
             else:
                 raise ValidationError(f'Observation type "{otype}" not in '
                                       f'allowed list of enums')
@@ -598,7 +602,7 @@ class RoboticRequestSchema(FollowupRequestSchemaBase):
                 filter = observation['filter']
                 if filter not in instrument.filters:
                     raise ValidationError(f"Error in packet '{observation}': "
-                                          f"Instrument {instrument} has no filter "
+                                          f"Instrument {instrument.name} has no filter "
                                           f"{filter}.")
 
             otype = observation['type']
@@ -677,7 +681,5 @@ PhotometryMag = PhotometryMag()
 PhotMagFlexible = PhotMagFlexible()
 PhotFluxFlexible = PhotFluxFlexible()
 ObservingRunPost = ObservingRunPost()
-RoboticImaging = RoboticImaging()
-RoboticSpectroscopy = RoboticSpectroscopy()
 AssignmentSchema = AssignmentSchema()
 RoboticRequestSchema = RoboticRequestSchema()
