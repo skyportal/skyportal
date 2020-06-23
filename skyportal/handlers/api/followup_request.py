@@ -11,6 +11,49 @@ from ...schema import AssignmentSchema, RoboticRequestSchema
 class AssignmentHandler(BaseHandler):
 
     @auth_or_token
+    def get(self, assignment_id=None):
+        """
+        ---
+        single:
+          description: Retrieve an observing run assignment
+          parameters:
+            - in: path
+              name: assignment_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleAssignment
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all observing run assignments
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfAssignments
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+        if assignment_id is not None:
+            assignment = Assignment.query.get(int(assignment_id))
+
+            if assignment is None:
+                return self.error(f"Could not load assignment {assignment_id}",
+                                  data={"assignment_id": assignment_id})
+            return self.success(data=assignment)
+        return self.success(data=Assignment.query.all())
+
+
+    @auth_or_token
     def post(self):
         """
         ---
@@ -114,8 +157,49 @@ class AssignmentHandler(BaseHandler):
         return self.success()
 
 
-
 class FollowupRequestHandler(BaseHandler):
+
+    @auth_or_token
+    def get(self, request_id=None):
+        """
+        ---
+        single:
+          description: Retrieve a follow-up request
+          parameters:
+            - in: path
+              name: request_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleRoboticFollowupRequest
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all follow-up requests
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfRoboticFollowupRequests
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+        if request_id is not None:
+            request = RoboticFollowupRequest.query.get(int(request_id))
+
+            if request is None:
+                return self.error(f"Could not load follow-up request {request_id}",
+                                  data={"request_id": request_id})
+            return self.success(data=request)
+        return self.success(data=RoboticFollowupRequest.query.all())
 
 
     @auth_or_token

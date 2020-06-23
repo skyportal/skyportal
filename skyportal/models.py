@@ -17,7 +17,7 @@ from baselayer.app.custom_exceptions import AccessError
 
 from . import schema
 from .enum_types import (allowed_bandpasses, thumbnail_types, instrument_types,
-                         followup_request_types)
+                         followup_priorities)
 
 
 # In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
@@ -552,6 +552,7 @@ User.observing_runs = relationship(
 
 
 class FollowupRequest(Base):
+    # This is an abstract class. Not meant to be instantiated directly
 
     __mapper_args__ = {'polymorphic_identity': 'base',
                        'polymorphic_on': 'type'}
@@ -564,13 +565,9 @@ class FollowupRequest(Base):
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)
 
-    observations = sa.Column(
-        psql.JSONB,
-        nullable=False,
-        doc='The observations'
-    )
-
+    comment = sa.Column(sa.String())
     status = sa.Column(sa.String(), nullable=False, default="pending")
+    priority = sa.Column(followup_priorities, nullable=False)
 
 
 class RoboticFollowupRequest(FollowupRequest):
@@ -587,6 +584,12 @@ class RoboticFollowupRequest(FollowupRequest):
 
     start_date = sa.Column(ArrowType)
     end_date = sa.Column(ArrowType)
+
+    observations = sa.Column(
+        psql.JSONB,
+        nullable=False,
+        doc='The observations'
+    )
 
     def submit(self):
         # TODO: implement this method for SEDM and LT

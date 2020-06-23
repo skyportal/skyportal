@@ -25,6 +25,7 @@ from skyportal.enum_types import (
     py_allowed_bandpasses,
     py_allowed_magsystems,
     py_followup_request_types,
+    py_followup_priorities,
     ALLOWED_BANDPASSES,
     ALLOWED_MAGSYSTEMS,
     force_render_enum_markdown
@@ -530,15 +531,10 @@ class PhotometryMag(_Schema, PhotBase):
 # These are for generating API docs and extremely basic validation
 class FollowupRequestSchemaBase(_Schema):
     obj_id = fields.String(required=True, description='The ID of the object to observe.')
-    priority = ApispecEnumField(Enum('priority', ['1', '2', '3', '4', '5']),
+    priority = ApispecEnumField(py_followup_priorities,
                                 required=True, description='Priority of the request, '
                                                            '(lowest = 1, highest = 5).')
     comment = fields.String(description='An optional comment describing the request.')
-
-    observations = fields.List(fields.Field(), required=True,
-                               validate=validate.Length(min=1),
-                               description='Array of objects describing the '
-                                           'requested observations.')
 
 
 class ObservationBase(_Schema):
@@ -561,30 +557,16 @@ class RoboticSpectroscopy(ObservationBase):
     exposure_time = fields.Number(validate=validate.Range(0., 10800.))
 
 
-class ClassicalImaging(ObservationBase):
-    exposure_time = fields.Number(validate=validate.Range(0., 10800.),
-                                  required=True)
-    filter = fields.Field(required=True,
-                          description='The bandpass of the observation(s). '
-                                      'Can be given as a scalar or a 1D list. '
-                                      'If a scalar, will be broadcast to all values '
-                                      'given as lists. Null values not allowed. Allowed values: '
-                                      f'{force_render_enum_markdown(ALLOWED_BANDPASSES)}')
-
-
-class ClassicalSpectroscopy(ObservationBase):
-    exposure_time_red = fields.Integer(validate=validate.Range(0, 10800.))
-    exposure_time_blue = fields.Integer(validate=validate.Range(1, 10800.))
-    n_exposures_red = fields.Integer(validate=validate.Range(1, 10))
-    n_exposures_blue = fields.Integer(validate=validate.Range(1, 10))
-
-
 class RoboticRequestSchema(FollowupRequestSchemaBase):
     # For rendering docs
 
     instrument_id = fields.Integer(required=True)
     start_date = fields.DateTime(required=True)
     end_date = fields.DateTime(required=True)
+    observations = fields.List(fields.Field(), required=True,
+                               validate=validate.Length(min=1),
+                               description='Array of objects describing the '
+                                           'requested observations.')
 
 
     @post_load
@@ -605,7 +587,7 @@ class RoboticRequestSchema(FollowupRequestSchemaBase):
                 raise ValidationError(f'Observation type "{otype}" not in '
                                       f'allowed list of enums')
 
-
+        data['priority'] = data['priority'].name
         instrument_id = data['instrument_id']
         instrument = Instrument.query.get(instrument_id)
         if instrument is None:
@@ -640,39 +622,11 @@ class AssignmentSchema(FollowupRequestSchemaBase):
         # check that request type is valid given the instrument
         from .models import ObservingRun, Assignment
 
-        for row in data['observations']:
-            if 'type' not in row:
-                raise ValidationError(f'Observation {row} missing '
-                                      f'required field "type".')
-
-            otype = row['type']
-            if otype == 'imaging':
-                ClassicalImaging().load(row)
-            elif otype == 'spectroscopy':
-                ClassicalSpectroscopy().load(row)
-            else:
-                raise ValidationError(f'Observation type "{otype}" not in '
-                                      f'allowed list of enums')
-
         run_id = data['run_id']
+        data['priority'] = data['priority'].name
         run = ObservingRun.query.get(run_id)
         if run is None:
             raise ValidationError(f'Invalid observing run: "{run_id}"')
-        instrument = run.instrument
-
-        for observation in data['observations']:
-            if observation['type'] == 'imaging':
-                filter = observation['filter']
-                if filter not in instrument.filters:
-                    raise ValidationError(f"Error in packet '{observation}': "
-                                          f"Instrument {instrument} has no filter "
-                                          f"{filter}.")
-
-            otype = observation['type']
-            if ('spectroscopy' == otype and not instrument.does_spectroscopy) or \
-                    ('imaging' == otype and not instrument.does_imaging):
-                raise ValidationError(f'Invalid request type "{otype}" for instrument '
-                                      f'"{instrument.name}".')
 
         # check the object
         assignment = Assignment(**data)
@@ -725,7 +679,5 @@ PhotFluxFlexible = PhotFluxFlexible()
 ObservingRunPost = ObservingRunPost()
 RoboticImaging = RoboticImaging()
 RoboticSpectroscopy = RoboticSpectroscopy()
-ClassicalImaging = ClassicalImaging()
-ClassicalSpectroscopy = ClassicalSpectroscopy()
 AssignmentSchema = AssignmentSchema()
 RoboticRequestSchema = RoboticRequestSchema()
