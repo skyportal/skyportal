@@ -9,7 +9,6 @@ import FormValidationError from './FormValidationError';
 
 import 'react-datepicker/dist/react-datepicker-cssmodules.css';
 
-
 const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsParams, followupRequest = null, title = "Submit new follow-up request", afterSubmit = null }) => {
   const dispatch = useDispatch();
   const obsParams = instrumentObsParams; // Shorten to reduce line length below

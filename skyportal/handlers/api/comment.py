@@ -214,4 +214,5 @@ class CommentAttachmentHandler(BaseHandler):
         self.set_header(
             "Content-Disposition", "attachment; "
             f"filename={comment.attachment_name}")
+        self.set_header("Content-type", "application/octet-stream")
         self.write(base64.b64decode(comment.attachment_bytes))

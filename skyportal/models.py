@@ -1,3 +1,4 @@
+import uuid
 import re
 from datetime import datetime
 import numpy as np
@@ -67,6 +68,9 @@ class Group(Base):
     users = relationship('User', secondary='group_users',
                          back_populates='groups')
     filter = relationship("Filter", uselist=False, back_populates="group")
+    photometry = relationship("Photometry", secondary="group_photometry",
+                              back_populates="groups",
+                              cascade="save-update, merge, refresh-expire, expunge")
 
 
 GroupUser = join_model('group_users', Group, User)
@@ -187,7 +191,7 @@ class Filter(Base):
 
 Candidate = join_model("candidates", Filter, Obj)
 Candidate.passed_at = sa.Column(sa.DateTime, nullable=True)
-Candidate.passing_alert_id = sa.Column(sa.Integer)
+Candidate.passing_alert_id = sa.Column(sa.BigInteger)
 
 
 def get_candidate_if_owned_by(obj_id, user_or_token, options=[]):
@@ -262,13 +266,28 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
             # If user can't view associated Source, and there's no Candidate they can
             # view, raise AccessError
             raise
-    if obj is None:  # There is no associated Source, so just return the Obj
-        return Obj.query.options(options).get(obj_id)
+    if obj is None:  # There is no associated Source/Cand, so check based on photometry
+        if Obj.get_photometry_owned_by_user(obj_id, user_or_token):
+            return Obj.query.options(options).get(obj_id)
+        raise AccessError("Insufficient permissions.")
     # If we get here, the user has access to either the associated Source or Candidate
     return obj
 
 
 Obj.get_if_owned_by = get_obj_if_owned_by
+
+
+def get_photometry_owned_by_user(obj_id, user_or_token):
+    return (
+        Photometry.query.filter(Photometry.obj_id == obj_id)
+        .filter(
+            Photometry.groups.any(Group.id.in_([g.id for g in user_or_token.groups]))
+        )
+        .all()
+    )
+
+
+Obj.get_photometry_owned_by_user = get_photometry_owned_by_user
 
 
 User.sources = relationship('Obj', backref='users',
@@ -384,11 +403,15 @@ class Photometry(Base):
                                               'schema.PhotometryFlux or schema.PhotometryMag '
                                               '(depending on how the data was passed).')
     altdata = sa.Column(JSONB)
-    bulk_upload_id = sa.Column(sa.String, nullable=True)
+    upload_id = sa.Column(sa.String, nullable=False,
+                          default=lambda: str(uuid.uuid4()))
 
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)
     obj = relationship('Obj', back_populates='photometry')
+    groups = relationship("Group", secondary="group_photometry",
+                          back_populates="photometry",
+                          cascade="save-update, merge, refresh-expire, expunge")
     instrument_id = sa.Column(sa.ForeignKey('instruments.id'),
                               nullable=False, index=True)
     instrument = relationship('Instrument', back_populates='photometry')
@@ -427,6 +450,9 @@ class Photometry(Base):
             ],
             else_=None
         )
+
+
+GroupPhotometry = join_model("group_photometry", Group, Photometry)
 
 
 class Spectrum(Base):

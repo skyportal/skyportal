@@ -252,6 +252,7 @@ if __name__ == "__main__":
                             "zp": phot_data.zp.tolist(),
                             "magsys": phot_data.magsys.tolist(),
                             "filter": phot_data["filter"].tolist(),
+                            "group_ids": [group_id],
                         },
                     )
                     data = assert_post(
@@ -265,6 +266,7 @@ if __name__ == "__main__":
                             "zp": phot_data.zp.tolist(),
                             "magsys": phot_data.magsys.tolist(),
                             "filter": phot_data["filter"].tolist(),
+                            "group_ids": [group_id],
                         },
                     )
 

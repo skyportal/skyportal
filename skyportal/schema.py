@@ -202,6 +202,11 @@ class PhotBaseFlexible(object):
                                        'given as lists. Null values allowed.',
                            required=False)
 
+    group_ids = fields.List(fields.Integer(),
+                            description="List of group IDs to which photometry "
+                                        "points will be visible.",
+                            required=True)
+
 
 class PhotFluxFlexible(_Schema, PhotBaseFlexible):
     """This is one of two classes used for rendering the
@@ -330,7 +335,7 @@ class PhotBase(object):
 
 
 class PhotometryFlux(_Schema, PhotBase):
-    """This is one of  two classes that are used for deserializing
+    """This is one of two classes that are used for deserializing
     and validating the postprocessed input data of `PhotometryHandler.post`
     and `PhotometryHandler.put` and for generating the API docs of
     PhotometryHandler.get`.
@@ -381,8 +386,7 @@ class PhotometryFlux(_Schema, PhotBase):
             raise ValidationError(f'Invalid object ID: {data["obj_id"]}')
 
         if data["filter"] not in instrument.filters:
-            raise ValidationError(f"Error in packet '{data}': "
-                                  f"Instrument {instrument} has no filter "
+            raise ValidationError(f"Instrument {instrument.name} has no filter "
                                   f"{data['filter']}.")
 
         # convert flux to microJanskies.
@@ -479,8 +483,7 @@ class PhotometryMag(_Schema, PhotBase):
             raise ValidationError(f'Invalid object ID: {data["obj_id"]}')
 
         if data["filter"] not in instrument.filters:
-            raise ValidationError(f"Error in packet '{data}': "
-                                  f"Instrument {instrument} has no filter "
+            raise ValidationError(f"Instrument {instrument.name} has no filter "
                                   f"{data['filter']}.")
 
         # determine if this is a limit or a measurement

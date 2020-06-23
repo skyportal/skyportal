@@ -5,7 +5,6 @@ import DialogContent from '@material-ui/core/DialogContent';
 
 import FollowupRequestForm from './FollowupRequestForm';
 
-
 const EditFollowupRequestDialog = ({ followupRequest, instrumentList, instrumentObsParams }) => {
   const [open, setOpen] = useState(false);
 

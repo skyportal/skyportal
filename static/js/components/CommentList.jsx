@@ -11,7 +11,6 @@ import CommentEntry from "./CommentEntry";
 
 dayjs.extend(relativeTime);
 
-
 const CommentList = () => {
   const [hoverID, setHoverID] = useState(null);
 
