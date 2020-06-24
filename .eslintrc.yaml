@@ -1,5 +1,5 @@
 ---
-parser: babel-eslint
+parser: "babel-eslint"
 env:
   browser: true
 plugins: [
@@ -16,7 +16,6 @@ settings:
     node: {}
     webpack:
       config: webpack.config.js
-
 rules:
   camelcase: off
   comma-dangle: [1, only-multiline]
@@ -24,6 +23,7 @@ rules:
   no-param-reassign: 0
   quotes: 0
   space-infix-ops: 0
+  no-multiple-empty-lines: ["error", { "max": 2, "maxEOF": 0 }]
   no-underscore-dangle: [2, {"allowAfterThis": true}]
   object-curly-newline: [2, {"consistent": true}]
   operator-linebreak: [1, after]
