@@ -1,46 +1,49 @@
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import PropTypes from "prop-types";
+import { useForm } from "react-hook-form";
 
 import styles from "./CommentEntry.css";
 
 const CommentEntry = ({ addComment }) => {
-  const [state, setState] = useState({ text: "", attachment: "" });
+  const { handleSubmit, reset, register, getValues, setValue } = useForm({
+    text: "",
+    attachment: ""
+  });
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    addComment(state);
-    this.fileInput.value = "";
-    setState({
+  // The file input needs to be registered here, not in the input tag below
+  useEffect(() => {
+    register({ name: "attachment" });
+  }, [register]);
+
+  const onSubmit = () => {
+    addComment(getValues());
+    reset({
       text: "",
       attachment: ""
     });
   };
 
-  const handleChange = (event) => {
-    if (event.target.files) {
-      setState({ ...state, attachment: event.target.files[0] });
-    } else {
-      setState({ ...state, text: event.target.value });
-    }
+  const handleFileInputChange = (event) => {
+    const file = event.target.files[0];
+    setValue("attachment", file);
   };
 
   return (
-    <form className={styles.commentEntry} onSubmit={handleSubmit}>
+    <form className={styles.commentEntry} onSubmit={handleSubmit(onSubmit)}>
       <div>
         <input
           type="text"
-          name="comment"
-          value={state.text}
-          onChange={handleChange}
+          name="text"
+          ref={register}
         />
       </div>
       <div>
         <label>
           Attachment &nbsp;
           <input
-            ref={(el) => { this.fileInput = el; }}
             type="file"
-            onChange={handleChange}
+            name="attachment"
+            onChange={handleFileInputChange}
           />
         </label>
       </div>
