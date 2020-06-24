@@ -64,3 +64,15 @@ cron:
   - interval: 1440
     script: jobs/delete_unsaved_candidates.py
     limit: ["01:00", "02:00"]
+
+monitor:
+  interval: 60
+  output: "static/status.html"
+  probes:
+    - name: SkyPortal
+      type: http
+      url: http://localhost:5000/api/sysinfo
+    - name: PostgreSQL
+      type: tcp
+      host: localhost
+      port: 5433
