@@ -186,6 +186,8 @@ class SourceHandler(BaseHandler):
                          .joinedload(Thumbnail.photometry)
                          .joinedload(Photometry.instrument)
                          .joinedload(Instrument.telescope)])
+            if s is None:
+                return self.error("Invalid source ID.")
             s.comments = s.get_comments_owned_by(self.current_user)
             return self.success(data=s)
         if page_number:

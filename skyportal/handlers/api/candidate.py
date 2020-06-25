@@ -149,6 +149,7 @@ class CandidateHandler(BaseHandler):
             c = Candidate.get_if_owned_by(obj_id, self.current_user)
             if c is None:
                 return self.error("Invalid ID")
+            c.comments = c.get_comments_owned_by(self.current_user)
             return self.success(data=c)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
@@ -194,7 +195,6 @@ class CandidateHandler(BaseHandler):
         q = (
             Obj.query.options(
                 [
-                    joinedload(Obj.comments),
                     joinedload(Obj.thumbnails)
                     .joinedload(Thumbnail.photometry)
                     .joinedload(Photometry.instrument)
