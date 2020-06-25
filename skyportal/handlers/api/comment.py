@@ -103,8 +103,7 @@ class CommentHandler(BaseHandler):
         else:
             attachment_bytes, attachment_name = None, None
 
-        author = (self.current_user.username if hasattr(self.current_user, 'username')
-                  else self.current_user.name)
+        author = self.associated_user_object.username
         comment = Comment(text=data['text'],
                           obj_id=obj_id, attachment_bytes=attachment_bytes,
                           attachment_name=attachment_name,
@@ -201,8 +200,8 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        user = (self.current_user.username if hasattr(self.current_user, 'username') else self.current_user.name)
-        roles = (self.current_user.roles if hasattr(self.current_user, 'roles') else '')
+        user = self.associated_user_object.username
+        roles = (self.current_user.roles if hasattr(self.current_user, 'roles') else [])
         c = Comment.query.get(comment_id)
         if c is None:
             return self.error("Invalid comment ID")

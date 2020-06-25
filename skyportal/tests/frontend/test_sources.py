@@ -134,7 +134,7 @@ def test_delete_comment(driver, user, public_source):
         "//*[starts-with(@name,'deleteCommentButton')]")
     ActionChains(driver).move_to_element(comment_div).perform()
     time.sleep(0.2)
-    driver.scroll_to_element_and_click(delete_button)
+    driver.execute_script("arguments[0].click();", delete_button)
     driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
 
 
@@ -180,7 +180,7 @@ def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
         "//*[starts-with(@name,'deleteCommentButton')]")
     ActionChains(driver).move_to_element(comment_div).perform()
     time.sleep(0.2)
-    driver.scroll_to_element_and_click(delete_button)
+    driver.execute_script("arguments[0].click();", delete_button)
     driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
 
 
