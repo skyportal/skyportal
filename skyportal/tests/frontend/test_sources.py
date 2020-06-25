@@ -28,10 +28,7 @@ def test_comments(driver, user, public_source):
     comment_box.send_keys(comment_text)
     driver.scroll_to_element_and_click(driver.find_element_by_css_selector('[type=submit]'))
     driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
-    driver.wait_for_xpath('//span[contains(@class,"commentTime")]')
-    timestamp_text = driver.find_element(By.XPATH,
-                                         '//span[contains(@class,"commentTime")]').text
-    assert timestamp_text == 'a few seconds ago'
+    driver.wait_for_xpath('//span[text()="a few seconds ago"]')
 
 
 def test_comment_groups_validation(driver, user, public_source):
@@ -51,10 +48,7 @@ def test_comment_groups_validation(driver, user, public_source):
     driver.wait_for_xpath_to_disappear('//div[contains(.,"Select at least one group")]')
     driver.scroll_to_element_and_click(driver.find_element_by_css_selector('[type=submit]'))
     driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
-    driver.wait_for_xpath('//span[contains(@class,"commentTime")]')
-    timestamp_text = driver.find_element(By.XPATH,
-                                         '//span[contains(@class,"commentTime")]').text
-    assert timestamp_text == 'a few seconds ago'
+    driver.wait_for_xpath('//span[text()="a few seconds ago"]')
 
 
 def test_upload_comment_attachment(driver, user, public_source):
@@ -130,8 +124,9 @@ def test_delete_comment(driver, user, public_source):
     driver.find_element_by_css_selector('[type=submit]').click()
     comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     comment_div = comment_text_div.find_element_by_xpath("..")
+    comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
     delete_button = comment_div.find_element_by_xpath(
-        "//*[starts-with(@name,'deleteCommentButton')]")
+        f"//*[@name='deleteCommentButton{comment_id}']")
     ActionChains(driver).move_to_element(comment_div).perform()
     time.sleep(0.2)
     driver.execute_script("arguments[0].click();", delete_button)
@@ -153,8 +148,9 @@ def test_regular_user_cannot_delete_unowned_comment(driver, super_admin_user,
     driver.get(f"/source/{public_source.id}")
     comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     comment_div = comment_text_div.find_element_by_xpath("..")
+    comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
     delete_button = comment_div.find_element_by_xpath(
-        "//*[starts-with(@name,'deleteCommentButton')]")
+        f"//*[@name='deleteCommentButton{comment_id}']")
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
     time.sleep(0.1)
@@ -176,8 +172,9 @@ def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
     driver.refresh()
     comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     comment_div = comment_text_div.find_element_by_xpath("..")
+    comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
     delete_button = comment_div.find_element_by_xpath(
-        "//*[starts-with(@name,'deleteCommentButton')]")
+        f"//*[@name='deleteCommentButton{comment_id}']")
     ActionChains(driver).move_to_element(comment_div).perform()
     time.sleep(0.2)
     driver.execute_script("arguments[0].click();", delete_button)
