@@ -13,6 +13,7 @@ from ...models import (
     DBSession, Group, Photometry, Instrument, Source, Obj,
     PHOT_ZP, PHOT_SYS, GroupPhotometry
 )
+import simplejson
 
 from baselayer.app.models import EXECUTEMANY_PAGESIZE
 
@@ -291,41 +292,35 @@ class PhotometryHandler(BaseHandler):
         timer = {'sec1': 0, 'sec2': 0, 'sec3': 0,
                  'sec4': 0, 'sec5': 0, 'sec6': 0}
 
-        for i, row in df.iterrows():
+        r = t.time()
+        rows = df.where(pd.notnull(df), None).to_dict('records')
+        p = t.time()
+        timer['sec1'] += p - r
 
-            r = t.time()
-            packet = row.to_dict()
-            p = t.time()
-            timer['sec1'] += p - r
-
-            # coerce nans to nones
-
-            r = t.time()
-            for key in packet:
-                packet[key] = nan_to_none(packet[key])
-            p = t.time()
-            timer['sec2'] += p - r
-
-            r = t.time()
-            # check that the instrument and object exist
-            instrument = Instrument.query.get(packet['instrument_id'])
+        r = t.time()
+        instcache = {}
+        for iid in df['instrument_id'].unique():
+            instrument = Instrument.query.get(int(iid))
             if not instrument:
-                raise ValidationError(
-                    f'Invalid instrument ID: {packet["instrument_id"]}')
-            p = t.time()
-            timer['sec3'] += p - r
+                return self.error(
+                    f'Invalid instrument ID: {iid}')
+            instcache[iid] = instrument
+        p = t.time()
+        timer['sec3'] += p - r
 
-            r = t.time()
-            # get the object
-            obj = Obj.query.get(
-                packet['obj_id'])  # TODO : implement permissions checking
+
+        r = t.time()
+        for oid in df['obj_id'].unique():
+            obj = Obj.query.get(oid)
             if not obj:
-                raise ValidationError(f'Invalid object ID: {packet["obj_id"]}')
-            p = t.time()
-            timer['sec4'] += p - r
+                return self.error(f'Invalid object ID: {oid}')
+        p = t.time()
+        timer['sec4'] += p - r
+
+        for packet in rows:
 
             r = t.time()
-            if packet["filter"] not in instrument.filters:
+            if packet["filter"] not in instcache[packet['instrument_id']].filters:
                 raise ValidationError(
                     f"Instrument {instrument.name} has no filter "
                     f"{packet['filter']}.")
@@ -364,54 +359,32 @@ class PhotometryHandler(BaseHandler):
         print(f'postprocess took {stop - start:.3e} seconds', flush=True)
         print(f'postprocess introspect: {timer}')
 
-        #DBSession().bulk_save_objects(phots)
-        #print(phots)
-
         start = t.time()
+        raw = ','.join([f"""(now(), now(), '{p["upload_id"]}', {p["flux"]}, {p["fluxerr"]}, """
+                        f"""'{p["obj_id"]}', '{simplejson.dumps(p["altdata"]) if p["altdata"] is not None else dict()}', """
+                        f"""{p["instrument_id"]}, {p["ra_unc"]}, {p["dec_unc"]},"""
+                        f"""{p["mjd"]}, '{p["filter"]}', {p["ra"]}, {p["dec"]}, """ 
+                        f""" '{simplejson.dumps(p["original_user_data"])}')""" for p in params])
 
-        query = Photometry.__table__.insert().returning(Photometry.id)
+        raw = raw.replace('None', 'NULL')
 
-        # get the groups
-        groups = []
-        for p in params:
-            groups.append(p.pop('groups'))
+        query = 'INSERT INTO photometry (created_at, modified, upload_id, ' \
+                '                        flux, fluxerr, obj_id, altdata, ' \
+                '                        instrument_id, ra_unc, dec_unc, ' \
+                '                        mjd, filter, ra, dec, ' \
+                f'                        original_user_data ) VALUES {raw} ' \
+                'RETURNING ID'
 
-        #print('query= ', query)
-        #print('params= ', params)
 
-        i = 0
-        ids = []
-        while EXECUTEMANY_PAGESIZE * i < len(params):
-            chunk_lo = EXECUTEMANY_PAGESIZE * i
-            chunk_hi = EXECUTEMANY_PAGESIZE * (i + 1)
-            subparams = params[chunk_lo:chunk_hi]
-            result = DBSession().execute(query, subparams)
-            ids.extend([i[0] for i in result])
-            i += 1
+        result = DBSession().execute(query)
+        ids = [i[0] for i in result]
 
-        #print('result= ', result)
-        #ids = result.inserted_primary_key
+        raw = ','.join([f'(now(), now(), {r}, {g})' for r in ids for g in group_ids])
 
-        """
-        try:
-            ids = 
-        except:
-            badq = query.compile(compile_kwargs={'literal_bind':True})
-            print(f'Error was {badq}')
-            raise
-        """
+        groupquery = 'INSERT INTO group_photometry (created_at, modified, photometr_id, group_id) ' \
+                     f'VALUES {raw}'
 
-        #ids = result
-        #print('ids= ', ids)
-
-        groupquery = GroupPhotometry.__table__.insert()
-        params = []
-        for id, groups in zip(ids, groups):
-            for group in groups:
-                params.append({'photometr_id': id, 'group_id': group.id})
-
-        #print('groupquery= ', groupquery)
-        DBSession().execute(groupquery, params)
+        DBSession().execute(groupquery)
         DBSession().commit()
 
         stop = t.time()
