@@ -272,9 +272,6 @@ class PhotometryHandler(BaseHandler):
         df['standardized_flux'] = standardized.flux
         df['standardized_fluxerr'] = standardized.fluxerr
 
-        params = []
-        rows = df.where(pd.notnull(df), None).to_dict('records')
-
         instcache = {}
         for iid in df['instrument_id'].unique():
             instrument = Instrument.query.get(int(iid))
@@ -294,14 +291,16 @@ class PhotometryHandler(BaseHandler):
         # PK slots for uninserted rows
 
         pkq = f"SELECT nextval('photometry_id_seq') FROM " \
-              f"generate_series(1, {len(rows)})"
+              f"generate_series(1, {len(df)})"
 
         proxy = DBSession().execute(pkq)
 
         # cache this as list for response
         ids = [i[0] for i in proxy]
+        df['id'] = ids
+        rows = df.where(pd.notnull(df), None).to_dict('records')
 
-        rows['id'] = ids
+        params = []
         for packet in rows:
             if packet["filter"] not in instcache[packet['instrument_id']].filters:
                 raise ValidationError(
@@ -341,7 +340,7 @@ class PhotometryHandler(BaseHandler):
 
         groupquery = GroupPhotometry.__table__.insert()
         params = []
-        for id, group_ids in zip(rows['ids'], group_ids):
+        for id in ids:
             for group_id in group_ids:
                 params.append({'photometr_id': id, 'group_id': group_id})
 
