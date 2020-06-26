@@ -176,8 +176,6 @@ class PhotometryHandler(BaseHandler):
 
         upload_id = str(uuid.uuid4())
 
-        start = t.time()
-
         try:
             df = pd.DataFrame(data)
         except ValueError as e:
@@ -268,12 +266,6 @@ class PhotometryHandler(BaseHandler):
             phot_table['flux'] = df['flux'].fillna(np.nan)
             phot_table['fluxerr'] = df['fluxerr'].fillna(np.nan)
 
-        stop = t.time()
-
-        print(f'Preprocessing took {stop - start:.3e} sec')
-
-        start = t.time()
-
         # convert to microjanskies, AB for DB storage as a vectorized operation
         pdata = PhotometricData(phot_table)
         standardized = pdata.normalized(zp=PHOT_ZP, zpsys='ab')
@@ -281,22 +273,9 @@ class PhotometryHandler(BaseHandler):
         df['standardized_flux'] = standardized.flux
         df['standardized_fluxerr'] = standardized.fluxerr
 
-        stop = t.time()
-
-        print(f'Magsys switch took {stop - start:.3e} sec')
-
-        start = t.time()
-
         params = []
-        timer = {'sec1': 0, 'sec2': 0, 'sec3': 0,
-                 'sec4': 0, 'sec5': 0, 'sec6': 0}
-
-        r = t.time()
         rows = df.where(pd.notnull(df), None).to_dict('records')
-        p = t.time()
-        timer['sec1'] += p - r
 
-        r = t.time()
         instcache = {}
         for iid in df['instrument_id'].unique():
             instrument = Instrument.query.get(int(iid))
@@ -304,35 +283,28 @@ class PhotometryHandler(BaseHandler):
                 return self.error(
                     f'Invalid instrument ID: {iid}')
             instcache[iid] = instrument
-        p = t.time()
-        timer['sec3'] += p - r
 
-
-        r = t.time()
         for oid in df['obj_id'].unique():
             obj = Obj.query.get(oid)
             if not obj:
                 return self.error(f'Invalid object ID: {oid}')
-        p = t.time()
-        timer['sec4'] += p - r
 
         for packet in rows:
-
-            r = t.time()
             if packet["filter"] not in instcache[packet['instrument_id']].filters:
                 raise ValidationError(
                     f"Instrument {instrument.name} has no filter "
                     f"{packet['filter']}.")
 
-            p = t.time()
-            timer['sec5'] += p - r
-
-
             flux = packet.pop('standardized_flux')
             fluxerr = packet.pop('standardized_fluxerr')
 
-            r = t.time()
-            phot = dict(original_user_data=packet,
+            # reduce the DB size by ~2x
+            keys = ['limiting_mag', 'magsys', 'limiting_mag_nsigma']
+            original_user_data = {key: packet[key] for key in keys if key in packet}
+            if original_user_data == {}:
+                original_user_data = None
+
+            phot = dict(original_user_data=original_user_data,
                         groups=groups,
                         upload_id=upload_id,
                         flux=flux,
@@ -346,32 +318,16 @@ class PhotometryHandler(BaseHandler):
                         filter=packet['filter'],
                         ra=packet['ra'],
                         dec=packet['dec'])
-            p = t.time()
-            timer['sec6'] += p - r
 
 
             params.append(phot)
-            #DBSession().add(phot)
 
-        stop = t.time()
-
-        print(f'postprocess took {stop - start:.3e} seconds', flush=True)
-        print(f'postprocess introspect: {timer}')
-
-        #DBSession().bulk_save_objects(phots)
-        #print(phots)
-
-        start = t.time()
-
+        #  actually do the insert
         query = Photometry.__table__.insert().returning(Photometry.id)
 
-        # get the groups
         groups = []
         for p in params:
             groups.append(p.pop('groups'))
-
-        #print('query= ', query)
-        #print('params= ', params)
 
         i = 0
         ids = []
@@ -383,34 +339,14 @@ class PhotometryHandler(BaseHandler):
             ids.extend([i[0] for i in result])
             i += 1
 
-        #print('result= ', result)
-        #ids = result.inserted_primary_key
-
-        """
-        try:
-            ids = 
-        except:
-            badq = query.compile(compile_kwargs={'literal_bind':True})
-            print(f'Error was {badq}')
-            raise
-        """
-
-        #ids = result
-        #print('ids= ', ids)
-
         groupquery = GroupPhotometry.__table__.insert()
         params = []
         for id, groups in zip(ids, groups):
             for group in groups:
                 params.append({'photometr_id': id, 'group_id': group.id})
 
-        #print('groupquery= ', groupquery)
         DBSession().execute(groupquery, params)
         DBSession().commit()
-
-        stop = t.time()
-
-        print(f'insert took {stop - start:.3e} seconds', flush=True)
 
         return self.success(data={"ids": ids, "upload_id": upload_id})
 
