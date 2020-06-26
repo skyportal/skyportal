@@ -359,6 +359,39 @@ class Instrument(Base):
                         default=[])
 
 
+class Taxonomy(Base):
+    __tablename__ = 'taxonomy'
+    name = sa.Column(sa.String, nullable=False,
+                     doc='Short string to make this taxonomy memorable '
+                         'to end users.'
+                     )
+    hierarchy = sa.Column(JSONB, nullable=False,
+                          doc='Nested JSON describing the taxonomy '
+                              'which should be validated against '
+                              'a schema before entry'
+                          )
+    provenance = sa.Column(sa.String, nullable=True,
+                           doc='Identifier (e.g., URL or git hash) that '
+                               'uniquely ties this taxonomy back '
+                               'to an origin or place of record'
+                           )
+    version = sa.Column(sa.String, nullable=False,
+                        doc='Semantic version of this taxonomy'
+                        )
+    isLatest = sa.Column(sa.Boolean, default=True, nullable=False,
+                         doc='Consider this the latest version of '
+                             'the taxonomy with this name? Defaults '
+                             'to True.'
+                         )
+    groups = relationship("Group", secondary="group_taxonomy",
+                          cascade="save-update,"
+                                  "merge, refresh-expire, expunge"
+                          )
+
+
+GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
+
+
 class Comment(Base):
     text = sa.Column(sa.String, nullable=False)
     ctype = sa.Column(sa.Enum('text', 'redshift', 'classification',
