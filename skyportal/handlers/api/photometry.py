@@ -288,33 +288,56 @@ class PhotometryHandler(BaseHandler):
         start = t.time()
 
         phots = []
+        timer = {'sec1': 0, 'sec2': 0, 'sec3': 0,
+                 'sec4': 0, 'sec5': 0, 'sec6': 0}
+
         for i, row in df.iterrows():
+
+            r = t.time()
             packet = row.to_dict()
+            p = t.time()
+            timer['sec1'] += p - r
 
             # coerce nans to nones
+
+            r = t.time()
             for key in packet:
                 packet[key] = nan_to_none(packet[key])
+            p = t.time()
+            timer['sec2'] += p - r
 
+            r = t.time()
             # check that the instrument and object exist
             instrument = Instrument.query.get(packet['instrument_id'])
             if not instrument:
                 raise ValidationError(
                     f'Invalid instrument ID: {packet["instrument_id"]}')
+            p = t.time()
+            timer['sec3'] += p - r
 
+            r = t.time()
             # get the object
             obj = Obj.query.get(
                 packet['obj_id'])  # TODO : implement permissions checking
             if not obj:
                 raise ValidationError(f'Invalid object ID: {packet["obj_id"]}')
+            p = t.time()
+            timer['sec4'] += p - r
 
+            r = t.time()
             if packet["filter"] not in instrument.filters:
                 raise ValidationError(
                     f"Instrument {instrument.name} has no filter "
                     f"{packet['filter']}.")
 
+            p = t.time()
+            timer['sec5'] += p - r
+
+
             flux = packet.pop('standardized_flux')
             fluxerr = packet.pop('standardized_fluxerr')
 
+            r = t.time()
             phot = Photometry(original_user_data=packet,
                               groups=groups,
                               upload_id=upload_id,
@@ -329,6 +352,9 @@ class PhotometryHandler(BaseHandler):
                               filter=packet['filter'],
                               ra=packet['ra'],
                               dec=packet['dec'])
+            p = t.time()
+            timer['sec6'] += p - r
+
 
             phots.append(phot)
             #DBSession().add(phot)
@@ -336,6 +362,7 @@ class PhotometryHandler(BaseHandler):
         stop = t.time()
 
         print(f'postprocess took {stop - start:.3e} seconds', flush=True)
+        print(f'postprocess introspect: {timer}')
 
         #DBSession().bulk_save_objects(phots)
         #print(phots)
