@@ -13,7 +13,6 @@ from ...models import (
     DBSession, Group, Photometry, Instrument, Source, Obj,
     PHOT_ZP, PHOT_SYS, GroupPhotometry
 )
-import simplejson
 
 from baselayer.app.models import EXECUTEMANY_PAGESIZE
 
@@ -290,6 +289,20 @@ class PhotometryHandler(BaseHandler):
             if not obj:
                 return self.error(f'Invalid object ID: {oid}')
 
+        # pre-fetch the photometry PKs. these are not guaranteed to be
+        # gapless (e.g., 1, 2, 3, 4, 5, ...) but they are guaranteed
+        # to be unique in the table and thus can be used to "reserve"
+        # PK slots for uninserted rows
+
+        pkq = f"SELECT nextval('photometry_id_seq') FROM " \
+              f"generate_series(1, {len(rows)})"
+
+        proxy = DBSession().execute(pkq)
+
+        # cache this as list for response
+        ids = [i[0] for i in proxy]
+
+        rows['id'] = ids
         for packet in rows:
             if packet["filter"] not in instcache[packet['instrument_id']].filters:
                 raise ValidationError(
@@ -305,8 +318,8 @@ class PhotometryHandler(BaseHandler):
             if original_user_data == {}:
                 original_user_data = None
 
-            phot = dict(original_user_data=original_user_data,
-                        groups=groups,
+            phot = dict(id=packet['id'],
+                        original_user_data=original_user_data,
                         upload_id=upload_id,
                         flux=flux,
                         fluxerr=fluxerr,
@@ -323,37 +336,17 @@ class PhotometryHandler(BaseHandler):
 
             params.append(phot)
 
-        stop = t.time()
+        #  actually do the insert
+        query = Photometry.__table__.insert()
+        DBSession().execute(query, params)
 
-        print(f'postprocess took {stop - start:.3e} seconds', flush=True)
-        print(f'postprocess introspect: {timer}')
+        groupquery = GroupPhotometry.__table__.insert()
+        params = []
+        for id, group_ids in zip(rows['ids'], group_ids):
+            for group_id in group_ids:
+                params.append({'photometr_id': id, 'group_id': group_id})
 
-        start = t.time()
-        raw = ','.join([f"""(now(), now(), '{p["upload_id"]}', {p["flux"]}, {p["fluxerr"]}, """
-                        f"""'{p["obj_id"]}', '{simplejson.dumps(p["altdata"]) if p["altdata"] is not None else dict()}', """
-                        f"""{p["instrument_id"]}, {p["ra_unc"]}, {p["dec_unc"]},"""
-                        f"""{p["mjd"]}, '{p["filter"]}', {p["ra"]}, {p["dec"]}, """ 
-                        f""" '{simplejson.dumps(p["original_user_data"])}')""" for p in params])
-
-        raw = raw.replace('None', 'NULL')
-
-        query = 'INSERT INTO photometry (created_at, modified, upload_id, ' \
-                '                        flux, fluxerr, obj_id, altdata, ' \
-                '                        instrument_id, ra_unc, dec_unc, ' \
-                '                        mjd, filter, ra, dec, ' \
-                f'                        original_user_data ) VALUES {raw} ' \
-                'RETURNING ID'
-
-
-        result = DBSession().execute(query)
-        ids = [i[0] for i in result]
-
-        raw = ','.join([f'(now(), now(), {r}, {g})' for r in ids for g in group_ids])
-
-        groupquery = 'INSERT INTO group_photometry (created_at, modified, photometr_id, group_id) ' \
-                     f'VALUES {raw}'
-
-        DBSession().execute(groupquery)
+        DBSession().execute(groupquery, params)
         DBSession().commit()
 
         return self.success(data={"ids": ids, "upload_id": upload_id})
