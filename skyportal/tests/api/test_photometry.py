@@ -1,9 +1,5 @@
-import os
-import datetime
-import base64
+import time
 from skyportal.tests import api
-from skyportal.models import Thumbnail, DBSession, Photometry
-
 import numpy as np
 import sncosmo
 
@@ -845,7 +841,6 @@ def test_token_user_retrieve_null_photometry(upload_data_token, public_source,
                              'magsys': 'ab',
                              'filter': 'ztfg',
                              'group_ids': [public_group.id]
-
                              },
                        token=upload_data_token)
     assert status == 200
@@ -870,3 +865,26 @@ def test_token_user_retrieve_null_photometry(upload_data_token, public_source,
     assert data['status'] == 'success'
     assert data['data']['mag'] is None
     assert data['data']['magerr'] is None
+
+
+def test_token_user_big_post(upload_data_token, public_source, ztf_camera,
+                             public_group):
+
+    start = time.time()
+    status, data = api('POST', 'photometry',
+                       data={
+                           'obj_id': str(public_source.id),
+                           'mjd': [58000 + i for i in range(50000)],
+                           'instrument_id': ztf_camera.id,
+                           'mag': np.random.uniform(low=18, high=22, size=50000).tolist(),
+                           'magerr': np.random.uniform(low=0.1, high=0.3, size=50000).tolist(),
+                           'limiting_mag': 22.3,
+                           'magsys': 'ab',
+                           'filter': 'ztfg',
+                           'group_ids': [public_group.id]
+                       },
+                       token=upload_data_token)
+    stop = time.time()
+    assert status == 200
+    assert data['status'] == 'success'
+    assert stop - start < 25
