@@ -287,7 +287,7 @@ class PhotometryHandler(BaseHandler):
 
         start = t.time()
 
-        phots = []
+        params = []
         timer = {'sec1': 0, 'sec2': 0, 'sec3': 0,
                  'sec4': 0, 'sec5': 0, 'sec6': 0}
 
@@ -338,25 +338,25 @@ class PhotometryHandler(BaseHandler):
             fluxerr = packet.pop('standardized_fluxerr')
 
             r = t.time()
-            phot = Photometry(original_user_data=packet,
-                              groups=groups,
-                              upload_id=upload_id,
-                              flux=flux,
-                              fluxerr=fluxerr,
-                              obj_id=packet['obj_id'],
-                              altdata=packet['altdata'],
-                              instrument_id=packet['instrument_id'],
-                              ra_unc=packet['ra_unc'],
-                              dec_unc=packet['dec_unc'],
-                              mjd=packet['mjd'],
-                              filter=packet['filter'],
-                              ra=packet['ra'],
-                              dec=packet['dec'])
+            phot = dict(original_user_data=packet,
+                        groups=groups,
+                        upload_id=upload_id,
+                        flux=flux,
+                        fluxerr=fluxerr,
+                        obj_id=packet['obj_id'],
+                        altdata=packet['altdata'],
+                        instrument_id=packet['instrument_id'],
+                        ra_unc=packet['ra_unc'],
+                        dec_unc=packet['dec_unc'],
+                        mjd=packet['mjd'],
+                        filter=packet['filter'],
+                        ra=packet['ra'],
+                        dec=packet['dec'])
             p = t.time()
             timer['sec6'] += p - r
 
 
-            phots.append(phot)
+            params.append(phot)
             #DBSession().add(phot)
 
         stop = t.time()
@@ -370,7 +370,6 @@ class PhotometryHandler(BaseHandler):
         start = t.time()
 
         query = Photometry.__table__.insert().returning(Photometry.id)
-        params = [p.to_dict() for p in phots]
 
         # get the groups
         groups = []
