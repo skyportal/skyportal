@@ -14,7 +14,6 @@ from ...models import (
     PHOT_ZP, PHOT_SYS, GroupPhotometry
 )
 
-from baselayer.app.models import EXECUTEMANY_PAGESIZE
 
 from ...schema import (PhotometryMag, PhotometryFlux, PhotFluxFlexible, PhotMagFlexible)
 from ...phot_enum import ALLOWED_MAGSYSTEMS
