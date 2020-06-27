@@ -39,6 +39,9 @@ class TaxonomyHandler(BaseHandler):
                 'Taxonomy does not exist or is not available to user.'
             )
 
+        if not isinstance(taxonomy, list):
+            self.error('Problem retreiving taxonomy')
+
         return self.success(data=taxonomy[0])
 
     @permissions(['Taxonomy'])
