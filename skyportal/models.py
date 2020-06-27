@@ -311,6 +311,7 @@ class Telescope(Base):
     lon = sa.Column(sa.Float, nullable=False)
     elevation = sa.Column(sa.Float, nullable=False)
     diameter = sa.Column(sa.Float, nullable=False)
+    skycam_link = sa.Column(sa.String, nullable=True)
 
     groups = relationship('Group', secondary='group_telescopes')
     instruments = relationship('Instrument', back_populates='telescope',
