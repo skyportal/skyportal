@@ -192,6 +192,17 @@ class PhotometryHandler(BaseHandler):
                 return self.error('Unable to coerce passed JSON to a series of packets. '
                                   f'Error was: "{e}"')
 
+        # `to_numeric` coerces numbers written as strings to numeric types
+        #  (int, float)
+
+        #  errors='ignore' means if something is actually an alphanumeric
+        #  string, just leave it alone and dont error out
+
+        #  apply is used to apply it to each column
+        # (https://stackoverflow.com/questions/34844711/convert-entire-pandas
+        # -dataframe-to-integers-in-pandas-0-17-0/34844867
+        df = df.apply(pd.to_numeric, errors='ignore')
+
         if kind == 'mag':
             # ensure that neither or both mag and magerr are null
             magnull = df['mag'].isna()
