@@ -35,7 +35,9 @@ class TaxonomyHandler(BaseHandler):
                         self.current_user
             )
         if taxonomy is None:
-            return self.error('Taxonomy not available to user.')
+            return self.error(
+                'Taxonomy does not exist or is not available to user.'
+            )
 
         return self.success(data=taxonomy[0])
 
