@@ -9,7 +9,7 @@ from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy_utils import ArrowType
+from sqlalchemy_utils import ArrowType, URLType
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
@@ -311,7 +311,7 @@ class Telescope(Base):
     lon = sa.Column(sa.Float, nullable=False, doc='Longitude in deg.')
     elevation = sa.Column(sa.Float, nullable=False, doc='Elevation in meters.')
     diameter = sa.Column(sa.Float, nullable=False, doc='Diameter in meters.')
-    skycam_link = sa.Column(sa.String, nullable=True,
+    skycam_link = sa.Column(URLType, nullable=True,
                             doc="Link to the telescope's sky camera.")
 
     groups = relationship('Group', secondary='group_telescopes')
