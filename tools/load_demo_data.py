@@ -64,6 +64,7 @@ if __name__ == "__main__":
                 "Manage sources",
                 "Upload data",
                 "Comment",
+                "Post Taxonomy",
                 "Manage users",
                 "System admin",
             ],
