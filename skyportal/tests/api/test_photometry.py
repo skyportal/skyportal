@@ -887,4 +887,3 @@ def test_token_user_big_post(upload_data_token, public_source, ztf_camera,
     stop = time.time()
     assert status == 200
     assert data['status'] == 'success'
-    assert stop - start < 25
