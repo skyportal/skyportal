@@ -29,11 +29,15 @@ class TaxonomyHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        taxonomy = Taxonomy.get_taxonomy_usable_by_user(taxonomy_id,
-                                                        self.current_user)
+        taxonomy = Taxonomy. \
+            get_taxonomy_usable_by_user(
+                        taxonomy_id,
+                        self.current_user
+            )
         if taxonomy is None:
-            return self.error('Taxonomy not viewable by user.')
-        return self.success(data=taxonomy)
+            return self.error('Taxonomy not available to user.')
+
+        return self.success(data=taxonomy[0])
 
     @permissions(['Taxonomy'])
     def post(self):
@@ -75,7 +79,7 @@ class TaxonomyHandler(BaseHandler):
                       Identifier (e.g., URL or git hash) that
                       uniquely ties this taxonomy back
                       to an origin or place of record
-                  islatest:
+                  isLatest:
                     type: boolean
                     description: |
                       Consider this version of the taxonomy with this
@@ -118,6 +122,7 @@ class TaxonomyHandler(BaseHandler):
             .filter(Taxonomy.version == version)
             .all()
         )
+
         if len(others) != 0:
             return self.error(
                 f"That version/name combination is already "
@@ -152,27 +157,27 @@ class TaxonomyHandler(BaseHandler):
 
         # update others with this name
         # TODO: deal with the same name but different groups?
-        islatest = data.get('islatest', True)
-        if islatest:
+        isLatest = data.get('isLatest', True)
+        if isLatest:
             DBSession().query(Taxonomy) \
                        .filter(Taxonomy.name == name) \
-                       .update({'islatest': False})
+                       .update({'isLatest': False})
 
         taxonomy = Taxonomy(
             name=name,
             hierarchy=hierarchy,
             provenance=provenance,
             version=version,
-            isLatest=islatest,
+            isLatest=isLatest,
             groups=groups
         )
 
         DBSession().add(taxonomy)
         DBSession().commit()
 
-        return self.success(data={'comment_id': taxonomy.id})
+        return self.success(data={'taxonomy_id': taxonomy.id})
 
-    @permissions(['Taxonomy'])
+    @permissions(['Taxonomy Delete'])
     def delete(self, taxonomy_id):
         """
         ---
@@ -195,9 +200,7 @@ class TaxonomyHandler(BaseHandler):
         if c is None:
             return self.error("Invalid taxonomy ID")
 
-        if ("Super admin" in [role.id for role in roles]):
-            Taxonomy.query.filter_by(id=taxonomy_id).delete()
-            DBSession().commit()
-        else:
-            return self.error('Insufficient user permissions.')
+        Taxonomy.query.filter_by(id=taxonomy_id).delete()
+        DBSession().commit()
+
         return self.success()
