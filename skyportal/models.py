@@ -392,6 +392,19 @@ class Taxonomy(Base):
 GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
 
 
+def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
+    return (
+        Taxonomy.query.filter(Taxonomy.id == taxonomy_id)
+        .filter(
+            Taxonomy.groups.any(Group.id.in_([g.id for g in user_or_token.groups]))
+        )
+        .all()
+    )
+
+
+Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
+
+
 class Comment(Base):
     text = sa.Column(sa.String, nullable=False)
     ctype = sa.Column(sa.Enum('text', 'redshift', 'classification',

@@ -13,3 +13,4 @@ from .sysinfo import SysInfoHandler
 from .telescope import TelescopeHandler
 from .thumbnail import ThumbnailHandler
 from .user import UserHandler
+from .taxonomy import TaxonomyHandler
