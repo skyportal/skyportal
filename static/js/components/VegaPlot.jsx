@@ -127,7 +127,7 @@ const spec = (url) => ({
     // Render limiting mags
     {
       transform: [
-        { filter: "datum.mag != null" }
+        { filter: "datum.mag == null" }
       ],
       selection: {
         filterLimitingMags: {
