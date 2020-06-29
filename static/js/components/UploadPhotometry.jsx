@@ -54,8 +54,7 @@ const UploadPhotometryForm = () => {
   const [csvData, setCsvData] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
   const { id } = useParams();
-  const { handleSubmit, errors, reset, control, getValues, watch } = useForm();
-  const watchInstID = watch("instrumentID", "");
+  const { handleSubmit, errors, reset, control, getValues } = useForm();
   let formState = getValues();
 
   const validateCsvData = () => {
@@ -270,7 +269,7 @@ const UploadPhotometryForm = () => {
                 <Box component="span" m={1}>
                   <font size="small">
                     Note: To display an instrument&apos;s available filters,
-                    temporarily select it below
+                    hover over the instrument name in the drop-down menu below.
                     <br />
                   </font>
                   {
@@ -293,7 +292,11 @@ const UploadPhotometryForm = () => {
                           {
                            instrumentList.map((instrument) => (
                              <MenuItem value={instrument.id} key={instrument.id}>
-                               {`${instrument.name} (ID: ${instrument.id})`}
+                               <Tooltip title={`Filters: ${instrument.filters.join(", ")}`}>
+                                 <span>
+                                   {`${instrument.name} (ID: ${instrument.id})`}
+                                 </span>
+                               </Tooltip>
                              </MenuItem>
                            ))
                           }
@@ -305,20 +308,6 @@ const UploadPhotometryForm = () => {
                       defaultValue=""
                     />
                   </FormControl>
-                </Box>
-                <Box component="span" m={1}>
-                  {
-                    (!!instrumentList.length && (watchInstID !== "multiple" && watchInstID !== "")) && (
-                      <span>
-                        Possible filters:&nbsp;
-                        {
-                          instrumentList.filter(
-                            (instrument) => instrument.id === watchInstID
-                          )[0]?.filters.join(", ")
-                        }
-                      </span>
-                    )
-                  }
                 </Box>
               </Box>
               <Box component="span" m={1}>
