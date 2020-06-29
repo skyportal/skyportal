@@ -64,3 +64,33 @@ cron:
   - interval: 1440
     script: jobs/delete_unsaved_candidates.py
     limit: ["01:00", "02:00"]
+
+db_seed:
+  users:
+    - username: sitewide_group_admin
+      role_ids:
+        - Group admin
+      token:
+        permissions:
+          - "Manage groups"
+          - "Manage sources"
+          - "Upload data"
+          - "Post Taxonomy"
+          - "Manage users"
+        name: "db_seed token"
+  groups:
+    - name: Sitewide Group
+      group_admins:
+        - sitewide_group_admin
+  telescopes:
+    - file: telescopes.yaml
+  instruments:
+    - file: instruments.yaml
+  taxonomies:
+    - tdtax:
+      version: latest
+    - class: Time-domain Source
+      subclasses:
+        - class: red sources
+          other names: ["red4ever"]
+        - class: blue sources
