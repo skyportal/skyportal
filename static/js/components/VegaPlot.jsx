@@ -59,7 +59,7 @@ const spec = (url) => ({
           type: "nominal"
         },
         tooltip: [
-          { field: "magAndErr", title: "mag" },
+          { field: "magAndErr", title: "mag", type: "nominal" },
           { field: "filter", type: "ordinal" },
           { field: "mjd", type: "quantitative" },
           { field: "limiting_mag", type: "quantitative", format: ".2f" }
