@@ -305,14 +305,21 @@ class SourceView(Base):
 
 
 class Telescope(Base):
-    name = sa.Column(sa.String, nullable=False)
-    nickname = sa.Column(sa.String, nullable=False)
+    id = sa.Column(sa.String, nullable=False, primary_key=True,
+                   doc='Nickname of the telescope, unique key for DB '
+                       'access.')
+    name = sa.Column(sa.String, nullable=False,
+                     doc='Full name of the telescope.')
     lat = sa.Column(sa.Float, nullable=False, doc='Latitude in deg.')
     lon = sa.Column(sa.Float, nullable=False, doc='Longitude in deg.')
     elevation = sa.Column(sa.Float, nullable=False, doc='Elevation in meters.')
     diameter = sa.Column(sa.Float, nullable=False, doc='Diameter in meters.')
     skycam_link = sa.Column(URLType, nullable=True,
                             doc="Link to the telescope's sky camera.")
+
+    @hybrid_property
+    def nickname(self):
+        return self.id
 
     groups = relationship('Group', secondary='group_telescopes')
     instruments = relationship('Instrument', back_populates='telescope',
