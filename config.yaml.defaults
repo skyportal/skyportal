@@ -84,7 +84,433 @@ db_seed:
         - sitewide_group_admin
       token: "db_seed token"
   telescopes:
-    - file: telescopes.yaml
+    - diameter: 11.0
+      elevation: 2070.0
+      lat: 30.67139
+      lon: -104.02139
+      name: '''Hobby-Eberly Telescope'''
+      nickname: '''HET'''
+      skycam: null
+    - diameter: 1.3
+      elevation: 2340.0
+      lat: 31.6808472
+      lon: -110.87904167
+      name: '''Peters Automated Infrared Imaging Telescope'''
+      nickname: '''PTEL'''
+      skycam: null
+    - diameter: 8.0
+      elevation: 2722.0
+      lat: -30.24075
+      lon: -70.736693
+      name: '''Gemini South'''
+      nickname: '''GS'''
+      skycam: null
+    - diameter: 3.5799999
+      elevation: 2396.0
+      lat: 28.766
+      lon: 342.117
+      name: '''Telescopio Nazionale Galileo'''
+      nickname: '''TNG'''
+      skycam: null
+    - diameter: 4.0
+      elevation: 7079.0
+      lat: 31.96
+      lon: -111.6
+      name: '''Kitt Peak 4m'''
+      nickname: '''KPNO4m'''
+      skycam: null
+    - diameter: 3.0
+      elevation: 1283.0
+      lat: 37.341033
+      lon: -121.642932
+      name: '''Lick 3-m'''
+      nickname: '''Lick 3-m'''
+      skycam: null
+    - diameter: 4.1999998
+      elevation: 2332.0
+      lat: 28.76064
+      lon: 342.11836
+      name: '''WHT 4.2m'''
+      nickname: '''WHT'''
+      skycam: null
+    - diameter: 2.1600001
+      elevation: 950.0
+      lat: 117.964
+      lon: 40.6592
+      name: '''Xinglong 2.16m'''
+      nickname: '''XL216'''
+      skycam: null
+    - diameter: 0.46000001
+      elevation: 875.0
+      lat: 34.763333
+      lon: 30.595833
+      name: '''Wise 18"'''
+      nickname: '''C18'''
+      skycam: null
+    - diameter: 2.5
+      elevation: 2336.0
+      lat: 28.762
+      lon: 342.11836
+      name: '''INT'''
+      nickname: '''INT'''
+      skycam: null
+    - diameter: 2.0
+      elevation: 2363.0
+      lat: 28.7624
+      lon: 342.1208
+      name: '''Liverpool Telescope'''
+      nickname: '''LT'''
+      skycam: null
+    - diameter: 10.4
+      elevation: 2275.0
+      lat: 28.756611
+      lon: 342.107972
+      name: '''Gran Telescopio Canarias 10.4 m'''
+      nickname: '''GTC'''
+      skycam: null
+    - diameter: 2.0
+      elevation: 3055.0
+      lat: 20.7075
+      lon: -156.256111
+      name: '''Faulkes Telescope North'''
+      nickname: '''FTN'''
+      skycam: null
+    - diameter: 2.0
+      elevation: 1116.0
+      lat: -31.273333
+      lon: 149.071111
+      name: '''Faulkes Telescope South'''
+      nickname: '''FTS'''
+      skycam: null
+    - diameter: 1.0
+      elevation: 1859.0
+      lat: 32.8424
+      lon: 243.572
+      name: '''MLO 1m'''
+      nickname: '''MLO'''
+      skycam: null
+    - diameter: 2.0
+      elevation: 1000.0
+      lat: 19.08
+      lon: 73.67
+      name: '''IUCAA Girawali Observatory'''
+      nickname: '''IGO'''
+      skycam: null
+    - diameter: 2.0
+      elevation: 4500.0
+      lat: 32.779444
+      lon: 78.964167
+      name: '''Himalyan Chandra Telescope'''
+      nickname: '''HCT'''
+      skycam: null
+    - diameter: 1.5
+      elevation: 2790.0
+      lat: 31.04527
+      lon: -115.47
+      name: '''San Pedro Martir 1.5m'''
+      nickname: '''SPM15'''
+      skycam: null
+    - diameter: 2.4000001
+      elevation: 1938.5
+      lat: 31.95
+      lon: 248.383
+      name: '''MDM 2.4m Hiltner'''
+      nickname: '''MDM24'''
+      skycam: null
+    - diameter: 9.8000002
+      elevation: 1798.0
+      lat: -32.376
+      lon: 20.8107
+      name: '''South African Large Telescope'''
+      nickname: '''SALT'''
+      skycam: null
+    - diameter: 1.0
+      elevation: 2070.0
+      lat: 30.68
+      lon: -104.0151
+      name: '''LCOGT 1m Network'''
+      nickname: '''LCOGT1m'''
+      skycam: null
+    - diameter: 2.5
+      elevation: 2282.0
+      lat: -29.0033
+      lon: -70.7017
+      name: '''du Pont 2.5m'''
+      nickname: '''DUP'''
+      skycam: null
+    - diameter: 1.0
+      elevation: 2282.0
+      lat: -29.0033
+      lon: -70.7017
+      name: '''Swope 1m'''
+      nickname: '''Swope'''
+      skycam: null
+    - diameter: 1.0
+      elevation: 2080.0
+      lat: 43.4709583333
+      lon: 87.1776
+      name: '''Nanshan 1m'''
+      nickname: '''Nanshan 1m'''
+      skycam: null
+    - diameter: 4.3000002
+      elevation: 2337.0
+      lat: 34.744305
+      lon: -111.422515
+      name: '''Discovery Channel Telescope'''
+      nickname: '''DCT'''
+      skycam: null
+    - diameter: 1.23
+      elevation: 2168.0
+      lat: 37.22361
+      lon: -2.5461
+      name: '''Calar Alto 1.2m'''
+      nickname: '''CAHA 1.2m'''
+      skycam: null
+    - diameter: 1.8200001
+      elevation: 1366.0
+      lat: 11.548
+      lon: 45.8486
+      name: '''Ekar 1.82m'''
+      nickname: '''Ekar'''
+      skycam: null
+    - diameter: 1.8
+      elevation: 4215.0
+      lat: 204.5317
+      lon: 19.825
+      name: '''PAN-STARRS 1.8m'''
+      nickname: '''PS1'''
+      skycam: null
+    - diameter: 1.3
+      elevation: 2450.0
+      lat: 29.4
+      lon: 79.46
+      name: '''ARIES 1.3m Devasthal Fast Optical Telescope'''
+      nickname: '''DFOT'''
+      skycam: null
+    - diameter: 2.5
+      elevation: 2788.0
+      lat: 32.780278
+      lon: 254.1797
+      name: '''SDSS 2.5-M'''
+      nickname: '''SDSS2.5m'''
+      skycam: null
+    - diameter: 3.5799999
+      elevation: 2375.0
+      lat: -29.261165622
+      lon: -70.731330408
+      name: '''New Technology Telescope'''
+      nickname: '''NTT'''
+      skycam: null
+    - diameter: 1.2
+      elevation: 1870.0
+      lat: 33.3633675
+      lon: -116.8361345
+      name: '''Palomar 1.2m Oschin'''
+      nickname: '''P48'''
+      skycam: '''http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG'''
+    - diameter: 10.0
+      elevation: 4160.0
+      lat: 19.8283
+      lon: -155.478
+      name: '''Keck II 10m'''
+      nickname: '''Keck2'''
+      skycam: '''http://kree.ifa.hawaii.edu/allsky/allsky_last.png'''
+    - diameter: 8.1999998
+      elevation: 4139.0
+      lat: 19.8256
+      lon: -155.4767
+      name: '''Subaru FOCAS'''
+      nickname: '''Subaru FOCAS'''
+      skycam: '''http://kree.ifa.hawaii.edu/allsky/allsky_last.png'''
+    - diameter: 8.1000004
+      elevation: 4213.0
+      lat: 19.8
+      lon: -155.5
+      name: '''Gemini North'''
+      nickname: '''Gemini N'''
+      skycam: '''http://kree.ifa.hawaii.edu/allsky/allsky_last.png'''
+    - diameter: 2.2
+      elevation: 4123.0
+      lat: 19.826389
+      lon: -155.474167
+      name: '''UH 2.2-m'''
+      nickname: '''SNIFS'''
+      skycam: '''http://kree.ifa.hawaii.edu/allsky/allsky_last.png'''
+    - diameter: 1.5
+      elevation: 1870.0
+      lat: 33.3633675
+      lon: -116.8361345
+      name: '''Palomar 1.5m'''
+      nickname: '''P60'''
+      skycam: '''http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG'''
+    - diameter: 5.0999999
+      elevation: 1870.0
+      lat: 33.3633675
+      lon: -116.8361345
+      name: '''Palomar 5.1m Hale'''
+      nickname: '''P200'''
+      skycam: '''http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG'''
+    - diameter: 0.5
+      elevation: 900.0
+      lat: 35.7866
+      lon: 138.4806
+      name: '''Akeno MITSuME'''
+      nickname: '''Akeno'''
+      skycam: '''http://sncwall.hp.phys.titech.ac.jp:2388/monitor/skymon_s.jpg'''
+    - diameter: 1.0
+      elevation: 2862.0
+      lat: 23.67
+      lon: 120.99
+      name: '''Lulin'''
+      nickname: '''LOT'''
+      skycam: '''http://www.lulin.ncu.edu.tw/wea/cur_sky.jpg'''
+    - diameter: 2.2
+      elevation: 4213.5601
+      lat: 19.82
+      lon: -155.47
+      name: '''UH 88inch'''
+      nickname: '''UH88'''
+      skycam: null
+    - diameter: 10.0
+      elevation: 4160.0
+      lat: 19.8283
+      lon: -155.478
+      name: '''Keck I 10m '''
+      nickname: '''Keck1'''
+      skycam: '''http://kree.ifa.hawaii.edu/allsky/allsky_last.png'''
+    - diameter: 1.0
+      elevation: 1.0
+      lat: 1.0
+      lon: 1.0
+      name: '''Swift'''
+      nickname: '''Swift'''
+      skycam: null
+    - diameter: 3.5
+      elevation: 2788.0
+      lat: 32.78
+      lon: -105.82
+      name: '''Apache Point 3.5m'''
+      nickname: '''APO'''
+      skycam: null
+    - diameter: 2.5599999
+      elevation: 2327.0
+      lat: 28.7583
+      lon: -17.88
+      name: '''Nordic Optical Telescope'''
+      nickname: '''NOT'''
+      skycam: '''http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png'''
+    - diameter: 4.0
+      elevation: 2207.0
+      lat: -30.169661
+      lon: -70.806525
+      name: '''CTIO Victor M. Blanco 4-meter Telescope'''
+      nickname: '''CTIO-4m'''
+      skycam: null
+    - diameter: 8.0
+      elevation: 2648.0
+      lat: -24.6253
+      lon: -70.4022
+      name: '''VLT'''
+      nickname: '''VLT'''
+      skycam: null
+    - diameter: 6.5
+      elevation: 2282.0
+      lat: -29.0033
+      lon: -70.7017
+      name: '''Magellan_Baade'''
+      nickname: '''Magellan_Baade'''
+      skycam: null
+    - diameter: 4.0999999
+      elevation: 2518.0
+      lat: -24.615833
+      lon: -70.3975
+      name: '''VISTA'''
+      nickname: '''VISTA'''
+      skycam: null
+    - diameter: 6.5
+      elevation: 2282.0
+      lat: -29.0033
+      lon: -70.7017
+      name: '''Magellan_Clay'''
+      nickname: '''Magellan_Clay'''
+      skycam: null
+    - diameter: 2.4000001
+      elevation: null
+      lat: null
+      lon: null
+      name: '''Hubble Space Telescope'''
+      nickname: '''HST'''
+      skycam: null
+    - diameter: 1.4
+      elevation: 1798.0
+      lat: -32.376006
+      lon: 20.810678
+      name: '''Infrared Survey Facility'''
+      nickname: '''IRSF'''
+      skycam: null
+    - diameter: 1.6
+      elevation: 0.0
+      lat: 0.0
+      lon: 0.0
+      name: '''Korea Microlensing Telescope Network'''
+      nickname: '''KMTNet'''
+      skycam: null
+    - diameter: 0.40000001
+      elevation: 1760.0
+      lat: 20.81
+      lon: -32.379
+      name: '''MASTER-SAAO'''
+      nickname: '''MASTER-SAAO'''
+      skycam: null
+    - diameter: 0.41
+      elevation: 2286.0
+      lat: -30.168
+      lon: -70.805
+      name: '''PROMPT5'''
+      nickname: '''PROMPT5'''
+      skycam: null
+    - diameter: 2.3
+      elevation: 1165.0
+      lat: -31.273333
+      lon: 149.064444
+      name: '''Siding Spring Observatory'''
+      nickname: '''SSO'''
+      skycam: null
+    - diameter: 1.35
+      elevation: 1163.0
+      lat: -31.2733
+      lon: 149.0644
+      name: '''Skymapper'''
+      nickname: '''Skymapper'''
+      skycam: null
+    - diameter: 6.6999998
+      elevation: 50.0
+      lat: -31.35666667
+      lon: 115.71361111
+      name: '''Zadko'''
+      nickname: '''Zadko'''
+      skycam: null
+    - diameter: 1.3
+      elevation: 2207.0
+      lat: -30.169661
+      lon: -70.806525
+      name: '''CTIO 1.3m '''
+      nickname: '''CTIO-1.3m '''
+      skycam: null
+    - diameter: 2.2
+      elevation: 2375.0
+      lat: -29.25
+      lon: -70.73
+      name: '''MPI_ESO-2.2m'''
+      nickname: '''MPI_ESO-2.2m'''
+      skycam: null
+    - diameter: 1.5
+      elevation: 267.0
+      lat: 32.066667
+      lon: 118.816667
+      name: '''China Near Earth Object Survey Telescope'''
+      nickname: '''CNEOST'''
+      skycam: null
   instruments:
     - file: instruments.yaml
   taxonomies:
