@@ -268,6 +268,11 @@ const UploadPhotometryForm = () => {
               <br />
               <Box display="flex" alignItems="center">
                 <Box component="span" m={1}>
+                  <font size="small">
+                    Note: To display an instrument&apos;s available filters,
+                    temporarily select it below
+                    <br />
+                  </font>
                   {
                     errors.instrumentID && (
                       <FormValidationError
