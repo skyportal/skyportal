@@ -56,7 +56,7 @@ const CommentList = () => {
             {dayjs().to(dayjs(created_at))}
           </span>
         </div>
-        <div className={styles.wrap}>
+        <div className={styles.wrap} name={`commentDiv${id}`}>
           <div className={styles.commentMessage}>
             {text}
           </div>
