@@ -45,7 +45,7 @@ docs: ## Build the SkyPortal docs
 docs: | doc_reqs api-docs
 	export SPHINXOPTS=-W; make -C doc html
 
-db_seed: ## Import example dataset
+db_seed: ## Import included dataset of instruments, telescopes, etc. 
 db_seed: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
 db_seed: | dependencies
 	@PYTHONPATH=. python tools/db_seed.py $(FLAGS)

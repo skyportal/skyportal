@@ -360,7 +360,7 @@ class Instrument(Base):
 
 
 class Taxonomy(Base):
-    __tablename__ = 'taxonomy'
+    __tablename__ = 'taxonomies'
     name = sa.Column(sa.String, nullable=False,
                      doc='Short string to make this taxonomy memorable '
                          'to end users.'
