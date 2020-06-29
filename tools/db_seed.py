@@ -8,9 +8,9 @@ import tdtax
 from social_tornado.models import TornadoStorage
 
 from baselayer.app.env import load_env
-from baselayer.app.model_util import status
-from skyportal.models import init_db, DBSession, User
-from skyportal.model_util import create_token
+from baselayer.app.model_util import status, create_tables
+from skyportal.models import Base, init_db, DBSession, User
+from skyportal.model_util import setup_permissions, create_token
 from skyportal.tests import api
 from baselayer.tools.test_frontend import verify_server_availability
 
@@ -23,6 +23,15 @@ if __name__ == "__main__":
     with status(f"Connecting to database {cfg['database']['database']}"):
         init_db(**cfg["database"])
 
+    with status("Creating tables"):
+        create_tables()
+
+    for model in Base.metadata.tables:
+        print("    -", model)
+
+    with status(f"Creating permissions"):
+        setup_permissions()
+
     with status(f"Creating users"):
 
         users = []
@@ -30,22 +39,21 @@ if __name__ == "__main__":
             users.append(
                 User(username=u["username"], role_ids=u["role_ids"])
             )
-
         DBSession().add_all(users)
-
         for u in users:
             DBSession().add(
                 TornadoStorage.user.create_social_auth(u, u.username, "google-oauth2")
             )
+        users_dict = {u.username: u.id for u in users}
 
     with status("Creating tokens"):
 
         tokens = {}
-        for u in users:
+        for u in cfg['db_seed'].get('users', []):
             for t in u.get("tokens", []):
                 tokens[t["name"]] = create_token(
                     t["permissions"],
-                    u.id,
+                    users_dict[u["username"]],
                     t["name"]
                 )
 
@@ -59,7 +67,7 @@ if __name__ == "__main__":
 
     with status("Launching web app & executing API calls"):
         try:
-            response_status, data = api("GET", "sysinfo", token=tokens[0])
+            response_status, data = api("GET", "sysinfo", token=list(tokens.values())[0])
             app_already_running = True
         except requests.ConnectionError:
             app_already_running = False
@@ -101,23 +109,25 @@ if __name__ == "__main__":
                         version = tdtax.__version__
                     else:
                         hierarchy = tax["hierarchy"]
+                        tdtax.validate(hierarchy, tdtax.schema)
                         version = tax["version"]
 
                     group_ids = [group_dict[g] for g in tax["groups"]]
-                    data = assert_post(
-                        "taxonomy",
-                        {
+                    payload = {
                             "name": name,
                             "hierarchy": hierarchy,
                             "group_ids": group_ids,
                             "provenance": provenance,
                             "version": version,
-                        },
+                    }
+                    print(payload)
+                    data = assert_post(
+                        "taxonomy",
+                        payload,
                         tokens[tax["token"]]
 
                     )
-                    taxonomy_id = data["data"]["id"]
-                    print(name, taxonomy_id)
+
             with status("Creating telescopes & instruments"):
                 # TBD
                 pass
