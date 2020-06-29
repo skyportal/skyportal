@@ -42,7 +42,7 @@ class CommentEntry extends React.Component {
         <div>
           <input
             type="text"
-            name="comment"
+            name="text"
             value={text}
             onChange={this._handleChange}
           />
