@@ -367,7 +367,7 @@ db_seed:
       elevation: 4160.0
       lat: 19.8283
       lon: -155.478
-      name: Keck I 10m 
+      name: Keck I 10m
       id: Keck1
       skycam: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
     - diameter: 1.0
@@ -486,8 +486,8 @@ db_seed:
       elevation: 2207.0
       lat: -30.169661
       lon: -70.806525
-      name: CTIO 1.3m 
-      id: CTIO-1.3m 
+      name: CTIO 1.3m
+      id: CTIO-1.3m
       skycam: null
     - diameter: 2.2
       elevation: 2375.0
@@ -505,17 +505,10 @@ db_seed:
       skycam: null
   instruments:
     - band: optical
-      name: P60 Camera
-      telescope_id: P60
-      type: imager
-    - band: optical
-      name: SED-Machine
-      telescope_id: P60
-      type: imaging spectrograph
-    - band: optical
       name: SEDM
       telescope_id: P60
       type: imaging spectrograph
+      filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi']
     - band: optical
       name: DBSP
       telescope_id: P200
@@ -524,10 +517,14 @@ db_seed:
       name: LFC
       telescope_id: P200
       type: imager
+      filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
+                'bessellux', 'bessellb', 'bessellv', 'bessellr',
+                'besselli']
     - band: ir
       name: WIRC
       telescope_id: P200
       type: imager
+      filters: ['cspjs', 'csphs', 'cspk']
     - band: ir
       name: TSPEC
       telescope_id: P200
@@ -536,10 +533,14 @@ db_seed:
       name: LRIS
       telescope_id: Keck1
       type: imaging spectrograph
+      filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
+                'bessellux', 'bessellb', 'bessellv', 'bessellr',
+                'besselli']
     - band: ir
       name: MOSFIRE
       telescope_id: Keck1
       type: imaging spectrograph
+      filters: ['bessellb', 'bessellv', 'bessellr', 'besselli', 'sdssg']
     - band: optical
       name: KAST
       telescope_id: Lick 3-m
@@ -548,32 +549,19 @@ db_seed:
       name: GEMINI
       telescope_id: Lick 3-m
       type: imager
+      filters: ['bessellux', 'bessellb', 'bessellv', 'bessellr',
+                'besselli']
     - band: optical
       name: CFH12k
       telescope_id: P48
       type: imager
+      filters: ['ztfg', 'ztfr']
     - band: optical
       name: ISIS
       telescope_id: WHT
       type: spectrograph
     - band: optical
-      name: ACAM
-      telescope_id: WHT
-      type: imaging spectrograph
-    - band: optical
-      name: ACAM/NIRIS
-      telescope_id: WHT
-      type: spectrograph
-    - band: optical
-      name: ACAM
-      telescope_id: WHT
-      type: spectrograph
-    - band: optical
       name: FORS2
-      telescope_id: HET
-      type: spectrograph
-    - band: optical
-      name: LRS
       telescope_id: HET
       type: spectrograph
     - band: optical
@@ -595,15 +583,8 @@ db_seed:
     - band: optical
       name: GMOS
       telescope_id: GS
-      type: imager
-    - band: optical
-      name: GMOS
-      telescope_id: GS
-      type: spectrograph
-    - band: optical
-      name: GMOS-S
-      telescope_id: GS
-      type: spectrograph
+      type: both
+      filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'desy']
     - band: ir
       name: FLAMINGOS-2
       telescope_id: GS
@@ -612,18 +593,12 @@ db_seed:
       name: PTEL
       telescope_id: PTEL
       type: imager
+      filters: ['cspjs', 'csphs', 'cspk']
     - band: optical
       name: GMOS
       telescope_id: Gemini N
-      type: spectrograph
-    - band: optical
-      name: UVOT
-      telescope_id: Gemini N
-      type: imager
-    - band: optical
-      name: SNIFS
-      telescope_id: UH88
-      type: spectrograph
+      type: both
+      filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'desy']
     - band: optical
       name: SNIFS
       telescope_id: UH88
@@ -648,14 +623,13 @@ db_seed:
       name: ALFOSC
       telescope_id: NOT
       type: imaging spectrograph
+      filters: ['bessellux', 'bessellb', 'bessellv', 'bessellr',
+                'besselli']
     - band: ir
       name: NOTCam
       telescope_id: NOT
       type: imager
-    - band: optical
-      name: Camera
-      telescope_id: C18
-      type: imager
+      filters: ['cspjs', 'csphs', 'cspk']
     - band: optical
       name: IDS
       telescope_id: INT
@@ -668,22 +642,18 @@ db_seed:
       name: UVOT
       telescope_id: Swift
       type: imager
+      # todo: add the rest of the swift filters
+      filters: ['bessellux']
     - band: optical
       name: IMACS
       telescope_id: Magellan_Baade
       type: imaging spectrograph
+      filters: ['bessellb', 'bessellv', 'bessellr', 'sdssu', 'sdssg',
+                'sdssr', 'sdssi']
     - band: ir
       name: FIRE
       telescope_id: Magellan_Baade
       type: spectrograph
-    - band: optical
-      name: LDSS3
-      telescope_id: Magellan_Clay
-      type: imaging spectrograph
-    - band: optical
-      name: MEGACAM
-      telescope_id: Magellan_Clay
-      type: imager
     - band: optical
       name: Frodospec
       telescope_id: LT
@@ -692,14 +662,14 @@ db_seed:
       name: IOO
       telescope_id: LT
       type: imager
+      filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
+                'bessellb', 'bessellv']
     - band: optical
       name: RATCam
       telescope_id: LT
       type: imager
-    - band: optical
-      name: SPRAT
-      telescope_id: LT
-      type: spectrograph
+      filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
+                'bessellb', 'bessellv']
     - band: optical
       name: SPRAT
       telescope_id: LT
@@ -712,46 +682,14 @@ db_seed:
       name: OSIRIS
       telescope_id: GTC
       type: imaging spectrograph
-    - band: optical
-      name: FS02
-      telescope_id: FTN
-      type: imager
-    - band: optical
-      name: FS03
-      telescope_id: FTN
-      type: imager
-    - band: optical
-      name: EM01
-      telescope_id: FTN
-      type: imager
-    - band: optical
-      name: FLOYDS
-      telescope_id: FTN
-      type: spectrograph
-    - band: optical
-      name: EM03
-      telescope_id: FTS
-      type: imager
-    - band: optical
-      name: FS01
-      telescope_id: FTS
-      type: imager
-    - band: ir
-      name: FLOYDS
-      telescope_id: FTS
-      type: spectrograph
-    - band: optical
-      name: CCD
-      telescope_id: MLO
-      type: imager
+      filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz']
     - band: ir
       name: RATIR
       telescope_id: SPM15
       type: imager
-    - band: optical
-      name: iFOSC
-      telescope_id: IGO
-      type: imaging spectrograph
+      filters: ['sdssr', 'sdssi', 'sdssz', 'desy', 'cspjs', 'csphs',
+                'bessellb', 'bessellv']
+
     - band: optical
       name: HCT Spectograph
       telescope_id: HCT
@@ -761,13 +699,11 @@ db_seed:
       telescope_id: SALT
       type: spectrograph
     - band: optical
-      name: SBIG
-      telescope_id: LCOGT1m
-      type: imager
-    - band: optical
       name: Sinistro
       telescope_id: LCOGT1m
       type: imager
+      filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'desy',
+                'bessellb', 'bessellv', 'bessellr', 'besselli']
     - band: optical
       name: WFCCD
       telescope_id: DUP
@@ -776,26 +712,27 @@ db_seed:
       name: e2v
       telescope_id: Swope
       type: imager
+      filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'bessellb', 'bessellv']
     - band: optical
       name: 1.2x1.2 deg^2 CCD
       telescope_id: Nanshan 1m
       type: imager
+      # todo: update this
+      filters: []
     - band: optical
       name: LMI
       telescope_id: DCT
       type: imager
+      filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
+                'bessellux', 'bessellb', 'bessellv', 'bessellr',
+                'besselli']
     - band: optical
       name: Deveny+LMI
       telescope_id: DCT
       type: imaging spectrograph
-    - band: optical
-      name: CCD
-      telescope_id: CAHA 1.2m
-      type: imager
-    - band: optical
-      name: AFOSCH
-      telescope_id: Ekar
-      type: spectrograph
+      filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
+                'bessellux', 'bessellb', 'bessellv', 'bessellr',
+                'besselli']
     - band: optical
       name: AFOSCH
       telescope_id: Ekar
@@ -828,54 +765,55 @@ db_seed:
       name: DECam
       telescope_id: CTIO-4m
       type: imager
+      filters: ['desu', 'desg', 'desr', 'desi', 'desz', 'desy']
     - band: ir
       name: VIRCAM
       telescope_id: VISTA
       type: imager
+      filters: ['sdssz', 'desy', 'cspj', 'csphs', 'cspk']
     - band: optical
       name: OMEGACAM
       telescope_id: VISTA
       type: imager
+      filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
+                'bessellb', 'bessellv', 'bessellr', 'besselli']
     - band: optical
       name: WFC3/UVIS
       telescope_id: HST
       type: imager
+      filters: ['f218w', 'f225w', 'f275w', 'f300x', 'f336w', 'f350lp',
+                'f390w', 'f689m', 'f763m', 'f845m', 'f438w', 'uvf475w',
+                'uvf555w', 'uvf606w', 'uvf625w', 'uvf775w', 'uvf814w',
+                'uvf850lp']
     - band: optical
       name: GROND
       telescope_id: MPI_ESO-2.2m
       type: imager
-    - band: optical
-      name: CCD
-      telescope_id: PROMPT5
-      type: imager
+      filters: ['sdssg', 'sdssr', 'sdssi', 'sdssz',
+                'cspjs', 'csphs', 'cspk']
     - band: optical
       name: Skymapper
       telescope_id: Skymapper
       type: imager
+      filters: ['sdssg', 'sdssr', 'sdssi', 'sdssz', 'bessellb']
     - band: ir
       name: ANDICAM
-      telescope_id: CTIO-1.3m 
+      telescope_id: CTIO-1.3m
       type: imager
+      filters: ['bessellb', 'bessellv', 'bessellr', 'besselli',
+                'csphs', 'cspjs', 'cspk']
     - band: optical
       name: CCD
       telescope_id: CNEOST
       type: imager
+      # todo: find out what filters go here
+      filters: []
     - band: optical
       name: NA
       telescope_id: MASTER-SAAO
       type: imager
-    - band: optical
-      name: CCD
-      telescope_id: SSO
-      type: imager
-    - band: optical
-      name: AndorIKON-L
-      telescope_id: Zadko
-      type: imager
-    - band: optical
-      name: 18KCCD
-      telescope_id: KMTNet
-      type: imager
+      # todo: add unfiltered
+      filters: []
   taxonomies:
     - name: Sitewide taxonomy
       tdtax: true
