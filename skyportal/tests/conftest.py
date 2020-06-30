@@ -237,18 +237,18 @@ def comment_token(user):
     )
     return token_id
 
-<<<<<<< HEAD
+
 @pytest.fixture()
 def taxonomy_token(user):
     token_id = create_token(
         permissions=["Post Taxonomy", "Delete Taxonomy"],
         created_by_id=user.id, name=str(uuid.uuid4())
-=======
+    )
+
 
 @pytest.fixture()
 def comment_token_two_groups(user_two_groups):
     token_id = create_token(
         permissions=["Comment"], created_by_id=user_two_groups.id, name=str(uuid.uuid4())
->>>>>>> Implement comment-level group access; clean up front-end tests (#515)
     )
     return token_id

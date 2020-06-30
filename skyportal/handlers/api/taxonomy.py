@@ -40,7 +40,7 @@ class TaxonomyHandler(BaseHandler):
             )
 
         if not isinstance(taxonomy, list):
-            self.error('Problem retreiving taxonomy')
+            return self.error('Problem retreiving taxonomy')
 
         return self.success(data=taxonomy[0])
 
@@ -106,31 +106,35 @@ class TaxonomyHandler(BaseHandler):
                         data:
                           type: object
                           properties:
+<<<<<<< HEAD
                             comment_id:
+=======
+                            taxonomy_id:
+>>>>>>> PR#1 Classification Epic: Taxonomy Infrastructure (#519)
                               type: integer
                               description: New taxonomy ID
         """
         data = self.get_json()
         name = data.get('name', None)
         if name is None:
-            return self.error(f"A name must be provided for a taxonomy")
+            return self.error("A name must be provided for a taxonomy")
 
         version = data.get('version', None)
         if version is None:
             return self.error(
-                f"A version string must be provided for a taxonomy"
+                "A version string must be provided for a taxonomy"
             )
 
-        others = (
+        existing_matches = (
             Taxonomy.query
             .filter(Taxonomy.name == name)
             .filter(Taxonomy.version == version)
             .all()
         )
 
-        if len(others) != 0:
+        if len(existing_matches) != 0:
             return self.error(
-                f"That version/name combination is already "
+                "That version/name combination is already "
                 "present. If you really want to replace this "
                 "then delete the appropriate entry."
             )
@@ -138,13 +142,13 @@ class TaxonomyHandler(BaseHandler):
         # Ensure a valid taxonomy
         hierarchy = data.get('hierarchy', None)
         if hierarchy is None:
-            return self.error(f"A JSON of the taxonomy must be given")
+            return self.error("A JSON of the taxonomy must be given")
 
         try:
             validate(hierarchy, schema)
         except JSONValidationError:
             return self.error(
-                f"Hierarchy does not validate against the schema."
+                "Hierarchy does not validate against the schema."
             )
 
         # establish the groups to use
@@ -199,8 +203,6 @@ class TaxonomyHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        user = self.associated_user_object.username
-        roles = (self.current_user.roles if hasattr(self.current_user, 'roles') else [])
         c = Taxonomy.query.get(taxonomy_id)
         if c is None:
             return self.error("Invalid taxonomy ID")
