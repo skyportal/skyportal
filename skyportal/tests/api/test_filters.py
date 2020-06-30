@@ -18,7 +18,6 @@ def test_token_user_retrieving_filter(view_only_token, public_filter):
     )
     assert status == 200
     assert data["status"] == "success"
-    print(data["data"])
     assert all(
         k in data["data"]
         for k in ["query_string", "group_id"]

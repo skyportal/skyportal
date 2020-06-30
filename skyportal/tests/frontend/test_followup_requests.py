@@ -137,7 +137,11 @@ def test_edit_existing_followup_request(
     priority_select.select_by_visible_text("5")
     submit_button = driver.find_element_by_css_selector("[type=submit]")
     submit_button.click()
-    driver.wait_for_xpath("//td[contains(.,'5')]")
+    try:
+        driver.wait_for_xpath("//td[contains(.,'5')]")
+    except:
+        driver.refresh()
+        driver.wait_for_xpath("//td[contains(.,'5')]")
 
 
 def test_delete_followup_request(
