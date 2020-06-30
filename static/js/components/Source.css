@@ -19,10 +19,16 @@
     font-weight: 900;
     color: darkgray;
     padding-bottom: 0.25em;
+    display: inline-block;
 }
 
 .plot {
     width: 900px;
+    overflow: auto;
+}
+
+.smallPlot {
+    width: 350px;
     overflow: auto;
 }
 

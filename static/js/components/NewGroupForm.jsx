@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 
+import Box from '@material-ui/core/Box';
+
 import * as Action from '../ducks/groups';
 import styles from './NewGroupForm.css';
 
-
-const NewGroupForm = (props) => {
+const NewGroupForm = () => {
   const dispatch = useDispatch();
   const [formState, setState] = useState({
     name: "",
@@ -24,7 +25,7 @@ const NewGroupForm = (props) => {
   const handleChange = (event) => {
     const newState = {};
     newState[event.target.name] = (event.target.name === "groupAdmins" ?
-                                   event.target.value.split(",") : event.target.value);
+      event.target.value.split(",") : event.target.value);
     setState({
       ...formState,
       ...newState
@@ -32,7 +33,7 @@ const NewGroupForm = (props) => {
   };
 
   return (
-    <div className={styles.newGroupFormDiv}>
+    <Box p={1}>
       <h3>
         Create New Group
       </h3>
@@ -41,9 +42,7 @@ const NewGroupForm = (props) => {
           <tbody>
             <tr>
               <td>
-                <label>
-                  Group Name:&nbsp;&nbsp;
-                </label>
+                Group Name:&nbsp;&nbsp;
               </td>
               <td>
                 <input
@@ -56,9 +55,7 @@ const NewGroupForm = (props) => {
             </tr>
             <tr>
               <td>
-                <label>
-                  Group Admins (comma-separated email addresses):&nbsp;&nbsp;
-                </label>
+                Group Admins (comma-separated email addresses):&nbsp;&nbsp;
               </td>
               <td>
                 <input
@@ -77,7 +74,7 @@ const NewGroupForm = (props) => {
           </tbody>
         </table>
       </form>
-    </div>
+    </Box>
   );
 };
 

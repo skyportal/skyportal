@@ -3,10 +3,11 @@ import io
 import base64
 from pathlib import Path
 from marshmallow.exceptions import ValidationError
-from PIL import Image
+from sqlalchemy.exc import StatementError
+from PIL import Image, UnidentifiedImageError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Photometry, Source, Thumbnail
+from ...models import DBSession, Photometry, Obj, Source, Thumbnail
 
 
 class ThumbnailHandler(BaseHandler):
@@ -15,58 +16,75 @@ class ThumbnailHandler(BaseHandler):
         """
         ---
         description: Upload thumbnails
-        parameters:
-          - in: path
-            name: source_id
-            schema:
-              type: string
-            description: ID of source associated with thumbnails. If specified, without `photometry_id`, the first photometry point associated with specified source will be associated with thumbnail(s).
-          - in: path
-            name: photometry_id
-            schema:
-              type: integer
-            description: ID of photometry to be associated with thumbnails. If omitted, `source_id` must be specified, in which case the first photometry entry associated with source will be used.
-          - in: path
-            name: data
-            schema:
-              type: string
-              format: byte
-            description: base64-encoded PNG image file contents. Image size must be between 100px and 500px on a side.
-          - in: path
-            name: ttype
-            schema:
-              type: string
-            description: Thumbnail type. Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  obj_id:
+                    type: string
+                    description: ID of object associated with thumbnails. If specified, without `photometry_id`, the first photometry point associated with specified object will be associated with thumbnail(s).
+                  photometry_id:
+                    type: integer
+                    description: ID of photometry to be associated with thumbnails. If omitted, `obj_id` must be specified, in which case the first photometry entry associated with object will be used.
+                  data:
+                    type: string
+                    format: byte
+                    description: base64-encoded PNG image file contents. Image size must be between 16px and 500px on a side.
+                  ttype:
+                    type: string
+                    description: Thumbnail type. Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
+                required:
+                  - data
+                  - ttype
         responses:
           200:
             content:
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        id:
-                          type: int
-                          description: New thumbnail ID
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New thumbnail ID
+          400:
+            content:
+              application/json:
+                schema: Error
         """
         data = self.get_json()
         if 'photometry_id' in data:
             phot = Photometry.query.get(int(data['photometry_id']))
-            source_id = phot.source.id
-            # Ensure user/token has access to parent source
-            source = Source.get_if_owned_by(source_id, self.current_user)
-        elif 'source_id' in data:
-            source_id = data['source_id']
-            # Ensure user/token has access to parent source
-            source = Source.get_if_owned_by(source_id, self.current_user)
+            obj_id = phot.obj.id
+            obj = Obj.get_if_owned_by(obj_id, self.current_user)
+        elif 'obj_id' in data:
+            obj_id = data['obj_id']
+            obj = Obj.get_if_owned_by(obj_id, self.current_user)
+            if obj is None:
+                return self.error(f"Invalid obj_id: {obj_id}")
             try:
-                phot = source.photometry[0]
+                phot = obj.photometry[0]
             except IndexError:
                 return self.error('Specified source does not yet have any photometry data.')
         else:
-            return self.error('One of either source_id or photometry_id are required.')
-        t = create_thumbnail(data['data'], data['ttype'], source_id, phot)
+            return self.error('One of either obj_id or photometry_id are required.')
+        try:
+            t = create_thumbnail(data['data'], data['ttype'], obj_id, phot)
+        except ValueError as e:
+            return self.error(f"Error in creating new thumbnail: invalid value(s): {e}")
+        except (LookupError, StatementError) as e:
+            if "enum" in str(e):
+                return self.error(f"Invalid ttype: {e}")
+            else:
+                return self.error(f"Error creating new thumbnail: {e}")
+        except UnidentifiedImageError as e:
+            return self.error(f"Invalid file type: {e}")
         DBSession().commit()
 
         return self.success(data={"id": t.id})
@@ -94,12 +112,11 @@ class ThumbnailHandler(BaseHandler):
         """
         t = Thumbnail.query.get(thumbnail_id)
         if t is None:
-            return self.error(f"Could not load thumbnail {thumbnail_id}",
-                              data={"thumbnail_id": thumbnail_id})
+            return self.error(f"Could not load thumbnail with ID {thumbnail_id}")
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(t.source.id, self.current_user)
+        _ = Source.get_if_owned_by(t.obj.id, self.current_user)
 
-        return self.success(data={'thumbnail': t})
+        return self.success(data=t)
 
     @permissions(['Manage sources'])
     def put(self, thumbnail_id):
@@ -108,8 +125,14 @@ class ThumbnailHandler(BaseHandler):
         description: Update thumbnail
         parameters:
           - in: path
-            name: thumbnail
-            schema: Thumbnail
+            name: thumbnail_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: ThumbnailNoID
         responses:
           200:
             content:
@@ -124,14 +147,14 @@ class ThumbnailHandler(BaseHandler):
         if t is None:
             return self.error('Invalid thumbnail ID.')
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(t.source.id, self.current_user)
+        _ = Source.get_if_owned_by(t.obj.id, self.current_user)
 
         data = self.get_json()
         data['id'] = thumbnail_id
 
         schema = Thumbnail.__schema__()
         try:
-            schema.load(data)
+            schema.load(data, partial=True)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
@@ -164,7 +187,7 @@ class ThumbnailHandler(BaseHandler):
         if t is None:
             return self.error('Invalid thumbnail ID.')
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(t.source.id, self.current_user)
+        _ = Source.get_if_owned_by(t.obj.id, self.current_user)
 
         DBSession.query(Thumbnail).filter(Thumbnail.id == int(thumbnail_id)).delete()
         DBSession().commit()
@@ -172,25 +195,25 @@ class ThumbnailHandler(BaseHandler):
         return self.success()
 
 
-def create_thumbnail(thumbnail_data, thumbnail_type, source_id, photometry_obj):
-    basedir = Path(os.path.dirname(__file__))/'..'/'..'
+def create_thumbnail(thumbnail_data, thumbnail_type, obj_id, photometry_obj):
+    basedir = Path(os.path.dirname(__file__)) / '..' / '..'
     if os.path.abspath(basedir).endswith('skyportal/skyportal'):
-        basedir = basedir/'..'
+        basedir = basedir / '..'
     file_uri = os.path.abspath(
-        basedir/f'static/thumbnails/{source_id}_{thumbnail_type}.png')
+        basedir / f'static/thumbnails/{obj_id}_{thumbnail_type}.png')
     if not os.path.exists(os.path.dirname(file_uri)):
-        (basedir/'static/thumbnails').mkdir(parents=True)
+        (basedir / 'static/thumbnails').mkdir(parents=True)
     file_bytes = base64.b64decode(thumbnail_data)
     im = Image.open(io.BytesIO(file_bytes))
     if im.format != 'PNG':
         raise ValueError('Invalid thumbnail image type. Only PNG are supported.')
-    if not (100, 100) <= im.size <= (500, 500):
+    if not all(16 <= x <= 500 for x in im.size):
         raise ValueError('Invalid thumbnail size. Only thumbnails '
-                        'between (100, 100) and (500, 500) allowed.')
+                         'between (16, 16) and (500, 500) allowed.')
     t = Thumbnail(type=thumbnail_type,
                   photometry=photometry_obj,
                   file_uri=file_uri,
-                  public_url=f'/static/thumbnails/{source_id}_{thumbnail_type}.png')
+                  public_url=f'/static/thumbnails/{obj_id}_{thumbnail_type}.png')
     DBSession.add(t)
     DBSession.flush()
 

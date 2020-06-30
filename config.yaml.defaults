@@ -8,6 +8,31 @@ app:
                           # base64.b64encode(os.urandom(50)).decode('ascii')
     factory: skyportal.app_server.make_app
 
+    # See https://stackoverflow.com/a/35604855 for syntax
+    # These are Javascript component routes
+    routes:
+    - path: "/"
+      component: HomePage
+      exact: True
+    - path: "/source/:id"
+      component: Source
+    - path: "/groups"
+      component: Groups
+    - path: "/group/:id"
+      component: Group
+    - path: "/profile"
+      component: Profile
+    - path: "/candidates"
+      component: CandidateList
+    - path: "/sources"
+      component: SourceList
+    - path: "/user/:id"
+      component: UserInfo
+    - path: "/upload_photometry/:id"
+      component: UploadPhotometry
+    - path: "/about"
+      component: About
+
 database:
     database: skyportal
     host: localhost
@@ -32,7 +57,6 @@ server:
 services:
     dask: False
 
-
 # This is an example section; the configuration specified here is
 # currently propagated through to the `config` section of the frontend state,
 # but we do not yet make use of it.
@@ -47,3 +71,11 @@ frontend:
     - C
     test_setting: 1
     test_another_setting: True
+
+misc:
+    days_to_keep_unsaved_candidates: 7
+
+cron:
+  - interval: 1440
+    script: jobs/delete_unsaved_candidates.py
+    limit: ["01:00", "02:00"]

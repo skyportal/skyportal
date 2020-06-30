@@ -5,7 +5,7 @@ from baselayer.app.env import load_env
 env, cfg = load_env()
 
 
-def api(method, endpoint, data=None, token=None):
+def api(method, endpoint, data=None, token=None, raw_response=False):
     """Make a SkyPortal API call.
 
     Parameters
@@ -31,4 +31,8 @@ def api(method, endpoint, data=None, token=None):
                                endpoint)
     headers = {'Authorization': f'token {token}'} if token else None
     response = requests.request(method, url, json=data, headers=headers)
-    return response.status_code, response.json()
+
+    if raw_response:
+        return response
+    else:
+        return response.status_code, response.json()

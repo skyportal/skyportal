@@ -1,14 +1,12 @@
 import datetime
 from itertools import cycle, islice
 import uuid
-import numpy as np
-from skyportal.models import (DBSession, User, Source, Group, GroupUser,
-                              GroupSource, Photometry, Spectrum, Instrument,
-                              Telescope, Comment, Thumbnail)
 from tempfile import mkdtemp
-
+import numpy as np
 import factory
-
+from skyportal.models import (DBSession, User, Group, Photometry,
+                              Spectrum, Instrument, Telescope, Obj,
+                              Comment, Thumbnail, Filter)
 
 TMP_DIR = mkdtemp()
 
@@ -22,12 +20,12 @@ class TelescopeFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Telescope
 
-    name = 'Test telescope'
-    nickname = 'test_scope'
-    lat = 0.0
-    lon = 0.0
-    elevation = 0.0
-    diameter = 1.0
+    name = 'Palomar 48 inch'
+    nickname = 'P48'
+    lat = 33.3563
+    lon = 116.8650
+    elevation = 1712.
+    diameter = 1.2
 
 
 class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -43,10 +41,11 @@ class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Instrument
 
-    name = 'Test instrument'
-    type = 'Type 1'
-    band = 'Band 1'
+    name = 'ZTF'
+    type = 'Imager'
+    band = 'Optical'
     telescope = factory.SubFactory(TelescopeFactory)
+    filters = ['ztfg', 'ztfr', 'ztfi']
 
 
 class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -54,11 +53,9 @@ class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Photometry
 
     instrument = factory.SubFactory(InstrumentFactory)
-    observed_at = factory.LazyFunction(lambda: datetime.datetime.now() -
-                                    datetime.timedelta(days=np.random.randint(0, 10)))
-    mag = factory.LazyFunction(lambda: 20 + 10 * np.random.random())
-    e_mag = factory.LazyFunction(lambda: 2 * np.random.random())
-    lim_mag = 99.
+    mjd = factory.LazyFunction(lambda: 58000. + np.random.random())
+    flux = factory.LazyFunction(lambda: 20 + 10 * np.random.random())
+    fluxerr = factory.LazyFunction(lambda: 2 * np.random.random())
 
 
 class ThumbnailFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -85,31 +82,42 @@ class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
     users = []
 
 
-class SourceFactory(factory.alchemy.SQLAlchemyModelFactory):
+class FilterFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
-        model = Source
+        model = Filter
+    query_string = str(uuid.uuid4())
+
+
+class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Obj
     id = factory.LazyFunction(lambda: str(uuid.uuid4()))
     ra = 0.0
     dec = 0.0
     redshift = 0.0
-    simbad_class = 'RRLyr'
+    altdata = {"simbad": {"class": "RRLyr"}}
 
     @factory.post_generation
-    def add_phot_spec(source, create, value, *args, **kwargs):
+    def groups(obj, create, passed_groups, *args, **kwargs):
+        if not passed_groups:
+            passed_groups = []
         instruments = [InstrumentFactory(), InstrumentFactory()]
-        filters = ['g', 'rpr', 'ipr']
+        filters = ['ztfg', 'ztfr', 'ztfi']
         for instrument, filter in islice(zip(cycle(instruments), cycle(filters)), 10):
-            phot1 = PhotometryFactory(source_id=source.id,
+            phot1 = PhotometryFactory(obj_id=obj.id,
                                       instrument=instrument,
-                                      filter=filter)
+                                      filter=filter,
+                                      groups=passed_groups)
             DBSession().add(phot1)
-            DBSession().add(PhotometryFactory(source_id=source.id, mag=99.,
-                                              e_mag=99., lim_mag=30.,
+            DBSession().add(PhotometryFactory(obj_id=obj.id, flux=99.,
+                                              fluxerr=99.,
                                               instrument=instrument,
-                                              filter=filter))
+                                              filter=filter,
+                                              groups=passed_groups))
+
             DBSession().add(ThumbnailFactory(photometry=phot1))
-            DBSession().add(CommentFactory(source_id=source.id))
-        DBSession().add(SpectrumFactory(source_id=source.id,
+            DBSession().add(CommentFactory(obj_id=obj.id))
+        DBSession().add(SpectrumFactory(obj_id=obj.id,
                                         instrument=instruments[0]))
         DBSession().commit()
 

@@ -1,7 +1,11 @@
-.git
-.ipynb_checkpoints
+*~
+.*
 log
 worker*
 tmp
 node_modules
-ptf_data
+run
+config.yaml
+test_config.yaml
+github_deploy_key.enc
+dbdata

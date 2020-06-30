@@ -10,7 +10,7 @@ $(info $())
 $(info $(BANNER))
 $(info $())
 
-help:
+help: baselayer/Makefile
 	@echo -e "  To $(BOLD)start$(NORMAL) the web application, do \`make run\`."
 	@echo -e "  To $(BOLD)configure$(NORMAL), copy \`config.yaml.defaults\` to \`config.yaml\` and edit."
 	@echo
@@ -28,12 +28,6 @@ docker-images: docker-local
 	docker build -t skyportal/web . && docker push skyportal/web
 
 docker-local: ## Build docker images locally
-	@echo "!! WARNING !! The current directory will be bundled inside of"
-	@echo "              the Docker image.  Make sure you have no passwords"
-	@echo "              or tokens in configuration files before continuing!"
-	@echo
-	@echo "Press enter to confirm that you want to continue."
-	@read
 	cd baselayer && git submodule update --init --remote
 	docker build -t skyportal/web .
 
@@ -42,7 +36,7 @@ doc_reqs:
 
 api-docs: | doc_reqs
 	@PYTHONPATH=. python tools/openapi/build-spec.py
-	npx redoc-cli@0.8.3 bundle openapi.json --title "SkyPortal API docs" --cdn
+	npx redoc-cli@0.9.8 bundle openapi.json --title "SkyPortal API docs" --cdn
 	rm -f openapi.{yml,json}
 	mkdir -p doc/_build/html
 	mv redoc-static.html doc/openapi.html

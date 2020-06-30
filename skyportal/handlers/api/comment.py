@@ -1,14 +1,13 @@
-import tornado.web
 import base64
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, User, Comment, Role
+from ...models import DBSession, Source, Comment
 
 
 class CommentHandler(BaseHandler):
     @auth_or_token
-    def get(self, comment_id, action=None):
+    def get(self, comment_id):
         """
         ---
         description: Retrieve a comment
@@ -17,56 +16,73 @@ class CommentHandler(BaseHandler):
             name: comment_id
             required: true
             schema:
-              Comment
+              type: integer
         responses:
           200:
             content:
               application/json:
                 schema: SingleComment
+          400:
+            content:
+              application/json:
+                schema: Error
         """
         comment = Comment.query.get(comment_id)
         if comment is None:
             return self.error('Invalid comment ID.')
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(comment.source.id, self.current_user)
-        if action == 'download_attachment':
-            self.set_header(
-                "Content-Disposition", "attachment; "
-                f"filename={comment.attachment_name}")
-            self.write(base64.b64decode(comment.attachment_bytes))
-        else:
-            # TODO: Ensure that it's okay for anyone to read any comment
-            if comment is not None:
-                return self.success(data={'comment': comment})
-            else:
-                return self.error('Invalid comment ID.')
+        _ = Source.get_if_owned_by(comment.obj_id, self.current_user)
+        if comment is not None:
+            return self.success(data=comment)
+        return self.error('Invalid comment ID.')
 
     @permissions(['Comment'])
     def post(self):
         """
         ---
         description: Post a comment
-        parameters:
-          - in: path
-            name: comment
-            schema: Comment
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  obj_id:
+                    type: string
+                  text:
+                    type: string
+                  attachment:
+                    type: object
+                    properties:
+                      body:
+                        type: string
+                        format: byte
+                        description: base64-encoded file contents
+                      name:
+                        type: string
+                required:
+                  - obj_id
+                  - text
         responses:
           200:
             content:
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        source_id:
-                          type: integer
-                          description: Associated source ID
+                        data:
+                          type: object
+                          properties:
+                            comment_id:
+                              type: integer
+                              description: New comment ID
         """
         data = self.get_json()
-        source_id = data['source_id']
+        obj_id = data['obj_id']
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(source_id, self.current_user)
+        _ = Source.get_if_owned_by(obj_id, self.current_user)
         if 'attachment' in data and 'body' in data['attachment']:
             attachment_bytes = str.encode(data['attachment']['body']
                                           .split('base64,')[-1])
@@ -77,7 +93,7 @@ class CommentHandler(BaseHandler):
         author = (self.current_user.username if hasattr(self.current_user, 'username')
                   else self.current_user.name)
         comment = Comment(text=data['text'],
-                          source_id=source_id, attachment_bytes=attachment_bytes,
+                          obj_id=obj_id, attachment_bytes=attachment_bytes,
                           attachment_name=attachment_name,
                           author=author)
 
@@ -85,7 +101,7 @@ class CommentHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'source_id': comment.source_id})
+                      payload={'obj_id': comment.obj_id})
         return self.success(data={'comment_id': comment.id})
 
     @permissions(['Comment'])
@@ -95,8 +111,14 @@ class CommentHandler(BaseHandler):
         description: Update a comment
         parameters:
           - in: path
-            name: comment
-            schema: Comment
+            name: comment_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: CommentNoID
         responses:
           200:
             content:
@@ -111,7 +133,7 @@ class CommentHandler(BaseHandler):
         if c is None:
             return self.error('Invalid comment ID.')
         # Ensure user/token has access to parent source
-        s = Source.get_if_owned_by(c.source.id, self.current_user)
+        _ = Source.get_if_owned_by(c.obj_id, self.current_user)
 
         data = self.get_json()
         data['id'] = comment_id
@@ -126,7 +148,7 @@ class CommentHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'source_id': comment.source_id})
+                      payload={'obj_id': c.obj_id})
         return self.success()
 
     @permissions(['Comment'])
@@ -149,7 +171,9 @@ class CommentHandler(BaseHandler):
         user = (self.current_user.username if hasattr(self.current_user, 'username') else self.current_user.name)
         roles = (self.current_user.roles if hasattr(self.current_user, 'roles') else '')
         c = Comment.query.get(comment_id)
-        source_id = c.source_id
+        if c is None:
+            return self.error("Invalid comment ID")
+        obj_id = c.obj_id
         author = c.author
         if ("Super admin" in [role.id for role in roles]) or (user == author):
             Comment.query.filter_by(id=comment_id).delete()
@@ -157,5 +181,38 @@ class CommentHandler(BaseHandler):
         else:
             return self.error('Insufficient user permissions.')
         self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'source_id': source_id})
+                      payload={'obj_id': obj_id})
         return self.success()
+
+
+class CommentAttachmentHandler(BaseHandler):
+    @auth_or_token
+    def get(self, comment_id):
+        """
+        ---
+        description: Download comment attachment
+        parameters:
+          - in: path
+            name: comment_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application:
+                schema:
+                  type: string
+                  format: base64
+                  description: base64-encoded contents of attachment
+        """
+        comment = Comment.query.get(comment_id)
+        if comment is None:
+            return self.error('Invalid comment ID.')
+        # Ensure user/token has access to parent source
+        _ = Source.get_if_owned_by(comment.obj_id, self.current_user)
+        self.set_header(
+            "Content-Disposition", "attachment; "
+            f"filename={comment.attachment_name}")
+        self.set_header("Content-type", "application/octet-stream")
+        self.write(base64.b64decode(comment.attachment_bytes))

@@ -3,7 +3,7 @@ from skyportal.tests import api
 from skyportal.models import Telescope, Instrument, DBSession
 
 
-def test_token_user_post_get_instrument(upload_data_token, public_group):
+def test_token_user_post_get_instrument(super_admin_token, public_group):
     name = str(uuid.uuid4())
     status, data = api('POST', 'telescope',
                        data={'name': name,
@@ -13,8 +13,8 @@ def test_token_user_post_get_instrument(upload_data_token, public_group):
                              'elevation': 0.0,
                              'diameter': 10.0,
                              'group_ids': [public_group.id]
-                       },
-                       token=upload_data_token)
+                             },
+                       token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
     telescope_id = data['data']['id']
@@ -24,8 +24,8 @@ def test_token_user_post_get_instrument(upload_data_token, public_group):
                              'type': 'type',
                              'band': 'V',
                              'telescope_id': telescope_id
-                       },
-                       token=upload_data_token)
+                             },
+                       token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
 
@@ -33,14 +33,14 @@ def test_token_user_post_get_instrument(upload_data_token, public_group):
     status, data = api(
         'GET',
         f'instrument/{instrument_id}',
-        token=upload_data_token)
+        token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['instrument']['band'] == 'V'
+    assert data['data']['band'] == 'V'
 
 
-def test_token_user_update_instrument(upload_data_token, manage_sources_token,
-                                      public_group):
+def test_token_user_update_instrument(super_admin_token, manage_sources_token,
+                                      view_only_token, public_group):
     name = str(uuid.uuid4())
     status, data = api('POST', 'telescope',
                        data={'name': name,
@@ -50,8 +50,8 @@ def test_token_user_update_instrument(upload_data_token, manage_sources_token,
                              'elevation': 0.0,
                              'diameter': 10.0,
                              'group_ids': [public_group.id]
-                       },
-                       token=upload_data_token)
+                             },
+                       token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
     telescope_id = data['data']['id']
@@ -61,8 +61,8 @@ def test_token_user_update_instrument(upload_data_token, manage_sources_token,
                              'type': 'type',
                              'band': 'V',
                              'telescope_id': telescope_id
-                       },
-                       token=upload_data_token)
+                             },
+                       token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
 
@@ -70,10 +70,10 @@ def test_token_user_update_instrument(upload_data_token, manage_sources_token,
     status, data = api(
         'GET',
         f'instrument/{instrument_id}',
-        token=upload_data_token)
+        token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['instrument']['band'] == 'V'
+    assert data['data']['band'] == 'V'
 
     status, data = api(
         'PUT',
@@ -81,21 +81,32 @@ def test_token_user_update_instrument(upload_data_token, manage_sources_token,
         data={'name': 'new_name',
               'band': 'V',
               'type': 'type'
-        },
+              },
         token=manage_sources_token)
+    assert status == 400
+    assert data['status'] == 'error'
+
+    status, data = api(
+        'PUT',
+        f'instrument/{instrument_id}',
+        data={'name': 'new_name',
+              'band': 'V',
+              'type': 'type'
+              },
+        token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
 
     status, data = api(
         'GET',
         f'instrument/{instrument_id}',
-        token=upload_data_token)
+        token=view_only_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['instrument']['name'] == 'new_name'
+    assert data['data']['name'] == 'new_name'
 
 
-def test_token_user_delete_instrument(upload_data_token, manage_sources_token,
+def test_token_user_delete_instrument(super_admin_token, view_only_token,
                                       public_group):
     name = str(uuid.uuid4())
     status, data = api('POST', 'telescope',
@@ -106,8 +117,8 @@ def test_token_user_delete_instrument(upload_data_token, manage_sources_token,
                              'elevation': 0.0,
                              'diameter': 10.0,
                              'group_ids': [public_group.id]
-                       },
-                       token=upload_data_token)
+                             },
+                       token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
     telescope_id = data['data']['id']
@@ -117,8 +128,8 @@ def test_token_user_delete_instrument(upload_data_token, manage_sources_token,
                              'type': 'type',
                              'band': 'V',
                              'telescope_id': telescope_id
-                       },
-                       token=upload_data_token)
+                             },
+                       token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
     instrument_id = data['data']['id']
@@ -126,12 +137,12 @@ def test_token_user_delete_instrument(upload_data_token, manage_sources_token,
     status, data = api(
         'DELETE',
         f'instrument/{instrument_id}',
-        token=manage_sources_token)
+        token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
 
     status, data = api(
         'GET',
         f'instrument/{instrument_id}',
-        token=upload_data_token)
+        token=view_only_token)
     assert status == 400

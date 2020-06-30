@@ -1,47 +1,35 @@
-const webpack = require('webpack');
 const path = require('path');
 
+// const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+
 const config = {
-  entry: [
-    'whatwg-fetch',
-    'babel-polyfill',
-    path.resolve(__dirname, 'static/js/components/Main.jsx')
-  ],
+  entry: {
+    main: [
+      '@babel/polyfill',
+      path.resolve(__dirname, 'static/js/components/Main.jsx')
+    ]
+  },
   output: {
     path: path.resolve(__dirname, 'static/build'),
-    filename: 'bundle.js'
+    publicPath: '/static/build/',
+    filename: '[name].bundle.js',
+    chunkFilename: '[name].[chunkHash].bundle.js'
   },
   module: {
     rules: [
       {
-        test: /\.js?$/,
-        include: /static\/js/,
+        test: /\.(js|jsx)?$/,
         loader: 'babel-loader',
+        include: /static\/js/,
+        exclude: /node_modules/,
         options:
         {
-          presets: ['env'],
+          presets: ["@babel/preset-env", "@babel/preset-react"],
           plugins: [
-            'transform-object-rest-spread',
-            'transform-async-to-generator',
-            'transform-es2015-arrow-functions',
-            'transform-class-properties'
-          ],
-          compact: false
-        }
-      },
-
-      {
-        test: /\.jsx?$/,
-        include: /static\/js/,
-        loader: 'babel-loader',
-        options:
-        {
-          presets: ['env', 'react'],
-          plugins: [
-            'transform-object-rest-spread',
-            'transform-async-to-generator',
-            'transform-es2015-arrow-functions',
-            'transform-class-properties'
+            '@babel/plugin-transform-async-to-generator',
+            '@babel/plugin-transform-arrow-functions',
+            '@babel/plugin-proposal-class-properties',
+            '@babel/plugin-proposal-object-rest-spread'
           ],
           compact: false
         }
@@ -50,7 +38,7 @@ const config = {
       // Enable CSS Modules for Skyportal
       {
         test: /\.css$/,
-        include: /static\/js/,
+        include: [/static\/js/, /node_modules\/react-datepicker\/dist/],
         use: [
           {
             loader: 'style-loader'
@@ -58,8 +46,9 @@ const config = {
           {
             loader: 'css-loader',
             options: {
-              modules: true,
-              localIdentName: '[path][name]__[local]--[hash:base64:5]'
+              modules: {
+                localIdentName: '[path][name]__[local]--[hash:base64:5]'
+              }
             }
           }
         ]
@@ -81,16 +70,12 @@ const config = {
         // does not support the Universal Module spec
         use: 'imports-loader?this=>window'
       }
-
     ]
   },
   plugins: [
-    // We do not use JQuery for anything in this project; but Bootstrap
-    // depends on it
-    new webpack.ProvidePlugin({
-      $: 'jquery',
-      jQuery: 'jquery'
-    }),
+
+    // Uncomment the following line to enable bundle size analysis
+    //    new BundleAnalyzerPlugin()
 
   ],
   resolve: {
@@ -100,7 +85,14 @@ const config = {
       bokehcss: path.resolve(__dirname, 'node_modules/bokehjs/build/css')
     },
     extensions: ['.js', '.jsx']
-  }
+  },
+  watchOptions: {
+    ignored: /node_modules/,
+    // Set to true if you have trouble with JS change monitoring
+    poll: false
+  },
+  mode: 'development',
+  devtool: 'eval-source-map'
 };
 
 module.exports = config;

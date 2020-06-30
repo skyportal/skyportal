@@ -1,13 +1,21 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import moment from 'moment';
-import classnames from 'classnames';
+
+import dayjs from 'dayjs';
+import calendar from 'dayjs/plugin/calendar';
+import clsx from "clsx";
 
 import styles from "./ThumbnailList.css";
 
+dayjs.extend(calendar);
 
-const Thumbnail = ({ ra, dec, telescope, observed_at, name, url }) => {
-  const observed_at_str = moment(observed_at).calendar();
+const Thumbnail = ({ ra, dec, telescope, mjd, name, url }) => {
+  // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
+  // unix timestamp epoch (1970-01-01).
+
+  const unixt = (mjd - 40587.0) * 86400000;
+  const observed_at = new Date(unixt); // a new date
+  const observed_at_str = dayjs(observed_at).toString();
 
   let alt = null;
   let link = null;
@@ -29,9 +37,23 @@ const Thumbnail = ({ ra, dec, telescope, observed_at, name, url }) => {
       alt = "Link to DESI DR8 Image Access";
       link = `http://legacysurvey.org/viewer/jpeg-cutout?ra=${ra}&dec=${dec}&size=512&layer=dr8&pixscale=0.262&bands=grz`;
       break;
+    default:
+      alt = "";
+      link = "";
   }
 
-  const thumbnailDivClassNames = classnames(styles.Thumbnail, { [styles.dr8]: name === "dr8" });
+  // Always apply Thumbnail style; conditionally apply DR8 style
+  const thumbnailDivClassNames = clsx(
+    styles.Thumbnail, {
+      [styles.dr8]: name === "dr8"
+    }
+  );
+
+  const thumbnailClassNames = clsx(
+    {
+      [styles.dr8crosshairs]: name === "dr8"
+    }
+  );
 
   return (
     <a href={link}>
@@ -42,10 +64,10 @@ const Thumbnail = ({ ra, dec, telescope, observed_at, name, url }) => {
         </b>
         <br />
         <div className={styles.thumbnailimgdiv}>
-          <img className={name === "dr8" && styles.dr8crosshairs} src={url} alt={alt} title={alt} />
+          <img className={thumbnailClassNames} src={url} alt={alt} title={alt} />
           {
             (name === "dr8") &&
-            <img className={styles.dr8crosshairs} src="/static/images/crosshairs.png" alt="" />
+              <img className={thumbnailClassNames} src="/static/images/crosshairs.png" alt="" />
           }
         </div>
       </div>
@@ -59,9 +81,8 @@ Thumbnail.propTypes = {
   telescope: PropTypes.string.isRequired,
   name: PropTypes.string.isRequired,
   url: PropTypes.string.isRequired,
-  observed_at: PropTypes.string.isRequired
+  mjd: PropTypes.number.isRequired
 };
-
 
 const ThumbnailList = ({ ra, dec, thumbnails }) => {
   const thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8'];
@@ -79,7 +100,7 @@ const ThumbnailList = ({ ra, dec, thumbnails }) => {
           name={t.type}
           url={t.public_url}
           telescope={t.photometry.instrument.telescope.nickname}
-          observed_at={t.photometry.observed_at}
+          mjd={t.photometry.mjd}
         />
       ))}
     </div>
@@ -91,6 +112,5 @@ ThumbnailList.propTypes = {
   dec: PropTypes.number.isRequired,
   thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired
 };
-
 
 export default ThumbnailList;

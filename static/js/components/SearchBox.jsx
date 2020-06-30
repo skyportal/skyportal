@@ -2,282 +2,285 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useDispatch } from 'react-redux';
 
-import * as Actions from '../ducks/sources';
+import Paper from "@material-ui/core/Paper";
+import Button from "@material-ui/core/Button";
+import ButtonGroup from "@material-ui/core/ButtonGroup";
+import Checkbox from "@material-ui/core/Checkbox";
+import FormControlLabel from "@material-ui/core/FormControlLabel";
+import TextField from "@material-ui/core/TextField";
+import InputLabel from "@material-ui/core/InputLabel";
+import FormControl from "@material-ui/core/FormControl";
+import Select from "@material-ui/core/Select";
+import MenuItem from "@material-ui/core/MenuItem";
+import { makeStyles } from "@material-ui/core/styles";
+import { useForm, Controller } from "react-hook-form";
 
+import * as Actions from "../ducks/sources";
 
 const SearchBox = ({ sources }) => {
   const dispatch = useDispatch();
 
-  const [formState, setFormState] = useState({
-    sourceID: "",
-    ra: "",
-    dec: "",
-    radius: "",
-    startDate: "",
-    endDate: "",
-    simbadClass: "",
-    hasTNSname: false
-  });
+  const { handleSubmit, register, getValues, control, reset } = useForm();
 
-  const handleInputChange = (event) => {
-    const newState = {};
-    newState[event.target.name] = event.target.type === 'checkbox' ?
-      event.target.checked : event.target.value;
-    setFormState({
-      ...formState,
-      ...newState
-    });
+  const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
+
+  const onSubmit = (data) => {
+    dispatch(Actions.fetchSources(data));
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    dispatch(Actions.submitSourceFilterParams(formState));
-  };
-
-  const handleReset = (event) => {
-    setFormState({
-      sourceID: "",
-      ra: "",
-      dec: "",
-      radius: "",
-      startDate: "",
-      endDate: "",
-      simbadClass: "",
-      hasTNSname: false
-    });
+  const handleClickReset = () => {
+    reset({ numPerPage: 100 });
     dispatch(Actions.fetchSources());
   };
 
   const handleClickNextPage = (event) => {
     event.preventDefault();
-    const vals = {
-      ...formState,
+    const data = {
+      ...getValues(),
       pageNumber: sources.pageNumber + 1,
-      totalMatches: sources.totalMatches
+      totalMatches: sources.totalMatches,
     };
-    dispatch(Actions.submitSourceFilterParams(vals));
+    dispatch(Actions.fetchSources(data));
   };
 
   const handleClickPreviousPage = (event) => {
     event.preventDefault();
-    const vals = {
-      ...formState,
+    const data = {
+      ...getValues(),
       pageNumber: sources.pageNumber - 1,
-      totalMatches: sources.totalMatches
+      totalMatches: sources.totalMatches,
     };
-    dispatch(Actions.submitSourceFilterParams(vals));
+    dispatch(Actions.fetchSources(data));
   };
 
+  const handleJumpToPageInputChange = (event) => {
+    setJumpToPageInputValue(event.target.value);
+  };
+
+  const handleClickJumpToPage = (event) => {
+    event.preventDefault();
+    const formState = getValues();
+    const data = {
+      ...formState,
+      pageNumber: jumpToPageInputValue,
+      totalMatches: sources.totalMatches,
+    };
+    if (jumpToPageInputValue < 1) {
+      data.pageNumber = 1;
+    } else if (jumpToPageInputValue > Math.ceil(sources.totalMatches/formState.numPerPage)) {
+      data.pageNumber = Math.ceil(sources.totalMatches/formState.numPerPage);
+    }
+    dispatch(Actions.fetchSources(data));
+  };
+
+  const useStyles = makeStyles((theme) => ({
+    formControl: {
+      margin: theme.spacing(1),
+      minWidth: 120,
+    },
+    paper: {
+      padding: "1rem",
+    },
+    root: {
+      display: "flex",
+      flexWrap: "wrap",
+      width: "35rem",
+      "& .MuiTextField-root": {
+        margin: theme.spacing(0.2),
+        width: "10rem",
+      },
+    },
+    blockWrapper: {
+      width: "100%",
+    },
+    title: {
+      margin: "1rem 0rem 0rem 0rem",
+    },
+  }));
+
+  const classes = useStyles();
+
   return (
-    <div>
-      <h4>
-        Filter Sources
-      </h4>
-      <form onSubmit={handleSubmit}>
-        <table>
-          <tbody>
-            <tr>
-              <td colSpan="3">
-                <b>
-                  By Name/ID
-                </b>
-              </td>
-            </tr>
-            <tr>
-              <td colSpan="3">
-                <label>
-                  Source ID/Name (can be substring):
-                  <input
-                    type="text"
-                    name="sourceID"
-                    value={formState.sourceID}
-                    onChange={handleInputChange}
-                    size="6"
-                  />
-                </label>
-              </td>
-            </tr>
-            <tr>
-              <td colSpan="3">
-                <b>
-                  By Position&nbsp;
-                </b>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <label>
-                  RA (degrees):
-                  <input
-                    type="text"
-                    name="ra"
-                    value={formState.ra}
-                    onChange={handleInputChange}
-                    size="6"
-                  />
-                </label>
-              </td>
-              <td>
-                <label>
-                  Dec (degrees):
-                  <input
-                    type="text"
-                    name="dec"
-                    value={formState.dec}
-                    onChange={handleInputChange}
-                    size="6"
-                  />
-                </label>
-              </td>
-              <td>
-                <label>
-                  Radius (degrees):
-                  <input
-                    type="text"
-                    name="radius"
-                    value={formState.radius}
-                    onChange={handleInputChange}
-                    size="6"
-                  />
-                </label>
-              </td>
-            </tr>
-            <tr>
-              <td colSpan="3">
-                <label>
-                  <b>
-                    By Time Last Detected&nbsp;
-                  </b>
-                </label>
-              </td>
-            </tr>
-            <tr>
-              <td colSpan="3">
-                Required format: %Y-%m-%dT%H:%M:%S in UTC time, e.g. 2012-08-30T00:00:00
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <label>
-                  Start Date:&nbsp;
-                </label>
-                <input
-                  type="text"
-                  name="startDate"
-                  value={formState.startDate}
-                  onChange={handleInputChange}
-                  size="6"
-                />
-              </td>
-              <td>
-                <label>
-                  End Date:&nbsp;
-                </label>
-                <input
-                  type="text"
-                  name="endDate"
-                  value={formState.endDate}
-                  onChange={handleInputChange}
-                  size="6"
-                />
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <label>
-                  <b>
-                    By Simbad Class&nbsp;
-                  </b>
-                </label>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <label>
-                  Class:&nbsp;
-                </label>
-                <input
-                  type="text"
-                  name="simbadClass"
-                  value={formState.simbadClass}
-                  onChange={handleInputChange}
-                  size="6"
-                />
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <label>
-                  <b>
-                    Must Have TNS Name:&nbsp;
-                  </b>
-                </label>
-                <input
-                  type="checkbox"
-                  name="hasTNSname"
-                  checked={formState.hasTNSname}
-                  onChange={handleInputChange}
-                  size="6"
-                />
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <input type="submit" disabled={sources.queryInProgress} />
-              </td>
-              <td>
-                <button type="button" onClick={handleReset}>
-                  Reset
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <br />
-        {
-          sources && (
+    <Paper className={classes.paper} variant="outlined">
+      <form className={classes.root} onSubmit={handleSubmit(onSubmit)}>
+        <div className={classes.blockWrapper}>
+          <h4> Filter Sources </h4>
+        </div>
+        <div className={classes.blockWrapper}>
+          <h5 className={classes.title}> Filter by Name or ID </h5>
+        </div>
+        <div className={classes.blockWrapper}>
+          <TextField
+            fullWidth
+            label="Source ID/Name"
+            name="sourceID"
+            inputRef={register}
+          />
+        </div>
+
+        <div className={classes.blockWrapper}>
+          <h5 className={classes.title}> Filter by Position </h5>
+        </div>
+        <div className={classes.blockWrapper}>
+          <TextField
+            size="small"
+            label="RA (degrees)"
+            name="ra"
+            inputRef={register}
+          />
+          <TextField
+            size="small"
+            label="Dec (degrees)"
+            name="dec"
+            inputRef={register}
+          />
+          <TextField
+            size="small"
+            label="Radius (degrees)"
+            name="radius"
+            inputRef={register}
+          />
+        </div>
+        <div className={classes.blockWrapper}>
+          <h5 className={classes.title}>Filter by Time Last Detected (UTC)</h5>
+        </div>
+        <div className={classes.blockWrapper}>
+          <TextField
+            size="small"
+            label="Start Date"
+            name="startDate"
+            inputRef={register}
+            placeholder="2012-08-30T00:00:00"
+          />
+          <TextField
+            size="small"
+            label="End Date"
+            name="endDate"
+            inputRef={register}
+            placeholder="2012-08-30T00:00:00"
+          />
+        </div>
+        <div className={classes.blockWrapper}>
+          <h5 className={classes.title}> Filter by Simbad Class </h5>
+        </div>
+        <div className={classes.blockWrapper}>
+          <TextField
+            size="small"
+            label="Class Name"
+            type="text"
+            name="simbadClass"
+            inputRef={register}
+          />
+          <FormControlLabel
+            label="TNS Name"
+            labelPlacement="start"
+            control={(
+              <Controller
+                as={<Checkbox color="primary" type="checkbox" />}
+                name="hasTNSname"
+                control={control}
+                defaultValue={false}
+              />
+            )}
+          />
+        </div>
+        <div className={classes.blockWrapper}>
+          <ButtonGroup
+            variant="contained"
+            color="primary"
+            aria-label="contained primary button group"
+          >
+            <Button
+              variant="contained"
+              color="primary"
+              type="submit"
+              disabled={sources.queryInProgress}
+            >
+              Submit
+            </Button>
+            <Button variant="contained" color="primary" onClick={handleClickReset}>
+              Reset
+            </Button>
+          </ButtonGroup>
+        </div>
+        {sources && (
+          <div>
             <div>
-              <div style={{ display: "inline-block" }}>
-                <button
-                  type="button"
-                  onClick={handleClickPreviousPage}
-                  disabled={sources.pageNumber === 1}
-                >
-                  View Previous 100 Sources
-                </button>
-              </div>
-              <div style={{ display: "inline-block" }}>
-                <i>
-                  Displaying&nbsp;
-                  {sources.sourceNumberingStart}
-                  -
-                  {sources.sourceNumberingEnd}
-                  &nbsp;
-                  of&nbsp;
-                  {sources.totalMatches}
-                  &nbsp;
-                  matching sources.
-                </i>
-              </div>
-              <div style={{ display: "inline-block" }}>
-                <button
-                  type="button"
-                  onClick={handleClickNextPage}
-                  disabled={sources.lastPage}
-                >
-                  View Next 100 Sources
-                </button>
-              </div>
+              <Button
+                type="button"
+                onClick={handleClickPreviousPage}
+                disabled={sources.pageNumber === 1}
+              >
+                Previous Page
+              </Button>
+              <i>
+                Displaying&nbsp;
+                {sources.numberingStart}
+                -
+                {sources.numberingEnd}
+                &nbsp; of&nbsp;
+                {sources.totalMatches}
+                &nbsp; matching sources.
+              </i>
+              <Button
+                type="button"
+                onClick={handleClickNextPage}
+                disabled={sources.lastPage}
+              >
+                Next Page
+              </Button>
             </div>
-          )
-        }
+            <div>
+              <FormControl variant="filled" className={classes.formControl}>
+                <InputLabel id="nPerPageInputLabel">
+                  Num Per Page
+                </InputLabel>
+                <Controller
+                  as={(
+                    <Select labelId="nPerPageInputLabel">
+                      {[10, 25, 50, 100, 500].map((n) => (
+                        <MenuItem value={n} key={n}>
+                          {n}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  )}
+                  name="numPerPage"
+                  control={control}
+                  defaultValue={100}
+                />
+              </FormControl>
+            </div>
+            <div>
+              <i>or&nbsp;&nbsp;</i>
+              <Button type="button" onClick={handleClickJumpToPage}>
+                Jump to page:
+              </Button>
+              &nbsp;&nbsp;
+              <input
+                type="text"
+                style={{ width: "25px" }}
+                onChange={handleJumpToPageInputChange}
+                value={jumpToPageInputValue}
+                name="jumpToPageInputField"
+              />
+            </div>
+          </div>
+        )}
       </form>
-      <br />
-    </div>
+    </Paper>
   );
 };
+
 SearchBox.propTypes = {
-  sources: PropTypes.object.isRequired
+  sources: PropTypes.shape({
+    lastPage: PropTypes.bool,
+    pageNumber: PropTypes.number,
+    numberingStart: PropTypes.any,
+    totalMatches: PropTypes.any,
+    queryInProgress: PropTypes.any,
+    numberingEnd: PropTypes.any,
+  }).isRequired,
 };
 
 export default SearchBox;

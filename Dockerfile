@@ -2,7 +2,7 @@ FROM ubuntu:18.04
 
 RUN apt-get update && \
     apt-get install -y curl build-essential software-properties-common && \
-    curl -sL https://deb.nodesource.com/setup_8.x | bash - && \
+    curl -sL https://deb.nodesource.com/setup_12.x | bash - && \
     apt-get update && \
     apt-get -y upgrade && \
     apt-get install -y python3 python3-venv python3-dev \
@@ -27,11 +27,12 @@ RUN bash -c "\
     source /skyportal_env/bin/activate && \
     \
     make -C baselayer paths && \
-    (make -f baselayer/Makefile baselayer dependencies || make -C baselayer dependencies)"
+    (make -f baselayer/Makefile baselayer dependencies || make -C baselayer dependencies) && \
+    (make -f baselayer/Makefile baselayer fill_conf_values || make -C baselayer fill_conf_values)"
 
 RUN bash -c "\
     \
-    (make -f baselayer/Makefile bundle || make -c baselayer bundle) && \
+    ./node_modules/.bin/webpack --mode=production --devtool none && \
     rm -rf node_modules && \
     \
     chown -R skyportal.skyportal /skyportal_env && \

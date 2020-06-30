@@ -12,27 +12,41 @@ class TokenHandler(BaseHandler):
         """
         ---
         description: Generate new token
-        parameters:
-          - in: path
-            name: token
-            schema: Token
+        requestBody:
+          content:
+            application/json:
+              schema: Token
         responses:
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            token_id:
+                              type: string
+                              description: Token ID
         """
         data = self.get_json()
 
         user = (User.query.filter(User.username == self.current_user.username)
                     .first())
         user_acls = {acl.id for acl in user.acls}
-        requested_acls = {k.replace('acls_', '') for k, v in data.items() if
-                          k.startswith('acls_') and v == True}
-        token_acls = requested_acls & user_acls
+        token_acls = set(data['acls']) & user_acls
+        token_name = data['name']
+        if Token.query.filter(Token.name == token_name).first():
+            return self.error("Duplicate token name.")
         token_id = create_token(permissions=token_acls,
                                 created_by_id=user.id,
-                                name=data['name'])
+                                name=token_name)
+        self.push(action='baselayer/SHOW_NOTIFICATION',
+                  payload={'note': f'Token "{token_name}" created.',
+                           'type': 'info'})
         return self.success(data={'token_id': token_id},
                             action='skyportal/FETCH_USER_PROFILE')
 
@@ -57,13 +71,13 @@ class TokenHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        t = Token.get_if_owned_by(token_id, self.current_user)
-        if t is not None:
-            DBSession.delete(t)
+        token = Token.get_if_owned_by(token_id, self.current_user)
+        if token is not None:
+            DBSession.delete(token)
             DBSession.commit()
 
             self.push(action='baselayer/SHOW_NOTIFICATION',
-                      payload={'note': f'Token {token_id} deleted.',
+                      payload={'note': f'Token "{token.name}" deleted.',
                                'type': 'info'})
             return self.success(action='skyportal/FETCH_USER_PROFILE')
         else:

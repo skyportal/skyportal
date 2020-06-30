@@ -4,11 +4,16 @@ from baselayer.app.app_server import MainPageHandler
 
 from skyportal.handlers import (BecomeUserHandler, LogoutHandler)
 from skyportal.handlers.api import (
-    CommentHandler,
+    CandidateHandler,
+    CommentHandler, CommentAttachmentHandler,
+    FilterHandler,
+    FollowupRequestHandler,
     GroupHandler, GroupUserHandler,
     InstrumentHandler,
-    PhotometryHandler,
-    SourceHandler, FilterSourcesHandler, SourcePhotometryHandler,
+    NewsFeedHandler,
+    PhotometryHandler, BulkDeletePhotometryHandler, ObjPhotometryHandler,
+    SourceHandler, SourceOffsetsHandler,
+    SourceFinderHandler,
     SpectrumHandler,
     SysInfoHandler,
     TelescopeHandler,
@@ -16,11 +21,9 @@ from skyportal.handlers.api import (
     UserHandler
 )
 from skyportal.handlers.api.internal import (
-    ConfigHandler,
-    DBInfoHandler,
-    PlotPhotometryHandler, PlotSpectroscopyHandler,
-    ProfileHandler,
-    TokenHandler
+    PlotPhotometryHandler, PlotSpectroscopyHandler, SourceViewsHandler,
+    TokenHandler, DBInfoHandler, ProfileHandler, InstrumentObservationParamsHandler,
+    ConfigHandler
 )
 
 from . import models, model_util, openapi
@@ -49,14 +52,20 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
 
     handlers = baselayer_handlers + [
         # API endpoints
+        (r'/api/candidates(/.*)?', CandidateHandler),
         (r'/api/comment(/[0-9]+)?', CommentHandler),
-        (r'/api/comment(/[0-9]+)/(download_attachment)', CommentHandler),
+        (r'/api/comment(/[0-9]+)/attachment', CommentAttachmentHandler),
+        (r'/api/filters(/.*)?', FilterHandler),
+        (r'/api/followup_request(/.*)?', FollowupRequestHandler),
         (r'/api/groups/(.*)/users/(.*)?', GroupUserHandler),
         (r'/api/groups(/.*)?', GroupHandler),
         (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
+        (r'/api/newsfeed', NewsFeedHandler),
         (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
-        (r'/api/sources(/[0-9A-Za-z-]+)/photometry', SourcePhotometryHandler),
-        (r'/api/sources/filter', FilterSourcesHandler),
+        (r'/api/photometry/bulk_delete/(.*)', BulkDeletePhotometryHandler),
+        (r'/api/sources(/[0-9A-Za-z-_]+)/photometry', ObjPhotometryHandler),
+        (r'/api/sources(/[0-9A-Za-z-_]+)/offsets', SourceOffsetsHandler),
+        (r'/api/sources(/[0-9A-Za-z-_]+)/finder', SourceFinderHandler),
         (r'/api/sources(/.*)?', SourceHandler),
         (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
         (r'/api/sysinfo', SysInfoHandler),
@@ -68,8 +77,10 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/internal/tokens(/.*)?', TokenHandler),
         (r'/api/internal/profile', ProfileHandler),
         (r'/api/internal/dbinfo', DBInfoHandler),
+        (r'/api/internal/source_views(/.*)?', SourceViewsHandler),
         (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
         (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
+        (r'/api/internal/instrument_obs_params', InstrumentObservationParamsHandler),
 
         (r'/become_user(/.*)?', BecomeUserHandler),
         (r'/logout', LogoutHandler),

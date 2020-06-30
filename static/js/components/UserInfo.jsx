@@ -4,12 +4,11 @@ import { useSelector, useDispatch } from 'react-redux';
 
 import * as Action from '../ducks/users';
 
-
 const UserInfo = ({ route }) => {
   const dispatch = useDispatch();
   useEffect(() => {
     dispatch(Action.fetchUser(route.id));
-  }, []);
+  }, [route.id, dispatch]);
   const users = useSelector((state) => state.users);
   const user_info = users[route.id];
   if (user_info === undefined) {
@@ -30,14 +29,14 @@ const UserInfo = ({ route }) => {
         <ul>
           <li>
             <b>
-created_at:
+              created_at:
             </b>
             {' '}
             {created_at}
           </li>
           <li>
             <b>
-acls:
+              acls:
             </b>
             {' '}
             {acls.join(', ')}

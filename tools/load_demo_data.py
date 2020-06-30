@@ -11,7 +11,7 @@ import requests
 from baselayer.app.env import load_env
 from baselayer.app.model_util import status, create_tables, drop_tables
 from social_tornado.models import TornadoStorage
-from skyportal.models import init_db, Base, DBSession, Source, User
+from skyportal.models import init_db, Base, DBSession, Obj, User
 from skyportal.model_util import setup_permissions, create_token
 from skyportal.tests import api
 from baselayer.tools.test_frontend import verify_server_availability
@@ -65,6 +65,7 @@ if __name__ == "__main__":
                 "Upload data",
                 "Comment",
                 "Manage users",
+                "System admin",
             ],
             super_admin_user.id,
             "load_demo_data token",
@@ -96,11 +97,11 @@ if __name__ == "__main__":
             verify_server_availability(server_url)
             print("App running - continuing with API calls")
 
-            with status("Creating dummy group & adding users"):
+            with status("Creating dummy groups & filter & adding users"):
                 data = assert_post(
                     "groups",
                     data={
-                        "name": "Stream A",
+                        "name": "Program A",
                         "group_admins": [
                             super_admin_user.username,
                             group_admin_user.username,
@@ -109,12 +110,31 @@ if __name__ == "__main__":
                 )
                 group_id = data["data"]["id"]
 
+                data = assert_post(
+                    "groups",
+                    data={
+                        "name": "Program B",
+                        "group_admins": [
+                            super_admin_user.username,
+                        ],
+                    },
+                )
+
+                data = assert_post(
+                    "filters",
+                    data={
+                        "group_id": group_id,
+                        "query_string": "sample_query_string",
+                    },
+                )
+                filter_id = data["data"]["id"]
+
                 for u in [view_only_user, full_user]:
                     data = assert_post(
                         f"groups/{group_id}/users/{u.username}", data={"admin": False}
                     )
 
-            with status("Creating dummy instruments"):
+            with status("Creating dummy telescopes & instruments"):
                 data = assert_post(
                     "telescope",
                     data={
@@ -134,8 +154,9 @@ if __name__ == "__main__":
                     data={
                         "name": "P60 Camera",
                         "type": "phot",
-                        "band": "optical",
+                        "band": "V",
                         "telescope_id": telescope1_id,
+                        "filters": ["ztfg", "ztfr", "ztfi"]
                     },
                 )
                 instrument1_id = data["data"]["id"]
@@ -159,18 +180,19 @@ if __name__ == "__main__":
                     data={
                         "name": "ALFOSC",
                         "type": "both",
-                        "band": "optical",
+                        "band": "V",
                         "telescope_id": telescope2_id,
                     },
                 )
 
-            with status("Creating dummy sources"):
+            with status("Creating dummy candidates & sources"):
                 SOURCES = [
                     {
                         "id": "14gqr",
                         "ra": 353.36647,
                         "dec": 33.646149,
                         "redshift": 0.063,
+                        "altdata": {"simbad": {"class": "RRLyr"}},
                         "group_ids": [group_id],
                         "comments": [
                             "No source at transient location to R>26 in LRIS imaging",
@@ -182,6 +204,7 @@ if __name__ == "__main__":
                         "ra": 322.718872,
                         "dec": 27.574113,
                         "redshift": 0.0,
+                        "altdata": {"simbad": {"class": "Mira"}},
                         "group_ids": [group_id],
                         "comments": ["Frogs in the pond", "The eagle has landed"],
                     },
@@ -194,10 +217,25 @@ if __name__ == "__main__":
                     data = assert_post("sources", data=source_info)
                     assert data["data"]["id"] == source_info["id"]
 
+                    _ = source_info.pop("group_ids")
+                    data = assert_post("candidates", data={**source_info,
+                                                           "filter_ids": [filter_id]})
+                    assert data["data"]["id"] == source_info["id"]
+
+                    # Add candidates with no associated sources
+                    data = assert_post("candidates", data={**source_info,
+                                                           "filter_ids": [filter_id],
+                                                           "id": f"{source_info['id']}_unsaved_copy"})
+                    assert data["data"]["id"] == f"{source_info['id']}_unsaved_copy"
+
                     for comment in comments:
                         data = assert_post(
                             "comment",
-                            data={"source_id": source_info["id"], "text": comment},
+                            data={"obj_id": source_info["id"], "text": comment},
+                        )
+                        data = assert_post(
+                            "comment",
+                            data={"obj_id": f"{source_info['id']}_unsaved_copy", "text": comment},
                         )
 
                     phot_file = basedir / "skyportal/tests/data/phot.csv"
@@ -206,15 +244,29 @@ if __name__ == "__main__":
                     data = assert_post(
                         "photometry",
                         data={
-                            "source_id": source_info["id"],
-                            "time_format": "iso",
-                            "time_scale": "utc",
+                            "obj_id": source_info['id'],
                             "instrument_id": instrument1_id,
-                            "observed_at": phot_data.observed_at.tolist(),
-                            "mag": phot_data.mag.tolist(),
-                            "e_mag": phot_data.e_mag.tolist(),
-                            "lim_mag": phot_data.lim_mag.tolist(),
+                            "mjd": phot_data.mjd.tolist(),
+                            "flux": phot_data.flux.tolist(),
+                            "fluxerr": phot_data.fluxerr.tolist(),
+                            "zp": phot_data.zp.tolist(),
+                            "magsys": phot_data.magsys.tolist(),
                             "filter": phot_data["filter"].tolist(),
+                            "group_ids": [group_id],
+                        },
+                    )
+                    data = assert_post(
+                        "photometry",
+                        data={
+                            "obj_id": f"{source_info['id']}_unsaved_copy",
+                            "instrument_id": instrument1_id,
+                            "mjd": phot_data.mjd.tolist(),
+                            "flux": phot_data.flux.tolist(),
+                            "fluxerr": phot_data.fluxerr.tolist(),
+                            "zp": phot_data.zp.tolist(),
+                            "magsys": phot_data.magsys.tolist(),
+                            "filter": phot_data["filter"].tolist(),
+                            "group_ids": [group_id],
                         },
                     )
 
@@ -230,7 +282,17 @@ if __name__ == "__main__":
                         data = assert_post(
                             "spectrum",
                             data={
-                                "source_id": source_info["id"],
+                                "obj_id": source_info["id"],
+                                "observed_at": str(datetime.datetime(2014, 10, 24)),
+                                "instrument_id": 1,
+                                "wavelengths": df.wavelength.tolist(),
+                                "fluxes": df.flux.tolist(),
+                            },
+                        )
+                        data = assert_post(
+                            "spectrum",
+                            data={
+                                "obj_id": f"{source_info['id']}_unsaved_copy",
                                 "observed_at": str(datetime.datetime(2014, 10, 24)),
                                 "instrument_id": 1,
                                 "wavelengths": df.wavelength.tolist(),
@@ -247,14 +309,22 @@ if __name__ == "__main__":
                         data = assert_post(
                             "thumbnail",
                             data={
-                                "source_id": source_info["id"],
+                                "obj_id": source_info["id"],
+                                "data": thumbnail_data,
+                                "ttype": ttype,
+                            },
+                        )
+                        data = assert_post(
+                            "thumbnail",
+                            data={
+                                "obj_id": f"{source_info['id']}_unsaved_copy",
                                 "data": thumbnail_data,
                                 "ttype": ttype,
                             },
                         )
 
-                    source = Source.query.get(source_info["id"])
-                    source.add_linked_thumbnails()
+                    Obj.query.get(source_info["id"]).add_linked_thumbnails()
+                    Obj.query.get(f"{source_info['id']}_unsaved_copy").add_linked_thumbnails()
         finally:
             if not app_already_running:
                 print("Terminating web app")

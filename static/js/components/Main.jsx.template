@@ -1,0 +1,139 @@
+// Baselayer components
+import { Notifications } from "baselayer/components/Notifications";
+
+// React and Redux
+import React, { useEffect } from "react";
+import PropTypes from "prop-types";
+import { Provider, useSelector } from "react-redux";
+import ReactDOM from "react-dom";
+
+import { BrowserRouter, Switch } from "react-router-dom";
+
+import { MuiPickersUtilsProvider } from "@material-ui/pickers";
+import { makeStyles } from "@material-ui/core/styles";
+
+import DayJSUtils from "@date-io/dayjs";
+import clsx from "clsx";
+
+// WebSocket
+import WebSocket from "baselayer/components/WebSocket";
+import messageHandler from "baselayer/MessageHandler";
+
+// Store
+import store from "../store";
+
+// Actions
+import hydrate from "../actions";
+import * as rotateLogoActions from "../ducks/logo";
+
+import PropsRoute from "../route";
+import NoMatchingRoute from "./NoMatchingRoute";
+import Responsive from "./Responsive";
+
+{% for route in app.routes %}
+import {{ route.component }} from "./{{ route.component }}";
+{% endfor %}
+
+import Theme from "./Theme";
+import ProfileDropdown from "./ProfileDropdown";
+import SidebarAndHeader from "./SidebarAndHeader";
+
+// Main style
+import styles from "./Main.css";
+
+
+messageHandler.init(store.dispatch, store.getState);
+
+
+const useStyles = makeStyles((theme) => ({
+  content: {
+    flexGrow: 1,
+    padding: theme.spacing(2),
+    transition: theme.transitions.create('margin', {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.leavingScreen,
+    }),
+    marginTop: "6em", // top bar height
+    marginLeft: "190px",
+    "& a": {
+      textDecoration: "none",
+      color: "gray",
+      fontWeight: "bold",
+    },
+  },
+  contentShift: {
+    transition: theme.transitions.create('margin', {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+    marginLeft: 0,
+  }
+}));
+
+
+const MainContent = ({ root }) => {
+  const { open } = useSelector((state) => state.sidebar);
+
+  const classes = useStyles();
+
+  useEffect(() => {
+    store.dispatch(hydrate());
+    store.dispatch(rotateLogoActions.rotateLogo());
+  }, []);
+
+  return (
+    <Theme>
+
+      <div className={styles.websocket}>
+        <WebSocket
+          url={`${window.location.protocol === "https:" ? "wss" : "ws"}://${root}websocket`}
+          auth_url={`${window.location.protocol}//${root}baselayer/socket_auth_token`}
+          messageHandler={messageHandler}
+          dispatch={store.dispatch}
+        />
+      </div>
+
+      <MuiPickersUtilsProvider utils={DayJSUtils}>
+
+        <SidebarAndHeader root={root} open={open} />
+
+        <Responsive mobileElement={ProfileDropdown} />
+
+        <div
+          role="main"
+          className={clsx(classes.content, {
+            [classes.contentShift]: !open,
+          })}
+        >
+
+          <Notifications />
+
+          <Switch>
+
+            {%- for route in app.routes %}
+            <PropsRoute exact path="{{ route.path }}" component={{ "{" }}{{ route.component }}{{ "}" }} />
+            {%- endfor %}
+
+            <PropsRoute component={NoMatchingRoute} />
+
+          </Switch>
+
+        </div>
+
+      </MuiPickersUtilsProvider>
+    </Theme>
+  );
+};
+
+MainContent.propTypes = {
+  root: PropTypes.string.isRequired
+};
+
+ReactDOM.render(
+  <Provider store={store}>
+    <BrowserRouter basename="/">
+      <MainContent root={`${window.location.host}/`} />
+    </BrowserRouter>
+  </Provider>,
+  document.getElementById("content")
+);

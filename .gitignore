@@ -1,5 +1,6 @@
 .#*
 log/
+.log
 .cache
 static/build
 doc/_build
@@ -14,8 +15,11 @@ geckodriver.log
 __pycache__/
 node_modules/
 *.pyc
-config.yaml
+./config.yaml
 static/thumbnails
 *.lock
 *.dirlock
 package-lock.json
+.jobs_timestamps.yaml
+skyportal_image_cache
+static/js/components/Main.jsx

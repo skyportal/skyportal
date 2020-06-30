@@ -4,13 +4,14 @@ import { useSelector } from 'react-redux';
 import GroupManagement from './GroupManagement';
 import GroupList from './GroupList';
 
-
-const Groups = (props) => {
+const Groups = () => {
   const roles = useSelector((state) => state.profile.roles);
+  const groups = useSelector((state) => state.groups.user);
+
   return (
     <div>
-      {roles.includes("Super admin") && <GroupManagement />}
-      <GroupList title="My Groups" />
+      <GroupList title="My Groups" groups={groups} />
+      {roles.includes("Super admin") && <GroupManagement /> }
     </div>
   );
 };

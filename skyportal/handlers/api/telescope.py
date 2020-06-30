@@ -10,22 +10,29 @@ class TelescopeHandler(BaseHandler):
         """
         ---
         description: Create telescopes
-        parameters:
-          - in: path
-            name: telescope
-            schema: Telescope
+        requestBody:
+          content:
+            application/json:
+              schema: TelescopeNoID
         responses:
           200:
             content:
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        id:
-                          type: integer
-                          description: New telescope ID
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New telescope ID
+          400:
+            content:
+              application/json:
+                schema: Error
         """
         data = self.get_json()
         group_ids = data.pop('group_ids')
@@ -71,10 +78,9 @@ class TelescopeHandler(BaseHandler):
         t = Telescope.get_if_owned_by(int(telescope_id), self.current_user)
 
         if t is not None:
-            return self.success(data={'telescope': t})
+            return self.success(data=t)
         else:
-            return self.error(f"Could not load telescope {telescope_id}",
-                              data={"telescope_id": telescope_id})
+            return self.error(f"Could not load telescope with ID {telescope_id}")
 
     @permissions(['Manage sources'])
     def put(self, telescope_id):
@@ -83,8 +89,14 @@ class TelescopeHandler(BaseHandler):
         description: Update telescope
         parameters:
           - in: path
-            name: telescope
-            schema: Telescope
+            name: telescope_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: TelescopeNoID
         responses:
           200:
             content:

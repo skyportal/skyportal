@@ -8,13 +8,12 @@ import * as Actions from '../ducks/plots';
 
 // eslint-disable-next-line import/extensions
 import "bokehjs/bokeh.js";
-// eslint-disable-next-line import/extensions
+// eslint-disable-next-line import/extensions, import/no-extraneous-dependencies
 import "bokehcss/bokeh.css";
 // eslint-disable-next-line import/extensions
 import "bokehjs/bokeh-widgets.js";
-// eslint-disable-next-line import/extensions
+// eslint-disable-next-line import/extensions, import/no-extraneous-dependencies
 import "bokehcss/bokeh-widgets.css";
-
 
 function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
   // Create bokeh div element
@@ -50,29 +49,30 @@ function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
 }
 
 const Plot = (props) => {
+  const { url, className } = props;
   const dispatch = useDispatch();
   const plots = useSelector((state) => state.plots);
-  const [error, setError] = useState(false);
+  const [error] = useState(false);
   const [fetchingPlotIDs, setFetchingPlotIDs] = useState([]);
 
   const needsFetching = () => (
-    !plots.plotIDList.includes(props.url) &&
-    !fetchingPlotIDs.includes(props.url)
+    !plots.plotIDList.includes(url) &&
+    !fetchingPlotIDs.includes(url)
   );
   const fetchPlotDataIfNotCached = () => {
     if (needsFetching()) {
       dispatch(
         Actions.fetchPlotData(
-          props.url,
+          url,
           Actions.FETCH_SOURCE_PLOT
         )
       );
-      setFetchingPlotIDs(fetchingPlotIDs.concat([props.url]));
+      setFetchingPlotIDs(fetchingPlotIDs.concat([url]));
     }
-    if (plots.plotData[props.url] &&
-        fetchingPlotIDs.includes(props.url)) {
+    if (plots.plotData[url] &&
+        fetchingPlotIDs.includes(url)) {
       const newFetchingPlotIDs = fetchingPlotIDs.slice();
-      newFetchingPlotIDs.splice(fetchingPlotIDs.indexOf(props.url), 1);
+      newFetchingPlotIDs.splice(fetchingPlotIDs.indexOf(url), 1);
       setFetchingPlotIDs(newFetchingPlotIDs);
     }
   };
@@ -80,8 +80,7 @@ const Plot = (props) => {
     fetchPlotDataIfNotCached();
   });
 
-
-  const plotData = plots.plotData[props.url];
+  const plotData = plots.plotData[url];
   if (error) {
     return (
       <b>
@@ -110,7 +109,7 @@ const Plot = (props) => {
 
   return (
     <div
-      className={props.className}
+      className={className}
       ref={
         (node) => {
           if (node) {
@@ -127,7 +126,6 @@ const Plot = (props) => {
   );
 };
 
-
 Plot.propTypes = {
   url: PropTypes.string.isRequired,
   className: PropTypes.string
@@ -137,4 +135,4 @@ Plot.defaultProps = {
   className: ""
 };
 
-export default Plot;
+export default React.memo(Plot);

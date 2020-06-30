@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Group, GroupUser, User, Token, Source
+from ...models import DBSession, Group, GroupUser, User, Token
 
 
 class GroupHandler(BaseHandler):
@@ -16,14 +16,28 @@ class GroupHandler(BaseHandler):
           parameters:
             - in: path
               name: group_id
-              required: false
+              required: true
               schema:
                 type: integer
           responses:
             200:
               content:
                 application/json:
-                  schema: SingleGroup
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            allOf:
+                              - $ref: '#/components/schemas/Group'
+                              - type: object
+                                properties:
+                                  users:
+                                    type: array
+                                    items:
+                                      - $ref: '#/components/schemas/User'
+                                    description: List of group users
             400:
               content:
                 application/json:
@@ -34,65 +48,91 @@ class GroupHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfGroups
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              user_groups:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Group'
+                                description: List of groups current user is a member of.
+                              all_groups:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Group'
+                                description: List of all groups if current user is Super admin, else None.
             400:
               content:
                 application/json:
                   schema: Error
         """
-        info = {}
         if group_id is not None:
             if 'Manage groups' in [acl.id for acl in self.current_user.acls]:
                 group = Group.query.options(joinedload(Group.users)).options(
-                    joinedload(Group.group_users)).options(
-                        joinedload(Group.sources)).get(group_id)
+                    joinedload(Group.group_users)).get(group_id)
             else:
                 group = Group.query.options([
-                    joinedload(Group.users).load_only(User.id, User.username),
-                    joinedload(Group.sources)]).get(group_id)
+                    joinedload(Group.users).load_only(User.id, User.username)]
+                ).get(group_id)
                 if group is not None and group.id not in [
                         g.id for g in self.current_user.groups]:
                     return self.error('Insufficient permissions.')
-            info['group'] = group
-        else:
-            info['user_groups'] = list(self.current_user.groups)
-            info['all_groups'] = (list(Group.query) if hasattr(self.current_user, 'roles')
-                                  and 'Super admin' in
-                                  [role.id for role in self.current_user.roles]
-                                  else None)
-            return self.success(data=info)
-        if 'group' in info:
-            if info['group'] is not None:
-                info['group'] = info['group'].to_dict()
+            if group is not None:
+                group = group.to_dict()
                 # Do not include User.groups to avoid circular reference
-                info['group']['users'] = [{'id': user.id, 'username': user.username}
-                                          for user in info['group']['users']]
-                return self.success(data=info)
-            else:
-                return self.error(f"Could not load group {group_id}",
-                                  data={"group_id": group_id})
+                group['users'] = [{'id': user.id, 'username': user.username}
+                                  for user in group['users']]
+                return self.success(data=group)
+            return self.error(f"Could not load group with ID {group_id}")
+
+        info = {}
+        info['user_groups'] = list(self.current_user.groups)
+        info['all_groups'] = (list(Group.query) if hasattr(self.current_user, 'roles')
+                              and 'Super admin' in
+                              [role.id for role in self.current_user.roles]
+                              else None)
+        return self.success(data=info)
 
     @permissions(['Manage groups'])
     def post(self):
         """
         ---
         description: Create a new group
-        parameters:
-          - in: path
-            name: group
-            schema: Group
+        requestBody:
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GroupNoID'
+                  - type: object
+                    properties:
+                      group_admins:
+                        type: array
+                        items:
+                          type: string
+                        description: |
+                          List of emails of users to be group admins. Current user will
+                          automatically be added as a group admin.
         responses:
           200:
             content:
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        id:
-                          type: integer
-                          description: New group ID
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New group ID
         """
         data = self.get_json()
 
@@ -103,10 +143,7 @@ class GroupHandler(BaseHandler):
         if self.current_user not in group_admins and not isinstance(self.current_user, Token):
             group_admins.append(self.current_user)
 
-        source_ids = [s.strip() for s in data.get('source_ids', []) if s.strip()]
-        sources = list(Source.query.filter(Source.id.in_(source_ids)))
-
-        g = Group(name=data['name'], sources=sources)
+        g = Group(name=data['name'])
         DBSession().add_all(
             [GroupUser(group=g, user=user, admin=True) for user in group_admins])
         DBSession().commit()
@@ -121,8 +158,13 @@ class GroupHandler(BaseHandler):
         description: Update a group
         parameters:
           - in: path
-            name: group
-            schema: Group
+            name: group_id
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: GroupNoID
         responses:
           200:
             content:
@@ -189,29 +231,37 @@ class GroupUserHandler(BaseHandler):
             required: true
             schema:
               type: string
-          - in: path
-            name: admin
-            required: true
-            schema:
-              type: boolean
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  admin:
+                    type: boolean
+                required:
+                  - admin
         responses:
           200:
             content:
               application/json:
                 schema:
                   allOf:
-                    - Success
+                    - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
-                        group_id:
-                          type: integer
-                          description: Group ID
-                        user_id:
-                          type: integer
-                          description: User ID
-                        admin:
-                          type: boolean
-                          description: Boolean indicating whether user is group admin
+                        data:
+                          type: object
+                          properties:
+                            group_id:
+                              type: integer
+                              description: Group ID
+                            user_id:
+                              type: integer
+                              description: User ID
+                            admin:
+                              type: boolean
+                              description: Boolean indicating whether user is group admin
         """
         data = self.get_json()
         try:
@@ -255,7 +305,7 @@ class GroupUserHandler(BaseHandler):
         """
         user_id = User.query.filter(User.username == username).first().id
         (GroupUser.query.filter(GroupUser.group_id == group_id)
-                   .filter(GroupUser.user_id == user_id).delete())
+         .filter(GroupUser.user_id == user_id).delete())
         DBSession().commit()
         self.push_all(action='skyportal/REFRESH_GROUP',
                       payload={'group_id': int(group_id)})

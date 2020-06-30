@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 
 import styles from './CommentEntry.css';
 
-
 class CommentEntry extends React.Component {
   constructor(props) {
     super(props);
@@ -37,13 +36,14 @@ class CommentEntry extends React.Component {
   }
 
   render() {
+    const { text } = this.state;
     return (
       <form className={styles.commentEntry} onSubmit={this._handleSubmit}>
         <div>
           <input
             type="text"
-            name="comment"
-            value={this.state.text}
+            name="text"
+            value={text}
             onChange={this._handleChange}
           />
         </div>
