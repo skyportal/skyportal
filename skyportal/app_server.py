@@ -99,7 +99,15 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
     models.init_db(**cfg['database'])
     model_util.create_tables()
     model_util.setup_permissions()
+    model_util.provision_tokens()
     app.cfg = cfg
+
+    admin_token, public_token = model_util.provision_tokens()
+    with open('.tokens.yaml', 'w') as f:
+        f.write(f'ADMIN_TOKEN: {admin_token.id}\n')
+        f.write(f'SITE_WIDE_TOKEN: {public_token.id}\n')
+    with open('.tokens.yaml', 'r') as f:
+        print(''.join(f.readlines()))
 
     app.openapi_spec = openapi.spec_from_handlers(handlers)
 

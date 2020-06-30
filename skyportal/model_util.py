@@ -13,21 +13,63 @@ from skyportal.models import (init_db, Base, DBSession, ACL, Comment,
                               Source, Spectrum, Telescope, Thumbnail, User,
                               Token)
 
+def add_user(username, roles=[], auth=False):
+    user = User.query.filter(User.username == username).first()
+    if user is None:
+        user = User(username=username)
+        if auth:
+            social = TornadoStorage.user.create_social_auth(
+                user,
+                user.username,
+                'google-oauth2'
+            )
 
-def add_super_user(username):
+    for rolename in roles:
+        role = Role.query.get(rolename)
+        if role not in user.roles:
+            user.roles.append(role)
+
+    DBSession().add(user)
+    DBSession().commit()
+
+    return User.query.filter(User.username == username).first()
+
+
+def make_super_user(username):
     """Initializes a super user with full permissions."""
     setup_permissions()  # make sure permissions already exist
-    super_user = User.query.filter(User.username == username).first()
-    if super_user is None:
-        super_user = User(username=username)
-        social = TornadoStorage.user.create_social_auth(super_user,
-                                                        super_user.username,
-                                                        'google-oauth2')
-    admin_role = Role.query.get('Super admin')
-    if admin_role not in super_user.roles:
-        super_user.roles.append(admin_role)
-    DBSession().add(super_user)
-    DBSession().commit()
+    add_user(username, roles=['Super admin'], auth=True)
+
+
+def provision_tokens():
+    """Provision initial tokens: one for administration,
+    one for public uploads.
+    """
+    admin = add_user('admin@cesium-ml.org', roles=['Super admin'])
+
+    admin_token = (
+        Token.query
+        .filter(Token.created_by == admin)
+        .filter(Token.name == 'Admin Token')
+    ).first()
+    if not admin_token:
+        token_id = create_token(['System admin'],
+                                admin.id,
+                                'Admin Token')
+        admin_token = Token.query.get(token_id)
+
+    public_token = (
+        Token.query
+        .filter(Token.created_by == admin)
+        .filter(Token.name == 'Public Token')
+    ).first()
+    if not public_token:
+        token_id = create_token(['Comment', 'Upload data'],
+                                admin.id,
+                                'Public Token')
+        public_token = Token.query.get(token_id)
+
+    return admin_token, public_token
 
 
 def setup_permissions():
@@ -56,6 +98,10 @@ def setup_permissions():
 
 
 def create_token(permissions, created_by_id, name):
+    """
+    permissions --- ACLs
+    created_by_id --- user.id
+    """
     t = Token(permissions=permissions, name=name)
     u = User.query.get(created_by_id)
     u.tokens.append(t)
