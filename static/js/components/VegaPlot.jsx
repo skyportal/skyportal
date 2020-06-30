@@ -82,8 +82,8 @@ const spec = (url) => ({
       },
       transform: [
         { filter: "datum.mag != null && datum.magerr != null" },
-        { calculate: "datum.mag - 0.1", as: "magMin" },
-        { calculate: "datum.mag + 0.1", as: "magMax" }
+        { calculate: "datum.mag - datum.magerr", as: "magMin" },
+        { calculate: "datum.mag + datum.magerr", as: "magMax" }
       ],
       mark: {
         type: "rule",
@@ -127,7 +127,7 @@ const spec = (url) => ({
     // Render limiting mags
     {
       transform: [
-        { filter: "datum.mag != null" }
+        { filter: "datum.mag == null" }
       ],
       selection: {
         filterLimitingMags: {
