@@ -10,7 +10,6 @@ import FilterCandidateList from './FilterCandidateList';
 
 const CandidatePlot = React.lazy(() => import(/* webpackChunkName: "CandidatePlot" */ './CandidatePlot'));
 
-
 const CandidateList = () => {
   const { candidates } = useSelector((state) => state.candidates);
 

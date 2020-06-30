@@ -265,41 +265,51 @@ const UploadPhotometryForm = () => {
                 </FormControl>
               </Box>
               <br />
-              <Box component="span" m={1}>
-                {
-                  errors.instrumentID && (
-                    <FormValidationError
-                      message="Select an instrument"
+              <Box display="flex" alignItems="center">
+                <Box component="span" m={1}>
+                  <font size="small">
+                    Note: To display an instrument&apos;s available filters,
+                    hover over the instrument name in the drop-down menu below.
+                    <br />
+                  </font>
+                  {
+                    errors.instrumentID && (
+                      <FormValidationError
+                        message="Select an instrument"
+                      />
+                    )
+                  }
+                  <FormControl className={classes.formControl}>
+                    <InputLabel id="instrumentSelectLabel">
+                      Instrument
+                    </InputLabel>
+                    <Controller
+                      as={(
+                        <Select labelId="instrumentSelectLabel">
+                          <MenuItem value="multiple" key={0}>
+                            Multiple (requires instrument_id column below)
+                          </MenuItem>
+                          {
+                           instrumentList.map((instrument) => (
+                             <MenuItem value={instrument.id} key={instrument.id}>
+                               <Tooltip title={`Filters: ${instrument.filters.join(", ")}`}>
+                                 <span>
+                                   {`${instrument.name} (ID: ${instrument.id})`}
+                                 </span>
+                               </Tooltip>
+                             </MenuItem>
+                           ))
+                          }
+                        </Select>
+                      )}
+                      name="instrumentID"
+                      rules={{ required: true }}
+                      control={control}
+                      defaultValue=""
                     />
-                  )
-                }
-                <FormControl className={classes.formControl}>
-                  <InputLabel id="instrumentSelectLabel">
-                    Instrument
-                  </InputLabel>
-                  <Controller
-                    as={(
-                      <Select labelId="instrumentSelectLabel">
-                        <MenuItem value="multiple" key={0}>
-                          Multiple (requires instrument_id column below)
-                        </MenuItem>
-                        {
-                          instrumentList.map((instrument) => (
-                            <MenuItem value={instrument.id} key={instrument.id}>
-                              {`${instrument.name} (ID: ${instrument.id})`}
-                            </MenuItem>
-                          ))
-                        }
-                      </Select>
-                    )}
-                    name="instrumentID"
-                    rules={{ required: true }}
-                    control={control}
-                    defaultValue=""
-                  />
-                </FormControl>
+                  </FormControl>
+                </Box>
               </Box>
-              <br />
               <Box component="span" m={1}>
                 {
                   errors.groupIDs && (
