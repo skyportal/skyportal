@@ -200,7 +200,6 @@ class TaxonomyHandler(BaseHandler):
                 schema: Success
         """
         user = self.associated_user_object.username
-        roles = (self.current_user.roles if hasattr(self.current_user, 'roles') else [])
         c = Taxonomy.query.get(taxonomy_id)
         if c is None:
             return self.error("Invalid taxonomy ID")
