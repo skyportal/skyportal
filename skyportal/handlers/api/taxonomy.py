@@ -113,7 +113,7 @@ class TaxonomyHandler(BaseHandler):
         data = self.get_json()
         name = data.get('name', None)
         if name is None:
-            return self.error(f"A name must be provided for a taxonomy")
+            return self.error("A name must be provided for a taxonomy")
 
         version = data.get('version', None)
         if version is None:
