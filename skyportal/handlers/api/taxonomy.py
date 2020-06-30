@@ -144,7 +144,7 @@ class TaxonomyHandler(BaseHandler):
             validate(hierarchy, schema)
         except JSONValidationError:
             return self.error(
-                f"Hierarchy does not validate against the schema."
+                "Hierarchy does not validate against the schema."
             )
 
         # establish the groups to use
