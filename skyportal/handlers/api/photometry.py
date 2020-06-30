@@ -152,7 +152,8 @@ class PhotometryHandler(BaseHandler):
                                   "are not a member of.")
         if "alert_id" in data:
             phot = Photometry.query.filter(
-                Photometry.alert_id == data["alert_id"]).first()
+                Photometry.alert_id == data["alert_id"]
+            ).filter(Photometry.alert_id.isnot(None)).first()
             if phot is not None:
                 phot.groups = groups
                 DBSession().commit()
