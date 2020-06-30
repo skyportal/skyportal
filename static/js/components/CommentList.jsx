@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Button } from "@material-ui/core";
+import Tooltip from "@material-ui/core/Tooltip";
 
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -36,7 +37,7 @@ const CommentList = () => {
   comments = comments || [];
 
   const items = comments.map(
-    ({ id, author, created_at, text, attachment_name }) => (
+    ({ id, author, created_at, text, attachment_name, groups }) => (
       <span
         key={id}
         className={styles.comment}
@@ -55,6 +56,12 @@ const CommentList = () => {
           <span className={styles.commentTime}>
             {dayjs().to(dayjs(created_at))}
           </span>
+          &nbsp;|&nbsp;
+          <Tooltip title={groups.map((group) => group.name).join(", ")}>
+            <span className={styles.commentTime}>
+              Groups
+            </span>
+          </Tooltip>
         </div>
         <div className={styles.wrap} name={`commentDiv${id}`}>
           <div className={styles.commentMessage}>
