@@ -128,7 +128,7 @@ class TaxonomyHandler(BaseHandler):
             .all()
         )
 
-        if len(others) != 0:
+        if len(existing_matches) != 0:
             return self.error(
                 "That version/name combination is already "
                 "present. If you really want to replace this "
