@@ -870,7 +870,6 @@ def test_token_user_retrieve_null_photometry(upload_data_token, public_source,
 def test_token_user_big_post(upload_data_token, public_source, ztf_camera,
                              public_group):
 
-    start = time.time()
     status, data = api('POST', 'photometry',
                        data={
                            'obj_id': str(public_source.id),
