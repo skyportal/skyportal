@@ -12,7 +12,8 @@ def test_token_user_post_get_telescope(upload_data_token, public_group):
                              'lon': 0.0,
                              'elevation': 0.0,
                              'diameter': 10.0,
-                             'group_ids': [public_group.id]
+                             'group_ids': [public_group.id],
+                             'skycam_link': 'http://www.lulin.ncu.edu.tw/wea/cur_sky.jpg'
                              },
                        token=upload_data_token)
     assert status == 200
