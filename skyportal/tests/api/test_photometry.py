@@ -884,6 +884,5 @@ def test_token_user_big_post(upload_data_token, public_source, ztf_camera,
                            'group_ids': [public_group.id]
                        },
                        token=upload_data_token)
-    stop = time.time()
     assert status == 200
     assert data['status'] == 'success'
