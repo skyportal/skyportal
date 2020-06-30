@@ -106,7 +106,7 @@ class TaxonomyHandler(BaseHandler):
                         data:
                           type: object
                           properties:
-                            comment_id:
+                            taxonomy_id:
                               type: integer
                               description: New taxonomy ID
         """
