@@ -403,22 +403,22 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
         _ = Photometry.get_if_owned_by(photometry_id, self.current_user)
-        packet = self.get_json()
-        group_ids = packet.pop("group_ids", None)
+        data = self.get_json()
+        group_ids = data.pop("group_ids", None)
 
         try:
-            phot = PhotometryFlux.load(packet)
+            phot = PhotometryFlux.load(data)
         except ValidationError as e1:
             try:
-                phot = PhotometryMag.load(packet)
+                phot = PhotometryMag.load(data)
             except ValidationError as e2:
                 return self.error('Invalid input format: Tried to parse '
-                                  f'{packet} as PhotometryFlux, got: '
+                                  f'{data} as PhotometryFlux, got: '
                                   f'"{e1.normalized_messages()}." Tried '
-                                  f'to parse {packet} as PhotometryMag, got:'
+                                  f'to parse {data} as PhotometryMag, got:'
                                   f' "{e2.normalized_messages()}."')
 
-        phot.original_user_data = packet
+        phot.original_user_data = data
         phot.id = photometry_id
         DBSession().merge(phot)
         DBSession.flush()

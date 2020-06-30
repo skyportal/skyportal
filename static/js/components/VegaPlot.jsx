@@ -15,19 +15,98 @@ const spec = (url) => ({
   background: "transparent",
   layer: [
     {
+      selection: {
+        filterMags: {
+          type: "multi",
+          fields: ["filter"],
+          bind: "legend"
+        },
+        grid: {
+          type: "interval",
+          bind: "scales"
+        }
+      },
       mark: {
         type: "point",
         shape: "circle",
         filled: "true",
-        size: 15
+        size: 15,
+      },
+      transform: [
+        { calculate: "join([format(datum.mag, '.2f'), ' ± ', format(datum.magerr, '.2f'), ' (', datum.magsys, ')'], '')", as: "magAndErr" }
+      ],
+      encoding: {
+        x: {
+          field: "mjd",
+          type: "quantitative",
+          scale: {
+            zero: false,
+          },
+        },
+        y: {
+          field: "mag",
+          type: "quantitative",
+          scale: {
+            zero: false,
+            reverse: true
+          },
+          axis: {
+            title: "mag"
+          }
+        },
+        color: {
+          field: "filter",
+          type: "nominal"
+        },
+        tooltip: [
+          { field: "magAndErr", title: "mag" },
+          { field: "filter", type: "ordinal" },
+          { field: "mjd", type: "quantitative" },
+          { field: "limiting_mag", type: "quantitative", format: ".2f" }
+        ],
+        opacity: {
+          condition: { selection: "filterMags", value: 1 },
+          value: 0
+        }
+      }
+    },
+
+    // Render error bars
+    {
+      selection: {
+        filterErrBars: {
+          type: "multi",
+          fields: ["filter"],
+          bind: "legend"
+        }
+      },
+      transform: [
+        { filter: "datum.mag != null && datum.magerr != null" },
+        { calculate: "datum.mag - datum.magerr", as: "magMin" },
+        { calculate: "datum.mag + datum.magerr", as: "magMax" }
+      ],
+      mark: {
+        type: "rule",
+        size: 0.5
       },
       encoding: {
         x: {
           field: "mjd",
-          type: "temporal"
+          type: "quantitative",
+          scale: {
+            zero: false,
+          }
         },
         y: {
-          field: "mag",
+          field: "magMin",
+          type: "quantitative",
+          scale: {
+            zero: false,
+            reverse: true
+          }
+        },
+        y2: {
+          field: "magMax",
           type: "quantitative",
           scale: {
             zero: false,
@@ -37,70 +116,52 @@ const spec = (url) => ({
         color: {
           field: "filter",
           type: "nominal"
+        },
+        opacity: {
+          condition: { selection: "filterErrBars", value: 1 },
+          value: 0
         }
       }
     },
-    //
-    // // Render error bars
-    // {
-    //   transform: [
-    //     { filter: "datum.mag != null && datum.magerr != null" },
-    //     { calculate: "datum.mag - 0.1", as: "magMin" },
-    //     { calculate: "datum.mag + 0.1", as: "magMax" }
-    //   ],
-    //   mark: {
-    //     type: "rule",
-    //   },
-    //   encoding: {
-    //     x: {
-    //       field: "mjd",
-    //       type: "temporal"
-    //     },
-    //     y: {
-    //       field: "magMin",
-    //       type: "quantitative",
-    //       scale: {
-    //         zero: false,
-    //         reverse: true
-    //       }
-    //     },
-    //     y2: {
-    //       field: "magMax",
-    //       type: "quantitative",
-    //       scale: {
-    //         zero: false,
-    //         reverse: true
-    //       }
-    //     },
-    //     color: {
-    //       field: "filter",
-    //       type: "nominal"
-    //     }
-    //   }
-    // },
-    //
-    // // Render limiting mags
-    // {
-    //   mark: {
-    //     type: "point",
-    //     shape: "triangle-down",
-    //     opacity: 0.1
-    //   },
-    //   encoding: {
-    //     x: {
-    //       field: "mjd",
-    //       type: "temporal"
-    //     },
-    //     y: {
-    //       field: "limiting_mag",
-    //       type: "quantitative",
-    //     },
-    //     color: {
-    //       field: "filter",
-    //       type: "nominal"
-    //     }
-    //   }
-    // }
+
+    // Render limiting mags
+    {
+      transform: [
+        { filter: "datum.mag == null" }
+      ],
+      selection: {
+        filterLimitingMags: {
+          type: "multi",
+          fields: ["filter"],
+          bind: "legend"
+        }
+      },
+      mark: {
+        type: "point",
+        shape: "triangle-down"
+      },
+      encoding: {
+        x: {
+          field: "mjd",
+          type: "quantitative",
+          scale: {
+            zero: false,
+          }
+        },
+        y: {
+          field: "limiting_mag",
+          type: "quantitative"
+        },
+        color: {
+          field: "filter",
+          type: "nominal"
+        },
+        opacity: {
+          condition: { selection: "filterLimitingMags", value: 0.3 },
+          value: 0
+        }
+      }
+    }
   ]
 });
 

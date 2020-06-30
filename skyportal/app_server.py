@@ -16,6 +16,7 @@ from skyportal.handlers.api import (
     SourceFinderHandler,
     SpectrumHandler,
     SysInfoHandler,
+    TaxonomyHandler,
     TelescopeHandler,
     ThumbnailHandler,
     UserHandler
@@ -68,6 +69,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/sources(/.*)?', SourceHandler),
         (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
         (r'/api/sysinfo', SysInfoHandler),
+        (r'/api/taxonomy(/[0-9]+)?', TaxonomyHandler),
         (r'/api/telescope(/[0-9]+)?', TelescopeHandler),
         (r'/api/thumbnail(/[0-9]+)?', ThumbnailHandler),
         (r'/api/user(/.*)?', UserHandler),

@@ -277,6 +277,13 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
 Obj.get_if_owned_by = get_obj_if_owned_by
 
 
+def get_obj_comments_owned_by(self, user_or_token):
+    return [comment for comment in self.comments if comment.is_owned_by(user_or_token)]
+
+
+Obj.get_comments_owned_by = get_obj_comments_owned_by
+
+
 def get_photometry_owned_by_user(obj_id, user_or_token):
     return (
         Photometry.query.filter(Photometry.obj_id == obj_id)
@@ -359,6 +366,52 @@ class Instrument(Base):
                         default=[])
 
 
+class Taxonomy(Base):
+    __tablename__ = 'taxonomy'
+    name = sa.Column(sa.String, nullable=False,
+                     doc='Short string to make this taxonomy memorable '
+                         'to end users.'
+                     )
+    hierarchy = sa.Column(JSONB, nullable=False,
+                          doc='Nested JSON describing the taxonomy '
+                              'which should be validated against '
+                              'a schema before entry'
+                          )
+    provenance = sa.Column(sa.String, nullable=True,
+                           doc='Identifier (e.g., URL or git hash) that '
+                               'uniquely ties this taxonomy back '
+                               'to an origin or place of record'
+                           )
+    version = sa.Column(sa.String, nullable=False,
+                        doc='Semantic version of this taxonomy'
+                        )
+    isLatest = sa.Column(sa.Boolean, default=True, nullable=False,
+                         doc='Consider this the latest version of '
+                             'the taxonomy with this name? Defaults '
+                             'to True.'
+                         )
+    groups = relationship("Group", secondary="group_taxonomy",
+                          cascade="save-update,"
+                                  "merge, refresh-expire, expunge"
+                          )
+
+
+GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
+
+
+def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
+    return (
+        Taxonomy.query.filter(Taxonomy.id == taxonomy_id)
+        .filter(
+            Taxonomy.groups.any(Group.id.in_([g.id for g in user_or_token.groups]))
+        )
+        .all()
+    )
+
+
+Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
+
+
 class Comment(Base):
     text = sa.Column(sa.String, nullable=False)
     ctype = sa.Column(sa.Enum('text', 'redshift', 'classification',
@@ -373,6 +426,11 @@ class Comment(Base):
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)
     obj = relationship('Obj', back_populates='comments')
+    groups = relationship("Group", secondary="group_comments",
+                          cascade="save-update, merge, refresh-expire, expunge")
+
+
+GroupComment = join_model("group_comments", Group, Comment)
 
 
 class Photometry(Base):

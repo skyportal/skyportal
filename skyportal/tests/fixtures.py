@@ -116,7 +116,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
                                               groups=passed_groups))
 
             DBSession().add(ThumbnailFactory(photometry=phot1))
-            DBSession().add(CommentFactory(obj_id=obj.id))
+            DBSession().add(CommentFactory(obj_id=obj.id, groups=passed_groups))
         DBSession().add(SpectrumFactory(obj_id=obj.id,
                                         instrument=instruments[0]))
         DBSession().commit()
