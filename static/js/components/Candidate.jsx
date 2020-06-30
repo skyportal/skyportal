@@ -1,14 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
-import Button from "@material-ui/core/Button";
 
 import * as Actions from "../ducks/candidate";
 import Plot from "./Plot";
 import CommentList from "./CommentList";
 import ThumbnailList from "./ThumbnailList";
 import SurveyLinkList from "./SurveyLinkList";
-import StarList from "./StarList";
 
 import { ra_to_hours, dec_to_hours } from "../units";
 
@@ -21,7 +19,6 @@ const Candidate = ({ route }) => {
   const candidate = useSelector((state) => state.candidate);
   const cachedCandidateId = candidate ? candidate.id : null;
   const isCached = (route.id === cachedCandidateId);
-  const [showStarList, setShowStarList] = useState(false);
 
   useEffect(() => {
     const fetchCandidate = () => {
@@ -88,16 +85,6 @@ const Candidate = ({ route }) => {
           &nbsp;
         </b>
         {candidate.redshift}
-        &nbsp;|&nbsp;
-        <Button href={`/api/sources/${candidate.id}/finder`}>
-          PDF Finding Chart
-        </Button>
-        &nbsp;|&nbsp;
-        <Button onClick={() => setShowStarList(!showStarList)}>
-          { showStarList ? "Hide Starlist" : "Show Starlist" }
-        </Button>
-        <br />
-        {showStarList && <StarList sourceId={candidate.id} />}
         <ThumbnailList ra={candidate.ra} dec={candidate.dec} thumbnails={candidate.thumbnails} />
 
         <br />
@@ -139,7 +126,7 @@ const Candidate = ({ route }) => {
           mobileProps={{ folded: true }}
           className={styles.comments}
         >
-          <CommentList />
+          <CommentList isCandidate />
         </Responsive>
 
       </div>
