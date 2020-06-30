@@ -121,7 +121,7 @@ class TaxonomyHandler(BaseHandler):
                 "A version string must be provided for a taxonomy"
             )
 
-        others = (
+        existing_matches = (
             Taxonomy.query
             .filter(Taxonomy.name == name)
             .filter(Taxonomy.version == version)
