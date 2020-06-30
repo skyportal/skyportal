@@ -45,7 +45,7 @@ def test_add_bad_taxonomy(taxonomy_token, public_group):
 
 def test_latest_taxonomy(taxonomy_token, public_group):
 
-    # add one, then add another with the same namer
+    # add one, then add another with the same name
     status, data = api('POST', 'taxonomy',
                        data={
                              'name': "test taxonomy",
@@ -82,4 +82,3 @@ def test_latest_taxonomy(taxonomy_token, public_group):
 
     status, data = api('DELETE', f'taxonomy/{new_taxonomy_id}', token=taxonomy_token)
     status, data = api('DELETE', f'taxonomy/{old_taxonomy_id}', token=taxonomy_token)
-
