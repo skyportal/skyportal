@@ -38,7 +38,7 @@ def test_comment_groups_validation(driver, user, public_source):
     comment_box = driver.wait_for_xpath("//input[@name='text']")
     comment_text = str(uuid.uuid4())
     comment_box.send_keys(comment_text)
-    driver.wait_for_xpath("//div[text()='Customize Group Access']").click()
+    driver.wait_for_xpath("//*[text()='Customize Group Access']").click()
     group_checkbox = driver.wait_for_xpath("//input[@name='group_ids[0]']")
     assert group_checkbox.is_selected()
     group_checkbox.click()

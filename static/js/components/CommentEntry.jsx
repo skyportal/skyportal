@@ -1,15 +1,13 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
 import Checkbox from "@material-ui/core/Checkbox";
 import TextField from "@material-ui/core/TextField";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
-import ExpansionPanel from "@material-ui/core/ExpansionPanel";
-import ExpansionPanelSummary from "@material-ui/core/ExpansionPanelSummary";
-import ExpansionPanelDetails from "@material-ui/core/ExpansionPanelDetails";
-import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Typography from "@material-ui/core/Typography";
+import Button from "@material-ui/core/Button";
+import Box from "@material-ui/core/Box";
 
 import FormValidationError from "./FormValidationError";
 import styles from "./CommentEntry.css";
@@ -30,12 +28,18 @@ const CommentEntry = ({ addComment }) => {
     });
   }, [reset, userGroups]);
 
+  const [groupSelectVisible, setGroupSelectVisible] = useState(false);
+  const toggleGroupSelectVisible = () => {
+    setGroupSelectVisible(!groupSelectVisible);
+  };
+
   const onSubmit = (data) => {
     const groupIDs = userGroups.map((g) => g.id);
     const selectedGroupIDs = groupIDs.filter((ID, idx) => data.group_ids[idx]);
     data.group_ids = selectedGroupIDs;
     addComment(data);
     reset();
+    setGroupSelectVisible(false);
   };
 
   const handleFileInputChange = (event) => {
@@ -77,34 +81,28 @@ const CommentEntry = ({ addComment }) => {
           errors.group_ids &&
             <FormValidationError message="Select at least one group." />
         }
-        <ExpansionPanel>
-          <ExpansionPanelSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="panel-content"
-            id="panel-header"
-          >
-            Customize Group Access
-          </ExpansionPanelSummary>
-          <ExpansionPanelDetails>
-            {
-              userGroups.map((userGroup, idx) => (
-                <FormControlLabel
-                  key={userGroup.id}
-                  control={(
-                    <Controller
-                      as={Checkbox}
-                      name={`group_ids[${idx}]`}
-                      control={control}
-                      rules={{ validate: validateGroups }}
-                      defaultValue
-                    />
-                  )}
-                  label={userGroup.name}
-                />
-              ))
-            }
-          </ExpansionPanelDetails>
-        </ExpansionPanel>
+        <Button onClick={toggleGroupSelectVisible} size="small">
+          Customize Group Access
+        </Button>
+        <Box component="div" display={groupSelectVisible ? "block" : "none"}>
+          {
+            userGroups.map((userGroup, idx) => (
+              <FormControlLabel
+                key={userGroup.id}
+                control={(
+                  <Controller
+                    as={Checkbox}
+                    name={`group_ids[${idx}]`}
+                    control={control}
+                    rules={{ validate: validateGroups }}
+                    defaultValue
+                  />
+                )}
+                label={userGroup.name}
+              />
+            ))
+          }
+        </Box>
       </div>
       <div className={styles.inputDiv}>
         <input type="submit" value="↵" />
