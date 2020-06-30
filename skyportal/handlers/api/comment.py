@@ -89,8 +89,6 @@ class CommentHandler(BaseHandler):
         _ = Source.get_if_owned_by(obj_id, self.current_user)
         user_group_ids = [g.id for g in self.current_user.groups]
         group_ids = data.pop("group_ids", user_group_ids)
-        if group_ids == []:
-            group_ids = user_group_ids
         group_ids = [gid for gid in group_ids if gid in user_group_ids]
         if not group_ids:
             return self.error(f"Invalid group IDs field ({group_ids}): "
