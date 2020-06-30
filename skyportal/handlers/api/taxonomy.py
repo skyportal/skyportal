@@ -118,7 +118,7 @@ class TaxonomyHandler(BaseHandler):
         version = data.get('version', None)
         if version is None:
             return self.error(
-                f"A version string must be provided for a taxonomy"
+                "A version string must be provided for a taxonomy"
             )
 
         others = (
