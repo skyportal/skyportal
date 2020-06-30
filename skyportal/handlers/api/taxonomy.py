@@ -130,7 +130,7 @@ class TaxonomyHandler(BaseHandler):
 
         if len(others) != 0:
             return self.error(
-                f"That version/name combination is already "
+                "That version/name combination is already "
                 "present. If you really want to replace this "
                 "then delete the appropriate entry."
             )
