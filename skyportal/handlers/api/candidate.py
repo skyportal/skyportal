@@ -146,7 +146,15 @@ class CandidateHandler(BaseHandler):
                   schema: Error
         """
         if obj_id is not None:
-            c = Candidate.get_if_owned_by(obj_id, self.current_user)
+            c = Candidate.get_if_owned_by(
+                obj_id,
+                self.current_user,
+                options=[joinedload(Candidate.obj)
+                         .joinedload(Obj.thumbnails)
+                         .joinedload(Thumbnail.photometry)
+                         .joinedload(Photometry.instrument)
+                         .joinedload(Instrument.telescope)]
+            )
             if c is None:
                 return self.error("Invalid ID")
             c.comments = c.get_comments_owned_by(self.current_user)
