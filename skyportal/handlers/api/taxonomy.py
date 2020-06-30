@@ -199,7 +199,6 @@ class TaxonomyHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        user = self.associated_user_object.username
         c = Taxonomy.query.get(taxonomy_id)
         if c is None:
             return self.error("Invalid taxonomy ID")
