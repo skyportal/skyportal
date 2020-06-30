@@ -40,7 +40,7 @@ class TaxonomyHandler(BaseHandler):
             )
 
         if not isinstance(taxonomy, list):
-            self.error('Problem retreiving taxonomy')
+            return self.error('Problem retreiving taxonomy')
 
         return self.success(data=taxonomy[0])
 
