@@ -138,7 +138,7 @@ class TaxonomyHandler(BaseHandler):
         # Ensure a valid taxonomy
         hierarchy = data.get('hierarchy', None)
         if hierarchy is None:
-            return self.error(f"A JSON of the taxonomy must be given")
+            return self.error("A JSON of the taxonomy must be given")
 
         try:
             validate(hierarchy, schema)
