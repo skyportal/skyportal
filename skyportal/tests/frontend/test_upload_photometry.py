@@ -19,7 +19,7 @@ def test_upload_photometry(
         "58002,53,1,25,ab,ztfg"
     )
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
-    driver.wait_for_xpath(f'//li[text()="P60 Camera (ID: {inst_id})"]').click()
+    driver.wait_for_xpath(f'//span[text()="P60 Camera (ID: {inst_id})"]').click()
     driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
     driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
     driver.execute_script(
@@ -58,7 +58,7 @@ def test_upload_photometry_multiple_groups(
         "58002,53,1,25,ab,ztfg"
     )
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
-    driver.wait_for_xpath(f'//li[text()="P60 Camera (ID: {inst_id})"]').click()
+    driver.wait_for_xpath(f'//span[text()="P60 Camera (ID: {inst_id})"]').click()
     driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
     driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
     driver.wait_for_xpath_to_be_clickable(
@@ -93,7 +93,7 @@ def test_upload_photometry_with_altdata(
         "58002,53,1,25,ab,ztfg,44.2"
     )
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
-    driver.wait_for_xpath(f'//li[text()="P60 Camera (ID: {inst_id})"]').click()
+    driver.wait_for_xpath(f'//span[text()="P60 Camera (ID: {inst_id})"]').click()
     driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
     driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
     driver.execute_script(
@@ -150,7 +150,7 @@ def test_upload_photometry_form_validation(
     )
     driver.wait_for_xpath('//div[contains(.,"Select an instrument")]')
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
-    driver.wait_for_xpath(f'//li[text()="P60 Camera (ID: {inst_id})"]').click()
+    driver.wait_for_xpath(f'//span[text()="P60 Camera (ID: {inst_id})"]').click()
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
     driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
     driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
