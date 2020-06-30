@@ -31,6 +31,26 @@ def test_comments(driver, user, public_source):
     driver.wait_for_xpath('//span[text()="a few seconds ago"]')
 
 
+def test_comment_groups_validation(driver, user, public_source):
+    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    comment_box = driver.wait_for_xpath("//input[@name='text']")
+    comment_text = str(uuid.uuid4())
+    comment_box.send_keys(comment_text)
+    driver.wait_for_xpath("//*[text()='Customize Group Access']").click()
+    group_checkbox = driver.wait_for_xpath("//input[@name='group_ids[0]']")
+    assert group_checkbox.is_selected()
+    group_checkbox.click()
+    driver.scroll_to_element_and_click(driver.find_element_by_css_selector('[type=submit]'))
+    driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
+    group_checkbox.click()
+    driver.wait_for_xpath_to_disappear('//div[contains(.,"Select at least one group")]')
+    driver.scroll_to_element_and_click(driver.find_element_by_css_selector('[type=submit]'))
+    driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+    driver.wait_for_xpath('//span[text()="a few seconds ago"]')
+
+
 def test_upload_comment_attachment(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
