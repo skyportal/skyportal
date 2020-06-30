@@ -202,12 +202,13 @@ class PhotometryHandler(BaseHandler):
             DBSession().flush()
 
             time = arrow.get(Time(phot.mjd, format='mjd').iso)
-            phot.obj.last_detected = max(
-                time,
-                phot.obj.last_detected
-                if phot.obj.last_detected is not None
-                else arrow.get("1000-01-01")
-            )
+            if phot.flux is not None:
+                phot.obj.last_detected = max(
+                    time,
+                    phot.obj.last_detected
+                    if phot.obj.last_detected is not None
+                    else arrow.get("1000-01-01")
+                )
             ids.append(phot.id)
 
         DBSession().commit()
