@@ -845,7 +845,6 @@ def test_token_user_retrieve_null_photometry(upload_data_token, public_source,
                              'magsys': 'ab',
                              'filter': 'ztfg',
                              'group_ids': [public_group.id]
-
                              },
                        token=upload_data_token)
     assert status == 200
