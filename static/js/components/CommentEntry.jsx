@@ -81,7 +81,7 @@ const CommentEntry = ({ addComment }) => {
           errors.group_ids &&
             <FormValidationError message="Select at least one group." />
         }
-        <Button onClick={toggleGroupSelectVisible} size="small">
+        <Button onClick={toggleGroupSelectVisible} size="small" style={{ textTransform: "none" }}>
           Customize Group Access
         </Button>
         <Box component="div" display={groupSelectVisible ? "block" : "none"}>
