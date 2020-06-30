@@ -26,6 +26,9 @@ def test_add_retrieve_delete_taxonomy(taxonomy_token, public_group):
     status, data = api('DELETE', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
     assert status == 200
 
+    status, data = api('GET', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
+    assert status == 400
+
 
 def test_add_bad_taxonomy(taxonomy_token, public_group):
     status, data = api('POST', 'taxonomy',
@@ -73,6 +76,10 @@ def test_latest_taxonomy(taxonomy_token, public_group):
                        token=taxonomy_token)
     assert status == 200
     new_taxonomy_id = data['data']['taxonomy_id']
+    status, data = api('GET', f'taxonomy/{new_taxonomy_id}',
+                       token=taxonomy_token)
+    assert status == 200
+    assert data['data']['isLatest']
 
     # the first one we added should now have isLatest == False
     status, data = api('GET', f'taxonomy/{old_taxonomy_id}',
