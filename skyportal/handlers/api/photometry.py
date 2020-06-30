@@ -1,7 +1,6 @@
 import uuid
 import numpy as np
 import arrow
-import time as t
 from astropy.table import Table
 import pandas as pd
 from marshmallow.exceptions import ValidationError
