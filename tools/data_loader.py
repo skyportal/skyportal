@@ -148,17 +148,77 @@ if __name__ == "__main__":
                                 "provenance": provenance,
                                 "version": version,
                         }
-                        print(payload)
                         data = assert_post(
                             "taxonomy",
                             payload,
                             tokens[tax["token"]]
 
                         )
+            if src.get("telescopes") is not None:
+                with status("Creating telescopes"):
+                    telescope_dict = {}
+                    for t in src.get("telescopes"):
+                        group_ids = [group_dict[g] for g in t["group_names"]]
+                        data = assert_post(
+                                "telescope",
+                                data={
+                                    "name": t["name"],
+                                    "nickname": t["nickname"],
+                                    "lat": t["lat"],
+                                    "lon": t["lon"],
+                                    "elevation": t.get("elevation", 0.0),
+                                    "diameter": t.get("elevation", 1.0),
+                                    "group_ids": group_ids
+                                },
+                                token=tokens[t["token"]]
+                        )
+                        telescope_dict[t["nickname"]] = data["data"]["id"]
+                if src.get("instruments") is not None:
+                    with status("Creating instruments"):
+                        instrument_dict = {}
+                        for i in src.get("instruments"):
+                            telid = telescope_dict[i["telescope_nickname"]]
+                            data = assert_post(
+                                "instrument",
+                                data={
+                                    "name": i["name"],
+                                    "type": i["type"],
+                                    "band": i["band"],
+                                    "telescope_id": telid,
+                                    "filters": i.get("filters", [])
+                                },
+                                token=tokens[i["token"]]
+                            )
+                            instrument_dict[i["name"]] = data["data"]["id"]
+            if src.get("sources") is not None:
+                with status("Loading Source and Candidates"):
+                    (basedir / "static/thumbnails").mkdir(parents=True, exist_ok=True)
+                    for s in src.get("sources"):
+                        group_ids = [group_dict[g] for g in s["group_names"]]
+                        data = assert_post(
+                            "sources",
+                            data={
+                                  "id": s["id"],
+                                  "ra": s["ra"],
+                                  "dec": s["dec"],
+                                  "redshift": s.get("redshift", 0.0),
+                                  "altdata": s.get("altdata", None),
+                                  "group_ids": group_ids
+                                  },
+                            token=tokens[s["token"]]
+                        )
+                        data = assert_post(
+                            "candidates",
+                            data={
+                                  "id": s["id"],
+                                  "ra": s["ra"],
+                                  "dec": s["dec"],
+                                  "redshift": s.get("redshift", 0.0),
+                                  "altdata": s.get("altdata", None),
 
-            with status("Creating telescopes & instruments"):
-                # TBD
-                pass
+                                  },
+                            token=tokens[s["token"]]
+
 
         finally:
             if not app_already_running:
