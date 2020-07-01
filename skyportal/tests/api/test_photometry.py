@@ -1,4 +1,3 @@
-import time
 from skyportal.tests import api
 import numpy as np
 import sncosmo
