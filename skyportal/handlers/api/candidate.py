@@ -211,7 +211,7 @@ class CandidateHandler(BaseHandler):
             )
             .filter(
                 Obj.id.in_(
-                    DBSession.query(Candidate.obj_id).filter(
+                    DBSession().query(Candidate.obj_id).filter(
                         Candidate.filter_id.in_(filter_ids)
                     )
                 )
@@ -221,7 +221,7 @@ class CandidateHandler(BaseHandler):
         if unsaved_only == "true":
             q = q.filter(
                 Obj.id.notin_(
-                    DBSession.query(Source.obj_id).filter(
+                    DBSession().query(Source.obj_id).filter(
                         Source.group_id.in_(group_ids)
                     )
                 )
@@ -245,7 +245,7 @@ class CandidateHandler(BaseHandler):
                 return self.error("Page number out of range.")
             raise
         matching_source_ids = (
-            DBSession.query(Source.obj_id)
+            DBSession().query(Source.obj_id)
             .filter(Source.obj_id.in_([obj.id for obj in query_results["candidates"]]))
             .all()
         )
@@ -258,7 +258,7 @@ class CandidateHandler(BaseHandler):
                     Filter.query.filter(Filter.id.in_(user_filter_ids))
                     .filter(
                         Filter.id.in_(
-                            DBSession.query(Candidate.filter_id).filter(
+                            DBSession().query(Candidate.filter_id).filter(
                                 Candidate.obj_id == obj.id
                             )
                         )
@@ -332,8 +332,8 @@ class CandidateHandler(BaseHandler):
         filters = Filter.query.filter(Filter.id.in_(filter_ids)).all()
         if not filters:
             return self.error("At least one valid filter ID must be provided.")
-        DBSession.add(obj)
-        DBSession.add_all(
+        DBSession().add(obj)
+        DBSession().add_all(
             [
                 Candidate(
                     obj=obj,

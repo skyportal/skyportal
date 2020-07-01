@@ -419,7 +419,7 @@ class PhotometryHandler(BaseHandler):
         phot.original_user_data = data
         phot.id = photometry_id
         DBSession().merge(phot)
-        DBSession.flush()
+        DBSession().flush()
         # Update groups, if relevant
         if group_ids is not None:
             photometry = Photometry.query.get(photometry_id)
@@ -457,7 +457,7 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
         _ = Photometry.get_if_owned_by(photometry_id, self.current_user)
-        DBSession.query(Photometry).filter(Photometry.id == int(photometry_id)).delete()
+        DBSession().query(Photometry).filter(Photometry.id == int(photometry_id)).delete()
         DBSession().commit()
 
         return self.success()
@@ -504,7 +504,7 @@ class BulkDeletePhotometryHandler(BaseHandler):
             Photometry.upload_id == upload_id).first().id
         _ = Photometry.get_if_owned_by(phot_id, self.current_user)
 
-        n_deleted = DBSession.query(Photometry).filter(
+        n_deleted = DBSession().query(Photometry).filter(
             Photometry.upload_id == upload_id).delete()
         DBSession().commit()
 
