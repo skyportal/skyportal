@@ -60,7 +60,8 @@ def test_submit_new_followup_request(
         driver.scroll_to_element_and_click(instrument_select_element)
         instrument_select.select_by_visible_text("P60 Camera")
 
-    submit_button = driver.find_element_by_css_selector("[type=submit]")
+    submit_button = driver.wait_for_xpath(
+        '//*[@name="createNewFollowupRequestSubmitButton"]')
     driver.execute_script("arguments[0].scrollIntoView();", submit_button)
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//input[@name="start_date"]')
@@ -107,7 +108,8 @@ def test_edit_existing_followup_request(
         driver.execute_script("arguments[0].scrollIntoView();", instrument_select_element)
         instrument_select.select_by_visible_text("P60 Camera")
 
-    submit_button = driver.find_element_by_css_selector("[type=submit]")
+    submit_button = driver.wait_for_xpath(
+        '//*[@name="createNewFollowupRequestSubmitButton"]')
     driver.execute_script("arguments[0].scrollIntoView();", submit_button)
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//input[@name="start_date"]')
@@ -135,8 +137,9 @@ def test_edit_existing_followup_request(
     driver.scroll_to_element_and_click(driver.wait_for_xpath('//button[text()="Edit"]'))
     priority_select = Select(driver.wait_for_xpath('//select[@name="priority"]'))
     priority_select.select_by_visible_text("5")
-    submit_button = driver.find_element_by_css_selector("[type=submit]")
-    submit_button.click()
+    submit_button = driver.wait_for_xpath(
+        '//*[@name="editExistingFollowupRequestSubmitButton"]')
+    driver.execute_script("arguments[0].click();", submit_button)
     try:
         driver.wait_for_xpath("//td[contains(.,'5')]")
     except:
@@ -162,7 +165,8 @@ def test_delete_followup_request(
         driver.execute_script("arguments[0].scrollIntoView();", instrument_select_element)
         instrument_select.select_by_visible_text("P60 Camera")
 
-    submit_button = driver.find_element_by_css_selector("[type=submit]")
+    submit_button = driver.wait_for_xpath(
+        '//*[@name="createNewFollowupRequestSubmitButton"]')
     driver.execute_script("arguments[0].scrollIntoView();", submit_button)
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//input[@name="start_date"]')
@@ -213,7 +217,8 @@ def test_cannot_edit_uneditable_followup_request(
         driver.execute_script("arguments[0].scrollIntoView();", instrument_select_element)
         instrument_select.select_by_visible_text("ALFOSC")
 
-    submit_button = driver.find_element_by_css_selector("[type=submit]")
+    submit_button = driver.wait_for_xpath(
+        '//*[@name="createNewFollowupRequestSubmitButton"]')
     driver.execute_script("arguments[0].scrollIntoView();", submit_button)
     driver.wait_for_xpath(
         '//*[contains(.,"WARNING: You will not be able to edit or delete this request once submitted.")]'

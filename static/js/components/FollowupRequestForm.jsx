@@ -262,7 +262,7 @@ const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsPara
                 </select>
               </div>
               <br />
-              <input type="submit" />
+              <input type="submit" name={`${action}FollowupRequestSubmitButton`} />
             </div>
           )
         }
