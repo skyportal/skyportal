@@ -299,7 +299,6 @@ class PhotometryHandler(BaseHandler):
         # gapless (e.g., 1, 2, 3, 4, 5, ...) but they are guaranteed
         # to be unique in the table and thus can be used to "reserve"
         # PK slots for uninserted rows
-
         pkq = f"SELECT nextval('photometry_id_seq') FROM " \
               f"generate_series(1, {len(df)})"
 
