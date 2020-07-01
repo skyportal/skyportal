@@ -205,7 +205,7 @@ class PhotBaseFlexible(object):
     alert_id = fields.Field(description="Corresponding alert ID. If a record is "
                             "already present with identical alert ID, only the "
                             "groups list will be updated (other alert data assumed "
-                            "identical). If omitted, defaults to random integer.")
+                            "identical). Defaults to None.")
 
     group_ids = fields.List(fields.Integer(),
                             description="List of group IDs to which photometry "
@@ -331,7 +331,7 @@ class PhotBase(object):
     alert_id = fields.Integer(description="Corresponding alert ID. If a record is "
                               "already present with identical alert ID, only the "
                               "groups list will be updated (other alert data assumed "
-                              "identical). If omitted, defaults to random integer.",
+                              "identical). Defaults to None.",
                               missing=None, default=None)
 
     altdata = fields.Dict(description='Misc. alternative metadata.',
