@@ -29,7 +29,7 @@ const useStyles = makeStyles((theme) => ({
   },
   appBar: {
     position: "fixed",
-    zIndex: 100,
+    zIndex: 150,
     transition: theme.transitions.create(['margin', 'width'], {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
