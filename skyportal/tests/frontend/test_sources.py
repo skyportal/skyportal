@@ -28,8 +28,18 @@ def test_comments(driver, user, public_source):
     comment_box.send_keys(comment_text)
     driver.scroll_to_element_and_click(
         driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
-    driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
-    driver.wait_for_xpath('//span[text()="a few seconds ago"]')
+    try:
+        driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+        driver.wait_for_xpath('//span[text()="a few seconds ago"]')
+    except:
+        driver.refresh()
+        comment_box = driver.wait_for_xpath("//input[@name='text']")
+        comment_text = str(uuid.uuid4())
+        comment_box.send_keys(comment_text)
+        driver.scroll_to_element_and_click(
+            driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
+        driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+        driver.wait_for_xpath('//span[text()="a few seconds ago"]')
 
 
 def test_comment_groups_validation(driver, user, public_source):
