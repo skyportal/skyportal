@@ -86,7 +86,7 @@ class CommentHandler(BaseHandler):
         data = self.get_json()
         obj_id = data['obj_id']
         # Ensure user/token has access to parent source
-        _ = Source.get_if_owned_by(obj_id, self.current_user)
+        _ = Source.get_obj_if_owned_by(obj_id, self.current_user)
         user_group_ids = [g.id for g in self.current_user.groups]
         group_ids = data.pop("group_ids", user_group_ids)
         group_ids = [gid for gid in group_ids if gid in user_group_ids]
