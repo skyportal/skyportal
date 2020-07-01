@@ -1,0 +1,148 @@
+drop_tables: true
+create_tables: true
+print_tables: true
+create_permissions: true
+users:
+  - username: testadmin@cesium-ml.org
+    role_ids:
+      - Super admin
+    tokens:
+      - name: "load_demo_data token"
+        permissions:
+          - "Manage groups"
+          - "Manage sources"
+          - "Upload data"
+          - "Comment"
+          - "Post Taxonomy"
+          - "Manage users"
+          - "System admin"
+  - username: groupadmin@cesium-ml.org
+    role_ids:
+      - Group admin
+  - username: fulluser@cesium-ml.org
+    role_ids:
+      - Full user
+  - username: viewonlyuser@cesium-ml.org
+    role_ids:
+      - View only
+groups:
+  - name: Program A
+    group_admins:
+      - testadmin@cesium-ml.org
+      - groupadmin@cesium-ml.org
+    token: "load_demo_data token"
+    members:
+      - username: viewonlyuser@cesium-ml.org
+        admin: false
+      - username: fulluser@cesium-ml.org
+        admin: false
+    filters:
+      - query_string: "sample_query_string"
+        name: "example filter"
+  - name: Program B
+    group_admins:
+      - testadmin@cesium-ml.org
+      - groupadmin@cesium-ml.org
+    token: "load_demo_data token"
+telescopes:
+  - name: Palomar 1.5m
+    nickname: P60
+    lat: 33.3633675
+    lon: -116.8361345
+    elevation: 1870
+    diameter: 1.5
+    skycam: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+    group_names:
+      - Program A
+    token: "load_demo_data token"
+  - name: Nordic Optical Telescope
+    nickname: NOT
+    lat: 28.75
+    lon: 17.88
+    elevation: 1870
+    diameter: 2.56
+    skycam: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
+    group_names:
+      - Program A
+    token: "load_demo_data token"
+instruments:
+  - name: P60 Camera
+    type: phot
+    band: V
+    telescope_nickname: P60
+    filters: ["ztfg", "ztfr", "ztfi"]
+    token: "load_demo_data token"
+  - name: ALFOSC
+    type: both
+    band: V
+    telescope_nickname: NOT
+    token: "load_demo_data token"
+sources:
+  - id: 14gqr
+    candidate:
+      candidate_filters:
+        - "example filter"
+    unsaved_candidate_copy:
+      candidate_id: 14gqr_unsaved_copy
+      candidate_filters:
+        - "example filter"
+    photometry:
+      data: "skyportal/tests/data/phot.csv"
+      instrument_name: P60 Camera
+    spectroscopy:
+      data: "skyportal/tests/data/spec.csv"
+      instrument_name: ALFOSC
+      observed_at: 2019-10-24T00:00:00
+    ra: 353.36647
+    dec: 33.646149
+    redshift: 0.063
+    altdata:
+      simbad:
+        class: RRLyr
+    group_names:
+      - Program A
+    comments:
+      - "No source at transient location to R>26 in LRIS imaging"
+      - "Strong calcium lines have emerged."
+    thumbnails:
+      new: skyportal/tests/data/14gqr_new.png
+      ref: skyportal/tests/data/14gqr_ref.png
+      sub: skyportal/tests/data/14gqr_sub.png
+    token: "load_demo_data token"
+  - id: 16fil
+    candidate:
+      candidate_filters:
+        - "example filter"
+    unsaved_candidate_copy:
+      candidate_id: 16fil_unsaved_copy
+      candidate_filters:
+        - "example filter"
+    photometry:
+      data: "skyportal/tests/data/phot.csv"
+      instrument_name: P60 Camera
+    spectroscopy:
+      data: "skyportal/tests/data/spec.csv"
+      instrument_name: ALFOSC
+      observed_at: 2019-10-24T00:00:00
+    ra: 322.718872
+    dec: 27.574113
+    redshift: 0.0
+    altdata:
+      simbad:
+        class: RRLyr
+    group_names:
+      - Program A
+    comments:
+      - "Frogs in the pond"
+      - "The eagle has landed"
+    token: "load_demo_data token"
+taxonomies:
+  - name: Demo taxonomy
+    tdtax: true
+    version: latest
+    provenance: https://github.com/profjsb/timedomain-taxonomy
+    token: "load_demo_data token"
+    groups:
+      - Program A
+      - Program B
+
