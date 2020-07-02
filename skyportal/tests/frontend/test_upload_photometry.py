@@ -88,9 +88,9 @@ def test_upload_photometry_with_altdata(
     driver.get(f"/upload_photometry/{public_source.id}")
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
     csv_text_input.send_keys(
-        "mjd,flux,fluxerr,zp,magsys,filter,altdata.meta1\n"
-        "58001,55,1,25,ab,ztfg,44.4\n"
-        "58002,53,1,25,ab,ztfg,44.2"
+        "mjd,flux,fluxerr,zp,magsys,filter,altdata.meta1,altdata.meta2\n"
+        "58001,55,1,25,ab,ztfg,44.4,\"abc,abc\"\n"
+        "58002,53,1,25,ab,ztfg,44.2,\"edf,edf\""
     )
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
     driver.wait_for_xpath(f'//span[text()="P60 Camera (ID: {inst_id})"]').click()
