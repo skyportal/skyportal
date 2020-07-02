@@ -1,4 +1,5 @@
 import uuid
+import time
 
 from skyportal.tests import api
 
@@ -62,27 +63,59 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
     assert next_button.is_enabled()
     assert not prev_button.is_enabled()
     driver.scroll_to_element_and_click(next_button)
-    assert prev_button.is_enabled()
+    try:
+        assert prev_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert prev_button.is_enabled()
+
     next_button.click()
-    assert not next_button.is_enabled()
+    try:
+        assert not next_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert not next_button.is_enabled()
     prev_button.click()
-    assert next_button.is_enabled()
+    try:
+        assert next_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert next_button.is_enabled()
     prev_button.click()
-    assert not prev_button.is_enabled()
+    try:
+        assert not prev_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert not prev_button.is_enabled()
     # Jump to page
     jump_to_page_input = driver.wait_for_xpath("//input[@name='jumpToPageInputField']")
     jump_to_page_input.clear()
     jump_to_page_input.send_keys('3')
     jump_to_page_button = driver.wait_for_xpath('//button[contains(.,"Jump to page:")]')
     jump_to_page_button.click()
-    #driver.wait_for_xpath('//div[contains(text(), "Displaying 1-100")]')
-    assert prev_button.is_enabled()
-    assert not next_button.is_enabled()
+    try:
+        assert prev_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert prev_button.is_enabled()
+    try:
+        assert not next_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert not next_button.is_enabled()
     jump_to_page_input.clear()
     jump_to_page_input.send_keys('1')
     jump_to_page_button.click()
-    assert next_button.is_enabled()
-    assert not prev_button.is_enabled()
+    try:
+        assert next_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert next_button.is_enabled()
+    try:
+        assert not prev_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert not prev_button.is_enabled()
     # Source filtering
     assert next_button.is_enabled()
     obj_id = driver.wait_for_xpath("//input[@name='sourceID']")
@@ -90,7 +123,11 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
     obj_id.send_keys('aaaa')
     submit = driver.wait_for_xpath("//button[contains(.,'Submit')]")
     driver.scroll_to_element_and_click(submit)
-    assert not next_button.is_enabled()
+    try:
+        assert not next_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert not next_button.is_enabled()
 
 
 def test_jump_to_page_invalid_values(driver):
