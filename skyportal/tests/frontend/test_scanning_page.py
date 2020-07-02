@@ -204,10 +204,17 @@ def test_save_candidate_quick_save(
         f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
     )
     driver.scroll_to_element_and_click(save_button)
-    driver.wait_for_xpath_to_disappear(
-        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
-    )
-    driver.wait_for_xpath('//a[text()="Previously Saved"]')
+    try:
+        driver.wait_for_xpath_to_disappear(
+            f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
+        )
+        driver.wait_for_xpath('//a[text()="Previously Saved"]')
+    except:
+        driver.refresh()
+        driver.wait_for_xpath_to_disappear(
+            f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
+        )
+        driver.wait_for_xpath('//a[text()="Previously Saved"]')
 
 
 def test_save_candidate_select_groups(
@@ -236,10 +243,17 @@ def test_save_candidate_select_groups(
         f'//button[@name="finalSaveCandidateButton{public_candidate.id}"]'
     )
     second_save_button.click()
-    driver.wait_for_xpath_to_disappear(
-        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
-    )
-    driver.wait_for_xpath('//a[text()="Previously Saved"]')
+    try:
+        driver.wait_for_xpath_to_disappear(
+            f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
+        )
+        driver.wait_for_xpath('//a[text()="Previously Saved"]')
+    except:
+        driver.refresh()
+        driver.wait_for_xpath_to_disappear(
+            f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
+        )
+        driver.wait_for_xpath('//a[text()="Previously Saved"]')
 
 
 def test_save_candidate_no_groups_error_message(
