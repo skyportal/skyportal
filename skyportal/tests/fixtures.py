@@ -104,16 +104,19 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
         instruments = [InstrumentFactory(), InstrumentFactory()]
         filters = ['ztfg', 'ztfr', 'ztfi']
         for instrument, filter in islice(zip(cycle(instruments), cycle(filters)), 10):
+            np.random.seed()
             phot1 = PhotometryFactory(obj_id=obj.id,
                                       instrument=instrument,
                                       filter=filter,
-                                      groups=passed_groups)
+                                      groups=passed_groups,
+                                      alert_id=np.random.randint(100, 9223372036854775807))
             DBSession().add(phot1)
             DBSession().add(PhotometryFactory(obj_id=obj.id, flux=99.,
                                               fluxerr=99.,
                                               instrument=instrument,
                                               filter=filter,
-                                              groups=passed_groups))
+                                              groups=passed_groups,
+                                              alert_id=np.random.randint(100, 9223372036854775807)))
 
             DBSession().add(ThumbnailFactory(photometry=phot1))
             DBSession().add(CommentFactory(obj_id=obj.id, groups=passed_groups))

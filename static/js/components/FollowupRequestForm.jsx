@@ -3,6 +3,11 @@ import { useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
 import DatePicker from 'react-datepicker';
 import { useForm, Controller } from 'react-hook-form';
+import Select from "@material-ui/core/Select";
+import InputLabel from "@material-ui/core/InputLabel";
+import FormControl from "@material-ui/core/FormControl";
+import MenuItem from "@material-ui/core/MenuItem";
+import { makeStyles } from "@material-ui/core/styles";
 
 import * as Actions from '../ducks/source';
 import FormValidationError from './FormValidationError';
@@ -82,6 +87,14 @@ const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsPara
     }
   };
 
+  const useStyles = makeStyles((theme) => ({
+    formControl: {
+      margin: theme.spacing(1),
+      minWidth: 120,
+    }
+  }));
+  const classes = useStyles();
+
   return (
     <div>
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -89,22 +102,28 @@ const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsPara
           {title}
         </h3>
         <div>
-          <label>
-            Select Instrument:&nbsp;
-          </label>
-          <select
-            name="instrument_id"
-            ref={register({ required: true })}
-            onChange={handleSelectedInstrumentChange}
-          >
-            {
-              instrumentList.map((instrument) => (
-                <option value={instrument.id} key={instrument.id}>
-                  {instrument.name}
-                </option>
-              ))
-            }
-          </select>
+          <FormControl className={classes.formControl}>
+            <InputLabel id="instrumentSelectLabel">
+              Instrument
+            </InputLabel>
+            <Controller
+              as={(
+                <Select labelId="instrumentSelectLabel">
+                  {
+                    instrumentList.map((instrument) => (
+                      <MenuItem value={instrument.id} key={instrument.id}>
+                        {instrument.name}
+                      </MenuItem>
+                    ))
+                  }
+                </Select>
+              )}
+              name="instrument_id"
+              rules={{ required: true }}
+              control={control}
+              onChange={([e]) => handleSelectedInstrumentChange(e)}
+            />
+          </FormControl>
         </div>
         {
           (formState.instrument_id) && (
@@ -262,7 +281,7 @@ const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsPara
                 </select>
               </div>
               <br />
-              <input type="submit" />
+              <input type="submit" name={`${action}FollowupRequestSubmitButton`} />
             </div>
           )
         }
