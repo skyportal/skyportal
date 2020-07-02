@@ -13,7 +13,7 @@
     "bokehjs": "0.12.9",
     "check-dependencies": "1.1.0",
     "clsx": "1.1.1",
-    "css-loader": "3.5.3",
+    "css-loader": "3.6.0",
     "dayjs": "1.8.28",
     "exports-loader": "0.7.0",
     "imports-loader": "0.8.0",
