@@ -173,7 +173,7 @@ class SourceHandler(BaseHandler):
                 register_source_view(obj_id=obj_id,
                                      username_or_token_id=self.current_user.id,
                                      is_token=True)
-            s = Source.get_if_owned_by(  # Returns Source.obj
+            s = Source.get_obj_if_owned_by(  # Returns Source.obj
                 obj_id, self.current_user,
                 options=[joinedload(Source.obj)
                          .joinedload(Obj.followup_requests)
@@ -339,7 +339,7 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        s = Source.get_if_owned_by(obj_id, self.current_user)
+        s = Source.get_obj_if_owned_by(obj_id, self.current_user)
         data = self.get_json()
         data['id'] = obj_id
 
@@ -500,7 +500,7 @@ class SourceOffsetsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_if_owned_by(obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
         if source is None:
             return self.error('Invalid source ID.')
 
@@ -612,7 +612,7 @@ class SourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_if_owned_by(obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
         if source is None:
             return self.error('Invalid source ID.')
 

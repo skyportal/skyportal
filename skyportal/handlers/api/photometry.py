@@ -40,7 +40,8 @@ def serialize(phot, outsys, format):
         'mjd': phot.mjd,
         'instrument_id': phot.instrument_id,
         'ra_unc': phot.ra_unc,
-        'dec_unc': phot.dec_unc
+        'dec_unc': phot.dec_unc,
+        'alert_id': phot.alert_id
     }
 
     filter = phot.filter
@@ -136,6 +137,7 @@ class PhotometryHandler(BaseHandler):
         if not isinstance(data, dict):
             return self.error('Top level JSON must be an instance of `dict`, got '
                               f'{type(data)}.')
+
         if "altdata" in data and not data["altdata"]:
             del data["altdata"]
 
@@ -168,6 +170,15 @@ class PhotometryHandler(BaseHandler):
             if not all([group in self.current_user.groups for group in groups]):
                 return self.error("Cannot upload photometry to groups that you "
                                   "are not a member of.")
+        if "alert_id" in data:
+            phot = Photometry.query.filter(
+                Photometry.alert_id == data["alert_id"]
+            ).filter(Photometry.alert_id.isnot(None)).first()
+            if phot is not None:
+                phot.groups = groups
+                DBSession().commit()
+                return self.success(data={"ids": [phot.id],
+                                          "upload_id": phot.upload_id})
 
         if allscalar(data):
             data = [data]

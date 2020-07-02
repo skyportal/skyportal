@@ -146,7 +146,7 @@ class CandidateHandler(BaseHandler):
                   schema: Error
         """
         if obj_id is not None:
-            c = Candidate.get_if_owned_by(
+            c = Candidate.get_obj_if_owned_by(
                 obj_id,
                 self.current_user,
                 options=[joinedload(Candidate.obj)
@@ -375,7 +375,7 @@ class CandidateHandler(BaseHandler):
                 schema: Error
         """
         # Ensure user has access to candidate
-        c = Candidate.get_if_owned_by(obj_id, self.current_user)
+        c = Candidate.get_obj_if_owned_by(obj_id, self.current_user)
         if c is None:
             return self.error("Invalid ID.")
         data = self.get_json()

@@ -33,7 +33,7 @@ class FollowupRequestHandler(BaseHandler):
                               description: New follow-up request ID
         """
         data = self.get_json()
-        _ = Source.get_if_owned_by(data["obj_id"], self.current_user)
+        _ = Source.get_obj_if_owned_by(data["obj_id"], self.current_user)
         data["start_date"] = arrow.get(data["start_date"]).datetime
         data["end_date"] = arrow.get(data["end_date"]).datetime
         data["requester_id"] = self.associated_user_object.id
@@ -75,7 +75,7 @@ class FollowupRequestHandler(BaseHandler):
                 schema: Error
         """
         followup_request = FollowupRequest.query.get(request_id)
-        _ = Source.get_if_owned_by(followup_request.obj_id, self.current_user)
+        _ = Source.get_obj_if_owned_by(followup_request.obj_id, self.current_user)
         data = self.get_json()
         data['id'] = request_id
         data["requester_id"] = self.current_user.id
