@@ -307,10 +307,10 @@ class SourceView(Base):
 class Telescope(Base):
     name = sa.Column(sa.String, nullable=False)
     nickname = sa.Column(sa.String, nullable=False)
-    lat = sa.Column(sa.Float, nullable=False)
-    lon = sa.Column(sa.Float, nullable=False)
-    elevation = sa.Column(sa.Float, nullable=False)
-    diameter = sa.Column(sa.Float, nullable=False)
+    lat = sa.Column(sa.Float, nullable=True)
+    lon = sa.Column(sa.Float, nullable=True)
+    elevation = sa.Column(sa.Float, nullable=True)
+    diameter = sa.Column(sa.Float, nullable=True)
 
     groups = relationship('Group', secondary='group_telescopes')
     instruments = relationship('Instrument', back_populates='telescope',
@@ -355,7 +355,7 @@ class Instrument(Base):
     spectra = relationship('Spectrum', back_populates='instrument')
 
     # can be [] if an instrument is spec only
-    filters = sa.Column(ArrayOfEnum(allowed_bandpasses), nullable=False,
+    filters = sa.Column(ArrayOfEnum(allowed_bandpasses), nullable=True,
                         default=[])
 
 
