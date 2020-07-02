@@ -146,7 +146,11 @@ def test_delete_comment(driver, user, public_source):
     ActionChains(driver).move_to_element(comment_div).perform()
     time.sleep(0.2)
     driver.execute_script("arguments[0].click();", delete_button)
-    driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
+    try:
+        driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
+    except:
+        driver.refresh()
+        driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
 
 
 def test_regular_user_cannot_delete_unowned_comment(driver, super_admin_user,
