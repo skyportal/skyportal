@@ -236,3 +236,11 @@ def comment_token(user):
         permissions=["Comment"], created_by_id=user.id, name=str(uuid.uuid4())
     )
     return token_id
+
+@pytest.fixture()
+def taxonomy_token(user):
+    token_id = create_token(
+        permissions=["Post Taxonomy", "Delete Taxonomy"],
+        created_by_id=user.id, name=str(uuid.uuid4())
+    )
+    return token_id
