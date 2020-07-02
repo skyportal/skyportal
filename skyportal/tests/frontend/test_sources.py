@@ -59,8 +59,13 @@ def test_comment_groups_validation(driver, user, public_source):
     driver.wait_for_xpath_to_disappear('//div[contains(.,"Select at least one group")]')
     driver.scroll_to_element_and_click(
         driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
-    driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
-    driver.wait_for_xpath('//span[text()="a few seconds ago"]')
+    try:
+        driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+        driver.wait_for_xpath('//span[text()="a few seconds ago"]')
+    except:
+        driver.refresh()
+        driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+        driver.wait_for_xpath('//span[text()="a few seconds ago"]')
 
 
 def test_upload_comment_attachment(driver, user, public_source):
@@ -75,8 +80,13 @@ def test_upload_comment_attachment(driver, user, public_source):
                                     'data', 'spec.csv'))
     driver.scroll_to_element_and_click(
         driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
-    driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
-    driver.wait_for_xpath('//a[text()="spec.csv"]')
+    try:
+        driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+        driver.wait_for_xpath('//a[text()="spec.csv"]')
+    except:
+        driver.refresh()
+        driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+        driver.wait_for_xpath('//a[text()="spec.csv"]')
 
 
 def test_download_comment_attachment(driver, user, public_source):
@@ -133,7 +143,11 @@ def test_delete_comment(driver, user, public_source):
     comment_box.send_keys(comment_text)
     driver.scroll_to_element_and_click(
         driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
-    comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+    try:
+        comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+    except:
+        driver.refresh()
+        comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     comment_div = comment_text_div.find_element_by_xpath("..")
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
     delete_button = comment_div.find_element_by_xpath(
@@ -157,7 +171,11 @@ def test_regular_user_cannot_delete_unowned_comment(driver, super_admin_user,
     comment_box.send_keys(comment_text)
     submit_button = driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
     submit_button.click()
-    comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+    try:
+        comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+    except:
+        driver.refresh()
+        comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
@@ -180,7 +198,11 @@ def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
     comment_box.send_keys(comment_text)
     driver.scroll_to_element_and_click(
         driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
-    comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+    try:
+        comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+    except:
+        driver.refresh()
+        comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.refresh()
@@ -191,7 +213,11 @@ def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
         f"//*[@name='deleteCommentButton{comment_id}']")
     ActionChains(driver).move_to_element(comment_div).perform()
     driver.execute_script("arguments[0].click();", delete_button)
-    driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
+    try:
+        driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
+    except:
+        driver.refresh()
+        driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
 
 
 def test_show_starlist(driver, user, public_source):
