@@ -18,6 +18,7 @@ import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
 import Typography from "@material-ui/core/Typography";
 import { makeStyles, withStyles, useTheme } from "@material-ui/core/styles";
 import { useForm, Controller } from "react-hook-form";
+import PapaParse from "papaparse";
 
 import FormValidationError from "./FormValidationError";
 import * as Actions from "../ducks/source";
@@ -57,6 +58,11 @@ const UploadPhotometryForm = () => {
   const { handleSubmit, errors, reset, control, getValues } = useForm();
   let formState = getValues();
 
+  const parseOptions = {
+    skipEmptyLines: "greedy",
+    delimitersToGuess: [",", "\t", " ", "|", ";", PapaParse.RECORD_SEP, PapaParse.UNIT_SEP]
+  };
+
   const validateCsvData = () => {
     setShowPreview(false);
     setCsvData({});
@@ -65,10 +71,7 @@ const UploadPhotometryForm = () => {
     if (!formState.csvData) {
       return "Missing CSV data";
     }
-    const delim = new RegExp(formState.delimiter);
-    let [header, ...dataRows] = formState.csvData.trim().split("\n");
-    header = header.split(delim);
-    dataRows = dataRows.map((row) => row.split(delim));
+    const [header, ...dataRows] = PapaParse.parse(formState.csvData.trim(), parseOptions).data;
     const headerLength = header.length;
     if (!(headerLength >= 2)) {
       return "Invalid input: Too few columns";
@@ -113,10 +116,7 @@ const UploadPhotometryForm = () => {
   };
 
   const handleClickPreview = async (data) => {
-    let [header, ...dataRows] = data.csvData.trim().split("\n");
-    const delim = new RegExp(data.delimiter);
-    header = header.split(delim);
-    dataRows = dataRows.map((row) => row.split(delim));
+    const [header, ...dataRows] = PapaParse.parse(data.csvData.trim(), parseOptions).data;
     setCsvData({
       columns: header,
       data: dataRows
@@ -126,7 +126,6 @@ const UploadPhotometryForm = () => {
 
   const handleReset = () => {
     reset({
-      delimiter: ",",
       csvData: "",
       instrumentID: "",
       groupIDs: []
@@ -243,28 +242,6 @@ const UploadPhotometryForm = () => {
               </FormControl>
             </Box>
             <Box m={1} style={{ display: "inline-block" }}>
-              <Box component="span" m={1}>
-                <FormControl className={classes.formControl}>
-                  <InputLabel id="delimiter-label">Delimiter</InputLabel>
-                  <Controller
-                    as={(
-                      <Select labelId="delimiter-label">
-                        <MenuItem value=",">
-                          Comma
-                        </MenuItem>
-                        <MenuItem value={`\\s+`}>
-                          Whitespace
-                        </MenuItem>
-                      </Select>
-                    )}
-                    name="delimiter"
-                    control={control}
-                    rules={{ required: true }}
-                    defaultValue=","
-                  />
-                </FormControl>
-              </Box>
-              <br />
               <Box display="flex" alignItems="center">
                 <Box component="span" m={1}>
                   <font size="small">
