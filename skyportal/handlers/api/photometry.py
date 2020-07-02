@@ -340,7 +340,6 @@ class PhotometryHandler(BaseHandler):
                         ra=packet['ra'],
                         dec=packet['dec'])
 
-
             params.append(phot)
 
         #  actually do the insert

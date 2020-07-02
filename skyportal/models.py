@@ -1,3 +1,4 @@
+import arrow
 import uuid
 import re
 from datetime import datetime
@@ -10,6 +11,8 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import ArrowType
+
+from astropy.time import Time
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
@@ -123,7 +126,6 @@ class Obj(Base):
     # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
     altdata = sa.Column(JSONB, nullable=True)
 
-    last_detected = sa.Column(ArrowType, nullable=True)
     dist_nearest_source = sa.Column(sa.Float, nullable=True)
     mag_nearest_source = sa.Column(sa.Float, nullable=True)
     e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
@@ -158,6 +160,17 @@ class Obj(Base):
                               cascade='save-update, merge, refresh-expire, expunge')
 
     followup_requests = relationship('FollowupRequest', back_populates='obj')
+
+    @hybrid_property
+    def last_detected(self):
+        return max(phot.iso for phot in self.photometry if phot.detected)
+
+    @last_detected.expression
+    def last_detected(cls):
+        return sa.select([sa.func.max(Photometry.iso)]) \
+                 .where(Photometry.obj_id == cls.id) \
+                 .group_by(Photometry.obj_id) \
+                 .label('last_detected')
 
     def add_linked_thumbnails(self):
         sdss_thumb = Thumbnail(photometry=self.photometry[0],
@@ -453,6 +466,9 @@ class Photometry(Base):
     ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
     dec_unc = sa.Column(sa.Float, doc="Uncertainty of dec position [arcsec]")
 
+    detected = sa.Column(sa.Boolean, default=True, nullable=False,
+                         doc='Whether the photometry point is a detection.')
+
     original_user_data = sa.Column(JSONB, doc='Original data passed by the user '
                                               'through the PhotometryHandler.POST '
                                               'API or the PhotometryHandler.PUT '
@@ -474,6 +490,8 @@ class Photometry(Base):
                               nullable=False, index=True)
     instrument = relationship('Instrument', back_populates='photometry')
     thumbnails = relationship('Thumbnail', passive_deletes=True)
+
+
 
     @hybrid_property
     def mag(self):
@@ -508,6 +526,20 @@ class Photometry(Base):
             ],
             else_=None
         )
+
+    @hybrid_property
+    def jd(self):
+        return self.mjd + 2_400_000.5
+
+    @hybrid_property
+    def iso(self):
+        return arrow.get((self.mjd - 40_587.5) * 86400.)
+
+    @iso.expression
+    def iso(cls):
+        # converts MJD to unix timestamp
+        local = sa.func.to_timestamp((cls.mjd - 40_587.5) * 86400.)
+        return sa.func.timezone('UTC', local)
 
 
 GroupPhotometry = join_model("group_photometry", Group, Photometry)
