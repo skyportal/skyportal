@@ -1,6 +1,5 @@
 import os
 from os.path import join as pjoin
-import time
 import uuid
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
@@ -96,19 +95,15 @@ def test_download_comment_attachment(driver, user, public_source):
     comment_div = comment_text_div.find_element_by_xpath("..")
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
-    time.sleep(0.1)
     download_link = driver.wait_for_xpath_to_be_clickable('//a[text()="spec.csv"]')
     driver.execute_script("arguments[0].click();", download_link)
-    time.sleep(1)
     fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'spec.csv')))
     try_count = 1
     while not os.path.exists(fpath) and try_count <= 3:
         try_count += 1
         driver.execute_script("arguments[0].scrollIntoView();", comment_div)
         ActionChains(driver).move_to_element(comment_div).perform()
-        time.sleep(0.1)
         driver.execute_script("arguments[0].click();", download_link)
-        time.sleep(1)
         if os.path.exists(fpath):
             break
     else:
@@ -144,7 +139,6 @@ def test_delete_comment(driver, user, public_source):
     delete_button = comment_div.find_element_by_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']")
     ActionChains(driver).move_to_element(comment_div).perform()
-    time.sleep(0.2)
     driver.execute_script("arguments[0].click();", delete_button)
     try:
         driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
@@ -173,7 +167,6 @@ def test_regular_user_cannot_delete_unowned_comment(driver, super_admin_user,
         f"//*[@name='deleteCommentButton{comment_id}']")
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
-    time.sleep(0.1)
     assert not delete_button.is_displayed()
 
 
@@ -197,7 +190,6 @@ def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
     delete_button = comment_div.find_element_by_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']")
     ActionChains(driver).move_to_element(comment_div).perform()
-    time.sleep(0.2)
     driver.execute_script("arguments[0].click();", delete_button)
     driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
 
