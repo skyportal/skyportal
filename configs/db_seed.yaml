@@ -14,6 +14,7 @@ users:
           - "Upload data"
           - "Post Taxonomy"
           - "Manage users"
+          - "System admin"
 groups:
   - name: Sitewide Group
     group_admins:
@@ -21,8 +22,12 @@ groups:
     token: "db_seed token"
 telescopes:
   file: configs/telescopes.yaml
+  token: "db_seed token"
+  group_names:
+    - Sitewide Group
 instruments:
   file: configs/instruments.yaml
+  token: "db_seed token"
 taxonomies:
   - name: Sitewide taxonomy
     tdtax: true

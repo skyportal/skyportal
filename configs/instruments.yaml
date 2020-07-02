@@ -259,12 +259,14 @@
   name: DECam
   telescope_id: CTIO-4m
   type: imager
-  filters: ['desu', 'desg', 'desr', 'desi', 'desz', 'desy']
+  # TODO: make a PR to sncosmo to include desu ... substituting sdssu for now
+  filters: ['sdssu', 'desg', 'desr', 'desi', 'desz', 'desy']
 - band: ir
   name: VIRCAM
   telescope_id: VISTA
   type: imager
-  filters: ['sdssz', 'desy', 'cspj', 'csphs', 'cspk']
+  # ADDED s to 'cspjs'
+  filters: ['sdssz', 'desy', 'cspjs', 'csphs', 'cspk']
 - band: optical
   name: OMEGACAM
   telescope_id: VISTA

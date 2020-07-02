@@ -8,6 +8,7 @@ users:
       - Super admin
     tokens:
       - name: "load_demo_data token"
+        print: true
         permissions:
           - "Manage groups"
           - "Manage sources"
@@ -59,7 +60,7 @@ telescopes:
     nickname: NOT
     lat: 28.75
     lon: 17.88
-    elevation: 1870
+    elevation: 2000
     diameter: 2.56
     skycam: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
     group_names:
@@ -86,13 +87,16 @@ sources:
       candidate_id: 14gqr_unsaved_copy
       candidate_filters:
         - "example filter"
+      comments:
+        - "No source at transient location to R>26 in LRIS imaging"
+        - "Strong calcium lines have emerged."
     photometry:
       data: "skyportal/tests/data/phot.csv"
       instrument_name: P60 Camera
     spectroscopy:
       data: "skyportal/tests/data/spec.csv"
       instrument_name: ALFOSC
-      observed_at: 2019-10-24T00:00:00
+      observed_at: "2019-10-24T00:00:00"
     ra: 353.36647
     dec: 33.646149
     redshift: 0.063
@@ -117,13 +121,16 @@ sources:
       candidate_id: 16fil_unsaved_copy
       candidate_filters:
         - "example filter"
+      comments:
+        - "Dogs in the park"
+        - "Birds are not real"
     photometry:
       data: "skyportal/tests/data/phot.csv"
       instrument_name: P60 Camera
     spectroscopy:
       data: "skyportal/tests/data/spec.csv"
       instrument_name: ALFOSC
-      observed_at: 2019-10-24T00:00:00
+      observed_at: "2019-10-24T00:00:00"
     ra: 322.718872
     dec: 27.574113
     redshift: 0.0

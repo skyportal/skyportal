@@ -1,18 +1,21 @@
 import os
 import sys
 import subprocess
+import base64
 from pathlib import Path
 from pathlib import PurePosixPath
 import signal
 import requests
 
+import pandas as pd
 import yaml
+from yaml import Loader
 import tdtax
 from social_tornado.models import TornadoStorage
 
 from baselayer.app.env import load_env
 from baselayer.app.model_util import status, create_tables, drop_tables
-from skyportal.models import Base, init_db, DBSession, User
+from skyportal.models import Base, init_db, Obj, DBSession, User
 from skyportal.model_util import setup_permissions, create_token
 from skyportal.tests import api
 from baselayer.tools.test_frontend import verify_server_availability
@@ -33,8 +36,7 @@ if __name__ == "__main__":
 
     if cfg['data_load'][data_source].get("file") is not None:
         fname = str(topdir / cfg['data_load'][data_source]["file"])
-        print(fname)
-        src = yaml.load(open(fname, "r"))
+        src = yaml.load(open(fname, "r"), Loader=Loader)
     else:
         src =cfg['data_load'][data_source]
 
@@ -82,6 +84,8 @@ if __name__ == "__main__":
                         users_dict[u["username"]],
                         t["name"]
                     )
+                    if t.get("print", False):
+                        print(t["name"], tokens[t["name"]])
 
     def assert_post(endpoint, data, token):
         response_status, data = api("POST", endpoint, data, token)
@@ -113,6 +117,7 @@ if __name__ == "__main__":
                 with status("Creating groups"):
                     group_ids = []
                     group_dict = {}
+                    filter_dict = {}
                     for g in src.get('groups', []):
                         data = assert_post(
                             "groups",
@@ -125,6 +130,23 @@ if __name__ == "__main__":
                         group_ids.append(data["data"]["id"])
                         group_dict[g["name"]] = group_ids[-1]
 
+                        for f in g.get("filters", []):
+                            data = assert_post(
+                                "filters",
+                                {
+                                    "group_id": group_ids[-1],
+                                    "query_string": f["query_string"]
+                                },
+                                tokens[g["token"]]
+                            )
+                            filter_dict[f["name"]] = data["data"]["id"]
+
+                        for m in g.get("members", []):
+                            data = assert_post(
+                                f"groups/{group_ids[-1]}/users/{m['username']}",
+                                {"admin": m.get('admin', False)},
+                                tokens[g["token"]]
+                            )
             if src.get("taxonomies") is not None:
                 with status("Creating Taxonomies"):
 
@@ -142,42 +164,82 @@ if __name__ == "__main__":
 
                         group_ids = [group_dict[g] for g in tax["groups"]]
                         payload = {
-                                "name": name,
-                                "hierarchy": hierarchy,
-                                "group_ids": group_ids,
-                                "provenance": provenance,
-                                "version": version,
+                            "name": name,
+                            "hierarchy": hierarchy,
+                            "group_ids": group_ids,
+                            "provenance": provenance,
+                            "version": version,
                         }
                         data = assert_post(
                             "taxonomy",
                             payload,
                             tokens[tax["token"]]
-
                         )
             if src.get("telescopes") is not None:
                 with status("Creating telescopes"):
                     telescope_dict = {}
-                    for t in src.get("telescopes"):
-                        group_ids = [group_dict[g] for g in t["group_names"]]
+                    tel_src = src.get("telescopes")
+                    if isinstance(tel_src, dict) and \
+                            src["telescopes"].get("file") is not None:
+                        # we're asked to load a file containing telescopes
+                        fname = str(topdir / src["telescopes"]["file"])
+                        tel_src = yaml.load(open(fname, "r"), Loader=Loader)
+                        tel_group_ids = [group_dict[g] for g in
+                                         src["telescopes"]["group_names"]]
+                        tel_token = src["telescopes"]["token"]
+
+                    for t in tel_src:
+                        if t.get("group_names") is None:
+                            group_ids = tel_group_ids
+                        else:
+                            group_ids = [group_dict[g] for g in t["group_names"]]
+                        if t.get("nickname") is not None:
+                            nickname = t["nickname"]
+                        else:
+                            nickname = t["id"]
+                        if t.get("token") is not None:
+                            token_name = t["token"]
+                        else:
+                            token_name = tel_token
+
                         data = assert_post(
-                                "telescope",
-                                data={
-                                    "name": t["name"],
-                                    "nickname": t["nickname"],
-                                    "lat": t["lat"],
-                                    "lon": t["lon"],
-                                    "elevation": t.get("elevation", 0.0),
-                                    "diameter": t.get("elevation", 1.0),
-                                    "group_ids": group_ids
-                                },
-                                token=tokens[t["token"]]
+                            "telescope",
+                            data={
+                                "name": t["name"],
+                                "nickname": nickname,
+                                "lat": t.get("lat", 0.0),
+                                "lon": t.get("lon", 0.0),
+                                "elevation": t.get("elevation", 0.0),
+                                "diameter": t.get("diameter", 1.0),
+                                "group_ids": group_ids
+                            },
+                            token=tokens[token_name]
                         )
-                        telescope_dict[t["nickname"]] = data["data"]["id"]
+                        telescope_dict[nickname] = data["data"]["id"]
                 if src.get("instruments") is not None:
                     with status("Creating instruments"):
                         instrument_dict = {}
-                        for i in src.get("instruments"):
-                            telid = telescope_dict[i["telescope_nickname"]]
+                        ins_src = src.get("instruments")
+                        print(ins_src)
+                        if isinstance(ins_src, dict) and \
+                                src["instruments"].get("file") is not None:
+                            # we're asked to load a file containing telescopes
+                            fname = str(topdir / src["instruments"]["file"])
+                            ins_src = yaml.load(open(fname, "r"), Loader=Loader)
+                            ins_token = src["instruments"]["token"]
+
+                        for i in ins_src:
+                            if i.get("token") is not None:
+                                token_name = i["token"]
+                            else:
+                                token_name = ins_token
+
+                            if i.get("telescope_nickname") is not None:
+                                telname = i["telescope_nickname"]
+                            else:
+                                telname = i.get("telescope_id")
+                            telid = telescope_dict[telname]
+                            # print(telid, telname, token_name, tokens[token_name], group_ids)
                             data = assert_post(
                                 "instrument",
                                 data={
@@ -187,38 +249,130 @@ if __name__ == "__main__":
                                     "telescope_id": telid,
                                     "filters": i.get("filters", [])
                                 },
-                                token=tokens[i["token"]]
+                                token=tokens[token_name]
                             )
+                            print(i["name"], data)
                             instrument_dict[i["name"]] = data["data"]["id"]
             if src.get("sources") is not None:
                 with status("Loading Source and Candidates"):
                     (basedir / "static/thumbnails").mkdir(parents=True, exist_ok=True)
                     for s in src.get("sources"):
+                        sinfo = [{"id": s["id"], "ra": s["ra"],
+                                  "dec": s["dec"],
+                                  "redshift": s.get("redshift", 0.0),
+                                  "altdata": s.get("altdata", None),
+                                  "cand_filts": s["candidate"]["candidate_filters"],
+                                  "comments": s.get("comments", [])}]
+                        if s.get("unsaved_candidate_copy") is not None:
+                            sinfo.append(
+                                {"id": s["unsaved_candidate_copy"]["candidate_id"],
+                                 "ra": s["ra"],
+                                 "dec": s["dec"],
+                                 "redshift": s.get("redshift", 0.0),
+                                 "altdata": s.get("altdata", None),
+                                 "cand_filts": s["unsaved_candidate_copy"]["candidate_filters"],
+                                 "comments": s["unsaved_candidate_copy"].get("comments", [])}
+                            )
                         group_ids = [group_dict[g] for g in s["group_names"]]
-                        data = assert_post(
-                            "sources",
-                            data={
-                                  "id": s["id"],
-                                  "ra": s["ra"],
-                                  "dec": s["dec"],
-                                  "redshift": s.get("redshift", 0.0),
-                                  "altdata": s.get("altdata", None),
-                                  "group_ids": group_ids
-                                  },
-                            token=tokens[s["token"]]
-                        )
-                        data = assert_post(
-                            "candidates",
-                            data={
-                                  "id": s["id"],
-                                  "ra": s["ra"],
-                                  "dec": s["dec"],
-                                  "redshift": s.get("redshift", 0.0),
-                                  "altdata": s.get("altdata", None),
 
-                                  },
-                            token=tokens[s["token"]]
+                        if s.get("photometry") is not None:
+                            phot_file = basedir / s["photometry"]["data"]
+                            phot_data = pd.read_csv(phot_file)
+                            phot_instrument_name = s["photometry"]["instrument_name"]
 
+                        if s.get("spectroscopy") is not None:
+                            spec_file = basedir / s["spectroscopy"]["data"]
+                            spec_data = pd.read_csv(spec_file)
+                            spec_instrument_name = s["spectroscopy"]["instrument_name"]
+                            observed_at = s["spectroscopy"]["observed_at"]
+                            print(observed_at)
+                        for si in sinfo:
+                            data = assert_post(
+                                "sources",
+                                data={
+                                    "id": si["id"],
+                                    "ra": si["ra"],
+                                    "dec": si["dec"],
+                                    "redshift": si["redshift"],
+                                    "altdata": si["altdata"],
+                                    "group_ids": group_ids
+                                },
+                                token=tokens[s["token"]]
+                            )
+                            filter_ids = [filter_dict[f] for f in si["cand_filts"]]
+                            data = assert_post(
+                                "candidates",
+                                data={
+                                    "id": si["id"],
+                                    "ra": si["ra"],
+                                    "dec": si["dec"],
+                                    "redshift": si["redshift"],
+                                    "altdata": si["altdata"],
+                                    "filter_ids": filter_ids
+                                },
+                                token=tokens[s["token"]]
+                            )
+
+                            for comment in si["comments"]:
+                                data = assert_post(
+                                    "comment",
+                                    data={"obj_id": si["id"], "text": comment},
+                                    token=tokens[s["token"]]
+                                )
+
+                            if s.get("photometry") is not None:
+                                data = assert_post(
+                                    "photometry",
+                                    data={
+                                        "obj_id": si['id'],
+                                        "instrument_id":
+                                            instrument_dict[phot_instrument_name],
+                                        "mjd": phot_data.mjd.tolist(),
+                                        "flux": phot_data.flux.tolist(),
+                                        "fluxerr": phot_data.fluxerr.tolist(),
+                                        "zp": phot_data.zp.tolist(),
+                                        "magsys": phot_data.magsys.tolist(),
+                                        "filter": phot_data["filter"].tolist(),
+                                        "group_ids": group_ids,
+                                    },
+                                    token=tokens[s["token"]]
+                                )
+
+                            if s.get("spectroscopy") is not None:
+                                for i, df in spec_data.groupby("instrument_id"):
+                                    # TODO: spec.csv shouldn't hard code the
+                                    # instrument ID. For now, use what's
+                                    # in the config for instrument
+                                    data = assert_post(
+                                        "spectrum",
+                                        data={
+                                            "obj_id": si["id"],
+                                            "observed_at": observed_at,
+                                            "instrument_id":
+                                                instrument_dict[spec_instrument_name],
+                                            "wavelengths": df.wavelength.tolist(),
+                                            "fluxes": df.flux.tolist(),
+                                        },
+                                        token=tokens[s["token"]]
+                                    )
+
+                            if s.get("thumbnails") is not None:
+                                for ttype, fname in s.get("thumbnails").items():
+                                    fpath = basedir / f"{fname}"
+                                    thumbnail_data = base64.b64encode(
+                                        open(os.path.abspath(fpath), "rb").read()
+                                    )
+                                    data = assert_post(
+                                        "thumbnail",
+                                        data={
+                                            "obj_id": si["id"],
+                                            "data": thumbnail_data,
+                                            "ttype": ttype,
+                                        },
+                                        token=tokens[s["token"]]
+                                    )
+
+                                Obj.query.get(si["id"]).add_linked_thumbnails()
 
         finally:
             if not app_already_running:
