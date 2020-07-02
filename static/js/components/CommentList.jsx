@@ -1,6 +1,9 @@
 import React, { useState } from "react";
+import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Button } from "@material-ui/core";
+import Tooltip from "@material-ui/core/Tooltip";
+import GroupIcon from "@material-ui/icons/Group";
 
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -11,7 +14,7 @@ import CommentEntry from "./CommentEntry";
 
 dayjs.extend(relativeTime);
 
-const CommentList = () => {
+const CommentList = ({ isCandidate }) => {
   const [hoverID, setHoverID] = useState(null);
 
   const handleMouseHover = (id, userProfile, author) => {
@@ -26,17 +29,19 @@ const CommentList = () => {
 
   const dispatch = useDispatch();
   const source = useSelector((state) => state.source);
+  const candidate = useSelector((state) => state.candidate);
+  const obj = isCandidate ? candidate : source;
   const userProfile = useSelector((state) => state.profile);
   const acls = useSelector((state) => state.profile.acls);
-  let { comments } = source;
+  let { comments } = obj;
   const addComment = (formData) => {
-    dispatch(sourceActions.addComment({ obj_id: source.id, ...formData }));
+    dispatch(sourceActions.addComment({ obj_id: obj.id, ...formData }));
   };
 
   comments = comments || [];
 
   const items = comments.map(
-    ({ id, author, created_at, text, attachment_name }) => (
+    ({ id, author, created_at, text, attachment_name, groups }) => (
       <span
         key={id}
         className={styles.comment}
@@ -55,6 +60,10 @@ const CommentList = () => {
           <span className={styles.commentTime}>
             {dayjs().to(dayjs(created_at))}
           </span>
+          &nbsp;
+          <Tooltip title={groups.map((group) => group.name).join(", ")}>
+            <GroupIcon fontSize="small" style={{ paddingTop: "6px", paddingBottom: "0px" }} />
+          </Tooltip>
         </div>
         <div className={styles.wrap} name={`commentDiv${id}`}>
           <div className={styles.commentMessage}>
@@ -95,11 +104,19 @@ const CommentList = () => {
       {items}
       <br />
       {
-        (acls.indexOf('Comment') >= 0) &&
+        (!isCandidate && (acls.indexOf('Comment') >= 0)) &&
         <CommentEntry addComment={addComment} />
       }
     </div>
   );
+};
+
+CommentList.propTypes = {
+  isCandidate: PropTypes.bool
+};
+
+CommentList.defaultProps = {
+  isCandidate: false
 };
 
 export default CommentList;

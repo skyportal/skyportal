@@ -38,7 +38,7 @@ export const uploadPhotometry = (data) => (
   API.POST("/api/photometry", UPLOAD_PHOTOMETRY, data)
 );
 
-export function addComment(form) {
+export function addComment(formData) {
   function fileReaderPromise(file) {
     return new Promise((resolve) => {
       const filereader = new FileReader();
@@ -48,16 +48,16 @@ export function addComment(form) {
       );
     });
   }
-  if (form.attachment) {
+  if (formData.attachment) {
     return (dispatch) => {
-      fileReaderPromise(form.attachment)
+      fileReaderPromise(formData.attachment)
         .then((fileData) => {
-          form.attachment = fileData;
-          dispatch(API.POST(`/api/comment`, ADD_COMMENT, form));
+          formData.attachment = fileData;
+          dispatch(API.POST(`/api/comment`, ADD_COMMENT, formData));
         });
     };
   } else {
-    return API.POST(`/api/comment`, ADD_COMMENT, form);
+    return API.POST(`/api/comment`, ADD_COMMENT, formData);
   }
 }
 

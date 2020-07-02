@@ -146,9 +146,18 @@ class CandidateHandler(BaseHandler):
                   schema: Error
         """
         if obj_id is not None:
-            c = Candidate.get_if_owned_by(obj_id, self.current_user)
+            c = Candidate.get_obj_if_owned_by(
+                obj_id,
+                self.current_user,
+                options=[joinedload(Candidate.obj)
+                         .joinedload(Obj.thumbnails)
+                         .joinedload(Thumbnail.photometry)
+                         .joinedload(Photometry.instrument)
+                         .joinedload(Instrument.telescope)]
+            )
             if c is None:
                 return self.error("Invalid ID")
+            c.comments = c.get_comments_owned_by(self.current_user)
             return self.success(data=c)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
@@ -194,7 +203,6 @@ class CandidateHandler(BaseHandler):
         q = (
             Obj.query.options(
                 [
-                    joinedload(Obj.comments),
                     joinedload(Obj.thumbnails)
                     .joinedload(Thumbnail.photometry)
                     .joinedload(Photometry.instrument)
@@ -242,6 +250,7 @@ class CandidateHandler(BaseHandler):
             .all()
         )
         for obj in query_results["candidates"]:
+            obj.comments = obj.get_comments_owned_by(self.current_user)
             obj.is_source = (obj.id,) in matching_source_ids
             obj.passing_group_ids = [
                 f.group_id
@@ -366,7 +375,7 @@ class CandidateHandler(BaseHandler):
                 schema: Error
         """
         # Ensure user has access to candidate
-        c = Candidate.get_if_owned_by(obj_id, self.current_user)
+        c = Candidate.get_obj_if_owned_by(obj_id, self.current_user)
         if c is None:
             return self.error("Invalid ID.")
         data = self.get_json()

@@ -173,11 +173,9 @@ class SourceHandler(BaseHandler):
                 register_source_view(obj_id=obj_id,
                                      username_or_token_id=self.current_user.id,
                                      is_token=True)
-            s = Source.get_if_owned_by(  # Returns Source.obj
+            s = Source.get_obj_if_owned_by(  # Returns Source.obj
                 obj_id, self.current_user,
                 options=[joinedload(Source.obj)
-                         .joinedload(Obj.comments),
-                         joinedload(Source.obj)
                          .joinedload(Obj.followup_requests)
                          .joinedload(FollowupRequest.requester),
                          joinedload(Source.obj)
@@ -188,6 +186,9 @@ class SourceHandler(BaseHandler):
                          .joinedload(Thumbnail.photometry)
                          .joinedload(Photometry.instrument)
                          .joinedload(Instrument.telescope)])
+            if s is None:
+                return self.error("Invalid source ID.")
+            s.comments = s.get_comments_owned_by(self.current_user)
             return self.success(data=s)
         if page_number:
             try:
@@ -233,6 +234,8 @@ class SourceHandler(BaseHandler):
                 if "Page number out of range" in str(e):
                     return self.error("Page number out of range.")
                 raise
+            for source in query_results["sources"]:
+                source.comments = source.get_comments_owned_by(self.current_user)
             return self.success(data=query_results)
 
         sources = Obj.query.filter(Obj.id.in_(
@@ -240,6 +243,8 @@ class SourceHandler(BaseHandler):
                 [g.id for g in self.current_user.groups]
             ))
         )).all()
+        for source in sources:
+            source.comments = source.get_comments_owned_by(self.current_user)
         return self.success(data={"sources": sources})
 
     @permissions(['Upload data'])
@@ -334,7 +339,7 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        s = Source.get_if_owned_by(obj_id, self.current_user)
+        s = Source.get_obj_if_owned_by(obj_id, self.current_user)
         data = self.get_json()
         data['id'] = obj_id
 
@@ -495,7 +500,7 @@ class SourceOffsetsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_if_owned_by(obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
         if source is None:
             return self.error('Invalid source ID.')
 
@@ -607,7 +612,7 @@ class SourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_if_owned_by(obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
         if source is None:
             return self.error('Invalid source ID.')
 

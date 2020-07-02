@@ -1,4 +1,6 @@
 .commentEntry {
     position: relative;
-    z-index: 9999;
+}
+.inputDiv {
+    padding: 0.3rem;
 }
