@@ -1,4 +1,5 @@
 import uuid
+from selenium.common.exceptions import TimeoutException
 
 from skyportal.tests import api
 
@@ -207,7 +208,7 @@ def test_save_candidate_quick_save(
             f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
         )
         driver.wait_for_xpath('//a[text()="Previously Saved"]')
-    except:
+    except TimeoutException:
         driver.refresh()
         driver.wait_for_xpath_to_disappear(
             f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
@@ -246,7 +247,7 @@ def test_save_candidate_select_groups(
             f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
         )
         driver.wait_for_xpath('//a[text()="Previously Saved"]')
-    except:
+    except TimeoutException:
         driver.refresh()
         driver.wait_for_xpath_to_disappear(
             f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'

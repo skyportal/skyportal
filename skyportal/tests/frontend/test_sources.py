@@ -1,8 +1,8 @@
 import os
 from os.path import join as pjoin
 import uuid
-from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import TimeoutException
 
 from baselayer.app.config import load_config
 
@@ -30,7 +30,7 @@ def test_comments(driver, user, public_source):
     try:
         driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
-    except:
+    except TimeoutException:
         driver.refresh()
         comment_box = driver.wait_for_xpath("//input[@name='text']")
         comment_text = str(uuid.uuid4())
@@ -62,7 +62,7 @@ def test_comment_groups_validation(driver, user, public_source):
     try:
         driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
-    except:
+    except TimeoutException:
         driver.refresh()
         driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
@@ -83,7 +83,7 @@ def test_upload_comment_attachment(driver, user, public_source):
     try:
         driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
         driver.wait_for_xpath('//a[text()="spec.csv"]')
-    except:
+    except TimeoutException:
         driver.refresh()
         driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
         driver.wait_for_xpath('//a[text()="spec.csv"]')
@@ -101,7 +101,11 @@ def test_download_comment_attachment(driver, user, public_source):
                                     'data', 'spec.csv'))
     driver.scroll_to_element_and_click(
         driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
-    comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+    try:
+        comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+    except TimeoutException:
+        driver.refresh()
+        comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     comment_div = comment_text_div.find_element_by_xpath("..")
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
@@ -145,7 +149,7 @@ def test_delete_comment(driver, user, public_source):
         driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
     try:
         comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
-    except:
+    except TimeoutException:
         driver.refresh()
         comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     comment_div = comment_text_div.find_element_by_xpath("..")
@@ -156,7 +160,7 @@ def test_delete_comment(driver, user, public_source):
     driver.execute_script("arguments[0].click();", delete_button)
     try:
         driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
-    except:
+    except TimeoutException:
         driver.refresh()
         driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
 
@@ -173,7 +177,7 @@ def test_regular_user_cannot_delete_unowned_comment(driver, super_admin_user,
     submit_button.click()
     try:
         comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
-    except:
+    except TimeoutException:
         driver.refresh()
         comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     driver.get(f"/become_user/{user.id}")
@@ -200,7 +204,7 @@ def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
         driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
     try:
         comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
-    except:
+    except TimeoutException:
         driver.refresh()
         comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     driver.get(f"/become_user/{super_admin_user.id}")
@@ -215,7 +219,7 @@ def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
     driver.execute_script("arguments[0].click();", delete_button)
     try:
         driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
-    except:
+    except TimeoutException:
         driver.refresh()
         driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
 
