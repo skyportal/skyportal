@@ -1,6 +1,7 @@
 import uuid
 from selenium.webdriver.support.ui import Select
-from selenium.common.exceptions import ElementClickInterceptedException
+from selenium.common.exceptions import (ElementClickInterceptedException,
+                                        TimeoutException)
 
 from skyportal.tests import api
 
@@ -142,7 +143,7 @@ def test_edit_existing_followup_request(
     driver.execute_script("arguments[0].click();", submit_button)
     try:
         driver.wait_for_xpath("//td[contains(.,'5')]")
-    except:
+    except TimeoutException:
         driver.refresh()
         driver.wait_for_xpath("//td[contains(.,'5')]")
 
