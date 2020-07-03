@@ -168,8 +168,8 @@ class Obj(Base):
     @last_detected.expression
     def last_detected(cls):
         return sa.select([sa.func.max(Photometry.iso)]) \
-                 .where(Photometry.obj_id == cls.id,
-                        Photometry.snr > 5) \
+                 .where(Photometry.obj_id == cls.id) \
+                 .where(Photometry.snr > 5.) \
                  .group_by(Photometry.obj_id) \
                  .label('last_detected')
 
