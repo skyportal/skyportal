@@ -220,7 +220,6 @@ if __name__ == "__main__":
                     with status("Creating instruments"):
                         instrument_dict = {}
                         ins_src = src.get("instruments")
-                        print(ins_src)
                         if isinstance(ins_src, dict) and \
                                 src["instruments"].get("file") is not None:
                             # we're asked to load a file containing telescopes
@@ -251,7 +250,6 @@ if __name__ == "__main__":
                                 },
                                 token=tokens[token_name]
                             )
-                            print(i["name"], data)
                             instrument_dict[i["name"]] = data["data"]["id"]
             if src.get("sources") is not None:
                 with status("Loading Source and Candidates"):
@@ -285,7 +283,6 @@ if __name__ == "__main__":
                             spec_data = pd.read_csv(spec_file)
                             spec_instrument_name = s["spectroscopy"]["instrument_name"]
                             observed_at = s["spectroscopy"]["observed_at"]
-                            print(observed_at)
                         for si in sinfo:
                             data = assert_post(
                                 "sources",
