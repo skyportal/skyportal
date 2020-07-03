@@ -163,12 +163,13 @@ class Obj(Base):
 
     @hybrid_property
     def last_detected(self):
-        return max(phot.iso for phot in self.photometry if phot.detected)
+        return max(phot.iso for phot in self.photometry if phot.snr > 5)
 
     @last_detected.expression
     def last_detected(cls):
         return sa.select([sa.func.max(Photometry.iso)]) \
-                 .where(Photometry.obj_id == cls.id) \
+                 .where(Photometry.obj_id == cls.id,
+                        Photometry.snr > 5) \
                  .group_by(Photometry.obj_id) \
                  .label('last_detected')
 
@@ -466,9 +467,6 @@ class Photometry(Base):
     ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
     dec_unc = sa.Column(sa.Float, doc="Uncertainty of dec position [arcsec]")
 
-    detected = sa.Column(sa.Boolean, default=True, nullable=False,
-                         doc='Whether the photometry point is a detection.')
-
     original_user_data = sa.Column(JSONB, doc='Original data passed by the user '
                                               'through the PhotometryHandler.POST '
                                               'API or the PhotometryHandler.PUT '
@@ -541,6 +539,10 @@ class Photometry(Base):
         # converts MJD to unix timestamp
         local = sa.func.to_timestamp((cls.mjd - 40_587.5) * 86400.)
         return sa.func.timezone('UTC', local)
+
+    @hybrid_property
+    def snr(self):
+        return self.flux / self.fluxerr
 
 
 GroupPhotometry = join_model("group_photometry", Group, Photometry)
