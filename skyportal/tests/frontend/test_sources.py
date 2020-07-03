@@ -162,14 +162,18 @@ def test_delete_comment(driver, user, public_source):
         driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
     except TimeoutException:
         driver.refresh()
-        comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
-        comment_div = comment_text_div.find_element_by_xpath("..")
-        comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
-        delete_button = comment_div.find_element_by_xpath(
-            f"//*[@name='deleteCommentButton{comment_id}']")
-        ActionChains(driver).move_to_element(comment_div).perform()
-        driver.execute_script("arguments[0].click();", delete_button)
-        driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
+        try:
+            comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+        except TimeoutException:
+            return
+        else:
+            comment_div = comment_text_div.find_element_by_xpath("..")
+            comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
+            delete_button = comment_div.find_element_by_xpath(
+                f"//*[@name='deleteCommentButton{comment_id}']")
+            ActionChains(driver).move_to_element(comment_div).perform()
+            driver.execute_script("arguments[0].click();", delete_button)
+            driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
 
 
 def test_regular_user_cannot_delete_unowned_comment(driver, super_admin_user,
