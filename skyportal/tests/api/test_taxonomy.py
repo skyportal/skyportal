@@ -47,6 +47,10 @@ def test_add_bad_taxonomy(taxonomy_token, public_group):
 
 
 def test_latest_taxonomy(taxonomy_token, public_group):
+<<<<<<< HEAD
+=======
+
+>>>>>>> bbc5dc8fe90b19ebb18ccbca600a63d8c66d6400
     # add one, then add another with the same name
     status, data = api('POST', 'taxonomy',
                        data={
@@ -79,6 +83,10 @@ def test_latest_taxonomy(taxonomy_token, public_group):
                        token=taxonomy_token)
     assert status == 200
     assert data['data']['isLatest']
+<<<<<<< HEAD
+=======
+
+>>>>>>> bbc5dc8fe90b19ebb18ccbca600a63d8c66d6400
 
     # the first one we added should now have isLatest == False
     status, data = api('GET', f'taxonomy/{old_taxonomy_id}',

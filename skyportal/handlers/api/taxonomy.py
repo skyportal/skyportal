@@ -106,11 +106,7 @@ class TaxonomyHandler(BaseHandler):
                         data:
                           type: object
                           properties:
-<<<<<<< HEAD
-                            comment_id:
-=======
                             taxonomy_id:
->>>>>>> PR#1 Classification Epic: Taxonomy Infrastructure (#519)
                               type: integer
                               description: New taxonomy ID
         """
@@ -131,7 +127,6 @@ class TaxonomyHandler(BaseHandler):
             .filter(Taxonomy.version == version)
             .all()
         )
-
         if len(existing_matches) != 0:
             return self.error(
                 "That version/name combination is already "
