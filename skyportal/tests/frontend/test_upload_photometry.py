@@ -26,7 +26,7 @@ def test_upload_photometry(
         "arguments[0].click();",
         driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]')
     )
-    driver.wait_for_xpath('//td[text()="58001"]')
+    driver.wait_for_xpath('//div[text()="58001"]')
     driver.execute_script(
         "arguments[0].click();", driver.wait_for_xpath('//*[text()="Upload Photometry"]')
     )
@@ -68,7 +68,7 @@ def test_upload_photometry_multiple_groups(
         "arguments[0].click();",
         driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]')
     )
-    driver.wait_for_xpath('//td[text()="58001"]')
+    driver.wait_for_xpath('//div[text()="58001"]')
     driver.execute_script(
         "arguments[0].click();", driver.wait_for_xpath('//*[text()="Upload Photometry"]')
     )
@@ -100,7 +100,7 @@ def test_upload_photometry_with_altdata(
         "arguments[0].click();",
         driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]')
     )
-    driver.wait_for_xpath('//td[text()="58001"]')
+    driver.wait_for_xpath('//div[text()="58001"]')
     driver.execute_script(
         "arguments[0].click();", driver.wait_for_xpath('//*[text()="Upload Photometry"]')
     )
@@ -158,4 +158,4 @@ def test_upload_photometry_form_validation(
         "arguments[0].click();",
         driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]')
     )
-    driver.wait_for_xpath('//td[text()="58001"]')
+    driver.wait_for_xpath('//div[text()="58001"]')
