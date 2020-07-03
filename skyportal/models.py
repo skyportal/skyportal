@@ -217,7 +217,7 @@ def candidate_is_owned_by(self, user_or_token):
     return self.filter.group in user_or_token.groups
 
 
-Candidate.get_if_owned_by = get_candidate_if_owned_by
+Candidate.get_obj_if_owned_by = get_candidate_if_owned_by
 Candidate.is_owned_by = candidate_is_owned_by
 
 
@@ -254,14 +254,14 @@ def get_source_if_owned_by(obj_id, user_or_token, options=[]):
 
 
 Source.is_owned_by = source_is_owned_by
-Source.get_if_owned_by = get_source_if_owned_by
+Source.get_obj_if_owned_by = get_source_if_owned_by
 
 
 def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
     try:
-        obj = Source.get_if_owned_by(obj_id, user_or_token, options)
+        obj = Source.get_obj_if_owned_by(obj_id, user_or_token, options)
     except AccessError:  # They may still be able to view the associated Candidate
-        obj = Candidate.get_if_owned_by(obj_id, user_or_token, options)
+        obj = Candidate.get_obj_if_owned_by(obj_id, user_or_token, options)
         if obj is None:
             # If user can't view associated Source, and there's no Candidate they can
             # view, raise AccessError
@@ -465,6 +465,7 @@ class Photometry(Base):
     altdata = sa.Column(JSONB)
     upload_id = sa.Column(sa.String, nullable=False,
                           default=lambda: str(uuid.uuid4()))
+    alert_id = sa.Column(sa.BigInteger, nullable=True, unique=True)
 
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)

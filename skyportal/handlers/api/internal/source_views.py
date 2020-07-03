@@ -37,7 +37,7 @@ class SourceViewsHandler(BaseHandler):
     @tornado.web.authenticated
     def post(self, obj_id):
         # Ensure user has access to source
-        s = Source.get_if_owned_by(obj_id, self.current_user)
+        s = Source.get_obj_if_owned_by(obj_id, self.current_user)
         # This endpoint will only be hit by front-end, so this will never be a token
         register_source_view(obj_id=obj_id,
                              username_or_token_id=self.current_user.username,
