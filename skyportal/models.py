@@ -18,6 +18,7 @@ from baselayer.app.custom_exceptions import AccessError
 from . import schema
 from .enum_types import (allowed_bandpasses, thumbnail_types, instrument_types,
                          followup_priorities)
+from .followup_api import apis
 
 
 # In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
@@ -340,7 +341,9 @@ class Instrument(Base):
     photometry = relationship('Photometry', back_populates='instrument')
     spectra = relationship('Spectrum', back_populates='instrument')
 
-
+    api_id = sa.Column(sa.Enum(*tuple(apis.keys()), name='followup_apis',
+                               validate_strings=True),
+                       nullable=True)
 
     # can be [] if an instrument is spec only
     filters = sa.Column(ArrayOfEnum(allowed_bandpasses), nullable=False,
@@ -358,9 +361,9 @@ class Instrument(Base):
         return 'imag' in self.type
 
     @property
-    def request_schema(self):
-        # this is for rendering the form
-        pass
+    def api(self):
+        api = apis[self.api_id]
+        return api
 
 
 class Comment(Base):
@@ -507,7 +510,6 @@ class Thumbnail(Base):
                        secondary='photometry')
 
 
-
 User.followup_requests = relationship('FollowupRequest',
                                       back_populates='requester')
 
@@ -584,6 +586,7 @@ class RoboticFollowupRequest(FollowupRequest):
 
     start_date = sa.Column(ArrowType)
     end_date = sa.Column(ArrowType)
+    api_response = sa.Column(JSONB)
 
     observations = sa.Column(
         psql.JSONB,
@@ -593,7 +596,13 @@ class RoboticFollowupRequest(FollowupRequest):
 
     def submit(self):
         # TODO: implement this method for SEDM and LT
-        pass
+        self.instrument.api.submit(self)
+
+    def delete(self):
+        self.instrument.api.delete(self)
+
+    def update(self):
+        self.instrument.api.update(self)
 
 
 class Assignment(FollowupRequest):
@@ -608,5 +617,6 @@ class Assignment(FollowupRequest):
     run_id = sa.Column(sa.ForeignKey('observingruns.id'), nullable=False,
                        index=True)
 
+    instrument = relationship(Instrument, secondary='observing_runs')
 
 schema.setup_schema()
