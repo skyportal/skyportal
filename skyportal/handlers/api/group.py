@@ -264,6 +264,9 @@ class GroupUserHandler(BaseHandler):
                               description: Boolean indicating whether user is group admin
         """
         data = self.get_json()
+        group = Group.query.get(group_id)
+        if group.single_user_group:
+            return self.error("Cannot add users to single user groups.")
         try:
             user_id = User.query.filter(User.username == username).first().id
         except AttributeError:
@@ -303,6 +306,9 @@ class GroupUserHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        group = Group.query.get(group_id)
+        if group.single_user_group:
+            return self.error("Cannot add users to single user groups.")
         user_id = User.query.filter(User.username == username).first().id
         (GroupUser.query.filter(GroupUser.group_id == group_id)
          .filter(GroupUser.user_id == user_id).delete())
