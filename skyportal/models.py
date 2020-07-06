@@ -241,6 +241,33 @@ class Obj(Base, ha.Point):
 
         return observer.altaz(time, target).secz
 
+    def altitude(self, telescope, time):
+        """Return the altitude of the Obj at time `time` from Telescope
+        `telescope`.
+
+        Parameters
+        ----------
+
+        telescope: skyportal.models.Telescope
+            The telescope to use for the altitude calculation
+
+        time: astropy.time.Time
+            The time or times at which to calculate the altitude
+
+        Returns
+        -------
+
+        alt: astropy.units.Quantity
+           The altitude of the Obj at the requested times
+        """
+
+        target = astroplan.FixedTarget(name=self.id, coord=self.skycoord)
+        observer = astroplan.Observer(latitude=telescope.lat * u.deg,
+                                      longitude=telescope.lon * u.deg,
+                                      elevation=telescope.elevation * u.m)
+
+        return observer.altaz(time, target).alt
+
 
 class Filter(Base):
     query_string = sa.Column(sa.String, nullable=False, unique=False)
