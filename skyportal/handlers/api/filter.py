@@ -48,7 +48,7 @@ class FilterHandler(BaseHandler):
                 return self.error("Invalid filter ID.")
             return self.success(data=f)
         filters = (
-            DBSession.query(Filter)
+            DBSession().query(Filter)
             .filter(Filter.group_id.in_([g.id for g in self.current_user.groups]))
             .all()
         )
@@ -87,7 +87,7 @@ class FilterHandler(BaseHandler):
             return self.error(
                 "Invalid/missing parameters: " f"{e.normalized_messages()}"
             )
-        DBSession.add(fil)
+        DBSession().add(fil)
         DBSession().commit()
 
         return self.success(data={"id": fil.id})
@@ -145,7 +145,7 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        DBSession.delete(Filter.query.get(filter_id))
+        DBSession().delete(Filter.query.get(filter_id))
         DBSession().commit()
 
         return self.success()
