@@ -4,7 +4,8 @@ import re
 from datetime import datetime
 import numpy as np
 import sqlalchemy as sa
-from sqlalchemy import cast
+from sqlalchemy import cast, event
+from sqlalchemy.orm.session import object_session
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
@@ -74,10 +75,23 @@ class Group(Base):
     photometry = relationship("Photometry", secondary="group_photometry",
                               back_populates="groups",
                               cascade="save-update, merge, refresh-expire, expunge")
+    single_user_group = sa.Column(sa.Boolean, default=False)
 
 
 GroupUser = join_model('group_users', Group, User)
 GroupUser.admin = sa.Column(sa.Boolean, nullable=False, default=False)
+
+
+@event.listens_for(User, "after_insert")
+def create_user_group_and_add_to_public_group(mapper, connection, target):
+    object_session(target).add(
+        Group(name=target.username, users=[target], single_user_group=True)
+    )
+    public_group = Group.query.filter(Group.name == "public_group").first()
+    if public_group is not None:
+        object_session(target).add(
+            GroupUser(group_id=public_group.id, user_id=target.id)
+        )
 
 
 class Stream(Base):
@@ -491,8 +505,6 @@ class Photometry(Base):
                               nullable=False, index=True)
     instrument = relationship('Instrument', back_populates='photometry')
     thumbnails = relationship('Thumbnail', passive_deletes=True)
-
-
 
     @hybrid_property
     def mag(self):
