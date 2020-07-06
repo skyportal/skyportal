@@ -142,6 +142,10 @@ sources:
     comments:
       - "Frogs in the pond"
       - "The eagle has landed"
+    thumbnails:
+      new: skyportal/tests/data/16fil_new.png
+      ref: skyportal/tests/data/16fil_ref.png
+      sub: skyportal/tests/data/16fil_sub.png
     token: "load_demo_data token"
 taxonomies:
   - name: Demo taxonomy
