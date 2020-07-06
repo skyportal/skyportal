@@ -244,7 +244,6 @@ def taxonomy_token(user):
         permissions=["Post Taxonomy", "Delete Taxonomy"],
         created_by_id=user.id, name=str(uuid.uuid4())
     )
-    return token_id
 
 
 @pytest.fixture()

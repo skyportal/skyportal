@@ -176,7 +176,7 @@ if __name__ == "__main__":
                             tokens[tax["token"]]
                         )
             if src.get("telescopes") is not None:
-                with status("Creating telescopes"):
+                with status("Creating Telescopes"):
                     telescope_dict = {}
                     tel_src = src.get("telescopes")
                     if isinstance(tel_src, dict) and \
@@ -256,7 +256,7 @@ if __name__ == "__main__":
                     (basedir / "static/thumbnails").mkdir(parents=True, exist_ok=True)
                     for s in src.get("sources"):
                         sinfo = [{"id": s["id"], "ra": s["ra"],
-                                  "dec": s["dec"],
+                                  "dec": s["dec"], "save_source": True,
                                   "redshift": s.get("redshift", 0.0),
                                   "altdata": s.get("altdata", None),
                                   "cand_filts": s["candidate"]["candidate_filters"],
@@ -265,7 +265,7 @@ if __name__ == "__main__":
                             sinfo.append(
                                 {"id": s["unsaved_candidate_copy"]["candidate_id"],
                                  "ra": s["ra"],
-                                 "dec": s["dec"],
+                                 "dec": s["dec"], "save_source": False,
                                  "redshift": s.get("redshift", 0.0),
                                  "altdata": s.get("altdata", None),
                                  "cand_filts": s["unsaved_candidate_copy"]["candidate_filters"],
@@ -284,18 +284,19 @@ if __name__ == "__main__":
                             spec_instrument_name = s["spectroscopy"]["instrument_name"]
                             observed_at = s["spectroscopy"]["observed_at"]
                         for si in sinfo:
-                            data = assert_post(
-                                "sources",
-                                data={
-                                    "id": si["id"],
-                                    "ra": si["ra"],
-                                    "dec": si["dec"],
-                                    "redshift": si["redshift"],
-                                    "altdata": si["altdata"],
-                                    "group_ids": group_ids
-                                },
-                                token=tokens[s["token"]]
-                            )
+                            if si["save_source"]:
+                                data = assert_post(
+                                    "sources",
+                                    data={
+                                        "id": si["id"],
+                                        "ra": si["ra"],
+                                        "dec": si["dec"],
+                                        "redshift": si["redshift"],
+                                        "altdata": si["altdata"],
+                                        "group_ids": group_ids
+                                    },
+                                    token=tokens[s["token"]]
+                                )
                             filter_ids = [filter_dict[f] for f in si["cand_filts"]]
                             data = assert_post(
                                 "candidates",
