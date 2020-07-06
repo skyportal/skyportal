@@ -26,3 +26,4 @@ sncosmo>=2.1.0
 tdtax==0.1.0
 skyportal-spatial==0.1.0
 jsonschema
+astroplan>=0.6
