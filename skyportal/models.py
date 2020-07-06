@@ -10,10 +10,13 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import ArrowType
+from skyportal_spatial import (UnindexedSpatialBackend, PostGISSpatialBackend,
+                               Q3CSpatialBackend)
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
 from baselayer.app.custom_exceptions import AccessError
+from baselayer.app.env import load_env
 
 from . import schema
 from .phot_enum import allowed_bandpasses, thumbnail_types
@@ -23,6 +26,18 @@ from .phot_enum import allowed_bandpasses, thumbnail_types
 # will put our converted fluxes to microJy.
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
+
+env, cfg = load_env()
+spatial_backend = cfg['spatial_backend']
+
+if spatial_backend == 'postgis':
+    Spatial = PostGISSpatialBackend
+elif spatial_backend == 'q3c':
+    Spatial = Q3CSpatialBackend
+elif spatial_backend is None:
+    Spatial = UnindexedSpatialBackend
+else:
+    raise RuntimeError('Invalid spatial backend.')
 
 
 def is_owned_by(self, user_or_token):
@@ -105,11 +120,9 @@ def token_groups(self):
 Token.groups = token_groups
 
 
-class Obj(Base):
+class Obj(Base, Spatial):
     id = sa.Column(sa.String, primary_key=True)
     # TODO should this column type be decimal? fixed-precison numeric
-    ra = sa.Column(sa.Float)
-    dec = sa.Column(sa.Float)
 
     ra_dis = sa.Column(sa.Float)
     dec_dis = sa.Column(sa.Float)
@@ -433,7 +446,7 @@ class Comment(Base):
 GroupComment = join_model("group_comments", Group, Comment)
 
 
-class Photometry(Base):
+class Photometry(Base, Spatial):
     __tablename__ = 'photometry'
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.')
     flux = sa.Column(sa.Float,
@@ -444,11 +457,6 @@ class Photometry(Base):
                         doc='Gaussian error on the flux in µJy.')
     filter = sa.Column(allowed_bandpasses, nullable=False,
                        doc='Filter with which the observation was taken.')
-
-    ra = sa.Column(sa.Float, doc='ICRS Right Ascension of the centroid '
-                                 'of the photometric aperture [deg].')
-    dec = sa.Column(sa.Float, doc='ICRS Declination of the centroid of '
-                                  'the photometric aperture [deg].')
 
     ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
     dec_unc = sa.Column(sa.Float, doc="Uncertainty of dec position [arcsec]")
