@@ -1,6 +1,8 @@
 import uuid
 import re
 from datetime import datetime
+from astropy import units as u
+import astroplan
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy import cast
@@ -194,6 +196,33 @@ class Obj(Base, Spatial):
         """Construct URL for public DESI DR8 cutout."""
         return (f"http://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
                 f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz")
+
+    def airmass(self, telescope, time):
+        """Return the airmass of the Obj at time `time` from Telescope
+        `telescope`.
+
+        Parameters
+        ----------
+
+        telescope: skyportal.models.Telescope
+            The telescope to use for the airmass calculation
+
+        time: astropy.time.Time
+            The time or times at which to calculate the airmass
+
+        Returns
+        -------
+
+        secz: astropy.units.Quantity
+           The airmass of the Obj at the requested times
+        """
+
+        target = astroplan.FixedTarget(name=self.id, coord=self.skycoord)
+        observer = astroplan.Observer(latitude=telescope.lat * u.deg,
+                                      longitude=telescope.lon * u.deg,
+                                      elevation=telescope.elevation * u.m)
+
+        return observer.altaz(time, target).secz
 
 
 class Filter(Base):
