@@ -40,8 +40,8 @@ class FollowupRequestHandler(BaseHandler):
         if isinstance(data["filters"], str):
             data["filters"] = [data["filters"]]
         followup_request = FollowupRequest(**data)
-        DBSession.add(followup_request)
-        DBSession.commit()
+        DBSession().add(followup_request)
+        DBSession().commit()
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
@@ -122,8 +122,8 @@ class FollowupRequestHandler(BaseHandler):
         elif isinstance(self.current_user, Token):
             if self.current_user.created_by_id != followup_request.requester.id:
                 return self.error("Insufficient permissions.")
-        DBSession.delete(followup_request)
-        DBSession.commit()
+        DBSession().delete(followup_request)
+        DBSession().commit()
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",

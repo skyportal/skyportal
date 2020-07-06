@@ -55,6 +55,6 @@ class UserHandler(BaseHandler):
                 schema: Error
         """
         user_id = int(user_id)
-        DBSession.query(User).filter(User.id == user_id).delete()
-        DBSession.commit()
+        DBSession().query(User).filter(User.id == user_id).delete()
+        DBSession().commit()
         return self.success()

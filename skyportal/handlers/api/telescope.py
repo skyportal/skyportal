@@ -49,7 +49,7 @@ class TelescopeHandler(BaseHandler):
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
         telescope.groups = groups
-        DBSession.add(telescope)
+        DBSession().add(telescope)
         DBSession().commit()
 
         return self.success(data={"id": telescope.id})
@@ -143,7 +143,7 @@ class TelescopeHandler(BaseHandler):
                 schema: Error
         """
         t = Telescope.get_if_owned_by(int(telescope_id), self.current_user)
-        DBSession.query(Telescope).filter(Telescope.id == int(telescope_id)).delete()
+        DBSession().query(Telescope).filter(Telescope.id == int(telescope_id)).delete()
         DBSession().commit()
 
         return self.success()

@@ -1,18 +1,20 @@
 import uuid
 import numpy as np
 import arrow
-from astropy.time import Time
+from astropy.table import Table
 import pandas as pd
 from marshmallow.exceptions import ValidationError
 import sncosmo
+from sncosmo.photdata import PhotometricData
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
     DBSession, Group, Photometry, Instrument, Source, Obj,
-    PHOT_ZP, PHOT_SYS, Thumbnail
+    PHOT_ZP, PHOT_SYS, GroupPhotometry
 )
 
-from ...schema import (PhotometryMag, PhotometryFlux)
+
+from ...schema import (PhotometryMag, PhotometryFlux, PhotFluxFlexible, PhotMagFlexible)
 from ...phot_enum import ALLOWED_MAGSYSTEMS
 
 
@@ -138,6 +140,24 @@ class PhotometryHandler(BaseHandler):
 
         if "altdata" in data and not data["altdata"]:
             del data["altdata"]
+
+        # quick validation - just to make sure things have the right fields
+        try:
+            data = PhotMagFlexible.load(data)
+        except ValidationError as e1:
+            try:
+                data = PhotFluxFlexible.load(data)
+            except ValidationError as e2:
+                return self.error('Invalid input format: Tried to parse data '
+                                  f'in mag space, got: '
+                                  f'"{e1.normalized_messages()}." Tried '
+                                  f'to parse data in flux space, got:'
+                                  f' "{e2.normalized_messages()}."')
+            else:
+                kind = 'flux'
+        else:
+            kind = 'mag'
+
         try:
             group_ids = data.pop("group_ids")
         except KeyError:
@@ -182,46 +202,170 @@ class PhotometryHandler(BaseHandler):
                 return self.error('Unable to coerce passed JSON to a series of packets. '
                                   f'Error was: "{e}"')
 
-        # pop out thumbnails and process what's left using schemas
+        # `to_numeric` coerces numbers written as strings to numeric types
+        #  (int, float)
 
-        ids = []
-        for i, row in df.iterrows():
-            packet = row.to_dict()
+        #  errors='ignore' means if something is actually an alphanumeric
+        #  string, just leave it alone and dont error out
 
-            # coerce nans to nones
-            for key in packet:
-                packet[key] = nan_to_none(packet[key])
+        #  apply is used to apply it to each column
+        # (https://stackoverflow.com/questions/34844711/convert-entire-pandas
+        # -dataframe-to-integers-in-pandas-0-17-0/34844867
+        df = df.apply(pd.to_numeric, errors='ignore')
 
-            try:
-                phot = PhotometryFlux.load(packet)
-            except ValidationError as e1:
-                try:
-                    phot = PhotometryMag.load(packet)
-                except ValidationError as e2:
-                    return self.error('Invalid input format: Tried to parse packet '
-                                      f'{i} as PhotometryFlux, got: '
-                                      f'"{e1.normalized_messages()}." Tried '
-                                      f'to parse packet {i} as PhotometryMag, got:'
-                                      f' "{e2.normalized_messages()}."')
+        if kind == 'mag':
+            # ensure that neither or both mag and magerr are null
+            magnull = df['mag'].isna()
+            magerrnull = df['magerr'].isna()
+            magdet = ~magnull
 
-            phot.original_user_data = packet
-            phot.upload_id = upload_id
-            phot.groups = groups
-            DBSession().add(phot)
+            # https://en.wikipedia.org/wiki/Bitwise_operation#XOR
+            bad = magerrnull ^ magnull  # bitwise exclusive or -- returns true
+                                        #  if A and not B or B and not A
 
-            # to set up obj link
-            DBSession().flush()
+            if any(bad):
+                # find the first offending packet
+                first_offender = np.argwhere(bad)[0, 0]
+                packet = df.iloc[first_offender].to_dict()
 
-            time = arrow.get(Time(phot.mjd, format='mjd').iso)
-            phot.obj.last_detected = max(
-                time,
-                phot.obj.last_detected
-                if phot.obj.last_detected is not None
-                else arrow.get("1000-01-01")
-            )
-            ids.append(phot.id)
+                # coerce nans to nones
+                for key in packet:
+                    packet[key] = nan_to_none(packet[key])
 
+                return self.error(f'Error parsing packet "{packet}": mag '
+                                  f'and magerr must both be null, or both be '
+                                  f'not null.')
+
+            # ensure nothing is null for the required fields
+            for field in PhotMagFlexible.required_keys:
+                missing = df[field].isna()
+                if any(missing):
+                    first_offender = np.argwhere(missing)[0, 0]
+                    packet = df.iloc[first_offender].to_dict()
+
+                    # coerce nans to nones
+                    for key in packet:
+                        packet[key] = nan_to_none(packet[key])
+
+                    return self.error(f'Error parsing packet "{packet}": '
+                                      f'missing required field {field}.')
+
+            # convert the mags to fluxes
+            # detections
+            detflux = 10**(-0.4 * (df[magdet]['mag'] - PHOT_ZP))
+            detfluxerr = df[magdet]['magerr'] / (2.5 / np.log(10)) * detflux
+
+            # non-detections
+            limmag_flux = 10**(-0.4 * (df[magnull]['limiting_mag'] - PHOT_ZP))
+            ndetfluxerr = limmag_flux / df[magnull]['limiting_mag_nsigma']
+
+            # initialize flux to be none
+            phot_table = Table.from_pandas(df[['mjd', 'magsys', 'filter']])
+
+            phot_table['zp'] = PHOT_ZP
+            phot_table['flux'] = np.nan
+            phot_table['fluxerr'] = np.nan
+            phot_table['flux'][magdet] = detflux
+            phot_table['fluxerr'][magdet] = detfluxerr
+            phot_table['fluxerr'][magnull] = ndetfluxerr
+
+        else:
+            for field in PhotFluxFlexible.required_keys:
+                missing = df[field].isna()
+                if any(missing):
+                    first_offender = np.argwhere(missing)[0, 0]
+                    packet = df.iloc[first_offender].to_dict()
+
+                    for key in packet:
+                        packet[key] = nan_to_none(packet[key])
+
+                    return self.error(f'Error parsing packet "{packet}": '
+                                      f'missing required field {field}.')
+
+            phot_table = Table.from_pandas(df[['mjd', 'magsys', 'filter', 'zp']])
+            phot_table['flux'] = df['flux'].fillna(np.nan)
+            phot_table['fluxerr'] = df['fluxerr'].fillna(np.nan)
+
+        # convert to microjanskies, AB for DB storage as a vectorized operation
+        pdata = PhotometricData(phot_table)
+        standardized = pdata.normalized(zp=PHOT_ZP, zpsys='ab')
+
+        df['standardized_flux'] = standardized.flux
+        df['standardized_fluxerr'] = standardized.fluxerr
+
+        instcache = {}
+        for iid in df['instrument_id'].unique():
+            instrument = Instrument.query.get(int(iid))
+            if not instrument:
+                return self.error(
+                    f'Invalid instrument ID: {iid}')
+            instcache[iid] = instrument
+
+        for oid in df['obj_id'].unique():
+            obj = Obj.query.get(oid)
+            if not obj:
+                return self.error(f'Invalid object ID: {oid}')
+
+        # pre-fetch the photometry PKs. these are not guaranteed to be
+        # gapless (e.g., 1, 2, 3, 4, 5, ...) but they are guaranteed
+        # to be unique in the table and thus can be used to "reserve"
+        # PK slots for uninserted rows
+        pkq = f"SELECT nextval('photometry_id_seq') FROM " \
+              f"generate_series(1, {len(df)})"
+
+        proxy = DBSession().execute(pkq)
+
+        # cache this as list for response
+        ids = [i[0] for i in proxy]
+        df['id'] = ids
+        rows = df.where(pd.notnull(df), None).to_dict('records')
+
+        params = []
+        for packet in rows:
+            if packet["filter"] not in instcache[packet['instrument_id']].filters:
+                raise ValidationError(
+                    f"Instrument {instrument.name} has no filter "
+                    f"{packet['filter']}.")
+
+            flux = packet.pop('standardized_flux')
+            fluxerr = packet.pop('standardized_fluxerr')
+
+            # reduce the DB size by ~2x
+            keys = ['limiting_mag', 'magsys', 'limiting_mag_nsigma']
+            original_user_data = {key: packet[key] for key in keys if key in packet}
+            if original_user_data == {}:
+                original_user_data = None
+
+            phot = dict(id=packet['id'],
+                        original_user_data=original_user_data,
+                        upload_id=upload_id,
+                        flux=flux,
+                        fluxerr=fluxerr,
+                        obj_id=packet['obj_id'],
+                        altdata=packet['altdata'],
+                        instrument_id=packet['instrument_id'],
+                        ra_unc=packet['ra_unc'],
+                        dec_unc=packet['dec_unc'],
+                        mjd=packet['mjd'],
+                        filter=packet['filter'],
+                        ra=packet['ra'],
+                        dec=packet['dec'])
+
+            params.append(phot)
+
+        #  actually do the insert
+        query = Photometry.__table__.insert()
+        DBSession().execute(query, params)
+
+        groupquery = GroupPhotometry.__table__.insert()
+        params = []
+        for id in ids:
+            for group_id in group_ids:
+                params.append({'photometr_id': id, 'group_id': group_id})
+
+        DBSession().execute(groupquery, params)
         DBSession().commit()
+
         return self.success(data={"ids": ids, "upload_id": upload_id})
 
     @auth_or_token
@@ -285,7 +429,7 @@ class PhotometryHandler(BaseHandler):
         phot.original_user_data = data
         phot.id = photometry_id
         DBSession().merge(phot)
-        DBSession.flush()
+        DBSession().flush()
         # Update groups, if relevant
         if group_ids is not None:
             photometry = Photometry.query.get(photometry_id)
@@ -323,7 +467,7 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
         _ = Photometry.get_if_owned_by(photometry_id, self.current_user)
-        DBSession.query(Photometry).filter(Photometry.id == int(photometry_id)).delete()
+        DBSession().query(Photometry).filter(Photometry.id == int(photometry_id)).delete()
         DBSession().commit()
 
         return self.success()
@@ -370,7 +514,7 @@ class BulkDeletePhotometryHandler(BaseHandler):
             Photometry.upload_id == upload_id).first().id
         _ = Photometry.get_if_owned_by(phot_id, self.current_user)
 
-        n_deleted = DBSession.query(Photometry).filter(
+        n_deleted = DBSession().query(Photometry).filter(
             Photometry.upload_id == upload_id).delete()
         DBSession().commit()
 
