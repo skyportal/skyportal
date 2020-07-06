@@ -463,6 +463,7 @@ class Photometry(Base):
     altdata = sa.Column(JSONB)
     upload_id = sa.Column(sa.String, nullable=False,
                           default=lambda: str(uuid.uuid4()))
+    alert_id = sa.Column(sa.BigInteger, nullable=True, unique=True)
 
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)
