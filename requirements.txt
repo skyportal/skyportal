@@ -23,6 +23,6 @@ marshmallow-sqlalchemy>=0.21.0
 marshmallow-enum>=1.5.1
 Pillow>=6
 sncosmo>=2.1.0
-tdtax==0.1.0
+tdtax>=0.1.1
 skyportal-spatial==0.1.0
 jsonschema
