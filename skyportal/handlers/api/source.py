@@ -210,10 +210,8 @@ class SourceHandler(BaseHandler):
                     radius = float(radius)
                 except ValueError:
                     return self.error("Invalid values for ra, dec or radius - could not convert to float")
-                q = q.filter(Obj.ra <= ra + radius)\
-                     .filter(Obj.ra >= ra - radius)\
-                     .filter(Obj.dec <= dec + radius)\
-                     .filter(Obj.dec >= dec - radius)
+                other = Obj(ra=ra, dec=dec)
+                q = q.filter(Obj.radially_within(other, radius * 3600.))
             if start_date:
                 start_date = arrow.get(start_date.strip())
                 q = q.filter(Obj.last_detected >= start_date)
