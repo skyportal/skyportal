@@ -24,8 +24,11 @@ from . import schema
 from .phot_enum import allowed_bandpasses, thumbnail_types
 
 
-# In the AB system, a brightness of 23.9 mag corresponds to 1 microJy. Using this
-# will put our converted fluxes to microJy.
+env, cfg = load_env()
+
+
+# In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
+# All DB fluxes are stored in microJy (AB).
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
 
