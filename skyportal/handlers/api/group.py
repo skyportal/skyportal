@@ -98,7 +98,7 @@ class GroupHandler(BaseHandler):
                               and 'Super admin' in
                               [role.id for role in self.current_user.roles]
                               else None)
-        if not include_single_user_groups:
+        if (not include_single_user_groups) or (include_single_user_groups == "false"):
             info["user_groups"] = [g for g in info["user_groups"]
                                    if not g.single_user_group]
             if info["all_groups"]:
