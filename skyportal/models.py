@@ -142,6 +142,14 @@ class Obj(Base):
                             cascade='save-update, merge, refresh-expire, expunge',
                             passive_deletes=True,
                             order_by="Comment.created_at")
+
+    classifications = relationship(
+                            'Classification', back_populates='obj',
+                            cascade='save-update, merge, refresh-expire, expunge',
+                            passive_deletes=True,
+                            order_by="Classification.created_at"
+                      )
+
     photometry = relationship('Photometry', back_populates='obj',
                               cascade='save-update, merge, refresh-expire, expunge',
                               single_parent=True,
@@ -401,6 +409,11 @@ class Taxonomy(Base):
     version = sa.Column(sa.String, nullable=False,
                         doc='Semantic version of this taxonomy'
                         )
+
+    allowed_classes = sa.Column(sa.ARRAY(sa.String), nullable=False,
+                                doc="Computed list of allowable classes"
+                                " in this taxonomy.")
+
     isLatest = sa.Column(sa.Boolean, default=True, nullable=False,
                          doc='Consider this the latest version of '
                              'the taxonomy with this name? Defaults '
@@ -447,6 +460,25 @@ class Comment(Base):
 
 
 GroupComment = join_model("group_comments", Group, Comment)
+
+
+class Classification(Base):
+    classification = sa.Column(sa.String, nullable=False)
+    taxonomy_id = sa.Column(sa.ForeignKey('taxonomies.id'),
+                            nullable=False)
+    probability = sa.Column(sa.Float,
+                            doc='User-assigned probability of belonging '
+                            'to this class', nullable=True)
+
+    author = sa.Column(sa.String, nullable=False)
+    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
+                       nullable=False, index=True)
+    obj = relationship('Obj', back_populates='classifications')
+    groups = relationship("Group", secondary="group_classifications",
+                          cascade="save-update, merge, refresh-expire, expunge")
+
+
+GroupClassifications = join_model("group_classifications", Group, Classification)
 
 
 class Photometry(Base):

@@ -5,6 +5,7 @@ from baselayer.app.app_server import MainPageHandler
 from skyportal.handlers import (BecomeUserHandler, LogoutHandler)
 from skyportal.handlers.api import (
     CandidateHandler,
+    ClassificationHandler,
     CommentHandler, CommentAttachmentHandler,
     FilterHandler,
     FollowupRequestHandler,
@@ -53,6 +54,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
     handlers = baselayer_handlers + [
         # API endpoints
         (r'/api/candidates(/.*)?', CandidateHandler),
+        (r'/api/classification(/[0-9]+)?', ClassificationHandler),
         (r'/api/comment(/[0-9]+)?', CommentHandler),
         (r'/api/comment(/[0-9]+)/attachment', CommentAttachmentHandler),
         (r'/api/filters(/.*)?', FilterHandler),
