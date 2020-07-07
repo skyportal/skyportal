@@ -91,8 +91,10 @@ class GroupHandler(BaseHandler):
             return self.error(f"Could not load group with ID {group_id}")
 
         info = {}
-        info['user_groups'] = list(self.current_user.groups)
-        info['all_groups'] = (list(Group.query) if hasattr(self.current_user, 'roles')
+        info['user_groups'] = [g for g in list(self.current_user.groups)
+                               if not g.single_user_group]
+        info['all_groups'] = ([g for g in list(Group.query) if not g.single_user_group]
+                              if hasattr(self.current_user, 'roles')
                               and 'Super admin' in
                               [role.id for role in self.current_user.roles]
                               else None)
