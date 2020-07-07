@@ -87,7 +87,7 @@ def create_user_group_and_add_to_public_group(mapper, connection, target):
     object_session(target).add(
         Group(name=target.username, users=[target], single_user_group=True)
     )
-    public_group = Group.query.filter(Group.name == "public_group").first()
+    public_group = Group.query.filter(Group.name == "Public Group").first()
     if public_group is not None:
         object_session(target).add(
             GroupUser(group_id=public_group.id, user_id=target.id)
