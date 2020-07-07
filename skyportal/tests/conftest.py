@@ -252,12 +252,3 @@ def comment_token_two_groups(user_two_groups):
         permissions=["Comment"], created_by_id=user_two_groups.id, name=str(uuid.uuid4())
     )
     return token_id
-
-
-@pytest.fixture()
-def comment_token_two_groups(user_two_groups):
-    token_id = create_token(
-        permissions=["Comment"], created_by_id=user_two_groups.id, name=str(uuid.uuid4())
-    )
-    return token_id
-
