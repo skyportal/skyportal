@@ -1,9 +1,4 @@
-import os
-import datetime
-import base64
 from skyportal.tests import api
-from skyportal.models import Thumbnail, DBSession, Photometry
-
 import numpy as np
 import sncosmo
 
@@ -740,68 +735,6 @@ def test_token_user_update_photometry_groups(upload_data_token_two_groups,
     assert "Insufficient permissions" in data["message"]
 
 
-def test_post_same_alertid_update_groups(upload_data_token_two_groups,
-                                         manage_sources_token_two_groups,
-                                         public_source_two_groups, ztf_camera,
-                                         public_group, public_group2,
-                                         view_only_token):
-    upload_data_token = upload_data_token_two_groups
-    manage_sources_token = manage_sources_token_two_groups
-    public_source = public_source_two_groups
-    alert_id = np.random.randint(100, 9223372036854775807)
-
-    status, data = api('POST', 'photometry',
-                       data={'obj_id': str(public_source.id),
-                             'mjd': 58000.,
-                             'instrument_id': ztf_camera.id,
-                             'flux': 12.24,
-                             'fluxerr': 0.031,
-                             'zp': 25.,
-                             'magsys': 'ab',
-                             'filter': 'ztfi',
-                             'alert_id': alert_id,
-                             'group_ids': [public_group2.id]
-                             },
-                       token=upload_data_token)
-    assert status == 200
-    assert data['status'] == 'success'
-    phot_id = data['data']['ids'][0]
-
-    photometry_id = data['data']['ids'][0]
-    status, data = api(
-        'GET',
-        f'photometry/{photometry_id}?format=flux',
-        token=view_only_token)
-    assert status == 400
-    assert data['status'] == 'error'
-    assert "Insufficient permissions" in data["message"]
-
-    status, data = api('POST', 'photometry',
-                       data={'obj_id': str(public_source.id),
-                             'mjd': 58000.,
-                             'instrument_id': ztf_camera.id,
-                             'flux': 12.24,
-                             'fluxerr': 0.031,
-                             'zp': 25.,
-                             'magsys': 'ab',
-                             'filter': 'ztfi',
-                             'alert_id': alert_id,
-                             'group_ids': [public_group.id]
-                             },
-                       token=upload_data_token)
-    assert status == 200
-    assert data['status'] == 'success'
-    assert data['data']['ids'][0] == phot_id
-
-    status, data = api(
-        'GET',
-        f'photometry/{photometry_id}?format=flux',
-        token=view_only_token)
-    assert status == 200
-    assert data['status'] == 'success'
-    assert data['data']['alert_id'] == alert_id
-
-
 def test_delete_photometry_data(upload_data_token, manage_sources_token,
                                 public_source, ztf_camera, public_group):
     status, data = api('POST', 'photometry',
@@ -932,3 +865,23 @@ def test_token_user_retrieve_null_photometry(upload_data_token, public_source,
     assert data['status'] == 'success'
     assert data['data']['mag'] is None
     assert data['data']['magerr'] is None
+
+
+def test_token_user_big_post(upload_data_token, public_source, ztf_camera,
+                             public_group):
+
+    status, data = api('POST', 'photometry',
+                       data={
+                           'obj_id': str(public_source.id),
+                           'mjd': [58000 + i for i in range(50000)],
+                           'instrument_id': ztf_camera.id,
+                           'mag': np.random.uniform(low=18, high=22, size=50000).tolist(),
+                           'magerr': np.random.uniform(low=0.1, high=0.3, size=50000).tolist(),
+                           'limiting_mag': 22.3,
+                           'magsys': 'ab',
+                           'filter': 'ztfg',
+                           'group_ids': [public_group.id]
+                       },
+                       token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'

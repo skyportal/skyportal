@@ -195,7 +195,7 @@ class SourceHandler(BaseHandler):
                 page = int(page_number)
             except ValueError:
                 return self.error("Invalid page number value.")
-            q = Obj.query.filter(Obj.id.in_(DBSession.query(
+            q = Obj.query.filter(Obj.id.in_(DBSession().query(
                 Source.obj_id).filter(Source.group_id.in_(
                     [g.id for g in self.current_user.groups]))))
             if sourceID:
@@ -237,7 +237,7 @@ class SourceHandler(BaseHandler):
             return self.success(data=query_results)
 
         sources = Obj.query.filter(Obj.id.in_(
-            DBSession.query(Source.obj_id).filter(Source.group_id.in_(
+            DBSession().query(Source.obj_id).filter(Source.group_id.in_(
                 [g.id for g in self.current_user.groups]
             ))
         )).all()
@@ -304,8 +304,8 @@ class SourceHandler(BaseHandler):
         if not groups:
             return self.error("Invalid group_ids field. Please specify at least "
                               "one valid group ID that you belong to.")
-        DBSession.add(obj)
-        DBSession.add_all([Source(obj=obj, group=group) for group in groups])
+        DBSession().add(obj)
+        DBSession().add_all([Source(obj=obj, group=group) for group in groups])
         DBSession().commit()
 
         self.push_all(action="skyportal/FETCH_SOURCES")
@@ -375,7 +375,7 @@ class SourceHandler(BaseHandler):
         """
         if group_id not in [g.id for g in self.current_user.groups]:
             return self.error("Inadequate permissions.")
-        s = (DBSession.query(Source).filter(Source.obj_id == obj_id)
+        s = (DBSession().query(Source).filter(Source.obj_id == obj_id)
              .filter(Source.group_id == group_id).first())
         s.active = False
         s.unsaved_by = self.current_user

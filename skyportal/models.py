@@ -1,3 +1,4 @@
+import arrow
 import uuid
 import re
 from datetime import datetime
@@ -9,9 +10,11 @@ from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy_utils import ArrowType
 from skyportal_spatial import (UnindexedSpatialBackend, PostGISSpatialBackend,
                                Q3CSpatialBackend)
+from sqlalchemy_utils import ArrowType, URLType
+
+from astropy.time import Time
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
@@ -136,7 +139,6 @@ class Obj(Base, Spatial):
     # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
     altdata = sa.Column(JSONB, nullable=True)
 
-    last_detected = sa.Column(ArrowType, nullable=True)
     dist_nearest_source = sa.Column(sa.Float, nullable=True)
     mag_nearest_source = sa.Column(sa.Float, nullable=True)
     e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
@@ -171,6 +173,18 @@ class Obj(Base, Spatial):
                               cascade='save-update, merge, refresh-expire, expunge')
 
     followup_requests = relationship('FollowupRequest', back_populates='obj')
+
+    @hybrid_property
+    def last_detected(self):
+        return max(phot.iso for phot in self.photometry if phot.snr > 5)
+
+    @last_detected.expression
+    def last_detected(cls):
+        return sa.select([sa.func.max(Photometry.iso)]) \
+                 .where(Photometry.obj_id == cls.id) \
+                 .where(Photometry.snr > 5.) \
+                 .group_by(Photometry.obj_id) \
+                 .label('last_detected')
 
     def add_linked_thumbnails(self):
         sdss_thumb = Thumbnail(photometry=self.photometry[0],
@@ -327,10 +341,12 @@ class SourceView(Base):
 class Telescope(Base):
     name = sa.Column(sa.String, nullable=False)
     nickname = sa.Column(sa.String, nullable=False)
-    lat = sa.Column(sa.Float, nullable=False)
-    lon = sa.Column(sa.Float, nullable=False)
-    elevation = sa.Column(sa.Float, nullable=False)
-    diameter = sa.Column(sa.Float, nullable=False)
+    lat = sa.Column(sa.Float, nullable=False, doc='Latitude in deg.')
+    lon = sa.Column(sa.Float, nullable=False, doc='Longitude in deg.')
+    elevation = sa.Column(sa.Float, nullable=False, doc='Elevation in meters.')
+    diameter = sa.Column(sa.Float, nullable=False, doc='Diameter in meters.')
+    skycam_link = sa.Column(URLType, nullable=True,
+                            doc="Link to the telescope's sky camera.")
 
     groups = relationship('Group', secondary='group_telescopes')
     instruments = relationship('Instrument', back_populates='telescope',
@@ -484,6 +500,8 @@ class Photometry(Base, Spatial):
     instrument = relationship('Instrument', back_populates='photometry')
     thumbnails = relationship('Thumbnail', passive_deletes=True)
 
+
+
     @hybrid_property
     def mag(self):
         if self.flux is not None and self.flux > 0:
@@ -517,6 +535,24 @@ class Photometry(Base, Spatial):
             ],
             else_=None
         )
+
+    @hybrid_property
+    def jd(self):
+        return self.mjd + 2_400_000.5
+
+    @hybrid_property
+    def iso(self):
+        return arrow.get((self.mjd - 40_587.5) * 86400.)
+
+    @iso.expression
+    def iso(cls):
+        # converts MJD to unix timestamp
+        local = sa.func.to_timestamp((cls.mjd - 40_587.5) * 86400.)
+        return sa.func.timezone('UTC', local)
+
+    @hybrid_property
+    def snr(self):
+        return self.flux / self.fluxerr
 
 
 GroupPhotometry = join_model("group_photometry", Group, Photometry)
