@@ -94,6 +94,11 @@ def create_user_group_and_add_to_public_group(mapper, connection, target):
         )
 
 
+@event.listens_for(User, "after_delete")
+def delete_user_group(mapper, connection, target):
+    object_session(target).delete(Group.query.filter(Group.name == target.username))
+
+
 class Stream(Base):
     name = sa.Column(sa.String, unique=True, nullable=False)
     url = sa.Column(sa.String, unique=True, nullable=False)
