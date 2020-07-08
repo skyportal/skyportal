@@ -64,7 +64,7 @@ matrix:
   include:
     - python: 3.7
       env:
-        - TEST_TARGET=test
+        - TEST_TARGET=test_xml
 
 before_install:
   - ccache -s
