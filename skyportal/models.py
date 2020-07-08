@@ -230,16 +230,19 @@ class Obj(Base, ha.Point):
         Returns
         -------
 
-        secz: astropy.units.Quantity
+        secz: ndarray in the shape of `time`
            The airmass of the Obj at the requested times
         """
 
-        target = astroplan.FixedTarget(name=self.id, coord=self.skycoord)
-        observer = astroplan.Observer(latitude=telescope.lat * u.deg,
-                                      longitude=telescope.lon * u.deg,
-                                      elevation=telescope.elevation * u.m)
+        altitude = self.altitude(telescope, time).to('degree').value
 
-        return observer.altaz(time, target).secz
+        # use Pickering (2002) interpolation to calculate the airmass
+        airmass = 1. / np.sin(altitude + (244 / (165 + 47 * altitude ** 1.1)))
+
+        # set objects below the horizon to an airmass of infinity
+        airmass[airmass < 0] = np.inf
+
+        return airmass
 
     def altitude(self, telescope, time):
         """Return the altitude of the Obj at time `time` from Telescope

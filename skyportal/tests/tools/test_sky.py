@@ -23,6 +23,7 @@ def test_airmass(public_source, ztf_camera):
                                 10.98339563,  10.0651456,   -3.56390628,
                                 2.21394053,  -1.67866853,   1.40139983,
                                 -1.26419576,   1.20134104])
+    airmass_true[airmass_true < 0] = np.inf
     np.testing.assert_allclose(airmass_calc, airmass_true)
 
 
