@@ -214,7 +214,7 @@ class Obj(Base, ha.Point):
         return (f"http://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
                 f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz")
 
-    def airmass(self, telescope, time):
+    def airmass(self, telescope, time, below_horizon=np.inf):
         """Return the airmass of the Obj at time `time` from Telescope
         `telescope`.
 
@@ -241,11 +241,11 @@ class Obj(Base, ha.Point):
         airmass = 1. / np.sin(np.deg2rad(sinarg))
 
         # set objects below the horizon to an airmass of infinity
-        airmass[airmass < 0] = np.inf
+        airmass[airmass < 1] = below_horizon
 
         return airmass
 
-    def altitude(self, telescope, time):
+    def altitude(self, telescope, time, below_horizon=0.):
         """Return the altitude of the Obj at time `time` from Telescope
         `telescope`.
 
@@ -270,7 +270,9 @@ class Obj(Base, ha.Point):
                                       longitude=telescope.lon * u.deg,
                                       elevation=telescope.elevation * u.m)
 
-        return observer.altaz(time, target).alt
+        alt = observer.altaz(time, target).alt
+        alt[alt < 0. * u.deg] = below_horizon * u.deg
+        return alt
 
 
 class Filter(Base):
