@@ -81,6 +81,7 @@ def test_latest_taxonomy(taxonomy_token, public_group):
     assert status == 200
     assert data['data']['isLatest']
 
+
     # the first one we added should now have isLatest == False
     status, data = api('GET', f'taxonomy/{old_taxonomy_id}',
                        token=taxonomy_token)
