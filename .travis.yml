@@ -64,7 +64,7 @@ matrix:
   include:
     - python: 3.7
       env:
-        - TEST_TARGET=test
+        - TEST_TARGET=test_xml
 
 before_install:
   - ccache -s
@@ -82,3 +82,10 @@ after_success:
   # ESLint gets called when we try to commit the docs
   - rm .git/hooks/pre-commit
   - .travis/deploy_docs.sh
+
+after_script:
+  # Upload test results to BuildPulse for flaky test detection
+  - export BUILDPULSE_ACCOUNT_ID=25833053
+  - export BUILDPULSE_REPOSITORY_ID=82240075
+  - export BUILDPULSE_REPORT_PATH=test-results
+  - /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Workshop64/buildpulse-travis-ci/main/uploader-for-ubuntu.sh)"
