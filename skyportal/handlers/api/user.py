@@ -27,7 +27,7 @@ class UserHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        user = User.query.options(joinedload(User.acls)).get(int(user_id))
+        user = User.query.get(int(user_id))
         if user is None:
             return self.error(f'Invalid user ID ({user_id}).')
         else:
