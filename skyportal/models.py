@@ -15,6 +15,7 @@ from sqlalchemy_utils import ArrowType, URLType
 
 from astropy.time import Time
 
+from baselayer.app.env import load_env
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
 from baselayer.app.custom_exceptions import AccessError
@@ -27,6 +28,8 @@ from .phot_enum import allowed_bandpasses, thumbnail_types
 # will put our converted fluxes to microJy.
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
+
+env, cfg = load_env()
 
 
 def is_owned_by(self, user_or_token):
@@ -87,16 +90,21 @@ def create_user_group_and_add_to_public_group(mapper, connection, target):
     object_session(target).add(
         Group(name=target.username, users=[target], single_user_group=True)
     )
-    public_group = Group.query.filter(Group.name == "Public Group").first()
+    public_group = Group.query.filter(
+        Group.name == cfg["misc"]["public_group_name"]
+    ).first()
     if public_group is not None:
         object_session(target).add(
             GroupUser(group_id=public_group.id, user_id=target.id)
         )
 
 
-@event.listens_for(User, "after_delete")
+@event.listens_for(User, "before_delete")
 def delete_user_group(mapper, connection, target):
-    object_session(target).delete(Group.query.filter(Group.name == target.username))
+    object_session(target).delete(
+        Group.query.filter(Group.name == target.username)
+        .first()
+    )
 
 
 class Stream(Base):
