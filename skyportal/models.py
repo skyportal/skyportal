@@ -237,7 +237,8 @@ class Obj(Base, ha.Point):
         altitude = self.altitude(telescope, time).to('degree').value
 
         # use Pickering (2002) interpolation to calculate the airmass
-        airmass = 1. / np.sin(altitude + (244 / (165 + 47 * altitude ** 1.1)))
+        sinarg = altitude + 244 / (165 + 47 * altitude ** 1.1)
+        airmass = 1. / np.sin(np.deg2rad(sinarg))
 
         # set objects below the horizon to an airmass of infinity
         airmass[airmass < 0] = np.inf
