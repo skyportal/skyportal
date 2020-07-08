@@ -8,18 +8,20 @@ import MenuItem from "@material-ui/core/MenuItem";
 import Button from "@material-ui/core/Button";
 import InputLabel from "@material-ui/core/InputLabel";
 import FormControl from "@material-ui/core/FormControl";
+import Chip from "@material-ui/core/Chip";
+import Input from "@material-ui/core/Input";
 import Card from "@material-ui/core/Card";
 import CardContent from "@material-ui/core/CardContent";
 import Box from "@material-ui/core/Box";
 import Tooltip from "@material-ui/core/Tooltip";
-import HelpOutlineIcon from '@material-ui/icons/HelpOutline';
+import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
 import Typography from "@material-ui/core/Typography";
-import { makeStyles, withStyles } from "@material-ui/core/styles";
+import { makeStyles, withStyles, useTheme } from "@material-ui/core/styles";
 import { useForm, Controller } from "react-hook-form";
+import PapaParse from "papaparse";
 
 import FormValidationError from "./FormValidationError";
 import * as Actions from "../ducks/source";
-
 
 const textAreaPlaceholderText = `mjd,flux,fluxerr,zp,magsys,instrument_id,filter,altdata.meta1
 58001.,22.,1.,30.,ab,1,ztfg,44.4
@@ -28,23 +30,38 @@ const textAreaPlaceholderText = `mjd,flux,fluxerr,zp,magsys,instrument_id,filter
 
 const HtmlTooltip = withStyles((theme) => ({
   tooltip: {
-    backgroundColor: '#f9f9ff',
-    color: 'rgba(0, 0, 0, 0.87)',
+    backgroundColor: "#f9f9ff",
+    color: "rgba(0, 0, 0, 0.87)",
     maxWidth: 700,
     fontSize: theme.typography.pxToRem(12),
-    border: '1px solid #dadde9',
+    border: "1px solid #dadde9",
   },
 }))(Tooltip);
+
+const getStyles = (groupID, groupIDs, theme) => (
+  {
+    fontWeight:
+      groupIDs.indexOf(groupID) === -1 ?
+        theme.typography.fontWeightRegular :
+        theme.typography.fontWeightMedium,
+  }
+);
 
 const UploadPhotometryForm = () => {
   const dispatch = useDispatch();
   const { instrumentList } = useSelector((state) => state.instruments);
+  const userGroups = useSelector((state) => state.groups.user);
   const [showPreview, setShowPreview] = useState(false);
   const [csvData, setCsvData] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
   const { id } = useParams();
   const { handleSubmit, errors, reset, control, getValues } = useForm();
   let formState = getValues();
+
+  const parseOptions = {
+    skipEmptyLines: "greedy",
+    delimitersToGuess: [",", "\t", " ", "|", ";", PapaParse.RECORD_SEP, PapaParse.UNIT_SEP]
+  };
 
   const validateCsvData = () => {
     setShowPreview(false);
@@ -54,10 +71,7 @@ const UploadPhotometryForm = () => {
     if (!formState.csvData) {
       return "Missing CSV data";
     }
-    const delim = new RegExp(formState.delimiter);
-    let [header, ...dataRows] = formState.csvData.trim().split("\n");
-    header = header.split(delim);
-    dataRows = dataRows.map((row) => row.split(delim));
+    const [header, ...dataRows] = PapaParse.parse(formState.csvData.trim(), parseOptions).data;
     const headerLength = header.length;
     if (!(headerLength >= 2)) {
       return "Invalid input: Too few columns";
@@ -96,11 +110,13 @@ const UploadPhotometryForm = () => {
     return true;
   };
 
+  const validateGroups = () => {
+    formState = getValues({ nest: true });
+    return formState.groupIDs.length >= 1;
+  };
+
   const handleClickPreview = async (data) => {
-    let [header, ...dataRows] = data.csvData.trim().split("\n");
-    const delim = new RegExp(data.delimiter);
-    header = header.split(delim);
-    dataRows = dataRows.map((row) => row.split(delim));
+    const [header, ...dataRows] = PapaParse.parse(data.csvData.trim(), parseOptions).data;
     setCsvData({
       columns: header,
       data: dataRows
@@ -110,9 +126,9 @@ const UploadPhotometryForm = () => {
 
   const handleReset = () => {
     reset({
-      delimiter: ",",
       csvData: "",
-      instrumentID: "multiple"
+      instrumentID: "",
+      groupIDs: []
     }, {
       dirty: false
     });
@@ -123,6 +139,7 @@ const UploadPhotometryForm = () => {
     formState = getValues();
     const data = {
       obj_id: id,
+      group_ids: formState.groupIDs,
       altdata: {}
     };
     if (formState.instrumentID !== "multiple") {
@@ -139,17 +156,29 @@ const UploadPhotometryForm = () => {
     if (result.status === "success") {
       handleReset();
       const rootURL = `${window.location.protocol}//${window.location.host}`;
-      setSuccessMessage(`Upload successful. Your bulk upload ID is ${result.data.bulk_upload_id}
+      setSuccessMessage(`Upload successful. Your upload ID is ${result.data.upload_id}
                         To delete these data, use a valid token to make a request of the form:
                         curl -X DELETE -i -H "Authorization: token <your_token_id>" \
-                        ${rootURL}/api/photometry/bulk_delete/${result.data.bulk_upload_id}`);
+                        ${rootURL}/api/photometry/bulk_delete/${result.data.upload_id}`);
     }
   };
+
+  const groupIDToName = {};
+  userGroups.forEach((g) => {
+    groupIDToName[g.id] = g.name;
+  });
 
   const useStyles = makeStyles((theme) => ({
     formControl: {
       margin: theme.spacing(1),
       minWidth: 120,
+    },
+    chips: {
+      display: "flex",
+      flexWrap: "wrap",
+    },
+    chip: {
+      margin: 2,
     },
     textarea: {
       "::-webkit-input-placeholder": {
@@ -164,6 +193,18 @@ const UploadPhotometryForm = () => {
     }
   }));
   const classes = useStyles();
+  const theme = useTheme();
+
+  const ITEM_HEIGHT = 48;
+  const ITEM_PADDING_TOP = 8;
+  const MenuProps = {
+    PaperProps: {
+      style: {
+        maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
+        width: 250,
+      },
+    },
+  };
 
   return (
     <div>
@@ -201,59 +242,96 @@ const UploadPhotometryForm = () => {
               </FormControl>
             </Box>
             <Box m={1} style={{ display: "inline-block" }}>
-              <Box component="span" m={1}>
-                <FormControl className={classes.formControl}>
-                  <InputLabel id="delimiter-label">Delimiter</InputLabel>
-                  <Controller
-                    as={(
-                      <Select labelId="delimiter-label">
-                        <MenuItem value=",">
-                          Comma
-                        </MenuItem>
-                        <MenuItem value={`\\s+`}>
-                          Whitespace
-                        </MenuItem>
-                      </Select>
-                    )}
-                    name="delimiter"
-                    control={control}
-                    rules={{ required: true }}
-                    defaultValue=","
-                  />
-                </FormControl>
+              <Box display="flex" alignItems="center">
+                <Box component="span" m={1}>
+                  <font size="small">
+                    Note: To display an instrument&apos;s available filters,
+                    hover over the instrument name in the drop-down menu below.
+                    <br />
+                  </font>
+                  {
+                    errors.instrumentID && (
+                      <FormValidationError
+                        message="Select an instrument"
+                      />
+                    )
+                  }
+                  <FormControl className={classes.formControl}>
+                    <InputLabel id="instrumentSelectLabel">
+                      Instrument
+                    </InputLabel>
+                    <Controller
+                      as={(
+                        <Select labelId="instrumentSelectLabel">
+                          <MenuItem value="multiple" key={0}>
+                            Multiple (requires instrument_id column below)
+                          </MenuItem>
+                          {
+                           instrumentList.map((instrument) => (
+                             <MenuItem value={instrument.id} key={instrument.id}>
+                               <Tooltip title={`Filters: ${instrument.filters.join(", ")}`}>
+                                 <span>
+                                   {`${instrument.name} (ID: ${instrument.id})`}
+                                 </span>
+                               </Tooltip>
+                             </MenuItem>
+                           ))
+                          }
+                        </Select>
+                      )}
+                      name="instrumentID"
+                      rules={{ required: true }}
+                      control={control}
+                      defaultValue=""
+                    />
+                  </FormControl>
+                </Box>
               </Box>
-              <br />
               <Box component="span" m={1}>
                 {
-                  errors.instrumentID && (
+                  errors.groupIDs && (
                     <FormValidationError
-                      message="Select an instrument"
+                      message="Select at least one group"
                     />
                   )
                 }
                 <FormControl className={classes.formControl}>
-                  <InputLabel id="instrumentSelectLabel">
-                    Instrument
-                  </InputLabel>
+                  <InputLabel id="select-groups-label">Groups</InputLabel>
                   <Controller
                     as={(
-                      <Select labelId="instrumentSelectLabel">
-                        <MenuItem value="multiple" key={0}>
-                          Multiple (requires instrument_id column below)
-                        </MenuItem>
-                        {
-                          instrumentList.map((instrument) => (
-                            <MenuItem value={instrument.id} key={instrument.id}>
-                              {`${instrument.name} (ID: ${instrument.id})`}
-                            </MenuItem>
-                          ))
-                        }
+                      <Select
+                        labelId="select-groups-label"
+                        id="selectGroups"
+                        multiple
+                        input={<Input id="selectGroupsChip" />}
+                        renderValue={(selected) => (
+                          <div className={classes.chips}>
+                            {selected.map((value) => (
+                              <Chip
+                                key={value}
+                                label={groupIDToName[value]}
+                                className={classes.chip}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        MenuProps={MenuProps}
+                      >
+                        {userGroups.map((group) => (
+                          <MenuItem
+                            key={group.id}
+                            value={group.id}
+                            style={getStyles(group.name, formState.groupIDs, theme)}
+                          >
+                            {group.name}
+                          </MenuItem>
+                        ))}
                       </Select>
                     )}
-                    name="instrumentID"
-                    rules={{ required: true }}
+                    name="groupIDs"
+                    rules={{ validate: validateGroups }}
                     control={control}
-                    defaultValue=""
+                    defaultValue={[]}
                   />
                 </FormControl>
               </Box>
@@ -279,26 +357,26 @@ const UploadPhotometryForm = () => {
                         API docs
                       </a>
                       &nbsp;for other allowable fields (note: omit
-                      {' '}
+                      {" "}
                       <code>obj_id</code>
-                      {' '}
+                      {" "}
                       here).
                     </p>
                     <p>
                       Other miscellanous metadata can be supplied by preceding the column
                       name with
-                      {' '}
+                      {" "}
                       <code>&quot;altdata.&quot;</code>
-                      {' '}
+                      {" "}
                       (e.g.
-                      {' '}
+                      {" "}
                       <code>&quot;altdata.calibrated_to&quot;</code>
                       ).
                       Such fields will ultimately be stored in the photometry table&apos;s
-                      {' '}
+                      {" "}
                       <code>altdata</code>
                       &nbsp;JSONB column, e.g.
-                      {' '}
+                      {" "}
                       <code>
                         {"{"}
                         &quot;calibrated_to&quot;: &quot;ps1&quot;, ...

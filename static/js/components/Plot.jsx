@@ -15,7 +15,6 @@ import "bokehjs/bokeh-widgets.js";
 // eslint-disable-next-line import/extensions, import/no-extraneous-dependencies
 import "bokehcss/bokeh-widgets.css";
 
-
 function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
   // Create bokeh div element
   const bokeh_div = document.createElement("div");
@@ -81,7 +80,6 @@ const Plot = (props) => {
     fetchPlotDataIfNotCached();
   });
 
-
   const plotData = plots.plotData[url];
   if (error) {
     return (
@@ -127,7 +125,6 @@ const Plot = (props) => {
     />
   );
 };
-
 
 Plot.propTypes = {
   url: PropTypes.string.isRequired,

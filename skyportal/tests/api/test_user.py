@@ -29,6 +29,9 @@ def test_delete_user_cascades_to_tokens(manage_users_token, user, public_group):
                             name=token_name)
     assert Token.query.get(token_id)
 
+    # end the transaction on the test-side
+    DBSession().commit()
+
     status, data = api('DELETE', f'user/{user.id}', token=manage_users_token)
     assert status == 200
 

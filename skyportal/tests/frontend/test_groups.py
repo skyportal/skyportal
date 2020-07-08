@@ -31,11 +31,7 @@ def test_add_new_group(driver, super_admin_user, user):
     driver.wait_for_xpath('//input[@name="groupAdmins"]').send_keys(user.username)
     driver.save_screenshot('/tmp/screenshot1.png')
     driver.wait_for_xpath('//input[@value="Create Group"]').click()
-    try:
-        driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
-    except:
-        driver.save_screenshot('/tmp/screenshot2.png')
-        raise
+    driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
 
 def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
@@ -48,11 +44,7 @@ def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
     driver.wait_for_xpath('//input[@name="groupAdmins"]').send_keys(super_admin_user.username)
     driver.save_screenshot('/tmp/screenshot1.png')
     driver.wait_for_xpath('//input[@value="Create Group"]').click()
-    try:
-        driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
-    except:
-        driver.save_screenshot('/tmp/screenshot2.png')
-        raise
+    driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
 
 def test_add_new_group_user_admin(driver, super_admin_user, user, public_group):
@@ -66,7 +58,6 @@ def test_add_new_group_user_admin(driver, super_admin_user, user, public_group):
     driver.wait_for_xpath('//input[@type="checkbox"]').click()
     driver.wait_for_xpath('//input[@value="Add user"]').click()
     driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
-    print(user.username)
     assert len(driver.find_elements_by_xpath(
         f'//a[contains(.,"{user.username}")]/..//span')) == 1
 

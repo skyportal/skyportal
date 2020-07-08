@@ -14,7 +14,6 @@ from marshmallow_sqlalchemy import (
 from marshmallow import (Schema as _Schema, fields, validate, post_load,
                          ValidationError)
 from marshmallow_enum import EnumField
-from marshmallow_oneofschema import OneOfSchema
 
 from baselayer.app.models import (
     Base as _Base,
@@ -179,26 +178,41 @@ class PhotBaseFlexible(object):
                                   'Can be given as a scalar or a 1D list. '
                                   'If a scalar, will be broadcast to all values '
                                   'given as lists. Null values allowed.',
-                      required=False)
+                      required=False, missing=None)
 
     dec = fields.Field(description='ICRS Declination of the centroid '
                                    'of the photometric aperture [deg]. '
                                    'Can be given as a scalar or a 1D list. '
                                    'If a scalar, will be broadcast to all values '
                                    'given as lists. Null values allowed.',
-                       required=False)
+                       required=False, missing=None)
 
     ra_unc = fields.Field(description='Uncertainty on RA [arcsec]. '
                                       'Can be given as a scalar or a 1D list. '
                                       'If a scalar, will be broadcast to all values '
                                       'given as lists. Null values allowed.',
-                          required=False)
+                          required=False, missing=None)
 
     dec_unc = fields.Field(description='Uncertainty on dec [arcsec]. '
                                        'Can be given as a scalar or a 1D list. '
                                        'If a scalar, will be broadcast to all values '
                                        'given as lists. Null values allowed.',
-                           required=False)
+                           required=False, missing=None)
+
+    alert_id = fields.Field(description="Corresponding alert ID. If a record is "
+                            "already present with identical alert ID, only the "
+                            "groups list will be updated (other alert data assumed "
+                            "identical). Defaults to None.")
+
+    group_ids = fields.List(fields.Integer(),
+                            description="List of group IDs to which photometry "
+                                        "points will be visible.",
+                            required=True)
+
+
+    altdata = fields.Field(description='Misc. alternative metadata.',
+                           missing=None, default=None, required=False)
+
 
 
 class PhotFluxFlexible(_Schema, PhotBaseFlexible):
@@ -206,6 +220,9 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
     input data to `PhotometryHandler.post` in redoc. These classes are only
     used for generating documentation and not for validation, serialization,
     or deserialization."""
+
+    required_keys = ['magsys', 'mjd', 'filter', 'obj_id', 'instrument_id',
+                     'fluxerr', 'zp']
 
     magsys = fields.Field(required=True,
                           description='The magnitude system to which the flux, flux error, '
@@ -225,7 +242,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
                                     'used to derive a 5-sigma limiting magnitude '
                                     'when the photometry point is requested in '
                                     'magnitude space from the Photomety GET api.',
-                        required=False)
+                        required=False, missing=None)
 
     fluxerr = fields.Field(description='Gaussian error on the flux in counts. '
                                        'Can be given as a scalar or a 1D list. '
@@ -248,6 +265,9 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
     used for generating documentation and not for validation, serialization,
     or deserialization."""
 
+    required_keys = ['magsys', 'limiting_mag', 'mjd', 'filter',
+                     'obj_id', 'instrument_id']
+
     magsys = fields.Field(required=True,
                           description='The magnitude system to which the magnitude, '
                                       'magnitude error, and limiting magnitude are tied. '
@@ -263,7 +283,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
                                    'given as lists. Null values allowed for non-detections. '
                                    'If `mag` is null, the corresponding '
                                    '`magerr` must also be null.',
-                        required=False)
+                       required=False, missing=None)
 
     magerr = fields.Field(description='Magnitude of the observation in the '
                                       'magnitude system `magsys`. '
@@ -272,7 +292,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
                                       'given as lists. Null values allowed for non-detections. '
                                       'If `magerr` is null, the corresponding `mag` '
                                       'must also be null.',
-                          required=False)
+                          required=False, missing=None)
 
     limiting_mag = fields.Field(description='Limiting magnitude of the image '
                                             'in the magnitude system `magsys`. '
@@ -280,6 +300,12 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
                                             'If a scalar, will be broadcast to all values '
                                             'given as lists. Null values not allowed.',
                                 required=True)
+
+    limiting_mag_nsigma = fields.Field(description='Number of standard deviations '
+                                                   'above the background that the limiting '
+                                                   'magnitudes correspond to. Null values '
+                                                   'not allowed. Default = 5.',
+                                       required=False, missing=5)
 
 
 class PhotBase(object):
@@ -317,6 +343,12 @@ class PhotBase(object):
     dec_unc = fields.Number(description='Uncertainty on dec [arcsec].',
                             missing=None, default=None)
 
+    alert_id = fields.Integer(description="Corresponding alert ID. If a record is "
+                              "already present with identical alert ID, only the "
+                              "groups list will be updated (other alert data assumed "
+                              "identical). Defaults to None.",
+                              missing=None, default=None)
+
     altdata = fields.Dict(description='Misc. alternative metadata.',
                           missing=None, default=None)
 
@@ -329,7 +361,7 @@ class PhotBase(object):
 
 
 class PhotometryFlux(_Schema, PhotBase):
-    """This is one of  two classes that are used for deserializing
+    """This is one of two classes that are used for deserializing
     and validating the postprocessed input data of `PhotometryHandler.post`
     and `PhotometryHandler.put` and for generating the API docs of
     PhotometryHandler.get`.
@@ -382,8 +414,7 @@ class PhotometryFlux(_Schema, PhotBase):
             raise ValidationError(f'Invalid object ID: {data["obj_id"]}')
 
         if data["filter"] not in instrument.filters:
-            raise ValidationError(f"Error in packet '{data}': "
-                                  f"Instrument {instrument} has no filter "
+            raise ValidationError(f"Instrument {instrument.name} has no filter "
                                   f"{data['filter']}.")
 
         # convert flux to microJanskies.
@@ -409,9 +440,10 @@ class PhotometryFlux(_Schema, PhotBase):
                        ra=data['ra'],
                        dec=data['dec'],
                        ra_unc=data['ra_unc'],
-                       dec_unc=data['dec_unc']
+                       dec_unc=data['dec_unc'],
                        )
-
+        if 'alert_id' in data and data['alert_id'] is not None:
+            p.alert_id = data['alert_id']
         return p
 
 
@@ -480,8 +512,7 @@ class PhotometryMag(_Schema, PhotBase):
             raise ValidationError(f'Invalid object ID: {data["obj_id"]}')
 
         if data["filter"] not in instrument.filters:
-            raise ValidationError(f"Error in packet '{data}': "
-                                  f"Instrument {instrument} has no filter "
+            raise ValidationError(f"Instrument {instrument.name} has no filter "
                                   f"{data['filter']}.")
 
         # determine if this is a limit or a measurement
@@ -523,8 +554,10 @@ class PhotometryMag(_Schema, PhotBase):
                        ra=data['ra'],
                        dec=data['dec'],
                        ra_unc=data['ra_unc'],
-                       dec_unc=data['dec_unc'])
-
+                       dec_unc=data['dec_unc'],
+                       )
+        if 'alert_id' in data and data['alert_id'] is not None:
+            p.alert_id = data['alert_id']
         return p
 
 

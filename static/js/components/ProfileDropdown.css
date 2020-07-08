@@ -14,7 +14,7 @@
     padding-bottom: 0.25em;
     color: white;
     width: 100%;
-    z-index: 100;
+    z-index: 200;
     background: #38B0DE;
     border-bottom: 0.25em solid lightgray;
 }
@@ -68,7 +68,7 @@
     color: gray;
     font-size: 90%;
     position: relative;
-    z-index: 100;
+    z-index: 200;
 }
 
 :global(.dropdown__content) a {

@@ -1,68 +1,115 @@
-import React from 'react';
-import PropTypes from 'prop-types';
+import React, { useEffect, useState } from "react";
+import PropTypes from "prop-types";
+import { useSelector } from "react-redux";
+import { useForm, Controller } from "react-hook-form";
+import Checkbox from "@material-ui/core/Checkbox";
+import TextField from "@material-ui/core/TextField";
+import FormControlLabel from "@material-ui/core/FormControlLabel";
+import Typography from "@material-ui/core/Typography";
+import Button from "@material-ui/core/Button";
+import Box from "@material-ui/core/Box";
 
-import styles from './CommentEntry.css';
+import FormValidationError from "./FormValidationError";
+import styles from "./CommentEntry.css";
 
+const CommentEntry = ({ addComment }) => {
+  const userGroups = useSelector((state) => state.groups.user);
 
-class CommentEntry extends React.Component {
-  constructor(props) {
-    super(props);
+  const { handleSubmit, reset, register, getValues, setValue, control, errors } = useForm();
 
-    this.state = {
-      text: '',
-      attachment: ''
-    };
-    this._handleSubmit = this._handleSubmit.bind(this);
-    this._handleChange = this._handleChange.bind(this);
-  }
+  // The file input needs to be registered here, not in the input tag below
+  useEffect(() => {
+    register({ name: "attachment" });
+  }, [register]);
 
-  _handleSubmit(event) {
-    const { addComment } = this.props;
-
-    event.preventDefault();
-    addComment(this.state);
-    this.fileInput.value = "";
-    this.setState({
-      text: "",
-      attachment: ""
+  useEffect(() => {
+    reset({
+      group_ids: Array(userGroups.length).fill(true)
     });
-  }
+  }, [reset, userGroups]);
 
-  _handleChange(event) {
-    if (event.target.files) {
-      this.setState({ attachment: event.target.files[0] });
-    } else {
-      this.setState({ text: event.target.value });
-    }
-  }
+  const [groupSelectVisible, setGroupSelectVisible] = useState(false);
+  const toggleGroupSelectVisible = () => {
+    setGroupSelectVisible(!groupSelectVisible);
+  };
 
-  render() {
-    const { text } = this.state;
-    return (
-      <form className={styles.commentEntry} onSubmit={this._handleSubmit}>
-        <div>
+  const onSubmit = (data) => {
+    const groupIDs = userGroups.map((g) => g.id);
+    const selectedGroupIDs = groupIDs.filter((ID, idx) => data.group_ids[idx]);
+    data.group_ids = selectedGroupIDs;
+    addComment(data);
+    reset();
+    setGroupSelectVisible(false);
+  };
+
+  const handleFileInputChange = (event) => {
+    const file = event.target.files[0];
+    setValue("attachment", file);
+  };
+
+  const validateGroups = () => {
+    const formState = getValues({ nest: true });
+    return formState.group_ids.filter((value) => Boolean(value)).length >= 1;
+  };
+
+  return (
+    <form className={styles.commentEntry} onSubmit={handleSubmit(onSubmit)}>
+      <Typography variant="h6">
+        Add comment
+      </Typography>
+      <div className={styles.inputDiv}>
+        <TextField
+          label="Comment text"
+          inputRef={register({ required: true })}
+          name="text"
+          error={!!errors.text}
+          helperText={errors.text ? "Required" : ""}
+        />
+      </div>
+      <div className={styles.inputDiv}>
+        <label>
+          Attachment &nbsp;
           <input
-            type="text"
-            name="comment"
-            value={text}
-            onChange={this._handleChange}
+            type="file"
+            name="attachment"
+            onChange={handleFileInputChange}
           />
-        </div>
-        <div>
-          <label>
-            Attachment &nbsp;
-            <input
-              ref={(el) => { this.fileInput = el; }}
-              type="file"
-              onChange={this._handleChange}
-            />
-          </label>
-        </div>
-        <input type="submit" value="↵" />
-      </form>
-    );
-  }
-}
+        </label>
+      </div>
+      <div className={styles.inputDiv}>
+        {
+          errors.group_ids &&
+            <FormValidationError message="Select at least one group." />
+        }
+        <Button onClick={toggleGroupSelectVisible} size="small" style={{ textTransform: "none" }}>
+          Customize Group Access
+        </Button>
+        <Box component="div" display={groupSelectVisible ? "block" : "none"}>
+          {
+            userGroups.map((userGroup, idx) => (
+              <FormControlLabel
+                key={userGroup.id}
+                control={(
+                  <Controller
+                    as={Checkbox}
+                    name={`group_ids[${idx}]`}
+                    control={control}
+                    rules={{ validate: validateGroups }}
+                    defaultValue
+                  />
+                )}
+                label={userGroup.name}
+              />
+            ))
+          }
+        </Box>
+      </div>
+      <div className={styles.inputDiv}>
+        <input type="submit" value="↵" name="submitCommentButton" />
+      </div>
+    </form>
+  );
+};
 
 CommentEntry.propTypes = {
   addComment: PropTypes.func.isRequired

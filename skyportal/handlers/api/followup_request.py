@@ -96,7 +96,6 @@ class AssignmentHandler(BaseHandler):
         """
 
         data = self.get_json()
-
         try:
             assignment = AssignmentSchema.load(data=data)
         except ValidationError as e:
@@ -111,7 +110,6 @@ class AssignmentHandler(BaseHandler):
         assignment.requester_id = self.associated_user_object.id
         DBSession.add(assignment)
         DBSession.commit()
-
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
             payload={"obj_id": assignment.obj_id},
@@ -240,7 +238,6 @@ class FollowupRequestHandler(BaseHandler):
                               type: integer
                               description: New follow-up request ID
         """
-
         data = self.get_json()
 
         # super basic validation - note we do not want the output
@@ -294,7 +291,6 @@ class FollowupRequestHandler(BaseHandler):
 
         DBSession.delete(followup_request)
         DBSession.commit()
-
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
             payload={"obj_id": followup_request.obj_id},

@@ -1,11 +1,20 @@
 import uuid
-import pytest
-from selenium import webdriver
-from selenium.webdriver.common.by import By
 import time
 
-import skyportal
 from skyportal.tests import api
+
+
+def test_foldable_sidebar(driver):
+    driver.get('/')
+    sidebar_text = driver.wait_for_xpath('//span[contains(text(),"Dashboard")]')
+    assert sidebar_text.is_displayed()
+
+    hamburger = driver.wait_for_xpath(f'//button[@aria-label="open drawer"]')
+    hamburger.click()
+    assert not sidebar_text.is_displayed()
+
+    hamburger.click()
+    assert sidebar_text.is_displayed()
 
 
 def test_source_list(driver, user, public_source, private_source):
@@ -54,33 +63,59 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
     assert next_button.is_enabled()
     assert not prev_button.is_enabled()
     driver.scroll_to_element_and_click(next_button)
-    time.sleep(0.5)
-    assert prev_button.is_enabled()
+    try:
+        assert prev_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert prev_button.is_enabled()
+
     next_button.click()
-    time.sleep(0.5)
-    assert not next_button.is_enabled()
+    try:
+        assert not next_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert not next_button.is_enabled()
     prev_button.click()
-    time.sleep(0.5)
-    assert next_button.is_enabled()
+    try:
+        assert next_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert next_button.is_enabled()
     prev_button.click()
-    time.sleep(0.5)
-    assert not prev_button.is_enabled()
+    try:
+        assert not prev_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert not prev_button.is_enabled()
     # Jump to page
     jump_to_page_input = driver.wait_for_xpath("//input[@name='jumpToPageInputField']")
     jump_to_page_input.clear()
     jump_to_page_input.send_keys('3')
     jump_to_page_button = driver.wait_for_xpath('//button[contains(.,"Jump to page:")]')
     jump_to_page_button.click()
-    time.sleep(0.5)
-    #driver.wait_for_xpath('//div[contains(text(), "Displaying 1-100")]')
-    assert prev_button.is_enabled()
-    assert not next_button.is_enabled()
+    try:
+        assert prev_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert prev_button.is_enabled()
+    try:
+        assert not next_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert not next_button.is_enabled()
     jump_to_page_input.clear()
     jump_to_page_input.send_keys('1')
     jump_to_page_button.click()
-    time.sleep(0.5)
-    assert next_button.is_enabled()
-    assert not prev_button.is_enabled()
+    try:
+        assert next_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert next_button.is_enabled()
+    try:
+        assert not prev_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert not prev_button.is_enabled()
     # Source filtering
     assert next_button.is_enabled()
     obj_id = driver.wait_for_xpath("//input[@name='sourceID']")
@@ -88,8 +123,11 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
     obj_id.send_keys('aaaa')
     submit = driver.wait_for_xpath("//button[contains(.,'Submit')]")
     driver.scroll_to_element_and_click(submit)
-    time.sleep(1)
-    assert not next_button.is_enabled()
+    try:
+        assert not next_button.is_enabled()
+    except AssertionError:
+        time.sleep(1)
+        assert not next_button.is_enabled()
 
 
 def test_jump_to_page_invalid_values(driver):
@@ -100,8 +138,3 @@ def test_jump_to_page_invalid_values(driver):
     jump_to_page_button = driver.wait_for_xpath('//button[contains(.,"Jump to page:")]')
     driver.scroll_to_element_and_click(jump_to_page_button)
     driver.wait_for_xpath('//div[contains(.,"Invalid page number value")]')
-
-
-def test_skyportal_version_displayed(driver):
-    driver.get('/')
-    driver.wait_for_xpath(f"//div[contains(.,'SkyPortal v{skyportal.__version__}')]")

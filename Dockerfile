@@ -32,7 +32,7 @@ RUN bash -c "\
 
 RUN bash -c "\
     \
-    (make -f baselayer/Makefile bundle || make -c baselayer bundle) && \
+    ./node_modules/.bin/webpack --mode=production --devtool none && \
     rm -rf node_modules && \
     \
     chown -R skyportal.skyportal /skyportal_env && \

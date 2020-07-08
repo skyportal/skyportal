@@ -35,7 +35,7 @@
 
 
 language: python
-dist: xenial
+dist: bionic
 sudo: required
 cache:
   # See http://docs.travis-ci.com/user/caching/#pip-cache
@@ -52,9 +52,7 @@ addons:
     - wget
     - nodejs
     - unzip
-    - libnss3
-    - libgconf-2-4
-  postgresql: "9.6"
+  postgresql: "11"
   firefox: latest
 services:
   - xvfb
@@ -64,7 +62,7 @@ env:
 
 matrix:
   include:
-    - python: 3.6
+    - python: 3.7
       env:
         - TEST_TARGET=test
 
@@ -72,15 +70,10 @@ before_install:
   - ccache -s
   - export PATH=/usr/lib/ccache:${PATH}
   - which python; python --version
-  - wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
   - source .travis/travis_funcs.sh
   - export PYTHONPATH=$PYTHONPATH:$(pwd)
 
 install:
-  # Workaround for invalid GPG keys for MongoDB, CouchDB, and git-lfs
-  - sudo rm -f /etc/apt/sources.list.d/mongodb*
-  - sudo rm -f /etc/apt/sources.list.d/couchdb*
-  - sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 762E3157
   - .travis/travis_install.sh
 
 script: .travis/travis_script.sh

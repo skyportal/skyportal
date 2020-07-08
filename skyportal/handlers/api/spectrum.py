@@ -76,7 +76,7 @@ class SpectrumHandler(BaseHandler):
         spectrum = Spectrum.query.get(spectrum_id)
 
         if spectrum is not None:
-            source = Source.get_if_owned_by(spectrum.obj_id, self.current_user)
+            source = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
             return self.success(data=spectrum)
         else:
             return self.error(f"Could not load spectrum with ID {spectrum_id}")
@@ -107,7 +107,7 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
         spectrum = Spectrum.query.get(spectrum_id)
-        source = Source.get_if_owned_by(spectrum.obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
         data = self.get_json()
         data['id'] = spectrum_id
 
@@ -143,7 +143,7 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
         spectrum = Spectrum.query.get(spectrum_id)
-        source = Source.get_if_owned_by(spectrum.obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
         DBSession().delete(spectrum)
         DBSession().commit()
 

@@ -146,9 +146,18 @@ class CandidateHandler(BaseHandler):
                   schema: Error
         """
         if obj_id is not None:
-            c = Candidate.get_if_owned_by(obj_id, self.current_user)
+            c = Candidate.get_obj_if_owned_by(
+                obj_id,
+                self.current_user,
+                options=[joinedload(Candidate.obj)
+                         .joinedload(Obj.thumbnails)
+                         .joinedload(Thumbnail.photometry)
+                         .joinedload(Photometry.instrument)
+                         .joinedload(Instrument.telescope)]
+            )
             if c is None:
                 return self.error("Invalid ID")
+            c.comments = c.get_comments_owned_by(self.current_user)
             return self.success(data=c)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
@@ -159,6 +168,10 @@ class CandidateHandler(BaseHandler):
         end_date = self.get_query_argument("endDate", None)
         group_ids = self.get_query_argument("groupIDs", None)
         filter_ids = self.get_query_argument("filterIDs", None)
+        user_group_ids = [g.id for g in self.current_user.groups]
+        user_filter_ids = [
+            g.filter.id for g in self.current_user.groups if g.filter is not None
+        ]
         if group_ids is not None:
             if isinstance(group_ids, str) and "," in group_ids:
                 group_ids = [int(g_id) for g_id in group_ids.split(",")]
@@ -181,10 +194,8 @@ class CandidateHandler(BaseHandler):
             ]
         else:
             # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
-            group_ids = [g.id for g in self.current_user.groups]
-            filter_ids = [
-                g.filter.id for g in self.current_user.groups if g.filter is not None
-            ]
+            group_ids = user_group_ids
+            filter_ids = user_filter_ids
         try:
             page = int(page_number)
         except ValueError:
@@ -192,7 +203,6 @@ class CandidateHandler(BaseHandler):
         q = (
             Obj.query.options(
                 [
-                    joinedload(Obj.comments),
                     joinedload(Obj.thumbnails)
                     .joinedload(Thumbnail.photometry)
                     .joinedload(Photometry.instrument)
@@ -201,7 +211,7 @@ class CandidateHandler(BaseHandler):
             )
             .filter(
                 Obj.id.in_(
-                    DBSession.query(Candidate.obj_id).filter(
+                    DBSession().query(Candidate.obj_id).filter(
                         Candidate.filter_id.in_(filter_ids)
                     )
                 )
@@ -211,12 +221,16 @@ class CandidateHandler(BaseHandler):
         if unsaved_only == "true":
             q = q.filter(
                 Obj.id.notin_(
-                    DBSession.query(Source.obj_id).filter(
+                    DBSession().query(Source.obj_id).filter(
                         Source.group_id.in_(group_ids)
                     )
                 )
             )
-        if start_date is not None and start_date.strip() not in ["", "null", "undefined"]:
+        if start_date is not None and start_date.strip() not in [
+            "",
+            "null",
+            "undefined",
+        ]:
             start_date = arrow.get(start_date).datetime
             q = q.filter(Obj.last_detected >= start_date)
         if end_date is not None and end_date.strip() not in ["", "null", "undefined"]:
@@ -231,12 +245,27 @@ class CandidateHandler(BaseHandler):
                 return self.error("Page number out of range.")
             raise
         matching_source_ids = (
-            DBSession.query(Source.obj_id)
+            DBSession().query(Source.obj_id)
             .filter(Source.obj_id.in_([obj.id for obj in query_results["candidates"]]))
             .all()
         )
         for obj in query_results["candidates"]:
+            obj.comments = obj.get_comments_owned_by(self.current_user)
             obj.is_source = (obj.id,) in matching_source_ids
+            obj.passing_group_ids = [
+                f.group_id
+                for f in (
+                    Filter.query.filter(Filter.id.in_(user_filter_ids))
+                    .filter(
+                        Filter.id.in_(
+                            DBSession().query(Candidate.filter_id).filter(
+                                Candidate.obj_id == obj.id
+                            )
+                        )
+                    )
+                    .all()
+                )
+            ]
         return self.success(data=query_results)
 
     @permissions(["Upload data"])
@@ -303,8 +332,8 @@ class CandidateHandler(BaseHandler):
         filters = Filter.query.filter(Filter.id.in_(filter_ids)).all()
         if not filters:
             return self.error("At least one valid filter ID must be provided.")
-        DBSession.add(obj)
-        DBSession.add_all(
+        DBSession().add(obj)
+        DBSession().add_all(
             [
                 Candidate(
                     obj=obj,
@@ -346,7 +375,7 @@ class CandidateHandler(BaseHandler):
                 schema: Error
         """
         # Ensure user has access to candidate
-        c = Candidate.get_if_owned_by(obj_id, self.current_user)
+        c = Candidate.get_obj_if_owned_by(obj_id, self.current_user)
         if c is None:
             return self.error("Invalid ID.")
         data = self.get_json()

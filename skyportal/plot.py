@@ -16,7 +16,7 @@ from matplotlib import cm
 from matplotlib.colors import rgb2hex
 
 import os
-from skyportal.models import (DBSession, Obj, Photometry,
+from skyportal.models import (DBSession, Obj, Photometry, Group,
                               Instrument, Telescope, PHOT_ZP)
 
 import sncosmo
@@ -173,7 +173,7 @@ def get_color(bandpass_name, cmap_limits=(3000., 10000.)):
 
 
 # TODO make async so that thread isn't blocked
-def photometry_plot(obj_id, width=600, height=300):
+def photometry_plot(obj_id, user, width=600, height=300):
     """Create scatter plot of photometry for object.
     Parameters
     ----------
@@ -185,12 +185,21 @@ def photometry_plot(obj_id, width=600, height=300):
         Returns (docs_json, render_items) json for the desired plot.
     """
 
-    data = pd.read_sql(DBSession()
-                       .query(Photometry, Telescope.nickname.label('telescope'),
-                              Instrument.name.label('instrument'))
-                       .join(Instrument).join(Telescope)
-                       .filter(Photometry.obj_id == obj_id)
-                       .statement, DBSession().bind)
+    data = pd.read_sql(
+        DBSession()
+        .query(
+            Photometry,
+            Telescope.nickname.label("telescope"),
+            Instrument.name.label("instrument"),
+        )
+        .join(Instrument, Instrument.id == Photometry.instrument_id)
+        .join(Telescope, Telescope.id == Instrument.telescope_id)
+        .filter(Photometry.obj_id == obj_id)
+        .filter(Photometry.groups.any(Group.id.in_([g.id for g in user.groups])))
+        .statement,
+        DBSession().bind
+    )
+
     if data.empty:
         return None, None, None
 
@@ -203,8 +212,8 @@ def photometry_plot(obj_id, width=600, height=300):
     data['alpha'] = 1.
     data['lim_mag'] = -2.5 * np.log10(data['fluxerr'] * DETECT_THRESH) + data['zp']
 
-    # Passing a dictionary to a bokeh datasource causes the frontend to die, 
-    # deleting the dictionary column fixes that 
+    # Passing a dictionary to a bokeh datasource causes the frontend to die,
+    # deleting the dictionary column fixes that
     del data['original_user_data']
 
     # keep track of things that are only upper limits
@@ -310,7 +319,6 @@ def photometry_plot(obj_id, width=600, height=300):
     plot.yaxis.axis_label = 'Flux (μJy)'
     plot.toolbar.logo = None
 
-
     toggle = CheckboxWithLegendGroup(
         labels=list(data.label.unique()),
         active=list(range(len(data.label.unique()))),
@@ -332,11 +340,11 @@ def photometry_plot(obj_id, width=600, height=300):
                         code=open(os.path.join(os.path.dirname(__file__),
                                                '../static/js/plotjs',
                                                'stackf.js')).read().replace(
-                                   'default_zp', str(PHOT_ZP)
-                               ).replace(
-                                   'detect_thresh', str(DETECT_THRESH)
-                               )
-                        )
+        'default_zp', str(PHOT_ZP)
+    ).replace(
+        'detect_thresh', str(DETECT_THRESH)
+    )
+    )
 
     slider.js_on_change('value', callback)
 
@@ -455,7 +463,7 @@ def photometry_plot(obj_id, width=600, height=300):
         model_dict[key] = ColumnDataSource(df)
 
         key = f'bold{i}'
-        model_dict[key] = ColumnDataSource(df[['mjd', 'flux', 'fluxerr','mag',
+        model_dict[key] = ColumnDataSource(df[['mjd', 'flux', 'fluxerr', 'mag',
                                                'magerr', 'filter', 'zp',
                                                'magsys', 'lim_mag', 'stacked']])
 
@@ -496,10 +504,10 @@ def photometry_plot(obj_id, width=600, height=300):
                         code=open(os.path.join(os.path.dirname(__file__),
                                                '../static/js/plotjs',
                                                'stackm.js')).read().replace(
-                                   'default_zp', str(PHOT_ZP)
-                               ).replace(
-                                   'detect_thresh', str(DETECT_THRESH)
-                               ))
+        'default_zp', str(PHOT_ZP)
+    ).replace(
+        'detect_thresh', str(DETECT_THRESH)
+    ))
     slider.js_on_change('value', callback)
 
     layout = row(plot, toggle)
@@ -593,4 +601,3 @@ def spectroscopy_plot(obj_id):
 
     layout = row(plot, toggle, elements, column(z, v_exp))
     return _plot_to_json(layout)
-

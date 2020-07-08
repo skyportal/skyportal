@@ -15,7 +15,6 @@ def test_token_user_retrieving_candidate(view_only_token, public_candidate):
     )
     assert status == 200
     assert data["status"] == "success"
-    print(data["data"])
     assert all(
         k in data["data"]
         for k in ["ra", "dec", "redshift"]

@@ -2,7 +2,7 @@ import base64
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, Comment
+from ...models import DBSession, Source, Comment, Group
 
 
 class CommentHandler(BaseHandler):
@@ -27,14 +27,10 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        comment = Comment.query.get(comment_id)
+        comment = Comment.get_if_owned_by(comment_id, self.current_user)
         if comment is None:
             return self.error('Invalid comment ID.')
-        # Ensure user/token has access to parent source
-        _ = Source.get_if_owned_by(comment.obj_id, self.current_user)
-        if comment is not None:
-            return self.success(data=comment)
-        return self.error('Invalid comment ID.')
+        return self.success(data=comment)
 
     @permissions(['Comment'])
     def post(self):
@@ -51,6 +47,14 @@ class CommentHandler(BaseHandler):
                     type: string
                   text:
                     type: string
+                  group_ids:
+                    type: array
+                    items:
+                      type: integer
+                    description: |
+                      List of group IDs corresponding to which groups should be
+                      able to view comment. Defaults to all of requesting user's
+                      groups.
                   attachment:
                     type: object
                     properties:
@@ -82,7 +86,14 @@ class CommentHandler(BaseHandler):
         data = self.get_json()
         obj_id = data['obj_id']
         # Ensure user/token has access to parent source
-        _ = Source.get_if_owned_by(obj_id, self.current_user)
+        _ = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        user_group_ids = [g.id for g in self.current_user.groups]
+        group_ids = data.pop("group_ids", user_group_ids)
+        group_ids = [gid for gid in group_ids if gid in user_group_ids]
+        if not group_ids:
+            return self.error(f"Invalid group IDs field ({group_ids}): "
+                              "You must provide one or more valid group IDs.")
+        groups = Group.query.filter(Group.id.in_(group_ids)).all()
         if 'attachment' in data and 'body' in data['attachment']:
             attachment_bytes = str.encode(data['attachment']['body']
                                           .split('base64,')[-1])
@@ -90,12 +101,11 @@ class CommentHandler(BaseHandler):
         else:
             attachment_bytes, attachment_name = None, None
 
-        author = (self.current_user.username if hasattr(self.current_user, 'username')
-                  else self.current_user.name)
+        author = self.associated_user_object.username
         comment = Comment(text=data['text'],
                           obj_id=obj_id, attachment_bytes=attachment_bytes,
                           attachment_name=attachment_name,
-                          author=author)
+                          author=author, groups=groups)
 
         DBSession().add(comment)
         DBSession().commit()
@@ -118,7 +128,18 @@ class CommentHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: CommentNoID
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/CommentNoID'
+                  - type: object
+                    properties:
+                      group_ids:
+                        type: array
+                        items:
+                          type: integer
+                        description: |
+                          List of group IDs corresponding to which groups should be
+                          able to view comment.
         responses:
           200:
             content:
@@ -129,24 +150,33 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        c = Comment.query.get(comment_id)
+        c = Comment.get_if_owned_by(comment_id, self.current_user)
         if c is None:
             return self.error('Invalid comment ID.')
-        # Ensure user/token has access to parent source
-        _ = Source.get_if_owned_by(c.obj_id, self.current_user)
 
         data = self.get_json()
+        group_ids = data.pop("group_ids", None)
         data['id'] = comment_id
 
         schema = Comment.__schema__()
         try:
-            schema.load(data)
+            schema.load(data, partial=True)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
-
+        DBSession().flush()
+        if group_ids is not None:
+            c = Comment.get_if_owned_by(comment_id, self.current_user)
+            groups = Group.query.filter(Group.id.in_(group_ids)).all()
+            if not groups:
+                return self.error("Invalid group_ids field. "
+                                  "Specify at least one valid group ID.")
+            if "Super admin" not in [r.id for r in self.associated_user_object.roles]:
+                if not all([group in self.current_user.groups for group in groups]):
+                    return self.error("Cannot associate comment with groups you are "
+                                      "not a member of.")
+            c.groups = groups
         DBSession().commit()
-
         self.push_all(action='skyportal/REFRESH_SOURCE',
                       payload={'obj_id': c.obj_id})
         return self.success()
@@ -168,8 +198,8 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        user = (self.current_user.username if hasattr(self.current_user, 'username') else self.current_user.name)
-        roles = (self.current_user.roles if hasattr(self.current_user, 'roles') else '')
+        user = self.associated_user_object.username
+        roles = (self.current_user.roles if hasattr(self.current_user, 'roles') else [])
         c = Comment.query.get(comment_id)
         if c is None:
             return self.error("Invalid comment ID")
@@ -206,12 +236,11 @@ class CommentAttachmentHandler(BaseHandler):
                   format: base64
                   description: base64-encoded contents of attachment
         """
-        comment = Comment.query.get(comment_id)
+        comment = Comment.get_if_owned_by(comment_id, self.current_user)
         if comment is None:
             return self.error('Invalid comment ID.')
-        # Ensure user/token has access to parent source
-        _ = Source.get_if_owned_by(comment.obj_id, self.current_user)
         self.set_header(
             "Content-Disposition", "attachment; "
             f"filename={comment.attachment_name}")
+        self.set_header("Content-type", "application/octet-stream")
         self.write(base64.b64decode(comment.attachment_bytes))

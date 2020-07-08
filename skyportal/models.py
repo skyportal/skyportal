@@ -1,15 +1,13 @@
-import re
+import arrow
+import uuid
 from datetime import datetime
 import numpy as np
 import sqlalchemy as sa
-from sqlalchemy import cast
-from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy_utils import ArrowType
-from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy_utils import ArrowType, URLType
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
@@ -70,6 +68,9 @@ class Group(Base):
                          back_populates='groups')
     filter = relationship("Filter", uselist=False, back_populates="group")
     observing_runs = relationship('ObservingRun', back_populates='group')
+    photometry = relationship("Photometry", secondary="group_photometry",
+                              back_populates="groups",
+                              cascade="save-update, merge, refresh-expire, expunge")
 
 
 GroupUser = join_model('group_users', Group, User)
@@ -122,7 +123,6 @@ class Obj(Base):
     # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
     altdata = sa.Column(JSONB, nullable=True)
 
-    last_detected = sa.Column(ArrowType, nullable=True)
     dist_nearest_source = sa.Column(sa.Float, nullable=True)
     mag_nearest_source = sa.Column(sa.Float, nullable=True)
     e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
@@ -158,6 +158,18 @@ class Obj(Base):
 
     followup_requests = relationship('FollowupRequest', back_populates='obj')
 
+    @hybrid_property
+    def last_detected(self):
+        return max(phot.iso for phot in self.photometry if phot.snr > 5)
+
+    @last_detected.expression
+    def last_detected(cls):
+        return sa.select([sa.func.max(Photometry.iso)]) \
+                 .where(Photometry.obj_id == cls.id) \
+                 .where(Photometry.snr > 5.) \
+                 .group_by(Photometry.obj_id) \
+                 .label('last_detected')
+
     def add_linked_thumbnails(self):
         sdss_thumb = Thumbnail(photometry=self.photometry[0],
                                public_url=self.sdss_url,
@@ -190,7 +202,7 @@ class Filter(Base):
 
 Candidate = join_model("candidates", Filter, Obj)
 Candidate.passed_at = sa.Column(sa.DateTime, nullable=True)
-Candidate.passing_alert_id = sa.Column(sa.Integer)
+Candidate.passing_alert_id = sa.Column(sa.BigInteger)
 
 
 def get_candidate_if_owned_by(obj_id, user_or_token, options=[]):
@@ -216,7 +228,7 @@ def candidate_is_owned_by(self, user_or_token):
     return self.filter.group in user_or_token.groups
 
 
-Candidate.get_if_owned_by = get_candidate_if_owned_by
+Candidate.get_obj_if_owned_by = get_candidate_if_owned_by
 Candidate.is_owned_by = candidate_is_owned_by
 
 
@@ -253,25 +265,47 @@ def get_source_if_owned_by(obj_id, user_or_token, options=[]):
 
 
 Source.is_owned_by = source_is_owned_by
-Source.get_if_owned_by = get_source_if_owned_by
+Source.get_obj_if_owned_by = get_source_if_owned_by
 
 
 def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
     try:
-        obj = Source.get_if_owned_by(obj_id, user_or_token, options)
+        obj = Source.get_obj_if_owned_by(obj_id, user_or_token, options)
     except AccessError:  # They may still be able to view the associated Candidate
-        obj = Candidate.get_if_owned_by(obj_id, user_or_token, options)
+        obj = Candidate.get_obj_if_owned_by(obj_id, user_or_token, options)
         if obj is None:
             # If user can't view associated Source, and there's no Candidate they can
             # view, raise AccessError
             raise
-    if obj is None:  # There is no associated Source, so just return the Obj
-        return Obj.query.options(options).get(obj_id)
+    if obj is None:  # There is no associated Source/Cand, so check based on photometry
+        if Obj.get_photometry_owned_by_user(obj_id, user_or_token):
+            return Obj.query.options(options).get(obj_id)
+        raise AccessError("Insufficient permissions.")
     # If we get here, the user has access to either the associated Source or Candidate
     return obj
 
 
 Obj.get_if_owned_by = get_obj_if_owned_by
+
+
+def get_obj_comments_owned_by(self, user_or_token):
+    return [comment for comment in self.comments if comment.is_owned_by(user_or_token)]
+
+
+Obj.get_comments_owned_by = get_obj_comments_owned_by
+
+
+def get_photometry_owned_by_user(obj_id, user_or_token):
+    return (
+        Photometry.query.filter(Photometry.obj_id == obj_id)
+        .filter(
+            Photometry.groups.any(Group.id.in_([g.id for g in user_or_token.groups]))
+        )
+        .all()
+    )
+
+
+Obj.get_photometry_owned_by_user = get_photometry_owned_by_user
 
 
 User.sources = relationship('Obj', backref='users',
@@ -291,10 +325,12 @@ class SourceView(Base):
 class Telescope(Base):
     name = sa.Column(sa.String, nullable=False)
     nickname = sa.Column(sa.String, nullable=False)
-    lat = sa.Column(sa.Float, nullable=False)
-    lon = sa.Column(sa.Float, nullable=False)
-    elevation = sa.Column(sa.Float, nullable=False)
-    diameter = sa.Column(sa.Float, nullable=False)
+    lat = sa.Column(sa.Float, nullable=False, doc='Latitude in deg.')
+    lon = sa.Column(sa.Float, nullable=False, doc='Longitude in deg.')
+    elevation = sa.Column(sa.Float, nullable=False, doc='Elevation in meters.')
+    diameter = sa.Column(sa.Float, nullable=False, doc='Diameter in meters.')
+    skycam_link = sa.Column(URLType, nullable=True,
+                            doc="Link to the telescope's sky camera.")
 
     groups = relationship('Group', secondary='group_telescopes')
     instruments = relationship('Instrument', back_populates='telescope',
@@ -366,6 +402,52 @@ class Instrument(Base):
         return api
 
 
+class Taxonomy(Base):
+    __tablename__ = 'taxonomy'
+    name = sa.Column(sa.String, nullable=False,
+                     doc='Short string to make this taxonomy memorable '
+                         'to end users.'
+                     )
+    hierarchy = sa.Column(JSONB, nullable=False,
+                          doc='Nested JSON describing the taxonomy '
+                              'which should be validated against '
+                              'a schema before entry'
+                          )
+    provenance = sa.Column(sa.String, nullable=True,
+                           doc='Identifier (e.g., URL or git hash) that '
+                               'uniquely ties this taxonomy back '
+                               'to an origin or place of record'
+                           )
+    version = sa.Column(sa.String, nullable=False,
+                        doc='Semantic version of this taxonomy'
+                        )
+    isLatest = sa.Column(sa.Boolean, default=True, nullable=False,
+                         doc='Consider this the latest version of '
+                             'the taxonomy with this name? Defaults '
+                             'to True.'
+                         )
+    groups = relationship("Group", secondary="group_taxonomy",
+                          cascade="save-update,"
+                                  "merge, refresh-expire, expunge"
+                          )
+
+
+GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
+
+
+def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
+    return (
+        Taxonomy.query.filter(Taxonomy.id == taxonomy_id)
+        .filter(
+            Taxonomy.groups.any(Group.id.in_([g.id for g in user_or_token.groups]))
+        )
+        .all()
+    )
+
+
+Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
+
+
 class Comment(Base):
     text = sa.Column(sa.String, nullable=False)
     ctype = sa.Column(sa.Enum('text', 'redshift', 'classification',
@@ -380,6 +462,11 @@ class Comment(Base):
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)
     obj = relationship('Obj', back_populates='comments')
+    groups = relationship("Group", secondary="group_comments",
+                          cascade="save-update, merge, refresh-expire, expunge")
+
+
+GroupComment = join_model("group_comments", Group, Comment)
 
 
 class Photometry(Base):
@@ -410,15 +497,22 @@ class Photometry(Base):
                                               'schema.PhotometryFlux or schema.PhotometryMag '
                                               '(depending on how the data was passed).')
     altdata = sa.Column(JSONB)
-    bulk_upload_id = sa.Column(sa.String, nullable=True)
+    upload_id = sa.Column(sa.String, nullable=False,
+                          default=lambda: str(uuid.uuid4()))
+    alert_id = sa.Column(sa.BigInteger, nullable=True, unique=True)
 
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)
     obj = relationship('Obj', back_populates='photometry')
+    groups = relationship("Group", secondary="group_photometry",
+                          back_populates="photometry",
+                          cascade="save-update, merge, refresh-expire, expunge")
     instrument_id = sa.Column(sa.ForeignKey('instruments.id'),
                               nullable=False, index=True)
     instrument = relationship('Instrument', back_populates='photometry')
     thumbnails = relationship('Thumbnail', passive_deletes=True)
+
+
 
     @hybrid_property
     def mag(self):
@@ -453,6 +547,27 @@ class Photometry(Base):
             ],
             else_=None
         )
+
+    @hybrid_property
+    def jd(self):
+        return self.mjd + 2_400_000.5
+
+    @hybrid_property
+    def iso(self):
+        return arrow.get((self.mjd - 40_587.5) * 86400.)
+
+    @iso.expression
+    def iso(cls):
+        # converts MJD to unix timestamp
+        local = sa.func.to_timestamp((cls.mjd - 40_587.5) * 86400.)
+        return sa.func.timezone('UTC', local)
+
+    @hybrid_property
+    def snr(self):
+        return self.flux / self.fluxerr
+
+
+GroupPhotometry = join_model("group_photometry", Group, Photometry)
 
 
 class Spectrum(Base):

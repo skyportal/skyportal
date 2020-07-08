@@ -3,7 +3,6 @@ import messageHandler from 'baselayer/MessageHandler';
 import * as API from '../API';
 import store from '../store';
 
-
 export const REFRESH_SOURCE = 'skyportal/REFRESH_SOURCE';
 
 export const FETCH_LOADED_SOURCE = 'skyportal/FETCH_LOADED_SOURCE';
@@ -39,7 +38,7 @@ export const uploadPhotometry = (data) => (
   API.POST("/api/photometry", UPLOAD_PHOTOMETRY, data)
 );
 
-export function addComment(form) {
+export function addComment(formData) {
   function fileReaderPromise(file) {
     return new Promise((resolve) => {
       const filereader = new FileReader();
@@ -49,16 +48,16 @@ export function addComment(form) {
       );
     });
   }
-  if (form.attachment) {
+  if (formData.attachment) {
     return (dispatch) => {
-      fileReaderPromise(form.attachment)
+      fileReaderPromise(formData.attachment)
         .then((fileData) => {
-          form.attachment = fileData;
-          dispatch(API.POST(`/api/comment`, ADD_COMMENT, form));
+          formData.attachment = fileData;
+          dispatch(API.POST(`/api/comment`, ADD_COMMENT, formData));
         });
     };
   } else {
-    return API.POST(`/api/comment`, ADD_COMMENT, form);
+    return API.POST(`/api/comment`, ADD_COMMENT, formData);
   }
 }
 
@@ -92,7 +91,6 @@ export const deleteFollowupRequest = (id) => (
   API.DELETE(`/api/followup_request/${id}`, DELETE_FOLLOWUP_REQUEST)
 );
 
-
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { source } = getState();
@@ -105,7 +103,6 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     }
   }
 });
-
 
 // Reducer for currently displayed source
 const reducer = (state={ source: null, loadError: false }, action) => {

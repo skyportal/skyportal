@@ -3,10 +3,8 @@ import messageHandler from 'baselayer/MessageHandler';
 import * as API from '../API';
 import store from '../store';
 
-
 export const FETCH_NEWSFEED = 'skyportal/FETCH_NEWSFEED';
 export const FETCH_NEWSFEED_OK = 'skyportal/FETCH_NEWSFEED_OK';
-
 
 export function fetchNewsFeed() {
   return API.GET('/api/newsfeed', FETCH_NEWSFEED);

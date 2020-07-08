@@ -9,7 +9,6 @@ import NewGroupUserForm from './NewGroupUserForm';
 
 import styles from './Group.css';
 
-
 const Group = () => {
   const dispatch = useDispatch();
   const [groupLoadError, setGroupLoadError] = useState("");
@@ -122,6 +121,5 @@ Group.propTypes = {
     id: PropTypes.string
   }).isRequired
 };
-
 
 export default Group;

@@ -99,21 +99,28 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
     altdata = {"simbad": {"class": "RRLyr"}}
 
     @factory.post_generation
-    def add_phot_spec(obj, create, value, *args, **kwargs):
+    def groups(obj, create, passed_groups, *args, **kwargs):
+        if not passed_groups:
+            passed_groups = []
         instruments = [InstrumentFactory(), InstrumentFactory()]
         filters = ['ztfg', 'ztfr', 'ztfi']
         for instrument, filter in islice(zip(cycle(instruments), cycle(filters)), 10):
+            np.random.seed()
             phot1 = PhotometryFactory(obj_id=obj.id,
                                       instrument=instrument,
-                                      filter=filter)
+                                      filter=filter,
+                                      groups=passed_groups,
+                                      alert_id=np.random.randint(100, 9223372036854775807))
             DBSession().add(phot1)
             DBSession().add(PhotometryFactory(obj_id=obj.id, flux=99.,
                                               fluxerr=99.,
                                               instrument=instrument,
-                                              filter=filter))
+                                              filter=filter,
+                                              groups=passed_groups,
+                                              alert_id=np.random.randint(100, 9223372036854775807)))
 
             DBSession().add(ThumbnailFactory(photometry=phot1))
-            DBSession().add(CommentFactory(obj_id=obj.id))
+            DBSession().add(CommentFactory(obj_id=obj.id, groups=passed_groups))
         DBSession().add(SpectrumFactory(obj_id=obj.id,
                                         instrument=instruments[0]))
         DBSession().commit()
