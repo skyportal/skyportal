@@ -5,7 +5,7 @@ from astropy.time import Time
 def test_airmass(public_source, ztf_camera):
     telescope = ztf_camera.telescope
     times = Time(np.linspace(58000, 59000), format='mjd')
-    airmass_calc = public_source.airmass(telescope, times).value
+    airmass_calc = public_source.airmass(telescope, times)
     airmass_true = np.asarray([ -6.98036718, -23.34945066,   4.33830158,
                                 -2.48338575,   1.79164625, -1.46739713,
                                 1.29212201,  -1.21463384,   1.1982702,
@@ -25,6 +25,13 @@ def test_airmass(public_source, ztf_camera):
                                 -1.26419576,   1.20134104])
     airmass_true[airmass_true < 0] = np.inf
     np.testing.assert_allclose(airmass_calc, airmass_true)
+
+
+def test_airmass_single(public_source, ztf_camera):
+    telescope = ztf_camera.telescope
+    times = Time(59000, format='mjd')
+    airmass_calc = public_source.airmass(telescope, times)
+    np.testing.assert_allclose(airmass_calc, 1.20134104)
 
 
 def test_altitude(public_source, ztf_camera):
