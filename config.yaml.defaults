@@ -69,3 +69,10 @@ cron:
 
 # can be postgis, q3c, or null
 spatial_backend: null
+
+# Data loader configurations
+data_load:
+  db_seed:
+    file: configs/db_seed.yaml
+  db_demo:
+    file: configs/db_demo.yaml

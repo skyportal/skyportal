@@ -341,9 +341,9 @@ class SourceView(Base):
 class Telescope(Base):
     name = sa.Column(sa.String, nullable=False)
     nickname = sa.Column(sa.String, nullable=False)
-    lat = sa.Column(sa.Float, nullable=False, doc='Latitude in deg.')
-    lon = sa.Column(sa.Float, nullable=False, doc='Longitude in deg.')
-    elevation = sa.Column(sa.Float, nullable=False, doc='Elevation in meters.')
+    lat = sa.Column(sa.Float, nullable=True, doc='Latitude in deg.')
+    lon = sa.Column(sa.Float, nullable=True, doc='Longitude in deg.')
+    elevation = sa.Column(sa.Float, nullable=True, doc='Elevation in meters.')
     diameter = sa.Column(sa.Float, nullable=False, doc='Diameter in meters.')
     skycam_link = sa.Column(URLType, nullable=True,
                             doc="Link to the telescope's sky camera.")
@@ -396,7 +396,7 @@ class Instrument(Base):
 
 
 class Taxonomy(Base):
-    __tablename__ = 'taxonomy'
+    __tablename__ = 'taxonomies'
     name = sa.Column(sa.String, nullable=False,
                      doc='Short string to make this taxonomy memorable '
                          'to end users.'

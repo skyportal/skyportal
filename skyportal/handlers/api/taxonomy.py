@@ -127,7 +127,6 @@ class TaxonomyHandler(BaseHandler):
             .filter(Taxonomy.version == version)
             .all()
         )
-
         if len(existing_matches) != 0:
             return self.error(
                 "That version/name combination is already "

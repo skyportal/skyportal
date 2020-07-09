@@ -1,0 +1,39 @@
+drop_tables: false
+create_tables: true
+print_tables: true
+create_permissions: true
+users:
+  - username: sitewide_group_admin
+    role_ids:
+      - Group admin
+    tokens:
+      - name: "db_seed token"
+        permissions:
+          - "Manage groups"
+          - "Manage sources"
+          - "Upload data"
+          - "Post Taxonomy"
+          - "Manage users"
+          - "System admin"
+groups:
+  - name: Sitewide Group
+    group_admins:
+      - sitewide_group_admin
+    token: "db_seed token"
+telescopes:
+  file: configs/telescopes.yaml
+  token: "db_seed token"
+  group_names:
+    - Sitewide Group
+instruments:
+  file: configs/instruments.yaml
+  token: "db_seed token"
+taxonomies:
+  - name: Sitewide taxonomy
+    tdtax: true
+    version: latest
+    provenance: https://github.com/profjsb/timedomain-taxonomy
+    token: db_seed token
+    groups:
+      - Sitewide Group
+
