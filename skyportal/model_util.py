@@ -41,35 +41,25 @@ def make_super_user(username):
     add_user(username, roles=['Super admin'], auth=True)
 
 
-def provision_tokens():
-    """Provision initial tokens: one for administration,
-    one for public uploads.
+def provision_token():
+    """Provision an initial administrative token.
     """
     admin = add_user('admin@cesium-ml.org', roles=['Super admin'])
+    token_name = 'Initial admin token'
 
-    admin_token = (
+    token = (
         Token.query
         .filter(Token.created_by == admin)
-        .filter(Token.name == 'Admin Token')
+        .filter(Token.name == token_name)
     ).first()
-    if not admin_token:
+
+    if not token:
         token_id = create_token(['System admin'],
                                 admin.id,
-                                'Admin Token')
-        admin_token = Token.query.get(token_id)
+                                token_name)
+        token = Token.query.get(token_id)
 
-    public_token = (
-        Token.query
-        .filter(Token.created_by == admin)
-        .filter(Token.name == 'Public Token')
-    ).first()
-    if not public_token:
-        token_id = create_token(['Comment', 'Upload data'],
-                                admin.id,
-                                'Public Token')
-        public_token = Token.query.get(token_id)
-
-    return admin_token, public_token
+    return token
 
 
 def setup_permissions():
