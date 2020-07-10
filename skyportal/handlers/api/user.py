@@ -32,7 +32,9 @@ class UserHandler(BaseHandler):
         if user is None:
             return self.error(f'Invalid user ID ({user_id}).')
         else:
-            return self.success(data=user)
+            user_info = user.to_dict()
+            user_info['acls'] = user.acls
+            return self.success(data=user_info)
 
     @permissions(["Manage users"])
     def post(self):
