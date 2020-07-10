@@ -6,6 +6,7 @@ from pathlib import Path
 from pathlib import PurePosixPath
 import signal
 import requests
+import argparse
 
 import pandas as pd
 import yaml
@@ -13,7 +14,7 @@ from yaml import Loader
 import tdtax
 from social_tornado.models import TornadoStorage
 
-from baselayer.app.env import load_env
+from baselayer.app.env import load_env, parser
 from baselayer.app.model_util import status, create_tables, drop_tables
 from skyportal.models import Base, init_db, Obj, DBSession, User, Group
 from skyportal.model_util import setup_permissions, create_token
@@ -23,22 +24,16 @@ from baselayer.tools.test_frontend import verify_server_availability
 
 if __name__ == "__main__":
     """Insert test data"""
+
+    parser.description = 'Load data into SkyPortal'
+    parser.add_argument('data_files', type=str, nargs='+',
+                        help='YAML files with data to load')
+
     env, cfg = load_env()
-    basedir = Path(os.path.dirname(__file__)) / ".."
-    topdir = PurePosixPath(os.path.abspath(__file__)).parent.parent
 
-    data_source = sys.argv[1]  # get the data source name from the command-line
-    if cfg['data_load'].get(data_source) is None:
-        raise RuntimeError(
-            f'Make sure that {data_source} is in the data_load section of '
-            'your config.yaml.'
-        )
-
-    if cfg['data_load'][data_source].get("file") is not None:
-        fname = str(topdir / cfg['data_load'][data_source]["file"])
-        src = yaml.load(open(fname, "r"), Loader=Loader)
-    else:
-        src = cfg['data_load'][data_source]
+    ## TODO: load multiple files
+    fname = env.data_files[0]
+    src = yaml.load(open(fname, "r"), Loader=Loader)
 
     with status(f"Connecting to database {cfg['database']['database']}"):
         init_db(**cfg["database"])
@@ -105,13 +100,13 @@ if __name__ == "__main__":
         return data
 
     with status("Launching web app & executing API calls"):
+        app_already_running = False
         try:
             response_status, data = api("GET", "sysinfo", token=list(tokens.values())[0])
             app_already_running = True
         except requests.ConnectionError:
-            app_already_running = False
             web_client = subprocess.Popen(
-                ["make", "run"], cwd=basedir, preexec_fn=os.setsid
+                ["make", "run"], preexec_fn=os.setsid
             )
 
         server_url = f"http://localhost:{cfg['ports.app']}"
@@ -262,7 +257,7 @@ if __name__ == "__main__":
                             instrument_dict[instrument["name"]] = data["data"]["id"]
             if src.get("sources") is not None:
                 with status("Loading Source and Candidates"):
-                    (basedir / "static/thumbnails").mkdir(parents=True, exist_ok=True)
+                    Path("static/thumbnails").mkdir(parents=True, exist_ok=True)
                     for source in src.get("sources"):
                         sinfo = [{"id": source["id"], "ra": source["ra"],
                                   "dec": source["dec"], "save_source": True,
@@ -283,12 +278,12 @@ if __name__ == "__main__":
                         group_ids = [group_dict[g] for g in source["group_names"]]
 
                         if source.get("photometry") is not None:
-                            phot_file = basedir / source["photometry"]["data"]
+                            phot_file = source["photometry"]["data"]
                             phot_data = pd.read_csv(phot_file)
                             phot_instrument_name = source["photometry"]["instrument_name"]
 
                         if source.get("spectroscopy") is not None:
-                            spec_file = basedir / source["spectroscopy"]["data"]
+                            spec_file = source["spectroscopy"]["data"]
                             spec_data = pd.read_csv(spec_file)
                             spec_instrument_name = source["spectroscopy"]["instrument_name"]
                             observed_at = source["spectroscopy"]["observed_at"]
@@ -365,9 +360,8 @@ if __name__ == "__main__":
 
                             if source.get("thumbnails") is not None:
                                 for ttype, fname in source.get("thumbnails").items():
-                                    fpath = basedir / f"{fname}"
                                     thumbnail_data = base64.b64encode(
-                                        open(os.path.abspath(fpath), "rb").read()
+                                        open(os.path.abspath(fname), "rb").read()
                                     )
                                     data = assert_post(
                                         "thumbnail",

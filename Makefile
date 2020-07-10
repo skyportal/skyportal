@@ -48,12 +48,12 @@ docs: | doc_reqs api-docs
 load_demo_data: ## Import example dataset
 load_demo_data: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
 load_demo_data: | dependencies
-	@PYTHONPATH=. python tools/data_loader.py db_demo $(FLAGS)
+	@PYTHONPATH=. python tools/data_loader.py data/db_demo.yaml $(FLAGS)
 
-load_seed_data: ## Import example dataset
+load_seed_data: ## Seed database with common telescopes, instruments, and a taxonomy
 load_seed_data: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
 load_seed_data: | dependencies
-	@PYTHONPATH=. python tools/data_loader.py db_seed $(FLAGS)
+	@PYTHONPATH=. python tools/data_loader.py data/db_seed.yaml $(FLAGS)
 
 
 

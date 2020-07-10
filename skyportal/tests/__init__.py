@@ -2,7 +2,6 @@ import urllib.parse
 import requests
 
 from baselayer.app.env import load_env
-env, cfg = load_env()
 
 
 def api(method, endpoint, data=None, token=None, raw_response=False):
@@ -27,6 +26,7 @@ def api(method, endpoint, data=None, token=None, raw_response=False):
     json : dict
         Response JSON.
     """
+    env, cfg = load_env()
     url = urllib.parse.urljoin(f'http://localhost:{cfg["ports.app"]}/api/',
                                endpoint)
     headers = {'Authorization': f'token {token}'} if token else None
