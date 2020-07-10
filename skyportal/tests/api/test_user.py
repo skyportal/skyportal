@@ -56,3 +56,42 @@ def test_delete_user_cascades_to_groupuser(manage_users_token, manage_groups_tok
     status, data = api('GET', f'groups/{public_group.id}',
                        token=manage_groups_token)
     assert len(data['data']['users']) == orig_num_users - 1
+
+
+def test_add_delete_user_adds_deletes_single_user_group(
+        manage_groups_token, super_admin_user_two_groups, manage_users_token
+):
+    username = str(uuid.uuid4())
+    status, data = api(
+        "POST", "user", data={"username": username}, token=manage_users_token
+    )
+    assert status == 200
+    new_user_id = data["data"]["id"]
+
+    status, data = api(
+        "GET", "groups?includeSingleUserGroups=true", token=manage_groups_token
+    )
+    assert data["status"] == "success"
+    assert any(
+        [
+            group["single_user_group"] == True
+            and group["name"] == username
+            for group in data["data"]["all_groups"]
+        ]
+    )
+
+    status, data = api('DELETE', f'user/{new_user_id}',
+                       token=manage_users_token)
+    assert status == 200
+
+    status, data = api(
+        "GET", "groups?includeSingleUserGroups=true", token=manage_groups_token
+    )
+    assert data["status"] == "success"
+    assert not any(
+        [
+            group["single_user_group"] == True
+            and group["name"] == username
+            for group in data["data"]["all_groups"]
+        ]
+    )

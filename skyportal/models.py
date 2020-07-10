@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 import numpy as np
 import sqlalchemy as sa
-from sqlalchemy import cast, event
+from sqlalchemy import cast
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
@@ -74,6 +74,10 @@ class Group(Base):
     users = relationship('User', secondary='group_users',
                          back_populates='groups',
                          passive_deletes=True)
+    group_users = relationship('GroupUser', back_populates='group',
+                               cascade='save-update, merge, refresh-expire, expunge',
+                               passive_deletes=True)
+
     filter = relationship("Filter", uselist=False, back_populates="group")
     photometry = relationship("Photometry", secondary="group_photometry",
                               back_populates="groups",
@@ -84,28 +88,6 @@ class Group(Base):
 
 GroupUser = join_model('group_users', Group, User)
 GroupUser.admin = sa.Column(sa.Boolean, nullable=False, default=False)
-
-
-@event.listens_for(User, "after_insert")
-def create_user_group_and_add_to_public_group(mapper, connection, target):
-    object_session(target).add(
-        Group(name=target.username, users=[target], single_user_group=True)
-    )
-    public_group = Group.query.filter(
-        Group.name == cfg["misc"]["public_group_name"]
-    ).first()
-    if public_group is not None:
-        object_session(target).add(
-            GroupUser(group_id=public_group.id, user_id=target.id)
-        )
-
-
-@event.listens_for(User, "before_delete")
-def delete_user_group(mapper, connection, target):
-    object_session(target).delete(
-        Group.query.filter(Group.name == target.username)
-        .first()
-    )
 
 
 class Stream(Base):
