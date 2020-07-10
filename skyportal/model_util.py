@@ -44,7 +44,7 @@ def make_super_user(username):
 def provision_token():
     """Provision an initial administrative token.
     """
-    admin = add_user('admin@cesium-ml.org', roles=['Super admin'])
+    admin = add_user('provisioned_admin', roles=['Super admin'])
     token_name = 'Initial admin token'
 
     token = (
@@ -53,7 +53,7 @@ def provision_token():
         .filter(Token.name == token_name)
     ).first()
 
-    if not token:
+    if token is None:
         token_id = create_token(['System admin'],
                                 admin.id,
                                 token_name)
@@ -67,15 +67,15 @@ def setup_permissions():
 
     If a given ACL or Role already exists, it will be skipped."""
     all_acl_ids = ['Become user', 'Comment', 'Manage users', 'Manage sources',
-                   'Manage groups', 'Upload data', 'System admin', 'Post Taxonomy',
-                   'Delete Taxonomy']
+                   'Manage groups', 'Upload data', 'System admin', 'Post taxonomy',
+                   'Delete taxonomy']
     all_acls = [ACL.create_or_get(a) for a in all_acl_ids]
     DBSession().add_all(all_acls)
     DBSession().commit()
 
     role_acls = {
         'Super admin': all_acl_ids,
-        'Group admin': ['Comment', 'Manage sources', 'Upload data', 'Post Taxonomy'],
+        'Group admin': ['Comment', 'Manage sources', 'Upload data', 'Post taxonomy'],
         'Full user': ['Comment', 'Upload data'],
         'View only': []
     }
@@ -87,13 +87,9 @@ def setup_permissions():
     DBSession().commit()
 
 
-def create_token(permissions, created_by_id, name):
-    """
-    permissions --- ACLs
-    created_by_id --- user.id
-    """
-    t = Token(permissions=permissions, name=name)
-    u = User.query.get(created_by_id)
+def create_token(ACLs, user_id, name):
+    t = Token(permissions=ACLs, name=name)
+    u = User.query.get(user_id)
     u.tokens.append(t)
     t.created_by = u
     DBSession().add(u)

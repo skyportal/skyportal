@@ -25,7 +25,7 @@ def test_delete_user(manage_users_token, user):
 
 def test_delete_user_cascades_to_tokens(manage_users_token, user, public_group):
     token_name = str(uuid.uuid4())
-    token_id = create_token(permissions=[], created_by_id=user.id,
+    token_id = create_token(ACLs=[], user_id=user.id,
                             name=token_name)
     assert Token.query.get(token_id)
 
