@@ -36,38 +36,7 @@ def test_token_user_request_all_groups(manage_groups_token, super_admin_user):
     assert data["data"]["user_groups"][-1]["name"] == group_name
     assert not any(
         [
-<<<<<<< HEAD
-            group["single_user_group"] == True
-            and group["name"] == super_admin_user.username
-            for group in data["data"]["user_groups"]
-        ]
-    )
-
-
-def test_token_user_request_all_groups_including_user(
-    manage_groups_token, super_admin_user
-):
-    group_name = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "groups",
-        data={"name": group_name, "group_admins": [super_admin_user.username]},
-        token=manage_groups_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    new_group_id = data["data"]["id"]
-
-    status, data = api(
-        "GET", "groups?includeSingleUserGroups=true", token=manage_groups_token
-    )
-    assert data["status"] == "success"
-    assert any(
-        [
-            group["single_user_group"] == True
-=======
             group["single_user_group"] is True
->>>>>>> Remove redundat, irrelenvant test
             and group["name"] == super_admin_user.username
             for group in data["data"]["user_groups"]
         ]
