@@ -83,8 +83,8 @@ def test_manage_groups_token_get_unowned_group(manage_groups_token, user,
     new_group_id = data['data']['id']
 
     token_name = str(uuid.uuid4())
-    token_id = create_token(permissions=['Manage groups'],
-                            created_by_id=super_admin_user.id,
+    token_id = create_token(ACLs=['Manage groups'],
+                            user_id=super_admin_user.id,
                             name=token_name)
 
     status, data = api('GET', f'groups/{new_group_id}',
