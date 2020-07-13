@@ -90,12 +90,19 @@ class GroupHandler(BaseHandler):
                 return self.success(data=group)
             return self.error(f"Could not load group with ID {group_id}")
 
+        include_single_user_groups = self.get_query_argument("includeSingleUserGroups",
+                                                             False)
         info = {}
         info['user_groups'] = list(self.current_user.groups)
-        info['all_groups'] = (list(Group.query) if hasattr(self.current_user, 'roles')
-                              and 'Super admin' in
-                              [role.id for role in self.current_user.roles]
+        info['all_groups'] = (list(Group.query) if 'Super admin' in
+                              [role.id for role in self.associated_user_object.roles]
                               else None)
+        if (not include_single_user_groups) or (include_single_user_groups == "false"):
+            info["user_groups"] = [g for g in info["user_groups"]
+                                   if not g.single_user_group]
+            if info["all_groups"]:
+                info["all_groups"] = [g for g in info["all_groups"]
+                                      if not g.single_user_group]
         return self.success(data=info)
 
     @permissions(['Manage groups'])
@@ -264,6 +271,10 @@ class GroupUserHandler(BaseHandler):
                               description: Boolean indicating whether user is group admin
         """
         data = self.get_json()
+        admin = data.pop("admin", False)
+        group = Group.query.get(group_id)
+        if group.single_user_group:
+            return self.error("Cannot add users to single user groups.")
         try:
             user_id = User.query.filter(User.username == username).first().id
         except AttributeError:
@@ -271,8 +282,7 @@ class GroupUserHandler(BaseHandler):
         gu = (GroupUser.query.filter(GroupUser.group_id == group_id)
                        .filter(GroupUser.user_id == user_id).first())
         if gu is None:
-            gu = GroupUser(group_id=group_id, user_id=user_id)
-        gu.admin = data['admin']
+            gu = GroupUser(group_id=group_id, user_id=user_id, admin=admin)
         DBSession().add(gu)
         DBSession().commit()
 
@@ -303,6 +313,9 @@ class GroupUserHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        group = Group.query.get(group_id)
+        if group.single_user_group:
+            return self.error("Cannot delete users from single user groups.")
         user_id = User.query.filter(User.username == username).first().id
         (GroupUser.query.filter(GroupUser.group_id == group_id)
          .filter(GroupUser.user_id == user_id).delete())

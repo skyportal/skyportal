@@ -61,6 +61,7 @@ services:
 
 misc:
     days_to_keep_unsaved_candidates: 7
+    public_group_name: "Sitewide Group"
 
 cron:
   - interval: 1440
