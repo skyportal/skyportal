@@ -90,7 +90,7 @@ class UserHandler(BaseHandler):
         group_ids_and_admin = data.get("groupIDsAndAdmin", [])
 
         # Add user
-        user = User(username=data["username"], role_ids=roles)
+        user = User(username=data["username"].lower(), role_ids=roles)
         DBSession().add(user)
         DBSession().flush()
 
