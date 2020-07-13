@@ -1,4 +1,5 @@
 import uuid
+import pytest
 from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import (ElementClickInterceptedException,
                                         TimeoutException)
@@ -43,6 +44,7 @@ def add_telescope_and_instrument(instrument_name, group_ids, token):
     return data
 
 
+@pytest.mark.flaky(reruns=2)
 def test_submit_new_followup_request(
     driver, user, public_source, public_group, super_admin_token
 ):
@@ -90,6 +92,7 @@ def test_submit_new_followup_request(
     driver.wait_for_xpath("//td[contains(.,'1')]")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_edit_existing_followup_request(
     driver, user, public_source, public_group, super_admin_token
 ):
@@ -148,6 +151,7 @@ def test_edit_existing_followup_request(
         driver.wait_for_xpath("//td[contains(.,'5')]")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_delete_followup_request(
     driver, user, public_source, public_group, super_admin_token
 ):
@@ -200,6 +204,7 @@ def test_delete_followup_request(
     driver.wait_for_xpath_to_disappear('//button[text()="Delete"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_cannot_edit_uneditable_followup_request(
     driver, user, public_source, public_group, super_admin_token
 ):

@@ -19,7 +19,7 @@ def test_public_source_page(driver, user, public_source):
     driver.wait_for_xpath('//label[contains(text(), "Fe III")]')
 
 
-@pytest.mark.flaky(reruns=3)
+@pytest.mark.flaky(reruns=2)
 def test_comments(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
@@ -70,7 +70,7 @@ def test_comment_groups_validation(driver, user, public_source):
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
 
 
-@pytest.mark.flaky(reruns=3)
+@pytest.mark.flaky(reruns=2)
 def test_upload_download_comment_attachment(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
@@ -120,7 +120,7 @@ def test_view_only_user_cannot_comment(driver, view_only_user, public_source):
     driver.wait_for_xpath_to_disappear('//input[@name="text"]')
 
 
-@pytest.mark.flaky(reruns=3)
+@pytest.mark.flaky(reruns=2)
 def test_delete_comment(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -159,7 +159,7 @@ def test_delete_comment(driver, user, public_source):
             driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
 
 
-@pytest.mark.flaky(reruns=3)
+@pytest.mark.flaky(reruns=2)
 def test_regular_user_cannot_delete_unowned_comment(driver, super_admin_user,
                                                     user, public_source):
     driver.get(f"/become_user/{super_admin_user.id}")
@@ -187,7 +187,7 @@ def test_regular_user_cannot_delete_unowned_comment(driver, super_admin_user,
     assert not delete_button.is_displayed()
 
 
-@pytest.mark.flaky(reruns=3)
+@pytest.mark.flaky(reruns=2)
 def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
                                                user, public_source):
     driver.get(f"/become_user/{user.id}")
