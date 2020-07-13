@@ -44,7 +44,7 @@ class TaxonomyHandler(BaseHandler):
 
         return self.success(data=taxonomy[0])
 
-    @permissions(['Post Taxonomy'])
+    @permissions(['Post taxonomy'])
     def post(self):
         """
         ---
@@ -127,7 +127,6 @@ class TaxonomyHandler(BaseHandler):
             .filter(Taxonomy.version == version)
             .all()
         )
-
         if len(existing_matches) != 0:
             return self.error(
                 "That version/name combination is already "
@@ -182,7 +181,7 @@ class TaxonomyHandler(BaseHandler):
 
         return self.success(data={'taxonomy_id': taxonomy.id})
 
-    @permissions(['Delete Taxonomy'])
+    @permissions(['Delete taxonomy'])
     def delete(self, taxonomy_id):
         """
         ---

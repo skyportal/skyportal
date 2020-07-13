@@ -48,7 +48,14 @@ docs: | doc_reqs api-docs
 load_demo_data: ## Import example dataset
 load_demo_data: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
 load_demo_data: | dependencies
-	@PYTHONPATH=. python tools/load_demo_data.py $(FLAGS)
+	@PYTHONPATH=. python tools/data_loader.py db_demo $(FLAGS)
+
+load_seed_data: ## Import example dataset
+load_seed_data: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
+load_seed_data: | dependencies
+	@PYTHONPATH=. python tools/data_loader.py db_seed $(FLAGS)
+
+
 
 # https://www.gnu.org/software/make/manual/html_node/Overriding-Makefiles.html
 %: baselayer/Makefile force

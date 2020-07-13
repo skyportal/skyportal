@@ -61,8 +61,16 @@ services:
 
 misc:
     days_to_keep_unsaved_candidates: 7
+    public_group_name: "Sitewide Group"
 
 cron:
   - interval: 1440
     script: jobs/delete_unsaved_candidates.py
     limit: ["01:00", "02:00"]
+
+# Data loader configurations
+data_load:
+  db_seed:
+    file: configs/db_seed.yaml
+  db_demo:
+    file: configs/db_demo.yaml

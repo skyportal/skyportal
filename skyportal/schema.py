@@ -138,7 +138,8 @@ def setup_schema():
             schema_class_name = class_.__name__
             add_schema(schema_class_name, exclude=['created_at', 'modified'],
                        add_to_model=True)
-            add_schema(f'{schema_class_name}NoID', exclude=['created_at', 'id', 'modified'])
+            add_schema(f'{schema_class_name}NoID',
+                       exclude=['created_at', 'id', 'modified', 'single_user_group'])
 
 
 class PhotBaseFlexible(object):
@@ -209,10 +210,8 @@ class PhotBaseFlexible(object):
                                         "points will be visible.",
                             required=True)
 
-
     altdata = fields.Field(description='Misc. alternative metadata.',
                            missing=None, default=None, required=False)
-
 
 
 class PhotFluxFlexible(_Schema, PhotBaseFlexible):

@@ -3,12 +3,16 @@ import uuid
 from datetime import datetime
 import numpy as np
 import sqlalchemy as sa
+from sqlalchemy import cast
+from sqlalchemy.orm.session import object_session
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import ArrowType, URLType
 
+from baselayer.app.env import load_env
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
 from baselayer.app.custom_exceptions import AccessError
@@ -22,6 +26,8 @@ from .followup_api import apis
 # In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
+
+env, cfg = load_env()
 
 
 def is_owned_by(self, user_or_token):
@@ -59,18 +65,24 @@ class Group(Base):
     name = sa.Column(sa.String, unique=True, nullable=False)
 
     streams = relationship('Stream', secondary='stream_groups',
-                           back_populates='groups')
-    telescopes = relationship('Telescope', secondary='group_telescopes')
+                           back_populates='groups',
+                           passive_deletes=True)
+    telescopes = relationship('Telescope', secondary='group_telescopes',
+                              passive_deletes=True)
+    users = relationship('User', secondary='group_users',
+                         back_populates='groups',
+                         passive_deletes=True)
     group_users = relationship('GroupUser', back_populates='group',
                                cascade='save-update, merge, refresh-expire, expunge',
                                passive_deletes=True)
-    users = relationship('User', secondary='group_users',
-                         back_populates='groups')
+
     filter = relationship("Filter", uselist=False, back_populates="group")
     observing_runs = relationship('ObservingRun', back_populates='group')
     photometry = relationship("Photometry", secondary="group_photometry",
                               back_populates="groups",
-                              cascade="save-update, merge, refresh-expire, expunge")
+                              cascade="save-update, merge, refresh-expire, expunge",
+                              passive_deletes=True)
+    single_user_group = sa.Column(sa.Boolean, default=False)
 
 
 GroupUser = join_model('group_users', Group, User)
@@ -84,17 +96,16 @@ class Stream(Base):
     password = sa.Column(sa.String)
 
     groups = relationship('Group', secondary='stream_groups',
-                          back_populates='streams')
+                          back_populates='streams',
+                          passive_deletes=True)
 
 
 StreamGroup = join_model('stream_groups', Stream, Group)
 
 
-User.group_users = relationship('GroupUser', back_populates='user',
-                                cascade='save-update, merge, refresh-expire, expunge',
-                                passive_deletes=True)
 User.groups = relationship('Group', secondary='group_users',
-                           back_populates='users')
+                           back_populates='users',
+                           passive_deletes=True)
 
 
 @property
@@ -154,7 +165,8 @@ class Obj(Base):
                            order_by="Spectrum.observed_at")
     thumbnails = relationship('Thumbnail', back_populates='obj',
                               secondary='photometry',
-                              cascade='save-update, merge, refresh-expire, expunge')
+                              cascade='save-update, merge, refresh-expire, expunge',
+                              passive_deletes=True)
 
     followup_requests = relationship('FollowupRequest', back_populates='obj')
 
@@ -310,7 +322,8 @@ Obj.get_photometry_owned_by_user = get_photometry_owned_by_user
 
 User.sources = relationship('Obj', backref='users',
                             secondary='join(Group, sources).join(group_users)',
-                            primaryjoin='group_users.c.user_id == users.c.id')
+                            primaryjoin='group_users.c.user_id == users.c.id',
+                            passive_deletes=True)
 
 
 class SourceView(Base):
@@ -325,14 +338,15 @@ class SourceView(Base):
 class Telescope(Base):
     name = sa.Column(sa.String, nullable=False)
     nickname = sa.Column(sa.String, nullable=False)
-    lat = sa.Column(sa.Float, nullable=False, doc='Latitude in deg.')
-    lon = sa.Column(sa.Float, nullable=False, doc='Longitude in deg.')
-    elevation = sa.Column(sa.Float, nullable=False, doc='Elevation in meters.')
+    lat = sa.Column(sa.Float, nullable=True, doc='Latitude in deg.')
+    lon = sa.Column(sa.Float, nullable=True, doc='Longitude in deg.')
+    elevation = sa.Column(sa.Float, nullable=True, doc='Elevation in meters.')
     diameter = sa.Column(sa.Float, nullable=False, doc='Diameter in meters.')
     skycam_link = sa.Column(URLType, nullable=True,
                             doc="Link to the telescope's sky camera.")
 
-    groups = relationship('Group', secondary='group_telescopes')
+    groups = relationship('Group', secondary='group_telescopes',
+                          passive_deletes=True)
     instruments = relationship('Instrument', back_populates='telescope',
                                cascade='save-update, merge, refresh-expire, expunge',
                                passive_deletes=True)
@@ -403,7 +417,7 @@ class Instrument(Base):
 
 
 class Taxonomy(Base):
-    __tablename__ = 'taxonomy'
+    __tablename__ = 'taxonomies'
     name = sa.Column(sa.String, nullable=False,
                      doc='Short string to make this taxonomy memorable '
                          'to end users.'
@@ -428,7 +442,8 @@ class Taxonomy(Base):
                          )
     groups = relationship("Group", secondary="group_taxonomy",
                           cascade="save-update,"
-                                  "merge, refresh-expire, expunge"
+                                  "merge, refresh-expire, expunge",
+                          passive_deletes=True
                           )
 
 
@@ -463,7 +478,8 @@ class Comment(Base):
                        nullable=False, index=True)
     obj = relationship('Obj', back_populates='comments')
     groups = relationship("Group", secondary="group_comments",
-                          cascade="save-update, merge, refresh-expire, expunge")
+                          cascade="save-update, merge, refresh-expire, expunge",
+                          passive_deletes=True)
 
 
 GroupComment = join_model("group_comments", Group, Comment)
@@ -506,13 +522,12 @@ class Photometry(Base):
     obj = relationship('Obj', back_populates='photometry')
     groups = relationship("Group", secondary="group_photometry",
                           back_populates="photometry",
-                          cascade="save-update, merge, refresh-expire, expunge")
+                          cascade="save-update, merge, refresh-expire, expunge",
+                          passive_deletes=True)
     instrument_id = sa.Column(sa.ForeignKey('instruments.id'),
                               nullable=False, index=True)
     instrument = relationship('Instrument', back_populates='photometry')
     thumbnails = relationship('Thumbnail', passive_deletes=True)
-
-
 
     @hybrid_property
     def mag(self):
@@ -622,7 +637,8 @@ class Thumbnail(Base):
                               nullable=False, index=True)
     photometry = relationship('Photometry', back_populates='thumbnails')
     obj = relationship('Obj', back_populates='thumbnails', uselist=False,
-                       secondary='photometry')
+                       secondary='photometry',
+                       passive_deletes=True)
 
 
 User.followup_requests = relationship('FollowupRequest',
