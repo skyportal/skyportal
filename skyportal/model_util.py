@@ -13,6 +13,19 @@ from skyportal.models import (init_db, Base, DBSession, ACL, Comment,
                               Source, Spectrum, Telescope, Thumbnail, User,
                               Token)
 
+all_acl_ids = ['Become user', 'Comment', 'Manage users', 'Manage sources',
+               'Manage groups', 'Upload data', 'System admin', 'Post taxonomy',
+               'Delete taxonomy']
+
+role_acls = {
+    'Super admin': all_acl_ids,
+    'Group admin': ['Comment', 'Manage sources', 'Upload data', 'Post taxonomy',
+                    'Manage users'],
+    'Full user': ['Comment', 'Upload data'],
+    'View only': []
+}
+
+
 def add_user(username, roles=[], auth=False):
     user = User.query.filter(User.username == username).first()
     if user is None:
@@ -66,19 +79,9 @@ def setup_permissions():
     """Create default ACLs/Roles needed by application.
 
     If a given ACL or Role already exists, it will be skipped."""
-    all_acl_ids = ['Become user', 'Comment', 'Manage users', 'Manage sources',
-                   'Manage groups', 'Upload data', 'System admin', 'Post taxonomy',
-                   'Delete taxonomy']
     all_acls = [ACL.create_or_get(a) for a in all_acl_ids]
     DBSession().add_all(all_acls)
     DBSession().commit()
-
-    role_acls = {
-        'Super admin': all_acl_ids,
-        'Group admin': ['Comment', 'Manage sources', 'Upload data', 'Post taxonomy'],
-        'Full user': ['Comment', 'Upload data'],
-        'View only': []
-    }
 
     for r, acl_ids in role_acls.items():
         role = Role.create_or_get(r)
