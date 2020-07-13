@@ -139,6 +139,7 @@ def test_delete_comment(driver, user, public_source):
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
     delete_button = comment_div.find_element_by_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']")
+    driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
     driver.execute_script("arguments[0].click();", delete_button)
     try:
@@ -154,6 +155,7 @@ def test_delete_comment(driver, user, public_source):
             comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
             delete_button = comment_div.find_element_by_xpath(
                 f"//*[@name='deleteCommentButton{comment_id}']")
+            driver.execute_script("arguments[0].scrollIntoView();", comment_div)
             ActionChains(driver).move_to_element(comment_div).perform()
             driver.execute_script("arguments[0].click();", delete_button)
             driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
@@ -211,6 +213,7 @@ def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
     delete_button = comment_div.find_element_by_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']")
+    driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
     driver.execute_script("arguments[0].click();", delete_button)
     try:
