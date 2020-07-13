@@ -14,7 +14,7 @@ users:
           - "Manage sources"
           - "Upload data"
           - "Comment"
-          - "Post Taxonomy"
+          - "Post taxonomy"
           - "Manage users"
           - "System admin"
   - username: groupadmin@cesium-ml.org

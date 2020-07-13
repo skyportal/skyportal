@@ -118,8 +118,8 @@ You can add a user with such permissions by running the following from
 Python:
 
 ```
-from skyportal.model_util import add_super_user
-add_super_user('testuser@cesium-ml.org')
+from skyportal.model_util import make_super_user
+make_super_user('your@email.address.org')
 ```
 
 ### Test data
