@@ -67,9 +67,11 @@ def provision_token():
     ).first()
 
     if token is None:
-        token_id = create_token(['System admin'],
-                                admin.id,
-                                token_name)
+        token_id = create_token(
+            all_acl_ids,
+            user_id=admin.id,
+            name=token_name
+        )
         token = Token.query.get(token_id)
 
     return token

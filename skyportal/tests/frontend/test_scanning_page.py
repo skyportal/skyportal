@@ -1,4 +1,5 @@
 import uuid
+import pytest
 from selenium.common.exceptions import TimeoutException
 
 from skyportal.tests import api
@@ -10,6 +11,7 @@ def test_candidates_page_render(driver, user, public_candidate):
     driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_candidate_group_filtering(
     driver,
     user,
@@ -63,6 +65,7 @@ def test_candidate_group_filtering(
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_candidate_unsaved_only_filtering(
     driver,
     user,
@@ -124,6 +127,7 @@ def test_candidate_unsaved_only_filtering(
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_candidate_date_filtering(
     driver,
     user,
@@ -193,6 +197,7 @@ def test_candidate_date_filtering(
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]', 10)
 
 
+@pytest.mark.flaky(reruns=2)
 def test_save_candidate_quick_save(
     driver, group_admin_user, public_group, public_candidate
 ):
@@ -216,6 +221,7 @@ def test_save_candidate_quick_save(
         driver.wait_for_xpath('//a[text()="Previously Saved"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_save_candidate_select_groups(
     driver, group_admin_user, public_group, public_candidate
 ):
@@ -255,6 +261,7 @@ def test_save_candidate_select_groups(
         driver.wait_for_xpath('//a[text()="Previously Saved"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_save_candidate_no_groups_error_message(
     driver, group_admin_user, public_group, public_candidate
 ):
