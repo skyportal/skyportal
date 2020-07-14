@@ -101,6 +101,15 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
     model_util.setup_permissions()
     app.cfg = cfg
 
+    admin_token = model_util.provision_token()
+    with open('.tokens.yaml', 'w') as f:
+        f.write(f'INITIAL_ADMIN: {admin_token.id}\n')
+    with open('.tokens.yaml', 'r') as f:
+        print('-' * 78)
+        print('Tokens in .tokens.yaml:')
+        print('\n'.join(f.readlines()), end='')
+        print('-' * 78)
+
     app.openapi_spec = openapi.spec_from_handlers(handlers)
 
     return app
