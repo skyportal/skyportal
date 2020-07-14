@@ -1,9 +1,13 @@
+#!/usr/bin/env python
+
 import os
 import sys
 import base64
 from pathlib import Path
 import textwrap
+from contextlib import contextmanager
 
+import requests
 import pandas as pd
 import yaml
 from yaml import Loader
@@ -12,6 +16,17 @@ import tdtax
 from baselayer.app.env import load_env, parser
 from baselayer.app.model_util import status
 from skyportal.tests import api
+
+
+@contextmanager
+def status(message):
+    print(f'[·] {message}', end='')
+    try:
+        yield
+    except Exception as e:
+        print(f'\r[✗] {message}: {repr(e)}')
+    else:
+        print(f'\r[✓] {message}')
 
 
 if __name__ == "__main__":
@@ -43,6 +58,7 @@ if __name__ == "__main__":
 
         try:
             token = yaml.load(open('.tokens.yaml'), Loader=yaml.Loader)['INITIAL_ADMIN']
+            print('Token loaded from `.tokens.yaml`')
             return token
         except:
             print('Error: no token specified, and no suitable token found in .tokens.yaml')
@@ -50,16 +66,37 @@ if __name__ == "__main__":
 
     admin_token = get_token()
 
-    def assert_post(endpoint, data, token=admin_token):
+    def get(endpoint, token=admin_token):
+        response_status, data = api("GET", endpoint,
+                                    token=token,
+                                    host=env.host)
+        return response_status, data
+
+    def post(endpoint, data, token=admin_token):
         response_status, data = api("POST", endpoint,
                                     data=data,
                                     token=token,
                                     host=env.host)
+        return response_status, data
+
+    def assert_post(endpoint, data, token=admin_token):
+        response_status, data = post(endpoint, data, token)
         if not response_status == 200 and data["status"] == "success":
             raise RuntimeError(
                 f'API call to {endpoint} failed with status {status}: {data["message"]}'
             )
         return data
+
+    try:
+        code, data = get('sysinfo')
+    except requests.exceptions.ConnectionError:
+        print('Error: Could not connect to SkyPortal instance; please ensure ')
+        print('       it is running at the given host/port')
+        sys.exit(-1)
+
+    if data['status'] != 'success':
+        print('Error: Could not authenticate against SkyPortal; please specify a valid token.')
+        sys.exit(-1)
 
     # if src.get("users") is not None:
     #     with status(f"Creating users"):
