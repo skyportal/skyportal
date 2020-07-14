@@ -26,4 +26,5 @@ sncosmo>=2.1.0
 tdtax>=0.1.1
 healpix-alchemy>=0.1.0
 jsonschema
+pytest-rerunfailures>=9.0
 

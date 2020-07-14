@@ -1,6 +1,7 @@
 import os
 from os.path import join as pjoin
 import uuid
+import pytest
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException
 
@@ -18,6 +19,7 @@ def test_public_source_page(driver, user, public_source):
     driver.wait_for_xpath('//label[contains(text(), "Fe III")]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_comments(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
@@ -68,6 +70,7 @@ def test_comment_groups_validation(driver, user, public_source):
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_upload_download_comment_attachment(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
@@ -117,6 +120,7 @@ def test_view_only_user_cannot_comment(driver, view_only_user, public_source):
     driver.wait_for_xpath_to_disappear('//input[@name="text"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_delete_comment(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -135,6 +139,7 @@ def test_delete_comment(driver, user, public_source):
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
     delete_button = comment_div.find_element_by_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']")
+    driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
     driver.execute_script("arguments[0].click();", delete_button)
     try:
@@ -150,11 +155,13 @@ def test_delete_comment(driver, user, public_source):
             comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
             delete_button = comment_div.find_element_by_xpath(
                 f"//*[@name='deleteCommentButton{comment_id}']")
+            driver.execute_script("arguments[0].scrollIntoView();", comment_div)
             ActionChains(driver).move_to_element(comment_div).perform()
             driver.execute_script("arguments[0].click();", delete_button)
             driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_regular_user_cannot_delete_unowned_comment(driver, super_admin_user,
                                                     user, public_source):
     driver.get(f"/become_user/{super_admin_user.id}")
@@ -182,6 +189,7 @@ def test_regular_user_cannot_delete_unowned_comment(driver, super_admin_user,
     assert not delete_button.is_displayed()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
                                                user, public_source):
     driver.get(f"/become_user/{user.id}")
@@ -205,6 +213,7 @@ def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
     delete_button = comment_div.find_element_by_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']")
+    driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
     driver.execute_script("arguments[0].click();", delete_button)
     try:
