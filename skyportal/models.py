@@ -13,7 +13,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import ArrowType, URLType
 
-from healpix_alchemy.unit_spherical import HasUnitSphericalCoordinate
+from healpix_alchemy.unit_spherical import HasRADec
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
@@ -31,17 +31,6 @@ env, cfg = load_env()
 # All DB fluxes are stored in microJy (AB).
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
-
-
-class HasRADec(HasUnitSphericalCoordinate):
-
-    @hybrid_property
-    def ra(self):
-        return self.lon
-
-    @hybrid_property
-    def dec(self):
-        return self.lat
 
 
 def is_owned_by(self, user_or_token):
