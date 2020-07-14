@@ -25,3 +25,4 @@ Pillow>=6
 sncosmo>=2.1.0
 tdtax>=0.1.1
 jsonschema
+pytest-rerunfailures>=9.0
