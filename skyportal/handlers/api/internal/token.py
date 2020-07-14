@@ -41,8 +41,8 @@ class TokenHandler(BaseHandler):
         token_name = data['name']
         if Token.query.filter(Token.name == token_name).first():
             return self.error("Duplicate token name.")
-        token_id = create_token(permissions=token_acls,
-                                created_by_id=user.id,
+        token_id = create_token(ACLs=token_acls,
+                                user_id=user.id,
                                 name=token_name)
         self.push(action='baselayer/SHOW_NOTIFICATION',
                   payload={'note': f'Token "{token_name}" created.',

@@ -16,7 +16,7 @@ const GroupList = ({ title, groups }) => (
 
     <List dense>
       {
-        groups && groups.map((group) => (
+        groups && groups.filter((group) => !group.single_user_group).map((group) => (
           <Link to={`/group/${group.id}`} key={group.id}>
             <ListItem>
               <ListItemText primary={group.name} />

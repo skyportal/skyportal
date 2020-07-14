@@ -45,7 +45,7 @@ class TaxonomyHandler(BaseHandler):
 
         return self.success(data=taxonomy[0])
 
-    @permissions(['Post Taxonomy'])
+    @permissions(['Post taxonomy'])
     def post(self):
         """
         ---
@@ -188,7 +188,7 @@ class TaxonomyHandler(BaseHandler):
 
         return self.success(data={'taxonomy_id': taxonomy.id})
 
-    @permissions(['Delete Taxonomy'])
+    @permissions(['Delete taxonomy'])
     def delete(self, taxonomy_id):
         """
         ---

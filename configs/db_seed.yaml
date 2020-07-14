@@ -12,7 +12,7 @@ users:
           - "Manage groups"
           - "Manage sources"
           - "Upload data"
-          - "Post Taxonomy"
+          - "Post taxonomy"
           - "Manage users"
           - "System admin"
 groups:

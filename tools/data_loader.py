@@ -15,7 +15,7 @@ from social_tornado.models import TornadoStorage
 
 from baselayer.app.env import load_env
 from baselayer.app.model_util import status, create_tables, drop_tables
-from skyportal.models import Base, init_db, Obj, DBSession, User
+from skyportal.models import Base, init_db, Obj, DBSession, User, Group
 from skyportal.model_util import setup_permissions, create_token
 from skyportal.tests import api
 from baselayer.tools.test_frontend import verify_server_availability
@@ -60,7 +60,9 @@ if __name__ == "__main__":
             setup_permissions()
 
     if src.get("users") is not None:
-        with status(f"Creating users"):
+        with status(f"Creating users & sitewide public group"):
+            DBSession().add(Group(name=cfg["misc"]["public_group_name"]))
+            DBSession().commit()
 
             users = []
             for user in src.get('users', []):
