@@ -68,9 +68,6 @@ cron:
     script: jobs/delete_unsaved_candidates.py
     limit: ["01:00", "02:00"]
 
-# can be postgis, q3c, or null
-spatial_backend: null
-
 # Data loader configurations
 data_load:
   db_seed:

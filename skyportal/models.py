@@ -11,17 +11,14 @@ from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
-from skyportal_spatial import (UnindexedSpatialBackend, PostGISSpatialBackend,
-                               Q3CSpatialBackend)
 from sqlalchemy_utils import ArrowType, URLType
 
-from astropy.time import Time
+from healpix_alchemy.unit_spherical import HasUnitSphericalCoordinate
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
 from baselayer.app.custom_exceptions import AccessError
-from baselayer.app.env import load_env
 
 from . import schema
 from .phot_enum import allowed_bandpasses, thumbnail_types
@@ -32,17 +29,16 @@ from .phot_enum import allowed_bandpasses, thumbnail_types
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
 
-env, cfg = load_env()
-spatial_backend = cfg['spatial_backend']
 
-if spatial_backend == 'postgis':
-    Spatial = PostGISSpatialBackend
-elif spatial_backend == 'q3c':
-    Spatial = Q3CSpatialBackend
-elif spatial_backend is None:
-    Spatial = UnindexedSpatialBackend
-else:
-    raise RuntimeError('Invalid spatial backend.')
+class HasRADec(HasUnitSphericalCoordinate):
+
+    @hybrid_property
+    def ra(self):
+        return self.lon
+
+    @hybrid_property
+    def dec(self):
+        return self.lat
 
 
 def is_owned_by(self, user_or_token):
@@ -130,7 +126,7 @@ def token_groups(self):
 Token.groups = token_groups
 
 
-class Obj(Base, Spatial):
+class Obj(Base, HasRADec):
     id = sa.Column(sa.String, primary_key=True)
     # TODO should this column type be decimal? fixed-precison numeric
 
@@ -474,7 +470,7 @@ class Comment(Base):
 GroupComment = join_model("group_comments", Group, Comment)
 
 
-class Photometry(Base, Spatial):
+class Photometry(Base, HasRADec):
     __tablename__ = 'photometry'
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.')
     flux = sa.Column(sa.Float,
