@@ -2,7 +2,7 @@ import base64
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, Group, Classification
+from ...models import DBSession, Source, Group, Classification, Taxonomy
 
 
 class ClassificationHandler(BaseHandler):
@@ -49,10 +49,19 @@ class ClassificationHandler(BaseHandler):
                     type: string
                   classification:
                     type: string
-                  taxonomy:
+                  taxonomy_id:
                     type: integer
                   probability:
                     type: float
+                    nullable: true
+                    minimum: 0.0
+                    maximum: 1.0
+                    description: |
+                      User-assigned probability of this classification on this
+                      taxonomy. If multiple classifications are given for the
+                      same source by the same user, the sum of the
+                      classifications ought to equal unity. Only individual
+                      probabilities are checked.
                   group_ids:
                     type: array
                     items:
@@ -64,7 +73,7 @@ class ClassificationHandler(BaseHandler):
                 required:
                   - obj_id
                   - classification
-                  - taxonomy
+                  - taxonomy_id
         responses:
           200:
             content:
@@ -94,16 +103,39 @@ class ClassificationHandler(BaseHandler):
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
 
         author = self.associated_user_object.username
+
+        # check the taxonomy
+        taxonomy_id = data["taxonomy_id"]
+        taxonomy = Taxonomy. \
+            get_taxonomy_usable_by_user(taxonomy_id, self.current_user)
+        if taxonomy is None:
+            return self.error(
+                'That taxonomy does not exist or is not available to user.'
+            )
+        if not isinstance(taxonomy, list):
+            return self.error('Problem retreiving taxonomy')
+
+        if data['classification'] not in taxonomy[0].allowed_classes:
+            return self.error(f"That classification ({data['classification']}) "
+                               'is not in the allowed classes for the chosen '
+                               f'taxonomy (id={taxonomy_id}')
+
+        probability = data.get('probability')
+        if probability is not None:
+          if probability < 0 or probability > 1:
+            return self.error(f"That probability ({probability}) is outside "
+                               "the allowable range (0-1).")
+
         classification = Classification(classification=data['classification'],
-                          obj_id=obj_id, probability=data.get('probability'),
-                          taxonomy=data["taxonomy"],
+                          obj_id=obj_id, probability=probability,
+                          taxonomy_id=data["taxonomy_id"],
                           author=author, groups=groups)
 
         DBSession().add(classification)
         DBSession().commit()
 
         self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'obj_id': comment.obj_id})
+                      payload={'obj_id': classification.obj_id})
         return self.success(data={'classification_id': classification.id})
 
     @permissions(['Classify'])
@@ -148,9 +180,9 @@ class ClassificationHandler(BaseHandler):
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
-        data['id'] = comment_id
+        data['id'] = classification_id
 
-        schema = Comment.__schema__()
+        schema = Classification.__schema__()
         try:
             schema.load(data, partial=True)
         except ValidationError as e:
@@ -165,7 +197,7 @@ class ClassificationHandler(BaseHandler):
                                   "Specify at least one valid group ID.")
             if "Super admin" not in [r.id for r in self.associated_user_object.roles]:
                 if not all([group in self.current_user.groups for group in groups]):
-                    return self.error("Cannot associate comment with groups you are "
+                    return self.error("Cannot associate classification with groups you are "
                                       "not a member of.")
             c.groups = groups
         DBSession().commit()
@@ -174,7 +206,7 @@ class ClassificationHandler(BaseHandler):
         return self.success()
 
     @permissions(['Classify'])
-    def delete(self, comment_id):
+    def delete(self, classification_id):
         """
         ---
         description: Delete a classification
@@ -194,45 +226,14 @@ class ClassificationHandler(BaseHandler):
         roles = (self.current_user.roles if hasattr(self.current_user, 'roles') else [])
         c = Classification.query.get(classification_id)
         if c is None:
-            return self.error("Invalid comment ID")
+            return self.error("Invalid classification ID")
         obj_id = c.obj_id
         author = c.author
         if ("Super admin" in [role.id for role in roles]) or (user == author):
-            Classification.query.filter_by(id=comment_id).delete()
+            Classification.query.filter_by(id=classification_id).delete()
             DBSession().commit()
         else:
             return self.error('Insufficient user permissions.')
         self.push_all(action='skyportal/REFRESH_SOURCE',
                       payload={'obj_id': obj_id})
         return self.success()
-
-
-class CommentAttachmentHandler(BaseHandler):
-    @auth_or_token
-    def get(self, comment_id):
-        """
-        ---
-        description: Download comment attachment
-        parameters:
-          - in: path
-            name: comment_id
-            required: true
-            schema:
-              type: integer
-        responses:
-          200:
-            content:
-              application:
-                schema:
-                  type: string
-                  format: base64
-                  description: base64-encoded contents of attachment
-        """
-        comment = Comment.get_if_owned_by(comment_id, self.current_user)
-        if comment is None:
-            return self.error('Invalid comment ID.')
-        self.set_header(
-            "Content-Disposition", "attachment; "
-            f"filename={comment.attachment_name}")
-        self.set_header("Content-type", "application/octet-stream")
-        self.write(base64.b64decode(comment.attachment_bytes))
