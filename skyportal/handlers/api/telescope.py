@@ -13,7 +13,18 @@ class TelescopeHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: TelescopeNoID
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/TelescopeNoID'
+                  - type: object
+                    properties:
+                      group_ids:
+                        type: array
+                        items:
+                          type: integer
+                        description: List of group IDs to associate the telescope with
+                    required:
+                      - group_ids
         responses:
           200:
             content:
