@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useDispatch, useSelector } from 'react-redux';
 import TextField from '@material-ui/core/TextField';
 import Autocomplete, { createFilterOptions } from '@material-ui/lab/Autocomplete';
 
-import * as Action from '../ducks/groups';
+import * as groupsActions from '../ducks/groups';
+import * as usersActions from '../ducks/users';
+
 
 const filter = createFilterOptions();
 
@@ -16,9 +18,15 @@ const NewGroupUserForm = ({ group_id }) => {
     admin: false
   });
 
+  useEffect(() => {
+    if (allUsers.length === 0) {
+      dispatch(usersActions.fetchUsers());
+    }
+  }, [dispatch, allUsers]);
+
   const handleSubmit = (event) => {
     event.preventDefault();
-    dispatch(Action.addGroupUser({
+    dispatch(groupsActions.addGroupUser({
       username: formState.newUserEmail,
       admin: formState.admin,
       group_id
