@@ -1,9 +1,6 @@
 from ..base import BaseHandler
 from baselayer.app.access import permissions
 from ...models import DBSession, User, Group, GroupUser, cfg
-from ...model_util import role_acls
-
-from sqlalchemy.orm import joinedload
 
 
 class UserHandler(BaseHandler):
@@ -11,30 +8,53 @@ class UserHandler(BaseHandler):
     def get(self, user_id=None):
         """
         ---
-        description: Retrieve a user
-        parameters:
-          - in: path
-            name: user_id
-            required: true
-            schema:
-              type: integer
-        responses:
-          200:
-            content:
-              application/json:
-                schema: SingleUser
-          400:
-            content:
-              application/json:
-                schema: Error
+        single:
+          description: Retrieve a user
+          parameters:
+            - in: path
+              name: user_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleUser
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all users
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/User'
+                            description: List of users
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
-        user = User.query.get(int(user_id))
-        if user is None:
-            return self.error(f'Invalid user ID ({user_id}).')
-        else:
+        if user_id is not None:
+            user = User.query.get(int(user_id))
+            if user is None:
+                return self.error(f'Invalid user ID ({user_id}).')
             user_info = user.to_dict()
             user_info['acls'] = user.acls
             return self.success(data=user_info)
+        users = User.query.all()
+        return self.success(data=users)
 
     @permissions(["Manage users"])
     def post(self):
