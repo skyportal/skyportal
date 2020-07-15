@@ -13,7 +13,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import ArrowType, URLType
 
-from healpix_alchemy.point import HasPoint
+from healpix_alchemy.point import HasNullablePoint
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
@@ -118,7 +118,7 @@ def token_groups(self):
 Token.groups = token_groups
 
 
-class Obj(Base, HasPoint):
+class Obj(Base, HasNullablePoint):
     id = sa.Column(sa.String, primary_key=True)
     # TODO should this column type be decimal? fixed-precison numeric
 
@@ -462,7 +462,7 @@ class Comment(Base):
 GroupComment = join_model("group_comments", Group, Comment)
 
 
-class Photometry(Base, HasPoint):
+class Photometry(Base, HasNullablePoint):
     __tablename__ = 'photometry'
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.')
     flux = sa.Column(sa.Float,
