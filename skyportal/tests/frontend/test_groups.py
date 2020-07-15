@@ -1,6 +1,7 @@
 import pytest
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 import uuid
 import requests
 
@@ -54,7 +55,8 @@ def test_add_new_group_user_admin(driver, super_admin_user, user, public_group):
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.execute_script("arguments[0].click();", el)
     driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../input').click()
-    driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(user.username)
+    driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(
+        user.username, Keys.ENTER)
     driver.wait_for_xpath('//input[@type="checkbox"]').click()
     driver.wait_for_xpath('//input[@value="Add user"]').click()
     driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
@@ -69,7 +71,8 @@ def test_add_new_group_user_nonadmin(driver, super_admin_user, user, public_grou
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.execute_script("arguments[0].click();", el)
     driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../input').click()
-    driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(user.username)
+    driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(
+        user.username, Keys.ENTER)
     driver.wait_for_xpath('//input[@value="Add user"]').click()
     driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
     assert len(driver.find_elements_by_xpath(
