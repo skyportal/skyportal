@@ -7,6 +7,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func, desc
 import arrow
 from marshmallow.exceptions import ValidationError
+from healpix_alchemy.point import Point
 
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -210,8 +211,8 @@ class SourceHandler(BaseHandler):
                     radius = float(radius)
                 except ValueError:
                     return self.error("Invalid values for ra, dec or radius - could not convert to float")
-                other = Obj(ra=ra, dec=dec)
-                q = q.filter(Obj.within(other, radius * 3600.))
+                other = Point(ra=ra, dec=dec)
+                q = q.filter(Obj.point.within(other, radius))
             if start_date:
                 start_date = arrow.get(start_date.strip())
                 q = q.filter(Obj.last_detected >= start_date)
