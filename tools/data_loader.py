@@ -100,6 +100,9 @@ if __name__ == "__main__":
 
     data = src.get('data', {})
     error_log = []
+
+    references = {}
+
     for endpoint in data:
         print(f'Posting to {endpoint}: ', end='')
         to_post = data[endpoint]
@@ -109,10 +112,33 @@ if __name__ == "__main__":
             post_objs = to_post
 
         for obj in post_objs:
+            # Fields that start with =, such as =id, get saved for using as
+            # references later on
+            saved_fields = {v: k[1:] for k, v in obj.items() if k.startswith('=')}
+
+            # Remove all such fields from the object to be posted
+            obj = {k: v for k, v in obj.items() if not k.startswith('=')}
+
+            # Replace all references of the format field: [key] with the
+            # appropriate reference value
+            for k, v in obj.items():
+                if isinstance(v, str) and v.startswith('='):
+                    try:
+                        obj[k] = references[v[1:]]
+                    except KeyError:
+                        print(f'\nReference {v[1:]} not found while posting to {endpoint}')
+
             status, response = post(endpoint, data=obj)
+
             print('.' if status == 200 else 'X', end='')
             if status != 200:
                 error_log.append(f"/{endpoint}: {response['message']}")
+                continue
+
+            # Save all references from the response
+            for field, target in saved_fields.items():
+                references[target] = response['data'][field]
+
         print()
 
     if error_log:
