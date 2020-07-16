@@ -23,11 +23,9 @@ import timezonefinder
 from astropy import units as u
 from astropy import time as ap_time
 
-import datetime
-
 from . import schema
-from .phot_enum import (allowed_bandpasses, thumbnail_types, instrument_types,
-                        followup_priorities)
+from .enum_types import (allowed_bandpasses, thumbnail_types, instrument_types,
+                         followup_priorities)
 
 
 env, cfg = load_env()
@@ -747,7 +745,7 @@ class ObservingRun(Base):
         month = self.calendar_date.month
         day = self.calendar_date.day
         hour = 12.
-        noon = datetime.datetime(year=year, month=month, day=day, hour=hour,
+        noon = datetime(year=year, month=month, day=day, hour=hour,
                                  tzinfo=observer.timezone)
         noon = noon.utctimetuple()
         return noon

@@ -2,7 +2,7 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Instrument, Telescope, GroupTelescope
-from ...phot_enum import ALLOWED_BANDPASSES
+from ...enum_types import ALLOWED_BANDPASSES
 
 
 class InstrumentHandler(BaseHandler):

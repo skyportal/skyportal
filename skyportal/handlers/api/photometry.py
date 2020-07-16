@@ -15,7 +15,7 @@ from ...models import (
 
 
 from ...schema import (PhotometryMag, PhotometryFlux, PhotFluxFlexible, PhotMagFlexible)
-from ...phot_enum import ALLOWED_MAGSYSTEMS
+from ...enum_types import ALLOWED_MAGSYSTEMS
 
 
 def nan_to_none(value):
