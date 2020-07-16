@@ -5,7 +5,6 @@ from datetime import datetime
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy import cast
-from sqlalchemy.orm.session import object_session
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
@@ -16,12 +15,12 @@ from sqlalchemy_utils import ArrowType, URLType
 import healpix_alchemy as ha
 
 from baselayer.app.env import load_env
-from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
-                                  Role, User, Token)
+from baselayer.app.models import join_model, Base, DBSession, User, Token
 from baselayer.app.custom_exceptions import AccessError
 
 from . import schema
-from .phot_enum import allowed_bandpasses, thumbnail_types
+from .phot_enum import (allowed_bandpasses, thumbnail_types, instrument_types,
+                        followup_priorities)
 
 
 env, cfg = load_env()
@@ -80,6 +79,7 @@ class Group(Base):
                                passive_deletes=True)
 
     filter = relationship("Filter", uselist=False, back_populates="group")
+    observing_runs = relationship('ObservingRun', back_populates='group')
     photometry = relationship("Photometry", secondary="group_photometry",
                               back_populates="groups",
                               cascade="save-update, merge, refresh-expire, expunge",
@@ -176,6 +176,8 @@ class Obj(Base, ha.Point):
                               passive_deletes=True)
 
     followup_requests = relationship('FollowupRequest', back_populates='obj')
+    assignments = relationship('ClassicalAssignment', back_populates='obj')
+
 
     @hybrid_property
     def last_detected(self):
@@ -382,10 +384,9 @@ class ArrayOfEnum(ARRAY):
 
 class Instrument(Base):
     name = sa.Column(sa.String, nullable=False)
-    type = sa.Column(sa.String)
+    type = sa.Column(instrument_types, nullable=False)
     band = sa.Column(sa.String)
-    telescope_id = sa.Column(sa.ForeignKey('telescopes.id',
-                                           ondelete='CASCADE'),
+    telescope_id = sa.Column(sa.ForeignKey('telescopes.id', ondelete='CASCADE'),
                              nullable=False, index=True)
     telescope = relationship('Telescope', back_populates='instruments')
 
@@ -397,7 +398,18 @@ class Instrument(Base):
 
     # can be [] if an instrument is spec only
     filters = sa.Column(ArrayOfEnum(allowed_bandpasses), nullable=False,
-                        default=[])
+                        default=[], doc='List of filters on the instrument '
+                                        '(if any).')
+
+    observing_runs = relationship('ObservingRun', back_populates='instrument')
+
+    @property
+    def does_spectroscopy(self):
+        return 'spec' in self.type
+
+    @property
+    def does_imaging(self):
+        return 'imag' in self.type
 
 
 class Taxonomy(Base):
@@ -640,19 +652,6 @@ class Spectrum(Base):
 #        return '/' + file_uri.lstrip('./')
 
 
-class Thumbnail(Base):
-    # TODO delete file after deleting row
-    type = sa.Column(thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ...)')
-    file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
-    public_url = sa.Column(sa.String(), nullable=True, index=False, unique=False)
-    origin = sa.Column(sa.String, nullable=True)
-    photometry_id = sa.Column(sa.ForeignKey('photometry.id', ondelete='CASCADE'),
-                              nullable=False, index=True)
-    photometry = relationship('Photometry', back_populates='thumbnails')
-    obj = relationship('Obj', back_populates='thumbnails', uselist=False,
-                       secondary='photometry',
-                       passive_deletes=True)
-
 
 class FollowupRequest(Base):
     requester = relationship(User, back_populates='followup_requests')
@@ -675,5 +674,88 @@ class FollowupRequest(Base):
 
 
 User.followup_requests = relationship('FollowupRequest', back_populates='requester')
+
+
+class Thumbnail(Base):
+    # TODO delete file after deleting row
+    type = sa.Column(thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ...)')
+    file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
+    public_url = sa.Column(sa.String(), nullable=True, index=False, unique=False)
+    origin = sa.Column(sa.String, nullable=True)
+    photometry_id = sa.Column(sa.ForeignKey('photometry.id', ondelete='CASCADE'),
+                              nullable=False, index=True)
+    photometry = relationship('Photometry', back_populates='thumbnails')
+    obj = relationship('Obj', back_populates='thumbnails', uselist=False,
+                       secondary='photometry',
+                       passive_deletes=True)
+
+
+class ObservingRun(Base):
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id', ondelete='CASCADE'), nullable=False
+    )
+    instrument = relationship(
+        'Instrument', cascade='save-update, merge, refresh-expire, expunge',
+        uselist=False, back_populates='observing_runs'
+    )
+
+    # name of the PI
+    pi = sa.Column(sa.Text)
+    observers = sa.Column(sa.Text)
+
+    sources = relationship(
+        'Obj', secondary='join(ClassicalAssignment, Obj)',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True
+    )
+
+    # let this be nullable to accommodate external groups' runs
+    group = relationship('Group', back_populates='observing_runs')
+    group_id = sa.Column(sa.ForeignKey('groups.id', ondelete='CASCADE'),
+                         nullable=True)
+
+    # the person who uploaded the run
+    owner = relationship('User', back_populates='observing_runs')
+    owner_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
+                         nullable=False, index=True)
+
+    assignments = relationship('ClassicalAssignment', passive_deletes=True)
+    calendar_date = sa.Column(sa.Date, nullable=False, index=True)
+
+
+User.observing_runs = relationship(
+    'ObservingRun', cascade='save-update, merge, refresh-expire, expunge'
+)
+
+
+class ClassicalAssignment(Base):
+
+    @declared_attr
+    def requester_id(self):
+        return sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
+                         nullable=False, index=True)
+
+    @declared_attr
+    def obj_id(self):
+        return sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
+                         nullable=False, index=True)
+
+    comment = sa.Column(sa.String())
+    status = sa.Column(sa.String(), nullable=False, default="pending")
+    priority = sa.Column(followup_priorities, nullable=False)
+
+    run = relationship('ObservingRun', back_populates='assignments')
+    run_id = sa.Column(sa.ForeignKey('observingruns.id', ondelete='CASCADE'),
+                       nullable=False, index=True)
+
+    @hybrid_property
+    def instrument(self):
+        return self.run.instrument
+
+    obj = relationship('Obj', back_populates='assignments')
+    requester = relationship('User', back_populates='assignments')
+
+User.assignments = relationship('ClassicalAssignment',
+                                back_populates='requester')
 
 schema.setup_schema()
