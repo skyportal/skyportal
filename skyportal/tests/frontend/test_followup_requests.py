@@ -32,7 +32,7 @@ def add_telescope_and_instrument(instrument_name, group_ids, token):
         "instrument",
         data={
             "name": instrument_name,
-            "type": "type",
+            "type": "imager",
             "band": "Optical",
             "telescope_id": telescope_id,
             "filters": ["ztfg"],

@@ -4,6 +4,7 @@ from baselayer.app.app_server import MainPageHandler
 
 from skyportal.handlers import (BecomeUserHandler, LogoutHandler)
 from skyportal.handlers.api import (
+    AssignmentHandler,
     CandidateHandler,
     ClassificationHandler,
     CommentHandler, CommentAttachmentHandler,
@@ -12,6 +13,7 @@ from skyportal.handlers.api import (
     GroupHandler, GroupUserHandler,
     InstrumentHandler,
     NewsFeedHandler,
+    ObservingRunHandler,
     PhotometryHandler, BulkDeletePhotometryHandler, ObjPhotometryHandler,
     SourceHandler, SourceOffsetsHandler,
     SourceFinderHandler,
@@ -53,6 +55,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
 
     handlers = baselayer_handlers + [
         # API endpoints
+        (r'/api/assignment(/.*)?', AssignmentHandler),
         (r'/api/candidates(/.*)?', CandidateHandler),
         (r'/api/classification(/[0-9]+)?', ClassificationHandler),
         (r'/api/comment(/[0-9]+)?', CommentHandler),
@@ -63,6 +66,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/groups(/.*)?', GroupHandler),
         (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
         (r'/api/newsfeed', NewsFeedHandler),
+        (r'/api/observing_run(/[0-9]+)?', ObservingRunHandler),
         (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
         (r'/api/photometry/bulk_delete/(.*)', BulkDeletePhotometryHandler),
         (r'/api/sources(/[0-9A-Za-z-_]+)/photometry', ObjPhotometryHandler),

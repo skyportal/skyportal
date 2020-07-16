@@ -26,7 +26,7 @@ from baselayer.app.models import (
 from skyportal.enum_types import (
     py_allowed_bandpasses,
     py_allowed_magsystems,
-    py_thumbnail_types,
+    py_followup_priorities,
     ALLOWED_BANDPASSES,
     ALLOWED_MAGSYSTEMS,
     force_render_enum_markdown
@@ -171,10 +171,10 @@ class PhotBaseFlexible(object):
                           required=True)
 
     instrument_id = fields.Field(description='ID of the `Instrument`(s) with which the '
-                                 'photometry was acquired. '
-                                 'Can be given as a scalar or a 1D list. '
-                                 'If a scalar, will be broadcast to all values '
-                                 'given as lists. Null values are not allowed.',
+                                      'photometry was acquired. '
+                                      'Can be given as a scalar or a 1D list. '
+                                      'If a scalar, will be broadcast to all values '
+                                      'given as lists. Null values are not allowed.',
                                  required=True)
 
     ra = fields.Field(description='ICRS Right Ascension of the centroid '
@@ -327,6 +327,7 @@ class PhotBase(object):
     obj_id = fields.String(description='ID of the Object to which the '
                                        'photometry will be attached.',
                            required=True)
+
     instrument_id = fields.Integer(description='ID of the instrument with which'
                                                ' the observation was carried '
                                                'out.', required=True)
@@ -375,8 +376,10 @@ class PhotometryFlux(_Schema, PhotBase):
                                      'the flux error is used to derive a '
                                      'limiting magnitude.', required=False,
                          missing=None, default=None)
+
     fluxerr = fields.Number(description='Gaussian error on the flux in counts.',
                             required=True)
+
     zp = fields.Number(description='Magnitude zeropoint, given by `ZP` in the '
                                    'equation m = -2.5 log10(flux) + `ZP`. '
                                    'm is the magnitude of the object in the '
@@ -560,6 +563,47 @@ class PhotometryMag(_Schema, PhotBase):
         return p
 
 
+class AssignmentSchema(_Schema):
+    # For generating API docs and extremely basic validation
+
+    run_id = fields.Integer(required=True)
+    obj_id = fields.String(required=True, description='The ID of the object to observe.')
+    priority = ApispecEnumField(py_followup_priorities,
+                                required=True, description='Priority of the request, '
+                                                           '(lowest = 1, highest = 5).')
+    comment = fields.String(description='An optional comment describing the request.')
+
+    @post_load
+    def parse(self, data, **kwargs):
+        # check that request type is valid given the instrument
+        from .models import ObservingRun, ClassicalAssignment
+
+        run_id = data['run_id']
+        data['priority'] = data['priority'].name
+        run = ObservingRun.query.get(run_id)
+        if run is None:
+            raise ValidationError(f'Invalid observing run: "{run_id}"')
+
+        # check the object
+        assignment = ClassicalAssignment(**data)
+        return assignment
+
+
+class ObservingRunPost(_Schema):
+    instrument_id = fields.Integer(
+        required=True, description='The ID of the instrument to be '
+                                   'used in this run.'
+    )
+
+    # name of the PI
+    pi = fields.String(description='The PI of the observing run.')
+    observers = fields.String(description='The names of the observers')
+    group_id = fields.Integer(description='The ID of the group this run is associated with.')
+    calendar_date = fields.Date(
+        description='The local calendar date of the run.', required=True
+    )
+
+
 def register_components(spec):
     print('Registering schemas with APISpec')
 
@@ -588,3 +632,5 @@ PhotometryFlux = PhotometryFlux()
 PhotometryMag = PhotometryMag()
 PhotMagFlexible = PhotMagFlexible()
 PhotFluxFlexible = PhotFluxFlexible()
+ObservingRunPost = ObservingRunPost()
+AssignmentSchema = AssignmentSchema()

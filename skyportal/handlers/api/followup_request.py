@@ -3,7 +3,138 @@ from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Instrument, Source, FollowupRequest, Token
+from ...models import (DBSession, Source, FollowupRequest, Token,
+                       ClassicalAssignment)
+
+from ...schema import AssignmentSchema
+
+
+class AssignmentHandler(BaseHandler):
+
+    @auth_or_token
+    def get(self, assignment_id=None):
+        """
+        ---
+        single:
+          description: Retrieve an observing run assignment
+          parameters:
+            - in: path
+              name: assignment_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+               content:
+                application/json:
+                  schema: SingleClassicalAssignment
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all observing run assignments
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfClassicalAssignments
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+        if assignment_id is not None:
+            assignment = ClassicalAssignment.query.get(int(assignment_id))
+
+            if assignment is None:
+                return self.error(f"Could not load assignment {assignment_id}",
+                                  data={"assignment_id": assignment_id})
+            return self.success(data=assignment)
+        return self.success(data=ClassicalAssignment.query.all())
+
+
+    @auth_or_token
+    def post(self):
+        """
+        ---
+        description: Post new target assignment to observing run
+        requestBody:
+          content:
+            application/json:
+              schema: AssignmentSchema
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New assignment ID
+        """
+
+        data = self.get_json()
+        try:
+            assignment = AssignmentSchema.load(data=data)
+        except ValidationError as e:
+            return self.error(f'Error parsing followup request: '
+                              f'"{e.normalized_messages()}"')
+
+        obj_id = assignment.obj_id
+        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        if source is None:
+            return self.error(f'Invalid obj_id: "{obj_id}"')
+
+        assignment.requester_id = self.associated_user_object.id
+        DBSession().add(assignment)
+        DBSession().commit()
+        self.push_all(
+            action="skyportal/REFRESH_SOURCE",
+            payload={"obj_id": assignment.obj_id},
+        )
+        return self.success(data={"id": assignment.id})
+
+
+    @auth_or_token
+    def delete(self, assignment_id):
+        """
+        ---
+        description: Delete assignment.
+        parameters:
+          - in: path
+            name: assignment_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        assignment = ClassicalAssignment.query.get(int(assignment_id))
+        user = self.associated_user_object
+        delok = "Super admin" in [role.id for role in user.roles] \
+                or "Group admin" in [role.id for role in user.roles] \
+                or assignment.requester.username == user.username
+        if not delok:
+            return self.error("Insufficient permissions.")
+
+        DBSession().delete(assignment)
+        DBSession().commit()
+
+        self.push_all(
+            action="skyportal/REFRESH_SOURCE",
+            payload={"obj_id": assignment.obj_id},
+        )
+        return self.success()
 
 
 class FollowupRequestHandler(BaseHandler):

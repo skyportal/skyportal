@@ -15,7 +15,8 @@ from sqlalchemy_utils import ArrowType, URLType
 import healpix_alchemy as ha
 
 from baselayer.app.env import load_env
-from baselayer.app.models import join_model, Base, DBSession, User, Token
+from baselayer.app.models import (init_db, join_model, Base, DBSession, User, Token,
+                                  ACL, Role)
 from baselayer.app.custom_exceptions import AccessError
 
 import astroplan
@@ -400,6 +401,7 @@ class ArrayOfEnum(ARRAY):
 class Instrument(Base):
     name = sa.Column(sa.String, nullable=False)
     type = sa.Column(instrument_types, nullable=False)
+    robotic = sa.Column(sa.Boolean, default=False, nullable=False)
     band = sa.Column(sa.String)
     telescope_id = sa.Column(sa.ForeignKey('telescopes.id', ondelete='CASCADE'),
                              nullable=False, index=True)
