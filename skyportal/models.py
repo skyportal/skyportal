@@ -18,6 +18,13 @@ from baselayer.app.env import load_env
 from baselayer.app.models import join_model, Base, DBSession, User, Token
 from baselayer.app.custom_exceptions import AccessError
 
+import astroplan
+import timezonefinder
+from astropy import units as u
+from astropy import time as ap_time
+
+import datetime
+
 from . import schema
 from .phot_enum import (allowed_bandpasses, thumbnail_types, instrument_types,
                         followup_priorities)
@@ -360,6 +367,16 @@ class Telescope(Base):
                                cascade='save-update, merge, refresh-expire, expunge',
                                passive_deletes=True)
 
+    @property
+    def observer(self):
+        tf = timezonefinder.TimezoneFinder()
+        local_tz = tf.timezone_at(lng=self.lon, lat=self.lat)
+        return astroplan.Observer(longitude=self.lon * u.deg,
+                                  latitude=self.lat * u.deg,
+                                  elevation=self.elevation * u.m,
+                                  timezone=local_tz)
+
+
 
 GroupTelescope = join_model('group_telescopes', Group, Telescope)
 
@@ -691,6 +708,7 @@ class Thumbnail(Base):
 
 
 class ObservingRun(Base):
+
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id', ondelete='CASCADE'), nullable=False
     )
@@ -722,6 +740,32 @@ class ObservingRun(Base):
     assignments = relationship('ClassicalAssignment', passive_deletes=True)
     calendar_date = sa.Column(sa.Date, nullable=False, index=True)
 
+    @property
+    def _noon(self):
+        observer = self.instrument.telescope.observer
+        year = self.calendar_date.year
+        month = self.calendar_date.month
+        day = self.calendar_date.day
+        hour = 12.
+        noon = datetime.datetime(year=year, month=month, day=day, hour=hour,
+                                 tzinfo=observer.timezone)
+        noon = noon.utctimetuple()
+        return noon
+
+    @property
+    def sunset(self):
+        observer = self.instrument.telescope.observer
+        noon = self._noon
+        sunset = observer.sun_set_time(noon, which='next')
+        return sunset
+
+    @property
+    def sunrise(self):
+        observer = self.instrument.telescope.observer
+        noon = self._noon
+        sunrise = observer.sun_rise_time(noon, which='next')
+        return sunrise
+
 
 User.observing_runs = relationship(
     'ObservingRun', cascade='save-update, merge, refresh-expire, expunge'
@@ -730,15 +774,13 @@ User.observing_runs = relationship(
 
 class ClassicalAssignment(Base):
 
-    @declared_attr
-    def requester_id(self):
-        return sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
-                         nullable=False, index=True)
+    requester = relationship('User', back_populates='assignments')
+    requester_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
+                             nullable=False, index=True)
 
-    @declared_attr
-    def obj_id(self):
-        return sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
-                         nullable=False, index=True)
+    obj = relationship('Obj', back_populates='assignments')
+    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
+                       nullable=False, index=True)
 
     comment = sa.Column(sa.String())
     status = sa.Column(sa.String(), nullable=False, default="pending")
@@ -752,10 +794,7 @@ class ClassicalAssignment(Base):
     def instrument(self):
         return self.run.instrument
 
-    obj = relationship('Obj', back_populates='assignments')
-    requester = relationship('User', back_populates='assignments')
 
-User.assignments = relationship('ClassicalAssignment',
-                                back_populates='requester')
+User.assignments = relationship('ClassicalAssignment', back_populates='requester')
 
 schema.setup_schema()
