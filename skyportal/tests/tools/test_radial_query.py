@@ -1,10 +1,9 @@
 import numpy as np
 import pytest
 from uuid import uuid4
-from astropy.utils.misc import NumpyRNGContext
-from astropy.coordinates import SkyCoord
+from astropy import coordinates as ap_coord
 from astropy import units as u
-from skyportal.models import Obj, DBSession
+from skyportal import models as sp_models
 from healpix_alchemy.point import Point
 
 
@@ -12,18 +11,18 @@ from healpix_alchemy.point import Point
 def test_radial_query(n):
 
     # generate the points
-    with NumpyRNGContext(8675309):  # /Jenny
-        ras = np.random.uniform(0, 360, n)
-        decs = np.rad2deg(np.arcsin(np.random.uniform(-1, 1, n)))
+    rng = np.random.RandomState(8675309)  # /Jenny
+    ras = rng.uniform(0, 360, n)
+    decs = np.rad2deg(np.arcsin(rng.uniform(-1, 1, n)))
     ids = np.asarray([uuid4().hex for _ in range(n)])
 
     # save them to the database
-    point_cloud = [Obj(id=id, ra=r, dec=d) for id, r, d in zip(ids, ras, decs)]
-    DBSession().add_all(point_cloud)
-    DBSession().commit()
+    point_cloud = [sp_models.Obj(id=id, ra=r, dec=d) for id, r, d in zip(ids, ras, decs)]
+    sp_models.DBSession().add_all(point_cloud)
+    sp_models.DBSession().commit()
 
     # generate the truth
-    coord = SkyCoord(ra=ras, dec=decs, unit='deg')
+    coord = ap_coord.SkyCoord(ra=ras, dec=decs, unit='deg')
 
     # take the test point to be the first point
     sep = coord.separation(coord[0])
@@ -36,8 +35,8 @@ def test_radial_query(n):
     matching_ids = set(ids[indices])
 
     # issue the query on the db
-    db_ids = DBSession().query(Obj.id).filter(
-        Obj.point.within(Point(ra=coord[0].ra.deg, dec=coord[0].dec.deg), 1.)
+    db_ids = sp_models.DBSession().query(sp_models.Obj.id).filter(
+        sp_models.Obj.point.within(Point(ra=coord[0].ra.deg, dec=coord[0].dec.deg), 1.)
     ).all()
 
     db_ids = [i[0] for i in db_ids]
