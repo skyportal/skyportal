@@ -741,7 +741,7 @@ class ObservingRun(Base):
     calendar_date = sa.Column(sa.Date, nullable=False, index=True)
 
     @property
-    def _noon(self):
+    def _calendar_noon(self):
         observer = self.instrument.telescope.observer
         year = self.calendar_date.year
         month = self.calendar_date.month
@@ -755,14 +755,14 @@ class ObservingRun(Base):
     @property
     def sunset(self):
         observer = self.instrument.telescope.observer
-        noon = self._noon
+        noon = self._calendar_noon
         sunset = observer.sun_set_time(noon, which='next')
         return sunset
 
     @property
     def sunrise(self):
         observer = self.instrument.telescope.observer
-        noon = self._noon
+        noon = self._calendar_noon
         sunrise = observer.sun_rise_time(noon, which='next')
         return sunrise
 

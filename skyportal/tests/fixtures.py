@@ -6,7 +6,7 @@ import numpy as np
 import factory
 from skyportal.models import (DBSession, User, Group, Photometry,
                               Spectrum, Instrument, Telescope, Obj,
-                              Comment, Thumbnail, Filter)
+                              Comment, Thumbnail, Filter, ObservingRun)
 
 TMP_DIR = mkdtemp()
 
@@ -42,7 +42,8 @@ class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Instrument
 
     name = 'ZTF'
-    type = 'Imager'
+    type = 'imager'
+    robotic = True
     band = 'Optical'
     telescope = factory.SubFactory(TelescopeFactory)
     filters = ['ztfg', 'ztfr', 'ztfi']
@@ -152,3 +153,24 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
                 obj.groups.append(group)
                 DBSession().add(obj)
                 DBSession().commit()
+
+
+class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = ObservingRun
+
+    instrument = factory.SubFactory(
+        InstrumentFactory, name='DBSP',
+        type='spectrograph', robotic=False,
+        band='Optical', filters=[],
+        telescope=factory.SubFactory(
+            TelescopeFactory, name='Palomar 200-inch Telescope',
+            nickname='P200'
+        )
+    )
+
+    group = factory.SubFactory(GroupFactory)
+    pi = 'Danny Goldstein'
+    observers = 'D. Goldstein, S. Dhawan'
+    calendar_date = '2020-02-27'
+    owner = factory.SubFactory(UserFactory)
