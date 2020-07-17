@@ -79,6 +79,20 @@ def test_add_new_group_user_nonadmin(driver, super_admin_user, user, public_grou
         f'//a[contains(.,"{user.username}")]/..//span')) == 0
 
 
+def test_add_new_group_user_new_username(driver, super_admin_user, user, public_group):
+    new_username = str(uuid.uuid4())
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/groups')
+    driver.wait_for_xpath('//h6[text()="All Groups"]')
+    el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
+    driver.execute_script("arguments[0].click();", el)
+    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../input').click()
+    driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(
+        new_username, Keys.ENTER)
+    driver.wait_for_xpath('//input[@value="Add user"]').click()
+    driver.wait_for_xpath(f'//a[contains(.,"{new_username}")]')
+
+
 def test_delete_group_user(driver, super_admin_user, user, public_group):
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/groups')
