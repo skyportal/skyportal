@@ -1,6 +1,7 @@
 from marshmallow.exceptions import ValidationError
 from tdtax import schema, validate
 from jsonschema.exceptions import ValidationError as JSONValidationError
+from jsonpath_ng import parse
 
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -72,8 +73,8 @@ class TaxonomyHandler(BaseHandler):
                       type: integer
                     description: |
                       List of group IDs corresponding to which groups should be
-                      able to view comment. Defaults to all of requesting user's
-                      groups.
+                      able to view comment. Defaults to all of requesting
+                      user's groups.
                   version:
                     type: string
                     description: |
@@ -159,6 +160,11 @@ class TaxonomyHandler(BaseHandler):
 
         provenance = data.get('provenance', None)
 
+        # compute the allowable classes
+        jsonpath_expr = parse('$..class')
+        allowed_classes = list(set(
+                               [x.value for x in jsonpath_expr.find(hierarchy)]
+                               ))
         # update others with this name
         # TODO: deal with the same name but different groups?
         isLatest = data.get('isLatest', True)
@@ -171,6 +177,7 @@ class TaxonomyHandler(BaseHandler):
             name=name,
             hierarchy=hierarchy,
             provenance=provenance,
+            allowed_classes=allowed_classes,
             version=version,
             isLatest=isLatest,
             groups=groups
