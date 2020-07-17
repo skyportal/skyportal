@@ -26,3 +26,4 @@ sncosmo>=2.1.0
 tdtax>=0.1.1
 jsonschema
 jsonpath_ng>=1.5.1
+pytest-rerunfailures>=9.0
