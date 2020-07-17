@@ -44,7 +44,6 @@ class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     name = 'ZTF'
     type = 'imager'
-    robotic = True
     band = 'Optical'
     telescope = factory.SubFactory(TelescopeFactory)
     filters = ['ztfg', 'ztfr', 'ztfi']
@@ -162,7 +161,7 @@ class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     instrument = factory.SubFactory(
         InstrumentFactory, name='DBSP',
-        type='spectrograph', robotic=False,
+        type='spectrograph',
         band='Optical', filters=[],
         telescope=factory.SubFactory(
             TelescopeFactory, name='Palomar 200-inch Telescope',
