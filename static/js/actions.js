@@ -5,6 +5,7 @@ import * as dbInfoActions from './ducks/dbInfo';
 import * as newsFeedActions from './ducks/newsFeed';
 import * as topSourcesActions from './ducks/topSources';
 import * as instrumentsActions from './ducks/instruments';
+import * as observingRunsActions from './ducks/observingRuns';
 
 
 export default function hydrate() {
@@ -17,5 +18,6 @@ export default function hydrate() {
     dispatch(topSourcesActions.fetchTopSources());
     dispatch(instrumentsActions.fetchInstruments());
     dispatch(instrumentsActions.fetchInstrumentObsParams());
+    dispatch(observingRunsActions.fetchObservingRuns());
   };
 }
