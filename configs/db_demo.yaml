@@ -53,6 +53,7 @@ telescopes:
     elevation: 1870
     diameter: 1.5
     skycam: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+    robotic: true
     group_names:
       - Program A
     token: "load_demo_data token"
@@ -63,19 +64,20 @@ telescopes:
     elevation: 2000
     diameter: 2.56
     skycam: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
+    robotic: true
     group_names:
       - Program A
     token: "load_demo_data token"
 instruments:
   - name: P60 Camera
-    type: phot
-    band: V
+    type: imager
+    band: optical
     telescope_nickname: P60
     filters: ["ztfg", "ztfr", "ztfi"]
     token: "load_demo_data token"
   - name: ALFOSC
-    type: both
-    band: V
+    type: imaging spectrograph
+    band: optical
     telescope_nickname: NOT
     token: "load_demo_data token"
 sources:

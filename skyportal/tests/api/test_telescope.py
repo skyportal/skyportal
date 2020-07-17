@@ -12,7 +12,8 @@ def test_token_user_post_get_telescope(upload_data_token, public_group):
                  'elevation': 0.0,
                  'diameter': 10.0,
                  'group_ids': [public_group.id],
-                 'skycam_link': 'http://www.lulin.ncu.edu.tw/wea/cur_sky.jpg'
+                 'skycam_link': 'http://www.lulin.ncu.edu.tw/wea/cur_sky.jpg',
+                 'robotic': True
                  }
 
     status, data = api('POST', 'telescope',
@@ -43,7 +44,8 @@ def test_token_user_update_telescope(upload_data_token, manage_sources_token,
                              'lon': 0.0,
                              'elevation': 0.0,
                              'diameter': 10.0,
-                             'group_ids': [public_group.id]
+                             'group_ids': [public_group.id],
+                             'robotic': True
                              },
                        token=upload_data_token)
     assert status == 200
@@ -91,7 +93,8 @@ def test_token_user_delete_telescope(upload_data_token, manage_sources_token,
                              'lon': 0.0,
                              'elevation': 0.0,
                              'diameter': 10.0,
-                             'group_ids': [public_group.id]
+                             'group_ids': [public_group.id],
+                             'robotic': False
                              },
                        token=upload_data_token)
     assert status == 200

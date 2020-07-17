@@ -26,6 +26,7 @@ class TelescopeFactory(factory.alchemy.SQLAlchemyModelFactory):
     lon = 116.8650
     elevation = 1712.
     diameter = 1.2
+    robotic = True
 
 
 class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -165,7 +166,7 @@ class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
         band='Optical', filters=[],
         telescope=factory.SubFactory(
             TelescopeFactory, name='Palomar 200-inch Telescope',
-            nickname='P200'
+            nickname='P200', robotic=False
         )
     )
 

@@ -359,6 +359,8 @@ class Telescope(Base):
     diameter = sa.Column(sa.Float, nullable=False, doc='Diameter in meters.')
     skycam_link = sa.Column(URLType, nullable=True,
                             doc="Link to the telescope's sky camera.")
+    robotic = sa.Column(sa.Boolean, default=False, nullable=False,
+                        doc="Is this telescope robotic?")
 
     groups = relationship('Group', secondary='group_telescopes',
                           passive_deletes=True)
@@ -401,7 +403,6 @@ class ArrayOfEnum(ARRAY):
 class Instrument(Base):
     name = sa.Column(sa.String, nullable=False)
     type = sa.Column(instrument_types, nullable=False)
-    robotic = sa.Column(sa.Boolean, default=False, nullable=False)
     band = sa.Column(sa.String)
     telescope_id = sa.Column(sa.ForeignKey('telescopes.id', ondelete='CASCADE'),
                              nullable=False, index=True)
