@@ -234,18 +234,23 @@ class Obj(Base, ha.Point):
            The airmass of the Obj at the requested times
         """
 
+        output_shape = np.shape(time)
+        time = np.atleast_1d(time)
         altitude = self.altitude(telescope, time).to('degree').value
 
         # use Pickering (2002) interpolation to calculate the airmass
-        sinarg = altitude + 244 / (165 + 47 * altitude ** 1.1)
-        airmass = 1. / np.sin(np.deg2rad(sinarg))
+
+        with np.errstate(invalid='ignore'):
+            sinarg = altitude + 244 / (165 + 47 * altitude ** 1.1)
+            airmass = 1. / np.sin(np.deg2rad(sinarg))
 
         # set objects below the horizon to an airmass of infinity
-        airmass[airmass < 1] = below_horizon
+        airmass[altitude < 0] = below_horizon
+        airmass = airmass.reshape(output_shape)
 
         return airmass
 
-    def altitude(self, telescope, time, below_horizon=0.):
+    def altitude(self, telescope, time):
         """Return the altitude of the Obj at time `time` from Telescope
         `telescope`.
 
@@ -265,13 +270,13 @@ class Obj(Base, ha.Point):
            The altitude of the Obj at the requested times
         """
 
-        target = astroplan.FixedTarget(name=self.id, coord=self.skycoord)
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
+        target = astroplan.FixedTarget(name=self.id, coord=coord)
         observer = astroplan.Observer(latitude=telescope.lat * u.deg,
                                       longitude=telescope.lon * u.deg,
                                       elevation=telescope.elevation * u.m)
 
         alt = observer.altaz(time, target).alt
-        alt[alt < 0. * u.deg] = below_horizon * u.deg
         return alt
 
 

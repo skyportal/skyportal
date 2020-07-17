@@ -6,24 +6,29 @@ def test_airmass(public_source, ztf_camera):
     telescope = ztf_camera.telescope
     times = Time(np.linspace(58000, 59000), format='mjd')
     airmass_calc = public_source.airmass(telescope, times)
-    airmass_true = np.asarray([ -6.98036718, -23.34945066,   4.33830158,
-                                -2.48338575,   1.79164625, -1.46739713,
-                                1.29212201,  -1.21463384,   1.1982702,
-                                -1.25054927, 1.37398973,  -1.62535619,
-                                2.10471147,  -3.25644078,   7.86105943,
-                                15.88266305,  -4.0640699,   2.37784808,
-                                -1.75529466,   1.44122977, -1.28412023,
-                                1.20770359,  -1.20303256,   1.25604142,
-                                -1.39535264, 1.65378538,  -2.18325969,
-                                3.42466782,  -9.32714841, -12.6383515,
-                                3.76829161,  -2.30321597,   1.70971305,
-                                -1.4248433,    1.27040108, -1.20724861,
-                                1.20260285,  -1.26857419,  1.41015268,
-                                -1.69554766, 2.24916768,  -3.66721669,
-                                10.98339563,  10.0651456,   -3.56390628,
-                                2.21394053,  -1.67866853,   1.40139983,
-                                -1.26419576,   1.20134104])
-    airmass_true[airmass_true < 0] = np.inf
+    airmass_true = np.asarray([np.inf, np.inf, 4.259917450786537,
+                               np.inf, 1.7869997087619442, np.inf,
+                               1.290905161637478, np.inf,
+                               1.1974586801911271, np.inf,
+                               1.3723658116877935, np.inf,
+                               2.096562416708359, np.inf,
+                               7.438387758506691, 13.363224561907067,
+                               np.inf, 2.3656233357751506, np.inf,
+                               1.4392303135320286, np.inf,
+                               1.206854025593942, np.inf,
+                               1.2549876733727305, np.inf,
+                               1.6503274398889038, np.inf,
+                               3.3861055727264118, np.inf, np.inf,
+                               3.716774181803253, np.inf,
+                               1.7057972192674362, np.inf,
+                               1.2692835565701281, np.inf,
+                               1.201773923401473, np.inf,
+                               1.4083315964524334, np.inf,
+                               2.2389891804553934, np.inf,
+                               9.963125094158245, 9.250267629036953,
+                               np.inf, 2.204282485422739, np.inf,
+                               1.3996274818640069, np.inf,
+                               1.2005171979211768])
     np.testing.assert_allclose(airmass_calc, airmass_true)
 
 
@@ -31,7 +36,7 @@ def test_airmass_single(public_source, ztf_camera):
     telescope = ztf_camera.telescope
     times = Time(59000, format='mjd')
     airmass_calc = public_source.airmass(telescope, times)
-    np.testing.assert_allclose(airmass_calc, 1.20134104)
+    np.testing.assert_allclose(airmass_calc, 1.2005171979211768)
 
 
 def test_altitude(public_source, ztf_camera):
