@@ -1,4 +1,3 @@
-import base64
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -86,7 +85,7 @@ class ClassificationHandler(BaseHandler):
                         data:
                           type: object
                           properties:
-                            comment_id:
+                            classification_id:
                               type: integer
                               description: New classification ID
         """
@@ -115,7 +114,7 @@ class ClassificationHandler(BaseHandler):
                 'That taxonomy does not exist or is not available to user.'
             )
         if not isinstance(taxonomy, list):
-            return self.error('Problem retreiving taxonomy')
+            return self.error('Problem retrieving taxonomy')
 
         if data['classification'] not in taxonomy[0].allowed_classes:
             return self.error(f"That classification ({data['classification']}) "
