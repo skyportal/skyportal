@@ -84,7 +84,7 @@ const useStyles = makeStyles((theme) => ({
   }
 }));
 
-const SidebarAndHeader = ({ open, root }) => {
+const SidebarAndHeader = ({ open }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
 
@@ -107,7 +107,7 @@ const SidebarAndHeader = ({ open, root }) => {
           >
             <MenuIcon />
           </IconButton>
-          <HeaderContent root={root} />
+          <HeaderContent />
         </Toolbar>
       </AppBar>
       <Drawer
@@ -152,8 +152,7 @@ const SidebarAndHeader = ({ open, root }) => {
 };
 
 SidebarAndHeader.propTypes = {
-  open: PropTypes.bool.isRequired,
-  root: PropTypes.string.isRequired
+  open: PropTypes.bool.isRequired
 };
 
 export default SidebarAndHeader;
