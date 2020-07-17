@@ -489,13 +489,15 @@ class Classification(Base):
                             doc='User-assigned probability of belonging '
                             'to this class', nullable=True)
 
-    author_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    author_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
+                          nullable=False, index=True)
     author = relationship('User')
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)
     obj = relationship('Obj', back_populates='classifications')
     groups = relationship("Group", secondary="group_classifications",
-                          cascade="save-update, merge, refresh-expire, expunge")
+                          cascade="save-update, merge, refresh-expire, expunge",
+                          passive_deletes=True)
 
 
 GroupClassifications = join_model("group_classifications", Group, Classification)
