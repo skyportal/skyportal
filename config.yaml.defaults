@@ -35,6 +35,21 @@ app:
     - path: "/about"
       component: About
 
+  sidebar:
+    # See https://material-ui.com/components/material-icons/
+
+    - name: Dashboard
+      icon: Home
+      url: /
+
+    - name: Candidates
+      icon: Search
+      url: /candidates
+
+    - name: About
+      icon: Info
+      url: /about
+
 database:
   database: skyportal
   host: localhost

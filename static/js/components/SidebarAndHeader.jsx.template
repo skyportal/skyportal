@@ -11,12 +11,13 @@ import ListItem from "@material-ui/core/ListItem";
 import ListItemIcon from "@material-ui/core/ListItemIcon";
 import ListItemText from "@material-ui/core/ListItemText";
 import { blue } from "@material-ui/core/colors";
-import HomeIcon from "@material-ui/icons/Home";
-import SearchIcon from "@material-ui/icons/Search";
-import InfoIcon from "@material-ui/icons/Info";
-import MenuIcon from "@material-ui/icons/Menu";
 import IconButton from "@material-ui/core/IconButton";
 import { makeStyles } from "@material-ui/core/styles";
+
+{% for item in app.sidebar %}
+import {{ item.icon }}Icon from "@material-ui/icons/{{ item.icon }}";
+{% endfor %}
+import MenuIcon from "@material-ui/icons/Menu";
 
 import HeaderContent from "./HeaderContent";
 import * as Actions from "../ducks/sidebar";
@@ -115,36 +116,32 @@ const SidebarAndHeader = ({ open }) => {
         variant="persistent"
         anchor="left"
         open={open}
-        classes={{
-          paper: classes.drawerPaper,
-        }}
+        classes={{ "{{ paper: classes.drawerPaper }}" }}
       >
         <div className={classes.drawerHeader} />
         <List>
-          <Link to="/" className={classes.link}>
-            <ListItem button name="sidebarDashboardButton">
-              <ListItemIcon>
-                <HomeIcon style={{ color: blue[200] }} />
-              </ListItemIcon>
-              <ListItemText primary="Dashboard" />
-            </ListItem>
-          </Link>
-          <Link to="/candidates" className={classes.link}>
-            <ListItem button name="sidebarCandidatesButton">
-              <ListItemIcon>
-                <SearchIcon style={{ color: blue[200] }} />
-              </ListItemIcon>
-              <ListItemText primary="Candidates" />
-            </ListItem>
-          </Link>
-          <Link to="/about" className={classes.link}>
-            <ListItem button name="sidebarAboutButton">
-              <ListItemIcon>
-                <InfoIcon style={{ color: blue[200] }} />
-              </ListItemIcon>
-              <ListItemText primary="About" />
-            </ListItem>
-          </Link>
+          {% for item in app.sidebar %}
+
+            {% if item.url.startswith('http') %}
+              <a href="{{ item.url }}" className={classes.link}>
+            {% else %}
+              <Link to="{{ item.url }}" className={classes.link}>
+            {% endif %}
+
+              <ListItem button name="sidebar{{ item.name }}Button">
+                <ListItemIcon>
+                  <{{ item.icon }}Icon style={{ "{{ color: blue[200] }}" }} />
+                </ListItemIcon>
+                <ListItemText primary="{{ item.name }}" />
+              </ListItem>
+
+            {% if item.url.startswith('http') %}
+              </a>
+            {% else %}
+              </Link>
+            {% endif %}
+
+          {% endfor %}
         </List>
       </Drawer>
     </>
@@ -152,7 +149,8 @@ const SidebarAndHeader = ({ open }) => {
 };
 
 SidebarAndHeader.propTypes = {
-  open: PropTypes.bool.isRequired
+  open: PropTypes.bool.isRequired,
+  sideItems: PropTypes.object.isRequired
 };
 
 export default SidebarAndHeader;
