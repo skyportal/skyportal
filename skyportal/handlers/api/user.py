@@ -1,9 +1,28 @@
 from ..base import BaseHandler
 from baselayer.app.access import permissions
 from ...models import DBSession, User, Group, GroupUser, cfg
-from ...model_util import role_acls
 
-from sqlalchemy.orm import joinedload
+
+def add_user_and_setup_groups(username, roles, group_ids_and_admin):
+    # Add user
+    user = User(username=username.lower(), role_ids=roles)
+    DBSession().add(user)
+    DBSession().flush()
+
+    # Add user to specified groups
+    for group_id, admin in group_ids_and_admin:
+        DBSession.add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
+
+    # Create single-user group
+    DBSession().add(Group(name=user.username, users=[user], single_user_group=True))
+
+    # Add user to sitewide public group
+    public_group = Group.query.filter(
+        Group.name == cfg["misc"]["public_group_name"]
+    ).first()
+    if public_group is not None:
+        DBSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
+    return user.id
 
 
 class UserHandler(BaseHandler):
@@ -11,30 +30,53 @@ class UserHandler(BaseHandler):
     def get(self, user_id=None):
         """
         ---
-        description: Retrieve a user
-        parameters:
-          - in: path
-            name: user_id
-            required: true
-            schema:
-              type: integer
-        responses:
-          200:
-            content:
-              application/json:
-                schema: SingleUser
-          400:
-            content:
-              application/json:
-                schema: Error
+        single:
+          description: Retrieve a user
+          parameters:
+            - in: path
+              name: user_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleUser
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all users
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/User'
+                            description: List of users
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
-        user = User.query.get(int(user_id))
-        if user is None:
-            return self.error(f'Invalid user ID ({user_id}).')
-        else:
+        if user_id is not None:
+            user = User.query.get(int(user_id))
+            if user is None:
+                return self.error(f'Invalid user ID ({user_id}).')
             user_info = user.to_dict()
             user_info['acls'] = user.acls
             return self.success(data=user_info)
+        users = User.query.all()
+        return self.success(data=users)
 
     @permissions(["Manage users"])
     def post(self):
@@ -89,26 +131,13 @@ class UserHandler(BaseHandler):
         roles = data.get("roles", ["Full user"])
         group_ids_and_admin = data.get("groupIDsAndAdmin", [])
 
-        # Add user
-        user = User(username=data["username"].lower(), role_ids=roles)
-        DBSession().add(user)
-        DBSession().flush()
-
-        # Add user to specified groups
-        for group_id, admin in group_ids_and_admin:
-            DBSession.add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
-
-        # Create single-user group
-        DBSession().add(Group(name=user.username, users=[user], single_user_group=True))
-
-        # Add user to sitewide public group
-        public_group = Group.query.filter(
-            Group.name == cfg["misc"]["public_group_name"]
-        ).first()
-        if public_group is not None:
-            DBSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
+        user_id = add_user_and_setup_groups(
+            username=data["username"],
+            roles=roles,
+            group_ids_and_admin=group_ids_and_admin
+        )
         DBSession().commit()
-        return self.success(data={"id": user.id})
+        return self.success(data={"id": user_id})
 
     @permissions(['Manage users'])
     def delete(self, user_id=None):

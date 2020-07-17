@@ -95,7 +95,7 @@ const MainContent = ({ root }) => {
 
       <MuiPickersUtilsProvider utils={DayJSUtils}>
 
-        <SidebarAndHeader root={root} open={open} />
+        <SidebarAndHeader open={open} />
 
         <Responsive mobileElement={ProfileDropdown} />
 

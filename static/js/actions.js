@@ -6,6 +6,7 @@ import * as newsFeedActions from './ducks/newsFeed';
 import * as topSourcesActions from './ducks/topSources';
 import * as instrumentsActions from './ducks/instruments';
 
+
 export default function hydrate() {
   return (dispatch) => {
     dispatch(sysInfoActions.fetchSystemInfo());
