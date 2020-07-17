@@ -120,28 +120,26 @@ const SidebarAndHeader = ({ open }) => {
       >
         <div className={classes.drawerHeader} />
         <List>
-          {% for item in app.sidebar %}
+          {%- for item in app.sidebar -%}
 
-            {% if item.url.startswith('http') %}
-              <a href="{{ item.url }}" className={classes.link}>
-            {% else %}
-              <Link to="{{ item.url }}" className={classes.link}>
-            {% endif %}
+          {%- if item.url.startswith('http') %}
+          <a href="{{ item.url }}" className={classes.link}>
+          {% else %}
+          <Link to="{{ item.url }}" className={classes.link}>
+          {%- endif %}
+            <ListItem button name="sidebar{{ item.name }}Button">
+              <ListItemIcon>
+                <{{ item.icon }}Icon style={{ "{{ color: blue[200] }}" }} />
+              </ListItemIcon>
+              <ListItemText primary="{{ item.name }}" />
+            </ListItem>
+          {%- if item.url.startswith('http') %}
+          </a>
+          {% else %}
+          </Link>
+          {%- endif -%}
 
-              <ListItem button name="sidebar{{ item.name }}Button">
-                <ListItemIcon>
-                  <{{ item.icon }}Icon style={{ "{{ color: blue[200] }}" }} />
-                </ListItemIcon>
-                <ListItemText primary="{{ item.name }}" />
-              </ListItem>
-
-            {% if item.url.startswith('http') %}
-              </a>
-            {% else %}
-              </Link>
-            {% endif %}
-
-          {% endfor %}
+          {%- endfor %}
         </List>
       </Drawer>
     </>
@@ -149,8 +147,7 @@ const SidebarAndHeader = ({ open }) => {
 };
 
 SidebarAndHeader.propTypes = {
-  open: PropTypes.bool.isRequired,
-  sideItems: PropTypes.object.isRequired
+  open: PropTypes.bool.isRequired
 };
 
 export default SidebarAndHeader;
