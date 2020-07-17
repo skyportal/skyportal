@@ -93,7 +93,9 @@ class ClassificationHandler(BaseHandler):
         data = self.get_json()
         obj_id = data['obj_id']
         # Ensure user/token has access to parent source
-        _ = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        if source is None:
+           return self.error("Invalid source.")
         user_group_ids = [g.id for g in self.current_user.groups]
         group_ids = data.pop("group_ids", user_group_ids)
         group_ids = [gid for gid in group_ids if gid in user_group_ids]
@@ -102,7 +104,7 @@ class ClassificationHandler(BaseHandler):
                               "You must provide one or more valid group IDs.")
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
 
-        author = self.associated_user_object.username
+        author = self.associated_user_object
 
         # check the taxonomy
         taxonomy_id = data["taxonomy_id"]
@@ -222,14 +224,14 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        user = self.associated_user_object.username
+        user = self.associated_user_object
         roles = (self.current_user.roles if hasattr(self.current_user, 'roles') else [])
         c = Classification.query.get(classification_id)
         if c is None:
             return self.error("Invalid classification ID")
         obj_id = c.obj_id
         author = c.author
-        if ("Super admin" in [role.id for role in roles]) or (user == author):
+        if ("Super admin" in [role.id for role in roles]) or (user.id == author.id):
             Classification.query.filter_by(id=classification_id).delete()
             DBSession().commit()
         else:

@@ -478,13 +478,15 @@ GroupComment = join_model("group_comments", Group, Comment)
 
 class Classification(Base):
     classification = sa.Column(sa.String, nullable=False)
-    taxonomy_id = sa.Column(sa.ForeignKey('taxonomies.id'),
+    taxonomy_id = sa.Column(sa.ForeignKey('taxonomies.id', ondelete='CASCADE'),
                             nullable=False)
-    probability = sa.Column(sa.Float,
+    taxonomy = relationship('Taxonomy', back_populates='classifications')
+    probability = sa.Column(sa.Float, 
                             doc='User-assigned probability of belonging '
                             'to this class', nullable=True)
 
-    author = sa.Column(sa.String, nullable=False)
+    author_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    author = relationship('User')
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)
     obj = relationship('Obj', back_populates='classifications')
