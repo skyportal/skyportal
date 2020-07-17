@@ -121,12 +121,13 @@ if __name__ == "__main__":
 
             # Replace all references of the format field: [key] with the
             # appropriate reference value
-            for k, v in obj.items():
-                if isinstance(v, str) and v.startswith('='):
-                    try:
+            try:
+                for k, v in obj.items():
+                    if isinstance(v, str) and v.startswith('='):
                         obj[k] = references[v[1:]]
-                    except KeyError:
-                        print(f'\nReference {v[1:]} not found while posting to {endpoint}')
+            except KeyError:
+                print(f'\nReference {v[1:]} not found while posting to {endpoint}; skipping')
+                continue
 
             status, response = post(endpoint, data=obj)
 

@@ -15,12 +15,5 @@ data:
     file: data/telescopes.yaml
   instrument:
     file: data/instruments.yaml
-
-taxonomies:
-  - name: Sitewide taxonomy
-    tdtax: true
-    version: latest
-    provenance: https://github.com/profjsb/timedomain-taxonomy
-    token: db_seed token
-    groups:
-      - Sitewide Group
+  taxonomy:
+    file: data/taxonomy.yaml
