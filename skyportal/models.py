@@ -229,7 +229,6 @@ class Obj(Base, ha.Point):
 
         Returns
         -------
-
         secz: ndarray in the shape of `time`
            The airmass of the Obj at the requested times
         """
