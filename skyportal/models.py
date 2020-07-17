@@ -156,8 +156,7 @@ class Obj(Base):
                             'Classification', back_populates='obj',
                             cascade='save-update, merge, refresh-expire, expunge',
                             passive_deletes=True,
-                            order_by="Classification.created_at"
-                      )
+                            order_by="Classification.created_at")
 
     photometry = relationship('Photometry', back_populates='obj',
                               cascade='save-update, merge, refresh-expire, expunge',
@@ -437,6 +436,11 @@ class Taxonomy(Base):
                           passive_deletes=True
                           )
 
+    classifications = relationship(
+                            'Classification', back_populates='taxonomy',
+                            cascade='save-update, merge, refresh-expire, expunge',
+                            passive_deletes=True,
+                            order_by="Classification.created_at")
 
 GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
 
@@ -481,7 +485,7 @@ class Classification(Base):
     taxonomy_id = sa.Column(sa.ForeignKey('taxonomies.id', ondelete='CASCADE'),
                             nullable=False)
     taxonomy = relationship('Taxonomy', back_populates='classifications')
-    probability = sa.Column(sa.Float, 
+    probability = sa.Column(sa.Float,
                             doc='User-assigned probability of belonging '
                             'to this class', nullable=True)
 
