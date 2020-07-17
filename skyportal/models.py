@@ -223,7 +223,6 @@ class Obj(Base, ha.Point):
 
         telescope: skyportal.models.Telescope
             The telescope to use for the airmass calculation
-
         time: astropy.time.Time
             The time or times at which to calculate the airmass
 
