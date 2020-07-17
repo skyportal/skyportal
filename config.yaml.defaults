@@ -1,16 +1,16 @@
 app:
-    secret_key: abc01234  # This secret key can be any random string of
-                          # characters.
-                          #
-                          # You should re-generate this for your application
-                          # using:
-                          #
-                          # base64.b64encode(os.urandom(50)).decode('ascii')
-    factory: skyportal.app_server.make_app
+  secret_key: abc01234  # This secret key can be any random string of
+                        # characters.
+                        #
+                        # You should re-generate this for your application
+                        # using:
+                        #
+                        # base64.b64encode(os.urandom(50)).decode('ascii')
+  factory: skyportal.app_server.make_app
 
-    # See https://stackoverflow.com/a/35604855 for syntax
-    # These are Javascript component routes
-    routes:
+  # See https://stackoverflow.com/a/35604855 for syntax
+  # These are Javascript component routes
+  routes:
     - path: "/"
       component: HomePage
       exact: True
@@ -36,32 +36,32 @@ app:
       component: About
 
 database:
-    database: skyportal
-    host: localhost
-    port: 5432
-    user: skyportal
-    password:
+  database: skyportal
+  host: localhost
+  port: 5432
+  user: skyportal
+  password:
 
 server:
-    # From https://console.developers.google.com/
-    #
-    # - Create Client ID
-    # - Javascript origins: https://localhost:5000
-    # - Authorized redirect URLs: http://localhost:5000/complete/google-oauth2/
-    #
-    # You need to have Google+ API enabled; it takes a few minutes to activate.
+  # From https://console.developers.google.com/
+  #
+  # - Create Client ID
+  # - Javascript origins: https://localhost:5000
+  # - Authorized redirect URLs: http://localhost:5000/complete/google-oauth2/
+  #
+  # You need to have Google+ API enabled; it takes a few minutes to activate.
 
-    auth:
-        debug_login: True
-        google_oauth2_key:
-        google_oauth2_secret:
+  auth:
+    debug_login: True
+    google_oauth2_key:
+    google_oauth2_secret:
 
 services:
-    dask: False
+  dask: False
 
 misc:
-    days_to_keep_unsaved_candidates: 7
-    public_group_name: "Sitewide Group"
+  days_to_keep_unsaved_candidates: 7
+  public_group_name: "Sitewide Group"
 
 cron:
   - interval: 1440
