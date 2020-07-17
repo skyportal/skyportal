@@ -18,6 +18,8 @@ import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 import FollowupRequestForm from './FollowupRequestForm';
 import FollowupRequestList from './FollowupRequestList';
+import SharingDialog from "./SharingDialog";
+
 
 const Source = ({ route }) => {
   const dispatch = useDispatch();
@@ -114,6 +116,7 @@ const Source = ({ route }) => {
           mobileProps={{ folded: true }}
         >
           <Plot className={styles.plot} url={`/api/internal/plot/photometry/${source.id}`} />
+          <SharingDialog title="Share photometry" allGroups={[{name: "A", id: 1}, {name: "B", id: 2}]} existingGroups={[{"name": "A", id: 1}]} action={console.log} />
           <Link to={`/upload_photometry/${source.id}`} role="link">
             <Button variant="contained">
               Upload additional photometry
