@@ -15,7 +15,7 @@ from skyportal.models import (init_db, Base, DBSession, ACL, Comment,
 
 all_acl_ids = ['Become user', 'Comment', 'Manage users', 'Manage sources',
                'Manage groups', 'Upload data', 'System admin', 'Post taxonomy',
-               'Delete taxonomy']
+               'Delete taxonomy', 'Classify']
 
 role_acls = {
     'Super admin': all_acl_ids,

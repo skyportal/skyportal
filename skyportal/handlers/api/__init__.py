@@ -1,4 +1,5 @@
 from .candidate import CandidateHandler
+from .classification import ClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
 from .filter import FilterHandler
 from .followup_request import FollowupRequestHandler
