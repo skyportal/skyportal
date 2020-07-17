@@ -116,7 +116,7 @@ def p60_telescope():
 @pytest.fixture()
 def lris(keck1_telescope):
     return InstrumentFactory(name='LRIS', type='imaging spectrograph',
-                             robotic=False, telescope=keck1_telescope,
+                             telescope=keck1_telescope,
                              band='Optical', filters=['sdssu', 'sdssg',
                                                       'sdssr', 'sdssi',
                                                       'sdssz', 'bessellux',
@@ -126,7 +126,7 @@ def lris(keck1_telescope):
 @pytest.fixture()
 def sedm(p60_telescope):
     return InstrumentFactory(name='SEDM', type='imaging spectrograph',
-                             robotic=True, telescope=p60_telescope,
+                             telescope=p60_telescope,
                              band='Optical', filters=['sdssu', 'sdssg', 'sdssr',
                                                       'sdssi'])
 
