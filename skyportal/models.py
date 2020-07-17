@@ -1,7 +1,7 @@
 import arrow
 import uuid
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy import cast
@@ -747,10 +747,11 @@ class ObservingRun(Base):
         year = self.calendar_date.year
         month = self.calendar_date.month
         day = self.calendar_date.day
-        hour = 12.
+        hour = 12
         noon = datetime(year=year, month=month, day=day, hour=hour,
-                                 tzinfo=observer.timezone)
-        noon = noon.utctimetuple()
+                        tzinfo=observer.timezone)
+        noon = noon.astimezone(timezone.utc).timestamp()
+        noon = ap_time.Time(noon, format='unix')
         return noon
 
     @property

@@ -12,7 +12,7 @@ from marshmallow_sqlalchemy import (
 )
 
 from marshmallow import (Schema as _Schema, fields, validate, post_load,
-                         ValidationError)
+                         pre_dump, ValidationError)
 from marshmallow_enum import EnumField
 
 import sqlalchemy as sa
@@ -604,6 +604,16 @@ class ObservingRunPost(_Schema):
     )
 
 
+class ObservingRunGet(ObservingRunPost):
+    owner_id = fields.Integer(description='The User ID of the owner of this run.')
+    sunrise_unix = fields.Number(description='The UNIX timestamp of sunrise for this run.')
+
+    @pre_dump
+    def serialize(self, data, **kwargs):
+        data.sunrise_unix = data.sunrise.unix
+        return data
+
+
 def register_components(spec):
     print('Registering schemas with APISpec')
 
@@ -633,4 +643,6 @@ PhotometryMag = PhotometryMag()
 PhotMagFlexible = PhotMagFlexible()
 PhotFluxFlexible = PhotFluxFlexible()
 ObservingRunPost = ObservingRunPost()
+ObservingRunGet = ObservingRunGet()
 AssignmentSchema = AssignmentSchema()
+

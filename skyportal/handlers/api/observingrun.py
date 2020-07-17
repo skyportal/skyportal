@@ -2,7 +2,7 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, ObservingRun
-from ...schema import ObservingRunPost
+from ...schema import ObservingRunPost, ObservingRunGet
 
 
 class ObservingRunHandler(BaseHandler):
@@ -75,7 +75,7 @@ class ObservingRunHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: SingleObservingRun
+                  schema: SingleObservingRunGet
             400:
               content:
                 application/json:
@@ -86,7 +86,7 @@ class ObservingRunHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfObservingRuns
+                  schema: ArrayOfObservingRunGets
             400:
               content:
                 application/json:
@@ -98,8 +98,12 @@ class ObservingRunHandler(BaseHandler):
             if run is None:
                 return self.error(f"Could not load observing run {run_id}",
                                   data={"run_id": run_id})
-            return self.success(data=run)
-        return self.success(data=ObservingRun.query.all())
+            data = ObservingRunGet.dump(run)
+            return self.success(data=data)
+        runs = ObservingRun.query.all()
+        data = ObservingRunGet.dump(runs)
+        out = sorted(data, key=lambda d: d['sunrise_unix'])
+        return self.success(data=out)
 
     @permissions(['Upload data'])
     def put(self, run_id):
