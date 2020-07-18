@@ -286,7 +286,19 @@ class GroupUserHandler(BaseHandler):
         else:
             user_id = user.id
             # Just add new GroupUser
-            DBSession.add(GroupUser(group_id=group_id, user_id=user_id, admin=admin))
+            gu = GroupUser.query.filter(
+                GroupUser.group_id == group_id
+            ).filter(
+                GroupUser.user_id == user_id
+            ).first()
+            if gu is None:
+                DBSession.add(
+                    GroupUser(group_id=group_id, user_id=user_id, admin=admin)
+                )
+            else:
+                return self.error(
+                    "Specified user is already associated with this group."
+                )
         DBSession().commit()
 
         self.push_all(action='skyportal/REFRESH_GROUP',
