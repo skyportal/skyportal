@@ -15,7 +15,7 @@ if __name__ == "__main__":
         tax_obj = [{
             'name': 'Sitewide taxonomy',
             'provenance': 'https://github.com/profjsb/timedomain-taxonomy',
-            'group_ids': '=sitewide_group',
+            'group_ids': ['=public_group_id'],
             'hierarchy': tdtax.taxonomy,
             'version': tdtax.__version__
         }]

@@ -1,16 +1,8 @@
-drop_tables: false
-create_tables: true
-print_tables: true
-create_permissions: true
 data:
   user:
     - username: sitewide_group_admin
       roles:
         - Group admin
-  groups:
-    - name: Sitewide Group
-      group_admins:
-        - sitewide_group_admin
   telescope:
     file: data/telescopes.yaml
   instrument:

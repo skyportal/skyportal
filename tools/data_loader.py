@@ -98,10 +98,18 @@ if __name__ == "__main__":
         print('Error: Could not authenticate against SkyPortal; please specify a valid token.')
         sys.exit(-1)
 
+    code, response = get('groups/public')
+    if code != 200:
+        print('Error: no public group found; aborting')
+        sys.exit(-1)
+    public_group_id = response['data']['id']
+
     data = src.get('data', {})
     error_log = []
 
-    references = {}
+    references = {
+        'public_group_id': public_group_id
+    }
 
     for endpoint in data:
         print(f'Posting to {endpoint}: ', end='')
@@ -119,12 +127,20 @@ if __name__ == "__main__":
             # Remove all such fields from the object to be posted
             obj = {k: v for k, v in obj.items() if not k.startswith('=')}
 
-            # Replace all references of the format field: [key] with the
-            # appropriate reference value
+            # Replace all references of the format field: =key or [=key, ..]
+            # with the appropriate reference value
             try:
                 for k, v in obj.items():
                     if isinstance(v, str) and v.startswith('='):
                         obj[k] = references[v[1:]]
+                    elif isinstance(v, list):
+                        for n, item in enumerate(v):
+                            if isinstance(item, str) and item.startswith('='):
+                                v[n] = references[item[1:]]
+                        obj[k] = v
+
+                print(obj)
+
             except KeyError:
                 print(f'\nReference {v[1:]} not found while posting to {endpoint}; skipping')
                 continue
