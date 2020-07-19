@@ -584,6 +584,14 @@ class AssignmentSchema(_Schema):
         if run is None:
             raise ValidationError(f'Invalid observing run: "{run_id}"')
 
+        predecessor = ClassicalAssignment.query.filter(
+            ClassicalAssignment.obj_id == data['obj_id'],
+            ClassicalAssignment.run_id == run_id
+        ).first()
+
+        if predecessor is not None:
+            raise ValidationError(f'Object is already assigned to this run.')
+
         # check the object
         assignment = ClassicalAssignment(**data)
         return assignment
