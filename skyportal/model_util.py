@@ -19,9 +19,10 @@ all_acl_ids = ['Become user', 'Comment', 'Manage users', 'Manage sources',
 
 role_acls = {
     'Super admin': all_acl_ids,
-    'Group admin': ['Comment', 'Manage sources', 'Upload data', 'Post taxonomy',
-                    'Manage users'],
-    'Full user': ['Comment', 'Upload data'],
+    'Group admin':
+        ['Comment', 'Manage sources', 'Upload data', 'Post taxonomy',
+         'Manage users', 'Classify'],
+    'Full user': ['Comment', 'Upload data', 'Classify'],
     'View only': []
 }
 
