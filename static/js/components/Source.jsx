@@ -19,6 +19,9 @@ import FoldBox from "./FoldBox";
 import FollowupRequestForm from './FollowupRequestForm';
 import FollowupRequestList from './FollowupRequestList';
 
+import AssignmentForm from './AssignmentForm';
+import AssignmentList from './AssignmentList';
+
 const Source = ({ route }) => {
   const dispatch = useDispatch();
   const source = useSelector((state) => state.source);
@@ -39,6 +42,7 @@ const Source = ({ route }) => {
     }
   }, [dispatch, isCached, route.id]);
   const { instrumentList, instrumentObsParams } = useSelector((state) => state.instruments);
+  const { observingRunList } = useSelector((state) => state.observingRunList);
   if (source.loadError) {
     return (
       <div>
@@ -150,6 +154,13 @@ const Source = ({ route }) => {
           followupRequests={source.followup_requests}
           instrumentList={instrumentList}
           instrumentObsParams={instrumentObsParams}
+        />
+        <AssignmentForm
+          obj_id={source.id}
+          observingRunlist={observingRunList}
+        />
+        <AssignmentList
+          assignments={source.assignments}
         />
       </div>
 
