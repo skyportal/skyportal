@@ -4,7 +4,22 @@ import { Link } from 'react-router-dom';
 import Dropdown, { DropdownTrigger, DropdownContent } from 'react-simple-dropdown';
 
 import styles from "./ProfileDropdown.css";
-import Responsive from "./Responsive";
+import styled from 'styled-components';
+
+const Container = styled.div`
+  padding: 1em;
+  color: white;
+  font-weight: normal;
+  float: right;
+  vertical-align: middle;
+
+  @media only screen and (max-width: 768px) {
+    position: absolute;
+    right: 15px;
+    top: 20px;
+    z-index: 200;
+  }
+`
 
 const ProfileDropdown = () => {
   const profile = useSelector((state) => state.profile);
@@ -15,21 +30,15 @@ const ProfileDropdown = () => {
   };
 
   return (
-    <Responsive
-      desktopStyle={styles.profileDesktop}
-      mobileStyle={styles.profileMobile}
-    >
-
+    <Container>
       <Dropdown ref={dropdown}>
-
         <DropdownTrigger>
           { profile.username }
           {' '}
           &nbsp;▾
         </DropdownTrigger>
-
+        
         <DropdownContent>
-
           <Link to="/profile" role="link">
             <div role="menuitem" tabIndex="0" className={styles.entry} onClick={collapseDropdown}>
               Profile
@@ -51,12 +60,10 @@ const ProfileDropdown = () => {
               Sign out
             </div>
           </a>
-
         </DropdownContent>
 
       </Dropdown>
-
-    </Responsive>
+    </Container>
   );
 };
 
