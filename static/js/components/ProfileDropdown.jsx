@@ -2,9 +2,9 @@ import React, { useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import Dropdown, { DropdownTrigger, DropdownContent } from 'react-simple-dropdown';
+import styled from 'styled-components';
 
 import styles from "./ProfileDropdown.css";
-import styled from 'styled-components';
 
 const Container = styled.div`
   padding: 1em;
@@ -19,7 +19,7 @@ const Container = styled.div`
     top: 20px;
     z-index: 200;
   }
-`
+`;
 
 const ProfileDropdown = () => {
   const profile = useSelector((state) => state.profile);
@@ -37,7 +37,7 @@ const ProfileDropdown = () => {
           {' '}
           &nbsp;▾
         </DropdownTrigger>
-        
+
         <DropdownContent>
           <Link to="/profile" role="link">
             <div role="menuitem" tabIndex="0" className={styles.entry} onClick={collapseDropdown}>
