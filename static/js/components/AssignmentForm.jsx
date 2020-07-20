@@ -19,7 +19,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   const dispatch = useDispatch();
 
   const upcomingRuns = observingRunList.filter((observingrun) => (
-    observingrun["sunrise_unix"] >= Date.now()
+    observingrun["sunrise_unix"] >= Date.now() / 1000
   ));
 
   if (upcomingRuns.length === 0){
@@ -30,7 +30,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
 
   const initialFormState = {
     comment: null,
-    run_id: null,
+    run_id: upcomingRuns[0],
     priority: "1"
   };
 
@@ -76,7 +76,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
         <div>
           <FormControl className={classes.formControl}>
             <InputLabel id="assignmentSelectLabel">
-              Instrument
+              Choose Run
             </InputLabel>
             <Controller
               as={(
@@ -84,8 +84,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
                   {
                     upcomingRuns.map((observingRun) => (
                       <MenuItem value={observingRun.id} key={observingRun.id}>
-                        {observingRun.calendar_date} {observingRun.instrument.telescope.nickname}
-                        {observingRun.instrument.name} ({observingRun.pi})
+                        {observingRun.calendar_date} {observingRun.instrument.name} run on {observingRun.instrument.telescope.nickname} (PI: {observingRun.pi})
                       </MenuItem>
                     ))
                   }
