@@ -4,7 +4,7 @@ import { useDispatch } from 'react-redux';
 
 import EditFollowupRequestDialog from './EditFollowupRequestDialog';
 import * as Actions from '../ducks/source';
-import styles from './FollowupRequestList.css';
+import styles from './AssignmentList.css';
 
 const AssignmentList = ({ assignments }) => {
   const dispatch = useDispatch();
@@ -12,6 +12,10 @@ const AssignmentList = ({ assignments }) => {
   const deleteAssignment = (id) => {
     dispatch(Actions.deleteAssignment(id));
   };
+
+  if (assignments.length === 0){
+    return <div></div>
+  }
 
   return (
     <div>
@@ -93,14 +97,6 @@ AssignmentList.propTypes = {
     priority: PropTypes.string,
     status: PropTypes.string,
     comment: PropTypes.string
-  })).isRequired,
-  observingRunList: PropTypes.arrayOf(PropTypes.shape({
-    band: PropTypes.string,
-    created_at: PropTypes.string,
-    id: PropTypes.number,
-    name: PropTypes.string,
-    type: PropTypes.string,
-    telescope_id: PropTypes.number
   })).isRequired,
 };
 

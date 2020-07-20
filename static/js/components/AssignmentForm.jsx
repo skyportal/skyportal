@@ -5,6 +5,8 @@ import { useForm, Controller } from 'react-hook-form';
 import Select from "@material-ui/core/Select";
 import InputLabel from "@material-ui/core/InputLabel";
 import TextField from '@material-ui/core/TextField';
+import AssignmentTurnedInIcon from '@material-ui/icons/AssignmentTurnedIn';
+import IconButton from '@material-ui/core/IconButton';
 import FormControl from "@material-ui/core/FormControl";
 import MenuItem from "@material-ui/core/MenuItem";
 import { makeStyles } from "@material-ui/core/styles";
@@ -20,9 +22,16 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
     observingrun["sunrise_unix"] >= Date.now()
   ));
 
+  if (upcomingRuns.length === 0){
+    return (
+      <div></div>
+    )
+  }
+
   const initialFormState = {
     comment: null,
-    run_id: upcomingRuns[0]
+    run_id: null,
+    priority: "1"
   };
 
   const { handleSubmit, register, getValues, control, errors, reset } = useForm({
@@ -36,7 +45,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
       ...getValues({ nest: true })
     };
     // We need to include this field in request, but it isn't in form data
-    dispatch(Actions.submitFollowupRequest(formData));
+    dispatch(Actions.submitAssignment(formData));
     reset(initialFormState);
   };
 
@@ -44,6 +53,16 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
     formControl: {
       margin: theme.spacing(1),
       minWidth: 120,
+    },
+    root: {
+      '& .MuiTextField-root': {
+        margin: theme.spacing(1),
+        width: '25ch',
+      },
+      '& .MuiSelect-root': {
+        margin: theme.spacing(1),
+        width: '25ch',
+      },
     }
   }));
   const classes = useStyles();
@@ -76,6 +95,8 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
               rules={{ required: true }}
               control={control}
             />
+          </FormControl>
+          <FormControl className={classes.formControl}>
             <InputLabel id="prioritySelectLabel">
               Priority
             </InputLabel>
@@ -95,10 +116,12 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
               rules={{ required: true }}
               control={control}
             />
+          </FormControl>
+          <FormControl>
             <Controller
               as={(
                 <TextField
-                  labelId="commentInputLabel"
+                  id="standard-textarea"
                   label="Comment"
                   variant="outlined"
                   multiline
@@ -106,6 +129,23 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
               )}
               name="comment"
               rules={{ required: true }}
+              control={control}
+            />
+          </FormControl>
+          <FormControl>
+            <Controller
+              as={(
+                <IconButton
+                  type="submit"
+                  name="assignmentSubmitButton"
+                  component="span"
+                  aria-label="Submit Assignment"
+                  variant="contained"
+                >
+                  <AssignmentTurnedInIcon />
+                </IconButton>
+              )}
+              name="submitButton"
               control={control}
             />
           </FormControl>

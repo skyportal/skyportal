@@ -42,7 +42,7 @@ const Source = ({ route }) => {
     }
   }, [dispatch, isCached, route.id]);
   const { instrumentList, instrumentObsParams } = useSelector((state) => state.instruments);
-  const { observingRunList } = useSelector((state) => state.observingRunList);
+  const { observingRunList } = useSelector((state) => state.observingRuns);
   if (source.loadError) {
     return (
       <div>
@@ -144,24 +144,30 @@ const Source = ({ route }) => {
           <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
 
         </Responsive>
-        <FollowupRequestForm
-          obj_id={source.id}
-          action="createNew"
-          instrumentList={instrumentList}
-          instrumentObsParams={instrumentObsParams}
-        />
-        <FollowupRequestList
-          followupRequests={source.followup_requests}
-          instrumentList={instrumentList}
-          instrumentObsParams={instrumentObsParams}
-        />
-        <AssignmentForm
-          obj_id={source.id}
-          observingRunlist={observingRunList}
-        />
-        <AssignmentList
-          assignments={source.assignments}
-        />
+        <Responsive
+          element={FoldBox}
+          title="Follow-up"
+          mobileProps={{ folded: true }}
+        >
+          <FollowupRequestForm
+            obj_id={source.id}
+            action="createNew"
+            instrumentList={instrumentList}
+            instrumentObsParams={instrumentObsParams}
+          />
+          <FollowupRequestList
+            followupRequests={source.followup_requests}
+            instrumentList={instrumentList}
+            instrumentObsParams={instrumentObsParams}
+          />
+          <AssignmentForm
+            obj_id={source.id}
+            observingRunList={observingRunList}
+          />
+          <AssignmentList
+            assignments={source.assignments}
+          />
+        </Responsive>
       </div>
 
       <div className={styles.rightColumn}>

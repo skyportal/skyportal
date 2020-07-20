@@ -101,7 +101,7 @@ class ObservingRunHandler(BaseHandler):
             data = ObservingRunGet.dump(run)
             return self.success(data=data)
         runs = ObservingRun.query.all()
-        data = ObservingRunGet.dump(runs)
+        data = ObservingRunGet.dump(runs, many=True)
         out = sorted(data, key=lambda d: d['sunrise_unix'])
         return self.success(data=out)
 
