@@ -10,10 +10,8 @@ import ReactDOM from "react-dom";
 import { BrowserRouter, Switch } from "react-router-dom";
 
 import { MuiPickersUtilsProvider } from "@material-ui/pickers";
-import { makeStyles } from "@material-ui/core/styles";
 
 import DayJSUtils from "@date-io/dayjs";
-import clsx from "clsx";
 
 // WebSocket
 import WebSocket from "baselayer/components/WebSocket";
@@ -40,41 +38,28 @@ import SidebarAndHeader from "./SidebarAndHeader";
 
 // Main style
 import styles from "./Main.css";
+import styled from 'styled-components';
 
+const closedTransition = 'margin 225ms cubic-bezier(0.0, 0, 0.2, 1) 0ms'
+const openTransition = 'margin 195ms cubic-bezier(0.4, 0, 0.6, 1) 0ms'
+
+const MainContainer = styled.div`
+  padding: 16px;
+  flex-grow: 1;
+  margin-top: 6em;
+  transition: ${props => props.open ? openTransition : closedTransition};
+  margin-left: ${props => props.open ? '190px' : 0};
+  & a {
+    text-decoration: none;
+    color: gray;
+    font-weight: bold;
+  }
+`
 
 messageHandler.init(store.dispatch, store.getState);
 
-
-const useStyles = makeStyles((theme) => ({
-  content: {
-    flexGrow: 1,
-    padding: theme.spacing(2),
-    transition: theme.transitions.create('margin', {
-      easing: theme.transitions.easing.sharp,
-      duration: theme.transitions.duration.leavingScreen,
-    }),
-    marginTop: "6em", // top bar height
-    marginLeft: "190px",
-    "& a": {
-      textDecoration: "none",
-      color: "gray",
-      fontWeight: "bold",
-    },
-  },
-  contentShift: {
-    transition: theme.transitions.create('margin', {
-      easing: theme.transitions.easing.easeOut,
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-    marginLeft: 0,
-  }
-}));
-
-
 const MainContent = ({ root }) => {
   const { open } = useSelector((state) => state.sidebar);
-
-  const classes = useStyles();
 
   useEffect(() => {
     store.dispatch(hydrate());
@@ -83,7 +68,6 @@ const MainContent = ({ root }) => {
 
   return (
     <Theme>
-
       <div className={styles.websocket}>
         <WebSocket
           url={`${window.location.protocol === "https:" ? "wss" : "ws"}://${root}websocket`}
@@ -94,32 +78,17 @@ const MainContent = ({ root }) => {
       </div>
 
       <MuiPickersUtilsProvider utils={DayJSUtils}>
-
         <SidebarAndHeader open={open} />
-
         <Responsive mobileElement={ProfileDropdown} />
-
-        <div
-          role="main"
-          className={clsx(classes.content, {
-            [classes.contentShift]: !open,
-          })}
-        >
-
+        <MainContainer open={open}>
           <Notifications />
-
           <Switch>
-
             {%- for route in app.routes %}
-            <PropsRoute exact path="{{ route.path }}" component={{ "{" }}{{ route.component }}{{ "}" }} />
+              <PropsRoute exact path="{{ route.path }}" component={{ "{" }}{{ route.component }}{{ "}" }} />
             {%- endfor %}
-
             <PropsRoute component={NoMatchingRoute} />
-
           </Switch>
-
-        </div>
-
+        </MainContainer>
       </MuiPickersUtilsProvider>
     </Theme>
   );
