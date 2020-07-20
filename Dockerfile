@@ -1,4 +1,6 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
+
+ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get install -y curl build-essential software-properties-common && \
@@ -12,7 +14,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
     useradd --create-home --shell /bin/bash skyportal
 
-RUN python3.6 -m venv /skyportal_env && \
+RUN python3 -m venv /skyportal_env && \
     \
     bash -c "source /skyportal_env/bin/activate && \
     pip install --upgrade pip"
