@@ -1,10 +1,9 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, ObservingRun, Instrument
+from ...models import DBSession, ObservingRun
 from ...schema import ObservingRunPost, ObservingRunGet
 
-from sqlalchemy.orm import joinedload
 
 class ObservingRunHandler(BaseHandler):
 
@@ -101,17 +100,9 @@ class ObservingRunHandler(BaseHandler):
                                   data={"run_id": run_id})
             data = ObservingRunGet.dump(run)
             return self.success(data=data)
-        runs = ObservingRun.query.options(
-            joinedload(ObservingRun.instrument)
-            .joinedload(Instrument.telescope)
-        ).all()
-
-        dicts = [r.to_dict() for r in runs]
-        for d, r in zip(dicts, runs):
-            d['sunrise_unix'] = r.sunrise.unix
-
-        #data = ObservingRunGet.dump(runs, many=True)
-        out = sorted(dicts, key=lambda d: d['sunrise_unix'])
+        runs = ObservingRun.query.all()
+        data = ObservingRunGet.dump(runs, many=True)
+        out = sorted(data, key=lambda d: d['sunrise_unix'])
         return self.success(data=out)
 
     @permissions(['Upload data'])
