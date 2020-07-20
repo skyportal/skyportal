@@ -91,7 +91,7 @@ if __name__ == "__main__":
 
     def assert_post(endpoint, data, token):
         response_status, data = api("POST", endpoint, data, token)
-        if not response_status == 200 and data["status"] == "success":
+        if not (response_status == 200 and data["status"] == "success"):
             raise RuntimeError(
                 f'API call to {endpoint} failed with status {status}: {data["message"]}'
             )
@@ -374,6 +374,41 @@ if __name__ == "__main__":
                                     )
 
                                 Obj.query.get(si["id"]).add_linked_thumbnails()
+
+            if src.get("observing_runs") is not None:
+                with status("Loading observing runs"):
+                    for run in src.get("observing_runs"):
+                        if run.get('owner_username') is not None \
+                                and src.get('users') is not None:
+                            user_id = users_dict[run['owner_username']]
+                        else:
+                            user_id = None
+
+                        if run.get('instrument_name') is not None \
+                                and src.get('instruments') is not None:
+                            instrument_id = instrument_dict[run['instrument_name']]
+                        else:
+                            instrument_id = None
+
+                        if run.get('group') is not None:
+                            group_id = group_dict[run['group']]
+                        else:
+                            group_id = None
+
+                        if run.get('calendar_date') is not None:
+                            calendar_date = str(run['calendar_date'])
+                        else:
+                            calendar_date = None
+
+                        data = assert_post(
+                            "observing_run",
+                            data={
+                                "instrument_id": instrument_id,
+                                'pi': run.get('pi', None),
+                                'group_id': group_id,
+                                'calendar_date': calendar_date,
+                                'observers': run.get('observers', None)
+                            }, token=tokens[run['token']])
 
         finally:
             if not app_already_running:

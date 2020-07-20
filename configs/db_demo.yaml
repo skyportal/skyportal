@@ -68,6 +68,28 @@ telescopes:
     group_names:
       - Program A
     token: "load_demo_data token"
+  - diameter: 10.0
+    elevation: 4160.0
+    lat: 19.8283
+    lon: -155.478
+    name: Keck II 10m
+    id: Keck2
+    skycam: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
+    robotic: false
+    group_names:
+      - Program A
+    token: "load_demo_data token"      
+  - name: Keck I Telescope
+    nickname: Keck1
+    lat: 28.75
+    lon: 17.88
+    elevation: 2000
+    diameter: 2.56
+    skycam: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
+    robotic: true
+    group_names:
+      - Program A
+    token: "load_demo_data token"    
 instruments:
   - name: P60 Camera
     type: imager
@@ -80,6 +102,18 @@ instruments:
     band: optical
     telescope_nickname: NOT
     token: "load_demo_data token"
+  - name: ESI
+    type: spectrograph
+    band: optical
+    telescope_nickname: Keck2
+    token: "load_demo_data token"
+observing_runs:
+  - pi: Danny Goldstein
+    instrument_name: ESI
+    calendar_date: 2021-02-16
+    group: Program A
+    token: "load_demo_data token"
+    observers: "Danny Goldstein, Peter Nugent"
 sources:
   - id: 14gqr
     candidate:
