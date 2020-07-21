@@ -73,7 +73,7 @@ class UserHandler(BaseHandler):
             if user is None:
                 return self.error(f'Invalid user ID ({user_id}).')
             user_info = user.to_dict()
-            user_info['acls'] = user.acls
+            user_info['acls'] = sorted(user.acls, key=lambda a: a.id)
             return self.success(data=user_info)
         users = User.query.all()
         return self.success(data=users)
