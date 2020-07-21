@@ -4,7 +4,7 @@ from uuid import uuid4
 from astropy import coordinates as ap_coord
 from astropy import units as u
 from skyportal import models as sp_models
-from healpix_alchemy.point import Point
+import healpix_alchemy as ha
 
 
 @pytest.mark.parametrize('n', [100, 1000, 10000])
@@ -36,10 +36,10 @@ def test_radial_query(n):
 
     # issue the query on the db
     db_ids = sp_models.DBSession().query(sp_models.Obj.id).filter(
-        sp_models.Obj.point.within(Point(ra=coord[0].ra.deg, dec=coord[0].dec.deg), 1.)
-    ).all()
+        sp_models.Obj.within(ha.Point(ra=coord[0].ra.deg, dec=coord[0].dec.deg), 1.)
+    )
 
-    db_ids = [i[0] for i in db_ids]
-    db_ids = set(filter(lambda i: i in ids, db_ids))
+    db_ids = {i[0] for i in db_ids}
+    db_ids &= set(ids)
 
     assert matching_ids == db_ids
