@@ -4,7 +4,7 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (DBSession, Source, FollowupRequest, Token,
-                       ClassicalAssignment)
+                       ClassicalAssignment, ObservingRun)
 
 from ...schema import AssignmentSchema
 
@@ -53,7 +53,6 @@ class AssignmentHandler(BaseHandler):
             return self.success(data=assignment)
         return self.success(data=ClassicalAssignment.query.all())
 
-
     @auth_or_token
     def post(self):
         """
@@ -82,13 +81,27 @@ class AssignmentHandler(BaseHandler):
 
         data = self.get_json()
         try:
-            assignment = AssignmentSchema.load(data=data)
+            assignment = ClassicalAssignment(**AssignmentSchema.load(data=data))
         except ValidationError as e:
             return self.error(f'Error parsing followup request: '
                               f'"{e.normalized_messages()}"')
 
-        obj_id = assignment.obj_id
-        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        run_id = assignment.run_id
+        data['priority'] = assignment.priority.name
+        run = ObservingRun.query.get(run_id)
+        if run is None:
+            return self.error(f'Invalid observing run: "{run_id}"')
+
+        predecessor = ClassicalAssignment.query.filter(
+            ClassicalAssignment.obj_id == assignment.obj_id,
+            ClassicalAssignment.run_id == run_id
+        ).first()
+
+        if predecessor is not None:
+            return self.error(f'Object is already assigned to this run.')
+
+        assignment = ClassicalAssignment(**data)
+        source = Source.get_obj_if_owned_by(assignment.obj_id, self.current_user)
         if source is None:
             return self.error(f'Invalid obj_id: "{obj_id}"')
 
@@ -100,7 +113,6 @@ class AssignmentHandler(BaseHandler):
             payload={"obj_id": assignment.obj_id},
         )
         return self.success(data={"id": assignment.id})
-
 
     @auth_or_token
     def delete(self, assignment_id):
