@@ -1,7 +1,7 @@
-import tornado.web
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
+from .user import add_user_and_setup_groups
 from ..base import BaseHandler
 from ...models import DBSession, Group, GroupUser, User, Token
 
@@ -272,24 +272,39 @@ class GroupUserHandler(BaseHandler):
         """
         data = self.get_json()
         admin = data.pop("admin", False)
+        group_id = int(group_id)
         group = Group.query.get(group_id)
         if group.single_user_group:
             return self.error("Cannot add users to single user groups.")
-        try:
-            user_id = User.query.filter(User.username == username).first().id
-        except AttributeError:
-            return self.error('Invalid username.')
-        gu = (GroupUser.query.filter(GroupUser.group_id == group_id)
-                       .filter(GroupUser.user_id == user_id).first())
-        if gu is None:
-            gu = GroupUser(group_id=group_id, user_id=user_id, admin=admin)
-        DBSession().add(gu)
+        user = User.query.filter(User.username == username.lower()).first()
+        if user is None:
+            user_id = add_user_and_setup_groups(
+                username=username,
+                roles=["Full user"],
+                group_ids_and_admin=[[group_id, admin]]
+            )
+        else:
+            user_id = user.id
+            # Just add new GroupUser
+            gu = GroupUser.query.filter(
+                GroupUser.group_id == group_id
+            ).filter(
+                GroupUser.user_id == user_id
+            ).first()
+            if gu is None:
+                DBSession.add(
+                    GroupUser(group_id=group_id, user_id=user_id, admin=admin)
+                )
+            else:
+                return self.error(
+                    "Specified user is already associated with this group."
+                )
         DBSession().commit()
 
         self.push_all(action='skyportal/REFRESH_GROUP',
-                      payload={'group_id': gu.group_id})
-        return self.success(data={'group_id': gu.group_id, 'user_id': gu.user_id,
-                                  'admin': gu.admin})
+                      payload={'group_id': group_id})
+        return self.success(data={'group_id': group_id, 'user_id': user_id,
+                                  'admin': admin})
 
     @permissions(['Manage groups'])
     def delete(self, group_id, username):

@@ -150,6 +150,13 @@ class Obj(Base, ha.Point):
                             cascade='save-update, merge, refresh-expire, expunge',
                             passive_deletes=True,
                             order_by="Comment.created_at")
+
+    classifications = relationship(
+                            'Classification', back_populates='obj',
+                            cascade='save-update, merge, refresh-expire, expunge',
+                            passive_deletes=True,
+                            order_by="Classification.created_at")
+
     photometry = relationship('Photometry', back_populates='obj',
                               cascade='save-update, merge, refresh-expire, expunge',
                               single_parent=True,
@@ -412,6 +419,11 @@ class Taxonomy(Base):
     version = sa.Column(sa.String, nullable=False,
                         doc='Semantic version of this taxonomy'
                         )
+
+    allowed_classes = sa.Column(sa.ARRAY(sa.String), nullable=False,
+                                doc="Computed list of allowable classes"
+                                " in this taxonomy.")
+
     isLatest = sa.Column(sa.Boolean, default=True, nullable=False,
                          doc='Consider this the latest version of '
                              'the taxonomy with this name? Defaults '
@@ -423,6 +435,11 @@ class Taxonomy(Base):
                           passive_deletes=True
                           )
 
+    classifications = relationship(
+                            'Classification', back_populates='taxonomy',
+                            cascade='save-update, merge, refresh-expire, expunge',
+                            passive_deletes=True,
+                            order_by="Classification.created_at")
 
 GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
 
@@ -460,6 +477,29 @@ class Comment(Base):
 
 
 GroupComment = join_model("group_comments", Group, Comment)
+
+
+class Classification(Base):
+    classification = sa.Column(sa.String, nullable=False)
+    taxonomy_id = sa.Column(sa.ForeignKey('taxonomies.id', ondelete='CASCADE'),
+                            nullable=False)
+    taxonomy = relationship('Taxonomy', back_populates='classifications')
+    probability = sa.Column(sa.Float,
+                            doc='User-assigned probability of belonging '
+                            'to this class', nullable=True)
+
+    author_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
+                          nullable=False, index=True)
+    author = relationship('User')
+    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
+                       nullable=False, index=True)
+    obj = relationship('Obj', back_populates='classifications')
+    groups = relationship("Group", secondary="group_classifications",
+                          cascade="save-update, merge, refresh-expire, expunge",
+                          passive_deletes=True)
+
+
+GroupClassifications = join_model("group_classifications", Group, Classification)
 
 
 class Photometry(Base, ha.Point):

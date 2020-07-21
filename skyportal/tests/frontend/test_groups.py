@@ -1,6 +1,7 @@
 import pytest
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 import uuid
 import requests
 
@@ -53,8 +54,9 @@ def test_add_new_group_user_admin(driver, super_admin_user, user, public_group):
     driver.wait_for_xpath('//h6[text()="All Groups"]')
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.execute_script("arguments[0].click();", el)
-    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../input').click()
-    driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(user.username)
+    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../button').click()
+    driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(
+        user.username, Keys.ENTER)
     driver.wait_for_xpath('//input[@type="checkbox"]').click()
     driver.wait_for_xpath('//input[@value="Add user"]').click()
     driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
@@ -68,12 +70,27 @@ def test_add_new_group_user_nonadmin(driver, super_admin_user, user, public_grou
     driver.wait_for_xpath('//h6[text()="All Groups"]')
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.execute_script("arguments[0].click();", el)
-    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../input').click()
-    driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(user.username)
+    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../button').click()
+    driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(
+        user.username, Keys.ENTER)
     driver.wait_for_xpath('//input[@value="Add user"]').click()
     driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
     assert len(driver.find_elements_by_xpath(
         f'//a[contains(.,"{user.username}")]/..//span')) == 0
+
+
+def test_add_new_group_user_new_username(driver, super_admin_user, user, public_group):
+    new_username = str(uuid.uuid4())
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/groups')
+    driver.wait_for_xpath('//h6[text()="All Groups"]')
+    el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
+    driver.execute_script("arguments[0].click();", el)
+    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../button').click()
+    driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(
+        new_username, Keys.ENTER)
+    driver.wait_for_xpath('//input[@value="Add user"]').click()
+    driver.wait_for_xpath(f'//a[contains(.,"{new_username}")]')
 
 
 def test_delete_group_user(driver, super_admin_user, user, public_group):
@@ -82,7 +99,7 @@ def test_delete_group_user(driver, super_admin_user, user, public_group):
     driver.wait_for_xpath('//h6[text()="All Groups"]')
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.execute_script("arguments[0].click();", el)
-    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../input').click()
+    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../button').click()
     assert len(driver.find_elements_by_xpath(
         f'//a[contains(.,"{user.username}")]')) == 0
 
