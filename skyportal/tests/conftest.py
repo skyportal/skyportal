@@ -132,6 +132,7 @@ def sedm(p60_telescope):
                              band='Optical', filters=['sdssu', 'sdssg', 'sdssr',
                                                       'sdssi'])
 
+
 @pytest.fixture()
 def red_transients_run():
     return ObservingRunFactory()
