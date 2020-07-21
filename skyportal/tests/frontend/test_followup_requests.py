@@ -20,6 +20,7 @@ def add_telescope_and_instrument(instrument_name, group_ids, token):
             "elevation": 0.0,
             "diameter": 10.0,
             "group_ids": group_ids,
+            "robotic": True
         },
         token=token,
     )
