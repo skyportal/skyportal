@@ -125,6 +125,7 @@ def lris(keck1_telescope):
                                                       'bessellv', 'bessellb',
                                                       'bessellr', 'besselli'])
 
+
 @pytest.fixture()
 def sedm(p60_telescope):
     return InstrumentFactory(name='SEDM', type='imaging spectrograph',
