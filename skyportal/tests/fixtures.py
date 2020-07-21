@@ -172,5 +172,5 @@ class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
     group = factory.SubFactory(GroupFactory)
     pi = 'Danny Goldstein'
     observers = 'D. Goldstein, S. Dhawan'
-    calendar_date = '2020-02-27'
+    calendar_date = '3021-02-27'
     owner = factory.SubFactory(UserFactory)
