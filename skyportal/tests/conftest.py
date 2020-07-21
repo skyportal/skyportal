@@ -87,6 +87,7 @@ def red_transients_group(group_admin_user, view_only_user):
                         users=[group_admin_user,
                                view_only_user])
 
+
 @pytest.fixture()
 def ztf_camera():
     return InstrumentFactory()
