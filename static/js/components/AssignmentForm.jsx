@@ -1,12 +1,11 @@
 import React from 'react';
-import { useDispatch } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
 import { useForm, Controller } from 'react-hook-form';
 import Select from "@material-ui/core/Select";
 import InputLabel from "@material-ui/core/InputLabel";
 import TextField from '@material-ui/core/TextField';
-import AssignmentTurnedInIcon from '@material-ui/icons/AssignmentTurnedIn';
-import IconButton from '@material-ui/core/IconButton';
+import Button from '@material-ui/core/Button';
 import FormControl from "@material-ui/core/FormControl";
 import MenuItem from "@material-ui/core/MenuItem";
 import { makeStyles } from "@material-ui/core/styles";
@@ -14,29 +13,68 @@ import * as Actions from '../ducks/source';
 
 import 'react-datepicker/dist/react-datepicker-cssmodules.css';
 
+
+function makeMenuItem(observingRun, instrumentList, telescopeList, groups){
+
+  const instrument_id = observingRun.instrument_id;
+  const instrument = instrumentList.filter((i) => i.id === instrument_id)[0];
+  const instundef = instrument === undefined;
+
+  const telescope_id = !instundef ? instrument.telescope_id : undefined;
+  const telescope = !instundef ? telescopeList.filter((t) => t.id === telescope_id)[0] : undefined;
+  const telundef = telescope === undefined;
+
+  const usegroup = observingRun.group_id !== undefined;
+  const group = usegroup ? groups.filter((g) => g.id === observingRun.group_id)[0] : undefined;
+  const groupundef = group === undefined;
+
+  const render_string = `${observingRun.calendar_date} ${instundef ? "Loading..." : 
+    instrument.name}/${telundef ? "Loading..." : telescope.nickname} (PI: ${
+    observingRun.pi}${!groupundef ? "/" + group.name + ")" : ")"}`;
+
+  return (
+    <MenuItem value={observingRun.id} key={observingRun.id.toString()}>
+      {render_string}
+    </MenuItem>
+  );
+}
+
+
 const AssignmentForm = ({ obj_id, observingRunList }) => {
 
   const dispatch = useDispatch();
+  const instrumentList = useSelector((state) => state.instruments.instrumentList);
+  const telescopeList = useSelector((state) => state.telescopes.telescopeList);
+  const groups = useSelector((state) => state.groups.all);
 
   const upcomingRuns = observingRunList.filter((observingrun) => (
     observingrun["sunrise_unix"] >= Date.now() / 1000
   ));
 
+  const { handleSubmit, getValues, errors, reset, register, control } = useForm();
+
+  const useStyles = makeStyles((theme) => ({
+    formControl: {
+      margin: theme.spacing(1),
+      minWidth: 120
+    }
+  }));
+  const classes = useStyles();
+
   if (upcomingRuns.length === 0){
     return (
-      <div></div>
+      <b>
+        No upcoming observing runs to assign target to...
+      </b>
     )
   }
 
   const initialFormState = {
-    comment: null,
-    run_id: upcomingRuns[0],
-    priority: "1"
+    comment: "",
+    run_id: upcomingRuns.length > 0 ? upcomingRuns[0].id : null,
+    priority: "1",
+    obj_id: obj_id
   };
-
-  const { handleSubmit, register, getValues, control, errors, reset } = useForm({
-    defaultValues: initialFormState
-  });
 
   const onSubmit = () => {
     const formData = {
@@ -45,27 +83,10 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
       ...getValues({ nest: true })
     };
     // We need to include this field in request, but it isn't in form data
+    alert(JSON.stringify(formData));
     dispatch(Actions.submitAssignment(formData));
     reset(initialFormState);
   };
-
-  const useStyles = makeStyles((theme) => ({
-    formControl: {
-      margin: theme.spacing(1),
-      minWidth: 120,
-    },
-    root: {
-      '& .MuiTextField-root': {
-        margin: theme.spacing(1),
-        width: '25ch',
-      },
-      '& .MuiSelect-root': {
-        margin: theme.spacing(1),
-        width: '25ch',
-      },
-    }
-  }));
-  const classes = useStyles();
 
   return (
     <div>
@@ -79,75 +100,50 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
               Choose Run
             </InputLabel>
             <Controller
-              as={(
-                <Select labelId="assignmentSelectLabel">
-                  {
-                    upcomingRuns.map((observingRun) => (
-                      <MenuItem value={observingRun.id} key={observingRun.id}>
-                        {observingRun.calendar_date} {observingRun.instrument.name} run on {observingRun.instrument.telescope.nickname} (PI: {observingRun.pi})
-                      </MenuItem>
-                    ))
-                  }
-                </Select>
-              )}
+              as={Select}
+              labelId="assignmentSelectLabel"
               name="run_id"
-              rules={{ required: true }}
               control={control}
-            />
+              rules={{ required: true }}
+              defaultValue={upcomingRuns.length > 0 ? upcomingRuns[0].id : null}>
+                {upcomingRuns.map((observingRun) =>  makeMenuItem(
+                  observingRun, instrumentList, telescopeList, groups
+                ))}
+            </Controller>
           </FormControl>
           <FormControl className={classes.formControl}>
             <InputLabel id="prioritySelectLabel">
               Priority
             </InputLabel>
             <Controller
-              as={(
-                <Select labelId="prioritySelectLabel">
-                  {
-                    ["1", "2", "3", "4", "5"].map((prio) => (
-                      <MenuItem value={prio} key={prio}>
-                        {prio}
-                      </MenuItem>
-                    ))
-                  }
-                </Select>
-              )}
+              as={Select}
+              labelId="prioritySelectLabel"
+              defaultValue="1"
               name="priority"
+              control={control}
               rules={{ required: true }}
-              control={control}
-            />
+            >
+              {
+                ["1", "2", "3", "4", "5"].map((prio) => (
+                  <MenuItem value={prio} key={prio}>
+                    {prio}
+                  </MenuItem>
+                ))
+              }
+            </Controller>
           </FormControl>
-          <FormControl>
-            <Controller
-              as={(
-                <TextField
-                  id="standard-textarea"
-                  label="Comment"
-                  variant="outlined"
-                  multiline
-                />
-              )}
-              name="comment"
-              rules={{ required: true }}
-              control={control}
-            />
-          </FormControl>
-          <FormControl>
-            <Controller
-              as={(
-                <IconButton
-                  type="submit"
-                  name="assignmentSubmitButton"
-                  component="span"
-                  aria-label="Submit Assignment"
-                  variant="contained"
-                >
-                  <AssignmentTurnedInIcon />
-                </IconButton>
-              )}
-              name="submitButton"
-              control={control}
-            />
-          </FormControl>
+          <TextField
+            id="standard-textarea"
+            label="Comment"
+            variant="outlined"
+            multiline
+            defaultValue=""
+            name="comment"
+            inputRef={register}
+          />
+          <Button type="submit" name="assignmentSubmitButton" variant="contained">
+            Submit
+          </Button>
         </div>
       </form>
     </div>
