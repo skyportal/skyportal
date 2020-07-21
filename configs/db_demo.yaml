@@ -107,10 +107,21 @@ instruments:
     band: optical
     telescope_nickname: Keck2
     token: "load_demo_data token"
+  - name: LRIS
+    type: spectrograph
+    band: optical
+    telescope_nickname: Keck1
+    token: "load_demo_data token"
 observing_runs:
   - pi: Danny Goldstein
     instrument_name: ESI
     calendar_date: 2021-02-16
+    group: Program A
+    token: "load_demo_data token"
+    observers: "Danny Goldstein, Peter Nugent"
+  - pi: Danny Goldstein
+    instrument_name: LRIS
+    calendar_date: 2021-02-17
     group: Program A
     token: "load_demo_data token"
     observers: "Danny Goldstein, Peter Nugent"
