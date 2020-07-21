@@ -103,6 +103,7 @@ def keck1_telescope():
                             elevation=observer.location.height.to('m').value,
                             diameter=10.)
 
+
 @pytest.fixture()
 def p60_telescope():
     observer = astroplan.Observer.at_site('Palomar')
