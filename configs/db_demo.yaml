@@ -86,7 +86,7 @@ telescopes:
     elevation: 2000
     diameter: 2.56
     skycam: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
-    robotic: true
+    robotic: false
     group_names:
       - Program A
     token: "load_demo_data token"    
