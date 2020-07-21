@@ -2,22 +2,21 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { useSelector, useDispatch } from 'react-redux';
 import * as Actions from '../ducks/source';
-import * as UserActions from '../ducks/users'
+import * as UserActions from '../ducks/users';
 import styles from './AssignmentList.css';
 
 
 function renderAssignment(assignment, deleteAssignment, dispatch, users, observingRunList,
-                          instrumentList){
-
-  const requester_id = assignment.requester_id;
+  instrumentList) {
+  const { requester_id } = assignment;
   const requester = users[requester_id];
   const requndef = requester === undefined;
 
-  if (requndef){
+  if (requndef) {
     dispatch(UserActions.fetchUser(requester_id));
   }
 
-  const run_id = assignment.run_id;
+  const { run_id } = assignment;
   const run = observingRunList.filter((r) => r.id === run_id)[0];
   const runundef = run === undefined;
 
@@ -70,20 +69,20 @@ const AssignmentList = ({ assignments }) => {
   const observingRunList = useSelector((state) => state.observingRuns.observingRunList);
   const instrumentList = useSelector((state) => state.instruments.instrumentList);
 
-  if (assignments.length === 0){
+  if (assignments.length === 0) {
     return (
       <b>
         No assignments to show for this object...
       </b>
-    )
+    );
   }
 
-  if (observingRunList.length === 0){
+  if (observingRunList.length === 0) {
     return (
       <b>
         Loading observing run list...
       </b>
-    )
+    );
   }
 
   const observingRunDict = {};
@@ -93,7 +92,7 @@ const AssignmentList = ({ assignments }) => {
     }
   );
 
-  assignments.sort(function(a, b){
+  assignments.sort((a, b) => {
     const arun = observingRunDict[a.run_id];
     const brun = observingRunDict[b.run_id];
     const atime = arun.sunrise_unix;

@@ -100,17 +100,11 @@ export const deleteFollowupRequest = (id) => (
   API.DELETE(`/api/followup_request/${id}`, DELETE_FOLLOWUP_REQUEST)
 );
 
-export const submitAssignment = (params) => {
-  return API.POST('/api/assignment', SUBMIT_ASSIGNMENT, params);
-};
+export const submitAssignment = (params) => API.POST('/api/assignment', SUBMIT_ASSIGNMENT, params);
 
-export const editAssignment = (params, assignmentID) => {
-  return API.PUT(`/api/assignment/${assignmentID}`, EDIT_ASSIGNMENT, params);
-};
+export const editAssignment = (params, assignmentID) => API.PUT(`/api/assignment/${assignmentID}`, EDIT_ASSIGNMENT, params);
 
-export const deleteAssignment = (id) => {
-  return API.DELETE(`/api/assignment/${id}`, DELETE_ASSIGNMENT);
-};
+export const deleteAssignment = (id) => API.DELETE(`/api/assignment/${id}`, DELETE_ASSIGNMENT);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {

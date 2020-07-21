@@ -14,9 +14,8 @@ import * as Actions from '../ducks/source';
 import 'react-datepicker/dist/react-datepicker-cssmodules.css';
 
 
-function makeMenuItem(observingRun, instrumentList, telescopeList, groups){
-
-  const instrument_id = observingRun.instrument_id;
+function makeMenuItem(observingRun, instrumentList, telescopeList, groups) {
+  const { instrument_id } = observingRun;
   const instrument = instrumentList.filter((i) => i.id === instrument_id)[0];
   const instundef = instrument === undefined;
 
@@ -28,9 +27,9 @@ function makeMenuItem(observingRun, instrumentList, telescopeList, groups){
   const group = usegroup ? groups.filter((g) => g.id === observingRun.group_id)[0] : undefined;
   const groupundef = group === undefined;
 
-  const render_string = `${observingRun.calendar_date} ${instundef ? "Loading..." : 
+  const render_string = `${observingRun.calendar_date} ${instundef ? "Loading..." :
     instrument.name}/${telundef ? "Loading..." : telescope.nickname} (PI: ${
-    observingRun.pi}${!groupundef ? "/" + group.name + ")" : ")"}`;
+    observingRun.pi}${!groupundef ? `/${group.name})` : ")"}`;
 
   return (
     <MenuItem value={observingRun.id} key={observingRun.id.toString()}>
@@ -41,14 +40,13 @@ function makeMenuItem(observingRun, instrumentList, telescopeList, groups){
 
 
 const AssignmentForm = ({ obj_id, observingRunList }) => {
-
   const dispatch = useDispatch();
   const instrumentList = useSelector((state) => state.instruments.instrumentList);
   const telescopeList = useSelector((state) => state.telescopes.telescopeList);
   const groups = useSelector((state) => state.groups.all);
 
   const upcomingRuns = observingRunList.filter((observingrun) => (
-    observingrun["sunrise_unix"] >= Date.now() / 1000
+    observingrun.sunrise_unix >= Date.now() / 1000
   ));
 
   const { handleSubmit, getValues, errors, reset, register, control } = useForm();
@@ -61,19 +59,19 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   }));
   const classes = useStyles();
 
-  if (upcomingRuns.length === 0){
+  if (upcomingRuns.length === 0) {
     return (
       <b>
         No upcoming observing runs to assign target to...
       </b>
-    )
+    );
   }
 
   const initialFormState = {
     comment: "",
     run_id: upcomingRuns.length > 0 ? upcomingRuns[0].id : null,
     priority: "1",
-    obj_id: obj_id
+    obj_id
   };
 
   const onSubmit = () => {
@@ -104,10 +102,11 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
               name="run_id"
               control={control}
               rules={{ required: true }}
-              defaultValue={upcomingRuns.length > 0 ? upcomingRuns[0].id : null}>
-                {upcomingRuns.map((observingRun) =>  makeMenuItem(
-                  observingRun, instrumentList, telescopeList, groups
-                ))}
+              defaultValue={upcomingRuns.length > 0 ? upcomingRuns[0].id : null}
+            >
+              {upcomingRuns.map((observingRun) => makeMenuItem(
+                observingRun, instrumentList, telescopeList, groups
+              ))}
             </Controller>
           </FormControl>
           <FormControl className={classes.formControl}>
