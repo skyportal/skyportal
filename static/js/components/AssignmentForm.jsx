@@ -83,7 +83,6 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
       ...getValues({ nest: true })
     };
     // We need to include this field in request, but it isn't in form data
-    alert(JSON.stringify(formData));
     dispatch(Actions.submitAssignment(formData));
     reset(initialFormState);
   };
