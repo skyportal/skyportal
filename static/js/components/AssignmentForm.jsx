@@ -49,7 +49,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
     observingrun.sunrise_unix >= Date.now() / 1000
   ));
 
-  const { handleSubmit, getValues, errors, reset, register, control } = useForm();
+  const { handleSubmit, getValues, reset, register, control } = useForm();
 
   const useStyles = makeStyles((theme) => ({
     formControl: {
@@ -155,7 +155,7 @@ AssignmentForm.propTypes = {
     instrument: PropTypes.object,
     calendar_date: PropTypes.string,
     pi: PropTypes.string,
-  }))
+  })).isRequired
 };
 
 export default AssignmentForm;

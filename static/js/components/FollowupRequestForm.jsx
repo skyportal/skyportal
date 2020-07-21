@@ -118,7 +118,8 @@ const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsPara
                 <Select labelId="instrumentSelectLabel">
                   {
                     instrumentList.filter(
-                      (instrument) => (instrument.telescope_id in telLookUp) && (telLookUp[instrument.telescope_id].robotic)
+                      (instrument) => (instrument.telescope_id in telLookUp) &&
+                        (telLookUp[instrument.telescope_id].robotic)
                     ).map((instrument) => (
                       <MenuItem value={instrument.id} key={instrument.id}>
                         {instrument.name}

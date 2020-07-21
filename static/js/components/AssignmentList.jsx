@@ -21,7 +21,8 @@ function renderAssignment(assignment, deleteAssignment, dispatch, users, observi
   const runundef = run === undefined;
 
   const instrument_id = !runundef ? run.instrument_id : undefined;
-  const instrument = !runundef ? instrumentList.filter((i) => i.id === instrument_id)[0] : undefined;
+  const instrument = !runundef ? instrumentList.filter((i) => i.id === instrument_id)[0] :
+    undefined;
   const instundef = instrument === undefined;
 
   return (

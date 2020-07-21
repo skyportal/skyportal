@@ -1,8 +1,8 @@
 import * as API from '../API';
 import store from '../store';
 
-const FETCH_TELESCOPES = 'skyportal/FETCH_TELESCOPES';
-const FETCH_TELESCOPES_OK = 'skyportal/FETCH_TELESCOPES_OK';
+export const FETCH_TELESCOPES = 'skyportal/FETCH_TELESCOPES';
+export const FETCH_TELESCOPES_OK = 'skyportal/FETCH_TELESCOPES_OK';
 
 export const fetchTelescopes = () => (
   API.GET('/api/telescope', FETCH_TELESCOPES)
