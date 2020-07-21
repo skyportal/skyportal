@@ -215,56 +215,66 @@ class Obj(Base, ha.Point):
                 f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz")
 
     def airmass(self, telescope, time, below_horizon=np.inf):
-        """Return the airmass of the Obj at time `time` from Telescope
-        `telescope`.
+        """Return the airmass of the object at a given time. Uses the Pickering
+        (2002) interpolation of the Rayleigh (molecular atmosphere) airmass.
+
+        The Pickering interpolation tends toward 38.7494 as the altitude
+        approaches zero.
 
         Parameters
         ----------
 
-        telescope: skyportal.models.Telescope
+        telescope : `skyportal.models.Telescope`
             The telescope to use for the airmass calculation
-        time: astropy.time.Time
+        time : `astropy.time.Time` or list of astropy.time.Time`
             The time or times at which to calculate the airmass
+        below_horizon : scalar, Numeric
+            Airmass value to assign when an object is below the horizon.
+            An object is "below the horizon" when its altitude is less than
+            zero degrees.
 
         Returns
         -------
-        secz: ndarray in the shape of `time`
+
+        airmass : ndarray
            The airmass of the Obj at the requested times
         """
 
         output_shape = np.shape(time)
         time = np.atleast_1d(time)
         altitude = self.altitude(telescope, time).to('degree').value
+        above = altitude > 0
 
         # use Pickering (2002) interpolation to calculate the airmass
-
-        with np.errstate(invalid='ignore'):
-            sinarg = altitude + 244 / (165 + 47 * altitude ** 1.1)
-            airmass = 1. / np.sin(np.deg2rad(sinarg))
+        # The Pickering interpolation tends toward 38.7494 as the altitude
+        # approaches zero.
+        sinarg = np.zeros_like(altitude)
+        airmass = np.ones_like(altitude) * np.inf
+        sinarg[above] = altitude[above] + 244 / (165 + 47 * altitude[above] ** 1.1)
+        airmass[above] = 1. / np.sin(np.deg2rad(sinarg[above]))
 
         # set objects below the horizon to an airmass of infinity
-        airmass[altitude < 0] = below_horizon
+        airmass[~above] = below_horizon
         airmass = airmass.reshape(output_shape)
 
         return airmass
 
     def altitude(self, telescope, time):
-        """Return the altitude of the Obj at time `time` from Telescope
-        `telescope`.
+        """Return the altitude of the object at a given time.
 
         Parameters
         ----------
 
-        telescope: skyportal.models.Telescope
+        telescope : `skyportal.models.Telescope`
             The telescope to use for the altitude calculation
 
-        time: astropy.time.Time
+        time : `astropy.time.Time`
             The time or times at which to calculate the altitude
 
         Returns
         -------
 
-        alt: astropy.units.Quantity
+        alt : `astropy.coordinates.AltAz`
            The altitude of the Obj at the requested times
         """
 

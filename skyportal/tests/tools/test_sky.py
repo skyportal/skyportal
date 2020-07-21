@@ -1,71 +1,64 @@
+import pytest
 import numpy as np
 from astropy.time import Time
+from astroplan import FixedTarget
+from skyportal.models import Obj
+
+pole_star = FixedTarget.from_name('Polaris')
+horizon_star = FixedTarget.from_name('Skat')
+
+# roughly sunset to sunrise on July 22 2020 (UTC; for palomar observatory)
+night_times = Time([f'2020-07-22 {h:02d}:00:00.000' for h in range(3, 13)],
+                   format='iso')
+
+# taken from http://www.briancasey.org/artifacts/astro/airmass.cgi?
+pole_star_airmass = np.asarray([1.851, 1.850, 1.846, 1.841, 1.834, 1.826, 1.818, 1.810,
+                                1.802, 1.796])
+
+horizon_star_airmass = np.asarray([np.inf, np.inf, np.inf, 8.222, 3.238, 2.152, 1.728,
+                                   1.556, 1.533, 1.647])
 
 
-def test_airmass(public_source, ztf_camera):
+star_dict = {
+    'polaris': {
+        'target': pole_star,
+        'airmass': pole_star_airmass
+    },
+    'skat': {
+        'target': horizon_star,
+        'airmass': horizon_star_airmass
+    }
+}
+
+
+@pytest.mark.parametrize('star', ['polaris', 'skat'])
+def test_airmass(ztf_camera, star):
+    star_obj = star_dict[star]['target']
+    star_obj = Obj(ra=star_obj.ra.deg, dec=star_obj.dec.deg)
     telescope = ztf_camera.telescope
-    times = Time(np.linspace(58000, 59000), format='mjd')
-    airmass_calc = public_source.airmass(telescope, times)
-    airmass_true = np.asarray([np.inf, np.inf, 4.259917450786537,
-                               np.inf, 1.7869997087619442, np.inf,
-                               1.290905161637478, np.inf,
-                               1.1974586801911271, np.inf,
-                               1.3723658116877935, np.inf,
-                               2.096562416708359, np.inf,
-                               7.438387758506691, 13.363224561907067,
-                               np.inf, 2.3656233357751506, np.inf,
-                               1.4392303135320286, np.inf,
-                               1.206854025593942, np.inf,
-                               1.2549876733727305, np.inf,
-                               1.6503274398889038, np.inf,
-                               3.3861055727264118, np.inf, np.inf,
-                               3.716774181803253, np.inf,
-                               1.7057972192674362, np.inf,
-                               1.2692835565701281, np.inf,
-                               1.201773923401473, np.inf,
-                               1.4083315964524334, np.inf,
-                               2.2389891804553934, np.inf,
-                               9.963125094158245, 9.250267629036953,
-                               np.inf, 2.204282485422739, np.inf,
-                               1.3996274818640069, np.inf,
-                               1.2005171979211768])
-    np.testing.assert_allclose(airmass_calc, airmass_true)
+    airmass_calc = star_obj.airmass(telescope, night_times)
+
+    # departure from plane-parallel becomes significant
+    airmass_islarge = airmass_calc > 5
+
+    # we use a somewhat large tolerance as brian casey's answers are calculated
+    # using secz whereas ours are pickering (2002)
+    np.testing.assert_allclose(
+        airmass_calc[~airmass_islarge],
+        star_dict[star]['airmass'][~airmass_islarge], rtol=5e-2, atol=0.02
+    )
+
+    np.testing.assert_allclose(
+        airmass_calc[airmass_islarge],
+        star_dict[star]['airmass'][airmass_islarge], rtol=1e-1, atol=1.
+    )
 
 
-def test_airmass_single(public_source, ztf_camera):
+def test_airmass_single(ztf_camera, public_source):
     telescope = ztf_camera.telescope
-    times = Time(59000, format='mjd')
-    airmass_calc = public_source.airmass(telescope, times)
-    np.testing.assert_allclose(airmass_calc, 1.2005171979211768)
+    time = night_times[-1]
+    airmass_calc = public_source.airmass(telescope, time)
 
-
-def test_altitude(public_source, ztf_camera):
-    telescope = ztf_camera.telescope
-    times = Time(np.linspace(58000, 59000), format='mjd')
-    airmass_calc = public_source.altitude(telescope, times).value
-    airmass_true = np.asarray([-8.236471205478335, -2.4545891949233756,
-                               13.326802219762435, -23.74557916152537,
-                               33.92767084312363, -42.959308181645206,
-                               50.70728372038899, -55.41584605114044,
-                               56.567587555021746, -53.09656119636098,
-                               46.70290093160975, -37.9700704087155,
-                               28.367457029348937, -17.883570472982335,
-                               7.308359004302709, 3.6098292922763755,
-                               -14.244411774446405, 24.869209668119726,
-                               -34.72965130147986, 43.93579830565533,
-                               -51.14565469192363, 55.89564715643906,
-                               -56.225574836441474, 52.76420934533121,
-                               -45.77979496074616, 37.20534251455628,
-                               -27.26010603174954, 16.977678586727993,
-                               -6.154734130046218, -4.538229003092764,
-                               15.389072752599379, -25.732842728787002,
-                               35.795464613813444, -44.57413579009122,
-                               51.92024388077538, -55.927548597147954,
-                               56.256198677708994, -52.02567586219354,
-                               45.165235761101464, -36.14139378811532,
-                               26.39831994573107, -15.824184113158143,
-                               5.223815732733556, 5.701900776026573,
-                               -16.295480151057205, 26.85173507328798,
-                               -36.56327857873727, 45.526309946450226,
-                               -52.280628412384736, 56.34639121561762])
-    np.testing.assert_allclose(airmass_calc, airmass_true)
+    # we use a somewhat large tolerance as brian casey's answers are calculated
+    # using secz whereas ours are pickering (2002)
+    np.testing.assert_allclose(airmass_calc, 1.198, rtol=5e-2, atol=0.02)
