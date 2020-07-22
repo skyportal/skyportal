@@ -49,7 +49,6 @@ export const ObservingRunStarList = ({ observingRunId }) => {
 
   useEffect(() => {
     const fetchStarList = async () => {
-
       const promises = assignments.map(
         (assignment) => (
           dispatch(
@@ -71,7 +70,6 @@ export const ObservingRunStarList = ({ observingRunId }) => {
 
       setStarList(starlist_info);
     };
-
     fetchStarList();
   }, [observingRunId, dispatch, assignments]);
 
