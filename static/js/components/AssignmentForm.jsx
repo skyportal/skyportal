@@ -13,8 +13,7 @@ import * as Actions from '../ducks/source';
 
 import 'react-datepicker/dist/react-datepicker-cssmodules.css';
 
-
-function makeMenuItem(observingRun, instrumentList, telescopeList, groups) {
+export function observingRunTitle(observingRun, instrumentList, telescopeList, groups){
   const { instrument_id } = observingRun;
   const instrument = instrumentList.filter((i) => i.id === instrument_id)[0];
   const instundef = instrument === undefined;
@@ -27,10 +26,15 @@ function makeMenuItem(observingRun, instrumentList, telescopeList, groups) {
   const group = usegroup ? groups.filter((g) => g.id === observingRun.group_id)[0] : undefined;
   const groupundef = group === undefined;
 
-  const render_string = `${observingRun.calendar_date} ${instundef ? "Loading..." :
+  return `${observingRun.calendar_date} ${instundef ? "Loading..." :
     instrument.name}/${telundef ? "Loading..." : telescope.nickname} (PI: ${
     observingRun.pi}${!groupundef ? `/${group.name})` : ")"}`;
 
+}
+
+
+function makeMenuItem(observingRun, instrumentList, telescopeList, groups) {
+  const render_string = observingRunTitle(observingRun, instrumentList, telescopeList, groups);
   return (
     <MenuItem value={observingRun.id} key={observingRun.id.toString()}>
       {render_string}
