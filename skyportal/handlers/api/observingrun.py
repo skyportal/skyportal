@@ -64,7 +64,7 @@ class ObservingRunHandler(BaseHandler):
         """
         ---
         single:
-          description: Retrieve an instrument
+          description: Retrieve an observing run
           parameters:
             - in: path
               name: run_id
@@ -75,7 +75,15 @@ class ObservingRunHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: SingleObservingRunGet
+                  schema:
+                    allOf:
+                      - $ref: "#/components/schemas/SingleObservingRunGet"
+                      - type: object
+                        properties:
+                          assignments:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/ClassicalAssignment"
             400:
               content:
                 application/json:
@@ -195,4 +203,3 @@ class ObservingRunHandler(BaseHandler):
         DBSession().commit()
 
         return self.success()
-

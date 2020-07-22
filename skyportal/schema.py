@@ -591,8 +591,8 @@ class ObservingRunPost(_Schema):
 
 class ObservingRunGet(ObservingRunPost):
     owner_id = fields.Integer(description='The User ID of the owner of this run.')
-    sunrise_unix = fields.Number(description='The UNIX timestamp of sunrise for this run.')
-    id = fields.Number(description='Unique identifier for the run.')
+    sunrise_unix = fields.Float(description='The UNIX timestamp of sunrise for this run.')
+    id = fields.Integer(description='Unique identifier for the run.')
 
     @pre_dump
     def serialize(self, data, **kwargs):
