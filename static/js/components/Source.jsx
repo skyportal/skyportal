@@ -7,6 +7,9 @@ import Button from "@material-ui/core/Button";
 import * as Action from '../ducks/source';
 import Plot from './Plot';
 import CommentList from './CommentList';
+import ClassificationList from './ClassificationList';
+import ClassificationForm from './ClassificationForm';
+
 import ThumbnailList from './ThumbnailList';
 import SurveyLinkList from './SurveyLinkList';
 import StarList from './StarList';
@@ -39,6 +42,8 @@ const Source = ({ route }) => {
     }
   }, [dispatch, isCached, route.id]);
   const { instrumentList, instrumentObsParams } = useSelector((state) => state.instruments);
+  const { taxonomyList } = useSelector((state) => state.taxonomies);
+
   if (source.loadError) {
     return (
       <div>
@@ -162,6 +167,19 @@ const Source = ({ route }) => {
           className={styles.comments}
         >
           <CommentList />
+        </Responsive>
+
+        <Responsive
+          element={FoldBox}
+          title="Classifications"
+          mobileProps={{ folded: true }}
+          className={styles.classifications}
+        >
+          <ClassificationForm
+            obj_id={source.id}
+            action="createNew"
+            taxonomyList={taxonomyList}
+          />
         </Responsive>
 
       </div>

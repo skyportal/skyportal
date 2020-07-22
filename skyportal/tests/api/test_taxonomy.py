@@ -1,3 +1,5 @@
+import uuid
+
 from skyportal.tests import api
 
 from tdtax import taxonomy, __version__
@@ -149,3 +151,58 @@ def test_allowed_classes(taxonomy_token, public_group):
     status, data = api('DELETE', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
 
 
+def test_get_many_taxonomies(taxonomy_token, public_group):
+
+    n_tax = 5
+    ids = []
+    names = []
+    for _ in range(n_tax):
+        name = "test taxonomy" + str(uuid.uuid4())
+        status, data = api('POST', 'taxonomy',
+                           data={'name': name,
+                                 'hierarchy': taxonomy,
+                                 'group_ids': [public_group.id],
+                                 'provenance': f"tdtax_{__version__}",
+                                 'version': __version__,
+                                 'isLatest': True},
+                           token=taxonomy_token)
+        assert status == 200
+        ids.append(data['data']['taxonomy_id'])
+        names.append(name)
+
+    status, data = api('GET', 'taxonomy',
+                       token=taxonomy_token)
+    assert status == 200
+    assert isinstance(data["data"], list)
+
+    # make sure we can retrieve those taxonomies
+    for _taxonomy in data["data"]:
+        assert _taxonomy["id"] in ids
+        assert _taxonomy["name"] == names[ids.index(_taxonomy["id"])]
+
+
+def test_taxonomy_group_view(taxonomy_token_two_groups, taxonomy_token,
+                             public_group, public_group2):
+
+    name = "test taxonomy" + str(uuid.uuid4())
+    status, data = api('POST', 'taxonomy',
+                       data={'name': name,
+                             'hierarchy': taxonomy,
+                             'group_ids': [public_group2.id],
+                             'provenance': f"tdtax_{__version__}",
+                             'version': __version__,
+                             'isLatest': True},
+                       token=taxonomy_token_two_groups)
+    assert status == 200
+    taxonomy_id = data['data']['taxonomy_id']
+
+    status, data = api('GET', f'taxonomy/{taxonomy_id}',
+                       token=taxonomy_token_two_groups)
+    assert status == 200
+
+    # this token is not apart of group 2
+    status, data = api('GET', f'taxonomy/{taxonomy_id}',
+                       token=taxonomy_token)
+    assert status == 400
+    print(data)
+    assert data["message"].find("is not available to user") != -1

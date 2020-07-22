@@ -220,6 +220,10 @@ class PhotBaseFlexible(object):
                            missing=None, default=None, required=False)
 
 
+    altdata = fields.Field(description='Misc. alternative metadata.',
+                           missing=None, default=None, required=False)
+
+
 class PhotFluxFlexible(_Schema, PhotBaseFlexible):
     """This is one of two classes used for rendering the
     input data to `PhotometryHandler.post` in redoc. These classes are only

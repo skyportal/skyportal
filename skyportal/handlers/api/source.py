@@ -182,6 +182,8 @@ class SourceHandler(BaseHandler):
                          .joinedload(Obj.followup_requests)
                          .joinedload(FollowupRequest.instrument),
                          joinedload(Source.obj)
+                         .joinedload(Obj.classifications),
+                         joinedload(Source.obj)
                          .joinedload(Obj.thumbnails)
                          .joinedload(Thumbnail.photometry)
                          .joinedload(Photometry.instrument)
