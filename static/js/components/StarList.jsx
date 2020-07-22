@@ -44,12 +44,12 @@ const StarList = ({ sourceId }) => {
 
 export const ObservingRunStarList = ({ observingRunId }) => {
   const [starList, setStarList] = useState([{ str: 'Loading starlist...' }]);
-  const { assignments } = useSelector((state) => state.observingRun.assignments);
+  const observingRun = useSelector((state) => state.observingRun);
   const dispatch = useDispatch();
 
   useEffect(() => {
     const fetchStarList = async () => {
-      const promises = assignments.map(
+      const promises = observingRun.assignments.map(
         (assignment) => (
           dispatch(
             GET(
@@ -60,18 +60,17 @@ export const ObservingRunStarList = ({ observingRunId }) => {
       );
 
       const starlist_info = [];
-      Promise.all(promises).then(
+      await Promise.allSettled(promises).then(
         (values) => {
           values.forEach(
-            (value) => starlist_info.push(...value)
+            (response) => starlist_info.push(...response.value.data.starlist_info)
           )
         }
       );
-
       setStarList(starlist_info);
     };
     fetchStarList();
-  }, [observingRunId, dispatch, assignments]);
+  }, [observingRunId, dispatch, observingRun]);
 
   return _starListElem(starList);
 

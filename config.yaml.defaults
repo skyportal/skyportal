@@ -34,6 +34,8 @@ app:
       component: UploadPhotometry
     - path: "/about"
       component: About
+    - path: "/run/:id"
+      component: RunSummary
 
   sidebar:
     # See https://material-ui.com/components/material-icons/

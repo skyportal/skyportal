@@ -600,6 +600,10 @@ class ObservingRunGet(ObservingRunPost):
         return data
 
 
+class ObservingRunGetWithAssignments(ObservingRunGet):
+    assignments = fields.List(fields.Field())
+
+
 def register_components(spec):
     print('Registering schemas with APISpec')
 
@@ -631,4 +635,5 @@ PhotFluxFlexible = PhotFluxFlexible()
 ObservingRunPost = ObservingRunPost()
 ObservingRunGet = ObservingRunGet()
 AssignmentSchema = AssignmentSchema()
+ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
 

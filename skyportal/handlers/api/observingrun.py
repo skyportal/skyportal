@@ -2,7 +2,8 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, ObservingRun
-from ...schema import ObservingRunPost, ObservingRunGet
+from ...schema import (ObservingRunPost, ObservingRunGet,
+                       ObservingRunGetWithAssignments)
 
 
 class ObservingRunHandler(BaseHandler):
@@ -75,15 +76,7 @@ class ObservingRunHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema:
-                    allOf:
-                      - $ref: "#/components/schemas/SingleObservingRunGet"
-                      - type: object
-                        properties:
-                          assignments:
-                            type: array
-                            items:
-                              $ref: "#/components/schemas/ClassicalAssignment"
+                  schema: SingleObservingRunGetWithAssignments
             400:
               content:
                 application/json:
@@ -106,7 +99,7 @@ class ObservingRunHandler(BaseHandler):
             if run is None:
                 return self.error(f"Could not load observing run {run_id}",
                                   data={"run_id": run_id})
-            data = ObservingRunGet.dump(run)
+            data = ObservingRunGetWithAssignments.dump(run)
             return self.success(data=data)
         runs = ObservingRun.query.all()
         data = ObservingRunGet.dump(runs, many=True)
