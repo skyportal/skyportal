@@ -14,7 +14,6 @@ import Autocomplete, { createFilterOptions } from '@material-ui/lab/Autocomplete
 import * as Actions from '../ducks/source';
 
 
-
 function makeMenuItem(taxonomy, index) {
 
   const render_string = `[${taxonomy.id}] ${taxonomy.name} ${taxonomy.version}`;
@@ -45,7 +44,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       }
   }
 
-  // const ddd = useDispatch();
+  const submitDispatch = useDispatch();
 
   const initialState = {
     taxonomy_index: taxonomyList.length > 0 ? 0 : null,
@@ -91,7 +90,10 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
     dispatch({name: "probability_select_enabled", value: true});
   };
 
+
   const processProb = (event, value) => {
+    // make sure that the probability in in [0,1], otherwise set
+    // an error state on the entry
     if ((isNaN(parseFloat(event.target.value))) || ((parseFloat(event.target.value) > 1) || (parseFloat(event.target.value) < 0))) {
       dispatch({name: "probability_errored", value: true});
     } else {
@@ -101,15 +103,15 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   };
 
   const onSubmit = () => {
+    // TODO: allow fine-grained user groups in submission
     const formData = {
-      taxonomy_id: state.taxonomy_id,
+      taxonomy_id: taxonomyList[state.taxonomy_index].id,
       obj_id: obj_id,
       classification: state.classification,
-      probability: state.probability
+      probability: parseFloat(state.probability)
     };
     // We need to include this field in request, but it isn't in form data
-    dispatch(Actions.addClassification(formData));
-    // reset(initialFormState);
+    submitDispatch(Actions.addClassification(formData));
   };
 
 
@@ -137,7 +139,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
               value={state.classification || ""}
               onChange={handleClasschange}
               getOptionLabel={(option) => option}
-              renderInput={(params) => <TextField {...params} style={{ width: '100%' }} label="Classification" variant="outlined" fullWidth />}
+              renderInput={(params) => <TextField {...params} style={{ width: '100%' }} label="Classification" fullWidth />}
             />
           </div>
           <div style={{ display: state.class_select_enabled && state.probability_select_enabled ? "block" : "none" }}>
@@ -154,8 +156,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
                   }}
                   inputProps={{ min: "0", max: "1", step: "0.1" }}
                   onBlur={processProb}
-                  variant="outlined"
-        />
+           />
           </div>
           <br></br>
           <Button
@@ -164,7 +165,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
             disabled={!(state.class_select_enabled && state.probability_select_enabled
                         && !(state.probability_errored))}
             variant="contained">
-            Submit
+            ↵
           </Button>
         </div>
       </form>
