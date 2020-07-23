@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import { useForm, Controller } from 'react-hook-form';
 import Select from "@material-ui/core/Select";
 import InputLabel from "@material-ui/core/InputLabel";
+import Input from "@material-ui/core/Input";
 import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
 import FormControl from "@material-ui/core/FormControl";
@@ -16,7 +17,7 @@ import * as Actions from '../ducks/source';
 
 function makeMenuItem(taxonomy, index) {
 
-  const render_string = `[${index} ${taxonomy.id}] ${taxonomy.name} ${taxonomy.version} (${taxonomy.created_at})`;
+  const render_string = `[${taxonomy.id}] ${taxonomy.name} ${taxonomy.version}`;
 
   return (
     <MenuItem value={index} key={index.toString()}>
@@ -36,11 +37,6 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
             [action.name]: action.value,
             allowed_classes: taxonomyList[action.value].allowed_classes,
           };
-        case 'classification':
-          return {
-            ...state,
-            [action.name]: state.allowed_classes[action.value],
-          };
         default:
           return {
             ...state,
@@ -49,13 +45,16 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       }
   }
 
-  const ddd = useDispatch();
+  // const ddd = useDispatch();
 
   const initialState = {
     taxonomy_index: taxonomyList.length > 0 ? 0 : null,
-    classification: "",
-    probability: null,
-    allowed_classes: taxonomyList.length > 0 ? taxonomyList[0].allowed_classes : []
+    classification: null,
+    probability: 1.0,
+    class_select_enabled: false,
+    probability_select_enabled: false,
+    probability_errored: false,
+    allowed_classes: taxonomyList.length > 0 ? taxonomyList[0].allowed_classes : [null]
   }
   const [state, dispatch] = useReducer(reducer, initialState);
   const { handleSubmit, getValues, reset, register, control } = useForm();
@@ -63,7 +62,9 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const useStyles = makeStyles((theme) => ({
     formControl: {
       margin: theme.spacing(1),
-      minWidth: 120
+      fullWidth: true,
+      display: 'flex',
+      wrap: 'nowrap'
     }
   }));
   const classes = useStyles();
@@ -76,15 +77,27 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
     );
   }
 
-  const handleChange = (event) => {
-    console.log(event.target.value);
-    console.log(taxonomyList[event.target.value].allowed_classes);
+  const handleTaxonomyChange = (event) => {
     dispatch({name: "taxonomy_index", value: event.target.value});
+    dispatch({name: "classification", value: ""});
+    dispatch({name: "class_select_enabled", value: true});
+    dispatch({name: "probability_select_enabled", value: false});
+    dispatch({name: "probability_errored", value: false});
+    dispatch({name: "probability", value: 1.0});
   };
 
-  const handleClasschange = (event) => {
-    console.log(event.target.value);
-    dispatch({name: "classification", value: event.target.value});
+  const handleClasschange = (event, value) => {
+    dispatch({name: "classification", value: value});
+    dispatch({name: "probability_select_enabled", value: true});
+  };
+
+  const processProb = (event, value) => {
+    if ((isNaN(parseFloat(event.target.value))) || ((parseFloat(event.target.value) > 1) || (parseFloat(event.target.value) < 0))) {
+      dispatch({name: "probability_errored", value: true});
+    } else {
+      dispatch({name: "probability_errored", value: false});
+      dispatch({name: "probability", value: event.target.value});
+    }
   };
 
   const onSubmit = () => {
@@ -106,34 +119,51 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
         <div>
         <h3>Add Classification</h3>
           <FormControl className={classes.formControl}>
+            <InputLabel id="taxonomy-label">Taxonomy...</InputLabel>
             <Select
             defaultValue=""
-            onChange={handleChange}
+            onChange={handleTaxonomyChange}
              >
               {taxonomyList.map((taxonomy, index) => makeMenuItem(
                 taxonomy, index
               ))}
             </Select>
           </FormControl>
-          <Autocomplete
-          options={state.allowed_classes}
-          loadingText='loading...'
-          noOptionsText='Select a taxonomy'
-          id="classification"
-          value={state.classification}
-          onChange={handleClasschange}
-          renderInput={params => (
-            <TextField
-              {...params}
-              variant="standard"
-              label="Classification"
-              placeholder="Classification"
-              margin="normal"
-              fullWidth
+          <div style={{ display: state.class_select_enabled ? "block" : "none" }}>
+            <Autocomplete
+              options={state.allowed_classes}
+              id="classification"
+              getOptionSelected={(option) => option === option}
+              value={state.classification || ""}
+              onChange={handleClasschange}
+              getOptionLabel={(option) => option}
+              renderInput={(params) => <TextField {...params} style={{ width: '100%' }} label="Classification" variant="outlined" fullWidth />}
             />
-          )}
+          </div>
+          <div style={{ display: state.class_select_enabled && state.probability_select_enabled ? "block" : "none" }}>
+                <TextField
+                  id="probability"
+                  label="Probability"
+                  error={state.probability_errored}
+                  type="number"
+                  defaultValue={"1.0"}
+                  helperText="[0-1]"
+                  InputLabelProps={{
+                      shrink: true,
+
+                  }}
+                  inputProps={{ min: "0", max: "1", step: "0.1" }}
+                  onBlur={processProb}
+                  variant="outlined"
         />
-          <Button type="submit" name="classificationSubmitButton" variant="contained">
+          </div>
+          <br></br>
+          <Button
+            type="submit"
+            name="classificationSubmitButton"
+            disabled={!(state.class_select_enabled && state.probability_select_enabled
+                        && !(state.probability_errored))}
+            variant="contained">
             Submit
           </Button>
         </div>
@@ -142,22 +172,6 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   );
 };
 
-const top100Films = [
-  { title: 'The Shawshank Redemption', year: 1994 },
-  { title: 'The Godfather', year: 1972 },
-  { title: 'The Godfather: Part II', year: 1974 },
-  { title: 'The Dark Knight', year: 2008 },
-  { title: '12 Angry Men', year: 1957 },
-  { title: "Schindler's List", year: 1993 },
-  { title: 'Pulp Fiction', year: 1994 },
-  { title: 'The Lord of the Rings: The Return of the King', year: 2003 },
-  { title: 'The Good, the Bad and the Ugly', year: 1966 },
-  { title: 'Fight Club', year: 1999 },
-  { title: 'The Lord of the Rings: The Fellowship of the Ring', year: 2001 },
-  { title: 'Star Wars: Episode V - The Empire Strikes Back', year: 1980 },
-  { title: 'Forrest Gump', year: 1994 },
-  { title: 'Inception', year: 2010 },
-];
 
 ClassificationForm.propTypes = {
   taxonomyList: PropTypes.arrayOf(PropTypes.shape({
