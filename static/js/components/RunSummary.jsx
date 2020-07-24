@@ -7,6 +7,7 @@ import { ObservingRunStarList } from './StarList';
 import { observingRunTitle } from './AssignmentForm';
 import styles from './Source.css';
 
+import { Suspense } from 'react';
 
 import Table from '@material-ui/core/Table';
 import List from '@material-ui/core/List';
@@ -35,7 +36,7 @@ import { time_relative_to_local} from "../units";
 import ThumbnailList from "./ThumbnailList";
 import { makeStyles } from '@material-ui/core/styles';
 
-const VegaPlot = React.lazy(() => import(/* webpackChunkName: "VegaPlot" */ './VegaPlot'));
+const VegaPlot = React.lazy(() => import('./VegaPlot'));
 
 const useRowStyles = makeStyles({
   root: {
@@ -93,10 +94,13 @@ const Row = ({ assignment }) => {
             {assignment.obj.id}
         </TableCell>
         <TableCell align="center"><p>Placeholder</p></TableCell>
-        <TableCell align="center"><p>Nothing</p></TableCell>
         <ErrorBoundary>
           <TableCell align="center">
-            <VegaPlot dataUrl={`/api/sources/${assignment.obj.id}/photometry`}/>
+            <Suspense fallback={<div>Loading plot...</div>}>
+              <VegaPlot
+                dataUrl={`/api/sources/${assignment.obj.id}/photometry`}
+              />
+            </Suspense>
           </TableCell>
         </ErrorBoundary>
         <ErrorBoundary>
@@ -118,9 +122,11 @@ const Row = ({ assignment }) => {
         </ErrorBoundary>
         <ErrorBoundary>
           <TableCell align="center">
-            <Link href={`/api/sources/${assignment.obj.id}/finder`}>
-              <PictureAsPdfIcon/>
-            </Link>
+            <IconButton aria-label="expand row" size="small">
+              <Link href={`/api/sources/${assignment.obj.id}/finder`}>
+                <PictureAsPdfIcon/>
+              </Link>
+            </IconButton>
           </TableCell>
         </ErrorBoundary>
       </TableRow>
@@ -189,9 +195,9 @@ const RunSummary = ({ route }) => {
               <TableHead>
                 <TableRow>
                   <ErrorBoundary>
+                    <TableCell align="center" />
                     <TableCell align="center">Name</TableCell>
-                    <TableCell align="center">Airmass</TableCell>
-                    <TableCell align="center">Thumbnails</TableCell>
+                    <TableCell align="center">Placeholder</TableCell>
                     <TableCell align="center">Light Curve</TableCell>
                     <TableCell align="center">Assignment Details</TableCell>
                     <TableCell align="center">Finder Chart</TableCell>
