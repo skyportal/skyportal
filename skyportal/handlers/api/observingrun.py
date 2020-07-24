@@ -1,7 +1,9 @@
+from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, ObservingRun
+from ...models import(DBSession, ObservingRun, ClassicalAssignment, Obj,
+                      Thumbnail)
 from ...schema import (ObservingRunPost, ObservingRunGet,
                        ObservingRunGetWithAssignments)
 
@@ -94,11 +96,31 @@ class ObservingRunHandler(BaseHandler):
                   schema: Error
         """
         if run_id is not None:
-            run = ObservingRun.query.get(int(run_id))
+            run = DBSession().query(ObservingRun).options(
+                joinedload(ObservingRun.assignments)
+                .joinedload(ClassicalAssignment.obj)
+                .joinedload(Obj.thumbnails)
+                .joinedload(Thumbnail.photometry),
+                joinedload(ObservingRun.assignments)
+                .joinedload(ClassicalAssignment.requester),
+                joinedload(ObservingRun.assignments)
+                .joinedload(ClassicalAssignment.obj)
+                .joinedload(Obj.comments),
+            ).filter(ObservingRun.id == run_id).first()
 
             if run is None:
                 return self.error(f"Could not load observing run {run_id}",
                                   data={"run_id": run_id})
+            # order the assignments by ra
+            run.assignments = sorted(run.assignments, key=lambda a: a.obj.ra)
+
+            # filter out the assignments of objects that are not visible to
+            # the user
+            run.assignments = list(filter(
+                lambda a: a.obj.is_owned_by(self.current_user),
+                run.assignments
+            ))
+
             data = ObservingRunGetWithAssignments.dump(run)
             return self.success(data=data)
         runs = ObservingRun.query.all()
