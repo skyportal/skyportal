@@ -32,9 +32,8 @@ const useStyles = makeStyles((theme) =>
       marginBottom: 0,
     },
     media: {
-      minHeight: 200,
+      height: 200,
       width: 200,
-      height: "auto"
     }
   })
 );
