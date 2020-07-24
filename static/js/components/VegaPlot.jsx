@@ -167,20 +167,43 @@ const spec = (url) => ({
 });
 
 
-const VegaPlot = ({ dataUrl }) => (
-  <div
-    ref={
-      (node) => {
-        embed(node, spec(dataUrl), {
-          actions: false
-        });
-      }
+const airmass_spec = (url) => ({
+  $schema: "https://vega.github.io/schema/vega-lite/v4.json",
+  data: {
+    url,
+    format: {
+      type: "json",
+      property: "data" // where on the JSON does the data live
     }
-  />
-);
+  },
+  background: "transparent",
+  mark: "line",
+  encoding: {
+    x: {field: "time", type: "temporal"},
+    y: {field: "airmass", type: "quantitative"}
+  }
+});
+
+
+const VegaPlot = ({ dataUrl, type = "light_curve" }) => {
+  const myspec = type === "light_curve" ? spec : airmass_spec;
+
+  return (
+    <div
+      ref={
+        (node) => {
+          embed(node, myspec(dataUrl), {
+            actions: false
+          });
+        }
+      }
+    />
+  );
+};
 
 VegaPlot.propTypes = {
-  dataUrl: PropTypes.string.isRequired
+  dataUrl: PropTypes.string.isRequired,
+  type: PropTypes.string
 };
 
 export default VegaPlot;

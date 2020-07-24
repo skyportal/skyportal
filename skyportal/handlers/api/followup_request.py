@@ -145,7 +145,7 @@ class AssignmentHandler(BaseHandler):
         data['id'] = assignment_id
         data["requester_id"] = self.associated_user_object.id
 
-        schema = FollowupRequest.__schema__()
+        schema = ClassicalAssignment.__schema__()
         try:
             schema.load(data)
         except ValidationError as e:

@@ -26,10 +26,8 @@ export function observingRunTitle(observingRun, instrumentList, telescopeList, g
   const group = usegroup ? groups.filter((g) => g.id === observingRun.group_id)[0] : undefined;
   const groupundef = group === undefined;
 
-  return `${observingRun.calendar_date} ${instundef ? "Loading..." :
-    instrument.name}/${telundef ? "Loading..." : telescope.nickname} (PI: ${
-    observingRun.pi}${!groupundef ? `/${group.name})` : ")"}`;
-
+  return `${observingRun.calendar_date} ${telundef ? "Loading..." : telescope.nickname}/${instundef ? "Loading..." : instrument.name} \
+    (PI: ${observingRun.pi}${!groupundef ? `/${group.name})` : ")"}`;
 }
 
 

@@ -1,6 +1,10 @@
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 from .... import plot
+from ....models import ClassicalAssignment, Source
+
+import numpy as np
+from astropy import time as ap_time
 
 
 # TODO this should distinguish between "no data to plot" and "plot failed"
@@ -30,3 +34,25 @@ class PlotSpectroscopyHandler(BaseHandler):
             self.success(data={'docs_json': docs_json, 'render_items': render_items,
                                'custom_model_js': custom_model_js,
                                'url': self.request.path})
+
+
+class PlotAirmassHandler(BaseHandler):
+    @auth_or_token
+    def get(self, assignment_id):
+        assignment = ClassicalAssignment.query.get(assignment_id)
+        if assignment is None:
+            self.error('Invalid assignment id.')
+        obj = assignment.obj
+        permission_check = Source.get_obj_if_owned_by(obj.id, self.current_user)
+        if permission_check is None:
+            self.error('Invalid assignment id.')
+
+        sunset = assignment.run.sunset
+        sunrise = assignment.run.sunrise
+
+        time = np.linspace(sunset.unix, sunrise.unix, 50)
+        time = ap_time.Time(time)
+
+        airmass = obj.airmass(time, assignment.run.telescope)
+        time = time.iso
+        return self.success(data={'time': time, 'airmass': airmass})
