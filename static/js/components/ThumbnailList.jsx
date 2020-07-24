@@ -113,7 +113,7 @@ Thumbnail.propTypes = {
   mjd: PropTypes.number.isRequired
 };
 
-const ThumbnailList = ({ ra, dec, thumbnails }) => {
+const ThumbnailList = ({ ra, dec, thumbnails, gridKwargs={} }) => {
 
   const thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8'];
   // Sort thumbnails by order of appearance in `thumbnail_order`
@@ -124,22 +124,21 @@ const ThumbnailList = ({ ra, dec, thumbnails }) => {
     <Grid
       container
       direction="row"
-      justify="center"
-      alignItems="center"
       spacing={3}
+      {...gridKwargs}
     >
       {
         thumbnails.map((t) => (
-            <Grid item key={t.id}>
-              <Thumbnail
-                key={`thumb_${t.type}`}
-                ra={ra}
-                dec={dec}
-                name={t.type}
-                url={t.public_url}
-                mjd={t.photometry.mjd}
-              />
-            </Grid>
+          <Grid item key={t.id}>
+            <Thumbnail
+              key={`thumb_${t.type}`}
+              ra={ra}
+              dec={dec}
+              name={t.type}
+              url={t.public_url}
+              mjd={t.photometry.mjd}
+            />
+          </Grid>
           )
         )
       }
