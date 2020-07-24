@@ -56,7 +56,8 @@ const spec = (url) => ({
         },
         color: {
           field: "filter",
-          type: "nominal"
+          type: "nominal",
+          scale: {domain: ["ztfg", "ztfr", "ztfi"], "range": ["#377E22", "#EA3323", "#CCCC52"]}
         },
         tooltip: [
           { field: "magAndErr", title: "mag", type: "nominal" },

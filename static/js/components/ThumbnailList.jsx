@@ -121,7 +121,13 @@ const ThumbnailList = ({ ra, dec, thumbnails }) => {
   thumbnail_order.indexOf(b.type) ? -1 : 1));
 
   return (
-    <Grid container spacing={2}>
+    <Grid
+      container
+      direction="row"
+      justify="center"
+      alignItems="center"
+      spacing={3}
+    >
       {
         thumbnails.map((t) => (
             <Grid item key={t.id}>
