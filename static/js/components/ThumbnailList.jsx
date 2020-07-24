@@ -31,9 +31,20 @@ const useStyles = makeStyles((theme) =>
     pos: {
       marginBottom: 0,
     },
+    mediaDiv: {
+      position: "relative"
+    },
     media: {
       height: 200,
       width: 200,
+    },
+    crosshair: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      width: 200,
+      height: 200,
+      paddingBottom: "0.2em"
     }
   })
 );
@@ -82,7 +93,14 @@ const Thumbnail = ({ ra, dec, mjd, name, url }) => {
           {name.toUpperCase()}
         </Typography>
       </CardContent>
-      <img src={url} alt={alt} className={classes.media} title={alt}/>
+      <div className={classes.mediaDiv}>
+        <a href={link}>
+          <img src={url} alt={alt} className={classes.media} title={alt}/>
+        </a>
+        {
+          (name === "dr8") && <img className={classes.crosshair} src="/static/images/crosshairs.png" alt="" />
+        }
+      </div>
     </Card>
   );
 };
