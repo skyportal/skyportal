@@ -91,15 +91,31 @@ const Source = ({ route }) => {
             return a.modified < b.modified ? 1 : -1;
       })));
 
+
       if (sortedClasses.length > 0) {
          return (
             <div>
              <b>Classification: </b>
-             {sortedClasses.map((c, index) => (
-                    <Tooltip key={index} disableFocusListener disableTouchListener title={`taxonomy=${c[0].taxonomy_id} P=${c[0].probability}`}>
+             {sortedClasses.map((c, index) => {
+                    var name = taxonomyList.filter(i => i.id === c[0].taxonomy_id);
+                    if (name.length > 0)
+                      {
+                        name = name[0].name;
+                      }
+                    return (
+                    <Tooltip key={index} disableFocusListener disableTouchListener
+                        title={
+                        <React.Fragment>
+                          P={c[0].probability} ({name})
+                          <br></br>
+                          <i>{c[0].author_name}</i>
+                        </React.Fragment>
+                        }
+                    >
                         <Button key={index}>{c[0].classification}</Button>
                     </Tooltip>
-              ))}
+                    );
+              })}
             </div>
           );
         } else {

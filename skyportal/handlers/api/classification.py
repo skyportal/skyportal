@@ -117,7 +117,8 @@ class ClassificationHandler(BaseHandler):
         if not isinstance(taxonomy, list):
             return self.error('Problem retrieving taxonomy')
 
-        if data['classification'] not in taxonomy[0].allowed_classes:
+        if data['classification'] not in \
+            [c["class"] for c in taxonomy[0].allowed_classes]:
             return self.error(f"That classification ({data['classification']}) "
                               'is not in the allowed classes for the chosen '
                               f'taxonomy (id={taxonomy_id}')

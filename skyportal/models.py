@@ -511,9 +511,10 @@ class Taxonomy(Base):
                         doc='Semantic version of this taxonomy'
                         )
 
-    allowed_classes = sa.Column(sa.ARRAY(sa.String), nullable=False,
+    allowed_classes = sa.Column(JSONB, nullable=False,
                                 doc="Computed list of allowable classes"
-                                " in this taxonomy.")
+                                " in this taxonomy, like "
+                                " [{'class': 'II', 'label': 'II<SNII'}, ...]")
 
     isLatest = sa.Column(sa.Boolean, default=True, nullable=False,
                          doc='Consider this the latest version of '

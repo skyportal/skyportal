@@ -16,7 +16,7 @@ import * as Actions from '../ducks/source';
 
 function makeMenuItem(taxonomy, index) {
 
-  const render_string = `[${taxonomy.id}] ${taxonomy.name} ${taxonomy.version}`;
+  const render_string = `${taxonomy.name} (${taxonomy.version})`;
 
   return (
     <MenuItem value={index} key={index.toString()}>
@@ -28,13 +28,15 @@ function makeMenuItem(taxonomy, index) {
 
 const ClassificationForm = ({ obj_id, taxonomyList }) => {
 
+  const latest_taxonomyList = taxonomyList.filter(t => t.isLatest)
+
   function reducer(state, action) {
       switch (action.name) {
         case 'taxonomy_index':
           return {
             ...state,
             [action.name]: action.value,
-            allowed_classes: taxonomyList[action.value].allowed_classes,
+            allowed_classes: latest_taxonomyList[action.value].allowed_classes,
           };
         default:
           return {
@@ -47,13 +49,13 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const submitDispatch = useDispatch();
 
   const initialState = {
-    taxonomy_index: taxonomyList.length > 0 ? 0 : null,
+    taxonomy_index: latest_taxonomyList.length > 0 ? 0 : null,
     classification: null,
     probability: 1.0,
     class_select_enabled: false,
     probability_select_enabled: false,
     probability_errored: false,
-    allowed_classes: taxonomyList.length > 0 ? taxonomyList[0].allowed_classes : [null]
+    allowed_classes: latest_taxonomyList.length > 0 ? latest_taxonomyList[0].allowed_classes : [null]
   }
   const [state, dispatch] = useReducer(reducer, initialState);
   const { handleSubmit, getValues, reset, register, control } = useForm();
@@ -68,7 +70,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   }));
   const classes = useStyles();
 
-  if (taxonomyList.length === 0) {
+  if (latest_taxonomyList.length === 0) {
     return (
       <b>
         No taxonomies loaded...
@@ -104,9 +106,9 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const onSubmit = () => {
     // TODO: allow fine-grained user groups in submission
     const formData = {
-      taxonomy_id: taxonomyList[state.taxonomy_index].id,
+      taxonomy_id: latest_taxonomyList[state.taxonomy_index].id,
       obj_id: obj_id,
-      classification: state.classification,
+      classification: state.classification.class,
       probability: parseFloat(state.probability)
     };
     // We need to include this field in request, but it isn't in form data
@@ -120,12 +122,12 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
         <div>
         <h3>Add Classification</h3>
           <FormControl className={classes.formControl}>
-            <InputLabel id="taxonomy-label">Taxonomy...</InputLabel>
+            <InputLabel id="taxonomy-label">Taxonomy</InputLabel>
             <Select
             defaultValue=""
             onChange={handleTaxonomyChange}
              >
-              {taxonomyList.map((taxonomy, index) => makeMenuItem(
+              {latest_taxonomyList.map((taxonomy, index) => makeMenuItem(
                 taxonomy, index
               ))}
             </Select>
@@ -134,11 +136,26 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
             <Autocomplete
               options={state.allowed_classes}
               id="classification"
-              getOptionSelected={(option) => option === option}
+              getOptionSelected={(option) => {
+                if (option === null) {
+                  return (true);
+                }
+                if (option === '') {
+                  return (true);
+                }
+                return option.class === option.class;
+                }
+              }
               value={state.classification || ""}
               onChange={handleClasschange}
-              getOptionLabel={(option) => option}
+              getOptionLabel={option => option.class || ""}
               renderInput={(params) => <TextField {...params} style={{ width: '100%' }} label="Classification" fullWidth />}
+              renderOption={option => {
+                const val = `${option.label}`;
+                return (
+                  <div dangerouslySetInnerHTML={{__html: val}}  />
+                );
+              }}
             />
           </div>
           <div style={{ display: state.class_select_enabled && state.probability_select_enabled ? "block" : "none" }}>
@@ -153,7 +170,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
                       shrink: true,
 
                   }}
-                  inputProps={{ min: "0", max: "1", step: "0.1" }}
+                  inputProps={{ min: "0", max: "1", step: "0.0001" }}
                   onBlur={processProb}
            />
           </div>

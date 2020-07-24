@@ -6,9 +6,10 @@ from tdtax import taxonomy, __version__
 
 
 def test_add_retrieve_delete_taxonomy(taxonomy_token, public_group):
+    name = str(uuid.uuid4())
     status, data = api('POST', 'taxonomy',
                        data={
-                             'name': "test taxonomy",
+                             'name': name,
                              'hierarchy': taxonomy,
                              'group_ids': [public_group.id],
                              'provenance': f"tdtax_{__version__}",
@@ -22,7 +23,7 @@ def test_add_retrieve_delete_taxonomy(taxonomy_token, public_group):
     status, data = api('GET', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
 
     assert status == 200
-    assert data['data']['name'] == 'test taxonomy'
+    assert data['data']['name'] == name
     assert data['data']['version'] == __version__
 
     status, data = api('DELETE', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
@@ -35,7 +36,7 @@ def test_add_retrieve_delete_taxonomy(taxonomy_token, public_group):
 def test_add_bad_taxonomy(taxonomy_token, public_group):
     status, data = api('POST', 'taxonomy',
                        data={
-                             'name': "test bad taxonomy",
+                             'name': str(uuid.uuid4()),
                              'hierarchy': {"Silly": "taxonomy", "bad": True},
                              'group_ids': [public_group.id],
                              'provenance': "Nope",
@@ -51,9 +52,10 @@ def test_add_bad_taxonomy(taxonomy_token, public_group):
 def test_latest_taxonomy(taxonomy_token, public_group):
 
     # add one, then add another with the same name
+    name = str(uuid.uuid4())
     status, data = api('POST', 'taxonomy',
                        data={
-                             'name': "test taxonomy",
+                             'name': name,
                              'hierarchy': taxonomy,
                              'group_ids': [public_group.id],
                              'provenance': f"tdtax_{__version__}",
@@ -69,7 +71,7 @@ def test_latest_taxonomy(taxonomy_token, public_group):
 
     status, data = api('POST', 'taxonomy',
                        data={
-                             'name': "test taxonomy",
+                             'name': name,
                              'hierarchy': taxonomy,
                              'group_ids': [public_group.id],
                              'provenance': f"tdtax_{__version__}",
@@ -98,7 +100,7 @@ def test_allowed_classes(taxonomy_token, public_group):
 
     status, data = api('POST', 'taxonomy',
                        data={
-                             'name': "test allowed taxonomy",
+                             'name': str(uuid.uuid4()),
                              'hierarchy': taxonomy,
                              'group_ids': [public_group.id],
                              'provenance': f"tdtax_{__version__}",
@@ -110,7 +112,7 @@ def test_allowed_classes(taxonomy_token, public_group):
     status, data = api('GET', f'taxonomy/{taxonomy_id}',
                        token=taxonomy_token)
     assert status == 200
-    assert "Ia" in data['data']['allowed_classes']
+    assert "Ia" in [c["class"] for c in data['data']['allowed_classes']]
     status, data = api('DELETE', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
 
     simple = {'class': 'Cepheid',
@@ -134,7 +136,7 @@ def test_allowed_classes(taxonomy_token, public_group):
 
     status, data = api('POST', 'taxonomy',
                        data={
-                             'name': "test allowed simple taxonomy",
+                             'name': str(uuid.uuid4()),
                              'hierarchy': simple,
                              'group_ids': [public_group.id],
                              'provenance': f"tdtax_{__version__}",
@@ -146,8 +148,8 @@ def test_allowed_classes(taxonomy_token, public_group):
     status, data = api('GET', f'taxonomy/{taxonomy_id}',
                        token=taxonomy_token)
     assert status == 200
-    assert "Ia" not in data['data']['allowed_classes']
-    assert "Cep" not in data['data']['allowed_classes']
+    assert "Ia" not in [c["class"] for c in data['data']['allowed_classes']]
+    assert "Cep" not in [c["class"] for c in data['data']['allowed_classes']]
     status, data = api('DELETE', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
 
 

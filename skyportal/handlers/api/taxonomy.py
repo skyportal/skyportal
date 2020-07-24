@@ -1,7 +1,6 @@
 from marshmallow.exceptions import ValidationError
 from tdtax import schema, validate
 from jsonschema.exceptions import ValidationError as JSONValidationError
-from jsonpath_ng import parse
 
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -176,10 +175,25 @@ class TaxonomyHandler(BaseHandler):
         provenance = data.get('provenance', None)
 
         # compute the allowable classes
-        jsonpath_expr = parse('$..class')
-        allowed_classes = list(set(
-                               [x.value for x in jsonpath_expr.find(hierarchy)]
-                               ))
+        rez = []
+        def dict_path(path,my_dict):
+            if my_dict.get("class"):
+                cla = my_dict.get("class")
+                if cla == 'Time-domain Source':
+                    cla = ''
+                rez.append(path+"-><b>"+cla+"</b>")
+                for i, item in enumerate(my_dict.get("subclasses", [])):
+                    if isinstance(item ,dict):
+                        dict_path( path + "->" + cla, item)
+
+        dict_path("", hierarchy)
+        allowed_classes = []
+        for v in rez:
+            ss = v.split("->")[2:]
+            if len(ss) > 0:
+                allowed_classes.append({"class": ss[-1].split(">")[1].split("<")[0],
+                                "label": "⇐".join(list(reversed(ss)))})
+
         # update others with this name
         # TODO: deal with the same name but different groups?
         isLatest = data.get('isLatest', True)

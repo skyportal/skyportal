@@ -27,6 +27,7 @@ const ClassificationList = ({ isCandidate }) => {
   };
 
   const dispatch = useDispatch();
+  const taxonomyList = useSelector((state) => state.taxonomies.taxonomyList);
   const source = useSelector((state) => state.source);
   const candidate = useSelector((state) => state.candidate);
   const obj = isCandidate ? candidate : source;
@@ -37,8 +38,13 @@ const ClassificationList = ({ isCandidate }) => {
   classifications = classifications || [];
 
   const items = classifications.map(
-    ({ id, author_name, created_at, classification, probability, taxonomy_id, groups }) => (
-      <span
+    ({ id, author_name, created_at, classification, probability, taxonomy_id, groups }) => {
+      var taxname = taxonomyList.filter(i => i.id === taxonomy_id);
+      if (taxname.length > 0) {
+            taxname = taxname[0].name;
+      };
+      return (
+       <span
         key={id}
         className={styles.classification}
         onMouseOver={() => handleMouseHover(id, userProfile, author_name)}
@@ -63,7 +69,7 @@ const ClassificationList = ({ isCandidate }) => {
         </div>
         <div className={styles.wrap} name={`classificationDiv${id}`}>
           <div className={styles.classificationMessage}>
-            {classification} (P={probability})
+            {classification} (P={probability}) <i>{taxname}</i>
           </div>
           <Button
             style={
@@ -84,7 +90,8 @@ const ClassificationList = ({ isCandidate }) => {
         </div>
 
       </span>
-    )
+      );
+    }
   );
   return (
     <div className={styles.classifications}>
