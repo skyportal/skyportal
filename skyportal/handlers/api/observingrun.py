@@ -127,6 +127,7 @@ class ObservingRunHandler(BaseHandler):
                                                  reverse=True)
 
             data = ObservingRunGetWithAssignments.dump(run)
+            data['assignments'] = [a.to_dict() for a in data['assignments']]
 
             # calculate when the targets rise and set
             for d, a in zip(data['assignments'], run.assignments):

@@ -801,7 +801,7 @@ class ClassicalAssignment(Base):
         """The time at which the object rises on this run."""
         observer = self.instrument.telescope.observer
         target = self.obj.target
-        return observer.target_rise_time(self.run._calendar_noon, target,
+        return observer.target_rise_time(self.run.sunset, target,
                                          which='next')
 
     @property
@@ -809,7 +809,7 @@ class ClassicalAssignment(Base):
         """The time at which the object sets on this run."""
         observer = self.instrument.telescope.observer
         target = self.obj.target
-        return observer.target_set_time(self.run._calendar_noon, target,
+        return observer.target_set_time(self.rise_time, target,
                                         which='next')
 
 

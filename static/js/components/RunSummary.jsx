@@ -400,8 +400,6 @@ const RunSummary = ({ route }) => {
     );
   } else {
 
-    const emptyRows = rowsPerPage - Math.min(rowsPerPage, observingRun.assignments.length - page * rowsPerPage);
-
     return (
       <div className={styles.source}>
         <div>
@@ -439,11 +437,6 @@ const RunSummary = ({ route }) => {
                     {observingRun.assignments.map((assignment) => (
                       <Row assignment={assignment}/>
                     ))}
-                    {emptyRows > 0 && (
-                      <TableRow style={{ height: 53 * emptyRows }}>
-                        <TableCell colSpan={6} />
-                      </TableRow>
-                    )}
                   </TableBody>
                   <TableFooter>
                     <TableRow>
