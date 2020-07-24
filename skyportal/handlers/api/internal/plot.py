@@ -5,6 +5,7 @@ from ....models import ClassicalAssignment, Source
 
 import numpy as np
 from astropy import time as ap_time
+import pandas as pd
 
 
 # TODO this should distinguish between "no data to plot" and "plot failed"
@@ -51,8 +52,11 @@ class PlotAirmassHandler(BaseHandler):
         sunrise = assignment.run.sunrise
 
         time = np.linspace(sunset.unix, sunrise.unix, 50)
-        time = ap_time.Time(time)
+        time = ap_time.Time(time, format='unix')
 
-        airmass = obj.airmass(time, assignment.run.telescope)
+        airmass = obj.airmass(assignment.run.instrument.telescope, time)
         time = time.iso
-        return self.success(data={'time': time, 'airmass': airmass})
+        df = pd.DataFrame({'time': time, 'airmass': airmass})
+        print(df)
+        json = df.to_dict(orient='records')
+        return self.success(data=json)

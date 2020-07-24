@@ -179,27 +179,50 @@ const airmass_spec = (url) => ({
   background: "transparent",
   mark: "line",
   encoding: {
-    x: {field: "time", type: "temporal"},
-    y: {field: "airmass", type: "quantitative"}
+    x: {field: "time", type: "temporal", title: "time (UT)"},
+    y: {field: "airmass", type: "quantitative", scale: {reverse: true}}
   }
 });
 
 
-const VegaPlot = ({ dataUrl, type = "light_curve" }) => {
-  const myspec = type === "light_curve" ? spec : airmass_spec;
+class VegaPlot extends React.Component {
+  // This is implemented as a class so we can define
+  // shouldComponentUpdate
 
-  return (
-    <div
-      ref={
-        (node) => {
-          embed(node, myspec(dataUrl), {
-            actions: false
-          });
+  constructor(props) {
+    super(props);
+    this.state = {
+      type: "light_curve",
+      dataUrl: null,
+      ...props
+    };
+  }
+
+  shouldComponentUpdate(nextProps, nextState) {
+    // Don't re-render Vega plots if the containing div updates.
+    // This dramatically improves browser performance
+
+    return false;
+  }
+
+  render() {
+    const myspec = this.state.type === "light_curve" ? spec : airmass_spec;
+
+    return (
+      <div
+        ref={
+          (node) => {
+            embed(node, myspec(this.state.dataUrl), {
+              actions: false
+            });
+          }
         }
-      }
-    />
-  );
-};
+      />
+    );
+
+  }
+
+}
 
 VegaPlot.propTypes = {
   dataUrl: PropTypes.string.isRequired,
