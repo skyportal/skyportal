@@ -121,6 +121,11 @@ class ObservingRunHandler(BaseHandler):
                 run.assignments
             ))
 
+            for assignment in run.assignments:
+                assignment.obj.comments = sorted(assignment.obj.comments,
+                                                 key=lambda c: c.modified,
+                                                 reverse=True)
+
             data = ObservingRunGetWithAssignments.dump(run)
             return self.success(data=data)
         runs = ObservingRun.query.all()

@@ -115,6 +115,51 @@ class AssignmentHandler(BaseHandler):
         return self.success(data={"id": assignment.id})
 
     @auth_or_token
+    def put(self, assignment_id):
+        """
+        ---
+        description: Update an assignment
+        parameters:
+          - in: path
+            name: assignment_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: ClassicalAssignmentNoID
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        followup_request = ClassicalAssignment.query.get(assignment_id)
+        _ = Source.get_obj_if_owned_by(followup_request.obj_id, self.current_user)
+        data = self.get_json()
+        data['id'] = assignment_id
+        data["requester_id"] = self.associated_user_object.id
+
+        schema = FollowupRequest.__schema__()
+        try:
+            schema.load(data)
+        except ValidationError as e:
+            return self.error('Invalid/missing parameters: '
+                              f'{e.normalized_messages()}')
+        DBSession().commit()
+
+        self.push_all(
+            action="skyportal/REFRESH_SOURCE",
+            payload={"obj_id": followup_request.obj_id},
+        )
+        return self.success()
+
+    @auth_or_token
     def delete(self, assignment_id):
         """
         ---
