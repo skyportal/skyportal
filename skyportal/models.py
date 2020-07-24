@@ -397,6 +397,12 @@ def get_obj_comments_owned_by(self, user_or_token):
 Obj.get_comments_owned_by = get_obj_comments_owned_by
 
 
+def get_obj_classifications_owned_by(self, user_or_token):
+    return [classifications for classifications in self.classifications if classifications.is_owned_by(user_or_token)]
+
+
+Obj.get_classifications_owned_by = get_obj_classifications_owned_by
+
 def get_photometry_owned_by_user(obj_id, user_or_token):
     return (
         Photometry.query.filter(Photometry.obj_id == obj_id)
@@ -577,6 +583,7 @@ class Classification(Base):
     author_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
                           nullable=False, index=True)
     author = relationship('User')
+    author_name = sa.Column(sa.String, nullable=False)
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)
     obj = relationship('Obj', back_populates='classifications')

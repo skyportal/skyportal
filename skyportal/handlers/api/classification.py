@@ -129,9 +129,9 @@ class ClassificationHandler(BaseHandler):
                                   "the allowable range (0-1).")
 
         classification = Classification(classification=data['classification'],
-                                        obj_id=obj_id, probability=probability,
-                                        taxonomy_id=data["taxonomy_id"],
-                                        author=author, groups=groups)
+                          obj_id=obj_id, probability=probability,
+                          taxonomy_id=data["taxonomy_id"],
+                          author=author, author_name=author.username, groups=groups)
 
         DBSession().add(classification)
         DBSession().commit()

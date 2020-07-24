@@ -22,6 +22,8 @@ import FoldBox from "./FoldBox";
 import FollowupRequestForm from './FollowupRequestForm';
 import FollowupRequestList from './FollowupRequestList';
 
+import Tooltip from '@material-ui/core/Tooltip';
+
 const Source = ({ route }) => {
   const dispatch = useDispatch();
   const source = useSelector((state) => state.source);
@@ -68,6 +70,47 @@ const Source = ({ route }) => {
     );
   }
 
+  const groupBy = (array, key) => {
+    // simple groupby for a given key
+    return array.reduce((result, cv) => {
+      (result[cv[key]] = result[cv[key]] || []).push(
+        cv
+      );
+    return result;
+    }, {});
+  };
+
+  function showClassification () {
+      // Here we compute the most recent non-zero probability class for each taxonomy
+
+      const filteredClasses = source.classifications.filter(i => i.probability > 0)
+      const groupedClasses = groupBy(filteredClasses, 'taxonomy_id')
+      const sortedClasses = [];
+
+      Object.keys(groupedClasses).forEach((item, i) => sortedClasses.push(groupedClasses[item].sort(function(a,b){
+            return a.modified < b.modified ? 1 : -1;
+      })));
+
+      if (sortedClasses.length > 0) {
+         return (
+            <div>
+             <b>Classification: </b>
+             {sortedClasses.map((c, index) => (
+                    <Tooltip key={index} disableFocusListener disableTouchListener title={`taxonomy=${c[0].taxonomy_id} P=${c[0].probability}`}>
+                        <Button key={index}>{c[0].classification}</Button>
+                    </Tooltip>
+              ))}
+            </div>
+          );
+        } else {
+          return (
+            <span></span>
+          );
+        }
+
+    }
+
+
   return (
     <div className={styles.source}>
 
@@ -78,6 +121,7 @@ const Source = ({ route }) => {
         </div>
 
         <br />
+        {showClassification()}
         <b>
           Position (J2000):
         </b>
@@ -175,6 +219,7 @@ const Source = ({ route }) => {
           mobileProps={{ folded: true }}
           className={styles.classifications}
         >
+         <ClassificationList />
           <ClassificationForm
             obj_id={source.id}
             action="createNew"

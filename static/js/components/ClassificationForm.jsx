@@ -90,7 +90,6 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
     dispatch({name: "probability_select_enabled", value: true});
   };
 
-
   const processProb = (event, value) => {
     // make sure that the probability in in [0,1], otherwise set
     // an error state on the entry

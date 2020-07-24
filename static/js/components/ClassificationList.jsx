@@ -10,7 +10,6 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import * as sourceActions from "../ducks/source";
 import styles from "./ClassificationList.css";
-import ClassificationEntry from "./ClassificationEntry";
 
 dayjs.extend(relativeTime);
 
@@ -34,26 +33,23 @@ const ClassificationList = ({ isCandidate }) => {
   const userProfile = useSelector((state) => state.profile);
   const acls = useSelector((state) => state.profile.acls);
   let { classifications } = obj;
-  const addClassification = (formData) => {
-    dispatch(sourceActions.addClassification({ obj_id: obj.id, ...formData }));
-  };
 
   classifications = classifications || [];
 
   const items = classifications.map(
-    ({ id, author, created_at, text, attachment_name, groups }) => (
+    ({ id, author_name, created_at, classification, probability, taxonomy_id, groups }) => (
       <span
         key={id}
         className={styles.classification}
-        onMouseOver={() => handleMouseHover(id, userProfile, author)}
+        onMouseOver={() => handleMouseHover(id, userProfile, author_name)}
         onMouseOut={() => handleMouseLeave()}
-        onFocus={() => handleMouseHover(id, userProfile, author)}
+        onFocus={() => handleMouseHover(id, userProfile, author_name)}
         onBlur={() => handleMouseLeave()}
       >
         <div className={styles.classificationHeader}>
           <span className={styles.classificationUser}>
             <span className={styles.classificationUserName}>
-              {author}
+              {author_name}
             </span>
           </span>
           &nbsp;
@@ -67,7 +63,7 @@ const ClassificationList = ({ isCandidate }) => {
         </div>
         <div className={styles.wrap} name={`classificationDiv${id}`}>
           <div className={styles.classificationMessage}>
-            {text}
+            {classification} (P={probability})
           </div>
           <Button
             style={
@@ -93,17 +89,11 @@ const ClassificationList = ({ isCandidate }) => {
   return (
     <div className={styles.classifications}>
       {items}
-      <br />
-      {
-        (!isCandidate && (acls.indexOf('Classification') >= 0)) &&
-        <ClassificationEntry addClassification={addClassification} />
-      }
     </div>
   );
 };
 
 ClassificationList.propTypes = {
-  isCandidate: PropTypes.bool
 };
 
 ClassificationList.defaultProps = {
