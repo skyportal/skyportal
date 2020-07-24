@@ -796,6 +796,22 @@ class ClassicalAssignment(Base):
     def instrument(self):
         return self.run.instrument
 
+    @property
+    def rise_time(self):
+        """The time at which the object rises on this run."""
+        observer = self.instrument.telescope.observer
+        target = self.obj.target
+        return observer.target_rise_time(self.run._calendar_noon, target,
+                                         which='next')
+
+    @property
+    def set_time(self):
+        """The time at which the object sets on this run."""
+        observer = self.instrument.telescope.observer
+        target = self.obj.target
+        return observer.target_set_time(self.run._calendar_noon, target,
+                                        which='next')
+
 
 User.assignments = relationship('ClassicalAssignment', back_populates='requester')
 
