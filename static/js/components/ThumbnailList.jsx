@@ -3,31 +3,64 @@ import PropTypes from 'prop-types';
 
 import dayjs from 'dayjs';
 import calendar from 'dayjs/plugin/calendar';
-import clsx from "clsx";
 
-import styles from "./ThumbnailList.css";
+import { makeStyles } from '@material-ui/core/styles';
+import Grid from '@material-ui/core/Grid';
+
+import Card from '@material-ui/core/Card';
+import CardContent from '@material-ui/core/CardContent';
+import Typography from '@material-ui/core/Typography';
 
 dayjs.extend(calendar);
 
-const Thumbnail = ({ ra, dec, telescope, mjd, name, url }) => {
+
+/* const useStyles = makeStyles((theme) => ({
+})); */
+
+const useStyles = makeStyles((theme) =>
+  ({
+    root: {
+      width: 200,
+      margin: 'auto',
+      maxHeight: 500,
+      flexGrow: 1
+    },
+    title: {
+      fontSize: 14,
+    },
+    pos: {
+      marginBottom: 0,
+    },
+    media: {
+      minHeight: 200,
+      width: 200,
+      height: "auto"
+    }
+  })
+);
+
+
+
+const Thumbnail = ({ ra, dec, mjd, name, url }) => {
   // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
   // unix timestamp epoch (1970-01-01).
 
   const unixt = (mjd - 40587.0) * 86400000;
   const observed_at = new Date(unixt); // a new date
   const observed_at_str = dayjs(observed_at).toString();
+  const classes = useStyles();
 
   let alt = null;
   let link = null;
   switch (name) {
     case "new":
-      alt = `${telescope} discovery image (${observed_at_str})`;
+      alt = `discovery image (${observed_at_str})`;
       break;
     case "ref":
-      alt = `${telescope} pre-discovery (reference) image (${observed_at_str})`;
+      alt = `pre-discovery (reference) image (${observed_at_str})`;
       break;
     case "sub":
-      alt = `${telescope} subtracted image (${observed_at_str})`;
+      alt = `$subtracted image (${observed_at_str})`;
       break;
     case "sdss":
       alt = "Link to SDSS Navigate tool";
@@ -42,68 +75,52 @@ const Thumbnail = ({ ra, dec, telescope, mjd, name, url }) => {
       link = "";
   }
 
-  // Always apply Thumbnail style; conditionally apply DR8 style
-  const thumbnailDivClassNames = clsx(
-    styles.Thumbnail, {
-      [styles.dr8]: name === "dr8"
-    }
-  );
-
-  const thumbnailClassNames = clsx(
-    {
-      [styles.dr8crosshairs]: name === "dr8"
-    }
-  );
 
   return (
-    <a href={link}>
-      {name === "dr8" && <br />}
-      <div className={thumbnailDivClassNames}>
-        <b>
+    <Card className={classes.root} variant="outlined">
+      <CardContent>
+        <Typography className={classes.title} color="textSecondary">
           {name.toUpperCase()}
-        </b>
-        <br />
-        <div className={styles.thumbnailimgdiv}>
-          <img className={thumbnailClassNames} src={url} alt={alt} title={alt} />
-          {
-            (name === "dr8") &&
-              <img className={thumbnailClassNames} src="/static/images/crosshairs.png" alt="" />
-          }
-        </div>
-      </div>
-    </a>
+        </Typography>
+      </CardContent>
+      <img src={url} alt={alt} className={classes.media} title={alt}/>
+    </Card>
   );
 };
 
 Thumbnail.propTypes = {
   ra: PropTypes.number.isRequired,
   dec: PropTypes.number.isRequired,
-  telescope: PropTypes.string.isRequired,
   name: PropTypes.string.isRequired,
   url: PropTypes.string.isRequired,
   mjd: PropTypes.number.isRequired
 };
 
 const ThumbnailList = ({ ra, dec, thumbnails }) => {
+
   const thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8'];
   // Sort thumbnails by order of appearance in `thumbnail_order`
   thumbnails.sort((a, b) => (thumbnail_order.indexOf(a.type) <
-                             thumbnail_order.indexOf(b.type) ? -1 : 1));
+  thumbnail_order.indexOf(b.type) ? -1 : 1));
 
   return (
-    <div className={styles.ThumbnailList}>
-      {thumbnails.map((t) => (
-        <Thumbnail
-          key={`thumb_${t.type}`}
-          ra={ra}
-          dec={dec}
-          name={t.type}
-          url={t.public_url}
-          telescope={t.photometry.instrument.telescope.nickname}
-          mjd={t.photometry.mjd}
-        />
-      ))}
-    </div>
+    <Grid container spacing={2}>
+      {
+        thumbnails.map((t) => (
+            <Grid item key={t.id}>
+              <Thumbnail
+                key={`thumb_${t.type}`}
+                ra={ra}
+                dec={dec}
+                name={t.type}
+                url={t.public_url}
+                mjd={t.photometry.mjd}
+              />
+            </Grid>
+          )
+        )
+      }
+    </Grid>
   );
 };
 
@@ -114,3 +131,5 @@ ThumbnailList.propTypes = {
 };
 
 export default ThumbnailList;
+
+
