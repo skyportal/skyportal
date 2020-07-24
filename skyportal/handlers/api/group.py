@@ -151,6 +151,8 @@ class GroupHandler(BaseHandler):
             group_admins.append(self.current_user)
 
         g = Group(name=data['name'])
+        DBSession().add(g)
+        DBSession().flush()
         DBSession().add_all(
             [GroupUser(group=g, user=user, admin=True) for user in group_admins])
         DBSession().commit()

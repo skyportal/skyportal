@@ -13,7 +13,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import ArrowType, URLType
 
-from astropy.time import Time
+import healpix_alchemy as ha
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
@@ -24,12 +24,13 @@ from . import schema
 from .phot_enum import allowed_bandpasses, thumbnail_types
 
 
-# In the AB system, a brightness of 23.9 mag corresponds to 1 microJy. Using this
-# will put our converted fluxes to microJy.
+env, cfg = load_env()
+
+
+# In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
+# All DB fluxes are stored in microJy (AB).
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
-
-env, cfg = load_env()
 
 
 def is_owned_by(self, user_or_token):
@@ -117,11 +118,9 @@ def token_groups(self):
 Token.groups = token_groups
 
 
-class Obj(Base):
+class Obj(Base, ha.Point):
     id = sa.Column(sa.String, primary_key=True)
     # TODO should this column type be decimal? fixed-precison numeric
-    ra = sa.Column(sa.Float)
-    dec = sa.Column(sa.Float)
 
     ra_dis = sa.Column(sa.Float)
     dec_dis = sa.Column(sa.Float)
@@ -153,10 +152,10 @@ class Obj(Base):
                             order_by="Comment.created_at")
 
     classifications = relationship(
-                            'Classification', back_populates='obj',
-                            cascade='save-update, merge, refresh-expire, expunge',
-                            passive_deletes=True,
-                            order_by="Classification.created_at")
+        'Classification', back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        order_by="Classification.created_at")
 
     photometry = relationship('Photometry', back_populates='obj',
                               cascade='save-update, merge, refresh-expire, expunge',
@@ -437,10 +436,11 @@ class Taxonomy(Base):
                           )
 
     classifications = relationship(
-                            'Classification', back_populates='taxonomy',
-                            cascade='save-update, merge, refresh-expire, expunge',
-                            passive_deletes=True,
-                            order_by="Classification.created_at")
+        'Classification', back_populates='taxonomy',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        order_by="Classification.created_at")
+
 
 GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
 
@@ -503,7 +503,7 @@ class Classification(Base):
 GroupClassifications = join_model("group_classifications", Group, Classification)
 
 
-class Photometry(Base):
+class Photometry(Base, ha.Point):
     __tablename__ = 'photometry'
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.')
     flux = sa.Column(sa.Float,
@@ -514,11 +514,6 @@ class Photometry(Base):
                         doc='Gaussian error on the flux in µJy.')
     filter = sa.Column(allowed_bandpasses, nullable=False,
                        doc='Filter with which the observation was taken.')
-
-    ra = sa.Column(sa.Float, doc='ICRS Right Ascension of the centroid '
-                                 'of the photometric aperture [deg].')
-    dec = sa.Column(sa.Float, doc='ICRS Declination of the centroid of '
-                                  'the photometric aperture [deg].')
 
     ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
     dec_unc = sa.Column(sa.Float, doc="Uncertainty of dec position [arcsec]")
