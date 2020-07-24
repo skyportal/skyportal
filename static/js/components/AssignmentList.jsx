@@ -28,6 +28,9 @@ function renderAssignment(assignment, deleteAssignment, dispatch, users, observi
   return (
     <tr key={assignment.id}>
       <td>
+        {runundef ? "Loading..." : <a href={`/run/${run.id}`}>{run.id}</a>}
+      </td>
+      <td>
         {requndef ? "Loading..." : requester.username}
       </td>
       <td>
@@ -106,6 +109,9 @@ const AssignmentList = ({ assignments }) => {
       <table className={styles.assignmentTable}>
         <thead>
           <tr>
+            <th>
+              Run Id
+            </th>
             <th>
               Requester
             </th>

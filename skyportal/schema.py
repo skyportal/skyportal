@@ -588,6 +588,9 @@ class ObservingRunPost(_Schema):
         description='The local calendar date of the run.', required=True
     )
 
+    modified = fields.DateTime(description="The UT datetime at which the "
+                                           "observingrun was last modified.")
+
 
 class ObservingRunGet(ObservingRunPost):
     owner_id = fields.Integer(description='The User ID of the owner of this run.')
