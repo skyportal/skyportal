@@ -45,7 +45,7 @@ export const uploadPhotometry = (data) => (
 );
 
 export function addClassification(formData) {
-    return API.POST(`/api/classification`, ADD_CLASSIFICATION, formData);
+  return API.POST(`/api/classification`, ADD_CLASSIFICATION, formData);
 }
 
 export function deleteClassification(classification_id) {

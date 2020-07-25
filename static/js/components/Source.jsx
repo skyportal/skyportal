@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Link } from "react-router-dom";
 import Button from "@material-ui/core/Button";
 
+import Tooltip from '@material-ui/core/Tooltip';
 import * as Action from '../ducks/source';
 import Plot from './Plot';
 import CommentList from './CommentList';
@@ -22,7 +23,6 @@ import FoldBox from "./FoldBox";
 import FollowupRequestForm from './FollowupRequestForm';
 import FollowupRequestList from './FollowupRequestList';
 
-import Tooltip from '@material-ui/core/Tooltip';
 
 const Source = ({ route }) => {
   const dispatch = useDispatch();
@@ -72,59 +72,66 @@ const Source = ({ route }) => {
 
   const groupBy = (array, key) => {
     // simple groupby for a given key
-    return array.reduce((result, cv) => {
+    array.reduce((result, cv) => {
       (result[cv[key]] = result[cv[key]] || []).push(
         cv
       );
-    return result;
+      return result;
     }, {});
   };
 
-  function showClassification () {
-      // Here we compute the most recent non-zero probability class for each taxonomy
+  function showClassification() {
+    // Here we compute the most recent non-zero probability class for each taxonomy
 
-      const filteredClasses = source.classifications.filter(i => i.probability > 0)
-      const groupedClasses = groupBy(filteredClasses, 'taxonomy_id')
-      const sortedClasses = [];
+    const filteredClasses = source.classifications.filter((i) => i.probability > 0);
+    const groupedClasses = groupBy(filteredClasses, 'taxonomy_id');
+    const sortedClasses = [];
 
-      Object.keys(groupedClasses).forEach((item, i) => sortedClasses.push(groupedClasses[item].sort(function(a,b){
-            return a.modified < b.modified ? 1 : -1;
-      })));
+    Object.keys(groupedClasses).forEach(
+      (item) => sortedClasses.push(groupedClasses[item].sort(
+        (a, b) => (a.modified < b.modified ? 1 : -1)
+      ))
+    );
 
-
-      if (sortedClasses.length > 0) {
-         return (
-            <div>
-             <b>Classification: </b>
-             {sortedClasses.map((c, index) => {
-                    var name = taxonomyList.filter(i => i.id === c[0].taxonomy_id);
-                    if (name.length > 0)
-                      {
-                        name = name[0].name;
-                      }
-                    return (
-                    <Tooltip key={index} disableFocusListener disableTouchListener
-                        title={
-                        <React.Fragment>
-                          P={c[0].probability} ({name})
-                          <br></br>
-                          <i>{c[0].author_name}</i>
-                        </React.Fragment>
-                        }
-                    >
-                        <Button key={index}>{c[0].classification}</Button>
-                    </Tooltip>
-                    );
-              })}
-            </div>
-          );
-        } else {
-          return (
-            <span></span>
-          );
-        }
-
+    if (sortedClasses.length > 0) {
+      return (
+        <div>
+          <b>Classification: </b>
+          {sortedClasses.map((c) => {
+            let name = taxonomyList.filter((i) => i.id === c[0].taxonomy_id);
+            if (name.length > 0) {
+              name = name[0].name;
+            }
+            return (
+              <Tooltip
+                key={`${c[0].created_at}tooltip`}
+                disableFocusListener
+                disableTouchListener
+                title={(
+                  <>
+                    P=
+                    {c[0].probability}
+                    {' '}
+                    (
+                    {name}
+                    )
+                    <br />
+                    <i>{c[0].author_name}</i>
+                  </>
+                      )}
+              >
+                <Button key={`${c[0].created_at}tooltipbutton`}>{c[0].classification}</Button>
+              </Tooltip>
+            );
+          })}
+        </div>
+      );
+    } else {
+      return (
+        <span />
+      );
     }
+  }
 
 
   return (
@@ -235,7 +242,7 @@ const Source = ({ route }) => {
           mobileProps={{ folded: true }}
           className={styles.classifications}
         >
-         <ClassificationList />
+          <ClassificationList />
           <ClassificationForm
             obj_id={source.id}
             action="createNew"

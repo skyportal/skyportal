@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import PropTypes from "prop-types";
+import PropTypes from 'prop-types';
 import { useSelector, useDispatch } from "react-redux";
 import { Button } from "@material-ui/core";
 import Tooltip from "@material-ui/core/Tooltip";
@@ -32,64 +32,69 @@ const ClassificationList = ({ isCandidate }) => {
   const candidate = useSelector((state) => state.candidate);
   const obj = isCandidate ? candidate : source;
   const userProfile = useSelector((state) => state.profile);
-  const acls = useSelector((state) => state.profile.acls);
+  // const acls = useSelector((state) => state.profile.acls);
   let { classifications } = obj;
 
   classifications = classifications || [];
 
   const items = classifications.map(
     ({ id, author_name, created_at, classification, probability, taxonomy_id, groups }) => {
-      var taxname = taxonomyList.filter(i => i.id === taxonomy_id);
+      let taxname = taxonomyList.filter((i) => i.id === taxonomy_id);
       if (taxname.length > 0) {
-            taxname = taxname[0].name;
-      };
+        taxname = taxname[0].name;
+      }
       return (
-       <span
-        key={id}
-        className={styles.classification}
-        onMouseOver={() => handleMouseHover(id, userProfile, author_name)}
-        onMouseOut={() => handleMouseLeave()}
-        onFocus={() => handleMouseHover(id, userProfile, author_name)}
-        onBlur={() => handleMouseLeave()}
-      >
-        <div className={styles.classificationHeader}>
-          <span className={styles.classificationUser}>
-            <span className={styles.classificationUserName}>
-              {author_name}
+        <span
+          key={id}
+          className={styles.classification}
+          onMouseOver={() => handleMouseHover(id, userProfile, author_name)}
+          onMouseOut={() => handleMouseLeave()}
+          onFocus={() => handleMouseHover(id, userProfile, author_name)}
+          onBlur={() => handleMouseLeave()}
+        >
+          <div className={styles.classificationHeader}>
+            <span className={styles.classificationUser}>
+              <span className={styles.classificationUserName}>
+                {author_name}
+              </span>
             </span>
-          </span>
           &nbsp;
-          <span className={styles.classificationTime}>
-            {dayjs().to(dayjs(created_at))}
-          </span>
+            <span className={styles.classificationTime}>
+              {dayjs().to(dayjs(created_at))}
+            </span>
           &nbsp;
-          <Tooltip title={groups.map((group) => group.name).join(", ")}>
-            <GroupIcon fontSize="small" style={{ paddingTop: "6px", paddingBottom: "0px" }} />
-          </Tooltip>
-        </div>
-        <div className={styles.wrap} name={`classificationDiv${id}`}>
-          <div className={styles.classificationMessage}>
-            {classification} (P={probability}) <i>{taxname}</i>
+            <Tooltip title={groups.map((group) => group.name).join(", ")}>
+              <GroupIcon fontSize="small" style={{ paddingTop: "6px", paddingBottom: "0px" }} />
+            </Tooltip>
           </div>
-          <Button
-            style={
+          <div className={styles.wrap} name={`classificationDiv${id}`}>
+            <div className={styles.classificationMessage}>
+              {classification}
+              {' '}
+              (P=
+              {probability}
+              )
+              <i>{taxname}</i>
+            </div>
+            <Button
+              style={
               hoverID === id ? { display: "block" } : { display: "none" }
             }
-            size="small"
-            variant="outlined"
-            color="primary"
-            type="button"
-            name={`deleteClassificationButton${id}`}
-            onClick={() => {
-              dispatch(sourceActions.deleteClassification(id));
-            }}
-            className={styles.classificationDelete}
-          >
-            🗑
-          </Button>
-        </div>
+              size="small"
+              variant="outlined"
+              color="primary"
+              type="button"
+              name={`deleteClassificationButton${id}`}
+              onClick={() => {
+                dispatch(sourceActions.deleteClassification(id));
+              }}
+              className={styles.classificationDelete}
+            >
+              🗑
+            </Button>
+          </div>
 
-      </span>
+        </span>
       );
     }
   );
@@ -101,10 +106,7 @@ const ClassificationList = ({ isCandidate }) => {
 };
 
 ClassificationList.propTypes = {
-};
-
-ClassificationList.defaultProps = {
-  isClassification: false
+  isCandidate: PropTypes.bool.isRequired,
 };
 
 export default ClassificationList;
