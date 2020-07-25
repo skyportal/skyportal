@@ -15,6 +15,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import ArrowType, URLType
 
+from astropy import coordinates as ap_coord
 import healpix_alchemy as ha
 
 from baselayer.app.env import load_env
