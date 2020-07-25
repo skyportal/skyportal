@@ -189,16 +189,7 @@ class VegaPlot extends React.Component {
   // This is implemented as a class so we can define
   // shouldComponentUpdate
 
-  constructor(props) {
-    super(props);
-    this.state = {
-      type: "light_curve",
-      dataUrl: null,
-      ...props
-    };
-  }
-
-  shouldComponentUpdate(nextProps, nextState) {
+  shouldComponentUpdate() {
     // Don't re-render Vega plots if the containing div updates.
     // This dramatically improves browser performance
 
@@ -206,13 +197,15 @@ class VegaPlot extends React.Component {
   }
 
   render() {
-    const myspec = this.state.type === "light_curve" ? spec : airmass_spec;
+    const { type, dataUrl } = this.props;
+
+    const myspec = type === "light_curve" ? spec : airmass_spec;
 
     return (
       <div
         ref={
           (node) => {
-            embed(node, myspec(this.state.dataUrl), {
+            embed(node, myspec(dataUrl), {
               actions: false
             });
           }
@@ -225,6 +218,10 @@ class VegaPlot extends React.Component {
 VegaPlot.propTypes = {
   dataUrl: PropTypes.string.isRequired,
   type: PropTypes.string
+};
+
+VegaPlot.defaultProps = {
+  type: "light_curve"
 };
 
 export default VegaPlot;

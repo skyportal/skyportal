@@ -125,6 +125,75 @@ const SimpleMenu = ({ assignment }) => {
   );
 };
 
+SimpleMenu.propTypes = {
+  assignment: PropTypes.shape({
+    status: PropTypes.string,
+    id: PropTypes.number,
+    obj: PropTypes.shape(
+      {
+        id: PropTypes.number
+      }
+    ).isRequired
+  }).isRequired
+};
+
+const PullOutRow = ({ rowData, rowMeta }) => {
+  const observingRun = useSelector((state) => state.observingRun);
+  if (observingRun === undefined) {
+    return "Loading...";
+  }
+
+  const colSpan = rowData.length + 1;
+  const assignment = observingRun.assignments[rowMeta.rowIndex];
+
+  return (
+    <TableRow>
+      <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={colSpan}>
+        <Grid
+          container
+          direction="row"
+          spacing={3}
+          justify="center"
+          alignItems="center"
+        >
+          <ThumbnailList
+            thumbnails={assignment.obj.thumbnails}
+            ra={assignment.obj.ra}
+            dec={assignment.obj.dec}
+            useGrid={false}
+          />
+          <Grid item>
+            <Suspense fallback={<div>Loading plot...</div>}>
+              <VegaPlot
+                dataUrl={`/api/internal/plot/airmass/${assignment.id}`}
+                type="airmass"
+              />
+            </Suspense>
+          </Grid>
+          <Grid item>
+            <Suspense fallback={<div>Loading plot...</div>}>
+              <VegaPlot
+                dataUrl={`/api/sources/${assignment.obj.id}/photometry`}
+              />
+            </Suspense>
+          </Grid>
+        </Grid>
+      </TableCell>
+    </TableRow>
+  );
+};
+
+
+PullOutRow.propTypes = {
+  rowData: PropTypes.arrayOf(PropTypes.string).isRequired,
+  rowMeta: PropTypes.shape(
+    {
+      dataIndex: PropTypes.number,
+      rowIndex: PropTypes.number
+    }
+  ).isRequired
+};
+
 
 const RunSummary = ({ route }) => {
   const dispatch = useDispatch();
@@ -138,7 +207,7 @@ const RunSummary = ({ route }) => {
     dispatch(Action.fetchObservingRun(route.id));
   }, [route.id, dispatch]);
 
-  if (!(("id" in observingRun) && (observingRun.id === parseInt(route.id)))) {
+  if (!(("id" in observingRun) && (observingRun.id === parseInt(route.id, 10)))) {
     // Don't need to do this for assignments -- we can just let the page be blank for a short time
     return (
       <b>
@@ -149,60 +218,22 @@ const RunSummary = ({ route }) => {
     const options = {
       draggableColumns: { enabled: true },
       expandableRows: true,
-      renderExpandableRow: ((rowData, rowMeta) => {
-        const colSpan = rowData.length + 1;
-        const assignment = observingRun.assignments[rowMeta.rowIndex];
-        return (
-          <TableRow>
-            <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={colSpan}>
-              <Grid
-                container
-                direction="row"
-                spacing={3}
-                justify="center"
-                alignItems="center"
-              >
-                <ThumbnailList
-                  thumbnails={assignment.obj.thumbnails}
-                  ra={assignment.obj.ra}
-                  dec={assignment.obj.dec}
-                  useGrid={false}
-                />
-                <Grid item>
-                  <Suspense fallback={<div>Loading plot...</div>}>
-                    <VegaPlot
-                      dataUrl={`/api/internal/plot/airmass/${assignment.id}`}
-                      type="airmass"
-                    />
-                  </Suspense>
-                </Grid>
-                <Grid item>
-                  <Suspense fallback={<div>Loading plot...</div>}>
-                    <VegaPlot
-                      dataUrl={`/api/sources/${assignment.obj.id}/photometry`}
-                    />
-                  </Suspense>
-                </Grid>
-              </Grid>
-            </TableCell>
-          </TableRow>
-        );
-      }),
+      renderExpandableRow: { PullOutRow },
       selectableRows: "none"
     };
 
     const data = observingRun.assignments.map(
       (assignment) => (
         [
-          <a href={`/source/${assignment.obj.id}`}>
+          <a href={`/source/${assignment.obj.id}`} key={`${assignment.id}_objid`}>
             {assignment.obj.id}
           </a>,
-          <div>
+          <div key={`${assignment.id}_ra`}>
             {assignment.obj.ra}
             <br />
             {ra_to_hours(assignment.obj.ra)}
           </div>,
-          <div>
+          <div key={`${assignment.id}_dec`}>
             {assignment.obj.dec}
             <br />
             {dec_to_hours(assignment.obj.dec)}
@@ -213,12 +244,12 @@ const RunSummary = ({ route }) => {
           assignment.priority,
           new Date(assignment.rise_time_utc).toLocaleTimeString(),
           new Date(assignment.set_time_utc).toLocaleTimeString(),
-          <IconButton size="small">
+          <IconButton size="small" key={`${assignment.id}_actions`}>
             <Link href={`/api/sources/${assignment.obj.id}/finder`}>
               <PictureAsPdfIcon />
             </Link>
           </IconButton>,
-          <SimpleMenu assignment={assignment} />
+          <SimpleMenu assignment={assignment} key={`${assignment.id}_menu`} />
         ]
       )
     );
@@ -257,6 +288,12 @@ const RunSummary = ({ route }) => {
       </div>
     );
   }
+};
+
+RunSummary.propTypes = {
+  route: PropTypes.shape({
+    id: PropTypes.string
+  }).isRequired
 };
 
 export default RunSummary;

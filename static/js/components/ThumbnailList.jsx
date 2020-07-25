@@ -110,7 +110,7 @@ Thumbnail.propTypes = {
   mjd: PropTypes.number.isRequired
 };
 
-const ThumbnailList = ({ ra, dec, thumbnails, gridKwargs={}, useGrid=true }) => {
+const ThumbnailList = ({ ra, dec, thumbnails, useGrid=true }) => {
   const thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8'];
   // Sort thumbnails by order of appearance in `thumbnail_order`
   thumbnails.sort((a, b) => (thumbnail_order.indexOf(a.type) <
@@ -122,7 +122,6 @@ const ThumbnailList = ({ ra, dec, thumbnails, gridKwargs={}, useGrid=true }) => 
         container
         direction="row"
         spacing={3}
-        {...gridKwargs}
       >
         {
           thumbnails.map((t) => (
