@@ -23,7 +23,7 @@ function makeMenuItem(observingRun, instrumentList, telescopeList, groups) {
   const telescope = !instundef ? telescopeList.filter((t) => t.id === telescope_id)[0] : undefined;
   const telundef = telescope === undefined;
 
-  const usegroup = observingRun.group_id !== undefined;
+  const usegroup = !!observingRun.group_id && !!groups;
   const group = usegroup ? groups.filter((g) => g.id === observingRun.group_id)[0] : undefined;
   const groupundef = group === undefined;
 
