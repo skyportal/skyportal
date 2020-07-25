@@ -146,7 +146,7 @@ const SimpleMenu = ({ assignment }) => {
       </Menu>
     </div>
   );
-}
+};
 
 const useRowStyles = makeStyles({
   root: {
