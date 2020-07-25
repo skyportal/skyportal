@@ -1,14 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import PropTypes from 'prop-types';
 import { useSelector, useDispatch } from 'react-redux';
 
-import * as Action from '../ducks/observingRun';
-import * as SourceAction from '../ducks/source';
-import { ObservingRunStarList } from './StarList';
-import { observingRunTitle } from './AssignmentForm';
-import styles from './RunSummary.css';
-
-import { Suspense } from 'react';
 
 import Table from '@material-ui/core/Table';
 import List from '@material-ui/core/List';
@@ -41,16 +34,21 @@ import BuildIcon from '@material-ui/icons/Build';
 
 import Link from '@material-ui/core/Link';
 import PictureAsPdfIcon from '@material-ui/icons/PictureAsPdf';
-import { time_relative_to_local, ra_to_hours, dec_to_hours } from "../units";
-import ThumbnailList from "./ThumbnailList";
 import { makeStyles, useTheme } from '@material-ui/core/styles';
-
-const VegaPlot = React.lazy(() => import('./VegaPlot'));
 
 import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
 
 import MUIDataTable from "mui-datatables";
+import ThumbnailList from "./ThumbnailList";
+import styles from './RunSummary.css';
+import { observingRunTitle } from './AssignmentForm';
+import { ObservingRunStarList } from './StarList';
+import * as SourceAction from '../ducks/source';
+import * as Action from '../ducks/observingRun';
+import { time_relative_to_local, ra_to_hours, dec_to_hours } from "../units";
+
+const VegaPlot = React.lazy(() => import('./VegaPlot'));
 
 
 const SimpleMenu = ({ assignment }) => {
@@ -69,15 +67,15 @@ const SimpleMenu = ({ assignment }) => {
   const isdone = assignment.status === "complete";
 
   const complete_action = () => dispatch(
-    SourceAction.editAssignment({status: "complete"}, assignment.id)
+    SourceAction.editAssignment({ status: "complete" }, assignment.id)
   );
 
   const pending_action = () => dispatch(
-    SourceAction.editAssignment({status: "pending"}, assignment.id)
+    SourceAction.editAssignment({ status: "pending" }, assignment.id)
   );
 
   const not_observed_action = () => dispatch(
-    SourceAction.editAssignment({status: "not observed"}, assignment.id)
+    SourceAction.editAssignment({ status: "not observed" }, assignment.id)
   );
 
   const mark_observed = (
@@ -132,8 +130,9 @@ const SimpleMenu = ({ assignment }) => {
         aria-controls="simple-menu"
         aria-haspopup="true"
         onClick={handleClick}
-        variant="contained">
-        <BuildIcon/>
+        variant="contained"
+      >
+        <BuildIcon />
       </IconButton>
       <Menu
         id="simple-menu"
@@ -163,7 +162,7 @@ const Row = ({ assignment }) => {
 
 
   return (
-    <React.Fragment>
+    <>
       <TableRow className={classes.root}>
         <TableCell>
           <IconButton aria-label="expand row" size="small" onClick={() => setOpen(!open)}>
@@ -206,7 +205,7 @@ const Row = ({ assignment }) => {
         <TableCell align="center">
           <IconButton aria-label="expand row" size="small">
             <Link href={`/api/sources/${assignment.obj.id}/finder`}>
-              <PictureAsPdfIcon/>
+              <PictureAsPdfIcon />
             </Link>
           </IconButton>
         </TableCell>
@@ -251,13 +250,12 @@ const Row = ({ assignment }) => {
           </Collapse>
         </TableCell>
       </TableRow>
-    </React.Fragment>
+    </>
   );
 };
 
 
 const RunSummary = ({ route }) => {
-
   const dispatch = useDispatch();
   const observingRun = useSelector((state) => state.observingRun);
   const { instrumentList } = useSelector((state) => state.instruments);
@@ -289,9 +287,8 @@ const RunSummary = ({ route }) => {
       </b>
     );
   } else {
-
     const options = {
-      draggableColumns: {enabled: true},
+      draggableColumns: { enabled: true },
       expandableRows: true,
       renderExpandableRow: ((rowData, rowMeta) => {
         const colSpan = rowData.length + 1;
@@ -330,7 +327,7 @@ const RunSummary = ({ route }) => {
               </Grid>
             </TableCell>
           </TableRow>
-        )
+        );
       }),
       selectableRows: "none"
     };
@@ -359,7 +356,7 @@ const RunSummary = ({ route }) => {
           new Date(assignment.set_time_utc).toLocaleTimeString(),
           <IconButton size="small">
             <Link href={`/api/sources/${assignment.obj.id}/finder`}>
-              <PictureAsPdfIcon/>
+              <PictureAsPdfIcon />
             </Link>
           </IconButton>,
           <SimpleMenu assignment={assignment} />
@@ -385,7 +382,7 @@ const RunSummary = ({ route }) => {
               <MUIDataTable
                 title="Targets"
                 columns={["Target Name", "RA", "Dec", "Redshift", "Requester", "Request",
-                          "Priority", "Rise Time (UT)", "Set Time (UT)", "Finder", "Actions"]}
+                  "Priority", "Rise Time (UT)", "Set Time (UT)", "Finder", "Actions"]}
                 data={data}
                 options={options}
               />
@@ -394,7 +391,7 @@ const RunSummary = ({ route }) => {
               <Typography gutterBottom align="center">
                 Starlist and Offsets
               </Typography>
-              <ObservingRunStarList observingRunId={observingRun.id}/>
+              <ObservingRunStarList observingRunId={observingRun.id} />
             </Grid>
           </Grid>
         </div>

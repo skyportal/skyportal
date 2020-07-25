@@ -13,7 +13,7 @@ import * as Actions from '../ducks/source';
 
 import 'react-datepicker/dist/react-datepicker-cssmodules.css';
 
-export function observingRunTitle(observingRun, instrumentList, telescopeList, groups){
+export function observingRunTitle(observingRun, instrumentList, telescopeList, groups) {
   const { instrument_id } = observingRun;
   const instrument = instrumentList.filter((i) => i.id === instrument_id)[0];
   const instundef = instrument === undefined;

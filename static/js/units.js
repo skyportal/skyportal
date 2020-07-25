@@ -1,6 +1,8 @@
 import dayjs from 'dayjs';
-var utc = require('dayjs/plugin/utc');
-var relativeTime = require('dayjs/plugin/relativeTime');
+
+const utc = require('dayjs/plugin/utc');
+const relativeTime = require('dayjs/plugin/relativeTime');
+
 dayjs.extend(utc);
 dayjs.extend(relativeTime);
 
@@ -25,7 +27,7 @@ const dec_to_hours = (deci) => {
   return `${sign}${deg}:${min}:${sec}`;
 };
 
-function time_relative_to_local(isostring){
+function time_relative_to_local(isostring) {
   // Take an ISO 8601 string and return the offset relative to the local time
   return dayjs(isostring).local().fromNow();
 }

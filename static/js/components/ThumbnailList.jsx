@@ -17,38 +17,35 @@ dayjs.extend(calendar);
 /* const useStyles = makeStyles((theme) => ({
 })); */
 
-const useStyles = makeStyles((theme) =>
-  ({
-    root: {
-      width: 200,
-      margin: 'auto',
-      maxHeight: 500,
-      flexGrow: 1
-    },
-    title: {
-      fontSize: 14,
-    },
-    pos: {
-      marginBottom: 0,
-    },
-    mediaDiv: {
-      position: "relative"
-    },
-    media: {
-      height: 200,
-      width: 200,
-    },
-    crosshair: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      width: 200,
-      height: 200,
-      paddingBottom: "0.2em"
-    }
-  })
-);
-
+const useStyles = makeStyles((theme) => ({
+  root: {
+    width: 200,
+    margin: 'auto',
+    maxHeight: 500,
+    flexGrow: 1
+  },
+  title: {
+    fontSize: 14,
+  },
+  pos: {
+    marginBottom: 0,
+  },
+  mediaDiv: {
+    position: "relative"
+  },
+  media: {
+    height: 200,
+    width: 200,
+  },
+  crosshair: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: 200,
+    height: 200,
+    paddingBottom: "0.2em"
+  }
+}));
 
 
 const Thumbnail = ({ ra, dec, mjd, name, url }) => {
@@ -95,7 +92,7 @@ const Thumbnail = ({ ra, dec, mjd, name, url }) => {
       </CardContent>
       <div className={classes.mediaDiv}>
         <a href={link}>
-          <img src={url} alt={alt} className={classes.media} title={alt}/>
+          <img src={url} alt={alt} className={classes.media} title={alt} />
         </a>
         {
           (name === "dr8") && <img className={classes.crosshair} src="/static/images/crosshairs.png" alt="" />
@@ -114,7 +111,6 @@ Thumbnail.propTypes = {
 };
 
 const ThumbnailList = ({ ra, dec, thumbnails, gridKwargs={}, useGrid=true }) => {
-
   const thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8'];
   // Sort thumbnails by order of appearance in `thumbnail_order`
   thumbnails.sort((a, b) => (thumbnail_order.indexOf(a.type) <
@@ -130,18 +126,17 @@ const ThumbnailList = ({ ra, dec, thumbnails, gridKwargs={}, useGrid=true }) => 
       >
         {
           thumbnails.map((t) => (
-              <Grid item key={t.id}>
-                <Thumbnail
-                  key={`thumb_${t.type}`}
-                  ra={ra}
-                  dec={dec}
-                  name={t.type}
-                  url={t.public_url}
-                  mjd={t.photometry.mjd}
-                />
-              </Grid>
-            )
-          )
+            <Grid item key={t.id}>
+              <Thumbnail
+                key={`thumb_${t.type}`}
+                ra={ra}
+                dec={dec}
+                name={t.type}
+                url={t.public_url}
+                mjd={t.photometry.mjd}
+              />
+            </Grid>
+          ))
         }
       </Grid>
     );
@@ -158,9 +153,8 @@ const ThumbnailList = ({ ra, dec, thumbnails, gridKwargs={}, useGrid=true }) => 
             mjd={t.photometry.mjd}
           />
         </Grid>
-        )
-      )
-    )
+      ))
+    );
   }
 };
 
@@ -171,5 +165,3 @@ ThumbnailList.propTypes = {
 };
 
 export default ThumbnailList;
-
-

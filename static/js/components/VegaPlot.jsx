@@ -57,7 +57,7 @@ const spec = (url) => ({
         color: {
           field: "filter",
           type: "nominal",
-          scale: {domain: ["ztfg", "ztfr", "ztfi"], "range": ["#377E22", "#EA3323", "#CCCC52"]}
+          scale: { domain: ["ztfg", "ztfr", "ztfi"], range: ["#377E22", "#EA3323", "#CCCC52"] }
         },
         tooltip: [
           { field: "magAndErr", title: "mag", type: "nominal" },
@@ -179,8 +179,8 @@ const airmass_spec = (url) => ({
   background: "transparent",
   mark: "line",
   encoding: {
-    x: {field: "time", type: "temporal", title: "time (UT)"},
-    y: {field: "airmass", type: "quantitative", scale: {reverse: true}}
+    x: { field: "time", type: "temporal", title: "time (UT)" },
+    y: { field: "airmass", type: "quantitative", scale: { reverse: true } }
   }
 });
 
@@ -219,9 +219,7 @@ class VegaPlot extends React.Component {
         }
       />
     );
-
   }
-
 }
 
 VegaPlot.propTypes = {
