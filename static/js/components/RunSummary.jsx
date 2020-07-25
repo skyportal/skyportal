@@ -37,6 +37,7 @@ import Collapse from '@material-ui/core/Collapse';
 import Grid from '@material-ui/core/Grid';
 
 import LastPageIcon from '@material-ui/icons/LastPage';
+import BuildIcon from '@material-ui/icons/Build';
 
 import Link from '@material-ui/core/Link';
 import PictureAsPdfIcon from '@material-ui/icons/PictureAsPdf';
@@ -46,113 +47,24 @@ import { makeStyles, useTheme } from '@material-ui/core/styles';
 
 const VegaPlot = React.lazy(() => import('./VegaPlot'));
 
-const useRowStyles = makeStyles({
-  root: {
-    '& > *': {
-      borderBottom: 'unset',
-    },
-  },
-});
+import Menu from '@material-ui/core/Menu';
+import MenuItem from '@material-ui/core/MenuItem';
 
-const useStyles1 = makeStyles((theme) => ({
-  root: {
-    flexShrink: 0,
-    marginLeft: theme.spacing(2.5),
-  },
-}));
+import MUIDataTable from "mui-datatables";
 
-function TablePaginationActions(props) {
-  const classes = useStyles1();
-  const theme = useTheme();
-  const { count, page, rowsPerPage, onChangePage } = props;
 
-  const handleFirstPageButtonClick = (event) => {
-    onChangePage(event, 0);
-  };
-
-  const handleBackButtonClick = (event) => {
-    onChangePage(event, page - 1);
-  };
-
-  const handleNextButtonClick = (event) => {
-    onChangePage(event, page + 1);
-  };
-
-  const handleLastPageButtonClick = (event) => {
-    onChangePage(event, Math.max(0, Math.ceil(count / rowsPerPage) - 1));
-  };
-
-  return (
-    <div className={classes.root}>
-      <IconButton
-        onClick={handleFirstPageButtonClick}
-        disabled={page === 0}
-        aria-label="first page"
-      >
-        {theme.direction === 'rtl' ? <LastPageIcon /> : <FirstPageIcon />}
-      </IconButton>
-      <IconButton onClick={handleBackButtonClick} disabled={page === 0} aria-label="previous page">
-        {theme.direction === 'rtl' ? <KeyboardArrowRight /> : <KeyboardArrowLeft />}
-      </IconButton>
-      <IconButton
-        onClick={handleNextButtonClick}
-        disabled={page >= Math.ceil(count / rowsPerPage) - 1}
-        aria-label="next page"
-      >
-        {theme.direction === 'rtl' ? <KeyboardArrowLeft /> : <KeyboardArrowRight />}
-      </IconButton>
-      <IconButton
-        onClick={handleLastPageButtonClick}
-        disabled={page >= Math.ceil(count / rowsPerPage) - 1}
-        aria-label="last page"
-      >
-        {theme.direction === 'rtl' ? <FirstPageIcon /> : <LastPageIcon />}
-      </IconButton>
-    </div>
-  );
-}
-
-TablePaginationActions.propTypes = {
-  count: PropTypes.number.isRequired,
-  onChangePage: PropTypes.func.isRequired,
-  page: PropTypes.number.isRequired,
-  rowsPerPage: PropTypes.number.isRequired,
-};
-
-function assignmentDescriptor(assignment){
-  const relative = time_relative_to_local(assignment.modified);
-  return `${relative} -- ${assignment.requester.username}: ${assignment.comment} (P${assignment.priority})`;
-}
-
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error) {
-    // Update state so the next render will show the fallback UI.
-    return { hasError: true };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    // You can also log the error to an error reporting service
-    console.log(error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      // You can render any custom fallback UI
-      return <td>Something went wrong.</td>;
-    }
-
-    return this.props.children;
-  }
-}
-
-const ObserverActions = ({ assignment }) => {
-
+const SimpleMenu = ({ assignment }) => {
+  const [anchorEl, setAnchorEl] = React.useState(null);
   const dispatch = useDispatch();
+
+  const handleClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
   const ispending = assignment.status === "pending";
   const isdone = assignment.status === "complete";
 
@@ -169,44 +81,35 @@ const ObserverActions = ({ assignment }) => {
   );
 
   const mark_observed = (
-    <React.Fragment>
-      <Button onClick={complete_action} variant="contained">
-        Mark Observed
-      </Button>
-    </React.Fragment>
+    <MenuItem onClick={complete_action} variant="contained">
+      Mark Observed
+    </MenuItem>
   );
 
   const mark_pending = (
-    <Button onClick={pending_action} variant="contained">
+    <MenuItem onClick={pending_action} variant="contained">
       Mark Pending
-    </Button>
+    </MenuItem>
   );
 
   const mark_not_observed = (
-    <React.Fragment>
-      <Button onClick={not_observed_action} variant="contained">
-        Mark Not Observed
-      </Button>
-    </React.Fragment>
+    <MenuItem onClick={not_observed_action} variant="contained">
+      Mark Not Observed
+    </MenuItem>
   );
 
   const upload_photometry = (
-    <React.Fragment>
-      <a href={`/source/${assignment.obj.id}/upload_photometry`}>
-        <Button>
-          Upload Photometry
-        </Button>
-      </a>
-    </React.Fragment>
+    <a href={`/source/${assignment.obj.id}/upload_photometry`}>
+      <MenuItem>
+        Upload Photometry
+      </MenuItem>
+    </a>
   );
 
   const upload_spectrum = (
-    <React.Fragment>
-      <Button>
-        Upload Spectrum
-      </Button>
-    </React.Fragment>
-
+    <MenuItem>
+      Upload Spectrum
+    </MenuItem>
   );
 
   const render_items = [];
@@ -224,42 +127,40 @@ const ObserverActions = ({ assignment }) => {
   }
 
   return (
-    <List dense={true}>
-      {render_items.map((item) => (
-        <ListItem>
-          {item}
-        </ListItem>
-      ))}
-    </List>
-  )
-};
+    <div>
+      <IconButton
+        aria-controls="simple-menu"
+        aria-haspopup="true"
+        onClick={handleClick}
+        variant="contained">
+        <BuildIcon/>
+      </IconButton>
+      <Menu
+        id="simple-menu"
+        anchorEl={anchorEl}
+        keepMounted
+        open={Boolean(anchorEl)}
+        onClose={handleClose}
+      >
+        {render_items}
+      </Menu>
+    </div>
+  );
+}
+
+const useRowStyles = makeStyles({
+  root: {
+    '& > *': {
+      borderBottom: 'unset',
+    },
+  },
+});
 
 
 const Row = ({ assignment }) => {
   const [open, setOpen] = React.useState(false);
   const classes = useRowStyles();
 
-  const redshift_part = (
-    <React.Fragment>
-      <br />
-      <b>
-        Redshift:
-        &nbsp;
-      </b>
-      {assignment.obj.redshift}
-    </React.Fragment>
-  );
-
-  const comment_part = (
-    <React.Fragment>
-      <br />
-      <b>
-        With comment:
-      </b>
-      &nbsp;
-      {assignment.comment}
-    </React.Fragment>
-  );
 
   return (
     <React.Fragment>
@@ -269,72 +170,38 @@ const Row = ({ assignment }) => {
             {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
           </IconButton>
         </TableCell>
-        <TableCell scope="row" align="left">
-          <b>Target Name:</b>
-          &nbsp;
+        <TableCell scope="row" align="center">
           <a href={`/source/${assignment.obj.id}`}>
             {assignment.obj.id}
           </a>
-          <br />
-          <b>
-            Position (J2000):
-          </b>
-          &nbsp;
+        </TableCell>
+        <TableCell scope="row" align="center">
           {assignment.obj.ra}
-          ,
-          &nbsp;
+          <br />
+          {ra_to_hours(assignment.obj.ra)}
+        </TableCell>
+        <TableCell scope="row" align="center">
           {assignment.obj.dec}
           <br />
-          (&alpha;,&delta;=
-          {ra_to_hours(assignment.obj.ra)}
-          ,
-          &nbsp;
           {dec_to_hours(assignment.obj.dec)}
-          )
-          {(assignment.obj.redshift !== undefined && assignment.obj.redshift > 0) &&
-            redshift_part
-          }
-          <br />
-          <b>Assigned by:</b>
-          &nbsp;
+        </TableCell>
+        <TableCell scope="row" align="center">
+          {assignment.obj.redshift}
+        </TableCell>
+        <TableCell scope="row" align="center">
           {assignment.requester.username}
-          {(assignment.comment !== undefined && assignment.comment !== "") && comment_part}
-          <br />
-          <b>Priority:</b>
-          &nbsp;
+        </TableCell>
+        <TableCell scope="row" align="center">
+          {assignment.comment}
+        </TableCell>
+        <TableCell scope="row" align="center">
           {assignment.priority}
         </TableCell>
-        <TableCell align="center">
-          <Suspense fallback={<div>Loading plot...</div>}>
-            <VegaPlot
-              dataUrl={`/api/internal/plot/airmass/${assignment.id}`}
-              type="airmass"
-            />
-          </Suspense>
-
+        <TableCell scope="row" align="center">
+          {new Date(assignment.rise_time_utc).toLocaleTimeString()}
         </TableCell>
-        <TableCell align="center">
-          <Suspense fallback={<div>Loading plot...</div>}>
-            <VegaPlot
-              dataUrl={`/api/sources/${assignment.obj.id}/photometry`}
-            />
-          </Suspense>
-        </TableCell>
-        <TableCell align="center">
-          <List dense={true}>
-            {assignment.obj.comments.slice(0, 3).map(
-              (comment) => (
-                <ListItem key={comment.id}>
-                  <ListItemText primary={comment.text} secondary={
-                    `${comment.author} (${time_relative_to_local(comment.modified)})`
-                  } />
-                </ListItem>
-              )
-            )}
-          </List>
-        </TableCell>
-        <TableCell align="center">
-          <ObserverActions assignment={assignment} />
+        <TableCell scope="row" align="center">
+          {new Date(assignment.set_time_utc).toLocaleTimeString()}
         </TableCell>
         <TableCell align="center">
           <IconButton aria-label="expand row" size="small">
@@ -343,20 +210,43 @@ const Row = ({ assignment }) => {
             </Link>
           </IconButton>
         </TableCell>
+        <TableCell align="center">
+          <SimpleMenu assignment={assignment} />
+        </TableCell>
       </TableRow>
       <TableRow>
-        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={7}>
+        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={12}>
           <Collapse in={open} timeout="auto" unmountOnExit>
             <Box margin={1}>
-              <Typography gutterBottom component="div" align="center">
-                <b>Thumbnails</b>
-              </Typography>
-              <ThumbnailList
-                thumbnails={assignment.obj.thumbnails}
-                ra={assignment.obj.ra}
-                dec={assignment.obj.dec}
-                gridKwargs={{justify: "center", alignItems: "center"}}
-              />
+              <Grid
+                container
+                direction="row"
+                spacing={3}
+                justify="center"
+                alignItems="center"
+              >
+                <ThumbnailList
+                  thumbnails={assignment.obj.thumbnails}
+                  ra={assignment.obj.ra}
+                  dec={assignment.obj.dec}
+                  useGrid={false}
+                />
+                <Grid item>
+                  <Suspense fallback={<div>Loading plot...</div>}>
+                    <VegaPlot
+                      dataUrl={`/api/internal/plot/airmass/${assignment.id}`}
+                      type="airmass"
+                    />
+                  </Suspense>
+                </Grid>
+                <Grid item>
+                  <Suspense fallback={<div>Loading plot...</div>}>
+                    <VegaPlot
+                      dataUrl={`/api/sources/${assignment.obj.id}/photometry`}
+                    />
+                  </Suspense>
+                </Grid>
+              </Grid>
             </Box>
           </Collapse>
         </TableCell>
@@ -400,6 +290,83 @@ const RunSummary = ({ route }) => {
     );
   } else {
 
+    const options = {
+      draggableColumns: {enabled: true},
+      expandableRows: true,
+      renderExpandableRow: ((rowData, rowMeta) => {
+        const colSpan = rowData.length + 1;
+        const assignment = observingRun.assignments[rowMeta.rowIndex];
+        return (
+          <TableRow>
+            <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={colSpan}>
+              <Grid
+                container
+                direction="row"
+                spacing={3}
+                justify="center"
+                alignItems="center"
+              >
+                <ThumbnailList
+                  thumbnails={assignment.obj.thumbnails}
+                  ra={assignment.obj.ra}
+                  dec={assignment.obj.dec}
+                  useGrid={false}
+                />
+                <Grid item>
+                  <Suspense fallback={<div>Loading plot...</div>}>
+                    <VegaPlot
+                      dataUrl={`/api/internal/plot/airmass/${assignment.id}`}
+                      type="airmass"
+                    />
+                  </Suspense>
+                </Grid>
+                <Grid item>
+                  <Suspense fallback={<div>Loading plot...</div>}>
+                    <VegaPlot
+                      dataUrl={`/api/sources/${assignment.obj.id}/photometry`}
+                    />
+                  </Suspense>
+                </Grid>
+              </Grid>
+            </TableCell>
+          </TableRow>
+        )
+      }),
+      selectableRows: "none"
+    };
+
+    const data = observingRun.assignments.map(
+      (assignment) => (
+        [
+          <a href={`/source/${assignment.obj.id}`}>
+            {assignment.obj.id}
+          </a>,
+          <div>
+            {assignment.obj.ra}
+            <br />
+            {ra_to_hours(assignment.obj.ra)}
+          </div>,
+          <div>
+            {assignment.obj.dec}
+            <br />
+            {dec_to_hours(assignment.obj.dec)}
+          </div>,
+          assignment.obj.redshift,
+          assignment.requester.username,
+          assignment.comment,
+          assignment.priority,
+          new Date(assignment.rise_time_utc).toLocaleTimeString(),
+          new Date(assignment.set_time_utc).toLocaleTimeString(),
+          <IconButton size="small">
+            <Link href={`/api/sources/${assignment.obj.id}/finder`}>
+              <PictureAsPdfIcon/>
+            </Link>
+          </IconButton>,
+          <SimpleMenu assignment={assignment} />
+        ]
+      )
+    );
+
     return (
       <div className={styles.source}>
         <div>
@@ -415,49 +382,13 @@ const RunSummary = ({ route }) => {
               </div>
             </Grid>
             <Grid item>
-              <Typography gutterBottom align="center">
-                Targets
-              </Typography>
-              <TableContainer className={styles.tableContainer} component={Paper}>
-                <Table aria-label="simple table">
-                  <TableHead>
-                    <TableRow>
-                      <ErrorBoundary>
-                        <TableCell align="center" />
-                        <TableCell align="center">Target Info</TableCell>
-                        <TableCell align="center">Airmass Chart</TableCell>
-                        <TableCell align="center">Light Curve</TableCell>
-                        <TableCell align="center">Recent Comments</TableCell>
-                        <TableCell align="center">Actions</TableCell>
-                        <TableCell align="center">Finder Chart</TableCell>
-                      </ErrorBoundary>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {observingRun.assignments.map((assignment) => (
-                      <Row assignment={assignment}/>
-                    ))}
-                  </TableBody>
-                  <TableFooter>
-                    <TableRow>
-                      <TablePagination
-                        rowsPerPageOptions={[5, 10, 25, { label: 'All', value: -1 }]}
-                        colSpan={3}
-                        count={observingRun.assignments.length}
-                        rowsPerPage={rowsPerPage}
-                        page={page}
-                        SelectProps={{
-                          inputProps: { 'aria-label': 'rows per page' },
-                          native: true,
-                        }}
-                        onChangePage={handleChangePage}
-                        onChangeRowsPerPage={handleChangeRowsPerPage}
-                        ActionsComponent={TablePaginationActions}
-                      />
-                    </TableRow>
-                  </TableFooter>
-                </Table>
-              </TableContainer>
+              <MUIDataTable
+                title="Targets"
+                columns={["Target Name", "RA", "Dec", "Redshift", "Requester", "Request",
+                          "Priority", "Rise Time (UT)", "Set Time (UT)", "Finder", "Actions"]}
+                data={data}
+                options={options}
+              />
             </Grid>
             <Grid item>
               <Typography gutterBottom align="center">

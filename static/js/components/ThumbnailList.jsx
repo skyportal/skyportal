@@ -113,37 +113,55 @@ Thumbnail.propTypes = {
   mjd: PropTypes.number.isRequired
 };
 
-const ThumbnailList = ({ ra, dec, thumbnails, gridKwargs={} }) => {
+const ThumbnailList = ({ ra, dec, thumbnails, gridKwargs={}, useGrid=true }) => {
 
   const thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8'];
   // Sort thumbnails by order of appearance in `thumbnail_order`
   thumbnails.sort((a, b) => (thumbnail_order.indexOf(a.type) <
   thumbnail_order.indexOf(b.type) ? -1 : 1));
 
-  return (
-    <Grid
-      container
-      direction="row"
-      spacing={3}
-      {...gridKwargs}
-    >
-      {
-        thumbnails.map((t) => (
-          <Grid item key={t.id}>
-            <Thumbnail
-              key={`thumb_${t.type}`}
-              ra={ra}
-              dec={dec}
-              name={t.type}
-              url={t.public_url}
-              mjd={t.photometry.mjd}
-            />
-          </Grid>
+  if (useGrid) {
+    return (
+      <Grid
+        container
+        direction="row"
+        spacing={3}
+        {...gridKwargs}
+      >
+        {
+          thumbnails.map((t) => (
+              <Grid item key={t.id}>
+                <Thumbnail
+                  key={`thumb_${t.type}`}
+                  ra={ra}
+                  dec={dec}
+                  name={t.type}
+                  url={t.public_url}
+                  mjd={t.photometry.mjd}
+                />
+              </Grid>
+            )
           )
+        }
+      </Grid>
+    );
+  } else {
+    return (
+      thumbnails.map((t) => (
+        <Grid item key={t.id}>
+          <Thumbnail
+            key={`thumb_${t.type}`}
+            ra={ra}
+            dec={dec}
+            name={t.type}
+            url={t.public_url}
+            mjd={t.photometry.mjd}
+          />
+        </Grid>
         )
-      }
-    </Grid>
-  );
+      )
+    )
+  }
 };
 
 ThumbnailList.propTypes = {

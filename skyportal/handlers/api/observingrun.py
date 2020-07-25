@@ -131,8 +131,8 @@ class ObservingRunHandler(BaseHandler):
 
             # calculate when the targets rise and set
             for d, a in zip(data['assignments'], run.assignments):
-                d['rise_time_unix'] = a.rise_time.unix
-                d['set_time_unix'] = a.set_time.unix
+                d['rise_time_utc'] = a.rise_time.iso
+                d['set_time_utc'] = a.set_time.iso
 
             return self.success(data=data)
         runs = ObservingRun.query.all()
