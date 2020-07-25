@@ -3,8 +3,8 @@ import PropTypes from 'prop-types';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link } from "react-router-dom";
 import Button from "@material-ui/core/Button";
-
 import Tooltip from '@material-ui/core/Tooltip';
+
 import * as Action from '../ducks/source';
 import Plot from './Plot';
 import CommentList from './CommentList';
@@ -70,16 +70,10 @@ const Source = ({ route }) => {
     );
   }
 
-  const groupBy = (array, key) => {
-    // simple groupby for a given key
-    array.reduce((result, cv) => {
-      (result[cv[key]] = result[cv[key]] || []).push(
-        cv
-      );
-      return result;
-    }, {});
-  };
-
+  const groupBy = (array, key) => array.reduce((result, cv) => {
+    (result[cv[key]] = result[cv[key]] || []).push(cv);
+    return result;
+  }, {});
   function showClassification() {
     // Here we compute the most recent non-zero probability class for each taxonomy
 
@@ -87,11 +81,10 @@ const Source = ({ route }) => {
     const groupedClasses = groupBy(filteredClasses, 'taxonomy_id');
     const sortedClasses = [];
 
-    Object.keys(groupedClasses).forEach(
-      (item) => sortedClasses.push(groupedClasses[item].sort(
-        (a, b) => (a.modified < b.modified ? 1 : -1)
-      ))
-    );
+    Object.keys(groupedClasses).forEach((item) => sortedClasses.push(
+      groupedClasses[item].sort((a, b) => (a.modified < b.modified ? 1 : -1))
+    ));
+
 
     if (sortedClasses.length > 0) {
       return (
@@ -104,7 +97,7 @@ const Source = ({ route }) => {
             }
             return (
               <Tooltip
-                key={`${c[0].created_at}tooltip`}
+                key={`${c[0].modified}tt`}
                 disableFocusListener
                 disableTouchListener
                 title={(
@@ -120,7 +113,7 @@ const Source = ({ route }) => {
                   </>
                       )}
               >
-                <Button key={`${c[0].created_at}tooltipbutton`}>{c[0].classification}</Button>
+                <Button key={`${c[0].modified}tb`}>{c[0].classification}</Button>
               </Tooltip>
             );
           })}
