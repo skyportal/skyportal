@@ -17,7 +17,7 @@ dayjs.extend(calendar);
 /* const useStyles = makeStyles((theme) => ({
 })); */
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   root: {
     width: 200,
     margin: 'auto',

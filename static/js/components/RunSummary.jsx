@@ -1,40 +1,18 @@
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import PropTypes from 'prop-types';
 import { useSelector, useDispatch } from 'react-redux';
 
 
-import Table from '@material-ui/core/Table';
-import List from '@material-ui/core/List';
-import ListItem from '@material-ui/core/ListItem';
-import ListItemText from '@material-ui/core/ListItemText';
-import TableBody from '@material-ui/core/TableBody';
 import TableCell from '@material-ui/core/TableCell';
-import TableContainer from '@material-ui/core/TableContainer';
-import TableHead from '@material-ui/core/TableHead';
 import TableRow from '@material-ui/core/TableRow';
-import TablePagination from '@material-ui/core/TablePagination';
-import TableFooter from '@material-ui/core/TableFooter';
-import Paper from '@material-ui/core/Paper';
-import Button from '@material-ui/core/Button';
 
 import Typography from '@material-ui/core/Typography';
 import IconButton from '@material-ui/core/IconButton';
-import FirstPageIcon from '@material-ui/icons/FirstPage';
-import KeyboardArrowUpIcon from '@material-ui/icons/KeyboardArrowUp';
-import KeyboardArrowDownIcon from '@material-ui/icons/KeyboardArrowDown';
-
-import KeyboardArrowLeft from '@material-ui/icons/KeyboardArrowLeft';
-import KeyboardArrowRight from '@material-ui/icons/KeyboardArrowRight';
-import Box from '@material-ui/core/Box';
-import Collapse from '@material-ui/core/Collapse';
 import Grid from '@material-ui/core/Grid';
-
-import LastPageIcon from '@material-ui/icons/LastPage';
 import BuildIcon from '@material-ui/icons/Build';
 
 import Link from '@material-ui/core/Link';
 import PictureAsPdfIcon from '@material-ui/icons/PictureAsPdf';
-import { makeStyles, useTheme } from '@material-ui/core/styles';
 
 import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
@@ -46,7 +24,7 @@ import { observingRunTitle } from './AssignmentForm';
 import { ObservingRunStarList } from './StarList';
 import * as SourceAction from '../ducks/source';
 import * as Action from '../ducks/observingRun';
-import { time_relative_to_local, ra_to_hours, dec_to_hours } from "../units";
+import { ra_to_hours, dec_to_hours } from "../units";
 
 const VegaPlot = React.lazy(() => import('./VegaPlot'));
 
@@ -147,113 +125,6 @@ const SimpleMenu = ({ assignment }) => {
   );
 };
 
-const useRowStyles = makeStyles({
-  root: {
-    '& > *': {
-      borderBottom: 'unset',
-    },
-  },
-});
-
-
-const Row = ({ assignment }) => {
-  const [open, setOpen] = React.useState(false);
-  const classes = useRowStyles();
-
-
-  return (
-    <>
-      <TableRow className={classes.root}>
-        <TableCell>
-          <IconButton aria-label="expand row" size="small" onClick={() => setOpen(!open)}>
-            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-          </IconButton>
-        </TableCell>
-        <TableCell scope="row" align="center">
-          <a href={`/source/${assignment.obj.id}`}>
-            {assignment.obj.id}
-          </a>
-        </TableCell>
-        <TableCell scope="row" align="center">
-          {assignment.obj.ra}
-          <br />
-          {ra_to_hours(assignment.obj.ra)}
-        </TableCell>
-        <TableCell scope="row" align="center">
-          {assignment.obj.dec}
-          <br />
-          {dec_to_hours(assignment.obj.dec)}
-        </TableCell>
-        <TableCell scope="row" align="center">
-          {assignment.obj.redshift}
-        </TableCell>
-        <TableCell scope="row" align="center">
-          {assignment.requester.username}
-        </TableCell>
-        <TableCell scope="row" align="center">
-          {assignment.comment}
-        </TableCell>
-        <TableCell scope="row" align="center">
-          {assignment.priority}
-        </TableCell>
-        <TableCell scope="row" align="center">
-          {new Date(assignment.rise_time_utc).toLocaleTimeString()}
-        </TableCell>
-        <TableCell scope="row" align="center">
-          {new Date(assignment.set_time_utc).toLocaleTimeString()}
-        </TableCell>
-        <TableCell align="center">
-          <IconButton aria-label="expand row" size="small">
-            <Link href={`/api/sources/${assignment.obj.id}/finder`}>
-              <PictureAsPdfIcon />
-            </Link>
-          </IconButton>
-        </TableCell>
-        <TableCell align="center">
-          <SimpleMenu assignment={assignment} />
-        </TableCell>
-      </TableRow>
-      <TableRow>
-        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={12}>
-          <Collapse in={open} timeout="auto" unmountOnExit>
-            <Box margin={1}>
-              <Grid
-                container
-                direction="row"
-                spacing={3}
-                justify="center"
-                alignItems="center"
-              >
-                <ThumbnailList
-                  thumbnails={assignment.obj.thumbnails}
-                  ra={assignment.obj.ra}
-                  dec={assignment.obj.dec}
-                  useGrid={false}
-                />
-                <Grid item>
-                  <Suspense fallback={<div>Loading plot...</div>}>
-                    <VegaPlot
-                      dataUrl={`/api/internal/plot/airmass/${assignment.id}`}
-                      type="airmass"
-                    />
-                  </Suspense>
-                </Grid>
-                <Grid item>
-                  <Suspense fallback={<div>Loading plot...</div>}>
-                    <VegaPlot
-                      dataUrl={`/api/sources/${assignment.obj.id}/photometry`}
-                    />
-                  </Suspense>
-                </Grid>
-              </Grid>
-            </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-    </>
-  );
-};
-
 
 const RunSummary = ({ route }) => {
   const dispatch = useDispatch();
@@ -261,18 +132,6 @@ const RunSummary = ({ route }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
-
-  const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
-
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
 
   // Load the observing run and its assignments if needed
   useEffect(() => {

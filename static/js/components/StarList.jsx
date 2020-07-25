@@ -6,7 +6,7 @@ import { GET } from '../API';
 
 import styles from './StarList.css';
 
-function _starListElem(starList) {
+function starListElem(starList) {
   return (
     <div className={styles.starListDiv}>
       <code className={styles.starList}>
@@ -39,7 +39,7 @@ const StarList = ({ sourceId }) => {
     fetchStarList();
   }, [sourceId, dispatch]);
 
-  return _starListElem(starList);
+  return starListElem(starList);
 };
 
 export const ObservingRunStarList = ({ observingRunId }) => {
@@ -72,7 +72,7 @@ export const ObservingRunStarList = ({ observingRunId }) => {
     fetchStarList();
   }, [observingRunId, dispatch, observingRun]);
 
-  return _starListElem(starList);
+  return starListElem(starList);
 };
 
 StarList.propTypes = {
