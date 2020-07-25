@@ -139,14 +139,14 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
             <Autocomplete
               options={state.allowed_classes}
               id="classification"
-              getOptionSelected={(option, value) => {
+              getOptionSelected={(option) => {
                 if (option === null) {
                   return (true);
                 }
                 if (option === '') {
                   return (true);
                 }
-                return option.class === value;
+                return (true);
               }}
               value={state.classification || ""}
               onChange={handleClasschange}

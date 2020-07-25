@@ -5,7 +5,11 @@
   min-height: 60px;
   padding-bottom: 10px;
   padding-left: 10px;
+  align-items: start;
+  justify-content: space-between;
+  overflow-anchor: none;
 }
+
 .classification:hover {
   background-color: #eee;
 }
@@ -15,6 +19,7 @@
   flex-direction: row;
   padding-top: 0.5em;
   padding-bottom: 0.5em;
+  align-items: start;
 }
 
 .classificationTime {
@@ -27,7 +32,7 @@
 }
 
 .classificationUserName {
-  font-weight: bold;
+
 }
 
 .classificationUserDomain {
@@ -39,11 +44,16 @@
   display: flex;
   flex-direction: row;
   justify-content: space-between;
-  align-items: center;
+  align-items: start;
   min-height: 27px;
   max-width: 20em;
 }
 
 .classificationDelete {
   height: 35px;
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+  align-items: center;
 }
+
+
