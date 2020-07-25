@@ -224,7 +224,6 @@ class Obj(Base, ha.Point):
 
         Parameters
         ----------
-
         telescope : `skyportal.models.Telescope`
             The telescope to use for the airmass calculation
         time : `astropy.time.Time` or list of astropy.time.Time`
@@ -236,7 +235,6 @@ class Obj(Base, ha.Point):
 
         Returns
         -------
-
         airmass : ndarray
            The airmass of the Obj at the requested times
         """
@@ -265,7 +263,6 @@ class Obj(Base, ha.Point):
 
         Parameters
         ----------
-
         telescope : `skyportal.models.Telescope`
             The telescope to use for the altitude calculation
 
@@ -274,7 +271,6 @@ class Obj(Base, ha.Point):
 
         Returns
         -------
-
         alt : `astropy.coordinates.AltAz`
            The altitude of the Obj at the requested times
         """
