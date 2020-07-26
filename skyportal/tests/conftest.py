@@ -35,9 +35,10 @@ set_server_url(f'http://localhost:{cfg["ports.app"]}')
 print("Setting test database to:", cfg["database"])
 models.init_db(**cfg["database"])
 
-# grab the latest earth orientation data for observatory calculations
-astroplan.download_IERS_A()
-
+@pytest.fixture(scope='session')
+def iers_data():
+    # grab the latest earth orientation data for observatory calculations
+    astroplan.download_IERS_A()
 
 @pytest.fixture()
 def public_group():
