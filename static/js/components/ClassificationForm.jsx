@@ -127,6 +127,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
           <FormControl className={classes.formControl}>
             <InputLabel id="taxonomy-label">Taxonomy</InputLabel>
             <Select
+              id="tax-select"
               defaultValue=""
               onChange={handleTaxonomyChange}
             >

@@ -112,7 +112,7 @@ const ClassificationList = () => {
   const Row = ({ index }) => (items[index]);
 
   return (
-    <div className={styles.classifications}>
+    <div style={{ display: classifications.length > 0 ? "block" : "none" }} className={styles.classifications}>
       <FixedSizeList
         className={styles.classifications}
         height={300}
