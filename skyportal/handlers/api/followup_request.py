@@ -98,7 +98,7 @@ class AssignmentHandler(BaseHandler):
         ).first()
 
         if predecessor is not None:
-            return self.error(f'Object is already assigned to this run.')
+            return self.error('Object is already assigned to this run.')
 
         assignment = ClassicalAssignment(**data)
         source = Source.get_obj_if_owned_by(assignment.obj_id, self.current_user)
