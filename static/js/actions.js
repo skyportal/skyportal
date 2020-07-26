@@ -6,7 +6,7 @@ import * as newsFeedActions from './ducks/newsFeed';
 import * as topSourcesActions from './ducks/topSources';
 import * as instrumentsActions from './ducks/instruments';
 import * as observingRunsActions from './ducks/observingRuns';
-import * as telescopesActions from './ducks/telescope';
+import * as telescopesActions from './ducks/telescopes';
 
 
 export default function hydrate() {

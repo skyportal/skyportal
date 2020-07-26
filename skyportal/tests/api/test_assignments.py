@@ -108,6 +108,3 @@ def test_group1_user_cannot_see_group2_assignment(red_transients_run,
                        token=view_only_token)
     assert status == 200
     assert private_source.id not in [a['id'] for a in data['data']]
-
-
-def test_
