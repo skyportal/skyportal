@@ -78,7 +78,7 @@ telescopes:
     robotic: false
     group_names:
       - Program A
-    token: "load_demo_data token"      
+    token: "load_demo_data token"
   - name: Keck I Telescope
     nickname: Keck1
     lat: 28.75
@@ -89,7 +89,7 @@ telescopes:
     robotic: false
     group_names:
       - Program A
-    token: "load_demo_data token"    
+    token: "load_demo_data token"
 instruments:
   - name: P60 Camera
     type: imager
@@ -119,12 +119,14 @@ observing_runs:
     group: Program A
     token: "load_demo_data token"
     observers: "Danny Goldstein, Peter Nugent"
+    key: "esi_run"
   - pi: Danny Goldstein
     instrument_name: LRIS
     calendar_date: 2021-02-17
     group: Program A
     token: "load_demo_data token"
     observers: "Danny Goldstein, Peter Nugent"
+    key: "lris_run"
 sources:
   - id: 14gqr
     candidate:
@@ -203,4 +205,24 @@ taxonomies:
     groups:
       - Program A
       - Program B
-
+assignments:
+  - source_id: 14gqr
+    run_key: lris_run
+    priority: 4
+    comment: Please get 2x625s
+    token: "load_demo_data token"
+  - source_id: 16fil
+    run_key: lris_run
+    priority: 3
+    comment: Please do i-band imaging to 24th mag
+    token: "load_demo_data token"
+  - source_id: 14gqr
+    run_key: esi_run
+    priority: 2
+    comment: Please integrate for 1200s
+    token: "load_demo_data token"
+  - source_id: 16fil
+    run_key: esi_run
+    priority: 2
+    comment: Please take only when seeing is less than 1.5"
+    token: "load_demo_data token"
