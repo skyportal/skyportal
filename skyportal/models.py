@@ -223,6 +223,12 @@ class Obj(Base, ha.Point):
         return (f"http://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
                 f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz")
 
+    @property
+    def target(self):
+        """Representation of this Obj as an astroplan.FixedTarget."""
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
+        return astroplan.FixedTarget(name=self.id, coord=coord)
+
     def airmass(self, telescope, time, below_horizon=np.inf):
         """Return the airmass of the object at a given time. Uses the Pickering
         (2002) interpolation of the Rayleigh (molecular atmosphere) airmass.
@@ -279,17 +285,12 @@ class Obj(Base, ha.Point):
 
         Returns
         -------
+
         alt : `astropy.coordinates.AltAz`
            The altitude of the Obj at the requested times
         """
 
-        coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
-        target = astroplan.FixedTarget(name=self.id, coord=coord)
-        observer = astroplan.Observer(latitude=telescope.lat * u.deg,
-                                      longitude=telescope.lon * u.deg,
-                                      elevation=telescope.elevation * u.m)
-
-        alt = observer.altaz(time, target).alt
+        alt = telescope.observer.altaz(time, self.target).alt
         return alt
 
 
