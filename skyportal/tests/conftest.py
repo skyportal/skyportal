@@ -23,6 +23,7 @@ from skyportal.tests.fixtures import (
 )
 from skyportal.model_util import create_token
 from skyportal.models import DBSession, Source, Candidate, Role
+import astroplan
 
 
 print("Loading test configuration from _test_config.yaml")
@@ -31,6 +32,9 @@ cfg = load_config([(basedir / "../../test_config.yaml").absolute()])
 set_server_url(f'http://localhost:{cfg["ports.app"]}')
 print("Setting test database to:", cfg["database"])
 models.init_db(**cfg["database"])
+
+# grab the latest earth orientation data for observatory calculations
+astroplan.download_IERS_A()
 
 
 @pytest.fixture()
