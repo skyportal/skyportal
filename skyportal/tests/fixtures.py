@@ -23,7 +23,7 @@ class TelescopeFactory(factory.alchemy.SQLAlchemyModelFactory):
     name = 'Palomar 48 inch'
     nickname = 'P48'
     lat = 33.3563
-    lon = 116.8650
+    lon = -116.8650
     elevation = 1712.
     diameter = 1.2
 
