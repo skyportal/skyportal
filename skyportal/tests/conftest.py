@@ -91,6 +91,7 @@ def red_transients_group(group_admin_user, view_only_user):
                         users=[group_admin_user,
                                view_only_user])
 
+
 @pytest.fixture()
 def ztf_camera():
     return InstrumentFactory()
@@ -105,6 +106,7 @@ def keck1_telescope():
                             lon=observer.location.lon.to('deg').value,
                             elevation=observer.location.height.to('m').value,
                             diameter=10.)
+
 
 @pytest.fixture()
 def p60_telescope():
@@ -127,12 +129,14 @@ def lris(keck1_telescope):
                                                       'bessellv', 'bessellb',
                                                       'bessellr', 'besselli'])
 
+
 @pytest.fixture()
 def sedm(p60_telescope):
     return InstrumentFactory(name='SEDM', type='imaging spectrograph',
                              telescope=p60_telescope,
                              band='Optical', filters=['sdssu', 'sdssg', 'sdssr',
                                                       'sdssi'])
+
 
 @pytest.fixture()
 def red_transients_run():
