@@ -164,31 +164,3 @@ if __name__ == "__main__":
         print("\n".join(error_log))
 
         sys.exit(-1)
-
-    if src.get("taxonomies") is not None:
-        with status("Creating Taxonomies"):
-
-            for tax in src.get('taxonomies', []):
-                name = tax["name"]
-                provenance = tax.get("provenance")
-
-                if tax["tdtax"]:
-                    hierarchy = tdtax.taxonomy
-                    version = tdtax.__version__
-                else:
-                    hierarchy = tax["hierarchy"]
-                    tdtax.validate(hierarchy, tdtax.schema)
-                    version = tax["version"]
-
-                group_ids = [group_dict[g] for g in tax["groups"]]
-                payload = {
-                    "name": name,
-                    "hierarchy": hierarchy,
-                    "group_ids": group_ids,
-                    "provenance": provenance,
-                    "version": version,
-                }
-                data = assert_post(
-                    "taxonomy",
-                    payload
-                )
