@@ -177,10 +177,13 @@ const airmass_spec = (url) => ({
     }
   },
   background: "transparent",
-  mark: "line",
+  mark: {
+    type: "line",
+    clip: true
+  },
   encoding: {
     x: { field: "time", type: "temporal", title: "time (UT)" },
-    y: { field: "airmass", type: "quantitative", scale: { reverse: true } }
+    y: { field: "airmass", type: "quantitative", scale: { reverse: true, domain: [1, 4] } }
   }
 });
 
