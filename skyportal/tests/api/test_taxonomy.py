@@ -207,4 +207,4 @@ def test_taxonomy_group_view(taxonomy_token_two_groups, taxonomy_token,
                        token=taxonomy_token)
     assert status == 400
     print(data)
-    assert data["message"].find("is not available to user") != -1
+    assert "is not available to user" in data["message"]

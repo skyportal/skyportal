@@ -114,7 +114,6 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       classification: state.classification.class,
       probability: parseFloat(state.probability)
     };
-    // We need to include this field in request, but it isn't in form data
     submitDispatch(Actions.addClassification(formData));
   };
 
@@ -171,7 +170,6 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
               helperText="[0-1]"
               InputLabelProps={{
                 shrink: true,
-
               }}
               inputProps={{ min: "0", max: "1", step: "0.0001" }}
               onBlur={processProb}

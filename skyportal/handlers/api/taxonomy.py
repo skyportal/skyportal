@@ -176,15 +176,15 @@ class TaxonomyHandler(BaseHandler):
 
         # compute the allowable classes
         rez = []
-        def dict_path(path,my_dict):
+        def dict_path(path, my_dict):
             if my_dict.get("class"):
                 cla = my_dict.get("class")
                 if cla == 'Time-domain Source':
                     cla = ''
                 rez.append(path+"-><b>"+cla+"</b>")
                 for i, item in enumerate(my_dict.get("subclasses", [])):
-                    if isinstance(item ,dict):
-                        dict_path( path + "->" + cla, item)
+                    if isinstance(item, dict):
+                        dict_path(path + "->" + cla, item)
 
         dict_path("", hierarchy)
         allowed_classes = []
