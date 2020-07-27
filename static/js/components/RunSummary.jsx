@@ -57,33 +57,33 @@ const SimpleMenu = ({ assignment }) => {
   );
 
   const mark_observed = (
-    <MenuItem onClick={complete_action} variant="contained">
+    <MenuItem onClick={complete_action} variant="contained" key={`${assignment.id}_done`}>
       Mark Observed
     </MenuItem>
   );
 
   const mark_pending = (
-    <MenuItem onClick={pending_action} variant="contained">
+    <MenuItem onClick={pending_action} variant="contained" key={`${assignment.id}_pending`}>
       Mark Pending
     </MenuItem>
   );
 
   const mark_not_observed = (
-    <MenuItem onClick={not_observed_action} variant="contained">
+    <MenuItem onClick={not_observed_action} variant="contained" key={`${assignment.id}_notdone`}>
       Mark Not Observed
     </MenuItem>
   );
 
   const upload_photometry = (
     <a href={`/source/${assignment.obj.id}/upload_photometry`}>
-      <MenuItem>
+      <MenuItem key={`${assignment.id}_upload_phot`} variant="contained">
         Upload Photometry
       </MenuItem>
     </a>
   );
 
   const upload_spectrum = (
-    <MenuItem>
+    <MenuItem key={`${assignment.id}_upload_spec`}>
       Upload Spectrum
     </MenuItem>
   );
@@ -131,60 +131,16 @@ SimpleMenu.propTypes = {
     id: PropTypes.number,
     obj: PropTypes.shape(
       {
-        id: PropTypes.number
+        id: PropTypes.string
       }
     ).isRequired
   }).isRequired
 };
 
-const PullOutRow = ({ rowData, rowMeta }) => {
-  const observingRun = useSelector((state) => state.observingRun);
-  if (observingRun === undefined) {
-    return "Loading...";
-  }
-
-  const colSpan = rowData.length + 1;
-  const assignment = observingRun.assignments[rowMeta.rowIndex];
-
-  return (
-    <TableRow>
-      <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={colSpan}>
-        <Grid
-          container
-          direction="row"
-          spacing={3}
-          justify="center"
-          alignItems="center"
-        >
-          <ThumbnailList
-            thumbnails={assignment.obj.thumbnails}
-            ra={assignment.obj.ra}
-            dec={assignment.obj.dec}
-            useGrid={false}
-          />
-          <Grid item>
-            <Suspense fallback={<div>Loading plot...</div>}>
-              <VegaPlot
-                dataUrl={`/api/internal/plot/airmass/${assignment.id}`}
-                type="airmass"
-              />
-            </Suspense>
-          </Grid>
-          <Grid item>
-            <Suspense fallback={<div>Loading plot...</div>}>
-              <VegaPlot
-                dataUrl={`/api/sources/${assignment.obj.id}/photometry`}
-              />
-            </Suspense>
-          </Grid>
-        </Grid>
-      </TableCell>
-    </TableRow>
-  );
-};
 
 
-PullOutRow.propTypes = {
+
+/*PullOutRow.propTypes = {
   rowData: PropTypes.arrayOf(PropTypes.string).isRequired,
   rowMeta: PropTypes.shape(
     {
@@ -192,7 +148,7 @@ PullOutRow.propTypes = {
       rowIndex: PropTypes.number
     }
   ).isRequired
-};
+};*/
 
 
 const RunSummary = ({ route }) => {
@@ -215,44 +171,207 @@ const RunSummary = ({ route }) => {
       </b>
     );
   } else {
-    const options = {
-      draggableColumns: { enabled: true },
-      expandableRows: true,
-      renderExpandableRow: { PullOutRow },
-      selectableRows: "none"
+
+    const { assignments } = observingRun;
+
+    const renderPullOutRow = (( rowData, rowMeta ) => {
+      if (observingRun === undefined) {
+        return "Loading...";
+      }
+
+      const colSpan = rowData.length + 1;
+      const assignment = observingRun.assignments[rowMeta.rowIndex];
+
+      return (
+        <TableRow>
+          <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={colSpan}>
+            <Grid
+              container
+              direction="row"
+              spacing={3}
+              justify="center"
+              alignItems="center"
+            >
+              <ThumbnailList
+                thumbnails={assignment.obj.thumbnails}
+                ra={assignment.obj.ra}
+                dec={assignment.obj.dec}
+                useGrid={false}
+              />
+              <Grid item>
+                <Suspense fallback={<div>Loading plot...</div>}>
+                  <VegaPlot
+                    dataUrl={`/api/internal/plot/airmass/${assignment.id}`}
+                    type="airmass"
+                  />
+                </Suspense>
+              </Grid>
+              <Grid item>
+                <Suspense fallback={<div>Loading plot...</div>}>
+                  <VegaPlot
+                    dataUrl={`/api/sources/${assignment.obj.id}/photometry`}
+                  />
+                </Suspense>
+              </Grid>
+            </Grid>
+          </TableCell>
+        </TableRow>
+      );
+    });
+
+      // ["Target Name", "RA", "Dec", "Redshift", "Requester", "Request",
+      //            "Priority", "Rise Time (UT)", "Set Time (UT)", "Finder", "Actions"]
+
+    const renderObjId = (dataIndex) => {
+      const objid = assignments[dataIndex].obj.id;
+      return (
+        <a href={`/source/${objid}`} key={`${objid}_objid`}>
+          {objid}
+        </a>
+      );
     };
 
-    const data = observingRun.assignments.map(
-      (assignment) => (
-        [
-          <a href={`/source/${assignment.obj.id}`} key={`${assignment.id}_objid`}>
-            {assignment.obj.id}
-          </a>,
-          <div key={`${assignment.id}_ra`}>
-            {assignment.obj.ra}
-            <br />
-            {ra_to_hours(assignment.obj.ra)}
-          </div>,
-          <div key={`${assignment.id}_dec`}>
-            {assignment.obj.dec}
-            <br />
-            {dec_to_hours(assignment.obj.dec)}
-          </div>,
-          assignment.obj.redshift,
-          assignment.requester.username,
-          assignment.comment,
-          assignment.priority,
-          new Date(assignment.rise_time_utc).toLocaleTimeString(),
-          new Date(assignment.set_time_utc).toLocaleTimeString(),
+    const renderRA = (dataIndex) => {
+      const assignment = assignments[dataIndex];
+      return (
+        <div key={`${assignment.id}_ra`}>
+          {assignment.obj.ra}
+          <br />
+          {ra_to_hours(assignment.obj.ra)}
+        </div>
+      );
+    };
+
+    const renderDec = (dataIndex) => {
+      const assignment = assignments[dataIndex];
+      return (
+        <div key={`${assignment.id}_dec`}>
+          {assignment.obj.dec}
+          <br />
+          {dec_to_hours(assignment.obj.dec)}
+        </div>
+      );
+    };
+
+    const renderFinderButton = (dataIndex) => {
+      const assignment = assignments[dataIndex];
+      return (
           <IconButton size="small" key={`${assignment.id}_actions`}>
             <Link href={`/api/sources/${assignment.obj.id}/finder`}>
               <PictureAsPdfIcon />
             </Link>
-          </IconButton>,
-          <SimpleMenu assignment={assignment} key={`${assignment.id}_menu`} />
-        ]
-      )
-    );
+          </IconButton>
+      );
+    };
+
+    const renderActionsButton = (dataIndex) => {
+      const assignment = assignments[dataIndex];
+      return <SimpleMenu assignment={assignment} key={`${assignment.id}_menu`} />;
+    };
+
+    const columns =
+      [
+        {
+          name: "Target Name",
+          options: {
+            filter: true,
+            customBodyRenderLite: renderObjId
+          }
+        },
+        {
+          name: "RA",
+          options: {
+            filter: false,
+            customBodyRenderLite: renderRA
+          }
+        },
+        {
+          name: "Dec",
+          options: {
+            filter: false,
+            customBodyRenderLite: renderDec
+          }
+        },
+        {
+          name: "Redshift",
+          options: {
+            filter: false
+          }
+        },
+        {
+          name: "Requester",
+          options: {
+            filter: true
+          }
+        },
+        {
+          name: "Request",
+          options: {
+            filter: true
+          }
+        },
+        {
+          name: "Priority",
+          options: {
+            filter: true
+          }
+        },
+        {
+          name: "Rise Time (UT)",
+          options: {
+            filter: false,
+            customBodyRenderLite: (
+              (dataIndex) => new Date(assignments[dataIndex].rise_time_utc).toLocaleTimeString()
+            )
+          }
+        },
+        {
+          name: "Set Time (UT)",
+          options: {
+            filter: false,
+            customBodyRenderLite: (
+              (dataIndex) => new Date(assignments[dataIndex].set_time_utc).toLocaleTimeString()
+            )
+          }
+        },
+        {
+          name: "Finder",
+          options: {
+            filter: false,
+            customBodyRenderLite: renderFinderButton
+          }
+        },
+        {
+          name: "Actions",
+          options: {
+            filter: false,
+            customBodyRenderLite: renderActionsButton
+          }
+        }
+      ];
+
+
+    const options = {
+      draggableColumns: { enabled: true },
+      expandableRows: true,
+      renderExpandableRow: renderPullOutRow,
+      selectableRows: "none"
+    };
+
+    const data = observingRun.assignments.map(
+      (assignment) => ([
+        assignment.obj.id,
+        assignment.obj.ra,
+        assignment.obj.dec,
+        assignment.obj.redshift,
+        assignment.requester.username,
+        assignment.comment,
+        assignment.priority,
+        assignment.rise_time_utc,
+        assignment.set_time_utc,
+        null,
+        null])
+      );
 
     return (
       <div className={styles.source}>
@@ -271,8 +390,7 @@ const RunSummary = ({ route }) => {
             <Grid item>
               <MUIDataTable
                 title="Targets"
-                columns={["Target Name", "RA", "Dec", "Redshift", "Requester", "Request",
-                  "Priority", "Rise Time (UT)", "Set Time (UT)", "Finder", "Actions"]}
+                columns={columns}
                 data={data}
                 options={options}
               />
