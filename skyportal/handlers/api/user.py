@@ -1,6 +1,10 @@
 from ..base import BaseHandler
 from baselayer.app.access import permissions
-from ...models import DBSession, User, Group, GroupUser, cfg
+from baselayer.app.env import load_env
+from ...models import DBSession, User, Group, GroupUser
+
+
+env, cfg = load_env()
 
 
 def add_user_and_setup_groups(username, roles, group_ids_and_admin):
