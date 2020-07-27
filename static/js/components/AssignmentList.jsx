@@ -62,9 +62,9 @@ const AssignmentList = ({ assignments }) => {
     dispatch(Actions.deleteAssignment(id));
   };
 
-  const users = useSelector((state) => state.users);
-  const observingRunList = useSelector((state) => state.observingRuns.observingRunList);
-  const instrumentList = useSelector((state) => state.instruments.instrumentList);
+  const { users } = useSelector((state) => state);
+  const { observingRunList } = useSelector((state) => state.observingRuns);
+  const { instrumentList } = useSelector((state) => state.instruments);
 
   if (assignments.length === 0) {
     return (
@@ -90,11 +90,7 @@ const AssignmentList = ({ assignments }) => {
   );
 
   assignments.sort((a, b) => {
-    const arun = observingRunDict[a.run_id];
-    const brun = observingRunDict[b.run_id];
-    const atime = arun.sunrise_unix;
-    const btime = brun.sunrise_unix;
-    return atime - btime;
+    return observingRunDict[a.run_id].sunrise_unix - observingRunDict[b.run_id].sunrise_unix;
   });
 
   return (
