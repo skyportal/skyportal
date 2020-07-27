@@ -6,6 +6,7 @@ import base64
 from pathlib import Path
 import textwrap
 from contextlib import contextmanager
+import time
 
 import requests
 import pandas as pd
@@ -64,34 +65,58 @@ if __name__ == "__main__":
             print('Error: no token specified, and no suitable token found in .tokens.yaml')
             sys.exit(-1)
 
-    admin_token = get_token()
+    print('Testing connection...', end='')
 
-    def get(endpoint, token=admin_token):
-        response_status, data = api("GET", endpoint,
-                                    token=token,
-                                    host=env.host)
-        return response_status, data
+    RETRIES = 5
+    for i in range(RETRIES):
+        try:
+            admin_token = get_token()
 
-    def post(endpoint, data, token=admin_token):
-        response_status, data = api("POST", endpoint,
-                                    data=data,
-                                    token=token,
-                                    host=env.host)
-        return response_status, data
+            def get(endpoint, token=admin_token):
+                response_status, data = api("GET", endpoint,
+                                            token=token,
+                                            host=env.host)
+                return response_status, data
 
-    def assert_post(endpoint, data, token=admin_token):
-        response_status, data = post(endpoint, data, token)
-        if not response_status == 200 and data["status"] == "success":
-            raise RuntimeError(
-                f'API call to {endpoint} failed with status {status}: {data["message"]}'
-            )
-        return data
+            def post(endpoint, data, token=admin_token):
+                response_status, data = api("POST", endpoint,
+                                            data=data,
+                                            token=token,
+                                            host=env.host)
+                return response_status, data
 
-    try:
-        code, data = get('sysinfo')
-    except requests.exceptions.ConnectionError:
-        print('Error: Could not connect to SkyPortal instance; please ensure ')
-        print('       it is running at the given host/port')
+            def assert_post(endpoint, data, token=admin_token):
+                response_status, data = post(endpoint, data, token)
+                if not response_status == 200 and data["status"] == "success":
+                    raise RuntimeError(
+                        f'API call to {endpoint} failed with status {status}: {data["message"]}'
+                    )
+                return data
+
+            code, data = get('sysinfo')
+
+            if code == 200:
+                break
+            else:
+                if i == RETRIES - 1:
+                    print('FAIL')
+                else:
+                    time.sleep(2)
+                    print('Reloading auth tokens and trying again...', end='')
+                continue
+        except requests.exceptions.ConnectionError:
+            if i == RETRIES - 1:
+                print('FAIL')
+                print()
+                print('Error: Could not connect to SkyPortal instance; please ensure ')
+                print('       it is running at the given host/port')
+                sys.exit(-1)
+            else:
+                time.sleep(2)
+                print('Retrying connection...')
+
+    if code not in (200, 400):
+        print(f'Error: could not connect to server (HTTP status {code}')
         sys.exit(-1)
 
     if data['status'] != 'success':
@@ -139,8 +164,6 @@ if __name__ == "__main__":
                                 v[n] = references[item[1:]]
                         obj[k] = v
 
-                print(obj)
-
             except KeyError:
                 print(f'\nReference {v[1:]} not found while posting to {endpoint}; skipping')
                 continue
@@ -153,7 +176,7 @@ if __name__ == "__main__":
                 continue
 
             # Save all references from the response
-            for field, target in saved_fields.items():
+            for target, field in saved_fields.items():
                 references[target] = response['data'][field]
 
         print()
