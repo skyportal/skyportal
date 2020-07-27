@@ -167,7 +167,7 @@ const spec = (url) => ({
 });
 
 
-const airmass_spec = (url) => ({
+const airmass_spec = (url, sunset_utc, sunrise_utc, now) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
   data: {
     url,
@@ -177,14 +177,45 @@ const airmass_spec = (url) => ({
     }
   },
   background: "transparent",
-  mark: {
-    type: "line",
-    clip: true
-  },
-  encoding: {
-    x: { field: "time", type: "temporal", title: "time (UT)" },
-    y: { field: "airmass", type: "quantitative", scale: { reverse: true, domain: [1, 4] } }
-  }
+  layer:
+    [
+      {
+        mark: {type: "line", tooltip: true, clip: true},
+        encoding: {
+          x: {
+            field: "time",
+            type: "temporal",
+            title: "time (UT)",
+            scale: {
+              domain: [sunset_utc, sunrise_utc]
+            }
+          },
+          y: {
+            field: "airmass",
+            type: "quantitative",
+            scale: {
+              reverse: true,
+              domain: [1, 4]
+            }
+          }
+        }
+      },
+      {
+        mark: {type: "rule", clip: true},
+        encoding: {
+          x: {
+            datum: sunrise_utc,
+            type: "temporal",
+            color: "blue",
+            scale: {
+
+            }
+          },
+          color: {value: ["blue", "red", "green"]},
+          size: {value: 1},
+        }
+      }
+    ]
 });
 
 
@@ -200,21 +231,34 @@ class VegaPlot extends React.Component {
   }
 
   render() {
-    const { type, dataUrl } = this.props;
+    const { type, dataUrl, sunset_utc, sunrise_utc, now } = this.props;
 
-    const myspec = type === "light_curve" ? spec : airmass_spec;
-
-    return (
-      <div
-        ref={
-          (node) => {
-            embed(node, myspec(dataUrl), {
-              actions: false
-            });
+    if (type === "light_curve") {
+      return (
+        <div
+          ref={
+            (node) => {
+              embed(node, spec(dataUrl), {
+                actions: false
+              });
+            }
           }
-        }
-      />
-    );
+        />
+      );
+    } else if (type === 'airmass') {
+      return (
+        <div
+          ref={
+            (node) => {
+              embed(node, airmass_spec(dataUrl, sunset_utc, sunrise_utc,
+                new Date(Date.now()).toISOString()), {
+                actions: false
+              });
+            }
+          }
+        />
+      );
+    }
   }
 }
 

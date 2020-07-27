@@ -81,8 +81,8 @@ telescopes:
     token: "load_demo_data token"
   - name: Keck I Telescope
     nickname: Keck1
-    lat: 28.75
-    lon: 17.88
+    lat: 19.8283
+    lon: -155.478
     elevation: 2000
     diameter: 2.56
     skycam: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
@@ -122,7 +122,7 @@ observing_runs:
     key: "esi_run"
   - pi: Danny Goldstein
     instrument_name: LRIS
-    calendar_date: 2021-02-17
+    calendar_date: 2021-06-17
     group: Program A
     token: "load_demo_data token"
     observers: "Danny Goldstein, Peter Nugent"

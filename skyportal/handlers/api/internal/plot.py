@@ -55,7 +55,7 @@ class PlotAirmassHandler(BaseHandler):
         time = ap_time.Time(time, format='unix')
 
         airmass = obj.airmass(assignment.run.instrument.telescope, time)
-        time = time.iso
+        time = time.isot
         df = pd.DataFrame({'time': time, 'airmass': airmass})
         json = df.to_dict(orient='records')
         return self.success(data=json)

@@ -99,9 +99,9 @@ const AssignmentList = ({ assignments }) => {
   assignments.sort((a, b) => {
     const arun = observingRunDict[a.run_id];
     const brun = observingRunDict[b.run_id];
-    const atime = arun.sunrise_unix;
-    const btime = brun.sunrise_unix;
-    return atime - btime;
+    const atime = arun.sunrise_utc;
+    const btime = brun.sunrise_utc;
+    return (Date.parse(atime) - Date.parse(btime));
   });
 
   return (

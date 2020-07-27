@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense } from 'react';
+import React, { useEffect, Suspense, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useSelector, useDispatch } from 'react-redux';
 
@@ -158,10 +158,22 @@ const RunSummary = ({ route }) => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
 
+  // for the clock
+  const [now, setNow] = useState(Date.now());
+
   // Load the observing run and its assignments if needed
   useEffect(() => {
     dispatch(Action.fetchObservingRun(route.id));
   }, [route.id, dispatch]);
+
+  useEffect(() => {
+    // update the clock every five minutes
+    const intervalms = 60 * 1000 * 5;
+    const interval = setInterval(() => {
+      setNow(now + intervalms)
+    }, intervalms);
+    return () => clearInterval(interval);
+  }, []);
 
   if (!(("id" in observingRun) && (observingRun.id === parseInt(route.id, 10)))) {
     // Don't need to do this for assignments -- we can just let the page be blank for a short time
@@ -203,6 +215,9 @@ const RunSummary = ({ route }) => {
                   <VegaPlot
                     dataUrl={`/api/internal/plot/airmass/${assignment.id}`}
                     type="airmass"
+                    sunset_utc={observingRun.sunset_utc}
+                    sunrise_utc={observingRun.sunrise_utc}
+                    now={now}
                   />
                 </Suspense>
               </Grid>
