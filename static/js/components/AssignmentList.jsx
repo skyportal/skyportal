@@ -10,37 +10,30 @@ function renderAssignment(assignment, deleteAssignment, dispatch, users, observi
   instrumentList) {
   const { requester_id } = assignment;
   const requester = users[requester_id];
-  const requndef = requester === undefined;
 
-  if (requndef) {
+  if (!requester) {
     dispatch(UserActions.fetchUser(requester_id));
   }
 
   const { run_id } = assignment;
   const run = observingRunList.filter((r) => r.id === run_id)[0];
-  const runundef = run === undefined;
 
-  const instrument_id = !runundef ? run.instrument_id : undefined;
-  const instrument = !runundef ? instrumentList.filter((i) => i.id === instrument_id)[0] :
-    undefined;
-  const instundef = instrument === undefined;
+  const instrument_id = run?.instrument_id;
+  const instrument = instrumentList.filter((i) => i.id === instrument_id)[0];
 
   return (
     <tr key={assignment.id}>
       <td>
-        {runundef ? "Loading..." : <a href={`/run/${run.id}`}>{run.id}</a>}
+        {requester?.username}
       </td>
       <td>
-        {requndef ? "Loading..." : requester.username}
+        {instrument?.name}
       </td>
       <td>
-        {instundef ? "Loading..." : instrument.name}
+        {run?.calendar_date}
       </td>
       <td>
-        {runundef ? "Loading..." : run.calendar_date}
-      </td>
-      <td>
-        {runundef ? "Loading..." : run.pi}
+        {run?.pi}
       </td>
       <td>
         {assignment.priority}
@@ -69,9 +62,9 @@ const AssignmentList = ({ assignments }) => {
     dispatch(Actions.deleteAssignment(id));
   };
 
-  const users = useSelector((state) => state.users);
-  const observingRunList = useSelector((state) => state.observingRuns.observingRunList);
-  const instrumentList = useSelector((state) => state.instruments.instrumentList);
+  const { users } = useSelector((state) => state);
+  const { observingRunList } = useSelector((state) => state.observingRuns);
+  const { instrumentList } = useSelector((state) => state.instruments);
 
   if (assignments.length === 0) {
     return (
@@ -97,11 +90,7 @@ const AssignmentList = ({ assignments }) => {
   );
 
   assignments.sort((a, b) => {
-    const arun = observingRunDict[a.run_id];
-    const brun = observingRunDict[b.run_id];
-    const atime = arun.sunrise_utc;
-    const btime = brun.sunrise_utc;
-    return (Date.parse(atime) - Date.parse(btime));
+    return observingRunDict[a.run_id].sunrise_unix - observingRunDict[b.run_id].sunrise_unix;
   });
 
   return (

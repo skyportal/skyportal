@@ -4,7 +4,8 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (DBSession, Source, FollowupRequest, Token,
-                       ClassicalAssignment, ObservingRun)
+                       ClassicalAssignment, ObservingRun, Source,
+                       Obj, Group)
 
 from ...schema import AssignmentSchema
 
@@ -46,12 +47,24 @@ class AssignmentHandler(BaseHandler):
         """
         if assignment_id is not None:
             assignment = ClassicalAssignment.query.get(int(assignment_id))
-
-            if assignment is None:
+            obj = Source.get_obj_if_owned_by(assignment.obj.id, self.current_user)
+            if obj is None or assignment is None:
                 return self.error(f"Could not load assignment {assignment_id}",
                                   data={"assignment_id": assignment_id})
             return self.success(data=assignment)
-        return self.success(data=ClassicalAssignment.query.all())
+
+        # get owned assignments
+        assignments = DBSession().query(ClassicalAssignment)
+        acls = [a.id for a in self.current_user.acls]
+        if 'System admin' not in acls:
+            assignments = assignments.join(Obj).join(Source).join(Group).filter(
+                Group.id.in_([g.id for g in self.current_user.groups])
+            )
+        assignments = assignments.all()
+
+        if len(assignments) == 0:
+            return self.error("Assignments table is empty.")
+        return self.success(data=assignments)
 
     @auth_or_token
     def post(self):
@@ -98,12 +111,14 @@ class AssignmentHandler(BaseHandler):
         ).first()
 
         if predecessor is not None:
-            return self.error(f'Object is already assigned to this run.')
+            return self.error('Object is already assigned to this run.')
 
         assignment = ClassicalAssignment(**data)
         source = Source.get_obj_if_owned_by(assignment.obj_id, self.current_user)
-        if source is None:
-            return self.error(f'Invalid obj_id: "{obj_id}"')
+        obj = Obj.query.get(assignment.obj_id)
+        acls = [a.id for a in self.current_user.acls]
+        if (obj is None) or (source is None and 'System admin' not in acls):
+            return self.error(f'Invalid obj_id: "{assignment.obj_id}"')
 
         assignment.requester_id = self.associated_user_object.id
         DBSession().add(assignment)

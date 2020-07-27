@@ -285,13 +285,11 @@ class Obj(Base, ha.Point):
 
         Returns
         -------
-
         alt : `astropy.coordinates.AltAz`
            The altitude of the Obj at the requested times
         """
 
-        alt = telescope.observer.altaz(time, self.target).alt
-        return alt
+        return telescope.observer.altaz(time, self.target).alt
 
 
 class Filter(Base):

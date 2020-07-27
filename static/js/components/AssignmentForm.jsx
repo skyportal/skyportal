@@ -15,21 +15,16 @@ import 'react-datepicker/dist/react-datepicker-cssmodules.css';
 
 export function observingRunTitle(observingRun, instrumentList, telescopeList, groups) {
   const { instrument_id } = observingRun;
-  const instrument = instrumentList.filter((i) => i.id === instrument_id)[0];
-  const instundef = instrument === undefined;
+  const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
 
-  const telescope_id = !instundef ? instrument.telescope_id : undefined;
-  const telescope = !instundef ? telescopeList.filter((t) => t.id === telescope_id)[0] : undefined;
-  const telundef = telescope === undefined;
+  const telescope_id = instrument?.telescope_id;
+  const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
 
-  const usegroup = !!observingRun.group_id && !!groups;
-  const group = usegroup ? groups.filter((g) => g.id === observingRun.group_id)[0] : undefined;
-  const groupundef = group === undefined;
+  const group = groups?.filter((g) => g.id === observingRun.group_id)[0];
 
-  return `${observingRun.calendar_date} ${telundef ? "Loading..." : telescope.nickname}/${instundef ? "Loading..." : instrument.name} \
-    (PI: ${observingRun.pi}${!groupundef ? `/${group.name})` : ")"}`;
+  return `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname} (PI: \ 
+    ${observingRun?.pi} ${group?.name})`;
 }
-
 
 function makeMenuItem(observingRun, instrumentList, telescopeList, groups) {
   const render_string = observingRunTitle(observingRun, instrumentList, telescopeList, groups);
@@ -40,11 +35,10 @@ function makeMenuItem(observingRun, instrumentList, telescopeList, groups) {
   );
 }
 
-
 const AssignmentForm = ({ obj_id, observingRunList }) => {
   const dispatch = useDispatch();
-  const instrumentList = useSelector((state) => state.instruments.instrumentList);
-  const telescopeList = useSelector((state) => state.telescopes.telescopeList);
+  const { instrumentList } = useSelector((state) => state.instruments);
+  const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
 
   const upcomingRuns = observingRunList.filter((observingrun) => (
@@ -82,7 +76,6 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
       ...initialFormState,
       ...getValues({ nest: true })
     };
-    // We need to include this field in request, but it isn't in form data
     dispatch(Actions.submitAssignment(formData));
     reset(initialFormState);
   };

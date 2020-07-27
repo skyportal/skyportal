@@ -68,3 +68,43 @@ def test_regular_user_delete_super_admin_assignment(red_transients_run,
                        token=upload_data_token)
     assert status == 400
     assert data['status'] == 'error'
+
+
+def test_group1_user_cannot_see_group2_assignment(red_transients_run,
+                                                  private_source,
+                                                  public_source,
+                                                  super_admin_token,
+                                                  view_only_token):
+
+    request_data = {'run_id': red_transients_run.id,
+                    'obj_id': private_source.id,
+                    'priority': '5',
+                    'comment': 'Please take spectrum only below airmass 1.5'}
+
+    status, data = api('POST', 'assignment',
+                       data=request_data,
+                       token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    id = data['data']['id']
+
+    request_data = {'run_id': red_transients_run.id,
+                    'obj_id': public_source.id,
+                    'priority': '5',
+                    'comment': 'Please take spectrum only below airmass 1.5'}
+
+    status, data = api('POST', 'assignment',
+                       data=request_data,
+                       token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api('GET', f'assignment/{id}',
+                       token=view_only_token)
+    assert status == 400
+    assert data['status'] == 'error'
+
+    status, data = api('GET', f'assignment/',
+                       token=view_only_token)
+    assert status == 200
+    assert private_source.id not in [a['id'] for a in data['data']]
