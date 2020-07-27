@@ -25,6 +25,8 @@ role_acls = {
     'View only': []
 }
 
+env, cfg = load_env()
+
 
 def add_user(username, roles=[], auth=False):
     user = User.query.filter(User.username == username).first()
@@ -43,6 +45,18 @@ def add_user(username, roles=[], auth=False):
             user.roles.append(role)
 
     DBSession().add(user)
+    DBSession().flush()
+
+    # Add user to sitewide public group
+    public_group = Group.query.filter(
+        Group.name == cfg["misc"]["public_group_name"]
+    ).first()
+    if public_group is None:
+        public_group = Group(name=cfg["misc"]["public_group_name"])
+        DBSession().add(public_group)
+        DBSession().flush()
+
+    user.groups.append(public_group)
     DBSession().commit()
 
     return User.query.filter(User.username == username).first()
