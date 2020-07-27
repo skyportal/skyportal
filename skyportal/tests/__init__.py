@@ -42,4 +42,7 @@ def api(method, endpoint, data=None, host=None, token=None, raw_response=False):
     if raw_response:
         return response
     else:
-        return response.status_code, response.json()
+        if response.status_code in (200, 400):
+            return response.status_code, response.json()
+        else:
+            return response.status_code, None
