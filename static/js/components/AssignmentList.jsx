@@ -10,34 +10,30 @@ function renderAssignment(assignment, deleteAssignment, dispatch, users, observi
   instrumentList) {
   const { requester_id } = assignment;
   const requester = users[requester_id];
-  const requndef = requester === undefined;
 
-  if (requndef) {
+  if (!requester) {
     dispatch(UserActions.fetchUser(requester_id));
   }
 
   const { run_id } = assignment;
   const run = observingRunList.filter((r) => r.id === run_id)[0];
-  const runundef = run === undefined;
 
-  const instrument_id = !runundef ? run.instrument_id : undefined;
-  const instrument = !runundef ? instrumentList.filter((i) => i.id === instrument_id)[0] :
-    undefined;
-  const instundef = instrument === undefined;
+  const instrument_id = run?.instrument_id;
+  const instrument = instrumentList.filter((i) => i.id === instrument_id)[0];
 
   return (
     <tr key={assignment.id}>
       <td>
-        {requndef ? "Loading..." : requester.username}
+        {requester?.username}
       </td>
       <td>
-        {instundef ? "Loading..." : instrument.name}
+        {instrument?.name}
       </td>
       <td>
-        {runundef ? "Loading..." : run.calendar_date}
+        {run?.calendar_date}
       </td>
       <td>
-        {runundef ? "Loading..." : run.pi}
+        {run?.pi}
       </td>
       <td>
         {assignment.priority}
