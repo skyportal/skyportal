@@ -71,6 +71,8 @@ const Source = ({ route }) => {
   }
 
   const groupBy = (array, key) => array.reduce((result, cv) => {
+    // if we've seen this key before, add the value, else generate
+    // a new list for this key
     (result[cv[key]] = result[cv[key]] || []).push(cv);
     return result;
   }, {});
@@ -95,6 +97,8 @@ const Source = ({ route }) => {
             if (name.length > 0) {
               name = name[0].name;
             }
+            // generate the tooltip for this classification, with an informative
+            // hover over.
             return (
               <Tooltip
                 key={`${c[0].modified}tt`}

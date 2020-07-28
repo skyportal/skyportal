@@ -42,11 +42,11 @@ class TaxonomyHandler(BaseHandler):
                   schema: Error
         """
         if taxonomy_id is not None:
-            taxonomy = Taxonomy. \
-                get_taxonomy_usable_by_user(
-                    taxonomy_id,
-                    self.current_user
-                )
+            taxonomy = (Taxonomy.
+                        get_taxonomy_usable_by_user(
+                            taxonomy_id,
+                            self.current_user)
+                        )
             if taxonomy is None or len(taxonomy) == 0:
                 return self.error(
                     'Taxonomy does not exist or is not available to user.'
@@ -175,24 +175,27 @@ class TaxonomyHandler(BaseHandler):
         provenance = data.get('provenance', None)
 
         # compute the allowable classes
-        rez = []
+        result = []
+
         def dict_path(path, my_dict):
             if my_dict.get("class"):
                 cla = my_dict.get("class")
                 if cla == 'Time-domain Source':
                     cla = ''
-                rez.append(path+"-><b>"+cla+"</b>")
+                result.append(path + "-><b>" + cla + "</b>")
                 for i, item in enumerate(my_dict.get("subclasses", [])):
                     if isinstance(item, dict):
                         dict_path(path + "->" + cla, item)
 
         dict_path("", hierarchy)
         allowed_classes = []
-        for v in rez:
-            ss = v.split("->")[2:]
-            if len(ss) > 0:
-                allowed_classes.append({"class": ss[-1].split(">")[1].split("<")[0],
-                                "label": "⇐".join(list(reversed(ss)))})
+        for value in result:
+            classpath = value.split("->")[2:]
+            if len(classpath) > 0:
+                allowed_classes.append({
+                    "class": classpath[-1].split(">")[1].split("<")[0],
+                    "label": "⇐".join(list(reversed(classpath)))
+                })
 
         # update others with this name
         # TODO: deal with the same name but different groups?

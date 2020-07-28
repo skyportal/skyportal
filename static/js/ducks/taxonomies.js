@@ -11,10 +11,10 @@ export const fetchTaxonomies = () => (
 const reducer = (state={ taxonomyList: [] }, action) => {
   switch (action.type) {
     case FETCH_TAXONOMIES_OK: {
-      const taxonomies = action.data;
+      const taxonomyList = action.data;
       return {
         ...state,
-        taxonomyList: taxonomies
+        taxonomyList
       };
     }
     default:

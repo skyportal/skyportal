@@ -1,6 +1,3 @@
-/* eslint-disable react/jsx-props-no-spreading */
-/* eslint-disable react/no-danger */
-
 import React, { useReducer } from 'react';
 import { useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
@@ -28,7 +25,7 @@ function makeMenuItem(taxonomy, index) {
 
 
 const ClassificationForm = ({ obj_id, taxonomyList }) => {
-  const latest_taxonomyList = taxonomyList.filter((t) => t.isLatest);
+  const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
 
   function reducer(state, action) {
     switch (action.name) {
@@ -36,7 +33,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
         return {
           ...state,
           [action.name]: action.value,
-          allowed_classes: latest_taxonomyList[action.value].allowed_classes,
+          allowed_classes: latestTaxonomyList[action.value].allowed_classes,
         };
       default:
         return {
@@ -46,19 +43,19 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
     }
   }
 
-  const submitDispatch = useDispatch();
+  const reduxDispatch = useDispatch();
 
   const initialState = {
-    taxonomy_index: latest_taxonomyList.length > 0 ? 0 : null,
+    taxonomy_index: latestTaxonomyList.length > 0 ? 0 : null,
     classification: null,
     probability: 1.0,
     class_select_enabled: false,
     probability_select_enabled: false,
     probability_errored: false,
-    allowed_classes: latest_taxonomyList.length > 0 ?
-      latest_taxonomyList[0].allowed_classes : [null]
+    allowed_classes: latestTaxonomyList.length > 0 ?
+      latestTaxonomyList[0].allowed_classes : [null]
   };
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [state, localDispatch] = useReducer(reducer, initialState);
   const { handleSubmit } = useForm();
 
   const useStyles = makeStyles((theme) => ({
@@ -71,7 +68,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   }));
   const classes = useStyles();
 
-  if (latest_taxonomyList.length === 0) {
+  if (latestTaxonomyList.length === 0) {
     return (
       <b>
         No taxonomies loaded...
@@ -80,17 +77,17 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   }
 
   const handleTaxonomyChange = (event) => {
-    dispatch({ name: "taxonomy_index", value: event.target.value });
-    dispatch({ name: "classification", value: "" });
-    dispatch({ name: "class_select_enabled", value: true });
-    dispatch({ name: "probability_select_enabled", value: false });
-    dispatch({ name: "probability_errored", value: false });
-    dispatch({ name: "probability", value: 1.0 });
+    localDispatch({ name: "taxonomy_index", value: event.target.value });
+    localDispatch({ name: "classification", value: "" });
+    localDispatch({ name: "class_select_enabled", value: true });
+    localDispatch({ name: "probability_select_enabled", value: false });
+    localDispatch({ name: "probability_errored", value: false });
+    localDispatch({ name: "probability", value: 1.0 });
   };
 
   const handleClasschange = (event, value) => {
-    dispatch({ name: "classification", value });
-    dispatch({ name: "probability_select_enabled", value: true });
+    localDispatch({ name: "classification", value });
+    localDispatch({ name: "probability_select_enabled", value: true });
   };
 
   const processProb = (event) => {
@@ -99,22 +96,22 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
     if ((Number.isNaN(parseFloat(event.target.value))) ||
        ((parseFloat(event.target.value) > 1) ||
        (parseFloat(event.target.value) < 0))) {
-      dispatch({ name: "probability_errored", value: true });
+      localDispatch({ name: "probability_errored", value: true });
     } else {
-      dispatch({ name: "probability_errored", value: false });
-      dispatch({ name: "probability", value: event.target.value });
+      localDispatch({ name: "probability_errored", value: false });
+      localDispatch({ name: "probability", value: event.target.value });
     }
   };
 
   const onSubmit = () => {
     // TODO: allow fine-grained user groups in submission
     const formData = {
-      taxonomy_id: latest_taxonomyList[state.taxonomy_index].id,
+      taxonomy_id: latestTaxonomyList[state.taxonomy_index].id,
       obj_id,
       classification: state.classification.class,
       probability: parseFloat(state.probability)
     };
-    submitDispatch(Actions.addClassification(formData));
+    reduxDispatch(Actions.addClassification(formData));
   };
 
 
@@ -130,7 +127,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
               defaultValue=""
               onChange={handleTaxonomyChange}
             >
-              {latest_taxonomyList.map((taxonomy, index) => makeMenuItem(
+              {latestTaxonomyList.map((taxonomy, index) => makeMenuItem(
                 taxonomy, index
               ))}
             </Select>
@@ -140,21 +137,24 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
               options={state.allowed_classes}
               id="classification"
               getOptionSelected={(option) => {
-                if (option === null) {
+                if ((state.classification === null) || (state.classification === '')) {
                   return (true);
                 }
-                if (option === '') {
+                if (state.classification.class === '') {
                   return (true);
                 }
-                return (true);
+                return state.classification.class === option.class;
               }}
               value={state.classification || ""}
               onChange={handleClasschange}
               getOptionLabel={(option) => option.class || ""}
+
+              /* eslint-disable-next-line react/jsx-props-no-spreading */
               renderInput={(params) => <TextField {...params} style={{ width: '100%' }} label="Classification" fullWidth />}
               renderOption={(option) => {
                 const val = `${option.label}`;
                 return (
+                  /* eslint-disable-next-line react/no-danger */
                   <div dangerouslySetInnerHTML={{ __html: val }} />
                 );
               }}
