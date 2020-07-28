@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link } from "react-router-dom";
 import Button from "@material-ui/core/Button";
-import Tooltip from '@material-ui/core/Tooltip';
 
 import * as Action from '../ducks/source';
 import Plot from './Plot';
@@ -82,10 +81,10 @@ const Source = ({ route }) => {
         </div>
 
         <br />
-          <ShowClassification
-            classifications={source.classifications}
-            taxonomyList={taxonomyList}
-          />
+        <ShowClassification
+          classifications={source.classifications}
+          taxonomyList={taxonomyList}
+        />
         <b>
           Position (J2000):
         </b>
