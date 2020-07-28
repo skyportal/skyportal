@@ -42,7 +42,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   const groups = useSelector((state) => state.groups.all);
 
   const upcomingRuns = observingRunList.filter((observingrun) => (
-    observingrun.sunrise_utc >= Date.now().toISOString()
+    Date.parse(observingrun.sunrise_utc) >= Date.now()
   ));
 
   const { handleSubmit, getValues, reset, register, control } = useForm();

@@ -20,20 +20,26 @@ function renderAssignment(assignment, deleteAssignment, dispatch, users, observi
 
   const instrument_id = run?.instrument_id;
   const instrument = instrumentList.filter((i) => i.id === instrument_id)[0];
+  const load = "Loading...";
 
   return (
     <tr key={assignment.id}>
       <td>
-        {requester?.username}
+        <a href={`/run/${assignment.run_id}`}>
+          {assignment.run_id}
+        </a>
       </td>
       <td>
-        {instrument?.name}
+        {requester?.username || load}
       </td>
       <td>
-        {run?.calendar_date}
+        {instrument?.name || load}
       </td>
       <td>
-        {run?.pi}
+        {run?.calendar_date || load}
+      </td>
+      <td>
+        {run?.pi || load}
       </td>
       <td>
         {assignment.priority}

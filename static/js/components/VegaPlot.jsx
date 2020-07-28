@@ -167,108 +167,35 @@ const spec = (url) => ({
 });
 
 
-const airmass_spec = (url, sunset_utc, sunrise_utc, now) => ({
-  $schema: "https://vega.github.io/schema/vega-lite/v4.json",
-  data: {
-    url,
-    format: {
-      type: "json",
-      property: "data" // where on the JSON does the data live
-    }
-  },
-  background: "transparent",
-  layer:
-    [
-      {
-        mark: {type: "line", tooltip: true, clip: true},
-        encoding: {
-          x: {
-            field: "time",
-            type: "temporal",
-            title: "time (UT)",
-            scale: {
-              domain: [sunset_utc, sunrise_utc]
-            }
-          },
-          y: {
-            field: "airmass",
-            type: "quantitative",
-            scale: {
-              reverse: true,
-              domain: [1, 4]
-            }
-          }
-        }
-      },
-      {
-        mark: {type: "rule", clip: true},
-        encoding: {
-          x: {
-            datum: sunrise_utc,
-            type: "temporal",
-            color: "blue",
-            scale: {
-
-            }
-          },
-          color: {value: ["blue", "red", "green"]},
-          size: {value: 1},
-        }
-      }
-    ]
-});
-
-
 class VegaPlot extends React.Component {
   // This is implemented as a class so we can define
   // shouldComponentUpdate
 
-  shouldComponentUpdate() {
+  shouldComponentUpdate(nextProps, nextState, nextOverride){
     // Don't re-render Vega plots if the containing div updates.
     // This dramatically improves browser performance
-
     return false;
   }
 
   render() {
-    const { type, dataUrl, sunset_utc, sunrise_utc, now } = this.props;
-
-    if (type === "light_curve") {
-      return (
-        <div
-          ref={
-            (node) => {
-              embed(node, spec(dataUrl), {
-                actions: false
-              });
-            }
+    const { dataUrl } = this.props;
+    return (
+      <div
+        ref={
+          (node) => {
+            embed(node, spec(dataUrl), {
+              actions: false
+            });
           }
-        />
-      );
-    } else if (type === 'airmass') {
-      return (
-        <div
-          ref={
-            (node) => {
-              embed(node, airmass_spec(dataUrl, sunset_utc, sunrise_utc,
-                new Date(Date.now()).toISOString()), {
-                actions: false
-              });
-            }
-          }
-        />
-      );
-    }
+        }
+      />
+    );
   }
 }
 
+
 VegaPlot.propTypes = {
   dataUrl: PropTypes.string.isRequired,
-  type: PropTypes.string
-};
-
-VegaPlot.defaultProps = {
-  type: "light_curve"
 };
 
 export default VegaPlot;

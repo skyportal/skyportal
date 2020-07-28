@@ -827,17 +827,39 @@ class ObservingRun(Base):
 
     @property
     def sunset(self):
-        observer = self.instrument.telescope.observer
-        noon = self._calendar_noon
-        sunset = observer.sun_set_time(noon, which='next')
-        return sunset
+        return self.instrument.telescope.observer.sun_set_time(
+            self._calendar_noon, which='next'
+        )
 
     @property
     def sunrise(self):
-        observer = self.instrument.telescope.observer
-        noon = self._calendar_noon
-        sunrise = observer.sun_rise_time(noon, which='next')
-        return sunrise
+        return self.instrument.telescope.observer.sun_rise_time(
+            self._calendar_noon, which='next'
+        )
+
+    @property
+    def twilight_evening_nautical(self):
+        return self.instrument.telescope.observer.twilight_evening_nautical(
+            self._calendar_noon, which='next'
+        )
+
+    @property
+    def twilight_morning_nautical(self):
+        return self.instrument.telescope.observer.twilight_morning_nautical(
+            self._calendar_noon, which='next'
+        )
+
+    @property
+    def twilight_evening_astronomical(self):
+        return self.instrument.telescope.observer.twilight_evening_astronomical(
+            self._calendar_noon, which='next'
+        )
+
+    @property
+    def twilight_morning_astronomical(self):
+        return self.instrument.telescope.observer.twilight_morning_astronomical(
+            self._calendar_noon, which='next'
+        )
 
 
 User.observing_runs = relationship(

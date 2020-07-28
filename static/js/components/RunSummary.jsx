@@ -27,6 +27,7 @@ import * as Action from '../ducks/observingRun';
 import { ra_to_hours, dec_to_hours } from "../units";
 
 const VegaPlot = React.lazy(() => import('./VegaPlot'));
+const AirmassPlot = React.lazy(() => import ('./AirmassPlot'));
 
 
 const SimpleMenu = ({ assignment }) => {
@@ -212,12 +213,9 @@ const RunSummary = ({ route }) => {
               />
               <Grid item>
                 <Suspense fallback={<div>Loading plot...</div>}>
-                  <VegaPlot
+                  <AirmassPlot
                     dataUrl={`/api/internal/plot/airmass/${assignment.id}`}
-                    type="airmass"
-                    sunset_utc={observingRun.sunset_utc}
-                    sunrise_utc={observingRun.sunrise_utc}
-                    now={now}
+                    ephemeris={observingRun.ephemeris}
                   />
                 </Suspense>
               </Grid>

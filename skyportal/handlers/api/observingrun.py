@@ -137,7 +137,8 @@ class ObservingRunHandler(BaseHandler):
             return self.success(data=data)
         runs = ObservingRun.query.all()
         data = ObservingRunGet.dump(runs, many=True)
-        out = sorted(data, key=lambda d: d['sunrise_utc'])
+        print(data)
+        out = sorted(data, key=lambda d: d['ephemeris']['sunrise_utc'])
         return self.success(data=out)
 
     @permissions(['Upload data'])
