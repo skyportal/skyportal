@@ -171,7 +171,8 @@ class VegaPlot extends React.Component {
   // This is implemented as a class so we can define
   // shouldComponentUpdate
 
-  shouldComponentUpdate(nextProps, nextState, nextOverride){
+  // eslint-disable-next-line no-unused-vars
+  shouldComponentUpdate(nextProps, nextState, nextOverride) {
     // Don't re-render Vega plots if the containing div updates.
     // This dramatically improves browser performance
     return false;

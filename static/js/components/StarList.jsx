@@ -70,6 +70,7 @@ export const ObservingRunStarList = ({ observingRunId }) => {
       setStarList(starlist_info);
     };
     fetchStarList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [observingRunId, dispatch]);
 
   return starListElem(starList);

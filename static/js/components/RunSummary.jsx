@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense, useState } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import PropTypes from 'prop-types';
 import { useSelector, useDispatch } from 'react-redux';
 
@@ -27,7 +27,7 @@ import * as Action from '../ducks/observingRun';
 import { ra_to_hours, dec_to_hours } from "../units";
 
 const VegaPlot = React.lazy(() => import('./VegaPlot'));
-const AirmassPlot = React.lazy(() => import ('./AirmassPlot'));
+const AirmassPlot = React.lazy(() => import('./AirmassPlot'));
 
 
 const SimpleMenu = ({ assignment }) => {
@@ -85,12 +85,16 @@ const SimpleMenu = ({ assignment }) => {
   );
 
   const upload_photometry = (
-    <MenuItem key={`${assignment.id}_upload_phot`}
-              variant="contained"
-              onClick={handleClose}>
-      <Link href={`/upload_photometry/${assignment.obj.id}`}
-            underline="none"
-            color="textPrimary">
+    <MenuItem
+      key={`${assignment.id}_upload_phot`}
+      variant="contained"
+      onClick={handleClose}
+    >
+      <Link
+        href={`/upload_photometry/${assignment.obj.id}`}
+        underline="none"
+        color="textPrimary"
+      >
         Upload Photometry
       </Link>
     </MenuItem>
@@ -174,10 +178,9 @@ const RunSummary = ({ route }) => {
       </b>
     );
   } else {
-
     const { assignments } = observingRun;
 
-    const renderPullOutRow = (( rowData, rowMeta ) => {
+    const renderPullOutRow = ((rowData, rowMeta) => {
       if (observingRun === undefined) {
         return "Loading...";
       }
@@ -257,11 +260,11 @@ const RunSummary = ({ route }) => {
     const renderFinderButton = (dataIndex) => {
       const assignment = assignments[dataIndex];
       return (
-          <IconButton size="small" key={`${assignment.id}_actions`}>
-            <Link href={`/api/sources/${assignment.obj.id}/finder`}>
-              <PictureAsPdfIcon />
-            </Link>
-          </IconButton>
+        <IconButton size="small" key={`${assignment.id}_actions`}>
+          <Link href={`/api/sources/${assignment.obj.id}/finder`}>
+            <PictureAsPdfIcon />
+          </Link>
+        </IconButton>
       );
     };
 
@@ -379,7 +382,7 @@ const RunSummary = ({ route }) => {
         assignment.set_time_utc,
         null,
         null])
-      );
+    );
 
     return (
       <div className={styles.source}>
