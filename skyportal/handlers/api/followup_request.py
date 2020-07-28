@@ -162,7 +162,7 @@ class AssignmentHandler(BaseHandler):
 
         schema = ClassicalAssignment.__schema__()
         try:
-            schema.load(data)
+            schema.load(data, partial=True)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
@@ -172,6 +172,7 @@ class AssignmentHandler(BaseHandler):
             action="skyportal/REFRESH_SOURCE",
             payload={"obj_id": followup_request.obj_id},
         )
+
         return self.success()
 
     @auth_or_token
@@ -295,6 +296,7 @@ class FollowupRequestHandler(BaseHandler):
             action="skyportal/REFRESH_SOURCE",
             payload={"obj_id": followup_request.obj_id},
         )
+
         return self.success()
 
     @auth_or_token
