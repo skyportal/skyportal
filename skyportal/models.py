@@ -895,7 +895,8 @@ class ClassicalAssignment(Base):
         observer = self.instrument.telescope.observer
         target = self.obj.target
         return observer.target_rise_time(self.run.sunset, target,
-                                         which='next')
+                                         which='next',
+                                         horizon=30 * u.degree)
 
     @property
     def set_time(self):
@@ -903,7 +904,8 @@ class ClassicalAssignment(Base):
         observer = self.instrument.telescope.observer
         target = self.obj.target
         return observer.target_set_time(self.rise_time, target,
-                                        which='next')
+                                        which='next',
+                                        horizon=30 * u.degree)
 
 
 User.assignments = relationship('ClassicalAssignment', back_populates='requester')

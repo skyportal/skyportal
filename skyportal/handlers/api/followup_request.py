@@ -5,7 +5,9 @@ from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (DBSession, Source, FollowupRequest, Token,
                        ClassicalAssignment, ObservingRun, Source,
-                       Obj, Group)
+                       Obj, Group, Thumbnail)
+
+from sqlalchemy.orm import joinedload
 
 from ...schema import AssignmentSchema
 
@@ -45,13 +47,6 @@ class AssignmentHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        if assignment_id is not None:
-            assignment = ClassicalAssignment.query.get(int(assignment_id))
-            obj = Source.get_obj_if_owned_by(assignment.obj.id, self.current_user)
-            if obj is None or assignment is None:
-                return self.error(f"Could not load assignment {assignment_id}",
-                                  data={"assignment_id": assignment_id})
-            return self.success(data=assignment)
 
         # get owned assignments
         assignments = DBSession().query(ClassicalAssignment)
@@ -60,11 +55,43 @@ class AssignmentHandler(BaseHandler):
             assignments = assignments.join(Obj).join(Source).join(Group).filter(
                 Group.id.in_([g.id for g in self.current_user.groups])
             )
-        assignments = assignments.all()
 
-        if len(assignments) == 0:
-            return self.error("Assignments table is empty.")
-        return self.success(data=assignments)
+        if assignment_id is not None:
+            assignments = assignments.filter(
+                ClassicalAssignment.id == assignment_id
+            ).options(
+                joinedload(ClassicalAssignment.obj)
+                .joinedload(Obj.thumbnails)
+                .joinedload(Thumbnail.photometry),
+                joinedload(ClassicalAssignment.requester),
+                joinedload(ClassicalAssignment.obj)
+                .joinedload(Obj.comments)
+            ).limit(1)
+
+        assignments = assignments.all()
+        screened = []
+
+        for a in assignments:
+            obj = Source.get_obj_if_owned_by(a.obj.id, self.current_user)
+            if obj is not None or 'System admin' in acls:
+                screened.append(a)
+
+        if len(screened) == 0 and assignment_id is not None:
+            return self.error("Could not retrieve assignment.")
+
+        out = ClassicalAssignment.__schema__().dump(screened, many=True)
+
+        # calculate when the targets rise and set
+        for d, a in zip(out, screened):
+            d['rise_time_utc'] = a.rise_time.isot
+            d['set_time_utc'] = a.set_time.isot
+            d['obj'] = a.obj
+            d['requester'] = a.requester
+
+        if assignment_id is not None:
+            out = out[0]
+
+        return self.success(data=out)
 
     @auth_or_token
     def post(self):
@@ -155,7 +182,13 @@ class AssignmentHandler(BaseHandler):
                 schema: Error
         """
         followup_request = ClassicalAssignment.query.get(assignment_id)
-        _ = Source.get_obj_if_owned_by(followup_request.obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(
+            followup_request.obj_id, self.current_user
+        )
+
+        if followup_request is None or source is None:
+            return self.error('No such assignment')
+
         data = self.get_json()
         data['id'] = assignment_id
         data["requester_id"] = self.associated_user_object.id

@@ -45,17 +45,26 @@ const SimpleMenu = ({ assignment }) => {
   const ispending = assignment.status === "pending";
   const isdone = assignment.status === "complete";
 
-  const complete_action = () => dispatch(
-    SourceAction.editAssignment({ status: "complete" }, assignment.id)
-  );
+  const complete_action = () => {
+    handleClose();
+    return dispatch(
+      SourceAction.editAssignment({ status: "complete" }, assignment.id)
+    );
+  };
 
-  const pending_action = () => dispatch(
-    SourceAction.editAssignment({ status: "pending" }, assignment.id)
-  );
+  const pending_action = () => {
+    handleClose();
+    return dispatch(
+      SourceAction.editAssignment({ status: "pending" }, assignment.id)
+    );
+  };
 
-  const not_observed_action = () => dispatch(
-    SourceAction.editAssignment({ status: "not observed" }, assignment.id)
-  );
+  const not_observed_action = () => {
+    handleClose();
+    return dispatch(
+      SourceAction.editAssignment({ status: "not observed" }, assignment.id)
+    );
+  };
 
   const mark_observed = (
     <MenuItem onClick={complete_action} variant="contained" key={`${assignment.id}_done`}>
@@ -76,15 +85,19 @@ const SimpleMenu = ({ assignment }) => {
   );
 
   const upload_photometry = (
-    <a href={`/source/${assignment.obj.id}/upload_photometry`}>
-      <MenuItem key={`${assignment.id}_upload_phot`} variant="contained">
+    <Link href={`/upload_photometry/${assignment.obj.id}`}
+          underline="none"
+          color="textPrimary">
+      <MenuItem key={`${assignment.id}_upload_phot`}
+                variant="contained"
+                onClick={handleClose}>
         Upload Photometry
       </MenuItem>
-    </a>
+    </Link>
   );
 
   const upload_spectrum = (
-    <MenuItem key={`${assignment.id}_upload_spec`}>
+    <MenuItem key={`${assignment.id}_upload_spec`} onClick={handleClose}>
       Upload Spectrum
     </MenuItem>
   );
@@ -139,19 +152,6 @@ SimpleMenu.propTypes = {
 };
 
 
-
-
-/*PullOutRow.propTypes = {
-  rowData: PropTypes.arrayOf(PropTypes.string).isRequired,
-  rowMeta: PropTypes.shape(
-    {
-      dataIndex: PropTypes.number,
-      rowIndex: PropTypes.number
-    }
-  ).isRequired
-};*/
-
-
 const RunSummary = ({ route }) => {
   const dispatch = useDispatch();
   const observingRun = useSelector((state) => state.observingRun);
@@ -159,22 +159,12 @@ const RunSummary = ({ route }) => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
 
-  // for the clock
-  const [now, setNow] = useState(Date.now());
 
   // Load the observing run and its assignments if needed
   useEffect(() => {
     dispatch(Action.fetchObservingRun(route.id));
   }, [route.id, dispatch]);
 
-  useEffect(() => {
-    // update the clock every five minutes
-    const intervalms = 60 * 1000 * 5;
-    const interval = setInterval(() => {
-      setNow(now + intervalms)
-    }, intervalms);
-    return () => clearInterval(interval);
-  }, []);
 
   if (!(("id" in observingRun) && (observingRun.id === parseInt(route.id, 10)))) {
     // Don't need to do this for assignments -- we can just let the page be blank for a short time
@@ -232,8 +222,6 @@ const RunSummary = ({ route }) => {
       );
     });
 
-      // ["Target Name", "RA", "Dec", "Redshift", "Requester", "Request",
-      //            "Priority", "Rise Time (UT)", "Set Time (UT)", "Finder", "Actions"]
 
     const renderObjId = (dataIndex) => {
       const objid = assignments[dataIndex].obj.id;
@@ -289,6 +277,12 @@ const RunSummary = ({ route }) => {
           options: {
             filter: true,
             customBodyRenderLite: renderObjId
+          }
+        },
+        {
+          name: "Status",
+          options: {
+            filter: true
           }
         },
         {
@@ -374,6 +368,7 @@ const RunSummary = ({ route }) => {
     const data = observingRun.assignments.map(
       (assignment) => ([
         assignment.obj.id,
+        assignment.status,
         assignment.obj.ra,
         assignment.obj.dec,
         assignment.obj.redshift,

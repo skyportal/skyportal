@@ -137,7 +137,6 @@ class ObservingRunHandler(BaseHandler):
             return self.success(data=data)
         runs = ObservingRun.query.all()
         data = ObservingRunGet.dump(runs, many=True)
-        print(data)
         out = sorted(data, key=lambda d: d['ephemeris']['sunrise_utc'])
         return self.success(data=out)
 
