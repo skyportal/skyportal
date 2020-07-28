@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import * as Actions from '../ducks/source';
 import * as UserActions from '../ducks/users';
 import styles from './AssignmentList.css';
+import Link from '@material-ui/core/Link';
 
 
 function renderAssignment(assignment, deleteAssignment, dispatch, users, observingRunList,
@@ -23,41 +24,41 @@ function renderAssignment(assignment, deleteAssignment, dispatch, users, observi
   const load = "Loading...";
 
   return (
-    <tr key={assignment.id}>
-      <td>
-        <a href={`/run/${assignment.run_id}`}>
-          {assignment.run_id}
-        </a>
-      </td>
-      <td>
-        {requester?.username || load}
-      </td>
-      <td>
-        {instrument?.name || load}
-      </td>
-      <td>
-        {run?.calendar_date || load}
-      </td>
-      <td>
-        {run?.pi || load}
-      </td>
-      <td>
-        {assignment.priority}
-      </td>
-      <td>
-        {assignment.status}
-      </td>
-      <td>
-        {assignment.comment}
-      </td>
-      <td>
-        <span>
-          <button type="button" onClick={() => { deleteAssignment(assignment.id); }}>
-            Delete
-          </button>
-        </span>
-      </td>
-    </tr>
+      <tr key={assignment.id}>
+        <td>
+          <a href={`/run/${assignment.run_id}`}>
+            {assignment.run_id}
+          </a>
+        </td>
+        <td>
+          {requester?.username || load}
+        </td>
+        <td>
+          {instrument?.name || load}
+        </td>
+        <td>
+          {run?.calendar_date || load}
+        </td>
+        <td>
+          {run?.pi || load}
+        </td>
+        <td>
+          {assignment.priority}
+        </td>
+        <td>
+          {assignment.status}
+        </td>
+        <td>
+          {assignment.comment}
+        </td>
+        <td>
+          <span>
+            <button type="button" onClick={() => { deleteAssignment(assignment.id); }}>
+              Delete
+            </button>
+          </span>
+        </td>
+      </tr>
   );
 }
 
@@ -96,7 +97,7 @@ const AssignmentList = ({ assignments }) => {
   );
 
   assignments.sort((a, b) => {
-    return observingRunDict[a.run_id].sunrise_unix - observingRunDict[b.run_id].sunrise_unix;
+    return observingRunDict[a.run_id].ephemeris.sunrise_unix - observingRunDict[b.run_id].ephemeris.sunrise_unix;
   });
 
   return (

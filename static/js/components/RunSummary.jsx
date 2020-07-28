@@ -85,15 +85,15 @@ const SimpleMenu = ({ assignment }) => {
   );
 
   const upload_photometry = (
-    <Link href={`/upload_photometry/${assignment.obj.id}`}
-          underline="none"
-          color="textPrimary">
-      <MenuItem key={`${assignment.id}_upload_phot`}
-                variant="contained"
-                onClick={handleClose}>
+    <MenuItem key={`${assignment.id}_upload_phot`}
+              variant="contained"
+              onClick={handleClose}>
+      <Link href={`/upload_photometry/${assignment.obj.id}`}
+            underline="none"
+            color="textPrimary">
         Upload Photometry
-      </MenuItem>
-    </Link>
+      </Link>
+    </MenuItem>
   );
 
   const upload_spectrum = (

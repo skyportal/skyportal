@@ -22,8 +22,7 @@ export function observingRunTitle(observingRun, instrumentList, telescopeList, g
 
   const group = groups?.filter((g) => g.id === observingRun.group_id)[0];
 
-  return `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname} (PI: \ 
-    ${observingRun?.pi} ${group?.name})`;
+  return `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname} (PI: ${observingRun?.pi} ${group?.name})`;
 }
 
 function makeMenuItem(observingRun, instrumentList, telescopeList, groups) {
@@ -42,7 +41,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   const groups = useSelector((state) => state.groups.all);
 
   const upcomingRuns = observingRunList.filter((observingrun) => (
-    Date.parse(observingrun.sunrise_utc) >= Date.now()
+    Date.parse(observingrun.ephemeris.sunrise_utc) >= Date.now()
   ));
 
   const { handleSubmit, getValues, reset, register, control } = useForm();
