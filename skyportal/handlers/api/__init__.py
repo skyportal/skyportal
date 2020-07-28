@@ -12,7 +12,7 @@ from .photometry import (PhotometryHandler, ObjPhotometryHandler,
 from .public_group import PublicGroupHandler
 from .sharing import SharingHandler
 from .source import SourceHandler, SourceOffsetsHandler, SourceFinderHandler
-from .spectrum import SpectrumHandler
+from .spectrum import SpectrumHandler, ObjSpectraHandler
 from .sysinfo import SysInfoHandler
 from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler

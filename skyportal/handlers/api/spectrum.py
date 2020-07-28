@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Spectrum, Comment, Instrument, Obj, Source
+from ...models import DBSession, Spectrum, Comment, Instrument, Obj, Source, Group
 
 
 class SpectrumHandler(BaseHandler):
@@ -15,7 +15,18 @@ class SpectrumHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: SpectrumNoID
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SpectrumNoID'
+                  - type: object
+                    properties:
+                      group_ids:
+                        type: array
+                        items:
+                          type: integer
+                        description: Group IDs that spectrum will be associated with
+                    required:
+                      - group_ids
         responses:
           200:
             content:
@@ -43,6 +54,12 @@ class SpectrumHandler(BaseHandler):
                 return self.error('Can only upload data for one instrument at a time')
             else:
                 instrument_id = instrument_id[0]
+        try:
+            group_ids = data.pop("group_ids")
+        except KeyError:
+            return self.error("Missing required field: group_ids")
+        groups = Group.query.filter(Group.id.in_(group_ids)).all()
+
         instrument = Instrument.query.get(instrument_id)
 
         schema = Spectrum.__schema__()
@@ -52,6 +69,7 @@ class SpectrumHandler(BaseHandler):
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
         spec.instrument = instrument
+        spec.groups = groups
         DBSession().add(spec)
         DBSession().commit()
 

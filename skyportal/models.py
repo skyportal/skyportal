@@ -83,6 +83,10 @@ class Group(Base):
                               back_populates="groups",
                               cascade="save-update, merge, refresh-expire, expunge",
                               passive_deletes=True)
+    spectra = relationship("Spectrum", secondary="group_spectra",
+                           back_populates="groups",
+                           cascade="save-update, merge, refresh-expire, expunge",
+                           passive_deletes=True)
     single_user_group = sa.Column(sa.Boolean, default=False)
 
 
@@ -412,6 +416,19 @@ def get_photometry_owned_by_user(obj_id, user_or_token):
 Obj.get_photometry_owned_by_user = get_photometry_owned_by_user
 
 
+def get_spectra_owned_by(obj_id, user_or_token):
+    return (
+        Spectrum.query.filter(Spectrum.obj_id == obj_id)
+        .filter(
+            Spectrum.groups.any(Group.id.in_([g.id for g in user_or_token.groups]))
+        )
+        .all()
+    )
+
+
+Obj.get_spectra_owned_by = get_spectra_owned_by
+
+
 User.sources = relationship('Obj', backref='users',
                             secondary='join(Group, sources).join(group_users)',
                             primaryjoin='group_users.c.user_id == users.c.id',
@@ -700,6 +717,10 @@ class Spectrum(Base):
                                             ondelete='CASCADE'),
                               nullable=False, index=True)
     instrument = relationship('Instrument', back_populates='spectra')
+    groups = relationship("Group", secondary="group_spectra",
+                          back_populates="spectra",
+                          cascade="save-update, merge, refresh-expire, expunge",
+                          passive_deletes=True)
 
     @classmethod
     def from_ascii(cls, filename, obj_id, instrument_id, observed_at):
@@ -710,6 +731,9 @@ class Spectrum(Base):
         return cls(wavelengths=data[:, 0], fluxes=data[:, 1],
                    obj_id=obj_id, instrument_id=instrument_id,
                    observed_at=observed_at)
+
+
+GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 
 
 # def format_public_url(context):
