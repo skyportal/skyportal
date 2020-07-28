@@ -54,7 +54,8 @@ class TaxonomyHandler(BaseHandler):
 
             return self.success(data=taxonomy[0])
         query = Taxonomy.query.filter(
-            Taxonomy.groups.any(Group.id.in_([g.id for g in self.current_user.groups]))
+            Taxonomy.groups.any(Group.id.in_(
+              [g.id for g in self.current_user.groups]))
         )
         return self.success(data=query.all())
 
@@ -174,7 +175,16 @@ class TaxonomyHandler(BaseHandler):
 
         provenance = data.get('provenance', None)
 
-        # compute the allowable classes
+        # The following function and for loop
+        # generates the list of allowed classes for this hierarchy,
+        # capturing both the leaf nodes as well as the parent nodes as
+        # possible classes. In addition, it generates a label to be show
+        # during the selection process. Eg, the output is:
+        #  [{"class": "SN", "label": "<b>SN</br>⇦Cataclysmic"},
+        #   {"class": "Ia", "label": "<b>Ia</br>⇦SN⇦Cataclysmic"}]
+        # The Classification selection on the Source page then uses array
+        # to allow the user to find the classification more easily
+        # using <Autocomplete> from MUI.
         result = []
 
         def dict_path(path, my_dict):

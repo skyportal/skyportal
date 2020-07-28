@@ -552,7 +552,7 @@ Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
 
 class Comment(Base):
     text = sa.Column(sa.String, nullable=False)
-    ctype = sa.Column(sa.Enum('text', 'redshift', 'classification',
+    ctype = sa.Column(sa.Enum('text', 'redshift',
                               name='comment_types', validate_strings=True))
 
     attachment_name = sa.Column(sa.String, nullable=True)
