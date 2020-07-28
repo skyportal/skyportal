@@ -1,6 +1,7 @@
 import tornado.web
 
 from baselayer.app.app_server import MainPageHandler
+from baselayer.app import model_util as baselayer_model_util
 
 from skyportal.handlers import (BecomeUserHandler, LogoutHandler)
 from skyportal.handlers.api import (
@@ -100,7 +101,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
 
     app = tornado.web.Application(handlers, **settings)
     models.init_db(**cfg['database'])
-    model_util.create_tables()
+    baselayer_model_util.create_tables()
     model_util.setup_permissions()
     app.cfg = cfg
 
@@ -112,6 +113,8 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         print('Tokens in .tokens.yaml:')
         print('\n'.join(f.readlines()), end='')
         print('-' * 78)
+
+    model_util.provision_public_group()
 
     app.openapi_spec = openapi.spec_from_handlers(handlers)
 
