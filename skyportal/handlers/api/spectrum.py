@@ -171,3 +171,38 @@ class SpectrumHandler(BaseHandler):
         DBSession().commit()
 
         return self.success()
+
+
+class ObjSpectraHandler(BaseHandler):
+    @auth_or_token
+    def get(self, obj_id):
+        """
+        ---
+        description: Retrieve all spectra associated with an Object
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+            description: ID of the object to retrieve spectra for
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfSpectrums
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        obj = Obj.query.get(obj_id)
+        if obj is None:
+            return self.error('Invalid object ID.')
+        spectra = Obj.get_spectra_owned_by(obj_id, self.current_user)
+        return_values = []
+        for spec in spectra:
+            spec_dict = spec.to_dict()
+            spec_dict["instrument_name"] = spec.instrument.name
+            return_values.append(spec_dict)
+        return self.success(data=return_values)
