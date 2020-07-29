@@ -49,8 +49,7 @@ def test_sharing_photometry(
         "POST",
         "sharing",
         data={
-            "IDs": [photometry_id],
-            "dataType": "Photometry",
+            "photIDs": [photometry_id],
             "groupIDs": [public_group.id],
         },
         token=upload_data_token,
