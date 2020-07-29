@@ -18,7 +18,6 @@ import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 import FollowupRequestForm from './FollowupRequestForm';
 import FollowupRequestList from './FollowupRequestList';
-import SharingDialog from "./SharingDialog";
 
 
 const Source = ({ route }) => {
@@ -116,10 +115,14 @@ const Source = ({ route }) => {
           mobileProps={{ folded: true }}
         >
           <Plot className={styles.plot} url={`/api/internal/plot/photometry/${source.id}`} />
-          <SharingDialog title="Share photometry" allGroups={[{name: "A", id: 1}, {name: "B", id: 2}]} existingGroups={[{"name": "A", id: 1}]} action={console.log} />
           <Link to={`/upload_photometry/${source.id}`} role="link">
             <Button variant="contained">
               Upload additional photometry
+            </Button>
+          </Link>
+          <Link to={`/share_data/${source.id}`} role="link">
+            <Button variant="contained">
+              Share data
             </Button>
           </Link>
         </Responsive>
@@ -131,6 +134,11 @@ const Source = ({ route }) => {
         >
 
           <Plot className={styles.plot} url={`/api/internal/plot/spectroscopy/${source.id}`} />
+          <Link to={`/share_data/${source.id}`} role="link">
+            <Button variant="contained">
+              Share data
+            </Button>
+          </Link>
         </Responsive>
 
         { /* TODO 1) check for dead links; 2) simplify link formatting if possible */ }
