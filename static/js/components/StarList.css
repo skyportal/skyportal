@@ -3,8 +3,22 @@
   padding: 1rem;
   margin: 1rem;
   line-height: 0.8rem;
+  position: relative;
+  min-height: 10rem;
+  min-width: 20rem;
 }
 
 .starList {
   font-size: 0.5rem;
+}
+
+.codeText {
+  max-width: 80%;
+}
+
+.dropDown {
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin: 1.5rem;
 }
