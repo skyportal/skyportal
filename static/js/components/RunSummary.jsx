@@ -386,38 +386,29 @@ const RunSummary = ({ route }) => {
     );
 
     return (
-      <div className={styles.source}>
-        <div>
-          <Grid container direction="column" alignItems="center" justify="flex-start" spacing={3}>
-            <Grid item>
-              <div>
-                <Typography variant="h4" gutterBottom color="textSecondary" align="center">
-                  <em>Observing Planner for:</em>
-                </Typography>
-                <Typography variant="h4" gutterBottom color="textSecondary">
-                  <b>{observingRunTitle(observingRun, instrumentList, telescopeList, groups)}</b>
-                </Typography>
-              </div>
-            </Grid>
-            <Grid item>
-              <MUIDataTable
-                title="Targets"
-                columns={columns}
-                data={data}
-                options={options}
-              />
-            </Grid>
-            <Grid item>
-              <SkyCam telescope={observingRun.instrument.telescope}/>
-            </Grid>
-            <Grid item>
-              <Typography gutterBottom align="center">
-                Starlist and Offsets
-              </Typography>
-              <ObservingRunStarList observingRunId={observingRun.id} />
-            </Grid>
-          </Grid>
+      <div>
+        <div className={styles.center}>
+          <Typography variant="h4" gutterBottom color="textSecondary">
+            Plan for: <b>{observingRunTitle(observingRun, instrumentList, telescopeList, groups)}</b>
+          </Typography>
+          <MUIDataTable
+            title="Targets"
+            columns={columns}
+            data={data}
+            options={options}
+          />
         </div>
+        <Grid container className={styles.center}>
+          <Grid item xs={12} sm={12} md={12} lg={8} xl={8} className={styles.displayInlineBlock}>
+            <Typography gutterBottom align="center">
+              Starlist and Offsets
+            </Typography>
+            <ObservingRunStarList observingRunId={observingRun.id} />
+          </Grid>
+          <Grid item xs={12} sm={12} md={12} lg={4} xl={4} className={styles.displayInlineBlock}>
+            <SkyCam telescope={observingRun.instrument.telescope}/>
+          </Grid>
+        </Grid>
       </div>
     );
   }

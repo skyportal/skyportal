@@ -1,4 +1,10 @@
-.source {
+.displayInlineBlock {
+    display: inline-block;
+}
+
+.center {
+    margin: auto;
+    padding: 10px
 }
 
 .leftColumn {
@@ -38,3 +44,5 @@
 .tableContainer {
     margin: 10px;
 }
+
+
