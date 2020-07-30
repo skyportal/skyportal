@@ -11,7 +11,7 @@ const SkyCamPage = () => {
     <Grid container spacing={3}>
       {
         telescopeList.map((scope) => (
-          <Grid item xs={12} sm={6} md={4} lg={3} xl={2}>
+          <Grid item>
             <SkyCam telescope={scope}/>
           </Grid>
         ))
