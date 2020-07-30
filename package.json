@@ -11,6 +11,7 @@
     "@material-ui/icons": "4.9.1",
     "@material-ui/lab": "4.0.0-alpha.56",
     "@material-ui/pickers": "3.2.10",
+    "material-ui-phone-number": "2.2.6",
     "bokehjs": "0.12.9",
     "check-dependencies": "1.1.0",
     "clsx": "1.1.1",

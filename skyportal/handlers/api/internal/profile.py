@@ -1,9 +1,15 @@
 import json
 from copy import deepcopy
+
+import phonenumbers
+from phonenumbers.phonenumberutil import NumberParseException
+from validate_email import validate_email
+
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
 from ...base import BaseHandler
 from ....models import User, DBSession
+
 
 
 class ProfileHandler(BaseHandler):
@@ -25,6 +31,16 @@ class ProfileHandler(BaseHandler):
                           type: object
                           properties:
                             username:
+                              type: string
+                            first_name:
+                              type: string
+                            last_name:
+                              type: string
+                            contact_email:
+                              type: string
+                            contact_phone:
+                              type: string
+                            gravatar_url:
                               type: string
                             acls:
                               type: array
@@ -63,12 +79,18 @@ class ProfileHandler(BaseHandler):
                        for token in user.tokens]
         return self.success(data={
             'username': self.current_user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'contact_email': user.contact_email,
+            'contact_phone': user.contact_phone.e164,
+            'gravatar_url': user.gravatar_url,
             'roles': user_roles,
             'acls': user_acls,
             'tokens': user_tokens,
             'preferences': self.current_user.preferences or {}
         })
 
+    @auth_or_token
     def put(self):
         """
         ---
@@ -90,18 +112,59 @@ class ProfileHandler(BaseHandler):
         """
         data = self.get_json()
         if 'preferences' not in data:
-            return self.error('Invalid request body: missing required "preferences" parameter')
+            return self.error(
+                              'Invalid request body: missing required '
+                              '"preferences" parameter'
+                             )
         preferences = data['preferences']
+
+        if preferences.get("first_name"):
+            self.current_user.first_name = preferences.pop("first_name")
+
+        if preferences.get("last_name"):
+            self.current_user.last_name = preferences.pop("last_name")
+
+        if preferences.get("contact_phone"):
+            phone = preferences.pop("contact_phone")
+            if phone is not None:
+                try:
+                    if not phonenumbers.is_possible_number(
+                            phonenumbers.parse(phone, None)):
+                        return self.error(
+                                  'Phone number given is not valid'
+                                 )
+                except NumberParseException:
+                    return self.error(
+                                  'Could not parse input as a phone number'
+                                 )
+            self.current_user.contact_phone = phone
+
+        if preferences.get("contact_email"):
+            email = preferences.pop("contact_email")
+            if email is not None:
+                if not validate_email(
+                       email_address=email,
+                        check_regex=True,
+                        check_mx=False,
+                        use_blacklist=True,
+                        debug=False):
+                    return self.error(
+                              'Email does not appear to be valid'
+                             )
+            self.current_user.contact_email = email
+
         # Do not save blank fields (empty strings)
         for k, v in preferences.items():
             if isinstance(v, dict):
-                preferences[k] = {key: val for key, val in v.items() if val != ''}
+                preferences[k] = \
+                  {key: val for key, val in v.items() if val != ''}
         user_prefs = deepcopy(self.current_user.preferences)
         if not user_prefs:
             user_prefs = preferences
         else:
             user_prefs = recursive_update(user_prefs, preferences)
         self.current_user.preferences = user_prefs
+
         DBSession.add(self.current_user)
         DBSession.commit()
         if 'newsFeed' in preferences:

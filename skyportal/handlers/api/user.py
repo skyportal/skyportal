@@ -96,6 +96,14 @@ class UserHandler(BaseHandler):
                   username:
                     type: string
                     description: User's email address
+                  first_name:
+                    type: string
+                  last_name:
+                    type: string
+                  contact_email:
+                    type: string
+                  contact_phone:
+                    type: string
                   roles:
                     type: array
                     items:
@@ -137,6 +145,10 @@ class UserHandler(BaseHandler):
 
         user_id = add_user_and_setup_groups(
             username=data["username"],
+            first_name=data.get("first_name"),
+            last_name=data.get("last_name"),
+            contact_phone=data.get("contact_phone"),
+            contact_email=data.get("contact_email"),
             roles=roles,
             group_ids_and_admin=group_ids_and_admin
         )
