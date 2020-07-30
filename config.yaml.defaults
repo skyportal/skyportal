@@ -36,6 +36,8 @@ app:
       component: About
     - path: "/run/:id"
       component: RunSummary
+    - path: "/runs"
+      component: ObservingRunList
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -51,6 +53,10 @@ app:
     - name: About
       icon: Info
       url: /about
+
+    - name: Observing Runs
+      icon: LocalCafe
+      url: /runs
 
 database:
   database: skyportal
