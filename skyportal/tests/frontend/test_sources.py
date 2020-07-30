@@ -329,7 +329,7 @@ def test_show_starlist(driver, user, public_source):
     driver.get(f"/source/{public_source.id}")
     button = driver.wait_for_xpath(f'//span[text()="Show Starlist"]')
     button.click()
-    driver.wait_for_xpath(f'//code[contains(text(), _off1)]')
+    driver.wait_for_xpath(f"//code/div[text()[contains(., '_off1')]]", timeout=20)
 
 
 @pytest.mark.flaky(reruns=2)
@@ -401,3 +401,21 @@ def test_centroid_plot(
 
         difference = ImageChops.difference(generated_plot, expected_plot)
         assert difference.getbbox() is None
+
+
+def test_dropdown_facility_change(driver, user, public_source):
+    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
+    driver.get(f"/source/{public_source.id}")
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath('//span[text()="Show Starlist"]')
+    )
+    driver.wait_for_xpath("//code/div[text()[contains(., 'raoffset')]]", timeout=20)
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath(
+            '//div[@id="mui-component-select-StarListSelectFacility"]'
+        )
+    )
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath('//li[@data-value="P200"]')
+    )
+    driver.wait_for_xpath("//code/div[text()[contains(., 'dist')]]", timeout=20)
