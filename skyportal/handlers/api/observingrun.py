@@ -3,7 +3,7 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import(DBSession, ObservingRun, ClassicalAssignment, Obj,
-                      Thumbnail)
+                      Thumbnail, Instrument)
 from ...schema import (ObservingRunPost, ObservingRunGet,
                        ObservingRunGetWithAssignments)
 
@@ -106,6 +106,8 @@ class ObservingRunHandler(BaseHandler):
                 joinedload(ObservingRun.assignments)
                 .joinedload(ClassicalAssignment.obj)
                 .joinedload(Obj.comments),
+                joinedload(ObservingRun.instrument)
+                .joinedload(Instrument.telescope)
             ).filter(ObservingRun.id == run_id).first()
 
             if run is None:

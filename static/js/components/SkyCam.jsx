@@ -14,6 +14,9 @@ const useStyles = makeStyles(() => ({
     },
     title: {
       fontSize: 14,
+    },
+    media: {
+      minHeight: 300
     }
   }
 ));
@@ -32,7 +35,10 @@ const SkyCam = ({ telescope }) => {
             Current Conditions
           </Typography>
         </CardContent>
-        <CardMedia image={telescope.skycam_link} title={`${telescope.nickname} SkyCam`}/>
+        <CardMedia
+          image={telescope.skycam_link}
+          title={`${telescope.nickname} SkyCam`}
+          className={classes.media}/>
       </Card>
     )
   }

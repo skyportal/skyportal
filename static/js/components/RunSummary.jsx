@@ -25,6 +25,7 @@ import { ObservingRunStarList } from './StarList';
 import * as SourceAction from '../ducks/source';
 import * as Action from '../ducks/observingRun';
 import { ra_to_hours, dec_to_hours } from "../units";
+import SkyCam from './SkyCam';
 
 const VegaPlot = React.lazy(() => import('./VegaPlot'));
 const AirmassPlot = React.lazy(() => import('./AirmassPlot'));
@@ -405,6 +406,9 @@ const RunSummary = ({ route }) => {
                 data={data}
                 options={options}
               />
+            </Grid>
+            <Grid item>
+              <SkyCam telescope={observingRun.instrument.telescope}/>
             </Grid>
             <Grid item>
               <Typography gutterBottom align="center">
