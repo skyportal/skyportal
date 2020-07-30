@@ -2,9 +2,24 @@ import React, { useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import Dropdown, { DropdownTrigger, DropdownContent } from 'react-simple-dropdown';
+import styled from 'styled-components';
 
 import styles from "./ProfileDropdown.css";
-import Responsive from "./Responsive";
+
+const Container = styled.div`
+  padding: 1em;
+  color: white;
+  font-weight: normal;
+  float: right;
+  vertical-align: middle;
+
+  @media only screen and (max-width: 768px) {
+    position: absolute;
+    right: 15px;
+    top: 20px;
+    z-index: 200;
+  }
+`;
 
 const ProfileDropdown = () => {
   const profile = useSelector((state) => state.profile);
@@ -15,13 +30,8 @@ const ProfileDropdown = () => {
   };
 
   return (
-    <Responsive
-      desktopStyle={styles.profileDesktop}
-      mobileStyle={styles.profileMobile}
-    >
-
+    <Container>
       <Dropdown ref={dropdown}>
-
         <DropdownTrigger>
           { profile.username }
           {' '}
@@ -29,7 +39,6 @@ const ProfileDropdown = () => {
         </DropdownTrigger>
 
         <DropdownContent>
-
           <Link to="/profile" role="link">
             <div role="menuitem" tabIndex="0" className={styles.entry} onClick={collapseDropdown}>
               Profile
@@ -51,12 +60,10 @@ const ProfileDropdown = () => {
               Sign out
             </div>
           </a>
-
         </DropdownContent>
 
       </Dropdown>
-
-    </Responsive>
+    </Container>
   );
 };
 
