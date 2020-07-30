@@ -45,6 +45,11 @@ messageHandler.add((actionType, payload, dispatch) => {
 
 const initialState = {
   username: '',
+  first_name: null,
+  last_name: null,
+  contact_email: null,
+  contact_phone: null,
+  gravatar_url: 'https://www.gravatar.com/avatar/0000000?d=404',
   roles: [],
   acls: [],
   tokens: [],
