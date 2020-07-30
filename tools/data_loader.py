@@ -215,7 +215,8 @@ if __name__ == "__main__":
                                 "elevation": telescope.get("elevation", 0.0),
                                 "diameter": telescope.get("diameter", 1.0),
                                 "group_ids": group_ids,
-                                "robotic": telescope.get('robotic', False)
+                                "robotic": telescope.get('robotic', False),
+                                "skycam_link": telescope.get('skycam', None)
                             },
                             token=tokens[token_name]
                         )

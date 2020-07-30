@@ -74,7 +74,7 @@ telescopes:
     lon: -155.478
     name: Keck II 10m
     id: Keck2
-    skycam: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
+    skycam: https://www2.keck.hawaii.edu/realtime/webcam/kcam_1.jpg
     robotic: false
     group_names:
       - Program A
@@ -85,7 +85,7 @@ telescopes:
     lon: -155.478
     elevation: 2000
     diameter: 2.56
-    skycam: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
+    skycam: https://www2.keck.hawaii.edu/realtime/webcam/kcam_1.jpg
     robotic: false
     group_names:
       - Program A
