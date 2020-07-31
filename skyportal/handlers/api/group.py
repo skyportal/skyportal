@@ -80,7 +80,7 @@ class GroupHandler(BaseHandler):
                     joinedload(Group.users).load_only(User.id, User.username)]
                 ).get(group_id)
                 if group is not None and group.id not in [
-                        g.id for g in self.current_user.groups]:
+                        g.id for g in self.current_user.accessible_groups]:
                     return self.error('Insufficient permissions.')
             if group is not None:
                 group = group.to_dict()
@@ -92,10 +92,11 @@ class GroupHandler(BaseHandler):
 
         include_single_user_groups = self.get_query_argument("includeSingleUserGroups",
                                                              False)
+        acls = [acl.id for acl in self.current_user.acls]
         info = {}
         info['user_groups'] = list(self.current_user.groups)
-        info['all_groups'] = (list(Group.query) if 'Super admin' in
-                              [role.id for role in self.associated_user_object.roles]
+        info['all_groups'] = (Group.query.all()
+                              if "System admin" in acls or "Manage groups" in acls
                               else None)
         if (not include_single_user_groups) or (include_single_user_groups == "false"):
             info["user_groups"] = [g for g in info["user_groups"]

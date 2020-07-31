@@ -172,6 +172,12 @@ class CandidateHandler(BaseHandler):
         user_filter_ids = [
             g.filter.id for g in self.current_user.groups if g.filter is not None
         ]
+        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
+        user_accessible_filter_ids = [
+            g.filter.id
+            for g in self.current_user.accessible_groups
+            if g.filter is not None
+        ]
         if group_ids is not None:
             if isinstance(group_ids, str) and "," in group_ids:
                 group_ids = [int(g_id) for g_id in group_ids.split(",")]
@@ -196,6 +202,13 @@ class CandidateHandler(BaseHandler):
             # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
             group_ids = user_group_ids
             filter_ids = user_filter_ids
+
+        # Ensure user has access to specified groups/filters
+        if not (all([gid in user_accessible_group_ids for gid in group_ids]) and
+                all([fid in user_accessible_filter_ids for fid in filter_ids])):
+            return self.error("Insufficient permissions - you must only specify "
+                              "groups/filters that you have access to.")
+
         try:
             page = int(page_number)
         except ValueError:
@@ -255,7 +268,7 @@ class CandidateHandler(BaseHandler):
             obj.passing_group_ids = [
                 f.group_id
                 for f in (
-                    Filter.query.filter(Filter.id.in_(user_filter_ids))
+                    Filter.query.filter(Filter.id.in_(user_accessible_filter_ids))
                     .filter(
                         Filter.id.in_(
                             DBSession().query(Candidate.filter_id).filter(
@@ -322,6 +335,14 @@ class CandidateHandler(BaseHandler):
             filter_ids = data.pop("filter_ids")
         except KeyError:
             return self.error("Missing required filter_ids parameter.")
+        user_accessible_filter_ids = [
+            g.filter.id
+            for g in self.current_user.accessible_groups
+            if g.filter is not None
+        ]
+        if not all([fid in user_accessible_filter_ids for fid in filter_ids]):
+            return self.error("Insufficient permissions - you must only specify "
+                              "filters that you have access to.")
 
         try:
             obj = schema.load(data)

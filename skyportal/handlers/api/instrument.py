@@ -74,7 +74,7 @@ class InstrumentHandler(BaseHandler):
             return self.success(data=instrument)
         query = Instrument.query.filter(Instrument.telescope_id.in_(
             DBSession().query(GroupTelescope.telescope_id).filter(GroupTelescope.group_id.in_(
-                [g.id for g in self.current_user.groups]
+                [g.id for g in self.current_user.accessible_groups]
             ))))
         return self.success(data=query.all())
 
@@ -155,7 +155,7 @@ InstrumentHandler.post.__doc__ = f"""
         requestBody:
           content:
             application/json:
-              schema: 
+              schema:
                 allOf:
                 - $ref: "#/components/schemas/InstrumentNoID"
                 - type: object
@@ -168,7 +168,7 @@ InstrumentHandler.post.__doc__ = f"""
                       description: >-
                         List of filters on the instrument. If the instrument
                         has no filters (e.g., because it is a spectrograph),
-                        leave blank or pass the empty list. 
+                        leave blank or pass the empty list.
                       default: []
         responses:
           200:

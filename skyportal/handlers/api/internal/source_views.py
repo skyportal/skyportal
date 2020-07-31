@@ -29,7 +29,7 @@ class SourceViewsHandler(BaseHandler):
                              SourceView.obj_id).group_by(SourceView.obj_id)
              .filter(SourceView.obj_id.in_(DBSession.query(
                  Source.obj_id).filter(Source.group_id.in_(
-                     [g.id for g in self.current_user.groups]))))
+                     [g.id for g in self.current_user.accessible_groups]))))
              .filter(SourceView.created_at >= cutoff_day)
              .order_by(desc('views')).limit(max_num_sources))
         return self.success(data=q.all())
