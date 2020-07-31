@@ -108,7 +108,7 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     try:
         with open(fpath) as f:
             l = f.read()
-        assert l.split('\n')[0] == 'wavelength,flux,instrument_id'
+        assert l.split('\n')[0] == 'wavelengths,fluxes,instrument_id'
     finally:
         os.remove(fpath)
 
