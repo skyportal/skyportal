@@ -50,6 +50,9 @@ if __name__ == "__main__":
     env, cfg = load_env()
 
     ## TODO: load multiple files
+    if len(env.data_files) > 1:
+        raise NotImplementedError("Cannot yet handle multiple data files")
+
     fname = env.data_files[0]
     src = yaml.load(open(fname, "r"), Loader=Loader)
 
@@ -116,7 +119,7 @@ if __name__ == "__main__":
                 print('Retrying connection...')
 
     if code not in (200, 400):
-        print(f'Error: could not connect to server (HTTP status {code}')
+        print(f'Error: could not connect to server (HTTP status {code})')
         sys.exit(-1)
 
     if data['status'] != 'success':
@@ -129,22 +132,58 @@ if __name__ == "__main__":
         sys.exit(-1)
     public_group_id = response['data']['id']
 
-    data = src.get('data', {})
     error_log = []
 
     references = {
         'public_group_id': public_group_id
     }
 
-    for endpoint in data:
+    def inject_references(obj):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                obj[k] = inject_references(v)
+            return obj
+        elif isinstance(obj, str) and obj.startswith('='):
+            try:
+                return references[obj[1:]]
+            except KeyError:
+                print(f'\nReference {obj[1:]} not found while posting to {endpoint}; skipping')
+                raise
+        elif isinstance(obj, list):
+            return [inject_references(item) for item in obj]
+        else:
+            return obj
+
+    for endpoint, to_post in src.items():
+        # Substitute references in path
+        endpoint_parts = endpoint.split('/')
+        try:
+            for i, part in enumerate(endpoint_parts):
+                if part.startswith('='):
+                    endpoint_parts[i] = str(references[part[1:]])
+        except KeyError:
+            print(f'\nReference {part[1:]} not found while interpolating endpoint {endpoint}; skipping')
+            continue
+
+        endpoint = '/'.join(endpoint_parts)
+
         print(f'Posting to {endpoint}: ', end='')
-        to_post = data[endpoint]
         if 'file' in to_post:
+            filename = to_post['file']
             post_objs = yaml.load(open(to_post['file'], 'r'), Loader=yaml.Loader)
         else:
             post_objs = to_post
 
         for obj in post_objs:
+            if 'file' in obj:
+                filename = obj['file']
+                if filename.endswith('csv'):
+                    df = pd.read_csv(filename)
+                    obj.pop('file')
+                    obj.update(df.to_dict(orient='list').keys())
+                else:
+                    raise NotImplementedError('Only CSV files currently supported for extending individual objects')
+
             # Fields that start with =, such as =id, get saved for using as
             # references later on
             saved_fields = {v: k[1:] for k, v in obj.items() if k.startswith('=')}
@@ -155,17 +194,8 @@ if __name__ == "__main__":
             # Replace all references of the format field: =key or [=key, ..]
             # with the appropriate reference value
             try:
-                for k, v in obj.items():
-                    if isinstance(v, str) and v.startswith('='):
-                        obj[k] = references[v[1:]]
-                    elif isinstance(v, list):
-                        for n, item in enumerate(v):
-                            if isinstance(item, str) and item.startswith('='):
-                                v[n] = references[item[1:]]
-                        obj[k] = v
-
+                inject_references(obj)
             except KeyError:
-                print(f'\nReference {v[1:]} not found while posting to {endpoint}; skipping')
                 continue
 
             status, response = post(endpoint, data=obj)
