@@ -294,7 +294,7 @@ class Obj(Base, ha.Point):
 
 class Filter(Base):
     query_string = sa.Column(sa.String, nullable=False, unique=False)
-    group_id = sa.Column(sa.ForeignKey("groups.id"))
+    group_id = sa.Column(sa.ForeignKey("groups.id"), nullable=False)
     group = relationship("Group", foreign_keys=[group_id], back_populates="filter")
 
 
