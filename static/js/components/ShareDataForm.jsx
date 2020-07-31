@@ -127,14 +127,13 @@ const ShareDataForm = ({ route }) => {
     },
     filter: true,
     selectableRows: "multiple",
-    selectableRowsOnClick: true,
     filterType: "dropdown",
     responsive: "vertical",
     rowsPerPage: 10,
     selectableRowsHeader: true,
     customToolbarSelect: () => { },
     download: false,
-    print: false
+    print: false,
   };
 
   return (
@@ -155,7 +154,8 @@ const ShareDataForm = ({ route }) => {
             rowsSelected: selectedPhotRows,
             onRowSelectionChange: (rowsSelectedData, allRows, rowsSelected) => {
               setSelectedPhotRows(rowsSelected);
-            }
+            },
+            selectableRowsOnClick: true,
           }}
         />
         <br />
@@ -173,7 +173,8 @@ const ShareDataForm = ({ route }) => {
             // eslint-disable-next-line react/display-name,no-unused-vars
             renderExpandableRow: (rowData, rowMeta) => (
               <Plot className={styles.plot} url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`} />
-            )
+            ),
+            expandableRowsOnClick: true,
           }}
         />
       </div>
