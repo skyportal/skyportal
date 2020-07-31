@@ -20,7 +20,7 @@ import * as sourceActions from "../ducks/source";
 import styles from "./Source.css";
 
 
-const createPhotRow = (id, mjd, mag, magerr, limiting_mag, instrument, filter) => (
+const createPhotRow = (id, mjd, mag, magerr, limiting_mag, instrument, filter, groups) => (
   {
     id,
     mjd: Number(mjd).toFixed(3),
@@ -28,15 +28,17 @@ const createPhotRow = (id, mjd, mag, magerr, limiting_mag, instrument, filter) =
     magerr: magerr === null ? null : Number(magerr).toFixed(4),
     limiting_mag: Number(limiting_mag).toFixed(4),
     instrument,
-    filter
+    filter,
+    groups
   }
 );
 
-const createSpecRow = (id, instrument, created) => (
+const createSpecRow = (id, instrument, created, groups) => (
   {
     id,
     instrument,
-    created
+    created,
+    groups
   }
 );
 
@@ -48,12 +50,14 @@ const photHeadCells = [
   { name: "limiting_mag", label: "Limiting Mag" },
   { name: "instrument", label: "Instrument" },
   { name: "filter", label: "Filter" },
+  { name: "groups", label: "Existing Groups" },
 ];
 
 const specHeadCells = [
   { name: "id", label: "ID" },
   { name: "instrument", label: "Instrument" },
   { name: "created", label: "Created" },
+  { name: "groups", label: "Existing Groups" },
 ];
 
 const useStyles = makeStyles(() => ({
@@ -110,10 +114,10 @@ const ShareDataForm = ({ route }) => {
 
   const photRows = photometry[route.id].map((phot) => (
     createPhotRow(phot.id, phot.mjd, phot.mag, phot.magerr, phot.limiting_mag,
-      phot.instrument_name, phot.filter)));
+      phot.instrument_name, phot.filter, phot.groups.map((group) => group.name).join(", "))));
 
   const specRows = spectra[route.id].map((spec) => (
-    createSpecRow(spec.id, spec.instrument_name, spec.created_at)));
+    createSpecRow(spec.id, spec.instrument_name, spec.created_at, spec.groups.map((group) => group.name).join(", "))));
 
   const options = {
     textLabels: {
