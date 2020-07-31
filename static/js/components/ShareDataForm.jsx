@@ -33,11 +33,11 @@ const createPhotRow = (id, mjd, mag, magerr, limiting_mag, instrument, filter, g
   }
 );
 
-const createSpecRow = (id, instrument, created, groups) => (
+const createSpecRow = (id, instrument, observed, groups) => (
   {
     id,
     instrument,
-    created,
+    observed,
     groups
   }
 );
@@ -56,7 +56,7 @@ const photHeadCells = [
 const specHeadCells = [
   { name: "id", label: "ID" },
   { name: "instrument", label: "Instrument" },
-  { name: "created", label: "Created" },
+  { name: "observed", label: "Observed (UTC)" },
   { name: "groups", label: "Existing Groups" },
 ];
 
@@ -117,7 +117,7 @@ const ShareDataForm = ({ route }) => {
       phot.instrument_name, phot.filter, phot.groups.map((group) => group.name).join(", "))));
 
   const specRows = spectra[route.id].map((spec) => (
-    createSpecRow(spec.id, spec.instrument_name, spec.created_at, spec.groups.map((group) => group.name).join(", "))));
+    createSpecRow(spec.id, spec.instrument_name, spec.observed_at, spec.groups.map((group) => group.name).join(", "))));
 
   const options = {
     textLabels: {
