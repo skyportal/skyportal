@@ -226,7 +226,7 @@ class GroupHandler(BaseHandler):
 
 class GroupUserHandler(BaseHandler):
     @permissions(['Manage groups'])
-    def post(self, group_id):
+    def post(self, group_id, *ignored_args):
         """
         ---
         description: Add a group user
