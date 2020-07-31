@@ -204,5 +204,6 @@ class ObjSpectraHandler(BaseHandler):
         for spec in spectra:
             spec_dict = spec.to_dict()
             spec_dict["instrument_name"] = spec.instrument.name
+            spec_dict["groups"] = spec.groups
             return_values.append(spec_dict)
         return self.success(data=return_values)
