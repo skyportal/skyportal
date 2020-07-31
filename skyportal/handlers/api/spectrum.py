@@ -38,6 +38,11 @@ class SpectrumHandler(BaseHandler):
         """
         data = self.get_json()
         instrument_id = data.get('instrument_id')
+        if isinstance(instrument_id, list):
+            if not all(instrument == instrument_id[0] for instrument in instrument_id):
+                return self.error('Can only upload data for one instrument at a time')
+            else:
+                instrument_id = instrument_id[0]
         instrument = Instrument.query.get(instrument_id)
 
         schema = Spectrum.__schema__()
