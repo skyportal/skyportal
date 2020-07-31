@@ -51,13 +51,13 @@ if __name__ == "__main__":
             token = yaml.load(open('.tokens.yaml'), Loader=yaml.Loader)['INITIAL_ADMIN']
             print('Token loaded from `.tokens.yaml`')
             return token
-        except (FileNotFoundError, TypeError, KeyError):
+        except (FileNotFoundError, TypeError, KeyError) as e:
             print('Error: no token specified, and no suitable token found in .tokens.yaml')
-            sys.exit(-1)
+            return None
 
     print('Testing connection...', end='')
 
-    RETRIES = 5
+    RETRIES = 10
     for i in range(RETRIES):
         try:
             admin_token = get_token()
