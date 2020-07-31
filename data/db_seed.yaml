@@ -2,11 +2,12 @@ user:
   - username: sitewide_group_admin
     roles:
       - Group admin
+
 telescope:
-  file: data/telescopes.yaml
+  file: telescopes.yaml
 
 instrument:
-  file: data/instruments.yaml
+  file: instruments.yaml
 
 taxonomy:
-  file: data/taxonomy.yaml
+  file: taxonomy_sitewide.yaml

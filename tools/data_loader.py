@@ -3,31 +3,17 @@
 import os
 import sys
 import base64
-from pathlib import Path
 import textwrap
-from contextlib import contextmanager
 import time
+from os.path import join as pjoin
 
 import requests
 import pandas as pd
 import yaml
 from yaml import Loader
-import tdtax
 
 from baselayer.app.env import load_env, parser
-from baselayer.app.model_util import status
 from skyportal.tests import api
-
-
-@contextmanager
-def status(message):
-    print(f'[·] {message}', end='')
-    try:
-        yield
-    except Exception as e:
-        print(f'\r[✗] {message}: {repr(e)}')
-    else:
-        print(f'\r[✓] {message}')
 
 
 if __name__ == "__main__":
@@ -49,12 +35,13 @@ if __name__ == "__main__":
 
     env, cfg = load_env()
 
-    ## TODO: load multiple files
+    # TODO: load multiple files
     if len(env.data_files) > 1:
         raise NotImplementedError("Cannot yet handle multiple data files")
 
     fname = env.data_files[0]
     src = yaml.load(open(fname, "r"), Loader=Loader)
+    src_path = os.path.dirname(fname)
 
     def get_token():
         if env.token:
@@ -64,7 +51,7 @@ if __name__ == "__main__":
             token = yaml.load(open('.tokens.yaml'), Loader=yaml.Loader)['INITIAL_ADMIN']
             print('Token loaded from `.tokens.yaml`')
             return token
-        except:
+        except (FileNotFoundError, TypeError, KeyError):
             print('Error: no token specified, and no suitable token found in .tokens.yaml')
             sys.exit(-1)
 
@@ -140,6 +127,17 @@ if __name__ == "__main__":
 
     def inject_references(obj):
         if isinstance(obj, dict):
+            if 'file' in obj:
+                filename = pjoin(src_path, obj['file'])
+                if filename.endswith('csv'):
+                    df = pd.read_csv(filename)
+                    obj.pop('file')
+                    obj.update(df.to_dict(orient='list'))
+                elif filename.endswith('.png'):
+                    return base64.b64encode(open(filename, 'rb').read())
+                else:
+                    raise NotImplementedError(f'{filename}: Only CSV files currently supported for extending individual objects')
+
             for k, v in obj.items():
                 obj[k] = inject_references(v)
             return obj
@@ -169,21 +167,13 @@ if __name__ == "__main__":
 
         print(f'Posting to {endpoint}: ', end='')
         if 'file' in to_post:
-            filename = to_post['file']
-            post_objs = yaml.load(open(to_post['file'], 'r'), Loader=yaml.Loader)
+            filename = pjoin(src_path, to_post['file'])
+            post_objs = yaml.load(open(filename, 'r'),
+                                  Loader=yaml.Loader)
         else:
             post_objs = to_post
 
         for obj in post_objs:
-            if 'file' in obj:
-                filename = obj['file']
-                if filename.endswith('csv'):
-                    df = pd.read_csv(filename)
-                    obj.pop('file')
-                    obj.update(df.to_dict(orient='list'))
-                else:
-                    raise NotImplementedError(f'{filename}: Only CSV files currently supported for extending individual objects')
-
             # Fields that start with =, such as =id, get saved for using as
             # references later on
             saved_fields = {v: k[1:] for k, v in obj.items() if k.startswith('=')}

@@ -32,6 +32,7 @@ groups/=program_A/users:
 
 filters:
   - query_string: sample_query_string
+    group_id: =program_A
     =id: example_filter
 
 telescope:
@@ -58,7 +59,7 @@ telescope:
       - =program_A
     =id: NOT
 
-instruments:
+instrument:
   - name: P60 Camera
     type: phot
     band: V
@@ -144,94 +145,100 @@ comment:
 photometry:
   - obj_id: 14gqr_unsaved_copy
     instrument_id: =P60
-    file: data/phot.csv
+    file: phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
   - obj_id: 14gqr
     instrument_id: =P60
-    file: data/phot.csv
+    file: phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
   - obj_id: 16fil_unsaved_copy
     instrument_id: =P60
-    file: data/phot.csv
+    file: phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
   - obj_id: 16fil
     instrument_id: =P60
-    file: data/phot.csv
+    file: phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
 
 thumbnail:
   - obj_id: 14gqr_unsaved_copy
     ttype: new
     data:
-      file: skyportal/tests/data/14gqr_new.png
+      file: ../skyportal/tests/data/14gqr_new.png
   - obj_id: 14gqr_unsaved_copy
     ttype: ref
     data:
-      file: skyportal/tests/data/14gqr_ref.png
+      file: ../skyportal/tests/data/14gqr_ref.png
   - obj_id: 14gqr_unsaved_copy
     ttype: ref
     data:
-      file: skyportal/tests/data/14gqr_sub.png
+      file: ../skyportal/tests/data/14gqr_sub.png
 
   - obj_id: 14gqr
     ttype: new
     data:
-      file: skyportal/tests/data/14gqr_new.png
+      file: ../skyportal/tests/data/14gqr_new.png
   - obj_id: 14gqr
     ttype: ref
     data:
-      file: skyportal/tests/data/14gqr_ref.png
+      file: ../skyportal/tests/data/14gqr_ref.png
   - obj_id: 14gqr
     ttype: ref
     data:
-      file: skyportal/tests/data/14gqr_sub.png
+      file: ../skyportal/tests/data/14gqr_sub.png
 
   - obj_id: 16fil_unsaved_copy
     ttype: new
     data:
-      file: skyportal/tests/data/16fil_new.png
+      file: ../skyportal/tests/data/16fil_new.png
   - obj_id: 16fil_unsaved_copy
     ttype: ref
     data:
-      file: skyportal/tests/data/16fil_ref.png
+      file: ../skyportal/tests/data/16fil_ref.png
   - obj_id: 16fil_unsaved_copy
     ttype: ref
     data:
-      file: skyportal/tests/data/16fil_sub.png
+      file: ../skyportal/tests/data/16fil_sub.png
 
   - obj_id: 16fil
     ttype: new
     data:
-      file: skyportal/tests/data/16fil_new.png
+      file: ../skyportal/tests/data/16fil_new.png
   - obj_id: 16fil
     ttype: ref
     data:
-      file: skyportal/tests/data/16fil_ref.png
+      file: ../skyportal/tests/data/16fil_ref.png
   - obj_id: 16fil
     ttype: ref
     data:
-      file: skyportal/tests/data/16fil_sub.png
+      file: ../skyportal/tests/data/16fil_sub.png
 
 spectrum:
   - obj_id: 14gqr_unsaved_copy
-    file: skyportal/tests/data/spec.csv
+    file: spec1.csv
     instrument_id: =ALFOSC
     observed_at: "2019-10-24T00:00:00"
   - obj_id: 14gqr
-    file: skyportal/tests/data/spec.csv
+    file: spec1.csv
     instrument_id: =ALFOSC
     observed_at: "2019-10-24T00:00:00"
 
   - obj_id: 16fil_unsaved_copy
-    file: skyportal/tests/data/spec.csv
+    file: spec2.csv
     instrument_id: =ALFOSC
     observed_at: "2019-10-24T00:00:00"
   - obj_id: 16fil
-    file: skyportal/tests/data/spec.csv
+    file: spec2.csv
     instrument_id: =ALFOSC
     observed_at: "2019-10-24T00:00:00"
 
-#taxonomy:
-#  - name: Demo taxonomy
-#    file: taxonomy.yaml
-#    version: latest
-#    provenance: https://github.com/profjsb/timedomain-taxonomy
-#    group_ids:
-#      - =program_A
-#      - =program_B
+taxonomy:
+  file: taxonomy_demo.yaml
