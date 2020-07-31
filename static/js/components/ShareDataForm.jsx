@@ -12,10 +12,12 @@ import TextField from "@material-ui/core/TextField";
 import { showNotification } from "baselayer/components/Notifications";
 
 import FormValidationError from "./FormValidationError";
+import Plot from './Plot';
 
 import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
+import styles from "./Source.css";
 
 
 const createPhotRow = (id, mjd, mag, magerr, limiting_mag, instrument, filter) => (
@@ -30,10 +32,11 @@ const createPhotRow = (id, mjd, mag, magerr, limiting_mag, instrument, filter) =
   }
 );
 
-const createSpecRow = (id, instrument) => (
+const createSpecRow = (id, instrument, created) => (
   {
     id,
-    instrument
+    instrument,
+    created
   }
 );
 
@@ -50,6 +53,7 @@ const photHeadCells = [
 const specHeadCells = [
   { name: "id", label: "ID" },
   { name: "instrument", label: "Instrument" },
+  { name: "created", label: "Created" },
 ];
 
 const useStyles = makeStyles(() => ({
@@ -109,7 +113,7 @@ const ShareDataForm = ({ route }) => {
       phot.instrument_name, phot.filter)));
 
   const specRows = spectra[route.id].map((spec) => (
-    createSpecRow(spec.id, spec.instrument_name)));
+    createSpecRow(spec.id, spec.instrument_name, spec.created_at)));
 
   const options = {
     textLabels: {
@@ -160,7 +164,12 @@ const ShareDataForm = ({ route }) => {
             rowsSelected: selectedSpecRows,
             onRowSelectionChange: (rowsSelectedData, allRows, rowsSelected) => {
               setSelectedSpecRows(rowsSelected);
-            }
+            },
+            expandableRows: true,
+            // eslint-disable-next-line react/display-name,no-unused-vars
+            renderExpandableRow: (rowData, rowMeta) => (
+              <Plot className={styles.plot} url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`} />
+            )
           }}
         />
       </div>
