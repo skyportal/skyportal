@@ -8,9 +8,6 @@ import tdtax
 if __name__ == "__main__":
     env, cfg = load_env()
 
-    with open("data/public_group.yaml", "w") as f:
-        pass
-
     with open("data/taxonomy_sitewide.yaml", "w") as f:
         tax_obj = [{
             'name': 'Sitewide taxonomy',
