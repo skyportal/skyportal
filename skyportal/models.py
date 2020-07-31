@@ -367,6 +367,8 @@ Source.get_obj_if_owned_by = get_source_if_owned_by
 
 
 def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
+    if Obj.query.get(obj_id) is None:
+        return None
     try:
         obj = Source.get_obj_if_owned_by(obj_id, user_or_token, options)
     except AccessError:  # They may still be able to view the associated Candidate
