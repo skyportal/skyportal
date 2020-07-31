@@ -227,11 +227,11 @@ spectrum:
     instrument_id: =ALFOSC
     observed_at: "2019-10-24T00:00:00"
 
-taxonomy:
-  - name: Demo taxonomy
-    file: taxonomy.yaml
-    version: latest
-    provenance: https://github.com/profjsb/timedomain-taxonomy
-    group_ids:
-      - =program_A
-      - =program_B
+#taxonomy:
+#  - name: Demo taxonomy
+#    file: taxonomy.yaml
+#    version: latest
+#    provenance: https://github.com/profjsb/timedomain-taxonomy
+#    group_ids:
+#      - =program_A
+#      - =program_B

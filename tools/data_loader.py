@@ -180,9 +180,9 @@ if __name__ == "__main__":
                 if filename.endswith('csv'):
                     df = pd.read_csv(filename)
                     obj.pop('file')
-                    obj.update(df.to_dict(orient='list').keys())
+                    obj.update(df.to_dict(orient='list'))
                 else:
-                    raise NotImplementedError('Only CSV files currently supported for extending individual objects')
+                    raise NotImplementedError(f'{filename}: Only CSV files currently supported for extending individual objects')
 
             # Fields that start with =, such as =id, get saved for using as
             # references later on
