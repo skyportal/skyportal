@@ -45,14 +45,14 @@ docs: ## Build the SkyPortal docs
 docs: | doc_reqs api-docs
 	export SPHINXOPTS=-W; make -C doc html
 
-load_demo_data: ## Import example dataset
-load_demo_data: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
-load_demo_data: | dependencies
-	@PYTHONPATH=. python tools/data_loader.py data/db_demo.yaml $(FLAGS)
-
 prepare_seed_data: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
 prepare_seed_data:
 	@PYTHONPATH=. python tools/prepare_seed_data.py $(FLAGS)
+
+load_demo_data: ## Import example dataset
+load_demo_data: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
+load_demo_data: | dependencies prepare_seed_data
+	@PYTHONPATH=. python tools/data_loader.py data/db_demo.yaml $(FLAGS)
 
 load_seed_data: ## Seed database with common telescopes, instruments, and a taxonomy
 load_seed_data: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
