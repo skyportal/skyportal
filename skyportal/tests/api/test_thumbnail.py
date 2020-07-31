@@ -359,8 +359,7 @@ def test_cannot_post_thumbnail_invalid_file_type(upload_data_token, public_group
     assert status == 200
     assert data['status'] == 'success'
 
-    data = base64.b64encode(open(os.path.abspath('skyportal/tests/data/phot.csv'),
-                                 'rb').read())
+    data = base64.b64encode(os.urandom(2048))  # invalid image data
     ttype = 'ref'
     status, data = api('POST', 'thumbnail',
                        data={'obj_id': obj_id,
