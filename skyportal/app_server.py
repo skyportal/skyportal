@@ -61,7 +61,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/filters(/.*)?', FilterHandler),
         (r'/api/followup_request(/.*)?', FollowupRequestHandler),
         (r'/api/groups/public', PublicGroupHandler),
-        (r'/api/groups/(.*)/users', GroupUserHandler),
+        (r'/api/groups/(.*)/users(/.*)?', GroupUserHandler),
         (r'/api/groups(/.*)?', GroupHandler),
         (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
         (r'/api/newsfeed', NewsFeedHandler),
