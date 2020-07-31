@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
-import PropTypes from 'prop-types';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
 import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
@@ -17,10 +16,12 @@ import * as ProfileActions from '../ducks/profile';
 
 import UIPreferences from './UIPreferences';
 
-const UpdateProfileForm = ({ profile }) => {
+const UpdateProfileForm = () => {
+  const profile = useSelector((state) => state.profile);
+
   const dispatch = useDispatch();
 
-  const { handleSubmit, register, reset } = useForm({
+  const { handleSubmit, register, reset, errors } = useForm({
   });
 
   useEffect(() => {
@@ -63,17 +64,21 @@ const UpdateProfileForm = ({ profile }) => {
               <Grid item xs={6} sm={3}>
                 <InputLabel htmlFor="firstName_id">First Name</InputLabel>
                 <TextField
-                  inputRef={register}
+                  inputRef={register({ required: true })}
                   name="firstName"
                   id="firstName_id"
+                  error={!!errors.firstName}
+                  helperText={errors.firstName ? "Required" : ""}
                 />
               </Grid>
               <Grid item xs={6} sm={3}>
                 <InputLabel htmlFor="lastName_id">Last Name</InputLabel>
                 <TextField
-                  inputRef={register}
+                  inputRef={register({ required: true })}
                   name="lastName"
                   id="lastName_id"
+                  error={!!errors.lastName}
+                  helperText={errors.lastName ? "Required" : ""}
                 />
               </Grid>
             </Grid>
@@ -85,12 +90,13 @@ const UpdateProfileForm = ({ profile }) => {
               alignItems="baseline"
               spacing={2}
             >
-              <Grid item xs={6} sm={3}>
+              <Grid item xs={3} sm={2}>
                 <InputLabel htmlFor="email_id">Preferred Contact Email</InputLabel>
                 <TextField
-                  inputRef={register}
+                  inputRef={register({ pattern: /^\S+@\S+$/i })}
                   name="email"
                   type="email"
+                  fullWidth
                   id="email_id"
                 />
               </Grid>
@@ -104,9 +110,9 @@ const UpdateProfileForm = ({ profile }) => {
               spacing={2}
             >
               <Grid item xs={6} sm={3}>
-                <InputLabel htmlFor="phone_id">Contact Phone (Cell)</InputLabel>
+                <InputLabel htmlFor="phone_id">Contact Phone (Include Country Code)</InputLabel>
                 <TextField
-                  inputRef={register}
+                  inputRef={register({ maxLength: 16 })}
                   name="phone"
                   type="tel"
                   id="phone_id"
@@ -131,9 +137,6 @@ const UpdateProfileForm = ({ profile }) => {
 
 
   );
-};
-UpdateProfileForm.propTypes = {
-  profile: PropTypes.objectOf(PropTypes.object()).isRequired
 };
 
 export default UpdateProfileForm;

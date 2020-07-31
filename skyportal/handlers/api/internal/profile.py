@@ -82,7 +82,9 @@ class ProfileHandler(BaseHandler):
             'first_name': user.first_name,
             'last_name': user.last_name,
             'contact_email': user.contact_email,
-            'contact_phone': user.contact_phone.e164,
+            'contact_phone': (
+              None if user.contact_phone is None else user.contact_phone.e164
+            ),
             'gravatar_url': user.gravatar_url,
             'roles': user_roles,
             'acls': user_acls,
@@ -117,7 +119,6 @@ class ProfileHandler(BaseHandler):
                               '"preferences" parameter'
                              )
         preferences = data['preferences']
-
         if preferences.get("first_name"):
             self.current_user.first_name = preferences.pop("first_name")
 
@@ -126,10 +127,10 @@ class ProfileHandler(BaseHandler):
 
         if preferences.get("contact_phone"):
             phone = preferences.pop("contact_phone")
-            if phone is not None:
+            if phone not in [None, ""]:
                 try:
                     if not phonenumbers.is_possible_number(
-                            phonenumbers.parse(phone, None)):
+                            phonenumbers.parse(phone, "US")):
                         return self.error(
                                   'Phone number given is not valid'
                                  )
@@ -137,11 +138,13 @@ class ProfileHandler(BaseHandler):
                     return self.error(
                                   'Could not parse input as a phone number'
                                  )
-            self.current_user.contact_phone = phone
+                self.current_user.contact_phone = phone
+            else:
+                self.current_user.contact_phone = None
 
         if preferences.get("contact_email"):
             email = preferences.pop("contact_email")
-            if email is not None:
+            if email not in [None, ""]:
                 if not validate_email(
                        email_address=email,
                         check_regex=True,
@@ -151,7 +154,9 @@ class ProfileHandler(BaseHandler):
                     return self.error(
                               'Email does not appear to be valid'
                              )
-            self.current_user.contact_email = email
+                self.current_user.contact_email = email
+            else:
+                self.current_user.contact_email = None
 
         # Do not save blank fields (empty strings)
         for k, v in preferences.items():
