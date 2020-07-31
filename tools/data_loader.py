@@ -83,9 +83,9 @@ if __name__ == "__main__":
                     )
                 return data
 
-            code, data = get('sysinfo')
+            status, data = get('sysinfo')
 
-            if code == 200:
+            if status == 200:
                 break
             else:
                 if i == RETRIES - 1:
@@ -105,16 +105,16 @@ if __name__ == "__main__":
                 time.sleep(2)
                 print('Retrying connection...')
 
-    if code not in (200, 400):
-        print(f'Error: could not connect to server (HTTP status {code})')
+    if status not in (200, 400):
+        print(f'Error: could not connect to server (HTTP status {status})')
         sys.exit(-1)
 
     if data['status'] != 'success':
         print('Error: Could not authenticate against SkyPortal; please specify a valid token.')
         sys.exit(-1)
 
-    code, response = get('groups/public')
-    if code != 200:
+    status, response = get('groups/public')
+    if status != 200:
         print('Error: no public group found; aborting')
         sys.exit(-1)
     public_group_id = response['data']['id']
