@@ -90,7 +90,7 @@ const UpdateProfileForm = () => {
               alignItems="baseline"
               spacing={2}
             >
-              <Grid item xs={3} sm={2}>
+              <Grid item xs={5} sm={3}>
                 <InputLabel htmlFor="email_id">Preferred Contact Email</InputLabel>
                 <TextField
                   inputRef={register({ pattern: /^\S+@\S+$/i })}

@@ -77,9 +77,17 @@ class UserHandler(BaseHandler):
             if user is None:
                 return self.error(f'Invalid user ID ({user_id}).')
             user_info = user.to_dict()
+
+            # return the phone number so it can be serialized
+            if user_info.get("contact_phone"):
+                user_info["contact_phone"] = user_info["contact_phone"].e164
+
             user_info['acls'] = sorted(user.acls, key=lambda a: a.id)
             return self.success(data=user_info)
         users = User.query.all()
+        for user in users:
+            if user.get("contact_phone"):
+                user["contact_phone"] = user["contact_phone"].e164
         return self.success(data=users)
 
     @permissions(["Manage users"])
