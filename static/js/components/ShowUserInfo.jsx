@@ -5,7 +5,6 @@ import Card from '@material-ui/core/Card';
 import CardContent from '@material-ui/core/CardContent';
 import Typography from '@material-ui/core/Typography';
 import Box from '@material-ui/core/Box';
-import Grid from '@material-ui/core/Grid';
 
 import ShowAvatar from './ShowAvatar';
 
@@ -15,30 +14,25 @@ const ShowUserInfo = () => {
   return (
     <Card>
       <CardContent>
-        <Grid
-          container
-          direction="row"
-          justify="flex-start"
-          alignItems="center"
-          spacing={1}
+        <div style={{ display: "flex",
+          justifyContent: "flex-start",
+          flexDirection: "row",
+          alignItems: "center" }}
         >
-          <Grid item xs={1}>
-            <ShowAvatar
-              size={128}
-              firstName={profile.first_name}
-              lastName={profile.last_name}
-              username={profile.username}
-              gravatarUrl={profile.gravatar_url}
-            />
-          </Grid>
-          <Grid item xs={1}>
-            <h2>
-              {profile.first_name}
-              {' '}
-              {profile.last_name}
-            </h2>
-          </Grid>
-        </Grid>
+          <ShowAvatar
+            size={128}
+            firstName={profile.first_name}
+            lastName={profile.last_name}
+            username={profile.username}
+            gravatarUrl={profile.gravatar_url}
+          />
+            &nbsp;&nbsp;
+          <h2>
+            {profile.first_name}
+            {' '}
+            {profile.last_name}
+          </h2>
+        </div>
           &nbsp;
         <br />
         <Typography component="div">

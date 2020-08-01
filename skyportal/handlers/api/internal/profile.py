@@ -113,20 +113,26 @@ class ProfileHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
+
+        user = (User.query.filter(User.username == self.current_user.username)
+                    .first())
+
         if 'preferences' not in data:
             return self.error(
                               'Invalid request body: missing required '
                               '"preferences" parameter'
                              )
         preferences = data['preferences']
-        if preferences.get("first_name"):
-            self.current_user.first_name = preferences.pop("first_name")
+        if preferences.get("first_name") is not None:
+            user.first_name = preferences.pop("first_name")
 
-        if preferences.get("last_name"):
-            self.current_user.last_name = preferences.pop("last_name")
+        if preferences.get("last_name") is not None:
+            user.last_name = preferences.pop("last_name")
 
-        if preferences.get("contact_phone"):
+        if preferences.get("contact_phone") is not None:
             phone = preferences.pop("contact_phone")
+            print("->",phone,"<-")
+            print(phone not in [None, ""])
             if phone not in [None, ""]:
                 try:
                     if not phonenumbers.is_possible_number(
@@ -138,11 +144,11 @@ class ProfileHandler(BaseHandler):
                     return self.error(
                                   'Could not parse input as a phone number'
                                  )
-                self.current_user.contact_phone = phone
+                user.contact_phone = phone
             else:
-                self.current_user.contact_phone = None
+                user.contact_phone = None
 
-        if preferences.get("contact_email"):
+        if preferences.get("contact_email") is not None:
             email = preferences.pop("contact_email")
             if email not in [None, ""]:
                 if not validate_email(
@@ -154,23 +160,23 @@ class ProfileHandler(BaseHandler):
                     return self.error(
                               'Email does not appear to be valid'
                              )
-                self.current_user.contact_email = email
+                user.contact_email = email
             else:
-                self.current_user.contact_email = None
+                user.contact_email = None
 
         # Do not save blank fields (empty strings)
         for k, v in preferences.items():
             if isinstance(v, dict):
                 preferences[k] = \
                   {key: val for key, val in v.items() if val != ''}
-        user_prefs = deepcopy(self.current_user.preferences)
+        user_prefs = deepcopy(user.preferences)
         if not user_prefs:
             user_prefs = preferences
         else:
             user_prefs = recursive_update(user_prefs, preferences)
-        self.current_user.preferences = user_prefs
+        user.preferences = user_prefs
 
-        DBSession.add(self.current_user)
+        DBSession.add(user)
         DBSession.commit()
         if 'newsFeed' in preferences:
             self.push(action='skyportal/FETCH_NEWSFEED')
