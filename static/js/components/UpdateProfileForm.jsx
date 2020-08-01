@@ -123,6 +123,7 @@ const UpdateProfileForm = () => {
             <Button
               variant="contained"
               type="submit"
+              id="updateProfileButton"
             >
               Update Profile
             </Button>

@@ -27,7 +27,7 @@ const ShowUserInfo = () => {
             gravatarUrl={profile.gravatar_url}
           />
             &nbsp;&nbsp;
-          <h2>
+          <h2 id="userRealname">
             {profile.first_name}
             {' '}
             {profile.last_name}

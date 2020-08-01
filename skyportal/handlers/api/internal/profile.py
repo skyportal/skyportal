@@ -131,8 +131,6 @@ class ProfileHandler(BaseHandler):
 
         if preferences.get("contact_phone") is not None:
             phone = preferences.pop("contact_phone")
-            print("->",phone,"<-")
-            print(phone not in [None, ""])
             if phone not in [None, ""]:
                 try:
                     if not phonenumbers.is_possible_number(
