@@ -7,9 +7,21 @@ from ...models import DBSession, User, Group, GroupUser
 env, cfg = load_env()
 
 
-def add_user_and_setup_groups(username, roles, group_ids_and_admin):
+def add_user_and_setup_groups(username,
+                              first_name=None,
+                              last_name=None,
+                              contact_phone=None,
+                              contact_email=None,
+                              roles=[],
+                              group_ids_and_admin=[]
+                              ):
     # Add user
-    user = User(username=username.lower(), role_ids=roles)
+    user = User(username=username.lower(), role_ids=roles,
+                first_name=first_name,
+                last_name=last_name,
+                contact_phone=contact_phone,
+                contact_email=contact_email
+                )
     DBSession().add(user)
     DBSession().flush()
 
