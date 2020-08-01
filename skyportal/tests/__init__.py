@@ -32,8 +32,8 @@ def api(method, endpoint, data=None, host=None, token=None, raw_response=False):
     json : dict
         Response JSON, if `raw_response` is False.
     """
-    env, cfg = load_env()
     if host is None:
+        env, cfg = load_env()
         host = f'http://localhost:{cfg["ports.app"]}'
     url = urllib.parse.urljoin(host, f'/api/{endpoint}')
     headers = {'Authorization': f'token {token}'} if token else None
