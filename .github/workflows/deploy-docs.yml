@@ -1,0 +1,46 @@
+name: Deploy documentation
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  deploy-docs:
+    runs-on: ubuntu-latest
+    steps:
+
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.8'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements.docs.txt
+
+    - name: Build docs
+      run: |
+        make docs
+        touch doc/_build/html/.nojekyll
+
+    - name: Install SSH Client 🔑
+      if: github.ref == 'refs/heads/master'
+      uses: webfactory/ssh-agent@v0.2.0
+      with:
+        ssh-private-key: ${{ secrets.CI_DEPLOY_KEY }}
+
+    - name: Deploy docs
+      if: github.ref == 'refs/heads/master'
+      uses: JamesIves/github-pages-deploy-action@3.5.9
+      with:
+        FOLDER: doc/_build/html
+        REPOSITORY_NAME: skyportal/docs
+        BRANCH: gh-pages
+        SSH: true
