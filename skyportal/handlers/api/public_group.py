@@ -33,4 +33,5 @@ class PublicGroupHandler(BaseHandler):
         pg = Group.query.filter(Group.name == cfg['misc.public_group_name']).first()
         if pg is None:
             return self.error('Public group does not exist')
-        return self.success(data={"id": pg.id})
+        return self.success(data=pg)
+
