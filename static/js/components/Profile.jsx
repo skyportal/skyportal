@@ -14,15 +14,21 @@ const Profile = () => {
       <div>
         <ShowUserInfo />
       </div>
+      &nbsp;
+      <br />
       <div>
         <UpdateProfileForm />
       </div>
+      &nbsp;
+      <br />
       <div>
         <NewTokenForm
           acls={profile.acls}
           groups={groups}
         />
       </div>
+      &nbsp;
+      <br />
       <div>
         <TokenList tokens={profile.tokens} />
       </div>

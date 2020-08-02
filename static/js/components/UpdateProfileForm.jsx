@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import TextField from '@material-ui/core/TextField';
@@ -6,6 +6,8 @@ import Button from '@material-ui/core/Button';
 import Card from '@material-ui/core/Card';
 import CardContent from '@material-ui/core/CardContent';
 import Typography from '@material-ui/core/Typography';
+
+import { showNotification } from "baselayer/components/Notifications";
 
 import InputLabel from '@material-ui/core/InputLabel';
 import Grid from '@material-ui/core/Grid';
@@ -18,9 +20,9 @@ import UIPreferences from './UIPreferences';
 
 const UpdateProfileForm = () => {
   const profile = useSelector((state) => state.profile);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const dispatch = useDispatch();
-
   const { handleSubmit, register, reset, errors } = useForm({
   });
 
@@ -34,6 +36,7 @@ const UpdateProfileForm = () => {
   }, [reset, profile]);
 
   const onSubmit = async (value) => {
+    setIsSubmitting(true);
     const data = {
       first_name: value.firstName,
       last_name: value.lastName,
@@ -41,7 +44,11 @@ const UpdateProfileForm = () => {
       contact_phone: value.phone,
     };
 
-    await dispatch(ProfileActions.updateUserPreferences(data));
+    const result = await dispatch(ProfileActions.updateUserPreferences(data));
+    if (result.status === "success") {
+      dispatch(showNotification("Profile data saved"));
+    }
+    setIsSubmitting(false);
   };
 
   return (
@@ -124,6 +131,7 @@ const UpdateProfileForm = () => {
               variant="contained"
               type="submit"
               id="updateProfileButton"
+              disabled={isSubmitting}
             >
               Update Profile
             </Button>
