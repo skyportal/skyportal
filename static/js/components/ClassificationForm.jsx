@@ -1,15 +1,13 @@
 import React, { useReducer } from 'react';
 import { useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
-import { useForm } from 'react-hook-form';
 import Select from "@material-ui/core/Select";
 import InputLabel from "@material-ui/core/InputLabel";
 import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
-import FormControl from "@material-ui/core/FormControl";
 import MenuItem from "@material-ui/core/MenuItem";
-import { makeStyles } from "@material-ui/core/styles";
 import Autocomplete from '@material-ui/lab/Autocomplete';
+import { showNotification } from "baselayer/components/Notifications";
 import * as Actions from '../ducks/source';
 
 
@@ -46,6 +44,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const reduxDispatch = useDispatch();
 
   const initialState = {
+    isSubmitting: false,
     taxonomy_index: latestTaxonomyList.length > 0 ? 0 : null,
     classification: null,
     probability: 1.0,
@@ -56,17 +55,6 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       latestTaxonomyList[0].allowed_classes : [null]
   };
   const [state, localDispatch] = useReducer(reducer, initialState);
-  const { handleSubmit } = useForm();
-
-  const useStyles = makeStyles((theme) => ({
-    formControl: {
-      margin: theme.spacing(1),
-      fullWidth: true,
-      display: 'flex',
-      wrap: 'nowrap'
-    }
-  }));
-  const classes = useStyles();
 
   if (latestTaxonomyList.length === 0) {
     return (
@@ -88,6 +76,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const handleClasschange = (event, value) => {
     localDispatch({ name: "classification", value });
     localDispatch({ name: "probability_select_enabled", value: true });
+    localDispatch({ name: "probability", value: 1.0 });
   };
 
   const processProb = (event) => {
@@ -103,35 +92,39 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
     }
   };
 
-  const onSubmit = () => {
+  const onSubmit = async (event) => {
     // TODO: allow fine-grained user groups in submission
+    event.preventDefault();
+    localDispatch({ name: "isSubmitting", value: true });
     const formData = {
       taxonomy_id: latestTaxonomyList[state.taxonomy_index].id,
       obj_id,
       classification: state.classification.class,
       probability: parseFloat(state.probability)
     };
-    reduxDispatch(Actions.addClassification(formData));
+    const result = await reduxDispatch(Actions.addClassification(formData));
+    if (result.status === "success") {
+      reduxDispatch(showNotification("Classification saved"));
+    }
+    localDispatch({ name: "isSubmitting", value: false });
   };
-
 
   return (
     <div>
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={onSubmit}>
         <div>
           <h3>Add Classification</h3>
-          <FormControl className={classes.formControl}>
-            <InputLabel id="taxonomy-label">Taxonomy</InputLabel>
-            <Select
-              id="tax-select"
-              defaultValue=""
-              onChange={handleTaxonomyChange}
-            >
-              {latestTaxonomyList.map((taxonomy, index) => makeMenuItem(
-                taxonomy, index
-              ))}
-            </Select>
-          </FormControl>
+          <InputLabel id="taxonomy-label">Taxonomy</InputLabel>
+          <Select
+            id="tax-select"
+            defaultValue=""
+            onChange={handleTaxonomyChange}
+            style={{ fullWidth: "true", display: "flex", wrap: "nowrap" }}
+          >
+            {latestTaxonomyList.map((taxonomy, index) => makeMenuItem(
+              taxonomy, index
+            ))}
+          </Select>
           <div style={{ display: state.class_select_enabled ? "block" : "none" }}>
             <Autocomplete
               options={state.allowed_classes}
@@ -178,9 +171,10 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
           <br />
           <Button
             type="submit"
-            name="classificationSubmitButton"
-            disabled={!(state.class_select_enabled && state.probability_select_enabled &&
-                        !(state.probability_errored))}
+            id="classificationSubmitButton"
+            disabled={state.isSubmitting ||
+                      !(state.class_select_enabled && state.probability_select_enabled &&
+                      !(state.probability_errored))}
             variant="contained"
           >
             ↵

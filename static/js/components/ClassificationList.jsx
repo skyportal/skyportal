@@ -8,11 +8,13 @@ import { FixedSizeList } from 'react-window';
 
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import utc from 'dayjs/plugin/utc';
 
 import * as sourceActions from "../ducks/source";
 import styles from "./ClassificationList.css";
 
 dayjs.extend(relativeTime);
+dayjs.extend(utc);
 
 const ClassificationList = () => {
   const [hoverID, setHoverID] = useState(null);
@@ -67,7 +69,7 @@ const ClassificationList = () => {
             </span>
           &nbsp;
             <span className={styles.classificationTime}>
-              {dayjs().to(dayjs(created_at))}
+              {dayjs().to(dayjs.utc(`${created_at}Z`))}
             </span>
           &nbsp;
             <Tooltip title={groups.map((group) => group.name).join(", ")}>
