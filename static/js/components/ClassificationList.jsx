@@ -117,7 +117,7 @@ const ClassificationList = () => {
     <div style={{ display: classifications.length > 0 ? "block" : "none" }} className={styles.classifications}>
       <FixedSizeList
         className={styles.classifications}
-        height={300}
+        height={Math.min(360, parseInt(classifications.length*120, 10))}
         width={350}
         itemSize={80}
         itemCount={items.length}
