@@ -149,8 +149,14 @@ const AssignmentList = ({ assignments }) => {
 AssignmentList.propTypes = {
   assignments: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.number,
-    requester: PropTypes.object,
-    run: PropTypes.object,
+    requester: PropTypes.shape({
+      id: PropTypes.number,
+      username: PropTypes.string
+    }),
+    run: PropTypes.shape({
+      pi: PropTypes.string,
+      calendar_date: PropTypes.string
+    }),
     priority: PropTypes.string,
     status: PropTypes.string,
     comment: PropTypes.string
