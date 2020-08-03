@@ -8,25 +8,24 @@ import { makeStyles } from '@material-ui/core/styles';
 import CardMedia from '@material-ui/core/CardMedia';
 
 const useStyles = makeStyles(() => ({
-    cardDiv: {
-      minWidth: 300,
-      minHeight: 300
-    },
-    title: {
-      fontSize: 14,
-    },
-    media: {
-      minHeight: 300
-    }
+  cardDiv: {
+    minWidth: 300,
+    minHeight: 300
+  },
+  title: {
+    fontSize: 14,
+  },
+  media: {
+    minHeight: 300
   }
+}
 ));
 
 const SkyCam = ({ telescope }) => {
-
   const classes = useStyles();
 
-  if (!telescope.skycam_link){
-    return <div></div>;
+  if (!telescope.skycam_link) {
+    return <div />;
   } else {
     return (
       <Card className={classes.cardDiv}>
@@ -38,11 +37,11 @@ const SkyCam = ({ telescope }) => {
         <CardMedia
           image={telescope.skycam_link}
           title={`${telescope.nickname} SkyCam`}
-          className={classes.media}/>
+          className={classes.media}
+        />
       </Card>
-    )
+    );
   }
-
 };
 
 SkyCam.propTypes = {

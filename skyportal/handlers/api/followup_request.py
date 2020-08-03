@@ -123,7 +123,7 @@ class AssignmentHandler(BaseHandler):
         try:
             assignment = ClassicalAssignment(**AssignmentSchema.load(data=data))
         except ValidationError as e:
-            return self.error(f'Error parsing followup request: '
+            return self.error('Error parsing followup request: '
                               f'"{e.normalized_messages()}"')
 
         run_id = assignment.run_id
