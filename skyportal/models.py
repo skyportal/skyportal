@@ -146,7 +146,9 @@ class Obj(Base, ha.Point):
     redshift = sa.Column(sa.Float, nullable=True)
 
     # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
-    altdata = sa.Column(JSONB, nullable=True)
+    altdata = sa.Column(JSONB, nullable=True,
+                        doc="Misc. alternative metadata stored in JSON format, e.g. "
+                        "`{'gaia': {'info': {'Teff': 5780}}}`")
 
     dist_nearest_source = sa.Column(sa.Float, nullable=True)
     mag_nearest_source = sa.Column(sa.Float, nullable=True)
