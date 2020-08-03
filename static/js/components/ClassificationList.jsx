@@ -32,7 +32,7 @@ const ClassificationList = () => {
   };
 
   const dispatch = useDispatch();
-  const taxonomyList = useSelector((state) => state.taxonomies.taxonomyList);
+  const { taxonomyList } = useSelector((state) => state.taxonomies);
   const source = useSelector((state) => state.source);
   const obj = source;
   const userProfile = useSelector((state) => state.profile);
@@ -50,6 +50,8 @@ const ClassificationList = () => {
       let taxname = taxonomyList.filter((i) => i.id === taxonomy_id);
       if (taxname.length > 0) {
         taxname = taxname[0].name;
+      } else {
+        taxname = 'Unknown taxonomy';
       }
       return (
         <ListItem

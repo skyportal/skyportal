@@ -11,17 +11,6 @@ import { showNotification } from "baselayer/components/Notifications";
 import * as Actions from '../ducks/source';
 
 
-function makeMenuItem(taxonomy, index) {
-  const render_string = `${taxonomy.name} (${taxonomy.version})`;
-
-  return (
-    <MenuItem value={index} key={index.toString()}>
-      {render_string}
-    </MenuItem>
-  );
-}
-
-
 const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
 
@@ -121,8 +110,10 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
             onChange={handleTaxonomyChange}
             style={{ fullWidth: "true", display: "flex", wrap: "nowrap" }}
           >
-            {latestTaxonomyList.map((taxonomy, index) => makeMenuItem(
-              taxonomy, index
+            {latestTaxonomyList.map((taxonomy, index) => (
+              <MenuItem value={index} key={index.toString()}>
+                {`${taxonomy.name} (${taxonomy.version})`}
+              </MenuItem>
             ))}
           </Select>
           <div style={{ display: state.class_select_enabled ? "block" : "none" }}>
