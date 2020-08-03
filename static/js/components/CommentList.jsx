@@ -7,14 +7,12 @@ import GroupIcon from "@material-ui/icons/Group";
 
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import utc from 'dayjs/plugin/utc';
 
 import * as sourceActions from "../ducks/source";
 import styles from "./CommentList.css";
 import CommentEntry from "./CommentEntry";
 
 dayjs.extend(relativeTime);
-dayjs.extend(utc);
 
 const CommentList = ({ isCandidate }) => {
   const [hoverID, setHoverID] = useState(null);
@@ -60,7 +58,7 @@ const CommentList = ({ isCandidate }) => {
           </span>
           &nbsp;
           <span className={styles.commentTime}>
-            {dayjs().to(dayjs.utc(`${created_at}Z`))}
+            {dayjs().to(dayjs(created_at))}
           </span>
           &nbsp;
           <Tooltip title={groups.map((group) => group.name).join(", ")}>
