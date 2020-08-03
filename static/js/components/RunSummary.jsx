@@ -389,7 +389,9 @@ const RunSummary = ({ route }) => {
       <div>
         <div className={styles.center}>
           <Typography variant="h4" gutterBottom color="textSecondary">
-            Plan for: <b>{observingRunTitle(observingRun, instrumentList, telescopeList, groups)}</b>
+            Plan for:
+            {' '}
+            <b>{observingRunTitle(observingRun, instrumentList, telescopeList, groups)}</b>
           </Typography>
           <MUIDataTable
             title="Targets"
@@ -406,7 +408,7 @@ const RunSummary = ({ route }) => {
             <ObservingRunStarList observingRunId={observingRun.id} />
           </Grid>
           <Grid item xs={12} sm={12} md={12} lg={4} xl={4} className={styles.displayInlineBlock}>
-            <SkyCam telescope={observingRun.instrument.telescope}/>
+            <SkyCam telescope={observingRun.instrument.telescope} />
           </Grid>
         </Grid>
       </div>
