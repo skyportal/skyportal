@@ -1,10 +1,11 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
+import PropTypes from 'prop-types';
 
 import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
 import ListItemText from '@material-ui/core/ListItemText';
-import Typography from '@material-ui/core/Typography'
+import Typography from '@material-ui/core/Typography';
 import { makeStyles } from "@material-ui/core/styles";
 import { observingRunTitle } from "./AssignmentForm";
 
@@ -16,9 +17,9 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function ListItemLink(props) {
-  return <ListItem button component="a" {...props} />;
-}
+const ListItemLink = ({ href }) => (
+  <ListItem button component="a" href={href} />
+);
 
 function SimpleList({ observingRuns }) {
   const classes = useStyles();
@@ -31,8 +32,10 @@ function SimpleList({ observingRuns }) {
       <List component="nav">
         {
           observingRuns.map((run) => (
-            <ListItemLink href={`/run/${run.id}`}>
-              <ListItemText primary={observingRunTitle(run, instrumentList, telescopeList, groups)}/>
+            <ListItemLink href={`/run/${run.id}`} key={`run_${run.id}`}>
+              <ListItemText
+                primary={observingRunTitle(run, instrumentList, telescopeList, groups)}
+              />
             </ListItemLink>
           ))
         }
@@ -48,10 +51,25 @@ const ObservingRunList = () => {
       <Typography variant="h6">
         List of Observing Runs in Skyportal
       </Typography>
-      <SimpleList observingRuns={observingRunList}/>
+      <SimpleList observingRuns={observingRunList} />
     </div>
   );
 };
 
+
+SimpleList.propTypes = {
+  observingRuns: PropTypes.arrayOf(
+    PropTypes.shape({
+      instrument_id: PropTypes.number,
+      pi: PropTypes.string,
+      calendar_date: PropTypes.string,
+      id: PropTypes.number
+    })
+  ).isRequired
+};
+
+ListItemLink.propTypes = {
+  href: PropTypes.string.isRequired
+}
 
 export default ObservingRunList;
