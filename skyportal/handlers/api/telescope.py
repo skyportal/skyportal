@@ -48,7 +48,7 @@ class TelescopeHandler(BaseHandler):
         data = self.get_json()
         group_ids = data.pop('group_ids')
         groups = [g for g in Group.query.filter(Group.id.in_(group_ids)).all()
-                  if g in self.current_user.groups]
+                  if g in self.current_user.accessible_groups]
         if not groups:
             return self.error('You must specify at least one group of which you '
                               'are a member.')

@@ -32,8 +32,8 @@ class TaxonomyHandler(BaseHandler):
         """
         taxonomy = Taxonomy. \
             get_taxonomy_usable_by_user(
-                        taxonomy_id,
-                        self.current_user
+                taxonomy_id,
+                self.current_user
             )
         if taxonomy is None:
             return self.error(
@@ -149,10 +149,11 @@ class TaxonomyHandler(BaseHandler):
 
         # establish the groups to use
         user_group_ids = [g.id for g in self.current_user.groups]
+        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         group_ids = data.pop("group_ids", user_group_ids)
         if group_ids == []:
             group_ids = user_group_ids
-        group_ids = [gid for gid in group_ids if gid in user_group_ids]
+        group_ids = [gid for gid in group_ids if gid in user_accessible_group_ids]
         if not group_ids:
             return self.error(f"Invalid group IDs field ({group_ids}): "
                               "You must provide one or more valid group IDs.")

@@ -289,13 +289,14 @@ class SourceHandler(BaseHandler):
         """
         data = self.get_json()
         schema = Obj.__schema__()
-        user_group_ids = [int(g.id) for g in self.current_user.groups]
+        user_group_ids = [g.id for g in self.current_user.groups]
+        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         if not user_group_ids:
             return self.error("You must belong to one or more groups before "
                               "you can add sources.")
         try:
             group_ids = [int(id) for id in data.pop('group_ids')
-                         if int(id) in user_group_ids]
+                         if int(id) in user_accessible_group_ids]
         except KeyError:
             group_ids = user_group_ids
         if not group_ids:
@@ -379,7 +380,7 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        if group_id not in [g.id for g in self.current_user.groups]:
+        if group_id not in [g.id for g in self.current_user.accessible_groups]:
             return self.error("Inadequate permissions.")
         s = (DBSession().query(Source).filter(Source.obj_id == obj_id)
              .filter(Source.group_id == group_id).first())

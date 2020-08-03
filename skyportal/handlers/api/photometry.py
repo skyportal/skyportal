@@ -166,10 +166,9 @@ class PhotometryHandler(BaseHandler):
         if not groups:
             return self.error("Invalid group_ids field. "
                               "Specify at least one valid group ID.")
-        if "Super admin" not in [r.id for r in self.associated_user_object.roles]:
-            if not all([group in self.current_user.groups for group in groups]):
-                return self.error("Cannot upload photometry to groups that you "
-                                  "are not a member of.")
+        if not all([group in self.current_user.accessible_groups for group in groups]):
+            return self.error("Cannot upload photometry to groups that you "
+                              "are not a member of.")
         if "alert_id" in data:
             phot = Photometry.query.filter(
                 Photometry.alert_id == data["alert_id"]
@@ -221,7 +220,7 @@ class PhotometryHandler(BaseHandler):
 
             # https://en.wikipedia.org/wiki/Bitwise_operation#XOR
             bad = magerrnull ^ magnull  # bitwise exclusive or -- returns true
-                                        #  if A and not B or B and not A
+            #  if A and not B or B and not A
 
             if any(bad):
                 # find the first offending packet
@@ -437,10 +436,9 @@ class PhotometryHandler(BaseHandler):
             if not groups:
                 return self.error("Invalid group_ids field. "
                                   "Specify at least one valid group ID.")
-            if "Super admin" not in [r.id for r in self.associated_user_object.roles]:
-                if not all([group in self.current_user.groups for group in groups]):
-                    return self.error("Cannot upload photometry to groups you "
-                                      "are not a member of.")
+            if not all([group in self.current_user.accessible_groups for group in groups]):
+                return self.error("Cannot upload photometry to groups you "
+                                  "are not a member of.")
             photometry.groups = groups
         DBSession().commit()
         return self.success()

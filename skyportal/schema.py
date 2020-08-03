@@ -213,7 +213,10 @@ class PhotBaseFlexible(object):
                                         "points will be visible.",
                             required=True)
 
-    altdata = fields.Field(description='Misc. alternative metadata.',
+    altdata = fields.Field(description="Misc. alternative metadata stored in JSON "
+                           "format, e.g. `{'calibration': {'source': 'ps1', "
+                           "'color_term': 0.012}, 'photometry_method': 'allstar', "
+                           "'method_reference': 'Masci et al. (2015)'}`",
                            missing=None, default=None, required=False)
 
 
@@ -351,7 +354,10 @@ class PhotBase(object):
                               "identical). Defaults to None.",
                               missing=None, default=None)
 
-    altdata = fields.Dict(description='Misc. alternative metadata.',
+    altdata = fields.Dict(description="Misc. alternative metadata stored in JSON "
+                          "format, e.g. `{'calibration': {'source': 'ps1', "
+                          "'color_term': 0.012}, 'photometry_method': 'allstar', "
+                          "'method_reference': 'Masci et al. (2015)'}`",
                           missing=None, default=None)
 
     @post_load

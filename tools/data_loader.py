@@ -62,8 +62,13 @@ if __name__ == "__main__":
 
     if src.get("users") is not None:
         with status(f"Creating users & sitewide public group"):
-            DBSession().add(Group(name=cfg["misc"]["public_group_name"]))
-            DBSession().commit()
+            public_group = Group.query.filter(
+                Group.name == cfg["misc"]["public_group_name"]
+            ).first()
+            if public_group is None:
+                public_group = Group(name=cfg["misc"]["public_group_name"])
+                DBSession().add(public_group)
+                DBSession().commit()
 
             users = []
             for user in src.get('users', []):
@@ -72,9 +77,11 @@ if __name__ == "__main__":
                 )
             DBSession().add_all(users)
             for user in users:
+                user.groups.append(public_group)
                 DBSession().add(
                     TornadoStorage.user.create_social_auth(user, user.username, "google-oauth2")
                 )
+            DBSession().flush()
             users_dict = {user.username: user.id for user in users}
 
         with status("Creating tokens"):

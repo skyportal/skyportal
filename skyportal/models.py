@@ -50,9 +50,9 @@ def is_owned_by(self, user_or_token):
     if hasattr(self, 'tokens'):
         return user_or_token in self.tokens
     if hasattr(self, 'groups'):
-        return bool(set(self.groups) & set(user_or_token.groups))
+        return bool(set(self.groups) & set(user_or_token.accessible_groups))
     if hasattr(self, 'group'):
-        return self.group in user_or_token.groups
+        return self.group in user_or_token.accessible_groups
     if hasattr(self, 'users'):
         if hasattr(user_or_token, 'created_by'):
             if user_or_token.created_by in self.users:
@@ -120,6 +120,17 @@ User.groups = relationship('Group', secondary='group_users',
 
 
 @property
+def user_or_token_accessible_groups(self):
+    if "System admin" in [acl.id for acl in self.acls]:
+        return Group.query.all()
+    return self.groups
+
+
+User.accessible_groups = user_or_token_accessible_groups
+Token.accessible_groups = user_or_token_accessible_groups
+
+
+@property
 def token_groups(self):
     return self.created_by.groups
 
@@ -141,7 +152,9 @@ class Obj(Base, ha.Point):
     redshift = sa.Column(sa.Float, nullable=True)
 
     # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
-    altdata = sa.Column(JSONB, nullable=True)
+    altdata = sa.Column(JSONB, nullable=True,
+                        doc="Misc. alternative metadata stored in JSON format, e.g. "
+                        "`{'gaia': {'info': {'Teff': 5780}}}`")
 
     dist_nearest_source = sa.Column(sa.Float, nullable=True)
     mag_nearest_source = sa.Column(sa.Float, nullable=True)
@@ -306,7 +319,7 @@ Candidate.passing_alert_id = sa.Column(sa.BigInteger)
 def get_candidate_if_owned_by(obj_id, user_or_token, options=[]):
     if Candidate.query.filter(Candidate.obj_id == obj_id).first() is None:
         return None
-    user_group_ids = [g.id for g in user_or_token.groups]
+    user_group_ids = [g.id for g in user_or_token.accessible_groups]
     c = (
         Candidate.query.filter(Candidate.obj_id == obj_id)
         .filter(
@@ -323,7 +336,7 @@ def get_candidate_if_owned_by(obj_id, user_or_token, options=[]):
 
 
 def candidate_is_owned_by(self, user_or_token):
-    return self.filter.group in user_or_token.groups
+    return self.filter.group in user_or_token.accessible_groups
 
 
 Candidate.get_obj_if_owned_by = get_candidate_if_owned_by
@@ -348,13 +361,13 @@ Source.unsaved_by = relationship("User", foreign_keys=[Source.unsaved_by_id])
 def source_is_owned_by(self, user_or_token):
     source_group_ids = [row[0] for row in DBSession.query(
         Source.group_id).filter(Source.obj_id == self.obj_id).all()]
-    return bool(set(source_group_ids) & {g.id for g in user_or_token.groups})
+    return bool(set(source_group_ids) & {g.id for g in user_or_token.accessible_groups})
 
 
 def get_source_if_owned_by(obj_id, user_or_token, options=[]):
     if Source.query.filter(Source.obj_id == obj_id).first() is None:
         return None
-    user_group_ids = [g.id for g in user_or_token.groups]
+    user_group_ids = [g.id for g in user_or_token.accessible_groups]
     s = (Source.query.filter(Source.obj_id == obj_id)
          .filter(Source.group_id.in_(user_group_ids)).options(options).first())
     if s is None:
@@ -367,6 +380,8 @@ Source.get_obj_if_owned_by = get_source_if_owned_by
 
 
 def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
+    if Obj.query.get(obj_id) is None:
+        return None
     try:
         obj = Source.get_obj_if_owned_by(obj_id, user_or_token, options)
     except AccessError:  # They may still be able to view the associated Candidate
@@ -397,7 +412,9 @@ def get_photometry_owned_by_user(obj_id, user_or_token):
     return (
         Photometry.query.filter(Photometry.obj_id == obj_id)
         .filter(
-            Photometry.groups.any(Group.id.in_([g.id for g in user_or_token.groups]))
+            Photometry.groups.any(Group.id.in_(
+                [g.id for g in user_or_token.accessible_groups]
+            ))
         )
         .all()
     )
