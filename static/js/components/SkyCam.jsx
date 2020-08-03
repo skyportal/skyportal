@@ -31,7 +31,8 @@ const SkyCam = ({ telescope }) => {
       <Card className={classes.cardDiv}>
         <CardContent>
           <Typography className={classes.title} color="textSecondary">
-            {telescope.nickname}: Current Conditions
+            {telescope.nickname}
+            : Current Conditions
           </Typography>
         </CardContent>
         <CardMedia
