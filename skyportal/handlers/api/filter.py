@@ -49,7 +49,9 @@ class FilterHandler(BaseHandler):
             return self.success(data=f)
         filters = (
             DBSession().query(Filter)
-            .filter(Filter.group_id.in_([g.id for g in self.current_user.groups]))
+            .filter(Filter.group_id.in_(
+                [g.id for g in self.current_user.accessible_groups]
+            ))
             .all()
         )
         return self.success(data=filters)

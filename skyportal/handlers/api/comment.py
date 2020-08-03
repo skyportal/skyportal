@@ -88,8 +88,9 @@ class CommentHandler(BaseHandler):
         # Ensure user/token has access to parent source
         _ = Source.get_obj_if_owned_by(obj_id, self.current_user)
         user_group_ids = [g.id for g in self.current_user.groups]
+        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         group_ids = data.pop("group_ids", user_group_ids)
-        group_ids = [gid for gid in group_ids if gid in user_group_ids]
+        group_ids = [gid for gid in group_ids if gid in user_accessible_group_ids]
         if not group_ids:
             return self.error(f"Invalid group IDs field ({group_ids}): "
                               "You must provide one or more valid group IDs.")
@@ -171,10 +172,9 @@ class CommentHandler(BaseHandler):
             if not groups:
                 return self.error("Invalid group_ids field. "
                                   "Specify at least one valid group ID.")
-            if "Super admin" not in [r.id for r in self.associated_user_object.roles]:
-                if not all([group in self.current_user.groups for group in groups]):
-                    return self.error("Cannot associate comment with groups you are "
-                                      "not a member of.")
+            if not all([group in self.current_user.accessible_groups for group in groups]):
+                return self.error("Cannot associate comment with groups you are "
+                                  "not a member of.")
             c.groups = groups
         DBSession().commit()
         self.push_all(action='skyportal/REFRESH_SOURCE',
@@ -199,13 +199,13 @@ class CommentHandler(BaseHandler):
                 schema: Success
         """
         user = self.associated_user_object.username
-        roles = (self.current_user.roles if hasattr(self.current_user, 'roles') else [])
+        acls = [acl.id for acl in self.current_user.acls]
         c = Comment.query.get(comment_id)
         if c is None:
             return self.error("Invalid comment ID")
         obj_id = c.obj_id
         author = c.author
-        if ("Super admin" in [role.id for role in roles]) or (user == author):
+        if ("System admin" in acls or "Manage groups" in acls) or (user == author):
             Comment.query.filter_by(id=comment_id).delete()
             DBSession().commit()
         else:
