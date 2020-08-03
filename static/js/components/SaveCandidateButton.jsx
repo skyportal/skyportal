@@ -216,9 +216,14 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
 SaveCandidateButton.propTypes = {
   candidate: PropTypes.shape({
     id: PropTypes.string,
-    passing_group_ids: PropTypes.array
+    passing_group_ids: PropTypes.arrayOf(PropTypes.number)
   }).isRequired,
-  userGroups: PropTypes.arrayOf(PropTypes.object).isRequired
+  userGroups: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number,
+      name: PropTypes.string
+    })
+  ).isRequired
 };
 
 export default SaveCandidateButton;

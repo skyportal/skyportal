@@ -276,10 +276,10 @@ SearchBox.propTypes = {
   sources: PropTypes.shape({
     lastPage: PropTypes.bool,
     pageNumber: PropTypes.number,
-    numberingStart: PropTypes.any,
-    totalMatches: PropTypes.any,
-    queryInProgress: PropTypes.any,
-    numberingEnd: PropTypes.any,
+    numberingStart: PropTypes.number,
+    totalMatches: PropTypes.number,
+    queryInProgress: PropTypes.bool,
+    numberingEnd: PropTypes.number,
   }).isRequired,
 };
 
