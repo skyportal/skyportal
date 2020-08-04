@@ -22,7 +22,7 @@ export function observingRunTitle(observingRun, instrumentList, telescopeList, g
 
   const group = groups?.filter((g) => g.id === observingRun.group_id)[0];
 
-  return `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname} (PI: \ 
+  return `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname} (PI:  
     ${observingRun?.pi} ${group?.name})`;
 }
 

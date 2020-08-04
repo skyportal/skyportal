@@ -27,7 +27,7 @@ import * as Action from '../ducks/observingRun';
 import { ra_to_hours, dec_to_hours } from "../units";
 
 const VegaPlot = React.lazy(() => import('./VegaPlot'));
-const AirmassPlot = React.lazy(() => import ('./AirmassPlot'));
+const AirmassPlot = React.lazy(() => import('./AirmassPlot'));
 
 
 const SimpleMenu = ({ assignment }) => {
@@ -139,9 +139,7 @@ SimpleMenu.propTypes = {
 };
 
 
-
-
-/*PullOutRow.propTypes = {
+/* PullOutRow.propTypes = {
   rowData: PropTypes.arrayOf(PropTypes.string).isRequired,
   rowMeta: PropTypes.shape(
     {
@@ -149,7 +147,7 @@ SimpleMenu.propTypes = {
       rowIndex: PropTypes.number
     }
   ).isRequired
-};*/
+}; */
 
 
 const RunSummary = ({ route }) => {
@@ -171,9 +169,10 @@ const RunSummary = ({ route }) => {
     // update the clock every five minutes
     const intervalms = 60 * 1000 * 5;
     const interval = setInterval(() => {
-      setNow(now + intervalms)
+      setNow(now + intervalms);
     }, intervalms);
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!(("id" in observingRun) && (observingRun.id === parseInt(route.id, 10)))) {
@@ -184,10 +183,9 @@ const RunSummary = ({ route }) => {
       </b>
     );
   } else {
-
     const { assignments } = observingRun;
 
-    const renderPullOutRow = (( rowData, rowMeta ) => {
+    const renderPullOutRow = ((rowData, rowMeta) => {
       if (observingRun === undefined) {
         return "Loading...";
       }
@@ -232,8 +230,8 @@ const RunSummary = ({ route }) => {
       );
     });
 
-      // ["Target Name", "RA", "Dec", "Redshift", "Requester", "Request",
-      //            "Priority", "Rise Time (UT)", "Set Time (UT)", "Finder", "Actions"]
+    // ["Target Name", "RA", "Dec", "Redshift", "Requester", "Request",
+    //            "Priority", "Rise Time (UT)", "Set Time (UT)", "Finder", "Actions"]
 
     const renderObjId = (dataIndex) => {
       const objid = assignments[dataIndex].obj.id;
@@ -269,11 +267,11 @@ const RunSummary = ({ route }) => {
     const renderFinderButton = (dataIndex) => {
       const assignment = assignments[dataIndex];
       return (
-          <IconButton size="small" key={`${assignment.id}_actions`}>
-            <Link href={`/api/sources/${assignment.obj.id}/finder`}>
-              <PictureAsPdfIcon />
-            </Link>
-          </IconButton>
+        <IconButton size="small" key={`${assignment.id}_actions`}>
+          <Link href={`/api/sources/${assignment.obj.id}/finder`}>
+            <PictureAsPdfIcon />
+          </Link>
+        </IconButton>
       );
     };
 
@@ -384,7 +382,7 @@ const RunSummary = ({ route }) => {
         assignment.set_time_utc,
         null,
         null])
-      );
+    );
 
     return (
       <div className={styles.source}>

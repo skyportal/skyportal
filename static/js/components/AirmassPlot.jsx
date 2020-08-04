@@ -82,7 +82,7 @@ const airmass_spec = (url, ephemeris) => ({
   layer:
     [
       {
-        mark: {type: "line", clip: true},
+        mark: { type: "line", clip: true },
         encoding: {
           x: {
             field: "time",
@@ -109,9 +109,7 @@ const airmass_spec = (url, ephemeris) => ({
 });
 
 
-
 class AirmassPlot extends VegaPlot {
-
   render() {
     const { dataUrl, ephemeris } = this.props;
     return (
@@ -130,7 +128,16 @@ class AirmassPlot extends VegaPlot {
 
 AirmassPlot.propTypes = {
   ...VegaPlot.propTypes,
-  ephemeris: PropTypes.object
+  ephemeris: PropTypes.shape(
+    {
+      twilight_evening_astronomical_utc: PropTypes.number,
+      twilight_morning_astronomical_utc: PropTypes.number,
+      twilight_evening_nautical_utc: PropTypes.number,
+      twilight_morning_nautical_utc: PropTypes.number,
+      sunset_utc: PropTypes.number,
+      sunrise_utc: PropTypes.number
+    }
+  ).isRequired
 };
 
 export default AirmassPlot;
