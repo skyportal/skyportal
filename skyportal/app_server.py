@@ -11,6 +11,7 @@ from skyportal.handlers.api import (
     FollowupRequestHandler,
     GroupHandler, GroupUserHandler,
     InstrumentHandler,
+    InvalidEndpointHandler,
     NewsFeedHandler,
     PhotometryHandler, BulkDeletePhotometryHandler, ObjPhotometryHandler,
     SourceHandler, SourceOffsetsHandler,
@@ -83,6 +84,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
         (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
         (r'/api/internal/instrument_obs_params', InstrumentObservationParamsHandler),
+        (r'/api/.*', InvalidEndpointHandler),
 
         (r'/become_user(/.*)?', BecomeUserHandler),
         (r'/logout', LogoutHandler),
