@@ -146,7 +146,10 @@ AssignmentForm.propTypes = {
   obj_id: PropTypes.string.isRequired,
   observingRunList: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.number,
-    instrument: PropTypes.object,
+    instrument: PropTypes.shape({
+      telescope_id: PropTypes.number,
+      name: PropTypes.string
+    }),
     calendar_date: PropTypes.string,
     pi: PropTypes.string,
   })).isRequired

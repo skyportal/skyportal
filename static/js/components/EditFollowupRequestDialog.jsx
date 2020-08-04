@@ -40,8 +40,14 @@ const EditFollowupRequestDialog = ({ followupRequest, instrumentList, instrument
 
 EditFollowupRequestDialog.propTypes = {
   followupRequest: PropTypes.shape({
-    requester: PropTypes.object,
-    instrument: PropTypes.object,
+    requester: PropTypes.shape({
+      id: PropTypes.number,
+      username: PropTypes.string
+    }),
+    instrument: PropTypes.shape({
+      id: PropTypes.number,
+      name: PropTypes.string
+    }),
     start_date: PropTypes.string,
     end_date: PropTypes.string,
     priority: PropTypes.string,

@@ -89,9 +89,8 @@ const AssignmentList = ({ assignments }) => {
     }
   );
 
-  assignments.sort((a, b) => {
-    return observingRunDict[a.run_id].sunrise_unix - observingRunDict[b.run_id].sunrise_unix;
-  });
+  assignments.sort((a, b) => (observingRunDict[a.run_id].ephemeris.sunrise_unix -
+    observingRunDict[b.run_id].ephemeris.sunrise_unix));
 
   return (
     <div>
@@ -141,8 +140,14 @@ const AssignmentList = ({ assignments }) => {
 AssignmentList.propTypes = {
   assignments: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.number,
-    requester: PropTypes.object,
-    run: PropTypes.object,
+    requester: PropTypes.shape({
+      id: PropTypes.number,
+      username: PropTypes.string
+    }),
+    run: PropTypes.shape({
+      pi: PropTypes.string,
+      calendar_date: PropTypes.string
+    }),
     priority: PropTypes.string,
     status: PropTypes.string,
     comment: PropTypes.string
