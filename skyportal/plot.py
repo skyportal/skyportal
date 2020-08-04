@@ -195,7 +195,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         .join(Instrument, Instrument.id == Photometry.instrument_id)
         .join(Telescope, Telescope.id == Instrument.telescope_id)
         .filter(Photometry.obj_id == obj_id)
-        .filter(Photometry.groups.any(Group.id.in_([g.id for g in user.groups])))
+        .filter(Photometry.groups.any(Group.id.in_([g.id for g in user.accessible_groups])))
         .statement,
         DBSession().bind
     )
