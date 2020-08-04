@@ -119,11 +119,16 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        f = Filter.get_if_owned_by(filter_id, self.current_user)
+        if f is None:
+            return self.error('Invalid filter ID')
+
         data = self.get_json()
         data["id"] = filter_id
+
         schema = Filter.__schema__()
         try:
-            schema.load(data)
+            schema.load(data, partial=True)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')

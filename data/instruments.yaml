@@ -1,281 +1,281 @@
 - band: optical
   name: SEDM
-  telescope_id: P60
+  telescope_id: =P60
   type: imaging spectrograph
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi']
 - band: optical
   name: DBSP
-  telescope_id: P200
+  telescope_id: =P200
   type: spectrograph
 - band: optical
   name: LFC
-  telescope_id: P200
+  telescope_id: =P200
   type: imager
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
             'bessellux', 'bessellb', 'bessellv', 'bessellr',
             'besselli']
 - band: ir
   name: WIRC
-  telescope_id: P200
+  telescope_id: =P200
   type: imager
   filters: ['cspjs', 'csphs', 'cspk']
 - band: ir
   name: TSPEC
-  telescope_id: P200
+  telescope_id: =P200
   type: spectrograph
 - band: optical
   name: LRIS
-  telescope_id: Keck1
+  telescope_id: =Keck1
   type: imaging spectrograph
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
             'bessellux', 'bessellb', 'bessellv', 'bessellr',
             'besselli']
 - band: ir
   name: MOSFIRE
-  telescope_id: Keck1
+  telescope_id: =Keck1
   type: imaging spectrograph
   filters: ['bessellb', 'bessellv', 'bessellr', 'besselli', 'sdssg']
 - band: optical
   name: KAST
-  telescope_id: Lick 3-m
+  telescope_id: =Lick 3-m
   type: spectrograph
 - band: ir
   name: GEMINI
-  telescope_id: Lick 3-m
+  telescope_id: =Lick 3-m
   type: imager
   filters: ['bessellux', 'bessellb', 'bessellv', 'bessellr',
             'besselli']
 - band: optical
   name: CFH12k
-  telescope_id: P48
+  telescope_id: =P48
   type: imager
   filters: ['ztfg', 'ztfr']
 - band: optical
   name: ISIS
-  telescope_id: WHT
+  telescope_id: =WHT
   type: spectrograph
 - band: optical
   name: FORS2
-  telescope_id: HET
+  telescope_id: =HET
   type: spectrograph
 - band: optical
   name: LRS
-  telescope_id: HET
+  telescope_id: =HET
   type: spectrograph
 - band: optical
   name: FORS2
-  telescope_id: VLT
+  telescope_id: =VLT
   type: spectrograph
 - band: optical
   name: X-Shooter
-  telescope_id: VLT
+  telescope_id: =VLT
   type: spectrograph
 - band: optical
   name: UVES
-  telescope_id: VLT
+  telescope_id: =VLT
   type: spectrograph
 - band: optical
   name: GMOS
-  telescope_id: GS
+  telescope_id: =GS
   type: both
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'desy']
 - band: ir
   name: FLAMINGOS-2
-  telescope_id: GS
+  telescope_id: =GS
   type: spectrograph
 - band: ir
   name: PTEL
-  telescope_id: PTEL
+  telescope_id: =PTEL
   type: imager
   filters: ['cspjs', 'csphs', 'cspk']
 - band: optical
   name: GMOS
-  telescope_id: Gemini N
+  telescope_id: =Gemini N
   type: both
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'desy']
 - band: optical
   name: SNIFS
-  telescope_id: UH88
+  telescope_id: =UH88
   type: spectrograph
 - band: optical
   name: DEIMOS
-  telescope_id: Keck2
+  telescope_id: =Keck2
   type: spectrograph
 - band: optical
   name: ESI
-  telescope_id: Keck2
+  telescope_id: =Keck2
   type: spectrograph
 - band: optical
   name: DOLORES
-  telescope_id: TNG
+  telescope_id: =TNG
   type: spectrograph
 - band: optical
   name: RC Spec
-  telescope_id: KPNO4m
+  telescope_id: =KPNO4m
   type: spectrograph
 - band: optical
   name: ALFOSC
-  telescope_id: NOT
+  telescope_id: =NOT
   type: imaging spectrograph
   filters: ['bessellux', 'bessellb', 'bessellv', 'bessellr',
             'besselli']
 - band: ir
   name: NOTCam
-  telescope_id: NOT
+  telescope_id: =NOT
   type: imager
   filters: ['cspjs', 'csphs', 'cspk']
 - band: optical
   name: IDS
-  telescope_id: INT
+  telescope_id: =INT
   type: spectrograph
 - band: optical
   name: IDS
-  telescope_id: INT
+  telescope_id: =INT
   type: spectrograph
 - band: optical
   name: UVOT
-  telescope_id: Swift
+  telescope_id: =Swift
   type: imager
   # todo: add the rest of the swift filters
   filters: ['bessellux']
 - band: optical
   name: IMACS
-  telescope_id: Magellan_Baade
+  telescope_id: =Magellan_Baade
   type: imaging spectrograph
   filters: ['bessellb', 'bessellv', 'bessellr', 'sdssu', 'sdssg',
             'sdssr', 'sdssi']
 - band: ir
   name: FIRE
-  telescope_id: Magellan_Baade
+  telescope_id: =Magellan_Baade
   type: spectrograph
 - band: optical
   name: Frodospec
-  telescope_id: LT
+  telescope_id: =LT
   type: spectrograph
 - band: optical
   name: IOO
-  telescope_id: LT
+  telescope_id: =LT
   type: imager
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
             'bessellb', 'bessellv']
 - band: optical
   name: RATCam
-  telescope_id: LT
+  telescope_id: =LT
   type: imager
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
             'bessellb', 'bessellv']
 - band: optical
   name: SPRAT
-  telescope_id: LT
+  telescope_id: =LT
   type: spectrograph
 - band: optical
   name: DIS
-  telescope_id: APO
+  telescope_id: =APO
   type: spectrograph
 - band: optical
   name: OSIRIS
-  telescope_id: GTC
+  telescope_id: =GTC
   type: imaging spectrograph
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz']
 - band: ir
   name: RATIR
-  telescope_id: SPM15
+  telescope_id: =SPM15
   type: imager
   filters: ['sdssr', 'sdssi', 'sdssz', 'desy', 'cspjs', 'csphs',
             'bessellb', 'bessellv']
 
 - band: optical
   name: HCT Spectograph
-  telescope_id: HCT
+  telescope_id: =HCT
   type: spectrograph
 - band: optical
   name: Spectrograph
-  telescope_id: SALT
+  telescope_id: =SALT
   type: spectrograph
 - band: optical
   name: Sinistro
-  telescope_id: LCOGT1m
+  telescope_id: =LCOGT1m
   type: imager
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'desy',
             'bessellb', 'bessellv', 'bessellr', 'besselli']
 - band: optical
   name: WFCCD
-  telescope_id: DUP
+  telescope_id: =DUP
   type: spectrograph
 - band: optical
   name: e2v
-  telescope_id: Swope
+  telescope_id: =Swope
   type: imager
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'bessellb', 'bessellv']
 - band: optical
   name: 1.2x1.2 deg^2 CCD
-  telescope_id: Nanshan 1m
+  telescope_id: =Nanshan 1m
   type: imager
   # todo: update this
   filters: []
 - band: optical
   name: LMI
-  telescope_id: DCT
+  telescope_id: =DCT
   type: imager
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
             'bessellux', 'bessellb', 'bessellv', 'bessellr',
             'besselli']
 - band: optical
   name: Deveny+LMI
-  telescope_id: DCT
+  telescope_id: =DCT
   type: imaging spectrograph
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
             'bessellux', 'bessellb', 'bessellv', 'bessellr',
             'besselli']
 - band: optical
   name: AFOSCH
-  telescope_id: Ekar
+  telescope_id: =Ekar
   type: spectrograph
 - band: optical
   name: PS1
-  telescope_id: PS1
+  telescope_id: =PS1
   type: imager
 - band: optical
   name: ANDOR_2kx2k
-  telescope_id: DFOT
+  telescope_id: =DFOT
   type: imager
 - band: optical
   name: BOSS
-  telescope_id: SDSS2.5m
+  telescope_id: =SDSS2.5m
   type: spectrograph
 - band: optical
   name: FOCAS
-  telescope_id: Subaru FOCAS
+  telescope_id: =Subaru FOCAS
   type: spectrograph
 - band: optical
   name: EFOSC2
-  telescope_id: NTT
+  telescope_id: =NTT
   type: imaging spectrograph
 - band: optical
   name: LAMOST
-  telescope_id: XL216
+  telescope_id: =XL216
   type: imaging spectrograph
 - band: optical
   name: DECam
-  telescope_id: CTIO-4m
+  telescope_id: =CTIO-4m
   type: imager
   # TODO: make a PR to sncosmo to include desu ... substituting sdssu for now
   filters: ['sdssu', 'desg', 'desr', 'desi', 'desz', 'desy']
 - band: ir
   name: VIRCAM
-  telescope_id: VISTA
+  telescope_id: =VISTA
   type: imager
   # ADDED s to 'cspjs'
   filters: ['sdssz', 'desy', 'cspjs', 'csphs', 'cspk']
 - band: optical
   name: OMEGACAM
-  telescope_id: VISTA
+  telescope_id: =VISTA
   type: imager
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
             'bessellb', 'bessellv', 'bessellr', 'besselli']
 - band: optical
   name: WFC3/UVIS
-  telescope_id: HST
+  telescope_id: =HST
   type: imager
   filters: ['f218w', 'f225w', 'f275w', 'f300x', 'f336w', 'f350lp',
             'f390w', 'f689m', 'f763m', 'f845m', 'f438w', 'uvf475w',
@@ -283,30 +283,30 @@
             'uvf850lp']
 - band: optical
   name: GROND
-  telescope_id: MPI_ESO-2.2m
+  telescope_id: =MPI_ESO-2.2m
   type: imager
   filters: ['sdssg', 'sdssr', 'sdssi', 'sdssz',
             'cspjs', 'csphs', 'cspk']
 - band: optical
   name: Skymapper
-  telescope_id: Skymapper
+  telescope_id: =Skymapper
   type: imager
   filters: ['sdssg', 'sdssr', 'sdssi', 'sdssz', 'bessellb']
 - band: ir
   name: ANDICAM
-  telescope_id: CTIO-1.3m
+  telescope_id: =CTIO-1.3m
   type: imager
   filters: ['bessellb', 'bessellv', 'bessellr', 'besselli',
             'csphs', 'cspjs', 'cspk']
 - band: optical
   name: CCD
-  telescope_id: CNEOST
+  telescope_id: =CNEOST
   type: imager
   # todo: find out what filters go here
   filters: []
 - band: optical
   name: NA
-  telescope_id: MASTER-SAAO
+  telescope_id: =MASTER-SAAO
   type: imager
   # todo: add unfiltered
   filters: []

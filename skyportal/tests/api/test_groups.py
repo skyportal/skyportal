@@ -90,3 +90,14 @@ def test_manage_groups_token_get_unowned_group(
     status, data = api("GET", f"groups/{new_group_id}", token=token_id)
     assert data["status"] == "success"
     assert data["data"]["name"] == group_name
+
+
+def test_public_group(view_only_token):
+    status, response = api(
+        "GET",
+        "groups/public",
+        token=view_only_token
+    )
+    assert status == 200
+    assert response["status"] == "success"
+    int(response["data"]["id"])

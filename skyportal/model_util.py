@@ -1,17 +1,6 @@
-import datetime
-import os
-from pathlib import Path
-import shutil
-import numpy as np
-import pandas as pd
-
-from baselayer.app.env import load_env
-from baselayer.app.model_util import status, create_tables, drop_tables
 from social_tornado.models import TornadoStorage
-from skyportal.models import (init_db, Base, DBSession, ACL, Comment,
-                              Instrument, Group, GroupUser, Photometry, Role,
-                              Source, Spectrum, Telescope, Thumbnail, User,
-                              Token)
+from skyportal.models import (DBSession, ACL, Role, User, Group, Token)
+from baselayer.app.env import load_env
 
 all_acl_ids = ['Become user', 'Comment', 'Manage users', 'Manage sources',
                'Manage groups', 'Upload data', 'System admin', 'Post taxonomy',
@@ -19,8 +8,8 @@ all_acl_ids = ['Become user', 'Comment', 'Manage users', 'Manage sources',
 
 role_acls = {
     'Super admin': all_acl_ids,
-    'Group admin': ['Comment', 'Manage sources', 'Upload data', 'Post taxonomy',
-                    'Manage users', 'Classify'],
+    'Group admin': ['Comment', 'Manage sources', 'Upload data',
+                    'Post taxonomy', 'Manage users', 'Classify'],
     'Full user': ['Comment', 'Upload data', 'Classify'],
     'View only': []
 }
@@ -33,7 +22,7 @@ def add_user(username, roles=[], auth=False):
     if user is None:
         user = User(username=username)
         if auth:
-            social = TornadoStorage.user.create_social_auth(
+            TornadoStorage.user.create_social_auth(
                 user,
                 user.username,
                 'google-oauth2'
@@ -89,6 +78,20 @@ def provision_token():
         token = Token.query.get(token_id)
 
     return token
+
+
+def provision_public_group():
+    """If public group name is set in the config file, create it."""
+    env, cfg = load_env()
+    public_group_name = cfg['misc.public_group_name']
+    if public_group_name:
+        pg = Group.query.filter(
+            Group.name == public_group_name
+        ).first()
+
+        if pg is None:
+            DBSession().add(Group(name=public_group_name))
+            DBSession().commit()
 
 
 def setup_permissions():

@@ -45,17 +45,19 @@ docs: ## Build the SkyPortal docs
 docs: | doc_reqs api-docs
 	export SPHINXOPTS=-W; make -C doc html
 
+prepare_seed_data: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
+prepare_seed_data:
+	@PYTHONPATH=. python tools/prepare_seed_data.py $(FLAGS)
+
 load_demo_data: ## Import example dataset
 load_demo_data: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
-load_demo_data: | dependencies
-	@PYTHONPATH=. python tools/data_loader.py db_demo $(FLAGS)
+load_demo_data: | dependencies prepare_seed_data
+	@PYTHONPATH=. python tools/data_loader.py data/db_demo.yaml $(FLAGS)
 
-load_seed_data: ## Import example dataset
+load_seed_data: ## Seed database with common telescopes, instruments, and a taxonomy
 load_seed_data: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
-load_seed_data: | dependencies
-	@PYTHONPATH=. python tools/data_loader.py db_seed $(FLAGS)
-
-
+load_seed_data: | dependencies prepare_seed_data
+	@PYTHONPATH=. python tools/data_loader.py data/db_seed.yaml $(FLAGS)
 
 # https://www.gnu.org/software/make/manual/html_node/Overriding-Makefiles.html
 %: baselayer/Makefile force

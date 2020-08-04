@@ -1,0 +1,13 @@
+user:
+  - username: sitewide_group_admin
+    roles:
+      - Group admin
+
+telescope:
+  file: telescopes.yaml
+
+instrument:
+  file: instruments.yaml
+
+taxonomy:
+  file: taxonomy_sitewide.yaml

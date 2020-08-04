@@ -1,0 +1,244 @@
+user:
+  - username: testadmin@cesium-ml.org
+    roles:
+      - Super admin
+  - username: groupadmin@cesium-ml.org
+    roles:
+      - Group admin
+  - username: fulluser@cesium-ml.org
+    roles:
+      - Full user
+  - username: viewonlyuser@cesium-ml.org
+    roles:
+      - View only
+
+groups:
+  - name: Program A
+    group_admins:
+      - testadmin@cesium-ml.org
+      - groupadmin@cesium-ml.org
+    =id: program_A
+  - name: Program B
+    group_admins:
+      - testadmin@cesium-ml.org
+      - groupadmin@cesium-ml.org
+    =id: program_B
+
+groups/=program_A/users:
+  - username: viewonlyuser@cesium-ml.org
+    admin: false
+  - username: fulluser@cesium-ml.org
+    admin: false
+
+filters:
+  - query_string: sample_query_string
+    group_id: =program_A
+    =id: example_filter
+
+telescope:
+  - name: Palomar 1.5m
+    nickname: P60
+    lat: 33.3633675
+    lon: -116.8361345
+    elevation: 1870
+    diameter: 1.5
+    skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+    group_ids:
+      - =public_group_id
+      - =program_A
+    =id: P60
+  - name: Nordic Optical Telescope
+    nickname: NOT
+    lat: 28.75
+    lon: 17.88
+    elevation: 2000
+    diameter: 2.56
+    skycam_link: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
+    group_ids:
+      - =public_group_id
+      - =program_A
+    =id: NOT
+
+instrument:
+  - name: P60 Camera
+    type: phot
+    band: V
+    telescope_id: =P60
+    filters: ["ztfg", "ztfr", "ztfi"]
+  - name: ALFOSC
+    type: both
+    band: V
+    telescope_id: =NOT
+    =id: ALFOSC
+
+candidates:
+  - id: 14gqr_unsaved_copy
+    filter_ids:
+      - =example_filter
+    ra: 353.36647
+    dec: 33.646149
+    redshift: 0.063
+    altdata:
+      simbad:
+        class: RRLyr
+  - id: 14gqr
+    filter_ids:
+      - =example_filter
+    ra: 353.36647
+    dec: 33.646149
+    redshift: 0.063
+    altdata:
+      simbad:
+        class: RRLyr
+
+  - id: 16fil_unsaved_copy
+    filter_ids:
+      - =example_filter
+    ra: 322.718872
+    dec: 27.574113
+    redshift: 0.0
+    altdata:
+      simbad:
+        class: RRLyr
+  - id: 16fil
+    filter_ids:
+      - =example_filter
+    ra: 322.718872
+    dec: 27.574113
+    redshift: 0.0
+    altdata:
+      simbad:
+        class: RRLyr
+
+sources:
+  - id: 14gqr
+    group_ids:
+      # Adding the public_group_id is a hack until the admin token i
+      # allowed to create sources outside of its own groups, as per
+      # https://github.com/skyportal/skyportal/issues/619
+      - =public_group_id
+      - =program_A
+  - id: 16fil
+    group_ids:
+      - =public_group_id
+      - =program_A
+
+comment:
+  - obj_id: 14gqr_unsaved_copy
+    text: "No source at transient location to R>26 in LRIS imaging"
+  - obj_id: 14gqr_unsaved_copy
+    text: "Strong calcium lines have emerged."
+  - obj_id: 14gqr
+    text: "No source at transient location to R>26 in LRIS imaging"
+  - obj_id: 14gqr
+    text: "Strong calcium lines have emerged."
+
+  - obj_id: 16fil_unsaved_copy
+    text: "Dogs in the park"
+  - obj_id: 16fil_unsaved_copy
+    text: "Birds are not real"
+  - obj_id: 16fil
+    text: "Dogs in the park"
+  - obj_id: 16fil
+    text: "Birds are not real"
+
+photometry:
+  - obj_id: 14gqr_unsaved_copy
+    instrument_id: =P60
+    file: phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+  - obj_id: 14gqr
+    instrument_id: =P60
+    file: phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+  - obj_id: 16fil_unsaved_copy
+    instrument_id: =P60
+    file: phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+  - obj_id: 16fil
+    instrument_id: =P60
+    file: phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+
+thumbnail:
+  - obj_id: 14gqr_unsaved_copy
+    ttype: new
+    data:
+      file: ../skyportal/tests/data/14gqr_new.png
+  - obj_id: 14gqr_unsaved_copy
+    ttype: ref
+    data:
+      file: ../skyportal/tests/data/14gqr_ref.png
+  - obj_id: 14gqr_unsaved_copy
+    ttype: ref
+    data:
+      file: ../skyportal/tests/data/14gqr_sub.png
+
+  - obj_id: 14gqr
+    ttype: new
+    data:
+      file: ../skyportal/tests/data/14gqr_new.png
+  - obj_id: 14gqr
+    ttype: ref
+    data:
+      file: ../skyportal/tests/data/14gqr_ref.png
+  - obj_id: 14gqr
+    ttype: ref
+    data:
+      file: ../skyportal/tests/data/14gqr_sub.png
+
+  - obj_id: 16fil_unsaved_copy
+    ttype: new
+    data:
+      file: ../skyportal/tests/data/16fil_new.png
+  - obj_id: 16fil_unsaved_copy
+    ttype: ref
+    data:
+      file: ../skyportal/tests/data/16fil_ref.png
+  - obj_id: 16fil_unsaved_copy
+    ttype: ref
+    data:
+      file: ../skyportal/tests/data/16fil_sub.png
+
+  - obj_id: 16fil
+    ttype: new
+    data:
+      file: ../skyportal/tests/data/16fil_new.png
+  - obj_id: 16fil
+    ttype: ref
+    data:
+      file: ../skyportal/tests/data/16fil_ref.png
+  - obj_id: 16fil
+    ttype: ref
+    data:
+      file: ../skyportal/tests/data/16fil_sub.png
+
+spectrum:
+  - obj_id: 14gqr_unsaved_copy
+    file: spec1.csv
+    instrument_id: =ALFOSC
+    observed_at: "2019-10-24T00:00:00"
+  - obj_id: 14gqr
+    file: spec1.csv
+    instrument_id: =ALFOSC
+    observed_at: "2019-10-24T00:00:00"
+
+  - obj_id: 16fil_unsaved_copy
+    file: spec2.csv
+    instrument_id: =ALFOSC
+    observed_at: "2019-10-24T00:00:00"
+  - obj_id: 16fil
+    file: spec2.csv
+    instrument_id: =ALFOSC
+    observed_at: "2019-10-24T00:00:00"
+
+taxonomy:
+  file: taxonomy_demo.yaml

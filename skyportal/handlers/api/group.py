@@ -226,7 +226,7 @@ class GroupHandler(BaseHandler):
 
 class GroupUserHandler(BaseHandler):
     @permissions(['Manage groups'])
-    def post(self, group_id, username):
+    def post(self, group_id, *ignored_args):
         """
         ---
         description: Add a group user
@@ -236,20 +236,18 @@ class GroupUserHandler(BaseHandler):
             required: true
             schema:
               type: integer
-          - in: path
-            name: username
-            required: true
-            schema:
-              type: string
         requestBody:
           content:
             application/json:
               schema:
                 type: object
                 properties:
+                  username:
+                    type: string
                   admin:
                     type: boolean
                 required:
+                  - username
                   - admin
         responses:
           200:
@@ -274,11 +272,16 @@ class GroupUserHandler(BaseHandler):
                               description: Boolean indicating whether user is group admin
         """
         data = self.get_json()
+
+        username = data.pop("username", None)
+        if username is None:
+            return self.error("Username must be specified")
+
         admin = data.pop("admin", False)
         group_id = int(group_id)
         group = Group.query.get(group_id)
         if group.single_user_group:
-            return self.error("Cannot add users to single user groups.")
+            return self.error("Cannot add users to single-user groups.")
         user = User.query.filter(User.username == username.lower()).first()
         if user is None:
             user_id = add_user_and_setup_groups(

@@ -404,7 +404,7 @@ class CandidateHandler(BaseHandler):
 
         schema = Obj.__schema__()
         try:
-            schema.load(data)
+            schema.load(data, partial=True)
         except ValidationError as e:
             return self.error(
                 "Invalid/missing parameters: " f"{e.normalized_messages()}"

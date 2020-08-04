@@ -9,6 +9,7 @@ from .invalid import InvalidEndpointHandler
 from .news_feed import NewsFeedHandler
 from .photometry import (PhotometryHandler, ObjPhotometryHandler,
                          BulkDeletePhotometryHandler)
+from .public_group import PublicGroupHandler
 from .source import SourceHandler, SourceOffsetsHandler, SourceFinderHandler
 from .spectrum import SpectrumHandler
 from .sysinfo import SysInfoHandler

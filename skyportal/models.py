@@ -18,16 +18,12 @@ from sqlalchemy_utils import ArrowType, URLType
 from astropy import coordinates as ap_coord
 import healpix_alchemy as ha
 
-from baselayer.app.env import load_env
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
 from baselayer.app.custom_exceptions import AccessError
 
 from . import schema
 from .phot_enum import allowed_bandpasses, thumbnail_types
-
-
-env, cfg = load_env()
 
 
 # In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
@@ -300,7 +296,7 @@ class Obj(Base, ha.Point):
 
 class Filter(Base):
     query_string = sa.Column(sa.String, nullable=False, unique=False)
-    group_id = sa.Column(sa.ForeignKey("groups.id"))
+    group_id = sa.Column(sa.ForeignKey("groups.id"), nullable=False)
     group = relationship("Group", foreign_keys=[group_id], back_populates="filter")
 
 

@@ -183,7 +183,7 @@ class ZTFAvro():
                     varstarness.append(False)
 
                 phot = {"mag": rj.pop('magpsf'), "e_mag": rj.pop("sigmapsf"),
-                        "lim_mag": rj.pop('diffmaglim'),
+                        "limiting_mag": rj.pop('diffmaglim'),
                         "filter": str(rj.pop('fid')),
                         "score": rj.pop("rb"), "candid": rj.pop("candid"),
                         "isdiffpos": rj.pop("isdiffpos") in ["1", "t"],
