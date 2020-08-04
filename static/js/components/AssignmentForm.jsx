@@ -13,8 +13,7 @@ import * as Actions from '../ducks/source';
 
 import 'react-datepicker/dist/react-datepicker-cssmodules.css';
 
-
-function makeMenuItem(observingRun, instrumentList, telescopeList, groups) {
+export function observingRunTitle(observingRun, instrumentList, telescopeList, groups) {
   const { instrument_id } = observingRun;
   const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
 
@@ -23,16 +22,18 @@ function makeMenuItem(observingRun, instrumentList, telescopeList, groups) {
 
   const group = groups?.filter((g) => g.id === observingRun.group_id)[0];
 
-  const render_string = `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname} 
-  (PI: ${observingRun?.pi} ${group?.name})`;
+  return `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname} (PI: \ 
+    ${observingRun?.pi} ${group?.name})`;
+}
 
+function makeMenuItem(observingRun, instrumentList, telescopeList, groups) {
+  const render_string = observingRunTitle(observingRun, instrumentList, telescopeList, groups);
   return (
     <MenuItem value={observingRun.id} key={observingRun.id.toString()}>
       {render_string}
     </MenuItem>
   );
 }
-
 
 const AssignmentForm = ({ obj_id, observingRunList }) => {
   const dispatch = useDispatch();
@@ -41,7 +42,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   const groups = useSelector((state) => state.groups.all);
 
   const upcomingRuns = observingRunList.filter((observingrun) => (
-    observingrun.sunrise_unix >= Date.now() / 1000
+    Date.parse(observingrun.sunrise_utc) >= Date.now()
   ));
 
   const { handleSubmit, getValues, reset, register, control } = useForm();

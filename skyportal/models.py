@@ -223,6 +223,12 @@ class Obj(Base, ha.Point):
         return (f"http://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
                 f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz")
 
+    @property
+    def target(self):
+        """Representation of this Obj as an astroplan.FixedTarget."""
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
+        return astroplan.FixedTarget(name=self.id, coord=coord)
+
     def airmass(self, telescope, time, below_horizon=np.inf):
         """Return the airmass of the object at a given time. Uses the Pickering
         (2002) interpolation of the Rayleigh (molecular atmosphere) airmass.
@@ -283,14 +289,7 @@ class Obj(Base, ha.Point):
            The altitude of the Obj at the requested times
         """
 
-        coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
-        target = astroplan.FixedTarget(name=self.id, coord=coord)
-        observer = astroplan.Observer(latitude=telescope.lat * u.deg,
-                                      longitude=telescope.lon * u.deg,
-                                      elevation=telescope.elevation * u.m)
-
-        alt = observer.altaz(time, target).alt
-        return alt
+        return telescope.observer.altaz(time, self.target).alt
 
 
 class Filter(Base):
@@ -828,17 +827,39 @@ class ObservingRun(Base):
 
     @property
     def sunset(self):
-        observer = self.instrument.telescope.observer
-        noon = self._calendar_noon
-        sunset = observer.sun_set_time(noon, which='next')
-        return sunset
+        return self.instrument.telescope.observer.sun_set_time(
+            self._calendar_noon, which='next'
+        )
 
     @property
     def sunrise(self):
-        observer = self.instrument.telescope.observer
-        noon = self._calendar_noon
-        sunrise = observer.sun_rise_time(noon, which='next')
-        return sunrise
+        return self.instrument.telescope.observer.sun_rise_time(
+            self._calendar_noon, which='next'
+        )
+
+    @property
+    def twilight_evening_nautical(self):
+        return self.instrument.telescope.observer.twilight_evening_nautical(
+            self._calendar_noon, which='next'
+        )
+
+    @property
+    def twilight_morning_nautical(self):
+        return self.instrument.telescope.observer.twilight_morning_nautical(
+            self._calendar_noon, which='next'
+        )
+
+    @property
+    def twilight_evening_astronomical(self):
+        return self.instrument.telescope.observer.twilight_evening_astronomical(
+            self._calendar_noon, which='next'
+        )
+
+    @property
+    def twilight_morning_astronomical(self):
+        return self.instrument.telescope.observer.twilight_morning_astronomical(
+            self._calendar_noon, which='next'
+        )
 
 
 User.observing_runs = relationship(
@@ -867,6 +888,22 @@ class ClassicalAssignment(Base):
     @hybrid_property
     def instrument(self):
         return self.run.instrument
+
+    @property
+    def rise_time(self):
+        """The time at which the object rises on this run."""
+        observer = self.instrument.telescope.observer
+        target = self.obj.target
+        return observer.target_rise_time(self.run.sunset, target,
+                                         which='next')
+
+    @property
+    def set_time(self):
+        """The time at which the object sets on this run."""
+        observer = self.instrument.telescope.observer
+        target = self.obj.target
+        return observer.target_set_time(self.rise_time, target,
+                                        which='next')
 
 
 User.assignments = relationship('ClassicalAssignment', back_populates='requester')

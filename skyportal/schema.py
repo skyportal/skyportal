@@ -588,16 +588,33 @@ class ObservingRunPost(_Schema):
         description='The local calendar date of the run.', required=True
     )
 
+    modified = fields.DateTime(description="The UT datetime at which the "
+                                           "observingrun was last modified.")
+
 
 class ObservingRunGet(ObservingRunPost):
     owner_id = fields.Integer(description='The User ID of the owner of this run.')
-    sunrise_unix = fields.Number(description='The UNIX timestamp of sunrise for this run.')
-    id = fields.Number(description='Unique identifier for the run.')
+    ephemeris = fields.Field(description='Observing run ephemeris data.')
+    id = fields.Integer(description='Unique identifier for the run.')
 
     @pre_dump
     def serialize(self, data, **kwargs):
-        data.sunrise_unix = data.sunrise.unix
+        data.ephemeris = {}
+        data.ephemeris['sunrise_utc'] = data.sunrise.isot
+        data.ephemeris['sunset_utc'] = data.sunset.isot
+        data.ephemeris['twilight_evening_nautical_utc'] = data.twilight_evening_nautical.isot
+        data.ephemeris['twilight_morning_nautical_utc'] = data.twilight_morning_nautical.isot
+        data.ephemeris['twilight_evening_astronomical_utc'] = (
+            data.twilight_evening_astronomical.isot
+        )
+        data.ephemeris['twilight_morning_astronomical_utc'] = (
+            data.twilight_morning_astronomical.isot
+        )
         return data
+
+
+class ObservingRunGetWithAssignments(ObservingRunGet):
+    assignments = fields.List(fields.Field())
 
 
 def register_components(spec):
@@ -631,4 +648,5 @@ PhotFluxFlexible = PhotFluxFlexible()
 ObservingRunPost = ObservingRunPost()
 ObservingRunGet = ObservingRunGet()
 AssignmentSchema = AssignmentSchema()
+ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
 

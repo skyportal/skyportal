@@ -7,6 +7,7 @@ from pathlib import PurePosixPath
 import signal
 import requests
 
+import jsonschema
 import pandas as pd
 import yaml
 from yaml import Loader
@@ -375,6 +376,7 @@ if __name__ == "__main__":
 
                                 Obj.query.get(si["id"]).add_linked_thumbnails()
 
+            run_dict = {}
             if src.get("observing_runs") is not None:
                 with status("Loading observing runs"):
                     for run in src.get("observing_runs"):
@@ -409,6 +411,35 @@ if __name__ == "__main__":
                                 'calendar_date': calendar_date,
                                 'observers': run.get('observers', None)
                             }, token=tokens[run['token']])
+
+                        run_dict[run['key']] = data['data']['id']
+
+            if src.get("assignments") is not None:
+                with status("Loading assignments"):
+                    for assignment in src.get("assignments"):
+                        jsonschema.validate(assignment, {
+                            'type': 'object',
+                            'properties': {
+                                "source_id": {"type": "string"},
+                                "run_key": {"type": "string"},
+                                "priority": {"type": "integer",
+                                             "enum": [1, 2, 3, 4, 5]},
+                                "comment": {'type': 'string'},
+                                "token": {'type': 'string'}
+                            },
+                            'required': ['source_id', 'run_key', 'priority',
+                                         'token']
+                        })
+
+                        data = assert_post(
+                            "assignment",
+                            data={
+                                "run_id": run_dict[assignment['run_key']],
+                                "obj_id": assignment['source_id'],
+                                "priority": str(assignment['priority']),
+                                'comment': assignment.get('comment')
+                            },
+                        token=tokens[assignment['token']])
 
         finally:
             if not app_already_running:
