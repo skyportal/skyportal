@@ -20,8 +20,8 @@ class TelescopeFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Telescope
 
-    name = 'Palomar 48 inch'
-    nickname = 'P48'
+    name = factory.LazyFunction(lambda: f'Palomar 48 inch_{str(uuid.uuid4())}')
+    nickname = factory.LazyFunction(lambda: f'P48_{str(uuid.uuid4())}')
     lat = 33.3563
     lon = -116.8650
     elevation = 1712.
@@ -41,7 +41,7 @@ class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Instrument
 
-    name = 'ZTF'
+    name = factory.LazyFunction(lambda: f'ZTF_{str(uuid.uuid4())}')
     type = 'Imager'
     band = 'Optical'
     telescope = factory.SubFactory(TelescopeFactory)

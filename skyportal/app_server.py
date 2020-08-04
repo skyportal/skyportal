@@ -10,8 +10,8 @@ from skyportal.handlers.api import (
     CommentHandler, CommentAttachmentHandler,
     FilterHandler,
     FollowupRequestHandler,
-    GroupHandler, GroupUserHandler, PublicGroupHandler,
-    InstrumentHandler,
+    GroupHandler, GroupUserHandler, PublicGroupHandler, GroupByNameHandler,
+    InstrumentHandler, InstrumentByNameHandler,
     InvalidEndpointHandler,
     NewsFeedHandler,
     PhotometryHandler, BulkDeletePhotometryHandler, ObjPhotometryHandler,
@@ -21,7 +21,7 @@ from skyportal.handlers.api import (
     SpectrumHandler, ObjSpectraHandler,
     SysInfoHandler,
     TaxonomyHandler,
-    TelescopeHandler,
+    TelescopeHandler, TelescopeByNameHandler,
     ThumbnailHandler,
     UserHandler
 )
@@ -64,8 +64,10 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/followup_request(/.*)?', FollowupRequestHandler),
         (r'/api/groups/public', PublicGroupHandler),
         (r'/api/groups/(.*)/users(/.*)?', GroupUserHandler),
+        (r'/api/groups/name/(.*)', GroupByNameHandler),
         (r'/api/groups(/.*)?', GroupHandler),
         (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
+        (r'/api/instrument/name/(.*)', InstrumentByNameHandler),
         (r'/api/newsfeed', NewsFeedHandler),
         (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
         (r'/api/sharing', SharingHandler),
@@ -79,6 +81,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/sysinfo', SysInfoHandler),
         (r'/api/taxonomy(/.*)?', TaxonomyHandler),
         (r'/api/telescope(/[0-9]+)?', TelescopeHandler),
+        (r'/api/telescope/name/(.*)', TelescopeByNameHandler),
         (r'/api/thumbnail(/[0-9]+)?', ThumbnailHandler),
         (r'/api/user(/.*)?', UserHandler),
 

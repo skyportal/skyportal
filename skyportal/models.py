@@ -453,7 +453,7 @@ class SourceView(Base):
 
 
 class Telescope(Base):
-    name = sa.Column(sa.String, nullable=False)
+    name = sa.Column(sa.String, unique=True, nullable=False)
     nickname = sa.Column(sa.String, nullable=False)
     lat = sa.Column(sa.Float, nullable=True, doc='Latitude in deg.')
     lon = sa.Column(sa.Float, nullable=True, doc='Longitude in deg.')
@@ -491,7 +491,7 @@ class ArrayOfEnum(ARRAY):
 
 
 class Instrument(Base):
-    name = sa.Column(sa.String, nullable=False)
+    name = sa.Column(sa.String, unique=True, nullable=False)
     type = sa.Column(sa.String)
     band = sa.Column(sa.String)
     telescope_id = sa.Column(sa.ForeignKey('telescopes.id',

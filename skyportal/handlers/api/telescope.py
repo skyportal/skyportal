@@ -158,3 +158,34 @@ class TelescopeHandler(BaseHandler):
         DBSession().commit()
 
         return self.success()
+
+
+class TelescopeByNameHandler(BaseHandler):
+    @auth_or_token
+    def get(self, telescope_name):
+        """
+        ---
+        description: Retrieve a telescope by name
+        parameters:
+          - in: path
+            name: telescope_name
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleTelescope
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        telescope = Telescope.query.filter(Telescope.name == telescope_name).first()
+        if telescope is None:
+            return self.error("Invalid telescope name.")
+        # Ensure user has access to telescope
+        _ = Telescope.get_if_owned_by(telescope.id, self.current_user)
+
+        return self.success(data=telescope)

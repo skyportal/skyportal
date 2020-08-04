@@ -149,6 +149,38 @@ class InstrumentHandler(BaseHandler):
         return self.success()
 
 
+class InstrumentByNameHandler(BaseHandler):
+    @auth_or_token
+    def get(self, instrument_name):
+        """
+        ---
+        description: Retrieve an instrument by name
+        parameters:
+          - in: path
+            name: instrument_name
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleInstrument
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        instrument = Instrument.query.filter(Instrument.name == instrument_name).first()
+        if instrument is None:
+            return self.error("Invalid instrument name.")
+        # Ensure permissions to parent telescope
+        _ = Telescope.get_if_owned_by(instrument.telescope_id,
+                                      self.current_user)
+
+        return self.success(data=instrument)
+
+
 InstrumentHandler.post.__doc__ = f"""
         ---
         description: Add a new instrument

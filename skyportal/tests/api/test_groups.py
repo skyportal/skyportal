@@ -20,6 +20,24 @@ def test_token_user_create_new_group(manage_groups_token, super_admin_user):
     assert data["data"]["name"] == group_name
 
 
+def test_fetch_group_by_name(manage_groups_token, super_admin_user):
+    group_name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "groups",
+        data={"name": group_name, "group_admins": [super_admin_user.username]},
+        token=manage_groups_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    new_group_id = data["data"]["id"]
+
+    status, data = api("GET", f"groups/name/{group_name}", token=manage_groups_token)
+    assert data["status"] == "success"
+    assert data["data"]["name"] == group_name
+    assert data["data"]["id"] == new_group_id
+
+
 def test_token_user_request_all_groups(manage_groups_token, super_admin_user):
     group_name = str(uuid.uuid4())
     status, data = api(

@@ -344,3 +344,35 @@ class GroupUserHandler(BaseHandler):
         self.push_all(action='skyportal/REFRESH_GROUP',
                       payload={'group_id': int(group_id)})
         return self.success()
+
+
+class GroupByNameHandler(BaseHandler):
+    @auth_or_token
+    def get(self, group_name):
+        """
+        ---
+        description: Retrieve a group by name
+        parameters:
+          - in: path
+            name: group_name
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleGroup
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        group = Group.query.filter(Group.name == group_name).first()
+        if group is None:
+            return self.error("Invalid group name.")
+        # Ensure user has access to group
+        if group not in self.current_user.accessible_groups:
+            return self.error("Insufficient permissions")
+
+        return self.success(data=group)
