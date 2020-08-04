@@ -52,16 +52,22 @@ class SharingHandler(BaseHandler):
         if not phot_ids and not spec_ids:
             return self.error("One of either `photometryIDs` or `spectrumIDs` "
                               "must be provided.")
+        groups = Group.query.filter(Group.id.in_(group_ids))
+        if not all([group in self.current_user.accessible_groups for group in groups]):
+            return self.error("Insufficient permissions: you must have access to each "
+                              "target group you wish to share data with.")
         if phot_ids:
             query = Photometry.query.filter(Photometry.id.in_(phot_ids))
-            groups = Group.query.filter(Group.id.in_(group_ids))
             for phot in query:
+                # Ensure user has access to data being shared
+                _ = Photometry.get_if_owned_by(phot.id, self.current_user)
                 for group in groups:
                     phot.groups.append(group)
         if spec_ids:
             query = Spectrum.query.filter(Spectrum.id.in_(spec_ids))
-            groups = Group.query.filter(Group.id.in_(group_ids))
             for spec in query:
+                # Ensure user has access to data being shared
+                _ = Spectrum.get_if_owned_by(spec.id, self.current_user)
                 for group in groups:
                     spec.groups.append(group)
         DBSession().commit()
