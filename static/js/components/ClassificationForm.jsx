@@ -11,6 +11,8 @@ import { showNotification } from "baselayer/components/Notifications";
 import * as Actions from '../ducks/source';
 
 
+// For each node in the hierarchy tree, add its full path from root
+// to the node_paths list
 const add_node_paths = (node_paths, hierarchy, prefix_path=[]) => {
   const this_node_path = [...prefix_path];
 
@@ -28,6 +30,8 @@ const add_node_paths = (node_paths, hierarchy, prefix_path=[]) => {
 };
 
 
+// For each class in the hierarchy, return its name
+// as well as the path from the root of hierarchy to that class
 const allowed_classes = (hierarchy) => {
   const class_paths = [];
   add_node_paths(class_paths, hierarchy);
@@ -167,6 +171,8 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
               /* eslint-disable-next-line react/jsx-props-no-spreading */
               renderInput={(params) => <TextField {...params} style={{ width: '100%' }} label="Classification" fullWidth />}
               renderOption={
+                // Note: these come from "options", which in turn come from state.allowed_classes
+                // See the allowed_classes function defined above
                 (option) => (
                   <span>
                     <b>{ option.class }</b>

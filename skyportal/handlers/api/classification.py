@@ -117,8 +117,16 @@ class ClassificationHandler(BaseHandler):
         if not isinstance(taxonomy, list):
             return self.error('Problem retrieving taxonomy')
 
-        if (data['classification'] not in
-            [c["class"] for c in taxonomy[0].allowed_classes]):
+
+        def allowed_classes(hierarchy):
+            if "class" in hierarchy:
+                yield hierarchy["class"]
+
+            if "subclasses" in hierarchy:
+                for item in hierarchy.get("subclasses", []):
+                    yield from allowed_classes(item)
+
+        if data['classification'] not in allowed_classes(taxonomy[0].hierarchy):
             return self.error(f"That classification ({data['classification']}) "
                               'is not in the allowed classes for the chosen '
                               f'taxonomy (id={taxonomy_id}')

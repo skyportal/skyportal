@@ -175,38 +175,6 @@ class TaxonomyHandler(BaseHandler):
 
         provenance = data.get('provenance', None)
 
-        # The following function and for loop
-        # generates the list of allowed classes for this hierarchy,
-        # capturing both the leaf nodes as well as the parent nodes as
-        # possible classes. In addition, it generates a label to be show
-        # during the selection process. Eg, the output is:
-        #  [{"class": "SN", "label": "<b>SN</br>⇦Cataclysmic"},
-        #   {"class": "Ia", "label": "<b>Ia</br>⇦SN⇦Cataclysmic"}]
-        # The Classification selection on the Source page then uses array
-        # to allow the user to find the classification more easily
-        # using <Autocomplete> from MUI.
-        result = []
-
-        def dict_path(path, my_dict):
-            if my_dict.get("class"):
-                cla = my_dict.get("class")
-                if cla == 'Time-domain Source':
-                    cla = ''
-                result.append(path + "-><b>" + cla + "</b>")
-                for i, item in enumerate(my_dict.get("subclasses", [])):
-                    if isinstance(item, dict):
-                        dict_path(path + "->" + cla, item)
-
-        dict_path("", hierarchy)
-        allowed_classes = []
-        for value in result:
-            classpath = value.split("->")[2:]
-            if len(classpath) > 0:
-                allowed_classes.append({
-                    "class": classpath[-1].split(">")[1].split("<")[0],
-                    "label": "⇐".join(list(reversed(classpath)))
-                })
-
         # update others with this name
         # TODO: deal with the same name but different groups?
         isLatest = data.get('isLatest', True)
@@ -219,7 +187,6 @@ class TaxonomyHandler(BaseHandler):
             name=name,
             hierarchy=hierarchy,
             provenance=provenance,
-            allowed_classes=allowed_classes,
             version=version,
             isLatest=isLatest,
             groups=groups
