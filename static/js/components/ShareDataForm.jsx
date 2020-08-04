@@ -72,10 +72,10 @@ const ShareDataForm = ({ route }) => {
   const [selectedPhotRows, setSelectedPhotRows] = useState([]);
   const [selectedSpecRows, setSelectedSpecRows] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const groups = useSelector((state) => state.groups);
+  const { user: userGroups, all: allGroups } = useSelector((state) => state.groups);
   const photometry = useSelector((state) => state.photometry);
   const spectra = useSelector((state) => state.spectra);
-  const allGroups = groups.all;
+  const groups = allGroups || userGroups;
 
   const { handleSubmit, errors, reset, control, getValues } = useForm();
 
@@ -108,7 +108,7 @@ const ShareDataForm = ({ route }) => {
     setIsSubmitting(false);
   };
 
-  if (!photometry[route.id] || !allGroups || !spectra[route.id]) {
+  if (!photometry[route.id] || !groups || !spectra[route.id]) {
     return <>Loading...</>;
   }
 
@@ -190,7 +190,7 @@ const ShareDataForm = ({ route }) => {
             as={(
               <Autocomplete
                 multiple
-                options={allGroups}
+                options={groups}
                 getOptionLabel={(group) => group.name}
                 filterSelectedOptions
                 renderInput={(params) => (
