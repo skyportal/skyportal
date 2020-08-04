@@ -114,8 +114,9 @@ class ProfileHandler(BaseHandler):
         """
         data = self.get_json()
 
-        user = (User.query.filter(User.username == self.current_user.username)
-                    .first())
+        user = User.query.filter(
+            User.username == self.current_user.username
+        ).first()
 
         if 'preferences' not in data:
             return self.error(
@@ -174,7 +175,6 @@ class ProfileHandler(BaseHandler):
             user_prefs = recursive_update(user_prefs, preferences)
         user.preferences = user_prefs
 
-        DBSession.add(user)
         DBSession.commit()
         if 'newsFeed' in preferences:
             self.push(action='skyportal/FETCH_NEWSFEED')
