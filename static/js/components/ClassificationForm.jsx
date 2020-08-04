@@ -11,6 +11,37 @@ import { showNotification } from "baselayer/components/Notifications";
 import * as Actions from '../ducks/source';
 
 
+const add_node_paths = (node_paths, hierarchy, prefix_path=[]) => {
+  const this_node_path = [...prefix_path];
+
+  if ((hierarchy.class !== undefined) && (hierarchy.class !== "Time-domain Source")) {
+    this_node_path.push(hierarchy.class);
+    node_paths.push(this_node_path);
+  }
+
+  // eslint-disable-next-line no-unused-expressions
+  hierarchy.subclasses?.map((item) => {
+    if (typeof item === 'object') {
+      add_node_paths(node_paths, item, this_node_path);
+    }
+  });
+};
+
+
+const allowed_classes = (hierarchy) => {
+  const class_paths = [];
+  add_node_paths(class_paths, hierarchy);
+
+  const classes = class_paths.map((path) => (
+    {
+      class: path.pop(),
+      context: path.reverse()
+    }
+  ));
+
+  return classes;
+};
+
 const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
 
@@ -20,7 +51,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
         return {
           ...state,
           [action.name]: action.value,
-          allowed_classes: latestTaxonomyList[action.value].allowed_classes,
+          allowed_classes: allowed_classes(latestTaxonomyList[action.value].hierarchy),
         };
       default:
         return {
@@ -135,13 +166,16 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
 
               /* eslint-disable-next-line react/jsx-props-no-spreading */
               renderInput={(params) => <TextField {...params} style={{ width: '100%' }} label="Classification" fullWidth />}
-              renderOption={(option) => {
-                const val = `${option.label}`;
-                return (
-                  /* eslint-disable-next-line react/no-danger */
-                  <div dangerouslySetInnerHTML={{ __html: val }} />
-                );
-              }}
+              renderOption={
+                (option) => (
+                  <span>
+                    <b>{ option.class }</b>
+                    &nbsp;
+                    { option.context.length > 0 && <br /> }
+                    { option.context.join(' « ') }
+                  </span>
+                )
+              }
             />
           </div>
           <div style={{ display: state.class_select_enabled && state.probability_select_enabled ? "block" : "none" }}>
