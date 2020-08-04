@@ -64,19 +64,17 @@ def test_insufficient_name_entry_in_profile(driver, user):
     driver.get(f'/become_user/{user.id}')
     driver.get('/profile')
     first_name_entry = driver.wait_for_xpath('//input[@name="firstName"]')
-    first_name = str(uuid.uuid4())
+    first_name = ""
     first_name_entry.send_keys(first_name)
     last_name_entry = driver.wait_for_xpath('//input[@name="lastName"]')
-    last_name = ""
+    last_name = str(uuid.uuid4())
     last_name_entry.send_keys(last_name)
 
     driver.scroll_to_element_and_click(
         driver.find_element_by_xpath('//*[@id="updateProfileButton"]'))
 
-    helper = driver.wait_for_xpath('//p[@id="lastName_id-helper-text"]')
+    helper = driver.wait_for_xpath('//p[@id="firstName_id-helper-text"]')
     assert helper.text == 'Required'
-
-
 
 
 
