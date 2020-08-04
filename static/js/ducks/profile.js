@@ -12,13 +12,23 @@ export const GENERATE_TOKEN_OK = 'skyportal/GENERATE_TOKEN_OK';
 export const UPDATE_USER_PREFERENCES = 'skyportal/UPDATE_USER_PREFERENCES';
 export const UPDATE_USER_PREFERENCES_OK = 'skyportal/UPDATE_USER_PREFERENCES_OK';
 
+export const UPDATE_BASIC_USER_INFO = 'skyportal/UPDATE_BASIC_USER_INFO';
+export const UPDATE_BASIC_USER_INFO_OK = 'skyportal/UPDATE_BASIC_USER_INFO_OK';
+
 export const DELETE_TOKEN = 'skyportal/DELETE_TOKEN';
 export const DELETE_TOKEN_OK = 'skyportal/DELETE_TOKEN_OK';
 
 export function updateUserPreferences(preferences) {
-  return API.PUT('/api/internal/profile',
+  return API.PATCH('/api/internal/profile',
     UPDATE_USER_PREFERENCES,
     { preferences });
+}
+
+export function updateBasicUserInfo(basicinfo) {
+  const { first_name, last_name, contact_email, contact_phone } = basicinfo;
+  return API.PATCH('/api/internal/profile',
+    UPDATE_BASIC_USER_INFO,
+    { first_name, last_name, contact_email, contact_phone });
 }
 
 export function fetchUserProfile() {

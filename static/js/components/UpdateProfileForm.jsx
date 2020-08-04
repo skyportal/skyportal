@@ -23,8 +23,7 @@ const UpdateProfileForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const dispatch = useDispatch();
-  const { handleSubmit, register, reset, errors } = useForm({
-  });
+  const { handleSubmit, register, reset, errors } = useForm();
 
   useEffect(() => {
     reset({
@@ -37,14 +36,13 @@ const UpdateProfileForm = () => {
 
   const onSubmit = async (value) => {
     setIsSubmitting(true);
-    const data = {
+    const basicinfo = {
       first_name: value.firstName,
       last_name: value.lastName,
       contact_email: value.email,
       contact_phone: value.phone,
     };
-
-    const result = await dispatch(ProfileActions.updateUserPreferences(data));
+    const result = await dispatch(ProfileActions.updateBasicUserInfo(basicinfo));
     if (result.status === "success") {
       dispatch(showNotification("Profile data saved"));
     }
@@ -81,11 +79,9 @@ const UpdateProfileForm = () => {
               <Grid item xs={6} sm={3}>
                 <InputLabel htmlFor="lastName_id">Last Name</InputLabel>
                 <TextField
-                  inputRef={register({ required: true })}
+                  inputRef={register({ required: false })}
                   name="lastName"
                   id="lastName_id"
-                  error={!!errors.lastName}
-                  helperText={errors.lastName ? "Required" : ""}
                 />
               </Grid>
             </Grid>
