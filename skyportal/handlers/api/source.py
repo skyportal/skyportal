@@ -36,7 +36,7 @@ class SourceHandler(BaseHandler):
               name: obj_id
               required: false
               schema:
-                type: integer
+                type: string
           responses:
             200:
               content:

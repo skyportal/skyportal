@@ -29,7 +29,7 @@ class CandidateHandler(BaseHandler):
               name: obj_id
               required: true
               schema:
-                type: integer
+                type: string
           responses:
             200:
               content:
