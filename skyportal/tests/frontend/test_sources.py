@@ -30,7 +30,7 @@ def test_comments(driver, user, public_source):
     driver.scroll_to_element_and_click(
         driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
     try:
-        driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+        driver.wait_for_xpath(f'//div[text()="{comment_text}"]', timeout=30)
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
     except TimeoutException:
         driver.refresh()
@@ -39,7 +39,7 @@ def test_comments(driver, user, public_source):
         comment_box.send_keys(comment_text)
         driver.scroll_to_element_and_click(
             driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
-        driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+        driver.wait_for_xpath(f'//div[text()="{comment_text}"]', timeout=30)
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
 
 
@@ -84,10 +84,10 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     driver.scroll_to_element_and_click(
         driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
     try:
-        comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+        comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]', timeout=30)
     except TimeoutException:
         driver.refresh()
-        comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
+        comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]', timeout=30)
     comment_div = comment_text_div.find_element_by_xpath("..")
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
