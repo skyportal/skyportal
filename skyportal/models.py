@@ -420,7 +420,9 @@ def get_spectra_owned_by(obj_id, user_or_token):
     return (
         Spectrum.query.filter(Spectrum.obj_id == obj_id)
         .filter(
-            Spectrum.groups.any(Group.id.in_([g.id for g in user_or_token.groups]))
+            Spectrum.groups.any(Group.id.in_(
+                [g.id for g in user_or_token.accessible_groups]
+            ))
         )
         .all()
     )
