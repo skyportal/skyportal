@@ -1,8 +1,8 @@
-import messageHandler from 'baselayer/MessageHandler';
+// import messageHandler from 'baselayer/MessageHandler';
 
 import * as API from '../API';
 import store from '../store';
-import { REFRESH_SOURCE } from "./source";
+// import { REFRESH_SOURCE } from "./source";
 
 export const FETCH_OBSERVING_RUN = 'skyportal/FETCH_OBSERVING_RUN';
 export const FETCH_OBSERVING_RUN_OK = 'skyportal/FETCH_OBSERVING_RUN_OK';
@@ -18,15 +18,16 @@ export const fetchAssignment = (id) => (
   API.GET(`/api/assignment/${id}`, FETCH_ASSIGNMENT)
 );
 
+
+/*
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { observingRun } = getState();
 
-  /* TODO: Normalize state shape to eliminate the action processor below.
+  TODO: Normalize state shape to eliminate the action processor below.
   The implementation below re-fetches the entire run when one of the run's
   sources is updated. With a normalized state tree, this (potentially large) GET
   could be avoided in favor of a single update to the Source entity on the frontend.
-   */
 
   if (actionType === REFRESH_SOURCE) {
     const { obj_id } = payload;
@@ -36,6 +37,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     }
   }
 });
+*/
 
 
 const reducer = (state={ assignments: [] }, action) => {
