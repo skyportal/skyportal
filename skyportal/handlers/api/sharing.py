@@ -56,6 +56,7 @@ class SharingHandler(BaseHandler):
         if not all([group in self.current_user.accessible_groups for group in groups]):
             return self.error("Insufficient permissions: you must have access to each "
                               "target group you wish to share data with.")
+        obj_id = None
         if phot_ids:
             query = Photometry.query.filter(Photometry.id.in_(phot_ids))
             for phot in query:
@@ -63,6 +64,9 @@ class SharingHandler(BaseHandler):
                 _ = Photometry.get_if_owned_by(phot.id, self.current_user)
                 for group in groups:
                     phot.groups.append(group)
+                # Grab obj_id for use in websocket message below
+                if obj_id is None:
+                    obj_id = phot.obj_id
         if spec_ids:
             query = Spectrum.query.filter(Spectrum.id.in_(spec_ids))
             for spec in query:
@@ -70,5 +74,14 @@ class SharingHandler(BaseHandler):
                 _ = Spectrum.get_if_owned_by(spec.id, self.current_user)
                 for group in groups:
                     spec.groups.append(group)
+                # Grab obj_id for use in websocket message below
+                if obj_id is None:
+                    obj_id = spec.obj_id
         DBSession().commit()
+        if phot_ids:
+            self.push(action="skyportal/FETCH_SOURCE_PHOTOMETRY",
+                      payload={"obj_id": obj_id})
+        if spec_ids:
+            self.push(action="skyportal/FETCH_SOURCE_SPECTRA",
+                      payload={"obj_id": obj_id})
         return self.success()
