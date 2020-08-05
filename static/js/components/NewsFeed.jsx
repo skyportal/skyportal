@@ -42,7 +42,7 @@ const NewsFeed = () => {
             items.map((item) => (
               <li key={`newsFeedItem_${item.time}`}>
                 <span className={styles.entryTime}>
-                  {dayjs().to(dayjs(item.time))}
+                  {dayjs().to(dayjs.utc(`${item.time}Z`))}
                 </span>
                 &nbsp;
                 {item.type}
