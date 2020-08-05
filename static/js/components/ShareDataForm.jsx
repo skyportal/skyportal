@@ -50,14 +50,14 @@ const photHeadCells = [
   { name: "limiting_mag", label: "Limiting Mag" },
   { name: "instrument", label: "Instrument" },
   { name: "filter", label: "Filter" },
-  { name: "groups", label: "Existing Groups" },
+  { name: "groups", label: "Currently visible to" },
 ];
 
 const specHeadCells = [
   { name: "id", label: "ID" },
   { name: "instrument", label: "Instrument" },
   { name: "observed", label: "Observed (UTC)" },
-  { name: "groups", label: "Existing Groups" },
+  { name: "groups", label: "Currently visible to" },
 ];
 
 const useStyles = makeStyles(() => ({
