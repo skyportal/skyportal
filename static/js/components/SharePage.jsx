@@ -32,19 +32,15 @@ const SharePage = () => {
   const url = window.location.href;
   return (
     <>
-      {
-        !open &&
-          (
-            <IconButton
-              color="inherit"
-              aria-label="share page"
-              onClick={handleOpen}
-              edge="start"
-            >
-              <MobileScreenShareIcon color="action" />
-            </IconButton>
-          )
-      }
+      <IconButton
+        color="inherit"
+        aria-label="share page"
+        onClick={handleOpen}
+        edge="start"
+        disableRipple="true"
+      >
+        <MobileScreenShareIcon color="action" />
+      </IconButton>
       <Dialog
         open={open}
         onClose={handleClose}
