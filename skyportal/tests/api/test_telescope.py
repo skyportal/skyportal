@@ -54,13 +54,14 @@ def test_fetch_telescope_by_name(upload_data_token, public_group):
     telescope_id = data['data']['id']
     status, data = api(
         'GET',
-        f'telescope/name/{name}',
+        f'telescope?name={name}',
         token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
+    assert len(data['data']) == 1
     for key in post_data:
         if key != 'group_ids':
-            assert data['data'][key] == post_data[key]
+            assert data['data'][0][key] == post_data[key]
 
 
 def test_token_user_update_telescope(upload_data_token, manage_sources_token,

@@ -70,13 +70,14 @@ def test_fetch_instrument_by_name(super_admin_token, public_group):
     instrument_id = data['data']['id']
     status, data = api(
         'GET',
-        f'instrument/name/{instrument_name}',
+        f'instrument?name={instrument_name}',
         token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['band'] == 'V'
-    assert data['data']['id'] == instrument_id
-    assert data['data']['name'] == instrument_name
+    assert len(data['data']) == 1
+    assert data['data'][0]['band'] == 'V'
+    assert data['data'][0]['id'] == instrument_id
+    assert data['data'][0]['name'] == instrument_name
 
 
 def test_token_user_update_instrument(super_admin_token, manage_sources_token,
