@@ -112,7 +112,6 @@ def test_add_delete_stream_group(super_admin_token, public_group, public_stream)
         },
         token=super_admin_token,
     )
-    print(status, data)
     assert status == 200
     assert data["data"]["stream_id"] == public_stream.id
 
@@ -121,7 +120,6 @@ def test_add_delete_stream_group(super_admin_token, public_group, public_stream)
         f"groups/{public_group.id}/streams/{public_stream.id}",
         token=super_admin_token,
     )
-    print(status, data)
     assert status == 200
 
 

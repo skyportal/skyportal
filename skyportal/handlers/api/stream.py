@@ -65,7 +65,15 @@ class StreamHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: FilterNoID
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  altdata:
+                    type: object
+                required:
+                  - name
         responses:
           200:
             content:
@@ -109,7 +117,13 @@ class StreamHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: FilterNoID
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  altdata:
+                    type: object
         responses:
           200:
             content:
