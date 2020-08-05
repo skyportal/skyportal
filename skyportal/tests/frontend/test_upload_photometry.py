@@ -4,13 +4,13 @@ from .test_followup_requests import add_telescope_and_instrument
 
 
 def test_upload_photometry(
-    driver, user, public_group, public_source, super_admin_token
+    driver, super_admin_user, public_group, public_source, super_admin_token
 ):
     data = add_telescope_and_instrument(
         "P60 Camera", [public_group.id], super_admin_token
     )
-    inst_id = data["data"]["id"]
-    driver.get(f"/become_user/{user.id}")
+    inst_id = data["id"]
+    driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/upload_photometry/{public_source.id}")
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
     csv_text_input.send_keys(
@@ -37,18 +37,18 @@ def test_upload_photometry(
 
 def test_upload_photometry_multiple_groups(
     driver,
-    user_two_groups,
+    super_admin_user_two_groups,
     public_group,
     public_group2,
     public_source_two_groups,
     super_admin_token,
 ):
-    user = user_two_groups
+    user = super_admin_user_two_groups
     public_source = public_source_two_groups
     data = add_telescope_and_instrument(
         "P60 Camera", [public_group.id], super_admin_token
     )
-    inst_id = data["data"]["id"]
+    inst_id = data["id"]
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/upload_photometry/{public_source.id}")
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
@@ -78,13 +78,13 @@ def test_upload_photometry_multiple_groups(
 
 
 def test_upload_photometry_with_altdata(
-    driver, user, public_group, public_source, super_admin_token
+    driver, super_admin_user, public_group, public_source, super_admin_token
 ):
     data = add_telescope_and_instrument(
         "P60 Camera", [public_group.id], super_admin_token
     )
-    inst_id = data["data"]["id"]
-    driver.get(f"/become_user/{user.id}")
+    inst_id = data["id"]
+    driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/upload_photometry/{public_source.id}")
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
     csv_text_input.send_keys(
@@ -110,13 +110,13 @@ def test_upload_photometry_with_altdata(
 
 
 def test_upload_photometry_form_validation(
-    driver, user, public_group, public_source, super_admin_token
+    driver, super_admin_user, public_group, public_source, super_admin_token
 ):
     data = add_telescope_and_instrument(
         "P60 Camera", [public_group.id], super_admin_token
     )
-    inst_id = data["data"]["id"]
-    driver.get(f"/become_user/{user.id}")
+    inst_id = data["id"]
+    driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/upload_photometry/{public_source.id}")
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
     csv_text_input.send_keys(
