@@ -25,8 +25,7 @@ def test_news_feed(driver, user, public_source, public_group, upload_data_token,
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
-    # TODO Fix timezone issues and uncomment the following line
-    # driver.wait_for_xpath(f'//span[text()="a few seconds ago"]')
+    driver.wait_for_xpath(f'//span[text()="a few seconds ago"]')
     for i in range(2):
         driver.wait_for_xpath(f'//span[text()="New source {obj_id_base}_{i}"]')
         driver.wait_for_xpath(f'//span[contains(text(),"comment_text_{i} ({obj_id_base}_{i})")]')
@@ -54,8 +53,7 @@ def test_news_feed_prefs_widget(driver, user, public_source, public_group, uploa
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
-    # TODO Fix timezone issues and uncomment the following line
-    # driver.wait_for_xpath('//span[text()="a few seconds ago"]')
+    driver.wait_for_xpath('//span[text()="a few seconds ago"]')
     for i in range(2):
         driver.wait_for_xpath(f'//span[text()="New source {obj_id_base}_{i}"]')
         driver.wait_for_xpath(f'//span[contains(text(),"comment_text_{i} ({obj_id_base}_{i})")]')

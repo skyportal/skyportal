@@ -6,7 +6,7 @@ from skyportal.tests import api
 from .test_followup_requests import add_telescope_and_instrument
 
 
-@pytest.mark.skip(reason="Temporary")
+@pytest.mark.flaky(reruns=2)
 def test_upload_photometry(
     driver, super_admin_user, public_group, public_source, super_admin_token
 ):
@@ -29,8 +29,10 @@ def test_upload_photometry(
     try:
         driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
     except ElementClickInterceptedException:
-        # TODO
-        raise
+        try:
+            driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
+        except ElementClickInterceptedException:
+            raise
     driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
     driver.execute_script(
         "arguments[0].click();",
@@ -45,7 +47,7 @@ def test_upload_photometry(
     )
 
 
-@pytest.mark.skip(reason="Temporary")
+@pytest.mark.flaky(reruns=2)
 def test_upload_photometry_multiple_groups(
     driver,
     super_admin_user_two_groups,
@@ -70,7 +72,13 @@ def test_upload_photometry_multiple_groups(
     )
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
     driver.wait_for_xpath(f'//span[text()="P60 Camera (ID: {inst_id})"]').click()
-    driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
+    try:
+        driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
+    except ElementClickInterceptedException:
+        try:
+            driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
+        except ElementClickInterceptedException:
+            raise
     driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
     driver.wait_for_xpath_to_be_clickable(
         f'//li[text()="{public_group2.name}"]'
@@ -88,7 +96,7 @@ def test_upload_photometry_multiple_groups(
     )
 
 
-@pytest.mark.skip(reason="Temporary")
+@pytest.mark.flaky(reruns=2)
 def test_upload_photometry_with_altdata(
     driver, super_admin_user, public_group, public_source, super_admin_token
 ):
@@ -106,7 +114,13 @@ def test_upload_photometry_with_altdata(
     )
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
     driver.wait_for_xpath(f'//span[text()="P60 Camera (ID: {inst_id})"]').click()
-    driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
+    try:
+        driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
+    except ElementClickInterceptedException:
+        try:
+            driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
+        except ElementClickInterceptedException:
+            raise
     driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
     driver.execute_script(
         "arguments[0].click();",
@@ -121,7 +135,7 @@ def test_upload_photometry_with_altdata(
     )
 
 
-@pytest.mark.skip(reason="Temporary")
+@pytest.mark.flaky(reruns=2)
 def test_upload_photometry_form_validation(
     driver, super_admin_user, public_group, public_source, super_admin_token
 ):
@@ -165,7 +179,13 @@ def test_upload_photometry_form_validation(
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
     driver.wait_for_xpath(f'//span[text()="P60 Camera (ID: {inst_id})"]').click()
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
-    driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
+    try:
+        driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
+    except ElementClickInterceptedException:
+        try:
+            driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
+        except ElementClickInterceptedException:
+            raise
     driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
     driver.execute_script(
         "arguments[0].click();",
