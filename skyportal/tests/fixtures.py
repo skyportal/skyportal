@@ -5,8 +5,8 @@ from tempfile import mkdtemp
 import numpy as np
 import factory
 from skyportal.models import (DBSession, User, Group, Photometry,
-                              Spectrum, Instrument, Telescope, Obj,
-                              Comment, Thumbnail, Filter)
+                              Spectrum, Stream, Instrument, Telescope,
+                              Obj, Comment, Thumbnail, Filter)
 
 TMP_DIR = mkdtemp()
 
@@ -75,17 +75,28 @@ class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
     observed_at = datetime.datetime.now()
 
 
+class StreamFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Stream
+    name = factory.LazyFunction(lambda: str(uuid.uuid4()))
+    users = []
+    groups = []
+    filters = []
+
+
 class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Group
     name = factory.LazyFunction(lambda: str(uuid.uuid4()))
     users = []
+    streams = []
+    filters = []
 
 
 class FilterFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Filter
-    query_string = str(uuid.uuid4())
+    name = str(uuid.uuid4())
 
 
 class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):

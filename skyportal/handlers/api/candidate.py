@@ -328,7 +328,7 @@ class CandidateHandler(BaseHandler):
         """
         data = self.get_json()
         schema = Obj.__schema__()
-        print(data, schema)
+
         passing_alert_id = data.pop("passing_alert_id", None)
         passed_at = data.pop("passed_at", None)
         if passed_at is not None:

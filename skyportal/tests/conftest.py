@@ -16,6 +16,7 @@ from baselayer.app.test_util import (
 from skyportal.tests.fixtures import (
     TMP_DIR,
     ObjFactory,
+    StreamFactory,
     GroupFactory,
     UserFactory,
     FilterFactory,
@@ -38,6 +39,11 @@ astroplan.download_IERS_A()
 
 
 @pytest.fixture()
+def public_stream():
+    return StreamFactory()
+
+
+@pytest.fixture()
 def public_group():
     return GroupFactory()
 
@@ -48,8 +54,8 @@ def public_group2():
 
 
 @pytest.fixture()
-def public_filter(public_group):
-    return FilterFactory(group=public_group)
+def public_filter(public_group, public_stream):
+    return FilterFactory(group=public_group, stream=public_stream)
 
 
 @pytest.fixture()
