@@ -8,7 +8,6 @@ import GroupIcon from "@material-ui/icons/Group";
 import dayjs from "dayjs";
 import utc from 'dayjs/plugin/utc';
 import relativeTime from "dayjs/plugin/relativeTime";
-import utc from 'dayjs/plugin/utc';
 
 import * as sourceActions from "../ducks/source";
 import styles from "./CommentList.css";
