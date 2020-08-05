@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
+import { Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import MUIDataTable from "mui-datatables";
 import { makeStyles } from "@material-ui/core/styles";
@@ -140,7 +141,10 @@ const ShareDataForm = ({ route }) => {
     <>
       <div>
         <Typography variant="h5">
-          Share Source Data
+          Share Source Data -&nbsp;
+          <Link to={`/source/${route.id}`} role="link">
+            {route.id}
+          </Link>
         </Typography>
       </div>
       <br />
