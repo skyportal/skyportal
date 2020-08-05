@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Spectrum, Comment, Instrument, Obj, Source
+from ...models import DBSession, Spectrum, Comment, Instrument, Obj, Source, Group
 
 
 class SpectrumHandler(BaseHandler):
@@ -15,7 +15,18 @@ class SpectrumHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: SpectrumNoID
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SpectrumNoID'
+                  - type: object
+                    properties:
+                      group_ids:
+                        type: array
+                        items:
+                          type: integer
+                        description: Group IDs that spectrum will be associated with
+                    required:
+                      - group_ids
         responses:
           200:
             content:
@@ -43,6 +54,12 @@ class SpectrumHandler(BaseHandler):
                 return self.error('Can only upload data for one instrument at a time')
             else:
                 instrument_id = instrument_id[0]
+        try:
+            group_ids = data.pop("group_ids")
+        except KeyError:
+            return self.error("Missing required field: group_ids")
+        groups = Group.query.filter(Group.id.in_(group_ids)).all()
+
         instrument = Instrument.query.get(instrument_id)
 
         schema = Spectrum.__schema__()
@@ -52,6 +69,7 @@ class SpectrumHandler(BaseHandler):
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
         spec.instrument = instrument
+        spec.groups = groups
         DBSession().add(spec)
         DBSession().commit()
 
@@ -153,3 +171,39 @@ class SpectrumHandler(BaseHandler):
         DBSession().commit()
 
         return self.success()
+
+
+class ObjSpectraHandler(BaseHandler):
+    @auth_or_token
+    def get(self, obj_id):
+        """
+        ---
+        description: Retrieve all spectra associated with an Object
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+            description: ID of the object to retrieve spectra for
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfSpectrums
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        obj = Obj.query.get(obj_id)
+        if obj is None:
+            return self.error('Invalid object ID.')
+        spectra = Obj.get_spectra_owned_by(obj_id, self.current_user)
+        return_values = []
+        for spec in spectra:
+            spec_dict = spec.to_dict()
+            spec_dict["instrument_name"] = spec.instrument.name
+            spec_dict["groups"] = spec.groups
+            return_values.append(spec_dict)
+        return self.success(data=return_values)

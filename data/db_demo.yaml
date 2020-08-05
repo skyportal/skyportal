@@ -226,19 +226,30 @@ spectrum:
     file: spec1.csv
     instrument_id: =ALFOSC
     observed_at: "2019-10-24T00:00:00"
+    group_ids:
+      - =program_A
+      - =program_B
   - obj_id: 14gqr
     file: spec1.csv
     instrument_id: =ALFOSC
     observed_at: "2019-10-24T00:00:00"
-
+    group_ids:
+      - =program_A
+      - =program_B
   - obj_id: 16fil_unsaved_copy
     file: spec2.csv
     instrument_id: =ALFOSC
     observed_at: "2019-10-24T00:00:00"
+    group_ids:
+      - =program_A
+      - =program_B
   - obj_id: 16fil
     file: spec2.csv
     instrument_id: =ALFOSC
     observed_at: "2019-10-24T00:00:00"
+    group_ids:
+      - =program_A
+      - =program_B
 
 taxonomy:
   file: taxonomy_demo.yaml

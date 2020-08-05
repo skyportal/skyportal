@@ -131,6 +131,11 @@ const Source = ({ route }) => {
               Upload additional photometry
             </Button>
           </Link>
+          <Link to={`/share_data/${source.id}`} role="link">
+            <Button variant="contained">
+              Share data
+            </Button>
+          </Link>
         </Responsive>
 
         <Responsive
@@ -140,6 +145,11 @@ const Source = ({ route }) => {
         >
 
           <Plot className={styles.plot} url={`/api/internal/plot/spectroscopy/${source.id}`} />
+          <Link to={`/share_data/${source.id}`} role="link">
+            <Button variant="contained">
+              Share data
+            </Button>
+          </Link>
         </Responsive>
 
         { /* TODO 1) check for dead links; 2) simplify link formatting if possible */ }

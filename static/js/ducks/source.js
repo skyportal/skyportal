@@ -40,6 +40,13 @@ export const DELETE_FOLLOWUP_REQUEST_OK = 'skyportal/DELETE_FOLLOWUP_REQUEST_OK'
 export const UPLOAD_PHOTOMETRY = "skyportal/UPLOAD_PHOTOMETRY";
 export const UPLOAD_PHOTOMETRY_OK = "skyportal/UPLOAD_PHOTOMETRY_OK";
 
+export const SHARE_DATA = 'skyportal/SHARE_DATA';
+export const SHARE_DATA_OK = 'skyportal/SHARE_DATA_OK';
+
+export const shareData = (data) => (
+  API.POST("/api/sharing", SHARE_DATA, data)
+);
+
 export const uploadPhotometry = (data) => (
   API.POST("/api/photometry", UPLOAD_PHOTOMETRY, data)
 );
