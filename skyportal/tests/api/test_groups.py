@@ -101,3 +101,61 @@ def test_public_group(view_only_token):
     assert status == 200
     assert response["status"] == "success"
     int(response["data"]["id"])
+
+
+def test_add_delete_stream_group(super_admin_token, public_group, public_stream):
+    status, data = api(
+        "POST",
+        f"groups/{public_group.id}/streams",
+        data={
+            "stream_id": public_stream.id,
+        },
+        token=super_admin_token,
+    )
+    print(status, data)
+    assert status == 200
+    assert data["data"]["stream_id"] == public_stream.id
+
+    status, data = api(
+        "DELETE",
+        f"groups/{public_group.id}/streams/{public_stream.id}",
+        token=super_admin_token,
+    )
+    print(status, data)
+    assert status == 200
+
+
+def test_non_su_add_stream_to_group(manage_groups_token, public_group, public_stream):
+    status, data = api(
+        "POST",
+        f"groups/{public_group.id}/streams",
+        data={
+            "stream_id": public_stream.id,
+        },
+        token=manage_groups_token,
+    )
+    assert status == 400
+
+
+def test_add_already_added_stream_to_group(super_admin_token, public_group, public_stream):
+    status, data = api(
+        "POST",
+        f"groups/{public_group.id}/streams",
+        data={
+            "stream_id": public_stream.id,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["data"]["stream_id"] == public_stream.id
+
+    status, data = api(
+        "POST",
+        f"groups/{public_group.id}/streams",
+        data={
+            "stream_id": public_stream.id,
+        },
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert data["message"] == "Specified stream is already associated with this group."

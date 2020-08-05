@@ -369,7 +369,7 @@ class GroupUserHandler(BaseHandler):
 
 class GroupStreamHandler(BaseHandler):
     @permissions(['System admin'])
-    def post(self, group_id):
+    def post(self, group_id, *ignored_args):
         """
         ---
         description: Add alert stream access to group
