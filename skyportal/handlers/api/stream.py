@@ -4,18 +4,17 @@ from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
 from ...models import (
     DBSession,
-    Filter,
-    Stream
+    Stream,
 )
 
 
-class FilterHandler(BaseHandler):
+class StreamHandler(BaseHandler):
     @auth_or_token
-    def get(self, filter_id=None):
+    def get(self, stream_id=None):
         """
         ---
         single:
-          description: Retrieve a filter
+          description: Retrieve a stream
           parameters:
             - in: path
               name: filter_id
@@ -32,7 +31,7 @@ class FilterHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
-          description: Retrieve all filters
+          description: Retrieve all streams
           responses:
             200:
               content:
@@ -43,33 +42,26 @@ class FilterHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        if filter_id is not None:
-            f = Filter.get_if_owned_by(filter_id, self.current_user)
-            if f is None:
-                return self.error("Invalid filter ID.")
-            # get stream:
-            stream = (
-                DBSession().query(Stream)
-                    .filter(Stream.id == f.stream_id)
-                    .first()
-            )
-            f.stream = stream
-
-            return self.success(data=f)
-        filters = (
-            DBSession().query(Filter)
-            .filter(Filter.group_id.in_(
-                [g.id for g in self.current_user.accessible_groups]
-            ))
+        if stream_id is not None:
+            # fixme: add ACLs! Users should be created with specific Stream access permissions
+            # s = Stream.get_if_owned_by(stream_id, self.current_user)
+            s = DBSession().query(Stream).filter(Stream.id == stream_id).first()
+            if s is None:
+                return self.error("Invalid stream ID.")
+            return self.success(data=s)
+        streams = (
+            DBSession().query(Stream)
+            # fixme: results in error "'Token' object has no attribute 'streams'"
+            # .filter(Stream.id.in_([s.id for s in self.current_user.streams]))
             .all()
         )
-        return self.success(data=filters)
+        return self.success(data=streams)
 
-    @permissions(["Manage groups"])
+    @permissions(["System admin"])
     def post(self):
         """
         ---
-        description: POST a new filter.
+        description: POST a new stream.
         requestBody:
           content:
             application/json:
@@ -88,29 +80,29 @@ class FilterHandler(BaseHandler):
                           properties:
                             id:
                               type: integer
-                              description: New filter ID
+                              description: New stream ID
         """
         data = self.get_json()
-        schema = Filter.__schema__()
+        schema = Stream.__schema__()
         try:
-            fil = schema.load(data)
+            stream = schema.load(data)
         except ValidationError as e:
             return self.error(
                 "Invalid/missing parameters: " f"{e.normalized_messages()}"
             )
-        DBSession().add(fil)
+        DBSession().add(stream)
         DBSession().commit()
 
-        return self.success(data={"id": fil.id})
+        return self.success(data={"id": stream.id})
 
-    @permissions(["Manage groups"])
-    def patch(self, filter_id):
+    @permissions(["System admin"])
+    def patch(self, stream_id):
         """
         ---
-        description: Update a filter
+        description: Update a stream
         parameters:
           - in: path
-            name: filter_id
+            name: stream_id
             required: True
             schema:
               type: integer
@@ -128,30 +120,25 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        f = Filter.get_if_owned_by(filter_id, self.current_user)
-        if f is None:
-            return self.error('Invalid filter ID')
-
         data = self.get_json()
-        data["id"] = filter_id
-
-        schema = Filter.__schema__()
+        data["id"] = stream_id
+        schema = Stream.__schema__()
         try:
-            schema.load(data, partial=True)
+            schema.load(data)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
         DBSession().commit()
         return self.success()
 
-    @permissions(["Manage groups"])
-    def delete(self, filter_id):
+    @permissions(["System admin"])
+    def delete(self, stream_id):
         """
         ---
-        description: Delete a filter
+        description: Delete a stream
         parameters:
           - in: path
-            name: filter_id
+            name: stream_id
             required: true
             schema:
               type: integer
@@ -161,7 +148,7 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        DBSession().delete(Filter.query.get(filter_id))
+        DBSession().delete(Stream.query.get(stream_id))
         DBSession().commit()
 
         return self.success()
