@@ -34,19 +34,13 @@ class SourceViewsHandler(BaseHandler):
              .filter(SourceView.created_at >= cutoff_day)
              .order_by(desc('views')).limit(max_num_sources))
 
-        thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8']
         sources = []
         for view, obj_id in q.all():
             s = Source.get_obj_if_owned_by(  # Returns Source.obj
                 obj_id, self.current_user,
                 options=[joinedload(Source.obj)
                          .joinedload(Obj.thumbnails)])
-
-            public_url = ""
-            for thumbtype in thumbnail_order:
-                for thumbnail in s.thumbnails:
-                    if (thumbnail.type == thumbtype) and (public_url==""):
-                        public_url = thumbnail.public_url
+            public_url = first_public_url(s.thumbnails)
             sources.append({'views': view, 'obj_id': obj_id,
                             'public_url': public_url})    
 
@@ -69,3 +63,11 @@ def register_source_view(obj_id, username_or_token_id, is_token):
                     is_token=is_token)
     DBSession.add(sv)
     DBSession.commit()
+
+def first_public_url(thumbnails):
+    urls = [t.public_url for t in sorted(thumbnails, key=lambda t: tIndex(t))]
+    return urls[0] if urls else ""
+
+def tIndex(t):
+    thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8'] 
+    return thumbnail_order.index(t) if t in thumbnail_order else len(thumbnail_order)
