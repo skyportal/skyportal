@@ -96,63 +96,6 @@ def test_latest_taxonomy(taxonomy_token, public_group):
     status, data = api('DELETE', f'taxonomy/{old_taxonomy_id}', token=taxonomy_token)
 
 
-def test_allowed_classes(taxonomy_token, public_group):
-
-    status, data = api('POST', 'taxonomy',
-                       data={
-                             'name': str(uuid.uuid4()),
-                             'hierarchy': taxonomy,
-                             'group_ids': [public_group.id],
-                             'provenance': f"tdtax_{__version__}",
-                             'version': __version__ + "0.1"
-                             },
-                       token=taxonomy_token)
-    assert status == 200
-    taxonomy_id = data['data']['taxonomy_id']
-    status, data = api('GET', f'taxonomy/{taxonomy_id}',
-                       token=taxonomy_token)
-    assert status == 200
-    assert "Ia" in [c["class"] for c in data['data']['allowed_classes']]
-    status, data = api('DELETE', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
-
-    simple = {'class': 'Cepheid',
-       'tags': ['giant/supergiant', 'instability strip', 'standard candle'],
-       'other names': ['Cep', 'CEP'],
-       'subclasses': [{'class': 'Anomolous',
-         'other names': ['Anomolous Cepheid', 'BLBOO']},
-        {'class': 'Mult-mode',
-         'other names': ['Double-mode Cepheid',
-          'Multi-mode Cepheid',
-          'CEP(B)']},
-        {'class': 'Classical',
-         'tags': [],
-         'other names': ['Population I Cepheid',
-          'Type I Cepheid',
-          'DCEP',
-          'Delta Cepheid',
-          'Classical Cepheid'],
-         'subclasses': [{'class': 'Symmetrical',
-           'other names': ['DCEPS', 'Delta Cep-type Symmetrical']}]}]}
-
-    status, data = api('POST', 'taxonomy',
-                       data={
-                             'name': str(uuid.uuid4()),
-                             'hierarchy': simple,
-                             'group_ids': [public_group.id],
-                             'provenance': f"tdtax_{__version__}",
-                             'version': __version__ + "0.1"
-                             },
-                       token=taxonomy_token)
-    assert status == 200
-    taxonomy_id = data['data']['taxonomy_id']
-    status, data = api('GET', f'taxonomy/{taxonomy_id}',
-                       token=taxonomy_token)
-    assert status == 200
-    assert "Ia" not in [c["class"] for c in data['data']['allowed_classes']]
-    assert "Cep" not in [c["class"] for c in data['data']['allowed_classes']]
-    status, data = api('DELETE', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
-
-
 def test_get_many_taxonomies(taxonomy_token, public_group):
 
     n_tax = 5
