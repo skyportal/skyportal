@@ -8,7 +8,7 @@ import Box from '@material-ui/core/Box';
 
 import UserAvatar from './UserAvatar';
 
-const UserInfo = () => {
+const UserProfileInfo = () => {
   const profile = useSelector((state) => state.profile);
 
   return (
@@ -55,4 +55,4 @@ const UserInfo = () => {
   );
 };
 
-export default UserInfo;
+export default UserProfileInfo;

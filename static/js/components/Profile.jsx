@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import NewTokenForm from './NewTokenForm';
 import TokenList from './TokenList';
 import UpdateProfileForm from './UpdateProfileForm';
-import UserInfo from './ShowUserInfo';
+import UserProfileInfo from './UserProfileInfo';
 
 const Profile = () => {
   const profile = useSelector((state) => state.profile);
@@ -12,7 +12,7 @@ const Profile = () => {
   return (
     <div>
       <div>
-        <UserInfo />
+        <UserProfileInfo />
       </div>
       &nbsp;
       <br />
