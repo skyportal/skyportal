@@ -5,7 +5,7 @@ import * as dbInfoActions from './ducks/dbInfo';
 import * as newsFeedActions from './ducks/newsFeed';
 import * as topSourcesActions from './ducks/topSources';
 import * as instrumentsActions from './ducks/instruments';
-
+import * as taxonomyActions from './ducks/taxonomies';
 
 export default function hydrate() {
   return (dispatch) => {
@@ -17,5 +17,6 @@ export default function hydrate() {
     dispatch(topSourcesActions.fetchTopSources());
     dispatch(instrumentsActions.fetchInstruments());
     dispatch(instrumentsActions.fetchInstrumentObsParams());
+    dispatch(taxonomyActions.fetchTaxonomies());
   };
 }

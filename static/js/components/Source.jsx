@@ -7,6 +7,11 @@ import Button from "@material-ui/core/Button";
 import * as Action from '../ducks/source';
 import Plot from './Plot';
 import CommentList from './CommentList';
+import ClassificationList from './ClassificationList';
+import ClassificationForm from './ClassificationForm';
+import ShowClassification from './ShowClassification';
+
+
 import ThumbnailList from './ThumbnailList';
 import SurveyLinkList from './SurveyLinkList';
 import StarList from './StarList';
@@ -18,6 +23,7 @@ import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 import FollowupRequestForm from './FollowupRequestForm';
 import FollowupRequestList from './FollowupRequestList';
+
 
 const Source = ({ route }) => {
   const dispatch = useDispatch();
@@ -39,6 +45,8 @@ const Source = ({ route }) => {
     }
   }, [dispatch, isCached, route.id]);
   const { instrumentList, instrumentObsParams } = useSelector((state) => state.instruments);
+  const { taxonomyList } = useSelector((state) => state.taxonomies);
+
   if (source.loadError) {
     return (
       <div>
@@ -73,6 +81,10 @@ const Source = ({ route }) => {
         </div>
 
         <br />
+        <ShowClassification
+          classifications={source.classifications}
+          taxonomyList={taxonomyList}
+        />
         <b>
           Position (J2000):
         </b>
@@ -162,6 +174,20 @@ const Source = ({ route }) => {
           className={styles.comments}
         >
           <CommentList />
+        </Responsive>
+
+        <Responsive
+          element={FoldBox}
+          title="Classifications"
+          mobileProps={{ folded: true }}
+          className={styles.classifications}
+        >
+          <ClassificationList />
+          <ClassificationForm
+            obj_id={source.id}
+            action="createNew"
+            taxonomyList={taxonomyList}
+          />
         </Responsive>
 
       </div>

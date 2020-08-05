@@ -189,6 +189,8 @@ class SourceHandler(BaseHandler):
             if s is None:
                 return self.error("Invalid source ID.")
             s.comments = s.get_comments_owned_by(self.current_user)
+            s.classifications = s.get_classifications_owned_by(self.current_user)
+
             return self.success(data=s)
         if page_number:
             try:
