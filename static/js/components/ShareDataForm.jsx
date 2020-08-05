@@ -109,16 +109,17 @@ const ShareDataForm = ({ route }) => {
     setIsSubmitting(false);
   };
 
-  if (!photometry[route.id] || !groups || !spectra[route.id]) {
+  if ((!photometry[route.id] && !spectra[route.id]) || !groups) {
     return <>Loading...</>;
   }
 
-  const photRows = photometry[route.id].map((phot) => (
+  const photRows = photometry[route.id] ? photometry[route.id].map((phot) => (
     createPhotRow(phot.id, phot.mjd, phot.mag, phot.magerr, phot.limiting_mag,
-      phot.instrument_name, phot.filter, phot.groups.map((group) => group.name).join(", "))));
+      phot.instrument_name, phot.filter, phot.groups.map((group) => group.name).join(", ")))) : [];
 
-  const specRows = spectra[route.id].map((spec) => (
-    createSpecRow(spec.id, spec.instrument_name, spec.observed_at, spec.groups.map((group) => group.name).join(", "))));
+  const specRows = spectra[route.id] ? spectra[route.id].map((spec) => (
+    createSpecRow(spec.id, spec.instrument_name, spec.observed_at,
+      spec.groups.map((group) => group.name).join(", ")))) : [];
 
   const options = {
     textLabels: {
@@ -149,38 +150,46 @@ const ShareDataForm = ({ route }) => {
       </div>
       <br />
       <div>
-        <MUIDataTable
-          columns={photHeadCells}
-          data={photRows}
-          title="Photometry"
-          options={{
-            ...options,
-            rowsSelected: selectedPhotRows,
-            onRowSelectionChange: (rowsSelectedData, allRows, rowsSelected) => {
-              setSelectedPhotRows(rowsSelected);
-            },
-            selectableRowsOnClick: true,
-          }}
-        />
+        {
+          !!photometry[route.id] && (
+          <MUIDataTable
+            columns={photHeadCells}
+            data={photRows}
+            title="Photometry"
+            options={{
+              ...options,
+              rowsSelected: selectedPhotRows,
+              onRowSelectionChange: (rowsSelectedData, allRows, rowsSelected) => {
+                setSelectedPhotRows(rowsSelected);
+              },
+              selectableRowsOnClick: true,
+            }}
+          />
+          )
+        }
         <br />
-        <MUIDataTable
-          columns={specHeadCells}
-          data={specRows}
-          title="Spectra"
-          options={{
-            ...options,
-            rowsSelected: selectedSpecRows,
-            onRowSelectionChange: (rowsSelectedData, allRows, rowsSelected) => {
-              setSelectedSpecRows(rowsSelected);
-            },
-            expandableRows: true,
-            // eslint-disable-next-line react/display-name,no-unused-vars
-            renderExpandableRow: (rowData, rowMeta) => (
-              <Plot className={styles.plot} url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`} />
-            ),
-            expandableRowsOnClick: true,
-          }}
-        />
+        {
+          !!spectra[route.id] && (
+          <MUIDataTable
+            columns={specHeadCells}
+            data={specRows}
+            title="Spectra"
+            options={{
+              ...options,
+              rowsSelected: selectedSpecRows,
+              onRowSelectionChange: (rowsSelectedData, allRows, rowsSelected) => {
+                setSelectedSpecRows(rowsSelected);
+              },
+              expandableRows: true,
+              // eslint-disable-next-line react/display-name,no-unused-vars
+              renderExpandableRow: (rowData, rowMeta) => (
+                <Plot className={styles.plot} url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`} />
+              ),
+              expandableRowsOnClick: true,
+            }}
+          />
+          )
+        }
       </div>
       <br />
       <div>
