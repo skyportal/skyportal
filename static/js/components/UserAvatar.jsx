@@ -6,7 +6,7 @@ import Avatar from '@material-ui/core/Avatar';
 
 const theme = createMuiTheme({});
 
-const ShowAvatar = ({ size, firstName, lastName, username, gravatarUrl }) => {
+const UserAvatar = ({ size, firstName, lastName, username, gravatarUrl }) => {
   // use the hash of the username (which is in the gravatarUrl) to
   // select a unique color for this user
   function bgcolor() {
@@ -42,7 +42,7 @@ const ShowAvatar = ({ size, firstName, lastName, username, gravatarUrl }) => {
   );
 };
 
-ShowAvatar.propTypes = {
+UserAvatar.propTypes = {
   size: PropTypes.number.isRequired,
   firstName: PropTypes.string,
   lastName: PropTypes.string,
@@ -50,9 +50,9 @@ ShowAvatar.propTypes = {
   gravatarUrl: PropTypes.string.isRequired
 };
 
-ShowAvatar.defaultProps = {
+UserAvatar.defaultProps = {
   firstName: null,
   lastName: null
 };
 
-export default ShowAvatar;
+export default UserAvatar;

@@ -75,8 +75,3 @@ def test_insufficient_name_entry_in_profile(driver, user):
 
     helper = driver.wait_for_xpath('//p[@id="firstName_id-helper-text"]')
     assert helper.text == 'Required'
-
-
-
-
-

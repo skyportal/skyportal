@@ -5,7 +5,7 @@ import Dropdown, { DropdownTrigger, DropdownContent } from 'react-simple-dropdow
 import styled from 'styled-components';
 
 import styles from "./ProfileDropdown.css";
-import ShowAvatar from './ShowAvatar';
+import UserAvatar from './UserAvatar';
 
 const Container = styled.div`
   padding: 1em;
@@ -39,7 +39,7 @@ const ProfileDropdown = () => {
             flexDirection: "row",
             alignItems: "center" }}
           >
-            <ShowAvatar
+            <UserAvatar
               size={32}
               firstName={profile.first_name}
               lastName={profile.last_name}

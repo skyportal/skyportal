@@ -6,7 +6,7 @@ import CardContent from '@material-ui/core/CardContent';
 import Typography from '@material-ui/core/Typography';
 import Box from '@material-ui/core/Box';
 
-import ShowAvatar from './ShowAvatar';
+import UserAvatar from './UserAvatar';
 
 const UserInfo = () => {
   const profile = useSelector((state) => state.profile);
@@ -19,7 +19,7 @@ const UserInfo = () => {
           flexDirection: "row",
           alignItems: "center" }}
         >
-          <ShowAvatar
+          <UserAvatar
             size={128}
             firstName={profile.first_name}
             lastName={profile.last_name}
