@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 
 import * as profileActions from '../ducks/profile';
 import WidgetPrefsDialog from './WidgetPrefsDialog';
+import ThumbnailList from './ThumbnailList';
 
 const defaultPrefs = {
   maxNumSources: "",
@@ -15,6 +16,8 @@ const TopSources = () => {
   const topSourcesPrefs = useSelector(
     (state) => state.profile.preferences.topSources
   ) || defaultPrefs;
+
+  console.log(sourceViews)
 
   return (
     <div style={{ border: "1px solid #DDD", padding: "10px" }}>
@@ -34,7 +37,7 @@ const TopSources = () => {
       </p>
       <ul>
         {
-          sourceViews.map(({ obj_id, views }) => (
+          sourceViews.map(({ obj_id, views, public_url }) => (
             <li key={`topSources_${obj_id}_${views}`}>
               <span>
                 <Link to={`/source/${obj_id}`}>
@@ -48,6 +51,13 @@ const TopSources = () => {
                   {views}
                   &nbsp;view(s)
                 </em>
+              </span>
+              <span>
+                &nbsp;
+                -&nbsp;
+                <img src={public_url} /> 
+                &nbsp;
+                -&nbsp;
               </span>
             </li>
           ))

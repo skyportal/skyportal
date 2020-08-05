@@ -1,5 +1,6 @@
 import datetime
 from sqlalchemy import func, desc
+from sqlalchemy.orm import joinedload
 import tornado.web
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
@@ -32,7 +33,24 @@ class SourceViewsHandler(BaseHandler):
                      [g.id for g in self.current_user.accessible_groups]))))
              .filter(SourceView.created_at >= cutoff_day)
              .order_by(desc('views')).limit(max_num_sources))
-        return self.success(data=q.all())
+
+        thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8']
+        sources = []
+        for view, obj_id in q.all():
+            s = Source.get_obj_if_owned_by(  # Returns Source.obj
+                obj_id, self.current_user,
+                options=[joinedload(Source.obj)
+                         .joinedload(Obj.thumbnails)])
+
+            public_url = ""
+            for thumbtype in thumbnail_order:
+                for thumbnail in s.thumbnails:
+                    if (thumbnail.type == thumbtype) and (public_url==""):
+                        public_url = thumbnail.public_url
+            sources.append({'views': view, 'obj_id': obj_id,
+                            'public_url': public_url})    
+
+        return self.success(data=sources)
 
     @tornado.web.authenticated
     def post(self, obj_id):
