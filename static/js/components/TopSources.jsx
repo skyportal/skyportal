@@ -50,7 +50,7 @@ const TopSources = () => {
                 </em>
               </span>
               <span>
-                <img src={public_url} /> 
+                <img src={public_url} alt="" />
               </span>
             </li>
           ))
