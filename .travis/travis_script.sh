@@ -8,6 +8,11 @@ sleep 5 && make load_demo_data
 kill %1
 section_end "load_demo_data"
 
+section "pre-commit checks"
+pip install pre-commit
+pre-commit run --from-ref origin/master --to-ref HEAD
+section_end "pre-commit checks"
+
 section "ESLint"
 npx eslint --version
 make lint
