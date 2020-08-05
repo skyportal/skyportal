@@ -32,10 +32,13 @@ const TopSources = () => {
       <p>
         Displaying most-viewed sources
       </p>
-      <ul>
+      <ul style={{ listStyleType: "none" }}>
         {
           sourceViews.map(({ obj_id, views, public_url }) => (
             <li key={`topSources_${obj_id}_${views}`}>
+              <span>
+                <img src={public_url} alt={obj_id} width="50%" height="50%" />
+              </span>
               <span>
                 <Link to={`/source/${obj_id}`}>
                   {obj_id}
@@ -48,9 +51,6 @@ const TopSources = () => {
                   {views}
                   &nbsp;view(s)
                 </em>
-              </span>
-              <span>
-                <img src={public_url} alt="" />
               </span>
             </li>
           ))
