@@ -178,7 +178,7 @@ thumbnail:
     data:
       file: ../skyportal/tests/data/14gqr_ref.png
   - obj_id: 14gqr_unsaved_copy
-    ttype: ref
+    ttype: sub
     data:
       file: ../skyportal/tests/data/14gqr_sub.png
 
@@ -191,7 +191,7 @@ thumbnail:
     data:
       file: ../skyportal/tests/data/14gqr_ref.png
   - obj_id: 14gqr
-    ttype: ref
+    ttype: sub
     data:
       file: ../skyportal/tests/data/14gqr_sub.png
 
@@ -204,7 +204,7 @@ thumbnail:
     data:
       file: ../skyportal/tests/data/16fil_ref.png
   - obj_id: 16fil_unsaved_copy
-    ttype: ref
+    ttype: sub
     data:
       file: ../skyportal/tests/data/16fil_sub.png
 
@@ -217,7 +217,7 @@ thumbnail:
     data:
       file: ../skyportal/tests/data/16fil_ref.png
   - obj_id: 16fil
-    ttype: ref
+    ttype: sub
     data:
       file: ../skyportal/tests/data/16fil_sub.png
 
