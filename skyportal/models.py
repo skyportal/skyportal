@@ -703,6 +703,10 @@ class Photometry(Base, ha.Point):
     def snr(self):
         return self.flux / self.fluxerr if self.flux and self.fluxerr else None
 
+    @snr.expression
+    def snr(self):
+        return self.flux / self.fluxerr
+
 
 GroupPhotometry = join_model("group_photometry", Group, Photometry)
 
