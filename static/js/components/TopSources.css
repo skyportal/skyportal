@@ -1,3 +1,4 @@
+
 .stamp {
     transition: transform 0.1s;
     width: 20%;
@@ -10,8 +11,8 @@
   transform: scale(2.0);
 }
 
-.div {
-  display: flex;
+.topSourcesContainer {
+  display: block;
   border-style: solid;
   border-width: 1px;
   border-color: #DDD;
@@ -22,8 +23,11 @@
 }
 
 .ul {
-   display: flex;
-   align-items: center;
-   list-style-type: none;
+  display: block;
+  align-items: center;
+  list-style-type: none;
 }
 
+.topSource {
+  margin: 10px;
+}

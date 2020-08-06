@@ -19,7 +19,7 @@ const TopSources = () => {
   ) || defaultPrefs;
 
   return (
-    <div className={styles.div}>
+      <div className={styles.topSourcesContainer}>
       <h2 style={{ display: "inline-block" }}>
         Top Sources
       </h2>
@@ -37,7 +37,7 @@ const TopSources = () => {
       <ul className={styles.ul}>
         {
           sourceViews.map(({ obj_id, views, public_url }) => (
-            <li key={`topSources_${obj_id}_${views}`}>
+            <li key={`topSources_${obj_id}_${views}`} className={styles.topSource}>
               <Link to={`/source/${obj_id}`}>
                 <img className={styles.stamp} src={public_url} alt={obj_id} />
               </Link>
