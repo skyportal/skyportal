@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link } from "react-router-dom";
+import { makeStyles } from '@material-ui/core/styles';
 import Button from "@material-ui/core/Button";
+import Chip from '@material-ui/core/Chip';
 
 import * as Action from '../ducks/source';
 import Plot from './Plot';
@@ -10,7 +12,6 @@ import CommentList from './CommentList';
 import ClassificationList from './ClassificationList';
 import ClassificationForm from './ClassificationForm';
 import ShowClassification from './ShowClassification';
-
 
 import ThumbnailList from './ThumbnailList';
 import SurveyLinkList from './SurveyLinkList';
@@ -25,7 +26,14 @@ import FollowupRequestForm from './FollowupRequestForm';
 import FollowupRequestList from './FollowupRequestList';
 
 
+const useStyles = makeStyles((theme) => ({
+  chip: {
+    margin: theme.spacing(0.5),
+  },
+}));
+
 const Source = ({ route }) => {
+  const classes = useStyles();
   const dispatch = useDispatch();
   const source = useSelector((state) => state.source);
   const cachedSourceId = source ? source.id : null;
@@ -116,6 +124,14 @@ const Source = ({ route }) => {
         </Button>
         <br />
         {showStarList && <StarList sourceId={source.id} />}
+        <b>
+          Groups:
+        </b>
+        &nbsp;
+        {
+          source.groups.map((group) => <Chip label={group.name} key={group.id} size="small" className={classes.chip} />)
+        }
+        <br />
         <ThumbnailList ra={source.ra} dec={source.dec} thumbnails={source.thumbnails} />
 
         <br />
