@@ -198,6 +198,8 @@ class SourceHandler(BaseHandler):
                         Source.obj_id == obj_id
                     )
                 )
+            ).filter(
+                Group.id.in_([g.id for g in self.current_user.accessible_groups])
             ).all()
 
             return self.success(data=source_info)
