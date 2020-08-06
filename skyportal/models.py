@@ -195,7 +195,8 @@ class Obj(Base, ha.Point):
 
     @hybrid_property
     def last_detected(self):
-        return max(phot.iso for phot in self.photometry if phot.snr > 5)
+        detections = [phot.iso for phot in self.photometry if phot.snr and phot.snr > 5]
+        return max(detections) if detections else None
 
     @last_detected.expression
     def last_detected(cls):
@@ -406,6 +407,7 @@ def get_obj_classifications_owned_by(self, user_or_token):
 
 
 Obj.get_classifications_owned_by = get_obj_classifications_owned_by
+
 
 def get_photometry_owned_by_user(obj_id, user_or_token):
     return (
@@ -698,6 +700,10 @@ class Photometry(Base, ha.Point):
         return sa.func.timezone('UTC', local)
 
     @hybrid_property
+    def snr(self):
+        return self.flux / self.fluxerr if self.flux and self.fluxerr else None
+
+    @snr.expression
     def snr(self):
         return self.flux / self.fluxerr
 
