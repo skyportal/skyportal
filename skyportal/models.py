@@ -195,7 +195,8 @@ class Obj(Base, ha.Point):
 
     @hybrid_property
     def last_detected(self):
-        return max(phot.iso for phot in self.photometry if phot.snr and phot.snr > 5)
+        detecteds = [phot.iso for phot in self.photometry if phot.snr and phot.snr > 5]
+        return max(detecteds) if detecteds else None
 
     @last_detected.expression
     def last_detected(cls):
