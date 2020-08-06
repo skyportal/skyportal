@@ -27,7 +27,10 @@ const UserProfileInfo = () => {
             gravatarUrl={profile.gravatar_url}
           />
             &nbsp;&nbsp;
-          <h2 id="userRealname">
+          <h2
+            id="userRealname"
+            style={{ visibility: !profile.first_name && !profile.last_name ? "hidden" : "visible" }}
+          >
             {profile.first_name}
             {' '}
             {profile.last_name}
