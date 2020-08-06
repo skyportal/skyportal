@@ -20,7 +20,7 @@ def test_public_source_page(driver, user, public_source):
     driver.wait_for_xpath('//label[contains(text(), "Fe III")]')
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3)
 def test_classifications(driver, user, taxonomy_token, public_group, public_source):
 
     simple = {'class': 'Cepheid',
