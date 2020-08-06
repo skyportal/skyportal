@@ -21,6 +21,7 @@ def test_token_acls_options_rendering2(driver, super_admin_user):
         driver.wait_for_xpath(f'//input[@name="acls[{i}]"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_and_see_realname_in_user_profile(driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
