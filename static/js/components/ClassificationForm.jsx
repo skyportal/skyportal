@@ -80,7 +80,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   };
   const [state, localDispatch] = useReducer(reducer, initialState);
 
-  if (latestTaxonomyList.length === 0) {
+  if (latestTaxonomyList.length === 0 || !initialState.allowed_classes) {
     return (
       <b>
         No taxonomies loaded...
