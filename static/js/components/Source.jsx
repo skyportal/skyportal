@@ -124,10 +124,6 @@ const Source = ({ route }) => {
         </Button>
         <br />
         {showStarList && <StarList sourceId={source.id} />}
-        <b>
-          Groups:
-        </b>
-        &nbsp;
         {
           source.groups.map((group) => <Chip label={group.name} key={group.id} size="small" className={classes.chip} />)
         }
