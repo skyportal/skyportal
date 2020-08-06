@@ -190,8 +190,10 @@ class SourceHandler(BaseHandler):
                 return self.error("Invalid source ID.")
             s.comments = s.get_comments_owned_by(self.current_user)
             s.classifications = s.get_classifications_owned_by(self.current_user)
+            source_info = s.to_dict()
+            source_info["last_detected"] = s.last_detected
 
-            return self.success(data=s)
+            return self.success(data=source_info)
         if page_number:
             try:
                 page = int(page_number)
@@ -234,8 +236,12 @@ class SourceHandler(BaseHandler):
                 if "Page number out of range" in str(e):
                     return self.error("Page number out of range.")
                 raise
+            source_list = []
             for source in query_results["sources"]:
                 source.comments = source.get_comments_owned_by(self.current_user)
+                source_list.append(source.to_dict())
+                source_list[-1]["last_detected"] = source.last_detected
+            query_results["sources"] = source_list
             return self.success(data=query_results)
 
         sources = Obj.query.filter(Obj.id.in_(
@@ -243,9 +249,12 @@ class SourceHandler(BaseHandler):
                 [g.id for g in self.current_user.groups]
             ))
         )).all()
+        source_list = []
         for source in sources:
             source.comments = source.get_comments_owned_by(self.current_user)
-        return self.success(data={"sources": sources})
+            source_list.append(source.to_dict())
+            source_list[-1]["last_detected"] = source.last_detected
+        return self.success(data={"sources": source_list})
 
     @permissions(['Upload data'])
     def post(self):
