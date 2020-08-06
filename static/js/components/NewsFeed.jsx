@@ -2,6 +2,7 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
 import WidgetPrefsDialog from './WidgetPrefsDialog';
@@ -9,6 +10,7 @@ import * as profileActions from '../ducks/profile';
 import styles from './NewsFeed.css';
 
 dayjs.extend(relativeTime);
+dayjs.extend(utc);
 
 const defaultPrefs = {
   numItems: ""
