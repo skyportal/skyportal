@@ -174,10 +174,7 @@ class ProfileHandler(BaseHandler):
             else:
                 user.contact_email = None
 
-        if "preferences" not in data:
-            preferences = {}
-        else:
-            preferences = data["preferences"]
+        preferences = data.get("preferences", {})
 
         # Do not save blank fields (empty strings)
         for k, v in preferences.items():
