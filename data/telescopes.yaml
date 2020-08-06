@@ -16,6 +16,7 @@
   skycam_link: null
   group_ids: [=public_group_id]
   =id: PTEL
+  robotic: true
 - diameter: 8.0
   elevation: 2722.0
   lat: -30.24075
@@ -74,9 +75,10 @@
   elevation: 875.0
   lat: 34.763333
   lon: 30.595833
-  nickname: Wise 18\"
-  name: C18
+  name: Wise 18\"
+  nickname: C18
   skycam_link: null
+  robotic: true
   group_ids: [=public_group_id]
   =id: C18
 - diameter: 2.5
@@ -97,6 +99,7 @@
   skycam_link: null
   group_ids: [=public_group_id]
   =id: LT
+  robotic: true
 - diameter: 10.4
   elevation: 2275.0
   lat: 28.756611
@@ -186,6 +189,7 @@
   name: LCOGT1m
   skycam_link: null
   group_ids: [=public_group_id]
+  robotic: true
   =id: LCOGT1m
 - diameter: 2.5
   elevation: 2282.0
@@ -286,6 +290,7 @@
   skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
   group_ids: [=public_group_id]
   =id: P48
+  robotic: true
 - diameter: 10.0
   elevation: 4160.0
   lat: 19.8283
@@ -331,6 +336,7 @@
   skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
   group_ids: [=public_group_id]
   =id: P60
+  robotic: true
 - diameter: 5.0999999
   elevation: 1870.0
   lat: 33.3633675
@@ -403,6 +409,7 @@
   skycam_link: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
   group_ids: [=public_group_id]
   =id: NOT
+  robotic: true
 - diameter: 4.0
   elevation: 2207.0
   lat: -30.169661
@@ -484,6 +491,7 @@
   skycam_link: null
   group_ids: [=public_group_id]
   =id: MASTER-SAAO
+  robotic: true
 - diameter: 0.41
   elevation: 2286.0
   lat: -30.168
@@ -497,7 +505,7 @@
   elevation: 1165.0
   lat: -31.273333
   lon: 149.064444
-  nickname: Snameing Spring Observatory
+  nickname: Siding Spring Observatory
   name: SSO
   skycam_link: null
   group_ids: [=public_group_id]

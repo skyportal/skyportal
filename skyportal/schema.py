@@ -12,7 +12,7 @@ from marshmallow_sqlalchemy import (
 )
 
 from marshmallow import (Schema as _Schema, fields, validate, post_load,
-                         ValidationError)
+                         pre_dump, ValidationError)
 from marshmallow_enum import EnumField
 
 import sqlalchemy as sa
@@ -23,10 +23,10 @@ from baselayer.app.models import (
     DBSession as _DBSession
 )
 
-from skyportal.phot_enum import (
+from skyportal.enum_types import (
     py_allowed_bandpasses,
     py_allowed_magsystems,
-    py_thumbnail_types,
+    py_followup_priorities,
     ALLOWED_BANDPASSES,
     ALLOWED_MAGSYSTEMS,
     force_render_enum_markdown
@@ -171,10 +171,10 @@ class PhotBaseFlexible(object):
                           required=True)
 
     instrument_id = fields.Field(description='ID of the `Instrument`(s) with which the '
-                                 'photometry was acquired. '
-                                 'Can be given as a scalar or a 1D list. '
-                                 'If a scalar, will be broadcast to all values '
-                                 'given as lists. Null values are not allowed.',
+                                      'photometry was acquired. '
+                                      'Can be given as a scalar or a 1D list. '
+                                      'If a scalar, will be broadcast to all values '
+                                      'given as lists. Null values are not allowed.',
                                  required=True)
 
     ra = fields.Field(description='ICRS Right Ascension of the centroid '
@@ -330,6 +330,7 @@ class PhotBase(object):
     obj_id = fields.String(description='ID of the Object to which the '
                                        'photometry will be attached.',
                            required=True)
+
     instrument_id = fields.Integer(description='ID of the instrument with which'
                                                ' the observation was carried '
                                                'out.', required=True)
@@ -381,8 +382,10 @@ class PhotometryFlux(_Schema, PhotBase):
                                      'the flux error is used to derive a '
                                      'limiting magnitude.', required=False,
                          missing=None, default=None)
+
     fluxerr = fields.Number(description='Gaussian error on the flux in counts.',
                             required=True)
+
     zp = fields.Number(description='Magnitude zeropoint, given by `ZP` in the '
                                    'equation m = -2.5 log10(flux) + `ZP`. '
                                    'm is the magnitude of the object in the '
@@ -566,6 +569,60 @@ class PhotometryMag(_Schema, PhotBase):
         return p
 
 
+class AssignmentSchema(_Schema):
+    # For generating API docs and extremely basic validation
+
+    run_id = fields.Integer(required=True)
+    obj_id = fields.String(required=True, description='The ID of the object to observe.')
+    priority = ApispecEnumField(py_followup_priorities,
+                                required=True, description='Priority of the request, '
+                                                           '(lowest = 1, highest = 5).')
+    comment = fields.String(description='An optional comment describing the request.')
+
+
+class ObservingRunPost(_Schema):
+    instrument_id = fields.Integer(
+        required=True, description='The ID of the instrument to be '
+                                   'used in this run.'
+    )
+
+    # name of the PI
+    pi = fields.String(description='The PI of the observing run.')
+    observers = fields.String(description='The names of the observers')
+    group_id = fields.Integer(description='The ID of the group this run is associated with.')
+    calendar_date = fields.Date(
+        description='The local calendar date of the run.', required=True
+    )
+
+    modified = fields.DateTime(description="The UT datetime at which the "
+                                           "observingrun was last modified.")
+
+
+class ObservingRunGet(ObservingRunPost):
+    owner_id = fields.Integer(description='The User ID of the owner of this run.')
+    ephemeris = fields.Field(description='Observing run ephemeris data.')
+    id = fields.Integer(description='Unique identifier for the run.')
+
+    @pre_dump
+    def serialize(self, data, **kwargs):
+        data.ephemeris = {}
+        data.ephemeris['sunrise_utc'] = data.sunrise.isot
+        data.ephemeris['sunset_utc'] = data.sunset.isot
+        data.ephemeris['twilight_evening_nautical_utc'] = data.twilight_evening_nautical.isot
+        data.ephemeris['twilight_morning_nautical_utc'] = data.twilight_morning_nautical.isot
+        data.ephemeris['twilight_evening_astronomical_utc'] = (
+            data.twilight_evening_astronomical.isot
+        )
+        data.ephemeris['twilight_morning_astronomical_utc'] = (
+            data.twilight_morning_astronomical.isot
+        )
+        return data
+
+
+class ObservingRunGetWithAssignments(ObservingRunGet):
+    assignments = fields.List(fields.Field())
+
+
 def register_components(spec):
     print('Registering schemas with APISpec')
 
@@ -594,3 +651,8 @@ PhotometryFlux = PhotometryFlux()
 PhotometryMag = PhotometryMag()
 PhotMagFlexible = PhotMagFlexible()
 PhotFluxFlexible = PhotFluxFlexible()
+ObservingRunPost = ObservingRunPost()
+ObservingRunGet = ObservingRunGet()
+AssignmentSchema = AssignmentSchema()
+ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
+

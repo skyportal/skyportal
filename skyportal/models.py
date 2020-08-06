@@ -1,7 +1,7 @@
 import arrow
 import uuid
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from astropy import units as u
 import astroplan
 import numpy as np
@@ -22,8 +22,14 @@ from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
 from baselayer.app.custom_exceptions import AccessError
 
+import astroplan
+import timezonefinder
+from astropy import units as u
+from astropy import time as ap_time
+
 from . import schema
-from .phot_enum import allowed_bandpasses, thumbnail_types
+from .enum_types import (allowed_bandpasses, thumbnail_types, instrument_types,
+                         followup_priorities)
 
 
 # In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
@@ -79,6 +85,7 @@ class Group(Base):
                                passive_deletes=True)
 
     filter = relationship("Filter", uselist=False, back_populates="group")
+    observing_runs = relationship('ObservingRun', back_populates='group')
     photometry = relationship("Photometry", secondary="group_photometry",
                               back_populates="groups",
                               cascade="save-update, merge, refresh-expire, expunge",
@@ -192,6 +199,8 @@ class Obj(Base, ha.Point):
                               passive_deletes=True)
 
     followup_requests = relationship('FollowupRequest', back_populates='obj')
+    assignments = relationship('ClassicalAssignment', back_populates='obj')
+
 
     @hybrid_property
     def last_detected(self):
@@ -228,6 +237,12 @@ class Obj(Base, ha.Point):
         """Construct URL for public DESI DR8 cutout."""
         return (f"http://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
                 f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz")
+
+    @property
+    def target(self):
+        """Representation of this Obj as an astroplan.FixedTarget."""
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
+        return astroplan.FixedTarget(name=self.id, coord=coord)
 
     def airmass(self, telescope, time, below_horizon=np.inf):
         """Return the airmass of the object at a given time. Uses the Pickering
@@ -289,14 +304,7 @@ class Obj(Base, ha.Point):
            The altitude of the Obj at the requested times
         """
 
-        coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
-        target = astroplan.FixedTarget(name=self.id, coord=coord)
-        observer = astroplan.Observer(latitude=telescope.lat * u.deg,
-                                      longitude=telescope.lon * u.deg,
-                                      elevation=telescope.elevation * u.m)
-
-        alt = observer.altaz(time, target).alt
-        return alt
+        return telescope.observer.altaz(time, self.target).alt
 
 
 class Filter(Base):
@@ -463,12 +471,24 @@ class Telescope(Base):
     diameter = sa.Column(sa.Float, nullable=False, doc='Diameter in meters.')
     skycam_link = sa.Column(URLType, nullable=True,
                             doc="Link to the telescope's sky camera.")
+    robotic = sa.Column(sa.Boolean, default=False, nullable=False,
+                        doc="Is this telescope robotic?")
 
     groups = relationship('Group', secondary='group_telescopes',
                           passive_deletes=True)
     instruments = relationship('Instrument', back_populates='telescope',
                                cascade='save-update, merge, refresh-expire, expunge',
                                passive_deletes=True)
+
+    @property
+    def observer(self):
+        tf = timezonefinder.TimezoneFinder()
+        local_tz = tf.timezone_at(lng=self.lon, lat=self.lat)
+        return astroplan.Observer(longitude=self.lon * u.deg,
+                                  latitude=self.lat * u.deg,
+                                  elevation=self.elevation * u.m,
+                                  timezone=local_tz)
+
 
 
 GroupTelescope = join_model('group_telescopes', Group, Telescope)
@@ -494,10 +514,10 @@ class ArrayOfEnum(ARRAY):
 
 class Instrument(Base):
     name = sa.Column(sa.String, unique=True, nullable=False)
-    type = sa.Column(sa.String)
+    type = sa.Column(instrument_types, nullable=False)
+
     band = sa.Column(sa.String)
-    telescope_id = sa.Column(sa.ForeignKey('telescopes.id',
-                                           ondelete='CASCADE'),
+    telescope_id = sa.Column(sa.ForeignKey('telescopes.id', ondelete='CASCADE'),
                              nullable=False, index=True)
     telescope = relationship('Telescope', back_populates='instruments')
 
@@ -509,7 +529,18 @@ class Instrument(Base):
 
     # can be [] if an instrument is spec only
     filters = sa.Column(ArrayOfEnum(allowed_bandpasses), nullable=False,
-                        default=[])
+                        default=[], doc='List of filters on the instrument '
+                                        '(if any).')
+
+    observing_runs = relationship('ObservingRun', back_populates='instrument')
+
+    @property
+    def does_spectroscopy(self):
+        return 'spec' in self.type
+
+    @property
+    def does_imaging(self):
+        return 'imag' in self.type
 
 
 class Taxonomy(Base):
@@ -760,19 +791,6 @@ GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 #        return '/' + file_uri.lstrip('./')
 
 
-class Thumbnail(Base):
-    # TODO delete file after deleting row
-    type = sa.Column(thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ...)')
-    file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
-    public_url = sa.Column(sa.String(), nullable=True, index=False, unique=False)
-    origin = sa.Column(sa.String, nullable=True)
-    photometry_id = sa.Column(sa.ForeignKey('photometry.id', ondelete='CASCADE'),
-                              nullable=False, index=True)
-    photometry = relationship('Photometry', back_populates='thumbnails')
-    obj = relationship('Obj', back_populates='thumbnails', uselist=False,
-                       secondary='photometry',
-                       passive_deletes=True)
-
 
 class FollowupRequest(Base):
     requester = relationship(User, back_populates='followup_requests')
@@ -795,5 +813,151 @@ class FollowupRequest(Base):
 
 
 User.followup_requests = relationship('FollowupRequest', back_populates='requester')
+
+
+class Thumbnail(Base):
+    # TODO delete file after deleting row
+    type = sa.Column(thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ...)')
+    file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
+    public_url = sa.Column(sa.String(), nullable=True, index=False, unique=False)
+    origin = sa.Column(sa.String, nullable=True)
+    photometry_id = sa.Column(sa.ForeignKey('photometry.id', ondelete='CASCADE'),
+                              nullable=False, index=True)
+    photometry = relationship('Photometry', back_populates='thumbnails')
+    obj = relationship('Obj', back_populates='thumbnails', uselist=False,
+                       secondary='photometry',
+                       passive_deletes=True)
+
+
+class ObservingRun(Base):
+
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id', ondelete='CASCADE'), nullable=False
+    )
+    instrument = relationship(
+        'Instrument', cascade='save-update, merge, refresh-expire, expunge',
+        uselist=False, back_populates='observing_runs'
+    )
+
+    # name of the PI
+    pi = sa.Column(sa.String)
+    observers = sa.Column(sa.String)
+
+    sources = relationship(
+        'Obj', secondary='join(ClassicalAssignment, Obj)',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True
+    )
+
+    # let this be nullable to accommodate external groups' runs
+    group = relationship('Group', back_populates='observing_runs')
+    group_id = sa.Column(sa.ForeignKey('groups.id', ondelete='CASCADE'),
+                         nullable=True)
+
+    # the person who uploaded the run
+    owner = relationship('User', back_populates='observing_runs')
+    owner_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
+                         nullable=False, index=True)
+
+    assignments = relationship('ClassicalAssignment', passive_deletes=True)
+    calendar_date = sa.Column(sa.Date, nullable=False, index=True)
+
+    @property
+    def _calendar_noon(self):
+        observer = self.instrument.telescope.observer
+        year = self.calendar_date.year
+        month = self.calendar_date.month
+        day = self.calendar_date.day
+        hour = 12
+        noon = datetime(year=year, month=month, day=day, hour=hour,
+                        tzinfo=observer.timezone)
+        noon = noon.astimezone(timezone.utc).timestamp()
+        noon = ap_time.Time(noon, format='unix')
+        return noon
+
+    @property
+    def sunset(self):
+        return self.instrument.telescope.observer.sun_set_time(
+            self._calendar_noon, which='next'
+        )
+
+    @property
+    def sunrise(self):
+        return self.instrument.telescope.observer.sun_rise_time(
+            self._calendar_noon, which='next'
+        )
+
+    @property
+    def twilight_evening_nautical(self):
+        return self.instrument.telescope.observer.twilight_evening_nautical(
+            self._calendar_noon, which='next'
+        )
+
+    @property
+    def twilight_morning_nautical(self):
+        return self.instrument.telescope.observer.twilight_morning_nautical(
+            self._calendar_noon, which='next'
+        )
+
+    @property
+    def twilight_evening_astronomical(self):
+        return self.instrument.telescope.observer.twilight_evening_astronomical(
+            self._calendar_noon, which='next'
+        )
+
+    @property
+    def twilight_morning_astronomical(self):
+        return self.instrument.telescope.observer.twilight_morning_astronomical(
+            self._calendar_noon, which='next'
+        )
+
+
+User.observing_runs = relationship(
+    'ObservingRun', cascade='save-update, merge, refresh-expire, expunge'
+)
+
+
+class ClassicalAssignment(Base):
+
+    requester = relationship('User', back_populates='assignments')
+    requester_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
+                             nullable=False, index=True)
+
+    obj = relationship('Obj', back_populates='assignments')
+    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
+                       nullable=False, index=True)
+
+    comment = sa.Column(sa.String())
+    status = sa.Column(sa.String(), nullable=False, default="pending")
+    priority = sa.Column(followup_priorities, nullable=False)
+
+    run = relationship('ObservingRun', back_populates='assignments')
+    run_id = sa.Column(sa.ForeignKey('observingruns.id', ondelete='CASCADE'),
+                       nullable=False, index=True)
+
+    @hybrid_property
+    def instrument(self):
+        return self.run.instrument
+
+    @property
+    def rise_time(self):
+        """The time at which the object rises on this run."""
+        observer = self.instrument.telescope.observer
+        target = self.obj.target
+        return observer.target_rise_time(self.run.sunset, target,
+                                         which='next',
+                                         horizon=30 * u.degree)
+
+    @property
+    def set_time(self):
+        """The time at which the object sets on this run."""
+        observer = self.instrument.telescope.observer
+        target = self.obj.target
+        return observer.target_set_time(self.rise_time, target,
+                                        which='next',
+                                        horizon=30 * u.degree)
+
+
+User.assignments = relationship('ClassicalAssignment', back_populates='requester')
 
 schema.setup_schema()
