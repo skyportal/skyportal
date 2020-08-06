@@ -173,7 +173,7 @@ class SourceHandler(BaseHandler):
                 register_source_view(obj_id=obj_id,
                                      username_or_token_id=self.current_user.id,
                                      is_token=True)
-            s = Source.get_obj_if_owned_by(  # Returns Source.obj
+            s = Source.get_obj_if_owned_by(
                 obj_id, self.current_user,
                 options=[joinedload(Source.obj)
                          .joinedload(Obj.followup_requests)
@@ -192,6 +192,13 @@ class SourceHandler(BaseHandler):
             s.classifications = s.get_classifications_owned_by(self.current_user)
             source_info = s.to_dict()
             source_info["last_detected"] = s.last_detected
+            source_info["groups"] = Group.query.filter(
+                Group.id.in_(
+                    DBSession().query(Source.group_id).filter(
+                        Source.obj_id == obj_id
+                    )
+                )
+            ).all()
 
             return self.success(data=source_info)
         if page_number:
