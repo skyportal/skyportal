@@ -85,6 +85,10 @@ class Group(Base):
                               back_populates="groups",
                               cascade="save-update, merge, refresh-expire, expunge",
                               passive_deletes=True)
+    spectra = relationship("Spectrum", secondary="group_spectra",
+                           back_populates="groups",
+                           cascade="save-update, merge, refresh-expire, expunge",
+                           passive_deletes=True)
     single_user_group = sa.Column(sa.Boolean, default=False)
 
 
@@ -207,7 +211,8 @@ class Obj(Base, ha.Point):
 
     @hybrid_property
     def last_detected(self):
-        return max(phot.iso for phot in self.photometry if phot.snr > 5)
+        detections = [phot.iso for phot in self.photometry if phot.snr and phot.snr > 5]
+        return max(detections) if detections else None
 
     @last_detected.expression
     def last_detected(cls):
@@ -415,6 +420,13 @@ def get_obj_comments_owned_by(self, user_or_token):
 Obj.get_comments_owned_by = get_obj_comments_owned_by
 
 
+def get_obj_classifications_owned_by(self, user_or_token):
+    return [classifications for classifications in self.classifications if classifications.is_owned_by(user_or_token)]
+
+
+Obj.get_classifications_owned_by = get_obj_classifications_owned_by
+
+
 def get_photometry_owned_by_user(obj_id, user_or_token):
     return (
         Photometry.query.filter(Photometry.obj_id == obj_id)
@@ -428,6 +440,21 @@ def get_photometry_owned_by_user(obj_id, user_or_token):
 
 
 Obj.get_photometry_owned_by_user = get_photometry_owned_by_user
+
+
+def get_spectra_owned_by(obj_id, user_or_token):
+    return (
+        Spectrum.query.filter(Spectrum.obj_id == obj_id)
+        .filter(
+            Spectrum.groups.any(Group.id.in_(
+                [g.id for g in user_or_token.accessible_groups]
+            ))
+        )
+        .all()
+    )
+
+
+Obj.get_spectra_owned_by = get_spectra_owned_by
 
 
 User.sources = relationship('Obj', backref='users',
@@ -446,7 +473,7 @@ class SourceView(Base):
 
 
 class Telescope(Base):
-    name = sa.Column(sa.String, nullable=False)
+    name = sa.Column(sa.String, unique=True, nullable=False)
     nickname = sa.Column(sa.String, nullable=False)
     lat = sa.Column(sa.Float, nullable=True, doc='Latitude in deg.')
     lon = sa.Column(sa.Float, nullable=True, doc='Longitude in deg.')
@@ -484,7 +511,7 @@ class ArrayOfEnum(ARRAY):
 
 
 class Instrument(Base):
-    name = sa.Column(sa.String, nullable=False)
+    name = sa.Column(sa.String, unique=True, nullable=False)
     type = sa.Column(sa.String)
     band = sa.Column(sa.String)
     telescope_id = sa.Column(sa.ForeignKey('telescopes.id',
@@ -523,10 +550,6 @@ class Taxonomy(Base):
                         doc='Semantic version of this taxonomy'
                         )
 
-    allowed_classes = sa.Column(sa.ARRAY(sa.String), nullable=False,
-                                doc="Computed list of allowable classes"
-                                " in this taxonomy.")
-
     isLatest = sa.Column(sa.Boolean, default=True, nullable=False,
                          doc='Consider this the latest version of '
                              'the taxonomy with this name? Defaults '
@@ -563,7 +586,7 @@ Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
 
 class Comment(Base):
     text = sa.Column(sa.String, nullable=False)
-    ctype = sa.Column(sa.Enum('text', 'redshift', 'classification',
+    ctype = sa.Column(sa.Enum('text', 'redshift',
                               name='comment_types', validate_strings=True))
 
     attachment_name = sa.Column(sa.String, nullable=True)
@@ -595,6 +618,7 @@ class Classification(Base):
     author_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
                           nullable=False, index=True)
     author = relationship('User')
+    author_name = sa.Column(sa.String, nullable=False)
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
                        nullable=False, index=True)
     obj = relationship('Obj', back_populates='classifications')
@@ -695,6 +719,10 @@ class Photometry(Base, ha.Point):
 
     @hybrid_property
     def snr(self):
+        return self.flux / self.fluxerr if self.flux and self.fluxerr else None
+
+    @snr.expression
+    def snr(self):
         return self.flux / self.fluxerr
 
 
@@ -718,6 +746,10 @@ class Spectrum(Base):
                                             ondelete='CASCADE'),
                               nullable=False, index=True)
     instrument = relationship('Instrument', back_populates='spectra')
+    groups = relationship("Group", secondary="group_spectra",
+                          back_populates="spectra",
+                          cascade="save-update, merge, refresh-expire, expunge",
+                          passive_deletes=True)
 
     @classmethod
     def from_ascii(cls, filename, obj_id, instrument_id, observed_at):
@@ -728,6 +760,9 @@ class Spectrum(Base):
         return cls(wavelengths=data[:, 0], fluxes=data[:, 1],
                    obj_id=obj_id, instrument_id=instrument_id,
                    observed_at=observed_at)
+
+
+GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 
 
 # def format_public_url(context):

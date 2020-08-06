@@ -158,7 +158,9 @@ class CandidateHandler(BaseHandler):
             if c is None:
                 return self.error("Invalid ID")
             c.comments = c.get_comments_owned_by(self.current_user)
-            return self.success(data=c)
+            candidate_info = c.to_dict()
+            candidate_info["last_detected"] = c.last_detected
+            return self.success(data=candidate_info)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
         n_per_page = self.get_query_argument("numPerPage", None) or 25
@@ -263,6 +265,7 @@ class CandidateHandler(BaseHandler):
             .filter(Source.obj_id.in_([obj.id for obj in query_results["candidates"]]))
             .all()
         )
+        candidate_list = []
         for obj in query_results["candidates"]:
             obj.comments = obj.get_comments_owned_by(self.current_user)
             obj.is_source = (obj.id,) in matching_source_ids
@@ -280,6 +283,9 @@ class CandidateHandler(BaseHandler):
                     .all()
                 )
             ]
+            candidate_list.append(obj.to_dict())
+            candidate_list[-1]["last_detected"] = obj.last_detected
+        query_results["candidates"] = candidate_list
         return self.success(data=query_results)
 
     @permissions(["Upload data"])

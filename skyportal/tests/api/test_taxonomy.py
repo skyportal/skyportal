@@ -1,12 +1,15 @@
+import uuid
+
 from skyportal.tests import api
 
 from tdtax import taxonomy, __version__
 
 
 def test_add_retrieve_delete_taxonomy(taxonomy_token, public_group):
+    name = str(uuid.uuid4())
     status, data = api('POST', 'taxonomy',
                        data={
-                             'name': "test taxonomy",
+                             'name': name,
                              'hierarchy': taxonomy,
                              'group_ids': [public_group.id],
                              'provenance': f"tdtax_{__version__}",
@@ -20,7 +23,7 @@ def test_add_retrieve_delete_taxonomy(taxonomy_token, public_group):
     status, data = api('GET', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
 
     assert status == 200
-    assert data['data']['name'] == 'test taxonomy'
+    assert data['data']['name'] == name
     assert data['data']['version'] == __version__
 
     status, data = api('DELETE', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
@@ -33,7 +36,7 @@ def test_add_retrieve_delete_taxonomy(taxonomy_token, public_group):
 def test_add_bad_taxonomy(taxonomy_token, public_group):
     status, data = api('POST', 'taxonomy',
                        data={
-                             'name': "test bad taxonomy",
+                             'name': str(uuid.uuid4()),
                              'hierarchy': {"Silly": "taxonomy", "bad": True},
                              'group_ids': [public_group.id],
                              'provenance': "Nope",
@@ -49,9 +52,10 @@ def test_add_bad_taxonomy(taxonomy_token, public_group):
 def test_latest_taxonomy(taxonomy_token, public_group):
 
     # add one, then add another with the same name
+    name = str(uuid.uuid4())
     status, data = api('POST', 'taxonomy',
                        data={
-                             'name': "test taxonomy",
+                             'name': name,
                              'hierarchy': taxonomy,
                              'group_ids': [public_group.id],
                              'provenance': f"tdtax_{__version__}",
@@ -67,7 +71,7 @@ def test_latest_taxonomy(taxonomy_token, public_group):
 
     status, data = api('POST', 'taxonomy',
                        data={
-                             'name': "test taxonomy",
+                             'name': name,
                              'hierarchy': taxonomy,
                              'group_ids': [public_group.id],
                              'provenance': f"tdtax_{__version__}",
@@ -92,60 +96,58 @@ def test_latest_taxonomy(taxonomy_token, public_group):
     status, data = api('DELETE', f'taxonomy/{old_taxonomy_id}', token=taxonomy_token)
 
 
-def test_allowed_classes(taxonomy_token, public_group):
+def test_get_many_taxonomies(taxonomy_token, public_group):
 
+    n_tax = 5
+    ids = []
+    names = []
+    for _ in range(n_tax):
+        name = "test taxonomy" + str(uuid.uuid4())
+        status, data = api('POST', 'taxonomy',
+                           data={'name': name,
+                                 'hierarchy': taxonomy,
+                                 'group_ids': [public_group.id],
+                                 'provenance': f"tdtax_{__version__}",
+                                 'version': __version__,
+                                 'isLatest': True},
+                           token=taxonomy_token)
+        assert status == 200
+        ids.append(data['data']['taxonomy_id'])
+        names.append(name)
+
+    status, data = api('GET', 'taxonomy',
+                       token=taxonomy_token)
+    assert status == 200
+    assert isinstance(data["data"], list)
+
+    # make sure we can retrieve those taxonomies
+    for _taxonomy in data["data"]:
+        assert _taxonomy["id"] in ids
+        assert _taxonomy["name"] == names[ids.index(_taxonomy["id"])]
+
+
+def test_taxonomy_group_view(taxonomy_token_two_groups, taxonomy_token,
+                             public_group, public_group2):
+
+    name = "test taxonomy" + str(uuid.uuid4())
     status, data = api('POST', 'taxonomy',
-                       data={
-                             'name': "test allowed taxonomy",
+                       data={'name': name,
                              'hierarchy': taxonomy,
-                             'group_ids': [public_group.id],
+                             'group_ids': [public_group2.id],
                              'provenance': f"tdtax_{__version__}",
-                             'version': __version__ + "0.1"
-                             },
-                       token=taxonomy_token)
+                             'version': __version__,
+                             'isLatest': True},
+                       token=taxonomy_token_two_groups)
     assert status == 200
     taxonomy_id = data['data']['taxonomy_id']
+
+    status, data = api('GET', f'taxonomy/{taxonomy_id}',
+                       token=taxonomy_token_two_groups)
+    assert status == 200
+
+    # this token is not apart of group 2
     status, data = api('GET', f'taxonomy/{taxonomy_id}',
                        token=taxonomy_token)
-    assert status == 200
-    assert "Ia" in data['data']['allowed_classes']
-    status, data = api('DELETE', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
-
-    simple = {'class': 'Cepheid',
-       'tags': ['giant/supergiant', 'instability strip', 'standard candle'],
-       'other names': ['Cep', 'CEP'],
-       'subclasses': [{'class': 'Anomolous',
-         'other names': ['Anomolous Cepheid', 'BLBOO']},
-        {'class': 'Mult-mode',
-         'other names': ['Double-mode Cepheid',
-          'Multi-mode Cepheid',
-          'CEP(B)']},
-        {'class': 'Classical',
-         'tags': [],
-         'other names': ['Population I Cepheid',
-          'Type I Cepheid',
-          'DCEP',
-          'Delta Cepheid',
-          'Classical Cepheid'],
-         'subclasses': [{'class': 'Symmetrical',
-           'other names': ['DCEPS', 'Delta Cep-type Symmetrical']}]}]}
-
-    status, data = api('POST', 'taxonomy',
-                       data={
-                             'name': "test allowed simple taxonomy",
-                             'hierarchy': simple,
-                             'group_ids': [public_group.id],
-                             'provenance': f"tdtax_{__version__}",
-                             'version': __version__ + "0.1"
-                             },
-                       token=taxonomy_token)
-    assert status == 200
-    taxonomy_id = data['data']['taxonomy_id']
-    status, data = api('GET', f'taxonomy/{taxonomy_id}',
-                       token=taxonomy_token)
-    assert status == 200
-    assert "Ia" not in data['data']['allowed_classes']
-    assert "Cep" not in data['data']['allowed_classes']
-    status, data = api('DELETE', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
-
-
+    assert status == 400
+    print(data)
+    assert "is not available to user" in data["message"]

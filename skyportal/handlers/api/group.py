@@ -44,6 +44,12 @@ class GroupHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all groups
+          parameters:
+            - in: query
+              name: name
+              schema:
+                type: string
+              description: Fetch by name (exact match)
           responses:
             200:
               content:
@@ -110,6 +116,14 @@ class GroupHandler(BaseHandler):
 
                 return self.success(data=group)
             return self.error(f"Could not load group with ID {group_id}")
+        group_name = self.get_query_argument("name", None)
+        if group_name is not None:
+            groups = Group.query.filter(Group.name == group_name).all()
+            # Ensure access
+            if not all([group in self.current_user.accessible_groups
+                        for group in groups]):
+                return self.error("Insufficient permisisons")
+            return self.success(data=groups)
 
         include_single_user_groups = self.get_query_argument("includeSingleUserGroups",
                                                              False)
