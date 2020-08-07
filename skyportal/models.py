@@ -75,8 +75,6 @@ class Group(Base):
     streams = relationship('Stream', secondary='stream_groups',
                            back_populates='groups',
                            passive_deletes=True)
-    telescopes = relationship('Telescope', secondary='group_telescopes',
-                              passive_deletes=True)
     users = relationship('User', secondary='group_users',
                          back_populates='groups',
                          passive_deletes=True)
@@ -474,8 +472,6 @@ class Telescope(Base):
     robotic = sa.Column(sa.Boolean, default=False, nullable=False,
                         doc="Is this telescope robotic?")
 
-    groups = relationship('Group', secondary='group_telescopes',
-                          passive_deletes=True)
     instruments = relationship('Instrument', back_populates='telescope',
                                cascade='save-update, merge, refresh-expire, expunge',
                                passive_deletes=True)
@@ -488,10 +484,6 @@ class Telescope(Base):
                                   latitude=self.lat * u.deg,
                                   elevation=self.elevation * u.m,
                                   timezone=local_tz)
-
-
-
-GroupTelescope = join_model('group_telescopes', Group, Telescope)
 
 
 class ArrayOfEnum(ARRAY):
