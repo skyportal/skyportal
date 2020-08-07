@@ -25,15 +25,6 @@ export function observingRunTitle(observingRun, instrumentList, telescopeList, g
   return `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname} (PI: ${observingRun?.pi} ${group?.name})`;
 }
 
-function makeMenuItem(observingRun, instrumentList, telescopeList, groups) {
-  const render_string = observingRunTitle(observingRun, instrumentList, telescopeList, groups);
-  return (
-    <MenuItem value={observingRun.id} key={observingRun.id.toString()}>
-      {render_string}
-    </MenuItem>
-  );
-}
-
 const AssignmentForm = ({ obj_id, observingRunList }) => {
   const dispatch = useDispatch();
   const { instrumentList } = useSelector((state) => state.instruments);
@@ -98,9 +89,13 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
               rules={{ required: true }}
               defaultValue={upcomingRuns.length > 0 ? upcomingRuns[0].id : null}
             >
-              {upcomingRuns.map((observingRun) => makeMenuItem(
-                observingRun, instrumentList, telescopeList, groups
-              ))}
+              {upcomingRuns.map(
+                (observingRun) => (
+                  <MenuItem value={observingRun.id} key={observingRun.id.toString()}>
+                    {observingRunTitle(observingRun, instrumentList, telescopeList, groups)}
+                  </MenuItem>
+                )
+              )}
             </Controller>
           </FormControl>
           <FormControl className={classes.formControl}>

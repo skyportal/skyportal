@@ -12,10 +12,10 @@ export const fetchTelescopes = () => (
 const reducer = (state={ telescopeList: [] }, action) => {
   switch (action.type) {
     case FETCH_TELESCOPES_OK: {
-      const telescopes = action.data;
+      const telescopeList = action.data;
       return {
         ...state,
-        telescopeList: telescopes
+        telescopeList
       };
     }
     default:
