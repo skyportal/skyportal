@@ -53,9 +53,15 @@ jobs:
 
       - name: Prepare environment
         run: |
-          ccache -s
           export PATH=/usr/lib/ccache:${PATH}
-          npm -g install npm@next
+          ccache -s
+
+          export NPM_PACKAGES="${HOME}/.npm-packages"
+          export PATH=${NPM_PACKAGES}/bin:$PATH
+          export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
+
+          sudo npm -g install npm@next
+
           which python; python --version
           npm --version
           node --version
