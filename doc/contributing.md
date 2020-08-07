@@ -14,7 +14,8 @@ and submit a pull request (PR) on GitHub.
 
 The other developers will provide feedback, and you may push updates
 into the same branch (which will also update your pull request), until
-general consensus is achieved that it should be merged.
+the Continuous Integration tests pass and reviewers agree that it
+should be merged (see "Process Guidelines: Reviews" below).
 
 For a more detailed explanation of the open contribution process, see
 the [scikit-image contributors' guide](http://scikit-image.org/docs/stable/contribute.html).
@@ -46,12 +47,21 @@ either. Therefore, we use code formatters: black for Python, and
 Prettier for JavaScript.  Code is an art, and opinions differ of what
 looks good: we choose to spend our time writing correct, elegant code.
 
+### Testing
+
+All functionality should be accompanied by tests.  We use pytest and
+Selenium with Geckodriver.  PRs can only be merged once tests have
+been added and pass.  The continuous integration system indicates this
+with a green checkmark, hence you may see developers talking about "PR
+599 being green" ✅.
+
 ### Reviews
 
-All code that goes into SkyPortal is reviewed by two team members (or,
-if the contributor is a team member, by at least one other team
-member).  We find review invaluable for improving code quality, and no
-author ever merges their own work.
+All code that goes into SkyPortal is reviewed by two team members
+(team members are persons with commit access) or, if the contributor
+is a team member, by at least one other team member.  We find review
+invaluable for improving code quality, and no author ever merges their
+own work.
 
 We ask all reviewers to be mindful that there is a human at the other
 side of the PR.  As such, consider the review process as a
