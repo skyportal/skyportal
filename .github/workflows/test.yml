@@ -9,9 +9,11 @@ jobs:
 
     services:
       postgres:
-        image: postgres:11.8
+        image: postgres
         env:
           POSTGRES_PASSWORD: anything
+        ports:
+          - 5432:5432
         # needed because the postgres container does not provide a
         # healthcheck
         options: >-
@@ -52,7 +54,7 @@ jobs:
             cat << EOF > config.yaml
               database:
                 database: skyportal
-                host: postgres
+                host: localhost
                 port: 5432
                 user: skyportal
                 password: anything
