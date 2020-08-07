@@ -12,7 +12,8 @@ from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
     DBSession, Comment, Instrument, Photometry, Obj, Source, SourceView,
-    Thumbnail, Token, User, Group, FollowupRequest
+    Thumbnail, Token, User, Group, FollowupRequest, ClassicalAssignment,
+    ObservingRun
 )
 from .internal.source_views import register_source_view
 from ...utils import (
@@ -181,6 +182,11 @@ class SourceHandler(BaseHandler):
                          joinedload(Source.obj)
                          .joinedload(Obj.followup_requests)
                          .joinedload(FollowupRequest.instrument),
+                         joinedload(Source.obj)
+                         .joinedload(Obj.assignments)
+                         .joinedload(ClassicalAssignment.run)
+                         .joinedload(ObservingRun.instrument)
+                         .joinedload(Instrument.telescope),
                          joinedload(Source.obj)
                          .joinedload(Obj.thumbnails)
                          .joinedload(Thumbnail.photometry)
