@@ -48,8 +48,6 @@ jobs:
         run: |
           sudo apt-add-repository -y ppa:nginx/stable
           sudo apt install -y ccache wget nodejs unzip firefox nginx
-          nginx -v
-          firefox --version
 
       - name: Prepare environment
         run: |
@@ -63,9 +61,10 @@ jobs:
           sudo npm -g install npm@next
 
           which python; python --version
-          npm --version
-          node --version
+          echo npm $(npm --version)
+          echo node $(node --version)
           nginx -v
+          firefox --version
 
       - name: Initialize SkyPortal
         run: |
