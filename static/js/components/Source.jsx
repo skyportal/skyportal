@@ -125,7 +125,14 @@ const Source = ({ route }) => {
         <br />
         {showStarList && <StarList sourceId={source.id} />}
         {
-          source.groups.map((group) => <Chip label={group.name} key={group.id} size="small" className={classes.chip} />)
+          source.groups.map((group) => (
+            <Chip
+              label={group.name.substring(0, 15)}
+              key={group.id}
+              size="small"
+              className={classes.chip}
+            />
+          ))
         }
         <br />
         <ThumbnailList ra={source.ra} dec={source.dec} thumbnails={source.thumbnails} />
