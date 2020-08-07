@@ -12,35 +12,36 @@ import time
 cfg = load_config()
 
 
-def test_public_source_page(driver, user, public_source):
+def test_public_source_page(driver, user, public_source, public_group):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.wait_for_xpath('//label[contains(text(), "band")]')  # TODO how to check plot?
     driver.wait_for_xpath('//label[contains(text(), "Fe III")]')
+    driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
 @pytest.mark.flaky(reruns=3)
 def test_classifications(driver, user, taxonomy_token, public_group, public_source):
 
     simple = {'class': 'Cepheid',
-       'tags': ['giant/supergiant', 'instability strip', 'standard candle'],
-       'other names': ['Cep', 'CEP'],
-       'subclasses': [{'class': 'Anomolous',
-         'other names': ['Anomolous Cepheid', 'BLBOO']},
-        {'class': 'Mult-mode',
-         'other names': ['Double-mode Cepheid',
-          'Multi-mode Cepheid',
-          'CEP(B)']},
-        {'class': 'Classical',
-         'tags': [],
-         'other names': ['Population I Cepheid',
-          'Type I Cepheid',
-          'DCEP',
-          'Delta Cepheid',
-          'Classical Cepheid'],
-         'subclasses': [{'class': 'Symmetrical',
-           'other names': ['DCEPS', 'Delta Cep-type Symmetrical']}]}]}
+              'tags': ['giant/supergiant', 'instability strip', 'standard candle'],
+              'other names': ['Cep', 'CEP'],
+              'subclasses': [{'class': 'Anomolous',
+                              'other names': ['Anomolous Cepheid', 'BLBOO']},
+                             {'class': 'Mult-mode',
+                              'other names': ['Double-mode Cepheid',
+                                              'Multi-mode Cepheid',
+                                              'CEP(B)']},
+                             {'class': 'Classical',
+                              'tags': [],
+                              'other names': ['Population I Cepheid',
+                                              'Type I Cepheid',
+                                              'DCEP',
+                                              'Delta Cepheid',
+                                              'Classical Cepheid'],
+                              'subclasses': [{'class': 'Symmetrical',
+                                              'other names': ['DCEPS', 'Delta Cep-type Symmetrical']}]}]}
 
     status, data = api('POST', 'taxonomy',
                        data={
