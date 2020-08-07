@@ -77,7 +77,7 @@
 - band: optical
   name: GMOS
   telescope_id: =GS
-  type: both
+  type: imaging spectrograph
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'desy']
 - band: ir
   name: FLAMINGOS-2
@@ -91,7 +91,7 @@
 - band: optical
   name: GMOS
   telescope_id: =Gemini N
-  type: both
+  type: imaging spectrograph
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'desy']
 - band: optical
   name: SNIFS

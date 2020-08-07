@@ -6,7 +6,7 @@ import numpy as np
 import factory
 from skyportal.models import (DBSession, User, Group, Photometry,
                               Spectrum, Instrument, Telescope, Obj,
-                              Comment, Thumbnail, Filter)
+                              Comment, Thumbnail, Filter, ObservingRun)
 
 TMP_DIR = mkdtemp()
 
@@ -26,6 +26,7 @@ class TelescopeFactory(factory.alchemy.SQLAlchemyModelFactory):
     lon = -116.8650
     elevation = 1712.
     diameter = 1.2
+    robotic = True
 
 
 class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -42,7 +43,7 @@ class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Instrument
 
     name = factory.LazyFunction(lambda: f'ZTF_{str(uuid.uuid4())}')
-    type = 'Imager'
+    type = 'imager'
     band = 'Optical'
     telescope = factory.SubFactory(TelescopeFactory)
     filters = ['ztfg', 'ztfr', 'ztfi']
@@ -152,3 +153,30 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
                 obj.groups.append(group)
                 DBSession().add(obj)
                 DBSession().commit()
+
+
+class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = ObservingRun
+
+    instrument = factory.SubFactory(
+        InstrumentFactory,
+        name=factory.LazyFunction(lambda: f'DBSP_{uuid.uuid4()}'),
+        type='spectrograph',
+        band='Optical', filters=[],
+        telescope=factory.SubFactory(
+            TelescopeFactory,
+            name=factory.LazyFunction(
+                lambda: f'Palomar 200-inch Telescope_{uuid.uuid4()}'
+            ),
+            nickname=factory.LazyFunction(
+                lambda: f'P200_{uuid.uuid4()}'
+            ), robotic=False
+        )
+    )
+
+    group = factory.SubFactory(GroupFactory)
+    pi = 'Danny Goldstein'
+    observers = 'D. Goldstein, S. Dhawan'
+    calendar_date = '3021-02-27'
+    owner = factory.SubFactory(UserFactory)

@@ -24,6 +24,7 @@ def add_telescope_and_instrument(instrument_name, group_ids, token):
             "elevation": 0.0,
             "diameter": 10.0,
             "group_ids": group_ids,
+            "robotic": True
         },
         token=token,
     )
@@ -36,7 +37,7 @@ def add_telescope_and_instrument(instrument_name, group_ids, token):
         "instrument",
         data={
             "name": instrument_name,
-            "type": "type",
+            "type": "imager",
             "band": "Optical",
             "telescope_id": telescope_id,
             "filters": ["ztfg"],
