@@ -10,37 +10,47 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-    - uses: actions/checkout@v2
-      with:
-        submodules: true
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/sphinx
+            ~/.ccache
+            ~/.local
+            ~/.npm
+          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
 
-    - uses: actions/setup-python@v1
-      with:
-        python-version: '3.8'
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install numpy
-        pip install -r requirements.txt
-        pip install -r requirements.docs.txt
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.8'
 
-    - name: Build docs
-      run: |
-        make docs
-        touch doc/_build/html/.nojekyll
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy wheel
+          make dependencies
+          pip install -r requirements.docs.txt
 
-    - name: Install SSH Client 🔑
-      if: github.ref == 'refs/heads/master'
-      uses: webfactory/ssh-agent@v0.2.0
-      with:
-        ssh-private-key: ${{ secrets.CI_DEPLOY_KEY }}
+      - name: Build docs
+        run: |
+          make docs
+          touch doc/_build/html/.nojekyll
 
-    - name: Deploy docs
-      if: github.ref == 'refs/heads/master'
-      uses: JamesIves/github-pages-deploy-action@3.5.9
-      with:
-        FOLDER: doc/_build/html
-        REPOSITORY_NAME: skyportal/docs
-        BRANCH: gh-pages
-        SSH: true
+      - name: Install SSH Client 🔑
+        if: github.ref == 'refs/heads/master'
+        uses: webfactory/ssh-agent@v0.2.0
+        with:
+          ssh-private-key: ${{ secrets.CI_DEPLOY_KEY }}
+
+      - name: Deploy docs
+        if: github.ref == 'refs/heads/master'
+        uses: JamesIves/github-pages-deploy-action@3.5.9
+        with:
+          FOLDER: doc/_build/html
+          REPOSITORY_NAME: skyportal/docs
+          BRANCH: gh-pages
+          SSH: true

@@ -29,18 +29,20 @@ jobs:
         with:
           python-version: '3.8'
 
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/sphinx
+            ~/.ccache
+            ~/.local
+            ~/.npm
+          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+
       - name: Checkout
         uses: actions/checkout@v2
         with:
           submodules: true
-
-      - name: Build docs
-        run: |
-            pip install --upgrade pip
-            pip install numpy wheel
-            pip install -r requirements.txt
-            pip install -r requirements.docs.txt
-            make docs
 
       - name: Install system dependencies
         run: |
@@ -65,6 +67,12 @@ jobs:
           make db_init
           pip list --format=columns
           npm ls --depth 0
+
+      - name: Build docs
+        run: |
+            pip install --upgrade pip
+            pip install -r requirements.docs.txt
+            make docs
 
       - name: Install Geckodriver / Selenium
         run: |
