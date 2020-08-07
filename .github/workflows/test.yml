@@ -49,10 +49,11 @@ jobs:
           sudo apt-add-repository -y ppa:nginx/stable
           sudo apt install -y ccache wget nodejs unzip firefox nginx
 
-      - name: Prepare environment
-        run: |
           export PATH=/usr/lib/ccache:${PATH}
           ccache -s
+
+          pip install --upgrade pip
+          pip install wheel
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
@@ -75,7 +76,6 @@ jobs:
 
       - name: Build docs
         run: |
-            pip install --upgrade pip
             pip install -r requirements.docs.txt
             make docs
 
