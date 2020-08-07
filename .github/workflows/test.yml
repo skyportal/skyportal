@@ -29,6 +29,11 @@ jobs:
         with:
           python-version: '3.8'
 
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
       - name: Build docs
         run: |
             pip install --upgrade pip
@@ -51,11 +56,6 @@ jobs:
           npm --version
           node --version
           nginx -v
-
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          submodules: true
 
       - name: Initialize SkyPortal
         run: |
