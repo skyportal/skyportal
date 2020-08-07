@@ -67,6 +67,18 @@ jobs:
           nginx -v
           firefox --version
 
+
+      - name: Write SkyPortal config
+        run: |
+            cat << EOF > config.yaml
+              database:
+                database: skyportal
+                host: postgres
+                port: 5432
+                user: skyportal
+                password: anything
+            EOF
+
       - name: Initialize SkyPortal
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
