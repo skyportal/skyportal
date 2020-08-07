@@ -27,4 +27,4 @@ def test_submit_and_delete_new_assignment(
     driver.wait_for_xpath(f'//*[text()="{comment_text}"]')
     driver.scroll_to_element_and_click(delbut)
     driver.wait_for_xpath_to_disappear('//button[text()="Delete"]')
-
+    driver.wait_for_xpath_to_disappear(f'//*[text()="{comment_text}"]')
