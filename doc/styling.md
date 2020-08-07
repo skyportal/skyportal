@@ -54,41 +54,107 @@ This is done via the
 
 You can also [parameterize `makeStyles`](https://material-ui.com/styles/basics/#adapting-based-on-props).
 
-## Size & Spacing
+## Components
+
+Please refer to the [MUI component
+docs](https://material-ui.com/components/box/) for available
+components and their props and CSS styles.
+
+## Sizes
 
 All sizes should be specified using `rem`, which stands for "root
-element"—i.e., if you are specifying font size, `1.5rem` would be 1.5
-times the size of the font-size specified in the root HTML element.
+element"—i.e., `1.5rem` would be 1.5 times the size of the font-size
+specified in the root HTML element.
 
+## Style props on Box
 
+`makeStyles` is preferred in general, but for simple formatting you
+may use [style
+props](https://material-ui.com/system/basics/#all-inclusive) on `Box`
+containers:
 
-https://material-ui.com/system/spacing/
+```
+<Box m={2rem} />
+```
 
-theme.spacing.unit(8) is the base unit for the layout grid
+See also "Grid system" below.
 
 ## Responsive Design
 
-https://material-ui.com/customization/breakpoints/#theme-breakpoints-down-key-media-query
+MUI uses
+[breakpoints](https://material-ui.com/customization/breakpoints)
+as a convenient way of writing CSS media queries.
 
-### Grid system:
+Breakpoints understand the following pre-defined screen sizes:
 
-https://material-ui.com/components/grid/
-https://blog.logrocket.com/the-material-ui-grid-system/
+- `xs` (extra-small): 0px or larger
+- `sm` (small): 600px or larger
+- `md` (medium): 960px or larger
+- `lg` (large): 1280px or larger
+- `xl` (extra-large): 1920px or larger
 
-### Using media queries directly:
+While MUI supports several breakpoint operators (`up`, `down`, `only`,
+and `between`), because of confusing logic we only use `up`:
 
-https://material-ui.com/components/use-media-query/
-https://stackoverflow.com/a/50780995/214686
-https://material-ui.com/components/grid/
+- `theme.breakpoints.up(sm)`: targets screen sizes `>= small`
 
-### Breakpoints
+Use it as follows:
 
+```js
+const useStyles = makeStyles({
+  root: {
+    backgroundColor: 'blue',
+    [theme.breakpoints.up('md')]: {
+      backgroundColor: 'red',
+    },
+  }
+});
 ```
-xs (extra-small): 0px or larger
-sm (small): 600px or larger
-md (medium): 960px or larger
-lg (large): 1280px or larger
-xl (extra-large): 1920px or larger
+
+You may customize media-queries using the
+[`useMediaQuery`](https://material-ui.com/components/use-media-query)
+hook.
+
+### Grid system
+
+For positioning components on a page, MUI provides a [12-column grid
+layout](https://material-ui.com/components/grid/).
+
+There are two `Grid` types: `container` (outer element) and `item`
+(inner elements).
+
+```jsx
+<Grid container spacing={1rem}>
+  <Grid item xs={4}>
+    <Paper>Cell 1</Paper>
+  </Grid>
+  <Grid item xs={4}>
+    <Paper>Cell 2</Paper>
+  </Grid>
+  <Grid item xs={4}>
+    <Paper>Cell 3</Paper>
+</Grid>
+```
+
+The `xs` above refers to `xs`, the breakpoint from the previous
+section.  In other words, this split of cells will be used from `xs`
+and up.
+[Multiple breakpoints](https://material-ui.com/components/grid/#grid-with-breakpoints)
+can be specified.
+
+You can also leave the value of `xs` blank, in which case elements are automatically spaced:
+
+```jsx
+<Grid container spacing={1rem}>
+  <Grid item xs>
+    <Paper>Cell 1</Paper>
+  </Grid>
+  <Grid item xs={6}>
+    <Paper>Cell 2</Paper>
+  </Grid>
+  <Grid item xs>
+    <Paper>Cell 3</Paper>
+</Grid>
 ```
 
 ## Do's and don'ts
