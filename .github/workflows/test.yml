@@ -1,5 +1,7 @@
 name: Test SkyPortal
 
+on: [push]
+
 jobs:
   test:
     name: Test SkyPortal
@@ -44,7 +46,7 @@ jobs:
         run: |
           ccache -s
           export PATH=/usr/lib/ccache:${PATH}
-          npm -g install npm@next 
+          npm -g install npm@next
           which python; python --version
           npm --version
           node --version
