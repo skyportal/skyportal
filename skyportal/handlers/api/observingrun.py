@@ -166,8 +166,7 @@ class ObservingRunHandler(BaseHandler):
 
         orun = ObservingRun.query.get(run_id)
 
-        current_user_id = self.current_user.id if \
-            hasattr(self.current_user, 'username') else self.current_user.created_by_id
+        current_user_id = self.associated_user_object.id
 
         if orun.owner_id != current_user_id and not is_superadmin:
             return self.error('Only the owner of an observing run can modify '
@@ -211,8 +210,7 @@ class ObservingRunHandler(BaseHandler):
 
         run = ObservingRun.query.get(run_id)
 
-        current_user_id = self.current_user.id if \
-            hasattr(self.current_user, 'username') else self.current_user.created_by_id
+        current_user_id = self.associated_user_object.id
 
         if run.owner_id != current_user_id and not is_superadmin:
             return self.error('Only the owner of an observing run can modify '

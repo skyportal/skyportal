@@ -171,10 +171,10 @@ class PhotBaseFlexible(object):
                           required=True)
 
     instrument_id = fields.Field(description='ID of the `Instrument`(s) with which the '
-                                      'photometry was acquired. '
-                                      'Can be given as a scalar or a 1D list. '
-                                      'If a scalar, will be broadcast to all values '
-                                      'given as lists. Null values are not allowed.',
+                                             'photometry was acquired. '
+                                             'Can be given as a scalar or a 1D list. '
+                                             'If a scalar, will be broadcast to all values '
+                                             'given as lists. Null values are not allowed.',
                                  required=True)
 
     ra = fields.Field(description='ICRS Right Ascension of the centroid '
