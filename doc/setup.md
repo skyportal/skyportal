@@ -51,7 +51,19 @@ brew install geckodriver
 1. Install dependencies
 
 ```
-sudo apt install nginx supervisor postgresql libpq-dev nodejs
+sudo apt install nginx supervisor postgresql libpq-dev nodejs npm
+```
+
+If you do not have the python 3 developers tools: 
+
+```
+sudo apt install python3-dev
+```
+
+Also you will need to install astroplan:
+
+```
+pip install astroplan
 ```
 
 2. Configure your database permissions.
@@ -84,8 +96,8 @@ sudo service postgresql restart
 1. Initialize the database with `make db_init` (this only needs to
    happen once).
 2. Copy `config.yaml.defaults` to `config.yaml`.
-2. If you want some test data to play with, run `make load_demo_data`.
 3. Run `make log` to monitor the service and, in a separate window, `make run` to start the server.
+4. If you want some test data to play with, run `make load_demo_data` (do this while the server is running!). 
 
 Direct your browser to http://localhost:5000.
 
