@@ -12,10 +12,13 @@ jobs:
         image: postgres:11.8
         env:
           POSTGRES_PASSWORD: anything
-        ports:
-        - 5432:5432
-        # needed because the postgres container does not provide a healthcheck
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        # needed because the postgres container does not provide a
+        # healthcheck
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Lint
@@ -44,6 +47,17 @@ jobs:
         with:
           submodules: true
 
+      - name: Write SkyPortal config
+        run: |
+            cat << EOF > config.yaml
+              database:
+                database: skyportal
+                host: postgres
+                port: 5432
+                user: skyportal
+                password: anything
+            EOF
+
       - name: Install system dependencies
         run: |
           sudo apt-add-repository -y ppa:nginx/stable
@@ -67,21 +81,13 @@ jobs:
           nginx -v
           firefox --version
 
-
-      - name: Write SkyPortal config
+      - name: Install SkyPortal dependencies
         run: |
-            cat << EOF > config.yaml
-              database:
-                database: skyportal
-                host: postgres
-                port: 5432
-                user: skyportal
-                password: anything
-            EOF
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          make dependencies
 
       - name: Initialize SkyPortal
         run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
           make db_init
           pip list --format=columns
           npm ls --depth 0
