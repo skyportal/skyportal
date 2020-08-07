@@ -71,13 +71,13 @@ def test_regular_user_delete_super_admin_assignment(red_transients_run,
 
 
 def test_group1_user_cannot_see_group2_assignment(red_transients_run,
-                                                  private_source,
+                                                  public_source_group2,
                                                   public_source,
                                                   super_admin_token,
                                                   view_only_token):
 
     request_data = {'run_id': red_transients_run.id,
-                    'obj_id': private_source.id,
+                    'obj_id': public_source_group2.id,
                     'priority': '5',
                     'comment': 'Please take spectrum only below airmass 1.5'}
 
@@ -107,4 +107,4 @@ def test_group1_user_cannot_see_group2_assignment(red_transients_run,
     status, data = api('GET', f'assignment/',
                        token=view_only_token)
     assert status == 200
-    assert private_source.id not in [a['id'] for a in data['data']]
+    assert public_source_group2.id not in [a['id'] for a in data['data']]

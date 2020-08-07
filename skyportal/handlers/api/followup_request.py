@@ -13,7 +13,6 @@ from ...schema import AssignmentSchema
 
 
 class AssignmentHandler(BaseHandler):
-
     @auth_or_token
     def get(self, assignment_id=None):
         """
@@ -50,13 +49,18 @@ class AssignmentHandler(BaseHandler):
 
         # get owned assignments
         assignments = DBSession().query(ClassicalAssignment)
-        acls = [a.id for a in self.current_user.acls]
-        if 'System admin' not in acls:
-            assignments = assignments.join(Obj).join(Source).join(Group).filter(
-                Group.id.in_([g.id for g in self.current_user.groups])
+        assignments = assignments.join(Obj).join(Source).join(Group).filter(
+            Group.id.in_(
+                [g.id for g in self.current_user.accessible_groups]
             )
+        )
 
         if assignment_id is not None:
+            try:
+                assignment_id = int(assignment_id)
+            except ValueError:
+                return self.error("Assignment ID must be an integer.")
+
             assignments = assignments.filter(
                 ClassicalAssignment.id == assignment_id
             ).options(
@@ -67,24 +71,18 @@ class AssignmentHandler(BaseHandler):
             )
 
         assignments = assignments.all()
-        screened = []
 
-        for assignment in assignments:
-            obj = Source.get_obj_if_owned_by(assignment.obj.id, self.current_user)
-            if obj is not None:
-                screened.append(assignment)
-
-        if len(screened) == 0 and assignment_id is not None:
+        if len(assignments) == 0 and assignment_id is not None:
             return self.error("Could not retrieve assignment.")
 
-        out_json = ClassicalAssignment.__schema__().dump(screened, many=True)
+        out_json = ClassicalAssignment.__schema__().dump(assignments, many=True)
 
         # calculate when the targets rise and set
-        for json_obj, assignment_obj in zip(out_json, screened):
-            json_obj['rise_time_utc'] = assignment_obj.rise_time.isot
-            json_obj['set_time_utc'] = assignment_obj.set_time.isot
-            json_obj['obj'] = assignment_obj.obj
-            json_obj['requester'] = assignment_obj.requester
+        for json_obj, assignment in zip(out_json, assignments):
+            json_obj['rise_time_utc'] = assignment.rise_time.isot
+            json_obj['set_time_utc'] = assignment.set_time.isot
+            json_obj['obj'] = assignment.obj
+            json_obj['requester'] = assignment.requester
 
         if assignment_id is not None:
             out_json = out_json[0]
@@ -140,9 +138,8 @@ class AssignmentHandler(BaseHandler):
 
         assignment = ClassicalAssignment(**data)
         source = Source.get_obj_if_owned_by(assignment.obj_id, self.current_user)
-        obj = Obj.query.get(assignment.obj_id)
-        acls = [a.id for a in self.current_user.acls]
-        if (obj is None) or (source is None and 'System admin' not in acls):
+
+        if source is None:
             return self.error(f'Invalid obj_id: "{assignment.obj_id}"')
 
         assignment.requester_id = self.associated_user_object.id
@@ -179,17 +176,19 @@ class AssignmentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        followup_request = ClassicalAssignment.query.get(assignment_id)
-        source = Source.get_obj_if_owned_by(
-            followup_request.obj_id, self.current_user
-        )
+        assignment = ClassicalAssignment.query.get(int(assignment_id))
 
-        if followup_request is None or source is None:
+        if assignment is None:
             return self.error('No such assignment')
 
         data = self.get_json()
         data['id'] = assignment_id
         data["requester_id"] = self.associated_user_object.id
+
+        modok = "System admin" in [a.id for a in self.current_user.acls] \
+                or assignment.requester.username == self.current_user.username
+        if not modok:
+            return self.error("Insufficient permissions.")
 
         schema = ClassicalAssignment.__schema__()
         try:
@@ -201,7 +200,7 @@ class AssignmentHandler(BaseHandler):
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
-            payload={"obj_id": followup_request.obj_id},
+            payload={"obj_id": assignment.obj_id},
         )
 
         return self.success()
@@ -225,8 +224,7 @@ class AssignmentHandler(BaseHandler):
         """
         assignment = ClassicalAssignment.query.get(int(assignment_id))
         user = self.associated_user_object
-        delok = "Super admin" in [role.id for role in user.roles] \
-                or "Group admin" in [role.id for role in user.roles] \
+        delok = "System admin" in [a.id for a in user.acls] \
                 or assignment.requester.username == user.username
         if not delok:
             return self.error("Insufficient permissions.")

@@ -9,7 +9,6 @@ from ...schema import (ObservingRunPost, ObservingRunGet,
 
 
 class ObservingRunHandler(BaseHandler):
-
     @permissions(['Upload data'])
     def post(self):
         """
@@ -39,10 +38,6 @@ class ObservingRunHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        # See bottom of this file for redoc docstring -- moved it there so that
-        # it could be made an f-string.
-
         data = self.get_json()
 
         try:
@@ -52,10 +47,7 @@ class ObservingRunHandler(BaseHandler):
                               f'{exc.normalized_messages()}')
 
         run = ObservingRun(**rund)
-
-        current_user_id = self.current_user.id if \
-            hasattr(self.current_user, 'username') else self.current_user.created_by_id
-        run.owner_id = current_user_id
+        run.owner_id = self.associated_user_object.id
 
         DBSession().add(run)
         DBSession().commit()

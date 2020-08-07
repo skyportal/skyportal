@@ -75,6 +75,14 @@ def public_source_two_groups(public_group, public_group2):
 
 
 @pytest.fixture()
+def public_source_group2(public_group2):
+    obj = ObjFactory(groups=[public_group2])
+    DBSession.add(Source(obj_id=obj.id, group_id=public_group2.id))
+    DBSession.commit()
+    return obj
+
+
+@pytest.fixture()
 def public_candidate(public_filter):
     obj = ObjFactory(groups=[public_filter.group])
     DBSession.add(Candidate(obj=obj, filter=public_filter))
