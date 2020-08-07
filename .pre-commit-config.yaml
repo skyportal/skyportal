@@ -1,19 +1,25 @@
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.5.0
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
       - id: trailing-whitespace
--   repo: https://github.com/python/black
+  - repo: https://github.com/python/black
     rev: 19.10b0
     hooks:
       - id: black
         pass_filenames: true
-        exclude: baselayer|node_modules
--   repo: https://gitlab.com/pycqa/flake8
+        exclude: baselayer|node_modules|static
+  - repo: https://gitlab.com/pycqa/flake8
     rev: 3.7.9
     hooks:
       - id: flake8
+        pass_filenames: true
+        exclude: baselayer|node_modules|static
+  - repo: https://github.com/prettier/prettier
+    rev: "" # Use the sha or tag you want to point at
+    hooks:
+      - id: prettier
         pass_filenames: true
         exclude: baselayer|node_modules
