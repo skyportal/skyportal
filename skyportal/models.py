@@ -3,6 +3,7 @@ import uuid
 import re
 from datetime import datetime, timezone
 from astropy import units as u
+from astropy import table
 import astroplan
 import numpy as np
 import sqlalchemy as sa
@@ -11,12 +12,18 @@ from sqlalchemy.orm.session import object_session
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import deferred
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import ArrowType, URLType
+import gcn
+import enum
 
 from astropy import coordinates as ap_coord
+import healpy as hp
 import healpix_alchemy as ha
+from ligo.skymap.bayestar import rasterize
 
 from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
                                   Role, User, Token)
@@ -814,7 +821,6 @@ class FollowupRequest(Base):
 
 User.followup_requests = relationship('FollowupRequest', back_populates='requester')
 
-
 class Thumbnail(Base):
     # TODO delete file after deleting row
     type = sa.Column(thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ...)')
@@ -959,5 +965,611 @@ class ClassicalAssignment(Base):
 
 
 User.assignments = relationship('ClassicalAssignment', back_populates='requester')
+
+class Event(Base):
+    """Event information, including an event ID, mission, and time of the
+    event"""
+
+    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+
+    dateobs = sa.Column(
+        sa.DateTime,
+        comment='Event time',
+        unique=True,
+        nullable=False)
+
+    gcn_notices = relationship(
+        lambda: GcnNotice,
+        order_by=lambda: GcnNotice.date)
+
+    _tags = relationship(
+        lambda: Tag,
+        order_by=lambda: (
+            sa.func.lower(Tag.text).notin_({'fermi', 'swift', 'amon', 'lvc'}),
+            sa.func.lower(Tag.text).notin_({'long', 'short'}),
+            sa.func.lower(Tag.text).notin_({'grb', 'gw', 'transient'})
+        )
+    )
+
+    tags = association_proxy(
+        '_tags',
+        'text',
+        creator=lambda tag: Tag(text=tag))
+
+    localizations = relationship(lambda: Localization)
+
+    plans = relationship(lambda: Plan, backref='event')
+
+    @hybrid_property
+    def retracted(self):
+        return 'retracted' in self.tags
+
+    @retracted.expression
+    def retracted(cls):
+        return sa.literal('retracted').in_(cls.tags)
+
+    @property
+    def lightcurve(self):
+        try:
+            notice = self.gcn_notices[0]
+        except IndexError:
+            return None
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='LightCurve_URL']")
+        if elem is None:
+            return None
+        else:
+            return elem.attrib.get('value', '').replace('http://', 'https://')
+
+    @property
+    def gracesa(self):
+        try:
+            notice = self.gcn_notices[0]
+        except IndexError:
+            return None
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='EventPage']")
+        if elem is None:
+            return None
+        else:
+            return elem.attrib.get('value', '')
+
+
+    @property
+    def ned_gwf(self):
+        return "https://ned.ipac.caltech.edu/gwf/events"
+
+    @property
+    def HasNS(self):
+        notice = self.gcn_notices[0]
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='HasNS']")
+        if elem is None:
+            return None
+        else:
+            return 'HasNS: '+elem.attrib.get('value', '')
+
+    @property
+    def HasRemnant(self):
+        notice = self.gcn_notices[0]
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='HasRemnant']")
+        if elem is None:
+            return None
+        else:
+            return 'HasRemnant: '+elem.attrib.get('value', '')
+
+    @property
+    def FAR(self):
+        notice = self.gcn_notices[0]
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='FAR']")
+        if elem is None:
+            return None
+        else:
+            return 'FAR: '+elem.attrib.get('value', '')
+
+
+class Tag(Base):
+    """Store qualitative tags for events."""
+
+    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+
+    dateobs = sa.Column(
+        sa.DateTime,
+        sa.ForeignKey(Event.dateobs),
+        nullable=False,
+        primary_key=True)
+
+    text = sa.Column(
+        sa.Unicode,
+        nullable=False,
+        primary_key=True)
+
+
+class Tele(Base):
+    """Telescope information"""
+
+    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+
+    telescope = sa.Column(
+        sa.String,
+        primary_key=True,
+        unique=True,
+        comment='Telescope name')
+
+    lat = sa.Column(
+        sa.Float,
+        nullable=False,
+        comment='Latitude')
+
+    lon = sa.Column(
+        sa.Float,
+        nullable=False,
+        comment='Longitude')
+
+    elevation = sa.Column(
+        sa.Float,
+        nullable=False,
+        comment='Elevation')
+
+    timezone = sa.Column(
+        sa.String,
+        nullable=False,
+        comment='Time zone')
+
+    filters = sa.Column(
+        sa.ARRAY(sa.String),
+        nullable=False,
+        comment='Available filters')
+
+    fields = relationship(lambda: Field)
+
+    plans = relationship(lambda: Plan)
+
+    default_plan_args = sa.Column(
+        sa.JSON,
+        nullable=False,
+        comment='Default plan arguments')
+
+
+class Field(Base):
+    """Footprints and number of observations in each filter for standard PTF
+    tiles"""
+
+    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+
+    telescope = sa.Column(
+        sa.String,
+        sa.ForeignKey(Tele.telescope),
+        primary_key=True,
+        comment='Telescope')
+
+    field_id = sa.Column(
+        sa.Integer,
+        primary_key=True,
+        unique=True,
+        comment='Field ID')
+
+    ra = sa.Column(
+        sa.Float,
+        nullable=False,
+        comment='RA of field center')
+
+    dec = sa.Column(
+        sa.Float,
+        nullable=False,
+        comment='Dec of field center')
+
+    contour = sa.Column(
+        sa.JSON,
+        nullable=False,
+        comment='GeoJSON contours')
+
+    reference_filter_ids = sa.Column(
+        sa.ARRAY(sa.Integer),
+        nullable=False,
+        comment='Reference filter IDs')
+
+    reference_filter_mags = sa.Column(
+        sa.ARRAY(sa.Float),
+        nullable=False,
+        comment='Reference filter magss')
+
+    ipix = sa.Column(
+        sa.ARRAY(sa.Integer),
+        comment='Healpix indices')
+
+    subfields = relationship(lambda: SubField)
+
+
+class SubField(Base):
+    """SubFields"""
+
+    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+
+    telescope = sa.Column(
+        sa.String,
+        sa.ForeignKey(Tele.telescope),
+        primary_key=True,
+        comment='Telescope')
+
+    field_id = sa.Column(
+        sa.Integer,
+        sa.ForeignKey(Field.field_id),
+        primary_key=True,
+        comment='Field ID')
+
+    subfield_id = sa.Column(
+        sa.Integer,
+        primary_key=True,
+        comment='SubField ID')
+
+    ipix = sa.Column(
+        sa.ARRAY(sa.Integer),
+        comment='Healpix indices')
+
+
+class GcnNotice(Base):
+    """Records of ingested GCN notices"""
+
+    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+
+    ivorn = sa.Column(
+        sa.String,
+        primary_key=True,
+        comment='Unique identifier of VOEvent')
+
+    notice_type = sa.Column(
+        sa.Enum(gcn.NoticeType, native_enum=False),
+        nullable=False,
+        comment='GCN Notice type')
+
+    stream = sa.Column(
+        sa.String,
+        nullable=False,
+        comment='Event stream or mission (i.e., "Fermi")')
+
+    date = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        comment='UTC message timestamp')
+
+    dateobs = sa.Column(
+        sa.DateTime,
+        sa.ForeignKey(Event.dateobs),
+        nullable=False,
+        comment='UTC event timestamp')
+
+    content = deferred(sa.Column(
+        sa.LargeBinary,
+        nullable=False,
+        comment='Raw VOEvent content'))
+
+    def _get_property(self, property_name, value=None):
+        root = lxml.etree.fromstring(self.content)
+        path = ".//Param[@name='{}']".format(property_name)
+        elem = root.find(path)
+        value = float(elem.attrib.get('value', '')) * 100
+        return value
+
+    @property
+    def has_ns(self):
+        return self._get_property(property_name="HasNS")
+
+    @property
+    def has_remnant(self):
+        return self._get_property(property_name="HasRemnant")
+
+    @property
+    def far(self):
+        return self._get_property(property_name="FAR")
+
+    @property
+    def bns(self):
+        return self._get_property(property_name="BNS")
+
+    @property
+    def nsbh(self):
+        return self._get_property(property_name="NSBH")
+
+    @property
+    def bbh(self):
+        return self._get_property(property_name="BBH")
+
+    @property
+    def mass_gap(self):
+        return self._get_property(property_name="MassGap")
+
+    @property
+    def noise(self):
+        return self._get_property(property_name="Terrestrial")
+
+
+class Localization(Base):
+    """Localization information, including the localization ID, event ID, right
+    ascension, declination, error radius (if applicable), and the healpix
+    map."""
+
+    nside = 512
+    """HEALPix resolution used for flat (non-multiresolution) operations."""
+
+    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+
+    dateobs = sa.Column(
+        sa.DateTime,
+        sa.ForeignKey(Event.dateobs),
+        nullable=False,
+        comment='UTC event timestamp')
+
+    localization_name = sa.Column(
+        sa.String,
+        primary_key=True,
+        comment='Localization name')
+
+    uniq = deferred(sa.Column(
+        sa.ARRAY(sa.BigInteger),
+        nullable=False,
+        comment='Multiresolution HEALPix UNIQ pixel index array'))
+
+    probdensity = deferred(sa.Column(
+        sa.ARRAY(sa.Float),
+        nullable=False,
+        comment='Multiresolution HEALPix probability density array'))
+
+    distmu = deferred(sa.Column(
+        sa.ARRAY(sa.Float),
+        comment='Multiresolution HEALPix distance mu array'))
+
+    distsigma = deferred(sa.Column(
+        sa.ARRAY(sa.Float),
+        comment='Multiresolution HEALPix distance sigma array'))
+
+    distnorm = deferred(sa.Column(
+        sa.ARRAY(sa.Float),
+        comment='Multiresolution HEALPix distance normalization array'))
+
+    contour = deferred(sa.Column(
+        sa.JSON,
+        comment='GeoJSON contours'))
+
+    @hybrid_property
+    def is_3d(self):
+        return (self.distmu is not None and
+                self.distsigma is not None and
+                self.distnorm is not None)
+
+    @is_3d.expression
+    def is_3d(self):
+        return (self.distmu.isnot(None) and
+                self.distsigma.isnot(None) and
+                self.distnorm.isnot(None))
+
+    @property
+    def table_2d(self):
+        """Get multiresolution HEALPix dataset, probability density only."""
+        return table.Table(
+            [np.asarray(self.uniq, dtype=np.int64), self.probdensity],
+            names=['UNIQ', 'PROBDENSITY'])
+
+    @property
+    def table(self):
+        """Get multiresolution HEALPix dataset, probability density and
+        distance."""
+        if self.is_3d:
+            return table.Table(
+                [
+                    np.asarray(self.uniq, dtype=np.int64),
+                    self.probdensity, self.distmu,
+                    self.distsigma, self.distnorm],
+                names=[
+                    'UNIQ', 'PROBDENSITY', 'DISTMU', 'DISTSIGMA', 'DISTNORM'])
+        else:
+            return self.table_2d
+
+    @property
+    def flat_2d(self):
+        """Get flat resolution HEALPix dataset, probability density only."""
+        order = hp.nside2order(Localization.nside)
+        result = rasterize(self.table_2d, order)['PROB']
+        return hp.reorder(result, 'NESTED', 'RING')
+
+    @property
+    def flat(self):
+        """Get flat resolution HEALPix dataset, probability density and
+        distance."""
+        if self.is_3d:
+            order = hp.nside2order(Localization.nside)
+            t = rasterize(self.table, order)
+            result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
+            return hp.reorder(result, 'NESTED', 'RING')
+        else:
+            return self.flat_2d,
+
+class Plan(Base):
+    """Tiling information, including the event time, localization ID, tile IDs,
+    and plan name"""
+
+    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+
+    dateobs = sa.Column(
+        sa.DateTime,
+        sa.ForeignKey(Event.dateobs),
+        primary_key=True,
+        comment='UTC event timestamp')
+
+    telescope = sa.Column(
+        sa.String,
+        sa.ForeignKey(Tele.telescope),
+        primary_key=True,
+        comment='Telescope')
+
+    plan_name = sa.Column(
+        sa.String,
+        primary_key=True,
+        unique=True,
+        comment='Plan name')
+
+    validity_window_start = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(),
+        comment='Start of validity window')
+
+    validity_window_end = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        default=lambda: datetime.now() + timedelta(1),
+        comment='End of validity window')
+
+    plan_args = sa.Column(
+        sa.JSON,
+        nullable=False,
+        comment='Plan arguments')
+
+    # FIXME: Hard-code program_id, filter_id, subprogram_name
+    program_id = 2
+
+    class Status(enum.IntEnum):
+        WORKING = 0
+        READY = 1
+        SUBMITTED = 2
+
+    status = sa.Column(
+        sa.Enum(Status),
+        default=Status.WORKING,
+        nullable=False,
+        comment='Plan status')
+
+    planned_observations = relationship(
+        'PlannedObservation', backref='plan',
+        order_by=lambda: PlannedObservation.obstime)
+
+    @property
+    def start_observation(self):
+        """Time of the first planned observation."""
+        if self.planned_observations:
+            return self.planned_observations[0].obstime
+        else:
+            return None
+
+    @hybrid_property
+    def num_observations(self):
+        """Number of planned observation."""
+        return len(self.planned_observations)
+
+    @num_observations.expression
+    def num_observations(cls):
+        """Number of planned observation."""
+        return cls.planned_observations.count()
+
+    @property
+    def num_observations_per_filter(self):
+        """Number of planned observation per filter."""
+        filters = list(Telescope.query.get(self.telescope).filters)
+        nepochs = np.zeros(len(filters),)
+        bands = {1: 'g', 2: 'r', 3: 'i', 4: 'z', 5: 'J'}
+        for planned_observation in self.planned_observations:
+            filt = bands[planned_observation.filter_id]
+            idx = filters.index(filt)
+            nepochs[idx] = nepochs[idx] + 1
+        nobs_per_filter = []
+        for ii, filt in enumerate(filters):
+            nobs_per_filter.append("%s: %d" % (filt, nepochs[ii]))
+        return " ".join(nobs_per_filter)
+
+    @property
+    def total_time(self):
+        """Total observation time (seconds)."""
+        return sum(_.exposure_time for _ in self.planned_observations)
+
+    @property
+    def tot_time_with_overheads(self):
+        overhead = sum(
+            _.overhead_per_exposure for _ in self.planned_observations)
+        return overhead + self.total_time
+
+    @property
+    def ipix(self):
+        return {
+            i for planned_observation in self.planned_observations
+            if planned_observation.field.ipix is not None
+            for i in planned_observation.field.ipix}
+
+    @property
+    def area(self):
+        nside = Localization.nside
+        return hp.nside2pixarea(nside, degrees=True) * len(self.ipix)
+
+    def get_probability(self, localization):
+        ipix = np.asarray(list(self.ipix))
+        if len(ipix) > 0:
+            return localization.flat_2d[ipix].sum()
+        else:
+            return 0.0
+
+
+class PlannedObservation(Base):
+    """Tile information, including the event time, localization ID, field IDs,
+    tiling name, and tile probabilities."""
+
+    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+
+    planned_observation_id = sa.Column(
+        sa.Integer,
+        primary_key=True,
+        comment='Exposure ID')
+
+    dateobs = sa.Column(
+        sa.DateTime,
+        sa.ForeignKey(Event.dateobs),
+        primary_key=True,
+        comment='UTC event timestamp')
+
+    telescope = sa.Column(
+        sa.String,
+        sa.ForeignKey(Tele.telescope),
+        primary_key=True,
+        comment='Telescope')
+
+    field_id = sa.Column(
+        sa.Integer,
+        sa.ForeignKey(Field.field_id),
+        primary_key=True,
+        comment='Field ID')
+
+    plan_name = sa.Column(
+        sa.String,
+        sa.ForeignKey(Plan.plan_name),
+        primary_key=True,
+        comment='Plan name')
+
+    field = relationship(Field, viewonly=True)
+
+    exposure_time = sa.Column(
+        sa.Integer,
+        nullable=False,
+        comment='Exposure time in seconds')
+
+    # FIXME: remove
+    weight = sa.Column(
+        sa.Float,
+        nullable=False,
+        comment='Weight associated with each observation')
+
+    filter_id = sa.Column(
+        sa.Integer,
+        nullable=False,
+        comment='Filter ID (g=1, r=2, i=3, z=4, J=5)')
+
+    obstime = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        comment='UTC observation timestamp')
+
+    overhead_per_exposure = sa.Column(
+        sa.Integer,
+        nullable=False,
+        comment='Overhead time per exposure in seconds')
 
 schema.setup_schema()

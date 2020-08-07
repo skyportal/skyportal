@@ -1,0 +1,108 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<voe:VOEvent xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:voe="http://www.ivoa.net/xml/VOEvent/v2.0" xsi:schemaLocation="http://www.ivoa.net/xml/VOEvent/v2.0 http://www.ivoa.net/xml/VOEvent/VOEvent-v2.0.xsd" version="2.0" role="observation" ivorn="ivo://gwnet/LVC#S200105ae-3-Update">
+  <Who>
+    <Date>2020-01-09T17:52:40</Date>
+    <Author>
+      <contactName>LIGO Scientific Collaboration and Virgo Collaboration</contactName>
+    </Author>
+  </Who>
+  <What>
+    <Param dataType="int" name="Packet_Type" value="152">
+      <Description>The Notice Type number is assigned/used within GCN, eg type=152 is an LVC_UPDATE notice</Description>
+    </Param>
+    <Param dataType="int" name="internal" value="0">
+      <Description>Indicates whether this event should be distributed to LSC/Virgo members only</Description>
+    </Param>
+    <Param dataType="int" name="Pkt_Ser_Num" value="3">
+      <Description>A number that increments by 1 each time a new revision is issued for this event</Description>
+    </Param>
+    <Param dataType="string" name="GraceID" ucd="meta.id" value="S200105ae">
+      <Description>Identifier in GraceDB</Description>
+    </Param>
+    <Param dataType="string" name="AlertType" ucd="meta.version" value="Update">
+      <Description>VOEvent alert type</Description>
+    </Param>
+    <Param dataType="int" name="HardwareInj" ucd="meta.number" value="0">
+      <Description>Indicates that this event is a hardware injection if 1, no if 0</Description>
+    </Param>
+    <Param dataType="int" name="OpenAlert" ucd="meta.number" value="1">
+      <Description>Indicates that this event is an open alert if 1, no if 0</Description>
+    </Param>
+    <Param dataType="string" name="EventPage" ucd="meta.ref.url" value="https://gracedb.ligo.org/superevents/S200105ae/view/">
+      <Description>Web page for evolving status of this GW candidate</Description>
+    </Param>
+    <Param dataType="string" name="Instruments" ucd="meta.code" value="L1,V1">
+      <Description>List of instruments used in analysis to identify this event</Description>
+    </Param>
+    <Param dataType="float" name="FAR" ucd="arith.rate;stat.falsealarm" unit="Hz" value="7.671711717426704e-07">
+      <Description>False alarm rate for GW candidates with this strength or greater</Description>
+    </Param>
+    <Param dataType="string" name="Group" ucd="meta.code" value="CBC">
+      <Description>Data analysis working group</Description>
+    </Param>
+    <Param dataType="string" name="Pipeline" ucd="meta.code" value="gstlal">
+      <Description>Low-latency data analysis pipeline</Description>
+    </Param>
+    <Param dataType="string" name="Search" ucd="meta.code" value="AllSky">
+      <Description>Specific low-latency search</Description>
+    </Param>
+    <Group name="GW_SKYMAP" type="GW_SKYMAP">
+      <Param dataType="string" name="skymap_fits" ucd="meta.ref.url" value="https://gracedb.ligo.org/api/superevents/S200105ae/files/LALInference.fits.gz,0">
+        <Description>Sky Map FITS</Description>
+      </Param>
+    </Group>
+    <Group name="Classification" type="Classification">
+      <Param dataType="float" name="BNS" ucd="stat.probability" value="0.0">
+        <Description>Probability that the source is a binary neutron star merger (both objects lighter than 3 solar masses)</Description>
+      </Param>
+      <Param dataType="float" name="NSBH" ucd="stat.probability" value="0.027314790274662635">
+        <Description>Probability that the source is a neutron star-black hole merger (primary heavier than 5 solar masses, secondary lighter than 3 solar masses)</Description>
+      </Param>
+      <Param dataType="float" name="BBH" ucd="stat.probability" value="0.0">
+        <Description>Probability that the source is a binary black hole merger (both objects heavier than 5 solar masses)</Description>
+      </Param>
+      <Param dataType="float" name="MassGap" ucd="stat.probability" value="0.0">
+        <Description>Probability that the source has at least one object between 3 and 5 solar masses</Description>
+      </Param>
+      <Param dataType="float" name="Terrestrial" ucd="stat.probability" value="0.9726852097253373">
+        <Description>Probability that the source is terrestrial (i.e., a background noise fluctuation or a glitch)</Description>
+      </Param>
+      <Description>Source classification: binary neutron star (BNS), neutron star-black hole (NSBH), binary black hole (BBH), MassGap, or terrestrial (noise)</Description>
+    </Group>
+    <Group name="Properties" type="Properties">
+      <Param dataType="float" name="HasNS" ucd="stat.probability" value="0.9809066112482141">
+        <Description>Probability that at least one object in the binary has a mass that is less than 3 solar masses</Description>
+      </Param>
+      <Param dataType="float" name="HasRemnant" ucd="stat.probability" value="0.0">
+        <Description>Probability that a nonzero mass was ejected outside the central remnant object</Description>
+      </Param>
+      <Description>Qualitative properties of the source, conditioned on the assumption that the signal is an astrophysical compact binary merger</Description>
+    </Group>
+  </What>
+  <WhereWhen>
+    <ObsDataLocation>
+      <ObservatoryLocation id="LIGO Virgo"/>
+      <ObservationLocation>
+        <AstroCoordSystem id="UTC-FK5-GEO"/>
+        <AstroCoords coord_system_id="UTC-FK5-GEO">
+          <Time unit="s">
+            <TimeInstant>
+              <ISOTime>2020-01-05T16:24:26.057208</ISOTime>
+            </TimeInstant>
+          </Time>
+        </AstroCoords>
+      </ObservationLocation>
+    </ObsDataLocation>
+  </WhereWhen>
+  <Description>Report of a candidate gravitational wave event</Description>
+  <How>
+    <Description>Candidate gravitational wave event identified by low-latency analysis</Description>
+    <Description>V1: Virgo 3 km gravitational wave detector</Description>
+    <Description>L1: LIGO Livingston 4 km gravitational wave detector</Description>
+  </How>
+  <Citations>
+    <EventIVORN cite="supersedes">ivo://gwnet/LVC#S200105ae-2-Initial</EventIVORN>
+    <EventIVORN cite="supersedes">ivo://gwnet/LVC#S200105ae-1-Preliminary</EventIVORN>
+    <Description>Updated localization is now available</Description>
+  </Citations>
+</voe:VOEvent>

@@ -59,6 +59,11 @@ load_seed_data: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
 load_seed_data: | dependencies prepare_seed_data
 	@PYTHONPATH=. python tools/data_loader.py data/db_seed.yaml $(FLAGS)
 
+load_gcn_data: ## Import example dataset
+load_gcn_data: FLAGS := $(if $(FLAGS),$(FLAGS),"--data=GW190425_initial.xml")
+load_gcn_data: | dependencies
+	echo '@PYTHONPATH=. python tools/ingest_gcn.py $(FLAGS) -f'
+
 # https://www.gnu.org/software/make/manual/html_node/Overriding-Makefiles.html
 %: baselayer/Makefile force
 	@$(MAKE) --no-print-directory -C . -f baselayer/Makefile $@
