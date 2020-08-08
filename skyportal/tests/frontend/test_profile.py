@@ -5,6 +5,7 @@ import pytest
 from selenium.webdriver.support.ui import Select
 
 
+@pytest.mark.flaky(reruns=2)
 def test_token_acls_options_rendering1(driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
@@ -14,6 +15,7 @@ def test_token_acls_options_rendering1(driver, user):
     driver.wait_for_xpath_to_disappear('//input[@name="acls[3]"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_token_acls_options_rendering2(driver, super_admin_user):
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get("/profile")
@@ -43,6 +45,7 @@ def test_add_and_see_realname_in_user_profile(driver, user):
     assert name_display == f"{first_name} {last_name}"
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_data_to_user_profile(driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
@@ -66,6 +69,7 @@ def test_add_data_to_user_profile(driver, user):
     )
 
 
+@pytest.mark.flaky(reruns=2)
 def test_insufficient_name_entry_in_profile(driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")

@@ -1,10 +1,10 @@
 import uuid
 import time
 import pytest
-
 from skyportal.tests import api
 
 
+@pytest.mark.flaky(reruns=2)
 def test_foldable_sidebar(driver):
     driver.get('/')
     sidebar_text = driver.wait_for_xpath('//span[contains(text(),"Dashboard")]')
@@ -18,6 +18,7 @@ def test_foldable_sidebar(driver):
     assert sidebar_text.is_displayed()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_source_list(driver, user, public_source, private_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     assert 'localhost' in driver.current_url
@@ -35,7 +36,7 @@ def test_source_list(driver, user, public_source, private_source):
     assert not el.is_enabled()
 
 
-@pytest.mark.flaky(reruns=3)
+@pytest.mark.flaky(reruns=2)
 def test_source_filtering_and_pagination(driver, user, public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
     for i in range(205):
@@ -132,6 +133,7 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
         assert not next_button.is_enabled()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_jump_to_page_invalid_values(driver):
     driver.get('/')
     jump_to_page_input = driver.wait_for_xpath("//input[@name='jumpToPageInputField']")

@@ -3,9 +3,11 @@
 # fixture data directly into the database). Used for testing broadly that a
 # server or Docker image was started successfully.
 
+import pytest
 from skyportal.models import Source, DBSession
 
 
+@pytest.mark.flaky(reruns=2)
 def test_remote(driver):
     # TODO expand to cover the basics of all site functionality
     # (c.f. `test_pipeline_sequentially` from `cesium_web`)

@@ -5,6 +5,7 @@ import uuid
 import time
 
 
+@pytest.mark.flaky(reruns=2)
 def test_user_info(driver, super_admin_user):
     user = super_admin_user
     driver.get(f'/become_user/{user.id}')
@@ -16,6 +17,7 @@ def test_user_info(driver, super_admin_user):
         assert acl.id in pg_src
 
 
+@pytest.mark.flaky(reruns=2)
 def test_user_info_forbidden(driver, user):
     driver.get(f'/become_user/{user.id}')
     driver.get(f'/user/{user.id}')

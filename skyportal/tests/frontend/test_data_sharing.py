@@ -1,8 +1,10 @@
+import pytest
 from selenium.webdriver.common.keys import Keys
 
 from skyportal.tests import api
 
 
+@pytest.mark.flaky(reruns=2)
 def test_share_data(
     driver,
     super_admin_user,

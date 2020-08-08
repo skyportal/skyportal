@@ -12,6 +12,7 @@ import time
 cfg = load_config()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_public_source_page(driver, user, public_source, public_group):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
@@ -85,6 +86,7 @@ def test_comments(driver, user, public_source):
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_comment_groups_validation(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
@@ -155,6 +157,7 @@ def test_upload_download_comment_attachment(driver, user, public_source):
         os.remove(fpath)
 
 
+@pytest.mark.flaky(reruns=2)
 def test_view_only_user_cannot_comment(driver, view_only_user, public_source):
     driver.get(f"/become_user/{view_only_user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -265,6 +268,7 @@ def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
         driver.wait_for_xpath_to_disappear(f'//div[text()="{comment_text}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_show_starlist(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")

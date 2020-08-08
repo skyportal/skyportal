@@ -1,10 +1,12 @@
 import uuid
+import pytest
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 
 from skyportal.tests import api
 
 
+@pytest.mark.flaky(reruns=2)
 def test_top_sources(driver, user, public_source, public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
     status, data = api('POST', 'sources',
