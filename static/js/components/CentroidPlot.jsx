@@ -1,9 +1,9 @@
-import React, { useEffect, Suspense } from 'react';
+import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import * as photometryActions from '../ducks/photometry';
-import { Vega, VegaLite, createClassFromSpec } from 'react-vega';
+import PropTypes from 'prop-types';
 import embed from 'vega-embed';
 import * as d3 from 'd3';
+import * as photometryActions from '../ducks/photometry';
 
 // Helper functions for computing plot points (taken from GROWTH marshall)
 const gcirc = (ra1, dec1, ra2, dec2) => {
@@ -52,16 +52,15 @@ const getCirclePoints = (delRaGroup, delDecGroup) => {
   const points = thetas.map((theta) => {
     const xx = medianRA + C * Math.cos(theta);
     const yy = medianDec + C * Math.sin(theta);
-    return { xx: xx, yy: yy, theta: theta };
+    return { xx, yy, theta };
   });
 
   return points;
 };
 
 const getMessages = (delRaGroup, delDecGroup) => {
-  //r"offset = %.2f $\pm$ %.2f''" %(((np.median(delra_group))**2 + (np.median(deldec_group)**2))**0.5, C)
   const offset = Math.sqrt(
-    Math.pow(d3.median(delRaGroup), 2) + Math.pow(d3.median(delDecGroup), 2)
+    d3.median(delRaGroup) ** 2 + d3.median(delDecGroup) ** 2
   );
   const C = Math.max(d3.deviation(delRaGroup), d3.deviation(delDecGroup));
 
@@ -75,204 +74,204 @@ const getMessages = (delRaGroup, delDecGroup) => {
 };
 
 // The Vega-Lite specifications for the centroid plot
-const spec = (inputData) => {
-  return {
-    $schema: 'https://vega.github.io/schema/vega-lite/v4.json',
-    width: 450,
-    height: 450,
-    background: 'transparent',
-    layer: [
-      // Render nuclear-to-host circle
-      {
-        data: {
-          values: inputData['circlePoints'],
+const spec = (inputData) => ({
+  $schema: 'https://vega.github.io/schema/vega-lite/v4.json',
+  width: 450,
+  height: 450,
+  background: 'transparent',
+  layer: [
+    // Render nuclear-to-host circle
+    {
+      data: {
+        values: inputData.circlePoints,
+      },
+      transform: [
+        { calculate: '0.8 * cos(datum.theta)', as: 'x' },
+        { calculate: '0.8 * sin(datum.theta)', as: 'y' },
+      ],
+      mark: {
+        type: 'line',
+      },
+      encoding: {
+        x: {
+          field: 'x',
+          type: 'quantitative',
         },
-        transform: [
-          { calculate: '0.8 * cos(datum.theta)', as: 'x' },
-          { calculate: '0.8 * sin(datum.theta)', as: 'y' },
+        y: {
+          field: 'y',
+          type: 'quantitative',
+        },
+        order: { field: 'theta', type: 'quantitative' },
+        fill: {
+          value: '#ccd2db',
+        },
+        fillOpacity: { value: 0.5 },
+        strokeOpacity: { value: 0 },
+      },
+    },
+
+    // Render 1 sigma boundary circle
+    {
+      data: {
+        values: inputData.circlePoints,
+      },
+      mark: {
+        type: 'line',
+        point: 'true',
+      },
+      encoding: {
+        x: {
+          field: 'xx',
+          type: 'quantitative',
+        },
+        y: {
+          field: 'yy',
+          type: 'quantitative',
+        },
+        order: { field: 'theta', type: 'quantitative' },
+        color: {
+          value: 'red',
+          legend: {
+            values: ['\u03A3'],
+            orient: 'bottom-right',
+          },
+        },
+        strokeWidth: { value: 2 },
+      },
+    },
+
+    // Render main scatter plot
+    {
+      data: {
+        values: inputData.photometryData,
+      },
+      mark: {
+        type: 'point',
+        filled: true,
+      },
+      encoding: {
+        x: {
+          field: 'delRA',
+          type: 'quantitative',
+          axis: {
+            title: '\u0394RA (arcsec)',
+            titleFontSize: 14,
+            titlePadding: 8,
+          },
+        },
+        y: {
+          field: 'delDec',
+          type: 'quantitative',
+          axis: {
+            title: '\u0394Dec (arcsec)',
+            titleFontSize: 14,
+            titlePadding: 8,
+          },
+        },
+        tooltip: [
+          { field: 'id', type: 'quantitative' },
+          { field: 'delRA', type: 'quantitative' },
+          { field: 'delDec', type: 'quantitative' },
+          { field: 'ra', type: 'quantitative', title: 'RA' },
+          { field: 'dec', type: 'quantitative', title: 'Dec' },
         ],
-        mark: {
-          type: 'line',
+        color: {
+          field: 'filter',
+          type: 'nominal',
+          scale: { range: ['#2f5492', '#ff7f0e', '#2ca02c'] },
+          legend: {
+            title: 'Filter',
+            titleFontSize: 14,
+            labelFontSize: 12,
+            titleLimit: 240,
+            lableLimit: 240,
+            rowPadding: 4,
+          },
         },
-        encoding: {
-          x: {
-            field: 'x',
-            type: 'quantitative',
-          },
-          y: {
-            field: 'y',
-            type: 'quantitative',
-          },
-          order: { field: 'theta', type: 'quantitative' },
-          fill: {
-            value: '#ccd2db',
-          },
-          fillOpacity: { value: 0.5 },
-          strokeOpacity: { value: 0 },
+        shape: {
+          field: 'filter',
+          type: 'nominal',
+          scale: { range: ['circle', 'square', 'triangle'] },
         },
+        size: { value: 35 },
+        fillOpacity: { value: 1.0 },
+        strokeOpacity: { value: 0 },
       },
+    },
 
-      // Render 1 sigma boundary circle
-      {
-        data: {
-          values: inputData['circlePoints'],
-        },
-        mark: {
-          type: 'line',
-          point: 'true',
-        },
-        encoding: {
-          x: {
-            field: 'xx',
-            type: 'quantitative',
-          },
-          y: {
-            field: 'yy',
-            type: 'quantitative',
-          },
-          order: { field: 'theta', type: 'quantitative' },
-          color: {
-            value: 'red',
-            legend: {
-              values: ['\u03A3'],
-              orient: 'bottom-right',
-            },
-          },
-          strokeWidth: { value: 2 },
-        },
+    // Render center point (nearest object position relative to mode of the
+    // nearest references) - currently just the one reference
+    {
+      data: {
+        values: inputData.centerPoint,
       },
+      mark: {
+        type: 'point',
+        shape: 'cross',
+        size: '100',
+      },
+      encoding: {
+        x: {
+          field: 'x',
+          type: 'quantitative',
+        },
+        y: {
+          field: 'y',
+          type: 'quantitative',
+        },
+        fill: { value: 'black' },
+      },
+    },
 
-      // Render main scatter plot
-      {
-        data: {
-          values: inputData['photometryData'],
+    // Render text messages
+    {
+      data: {
+        values: inputData.messages,
+      },
+      mark: {
+        type: 'text',
+        fontSize: 14,
+        fontWeight: 500,
+      },
+      encoding: {
+        text: { field: 'message', type: 'nominal' },
+        x: {
+          field: 'x',
+          type: 'quantitative',
         },
-        mark: {
-          type: 'point',
-          filled: true,
-        },
-        encoding: {
-          x: {
-            field: 'delRA',
-            type: 'quantitative',
-            axis: {
-              title: '\u0394RA (arcsec)',
-              titleFontSize: 14,
-              titlePadding: 8,
-            },
-          },
-          y: {
-            field: 'delDec',
-            type: 'quantitative',
-            axis: {
-              title: '\u0394Dec (arcsec)',
-              titleFontSize: 14,
-              titlePadding: 8,
-            },
-          },
-          tooltip: [
-            { field: 'id', type: 'quantitative' },
-            { field: 'delRA', type: 'quantitative' },
-            { field: 'delDec', type: 'quantitative' },
-            { field: 'ra', type: 'quantitative', title: 'RA' },
-            { field: 'dec', type: 'quantitative', title: 'Dec' },
-          ],
-          color: {
-            field: 'filter',
-            type: 'nominal',
-            scale: { range: ['#2f5492', '#ff7f0e', '#2ca02c'] },
-            legend: {
-              title: 'Filter',
-              titleFontSize: 14,
-              labelFontSize: 12,
-              titleLimit: 240,
-              lableLimit: 240,
-              rowPadding: 4,
-            },
-          },
-          shape: {
-            field: 'filter',
-            type: 'nominal',
-            scale: { range: ['circle', 'square', 'triangle'] },
-          },
-          size: { value: 35 },
-          fillOpacity: { value: 1.0 },
-          strokeOpacity: { value: 0 },
+        y: {
+          field: 'y',
+          type: 'quantitative',
         },
       },
-
-      // Render center point (nearest object position relative to mode of the // nearest references) - currently just the one reference
-      {
-        data: {
-          values: inputData['centerPoint'],
-        },
-        mark: {
-          type: 'point',
-          shape: 'cross',
-          size: '100',
-        },
-        encoding: {
-          x: {
-            field: 'x',
-            type: 'quantitative',
-          },
-          y: {
-            field: 'y',
-            type: 'quantitative',
-          },
-          fill: { value: 'black' },
-        },
-      },
-
-      // Render text messages
-      {
-        data: {
-          values: inputData['messages'],
-        },
-        mark: {
-          type: 'text',
-          fontSize: 14,
-          fontWeight: 500,
-        },
-        encoding: {
-          text: { field: 'message', type: 'nominal' },
-          x: {
-            field: 'x',
-            type: 'quantitative',
-          },
-          y: {
-            field: 'y',
-            type: 'quantitative',
-          },
-        },
-      },
-    ],
-  };
-};
+    },
+  ],
+});
 
 const processData = (photometry) => {
-  let ras = Object.values(photometry).map((point) => {
-    return point.ra;
-  });
-  let decs = Object.values(photometry).map((point) => {
-    return point.dec;
-  });
+  const ras = Object.values(photometry).map((point) => point.ra);
+  const decs = Object.values(photometry).map((point) => point.dec);
 
-  // For now, set single reference nearest object to median values for the RA // and Dec in the photometry
+  // For now, set single reference nearest object to median values for the RA
+  // and Dec in the photometry
   const { refRA, refDec } = getReferencePoint(ras, decs);
 
-  var delRaGroup = [];
-  var delDecGroup = [];
-  const photometryAsArray = Object.values(photometry).map((point) => {
+  const computeDeltas = (delRaGroup, delDecGroup) => (point) => {
     const { delRA, delDec } = relativeCoord(point.ra, point.dec, refRA, refDec);
     delRaGroup.push(delRA);
     delDecGroup.push(delDec);
     return {
       ...point,
-      delRA: delRA,
-      delDec: delDec,
+      delRA,
+      delDec,
     };
-  });
+  };
+
+  const delRaGroup = [];
+  const delDecGroup = [];
+  const photometryAsArray = Object.values(photometry).map(
+    computeDeltas(delRaGroup, delDecGroup)
+  );
 
   // Sigma circle
   const circlePoints = getCirclePoints(delRaGroup, delDecGroup);
@@ -281,15 +280,15 @@ const processData = (photometry) => {
   const messages = getMessages(delRaGroup, delDecGroup);
 
   return {
-    photometryData: photometryAsArray,
-    circlePoints: circlePoints,
+    photometryAsArray,
+    circlePoints,
     centerPoint: [{ x: 0.0, y: 0.0 }],
-    messages: messages,
+    messages,
   };
 };
 
 const CentroidPlot = (props) => {
-  const { sourceId, className } = props;
+  const { sourceId } = props;
   const dispatch = useDispatch();
   const photometry = useSelector((state) => state.photometry[sourceId]);
 
@@ -297,10 +296,10 @@ const CentroidPlot = (props) => {
     if (!photometry) {
       dispatch(photometryActions.fetchSourcePhotometry(sourceId));
     }
-  }, [photometry, dispatch]);
+  }, [sourceId, photometry, dispatch]);
 
   const plotData = photometry ? processData(photometry) : {};
-  console.log(plotData);
+
   return (
     <div
       ref={(node) => {
@@ -310,6 +309,10 @@ const CentroidPlot = (props) => {
       }}
     />
   );
+};
+
+CentroidPlot.propTypes = {
+  sourceId: PropTypes.string.isRequired,
 };
 
 export default CentroidPlot;

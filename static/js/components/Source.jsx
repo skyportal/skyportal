@@ -127,10 +127,7 @@ const Source = ({ route }) => {
           mobileProps={{ folded: true }}
         >
           <Suspense fallback={<div>Loading plot...</div>}>
-            <CentroidPlot 
-              className={styles.plot} 
-              sourceId={source.id}>  
-            </CentroidPlot>
+            <CentroidPlot className={styles.plot} sourceId={source.id} />
           </Suspense>
         </Responsive>
 
