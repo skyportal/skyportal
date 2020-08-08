@@ -11,10 +11,10 @@ export const fetchObservingRuns = () => (
 const reducer = (state={ observingRunList: [] }, action) => {
   switch (action.type) {
     case FETCH_OBSERVING_RUNS_OK: {
-      const observingruns = action.data;
+      const observingRunList = action.data;
       return {
         ...state,
-        observingRunList: observingruns
+        observingRunList
       };
     }
     default:

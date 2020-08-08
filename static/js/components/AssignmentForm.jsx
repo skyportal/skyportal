@@ -9,9 +9,13 @@ import Button from '@material-ui/core/Button';
 import FormControl from "@material-ui/core/FormControl";
 import MenuItem from "@material-ui/core/MenuItem";
 import { makeStyles } from "@material-ui/core/styles";
+import dayjs from "dayjs";
+import utc from 'dayjs/plugin/utc';
 import * as Actions from '../ducks/source';
 
 import 'react-datepicker/dist/react-datepicker-cssmodules.css';
+
+dayjs.extend(utc);
 
 export function observingRunTitle(observingRun, instrumentList, telescopeList, groups) {
   const { instrument_id } = observingRun;
@@ -32,7 +36,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   const groups = useSelector((state) => state.groups.all);
 
   const upcomingRuns = observingRunList.filter((observingrun) => (
-    Date.parse(observingrun.ephemeris.sunrise_utc) >= Date.now()
+    dayjs.utc(observingrun.ephemeris.sunrise_utc) >= dayjs()
   ));
 
   const { handleSubmit, getValues, reset, register, control } = useForm();
