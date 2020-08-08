@@ -28,4 +28,8 @@ healpix-alchemy>=0.1.2
 jsonschema
 jsonpath_ng>=1.5.1
 pytest-rerunfailures>=9.0
+timezonefinder>=4.4.0
 astroplan>=0.6
+phonenumbers>=8.12.7
+py3-validate-email>=0.2.9
+

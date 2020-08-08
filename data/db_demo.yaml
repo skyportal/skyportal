@@ -63,6 +63,7 @@ telescope:
     lon: -116.8361345
     elevation: 1870
     diameter: 1.5
+    robotic: true
     skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
     group_ids:
       - =public_group_id
@@ -72,6 +73,7 @@ telescope:
     nickname: NOT
     lat: 28.75
     lon: 17.88
+    robotic: true
     elevation: 2000
     diameter: 2.56
     skycam_link: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
@@ -79,18 +81,51 @@ telescope:
       - =public_group_id
       - =program_A
     =id: NOT
+  - diameter: 10.0
+    elevation: 4160.0
+    lat: 19.8283
+    lon: -155.478
+    name: Keck II 10m
+    nickname: Keck2
+    skycam_link: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
+    robotic: false
+    group_ids:
+      - =program_A
+    =id: Keck2
+  - name: Keck I Telescope
+    nickname: Keck1
+    lat: 19.8283
+    lon: -155.478
+    elevation: 2000
+    diameter: 2.56
+    skycam_link: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
+    robotic: false
+    group_ids:
+      - =program_A
+    =id: Keck1
 
 instrument:
   - name: P60 Camera
-    type: phot
+    type: imager
     band: V
     telescope_id: =P60
     filters: ["ztfg", "ztfr", "ztfi"]
   - name: ALFOSC
-    type: both
+    type: imaging spectrograph
     band: V
     telescope_id: =NOT
     =id: ALFOSC
+  - name: ESI
+    type: spectrograph
+    band: optical
+    =id: ESI
+    telescope_id: =Keck2
+  - name: LRIS
+    type: spectrograph
+    band: optical
+    =id: LRIS
+    telescope_id: =Keck1
+    
 
 candidates:
   - id: 14gqr_unsaved_copy
@@ -274,3 +309,35 @@ spectrum:
 
 taxonomy:
   file: taxonomy_demo.yaml
+
+observing_run:
+  - pi: Danny Goldstein
+    instrument_id: =ESI
+    calendar_date: "2021-02-16"
+    group_id: =program_A
+    observers: "Danny Goldstein, Peter Nugent"
+    =id: esi_run
+  - pi: Danny Goldstein
+    instrument_id: =LRIS
+    calendar_date: "2021-06-17"
+    group_id: =program_A
+    observers: "Danny Goldstein, Peter Nugent"
+    =id: lris_run
+
+assignment:
+  - obj_id: 14gqr
+    run_id: =lris_run
+    priority: "4"
+    comment: Please get 2x625s
+  - obj_id: 16fil
+    run_id: =lris_run
+    priority: "3"
+    comment: Please do i-band imaging to 24th mag
+  - obj_id: 14gqr
+    run_id: =esi_run
+    priority: "2"
+    comment: Please integrate for 1200s
+  - obj_id: 16fil
+    run_id: =esi_run
+    priority: "2"
+    comment: Please take only when seeing is less than 1.5"
