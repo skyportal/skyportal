@@ -20,6 +20,8 @@ from skyportal.tests.fixtures import (
     UserFactory,
     FilterFactory,
     InstrumentFactory,
+    ObservingRunFactory,
+    TelescopeFactory
 )
 from skyportal.model_util import create_token
 from skyportal.models import DBSession, Source, Candidate, Role
@@ -33,8 +35,11 @@ set_server_url(f'http://localhost:{cfg["ports.app"]}')
 print("Setting test database to:", cfg["database"])
 models.init_db(**cfg["database"])
 
-# grab the latest earth orientation data for observatory calculations
-astroplan.download_IERS_A()
+
+@pytest.fixture(scope='session')
+def iers_data():
+    # grab the latest earth orientation data for observatory calculations
+    astroplan.download_IERS_A()
 
 
 @pytest.fixture()
@@ -70,6 +75,14 @@ def public_source_two_groups(public_group, public_group2):
 
 
 @pytest.fixture()
+def public_source_group2(public_group2):
+    obj = ObjFactory(groups=[public_group2])
+    DBSession.add(Source(obj_id=obj.id, group_id=public_group2.id))
+    DBSession.commit()
+    return obj
+
+
+@pytest.fixture()
 def public_candidate(public_filter):
     obj = ObjFactory(groups=[public_filter.group])
     DBSession.add(Candidate(obj=obj, filter=public_filter))
@@ -80,6 +93,66 @@ def public_candidate(public_filter):
 @pytest.fixture()
 def ztf_camera():
     return InstrumentFactory()
+
+
+@pytest.fixture()
+def red_transients_group(group_admin_user, view_only_user):
+    return GroupFactory(name=f'red transients-{uuid.uuid4().hex}',
+                        users=[group_admin_user,
+                               view_only_user])
+
+
+@pytest.fixture()
+def ztf_camera():
+    return InstrumentFactory()
+
+
+@pytest.fixture()
+def keck1_telescope():
+    observer = astroplan.Observer.at_site('Keck')
+    return TelescopeFactory(name=f'Keck I Telescope_{uuid.uuid4()}',
+                            nickname='Keck1_{uuid.uuid4()}',
+                            lat=observer.location.lat.to('deg').value,
+                            lon=observer.location.lon.to('deg').value,
+                            elevation=observer.location.height.to('m').value,
+                            diameter=10.)
+
+
+@pytest.fixture()
+def p60_telescope():
+    observer = astroplan.Observer.at_site('Palomar')
+    return TelescopeFactory(name=f'Palomar 60-inch telescope_{uuid.uuid4()}',
+                            nickname='p60_{uuid.uuid4()}',
+                            lat=observer.location.lat.to('deg').value,
+                            lon=observer.location.lon.to('deg').value,
+                            elevation=observer.location.height.to('m').value,
+                            diameter=1.6)
+
+
+@pytest.fixture()
+def lris(keck1_telescope):
+    return InstrumentFactory(name=f'LRIS_{uuid.uuid4()}',
+                             type='imaging spectrograph',
+                             telescope=keck1_telescope,
+                             band='Optical', filters=['sdssu', 'sdssg',
+                                                      'sdssr', 'sdssi',
+                                                      'sdssz', 'bessellux',
+                                                      'bessellv', 'bessellb',
+                                                      'bessellr', 'besselli'])
+
+
+@pytest.fixture()
+def sedm(p60_telescope):
+    return InstrumentFactory(name=f'SEDM_{uuid.uuid4()}',
+                             type='imaging spectrograph',
+                             telescope=p60_telescope,
+                             band='Optical', filters=['sdssu', 'sdssg', 'sdssr',
+                                                      'sdssi'])
+
+
+@pytest.fixture()
+def red_transients_run():
+    return ObservingRunFactory()
 
 
 @pytest.fixture()

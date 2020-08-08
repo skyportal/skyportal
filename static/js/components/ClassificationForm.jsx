@@ -153,7 +153,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
           </Select>
           <div style={{ display: state.class_select_enabled ? "block" : "none" }}>
             <Autocomplete
-              options={state.allowed_classes}
+              options={state.allowed_classes || []}
               id="classification"
               getOptionSelected={(option) => {
                 if ((state.classification === null) || (state.classification === '')) {
