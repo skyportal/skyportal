@@ -1,6 +1,8 @@
 import uuid
 import time
 
+import pytest
+
 from skyportal.tests import api
 
 
@@ -129,7 +131,7 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
         time.sleep(1)
         assert not next_button.is_enabled()
 
-
+@pytest.mark.flaky(reruns=2)
 def test_jump_to_page_invalid_values(driver):
     driver.get('/')
     jump_to_page_input = driver.wait_for_xpath("//input[@name='jumpToPageInputField']")

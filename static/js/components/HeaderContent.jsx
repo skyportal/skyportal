@@ -15,7 +15,7 @@ const HeaderContent = () => (
         SkyPortal ∝
       </Link>
     </div>
-    <div style={{ position: "fixed", right: "1em" }}>
+    <div style={{ position: "fixed", right: "1em", top: "1em" }}>
       <Responsive desktopElement={ProfileDropdown} />
     </div>
   </div>
