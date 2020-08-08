@@ -1,6 +1,7 @@
 import uuid
 import pytest
 
+
 @pytest.mark.flaky(reruns=2)
 def test_submit_and_delete_new_assignment(
     driver, super_admin_user, public_source, red_transients_run
@@ -11,7 +12,15 @@ def test_submit_and_delete_new_assignment(
         '//*[@id="mui-component-select-run_id"]'
     )
     driver.scroll_to_element_and_click(run_select)
-    driver.scroll_to_element_and_click(driver.wait_for_xpath(f'//li[@data-value="{red_transients_run.id}"]'))
+    observingrun_title = f"{red_transients_run.calendar_date} " \
+                         f"{red_transients_run.instrument.name}/" \
+                         f"{red_transients_run.instrument.telescope.nickname} " \
+                         f"(PI: {red_transients_run.pi} " \
+                         f"{red_transients_run.group.name})"
+    driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]')
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath(f'//li[@data-value="{red_transients_run.id}"]')
+    )
 
     comment_box = driver.wait_for_xpath("//textarea[@name='comment']")
     comment_text = str(uuid.uuid4())
