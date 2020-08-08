@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import PropTypes from 'prop-types';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link } from "react-router-dom";
@@ -24,6 +24,7 @@ import FoldBox from "./FoldBox";
 import FollowupRequestForm from './FollowupRequestForm';
 import FollowupRequestList from './FollowupRequestList';
 
+const CentroidPlot = React.lazy(() => import(/* webpackChunkName: "CentroidPlot" */ './CentroidPlot'));
 
 const Source = ({ route }) => {
   const dispatch = useDispatch();
@@ -120,6 +121,19 @@ const Source = ({ route }) => {
 
         <br />
         <br />
+        <Responsive
+          element={FoldBox}
+          title="Centroid Plot"
+          mobileProps={{ folded: true }}
+        >
+          <Suspense fallback={<div>Loading plot...</div>}>
+            <CentroidPlot 
+              className={styles.plot} 
+              sourceId={source.id}>  
+            </CentroidPlot>
+          </Suspense>
+        </Responsive>
+
         <Responsive
           element={FoldBox}
           title="Photometry"
