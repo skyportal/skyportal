@@ -88,24 +88,10 @@ class GroupHandler(BaseHandler):
                 group['users'] = [{'id': user.id, 'username': user.username}
                                   for user in group['users']]
                 # grab streams:
-                group_streams = (
-                    DBSession().query(GroupStream)
-                        .filter(GroupStream.group_id.in_([group_id]))
-                        .all()
-                )
-                stream_ids = [gs.stream_id for gs in group_streams]
-                streams = (
-                    DBSession().query(Stream)
-                        .filter(Stream.id.in_(stream_ids))
-                        .all()
-                )
+                streams = DBSession().query(Stream).join(GroupStream).filter(GroupStream.group_id == group_id).all()
                 group['streams'] = streams
                 # grab filters:
-                filters = (
-                    DBSession().query(Filter)
-                        .filter(Filter.group_id.in_([group_id]))
-                        .all()
-                )
+                filters = DBSession().query(Filter).filter(Filter.group_id == group_id).all()
                 group['filters'] = filters
 
                 return self.success(data=group)
@@ -114,7 +100,7 @@ class GroupHandler(BaseHandler):
         include_single_user_groups = self.get_query_argument("includeSingleUserGroups",
                                                              False)
         acls = [acl.id for acl in self.current_user.acls]
-        info = dict()
+        info = {}
         info['user_groups'] = list(self.current_user.groups)
         info['all_groups'] = (Group.query.all()
                               if "System admin" in acls or "Manage groups" in acls
@@ -419,8 +405,7 @@ class GroupStreamHandler(BaseHandler):
         else:
             # Add new GroupStream
             gs = GroupStream.query.filter(
-                GroupStream.group_id == group_id
-            ).filter(
+                GroupStream.group_id == group_id,
                 GroupStream.stream_id == stream_id
             ).first()
             if gs is None:
@@ -467,8 +452,6 @@ class GroupStreamHandler(BaseHandler):
                 "Specified stream_id does not exist."
             )
         else:
-            if group.single_user_group:
-                return self.error("Cannot delete streams from single user groups.")
             (GroupStream.query.filter(GroupStream.group_id == group_id)
              .filter(GroupStream.stream_id == stream_id).delete())
             DBSession().commit()

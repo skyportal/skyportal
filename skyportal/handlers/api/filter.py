@@ -48,11 +48,7 @@ class FilterHandler(BaseHandler):
             if f is None:
                 return self.error("Invalid filter ID.")
             # get stream:
-            stream = (
-                DBSession().query(Stream)
-                    .filter(Stream.id == f.stream_id)
-                    .first()
-            )
+            stream = DBSession().query(Stream).get(f.stream_id)
             f.stream = stream
 
             return self.success(data=f)

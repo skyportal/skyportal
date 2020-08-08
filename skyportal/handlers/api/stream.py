@@ -9,7 +9,7 @@ from ...models import (
 
 
 class StreamHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["System admin"])
     def get(self, stream_id=None):
         """
         ---
@@ -25,7 +25,7 @@ class StreamHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: SingleFilter
+                  schema: SingleStream
             400:
               content:
                 application/json:
@@ -36,25 +36,18 @@ class StreamHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfFilters
+                  schema: ArrayOfStreams
             400:
               content:
                 application/json:
                   schema: Error
         """
         if stream_id is not None:
-            # fixme: add ACLs! Users should be created with specific Stream access permissions
-            # s = Stream.get_if_owned_by(stream_id, self.current_user)
             s = DBSession().query(Stream).filter(Stream.id == stream_id).first()
             if s is None:
                 return self.error("Invalid stream ID.")
             return self.success(data=s)
-        streams = (
-            DBSession().query(Stream)
-            # fixme: results in error "'Token' object has no attribute 'streams'"
-            # .filter(Stream.id.in_([s.id for s in self.current_user.streams]))
-            .all()
-        )
+        streams = DBSession().query(Stream).all()
         return self.success(data=streams)
 
     @permissions(["System admin"])
