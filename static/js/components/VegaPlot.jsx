@@ -166,20 +166,36 @@ const spec = (url) => ({
 });
 
 
-const VegaPlot = ({ dataUrl }) => (
-  <div
-    ref={
-      (node) => {
-        embed(node, spec(dataUrl), {
-          actions: false
-        });
-      }
-    }
-  />
-);
+class VegaPlot extends React.Component {
+  // This is implemented as a class so we can define
+  // shouldComponentUpdate
+
+  // eslint-disable-next-line no-unused-vars
+  shouldComponentUpdate(nextProps, nextState, nextOverride) {
+    // Don't re-render Vega plots if the containing div updates.
+    // This dramatically improves browser performance
+    return false;
+  }
+
+  render() {
+    const { dataUrl } = this.props;
+    return (
+      <div
+        ref={
+          (node) => {
+            embed(node, spec(dataUrl), {
+              actions: false
+            });
+          }
+        }
+      />
+    );
+  }
+}
+
 
 VegaPlot.propTypes = {
-  dataUrl: PropTypes.string.isRequired
+  dataUrl: PropTypes.string.isRequired,
 };
 
 export default VegaPlot;
