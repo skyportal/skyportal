@@ -4,6 +4,7 @@ from selenium.webdriver.common.by import By
 import uuid
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_token(driver, user, public_group):
     token_name = str(uuid.uuid4())
     driver.get(f'/become_user/{user.id}')
@@ -15,6 +16,7 @@ def test_add_token(driver, user, public_group):
     driver.wait_for_xpath(f'//td[contains(.,"{token_name}")]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_delete_token(driver, user, public_group, view_only_token):
     driver.get(f'/become_user/{user.id}')
     driver.get('/profile')
@@ -23,6 +25,7 @@ def test_delete_token(driver, user, public_group, view_only_token):
     driver.wait_for_xpath_to_disappear(f'//input[@value="{view_only_token}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_duplicate_token_error_message(driver, user, public_group):
     token_name = str(uuid.uuid4())
     driver.get(f'/become_user/{user.id}')
