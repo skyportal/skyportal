@@ -199,7 +199,7 @@ thumbnail:
     data:
       file: ../skyportal/tests/data/14gqr_ref.png
   - obj_id: 14gqr_unsaved_copy
-    ttype: ref
+    ttype: sub
     data:
       file: ../skyportal/tests/data/14gqr_sub.png
 
@@ -212,7 +212,7 @@ thumbnail:
     data:
       file: ../skyportal/tests/data/14gqr_ref.png
   - obj_id: 14gqr
-    ttype: ref
+    ttype: sub
     data:
       file: ../skyportal/tests/data/14gqr_sub.png
 
@@ -225,7 +225,7 @@ thumbnail:
     data:
       file: ../skyportal/tests/data/16fil_ref.png
   - obj_id: 16fil_unsaved_copy
-    ttype: ref
+    ttype: sub
     data:
       file: ../skyportal/tests/data/16fil_sub.png
 
@@ -238,7 +238,7 @@ thumbnail:
     data:
       file: ../skyportal/tests/data/16fil_ref.png
   - obj_id: 16fil
-    ttype: ref
+    ttype: sub
     data:
       file: ../skyportal/tests/data/16fil_sub.png
 
@@ -247,19 +247,30 @@ spectrum:
     file: spec1.csv
     instrument_id: =ALFOSC
     observed_at: "2019-10-24T00:00:00"
+    group_ids:
+      - =program_A
+      - =program_B
   - obj_id: 14gqr
     file: spec1.csv
     instrument_id: =ALFOSC
     observed_at: "2019-10-24T00:00:00"
-
+    group_ids:
+      - =program_A
+      - =program_B
   - obj_id: 16fil_unsaved_copy
     file: spec2.csv
     instrument_id: =ALFOSC
     observed_at: "2019-10-24T00:00:00"
+    group_ids:
+      - =program_A
+      - =program_B
   - obj_id: 16fil
     file: spec2.csv
     instrument_id: =ALFOSC
     observed_at: "2019-10-24T00:00:00"
+    group_ids:
+      - =program_A
+      - =program_B
 
 taxonomy:
   file: taxonomy_demo.yaml

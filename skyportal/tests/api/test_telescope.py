@@ -33,6 +33,37 @@ def test_token_user_post_get_telescope(upload_data_token, public_group):
             assert data['data'][key] == post_data[key]
 
 
+def test_fetch_telescope_by_name(upload_data_token, public_group):
+    name = str(uuid.uuid4())
+    post_data = {'name': name,
+                 'nickname': name,
+                 'lat': 0.0,
+                 'lon': 0.0,
+                 'elevation': 0.0,
+                 'diameter': 10.0,
+                 'group_ids': [public_group.id],
+                 'skycam_link': 'http://www.lulin.ncu.edu.tw/wea/cur_sky.jpg'
+                 }
+
+    status, data = api('POST', 'telescope',
+                       data=post_data,
+                       token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    telescope_id = data['data']['id']
+    status, data = api(
+        'GET',
+        f'telescope?name={name}',
+        token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    for key in post_data:
+        if key != 'group_ids':
+            assert data['data'][0][key] == post_data[key]
+
+
 def test_token_user_update_telescope(upload_data_token, manage_sources_token,
                                      public_group):
     name = str(uuid.uuid4())

@@ -1,7 +1,6 @@
 from marshmallow.exceptions import ValidationError
 from tdtax import schema, validate
 from jsonschema.exceptions import ValidationError as JSONValidationError
-from jsonpath_ng import parse
 
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -10,40 +9,55 @@ from ...models import DBSession, Taxonomy, Group
 
 class TaxonomyHandler(BaseHandler):
     @auth_or_token
-    def get(self, taxonomy_id):
+    def get(self, taxonomy_id=None):
         """
         ---
-        description: Retrieve a taxonomy
-        parameters:
-          - in: path
-            name: taxonomy_id
-            required: true
-            schema:
-              type: integer
-        responses:
-          200:
-            content:
-              application/json:
-                schema: SingleTaxonomy
-          400:
-            content:
-              application/json:
-                schema: Error
+        single:
+          description: Retrieve a taxonomy
+          parameters:
+            - in: path
+              name: taxonomy_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleTaxonomy
+            400:
+              content:
+                application/json:
+                  schema: Error
+        mutiple:
+          description: Get all the taxonomies
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfTaxonomies
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
-        taxonomy = Taxonomy. \
-            get_taxonomy_usable_by_user(
-                taxonomy_id,
-                self.current_user
-            )
-        if taxonomy is None:
-            return self.error(
-                'Taxonomy does not exist or is not available to user.'
-            )
+        if taxonomy_id is not None:
+            taxonomy = (Taxonomy.
+                        get_taxonomy_usable_by_user(
+                            taxonomy_id,
+                            self.current_user)
+                        )
+            if taxonomy is None or len(taxonomy) == 0:
+                return self.error(
+                    'Taxonomy does not exist or is not available to user.'
+                )
 
-        if not isinstance(taxonomy, list):
-            return self.error('Problem retreiving taxonomy')
-
-        return self.success(data=taxonomy[0])
+            return self.success(data=taxonomy[0])
+        query = Taxonomy.query.filter(
+            Taxonomy.groups.any(Group.id.in_(
+              [g.id for g in self.current_user.groups]))
+        )
+        return self.success(data=query.all())
 
     @permissions(['Post taxonomy'])
     def post(self):
@@ -161,11 +175,6 @@ class TaxonomyHandler(BaseHandler):
 
         provenance = data.get('provenance', None)
 
-        # compute the allowable classes
-        jsonpath_expr = parse('$..class')
-        allowed_classes = list(set(
-                               [x.value for x in jsonpath_expr.find(hierarchy)]
-                               ))
         # update others with this name
         # TODO: deal with the same name but different groups?
         isLatest = data.get('isLatest', True)
@@ -178,7 +187,6 @@ class TaxonomyHandler(BaseHandler):
             name=name,
             hierarchy=hierarchy,
             provenance=provenance,
-            allowed_classes=allowed_classes,
             version=version,
             isLatest=isLatest,
             groups=groups

@@ -52,6 +52,12 @@ class InstrumentHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all instruments
+          parameters:
+            - in: query
+              name: name
+              schema:
+                type: string
+              description: Filter by name (exact match)
           responses:
             200:
               content:
@@ -72,10 +78,14 @@ class InstrumentHandler(BaseHandler):
             _ = Telescope.get_if_owned_by(instrument.telescope_id,
                                           self.current_user)
             return self.success(data=instrument)
+
+        inst_name = self.get_query_argument("name", None)
         query = Instrument.query.filter(Instrument.telescope_id.in_(
             DBSession().query(GroupTelescope.telescope_id).filter(GroupTelescope.group_id.in_(
                 [g.id for g in self.current_user.accessible_groups]
             ))))
+        if inst_name is not None:
+            query = query.filter(Instrument.name == inst_name)
         return self.success(data=query.all())
 
     @permissions(['System admin'])

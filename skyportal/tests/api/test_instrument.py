@@ -19,8 +19,9 @@ def test_token_user_post_get_instrument(super_admin_token, public_group):
     assert data['status'] == 'success'
     telescope_id = data['data']['id']
 
+    instrument_name = str(uuid.uuid4())
     status, data = api('POST', 'instrument',
-                       data={'name': 'instrument_name',
+                       data={'name': instrument_name,
                              'type': 'type',
                              'band': 'V',
                              'telescope_id': telescope_id
@@ -37,6 +38,46 @@ def test_token_user_post_get_instrument(super_admin_token, public_group):
     assert status == 200
     assert data['status'] == 'success'
     assert data['data']['band'] == 'V'
+
+
+def test_fetch_instrument_by_name(super_admin_token, public_group):
+    tel_name = str(uuid.uuid4())
+    status, data = api('POST', 'telescope',
+                       data={'name': tel_name,
+                             'nickname': tel_name,
+                             'lat': 0.0,
+                             'lon': 0.0,
+                             'elevation': 0.0,
+                             'diameter': 10.0,
+                             'group_ids': [public_group.id]
+                             },
+                       token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    telescope_id = data['data']['id']
+
+    instrument_name = str(uuid.uuid4())
+    status, data = api('POST', 'instrument',
+                       data={'name': instrument_name,
+                             'type': 'type',
+                             'band': 'V',
+                             'telescope_id': telescope_id
+                             },
+                       token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    instrument_id = data['data']['id']
+    status, data = api(
+        'GET',
+        f'instrument?name={instrument_name}',
+        token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    assert data['data'][0]['band'] == 'V'
+    assert data['data'][0]['id'] == instrument_id
+    assert data['data'][0]['name'] == instrument_name
 
 
 def test_token_user_update_instrument(super_admin_token, manage_sources_token,
@@ -56,8 +97,9 @@ def test_token_user_update_instrument(super_admin_token, manage_sources_token,
     assert data['status'] == 'success'
     telescope_id = data['data']['id']
 
+    instrument_name = str(uuid.uuid4())
     status, data = api('POST', 'instrument',
-                       data={'name': 'instrument_name',
+                       data={'name': instrument_name,
                              'type': 'type',
                              'band': 'V',
                              'telescope_id': telescope_id
@@ -123,8 +165,9 @@ def test_token_user_delete_instrument(super_admin_token, view_only_token,
     assert data['status'] == 'success'
     telescope_id = data['data']['id']
 
+    instrument_name = str(uuid.uuid4())
     status, data = api('POST', 'instrument',
-                       data={'name': 'instrument_name',
+                       data={'name': instrument_name,
                              'type': 'type',
                              'band': 'V',
                              'telescope_id': telescope_id
