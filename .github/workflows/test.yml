@@ -111,7 +111,10 @@ jobs:
           #
           # db_init should not complain if the databases exist already
           #
-          sudo PGPASSWORD=anything createdb -h localhost -U skyportal skyportal_test
+          echo "localhost:5432:skyportal:skyportal:anything" > ~/.pgpass
+          echo "localhost:5432:skyportal_test:skyportal:anything" > ~/.pgpass
+
+          sudo createdb -h localhost -U skyportal skyportal_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
           make db_init
