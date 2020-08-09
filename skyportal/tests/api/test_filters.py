@@ -57,7 +57,7 @@ def test_cannot_update_filter_without_permission(view_only_token, public_filter)
     assert data["status"] == "error"
 
 
-def test_token_user_post_new_filter(manage_groups_token, public_group, public_stream):
+def test_token_user_post_delete_filter(manage_groups_token, public_group, public_stream):
     status, data = api(
         "POST",
         "filters",
@@ -74,3 +74,10 @@ def test_token_user_post_new_filter(manage_groups_token, public_group, public_st
     status, data = api("GET", f"filters/{filter_id}", token=manage_groups_token)
     assert status == 200
     assert data["data"]["id"] == filter_id
+
+    status, data = api("DELETE", f"filters/{filter_id}", token=manage_groups_token)
+    assert status == 200
+
+    status, data = api("GET", f"filters/{filter_id}", token=manage_groups_token)
+    assert status == 400
+    assert data["message"] == "Invalid filter ID."
