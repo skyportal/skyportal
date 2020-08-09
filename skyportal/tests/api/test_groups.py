@@ -284,7 +284,7 @@ def test_add_stream_to_group_delete_stream(super_admin_token, public_group, publ
     assert len(data["data"]["streams"]) == 0
 
 
-def test_post_new_filter(manage_groups_token, public_group, public_stream):
+def test_post_new_filter_delete_group_deletes_filter(manage_groups_token, public_group, public_stream):
     status, data = api(
         "POST",
         "filters",
@@ -303,6 +303,37 @@ def test_post_new_filter(manage_groups_token, public_group, public_stream):
     assert data["data"]["id"] == filter_id
 
     status, data = api("DELETE", f"groups/{public_group.id}", token=manage_groups_token)
+    assert status == 200
+
+    status, data = api("GET", f"filters/{filter_id}", token=manage_groups_token)
+    assert status == 400
+    assert data["message"] == "Invalid filter ID."
+
+
+def test_post_new_filter_delete_stream_deletes_filter(
+        manage_groups_token,
+        super_admin_token,
+        public_group,
+        public_stream
+):
+    status, data = api(
+        "POST",
+        "filters",
+        data={
+            "name": str(uuid.uuid4()),
+            "stream_id": public_stream.id,
+            "group_id": public_group.id,
+        },
+        token=manage_groups_token,
+    )
+    assert status == 200
+    filter_id = data["data"]["id"]
+
+    status, data = api("GET", f"filters/{filter_id}", token=manage_groups_token)
+    assert status == 200
+    assert data["data"]["id"] == filter_id
+
+    status, data = api("DELETE", f"streams/{public_stream.id}", token=super_admin_token)
     assert status == 200
 
     status, data = api("GET", f"filters/{filter_id}", token=manage_groups_token)
