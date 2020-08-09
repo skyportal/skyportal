@@ -40,7 +40,6 @@ jobs:
           path: |
             ~/.cache/pip
             ~/.cache/sphinx
-            ~/.ccache
             ~/.local
             ~/.npm
           key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
@@ -77,10 +76,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-add-repository -y ppa:nginx/stable
-          sudo apt install -y ccache wget nodejs unzip firefox nginx
-
-          export PATH=/usr/lib/ccache:${PATH}
-          ccache -s
+          sudo apt install -y wget nodejs unzip firefox nginx
 
           pip install --upgrade pip
           pip install wheel numpy
