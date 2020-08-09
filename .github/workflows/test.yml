@@ -11,6 +11,7 @@ jobs:
       postgres:
         image: postgres
         env:
+          POSTGRES_USER: skyportal
           POSTGRES_PASSWORD: anything
         ports:
           - 5432:5432
