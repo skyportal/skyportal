@@ -325,9 +325,9 @@ class Obj(Base, ha.Point):
 
 class Filter(Base):
     name = sa.Column(sa.String, nullable=False, unique=False)
-    stream_id = sa.Column(sa.ForeignKey("streams.id", ondelete="CASCADE"), nullable=False)
+    stream_id = sa.Column(sa.ForeignKey("streams.id", ondelete="CASCADE"), nullable=False, index=True)
     stream = relationship("Stream", foreign_keys=[stream_id], back_populates="filters")
-    group_id = sa.Column(sa.ForeignKey("groups.id", ondelete="CASCADE"), nullable=False)
+    group_id = sa.Column(sa.ForeignKey("groups.id", ondelete="CASCADE"), nullable=False, index=True)
     group = relationship("Group", foreign_keys=[group_id], back_populates="filters")
 
 
