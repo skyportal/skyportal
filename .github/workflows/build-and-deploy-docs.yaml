@@ -65,12 +65,6 @@ jobs:
           make docs
           touch doc/_build/html/.nojekyll
 
-      - name: Upload docs artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: docs
-          path: doc/_build/html
-
       - name: Install SSH Client 🔑
         if: github.ref == 'refs/heads/master'
         uses: webfactory/ssh-agent@v0.2.0
