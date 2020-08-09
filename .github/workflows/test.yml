@@ -95,10 +95,6 @@ jobs:
           pip list --format=columns
           npm ls --depth 0
 
-      - name: Build docs
-        run: |
-            make docs
-
       - name: Install Geckodriver / Selenium
         run: |
           GECKO_VER=0.27.0
