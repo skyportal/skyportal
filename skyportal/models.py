@@ -307,7 +307,8 @@ class Obj(Base, ha.Point):
 
 class Filter(Base):
     query_string = sa.Column(sa.String, nullable=False, unique=False)
-    group_id = sa.Column(sa.ForeignKey("groups.id"), nullable=False)
+    group_id = sa.Column(sa.ForeignKey("groups.id"), nullable=False,
+                         index=True)
     group = relationship("Group", foreign_keys=[group_id], back_populates="filter")
 
 
@@ -348,13 +349,15 @@ Source = join_model("sources", Group, Obj)
    if this gets more complicated it should become a function/`hybrid_property`
    rather than a `relationship`.
 """
-Source.saved_by_id = sa.Column(sa.ForeignKey("users.id"), nullable=True, unique=False)
+Source.saved_by_id = sa.Column(sa.ForeignKey("users.id"), nullable=True, unique=False,
+                               index=True)
 Source.saved_by = relationship("User", foreign_keys=[Source.saved_by_id],
                                backref="saved_sources")
 Source.saved_at = sa.Column(sa.DateTime, nullable=True)
 Source.active = sa.Column(sa.Boolean, server_default="true")
 Source.requested = sa.Column(sa.Boolean, server_default="false")
-Source.unsaved_by_id = sa.Column(sa.ForeignKey("users.id"), nullable=True, unique=False)
+Source.unsaved_by_id = sa.Column(sa.ForeignKey("users.id"), nullable=True, unique=False,
+                                 index=True)
 Source.unsaved_by = relationship("User", foreign_keys=[Source.unsaved_by_id])
 
 
@@ -453,7 +456,7 @@ User.sources = relationship('Obj', backref='users',
 
 class SourceView(Base):
     obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
-                       nullable=False, unique=False)
+                       nullable=False, unique=False, index=True)
     username_or_token_id = sa.Column(sa.String, nullable=False, unique=False)
     is_token = sa.Column(sa.Boolean, nullable=False, default=False)
     created_at = sa.Column(sa.DateTime, nullable=False, default=datetime.now,
@@ -614,7 +617,7 @@ GroupComment = join_model("group_comments", Group, Comment)
 class Classification(Base):
     classification = sa.Column(sa.String, nullable=False)
     taxonomy_id = sa.Column(sa.ForeignKey('taxonomies.id', ondelete='CASCADE'),
-                            nullable=False)
+                            nullable=False, index=True)
     taxonomy = relationship('Taxonomy', back_populates='classifications')
     probability = sa.Column(sa.Float,
                             doc='User-assigned probability of belonging '
@@ -824,7 +827,8 @@ class Thumbnail(Base):
 class ObservingRun(Base):
 
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id', ondelete='CASCADE'), nullable=False
+        sa.ForeignKey('instruments.id', ondelete='CASCADE'), nullable=False,
+        index=True
     )
     instrument = relationship(
         'Instrument', cascade='save-update, merge, refresh-expire, expunge',
@@ -844,7 +848,7 @@ class ObservingRun(Base):
     # let this be nullable to accommodate external groups' runs
     group = relationship('Group', back_populates='observing_runs')
     group_id = sa.Column(sa.ForeignKey('groups.id', ondelete='CASCADE'),
-                         nullable=True)
+                         nullable=True, index=True)
 
     # the person who uploaded the run
     owner = relationship('User', back_populates='observing_runs')
