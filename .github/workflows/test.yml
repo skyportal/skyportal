@@ -97,7 +97,6 @@ jobs:
 
       - name: Build docs
         run: |
-            pip install -r requirements.docs.txt
             make docs
 
       - name: Install Geckodriver / Selenium
