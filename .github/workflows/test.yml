@@ -104,7 +104,20 @@ jobs:
 
       - name: Initialize SkyPortal
         run: |
+          # Usually, we create databases on the local machine, so
+          # `createdb` just works out of the box.  However, when doing
+          # this on a server, as in our case, we need to specify extra
+          # options.
+          #
+          # db_init should not complain if the databases exist already
+          #
+          PGPASSWORD=anything createdb -w skyportal -h localhost -U skyportal
+          PGPASSWORD=anything createdb -w skyportal_test -h localhost -U skyportal
+          psql -U skyportal -c "GRANT ALL PRIVILEGES ON DATABASE skyportal TO skyportal;" skyportal
+          psql -U skyportal -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
+
           make db_init
+
           pip list --format=columns
           npm ls --depth 0
 
