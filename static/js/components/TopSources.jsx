@@ -41,21 +41,21 @@ const TopSources = () => {
               <Link to={`/source/${obj_id}`}>
                 <img className={styles.stamp} src={public_url} alt={obj_id} />
               </Link>
-              <div>
+              <span>
                 &nbsp;
                 -&nbsp;
                 <Link to={`/source/${obj_id}`}>
                   {obj_id}
                 </Link>
-              </div>
-              <div>
+              </span>
+              <span>
                 <em>
                   &nbsp;
                   -&nbsp;
                   {views}
                   &nbsp;view(s)
                 </em>
-              </div>
+              </span>
             </li>
           ))
         }
