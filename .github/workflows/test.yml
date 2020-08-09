@@ -140,12 +140,11 @@ jobs:
 
       - name: Run test suite
         run: |
-          make log &
           make test_headless
-          pkill -f 'make log'
 
       - name: Upload logs
         uses: actions/upload-artifact@v2
+        if: ${{ always() }}
         with:
           name: logs
           path: log
