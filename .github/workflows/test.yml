@@ -111,9 +111,7 @@ jobs:
           #
           # db_init should not complain if the databases exist already
           #
-          PGPASSWORD=anything createdb -w skyportal -h localhost -U skyportal
           PGPASSWORD=anything createdb -w skyportal_test -h localhost -U skyportal
-          psql -U skyportal -c "GRANT ALL PRIVILEGES ON DATABASE skyportal TO skyportal;" skyportal
           psql -U skyportal -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
           make db_init
