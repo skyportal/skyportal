@@ -13,6 +13,10 @@ pip install pre-commit
 if pre-commit run --from-ref origin/master --to-ref HEAD; then
     echo "Linting errored; this will be fatal sometime in the near future"
 fi
+
+# Check for react problems using eslint
+make lint
+
 section_end "pre-commit checks"
 
 section "ESLint"
