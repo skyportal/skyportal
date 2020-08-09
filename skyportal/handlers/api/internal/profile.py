@@ -192,4 +192,6 @@ class ProfileHandler(BaseHandler):
             self.push(action="skyportal/FETCH_NEWSFEED")
         if "topSources" in preferences:
             self.push(action="skyportal/FETCH_TOP_SOURCES")
+        if "topEvents" in preferences:
+            self.push(action="skyportal/FETCH_TOP_EVENTS")
         return self.success(action="skyportal/FETCH_USER_PROFILE")

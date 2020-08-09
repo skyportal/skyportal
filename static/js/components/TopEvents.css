@@ -1,0 +1,60 @@
+
+.topEventsContainer {
+  display: block;
+  border-style: solid;
+  border-width: 1px;
+  border-color: #DDD;
+  padding-top: 10px;
+  padding-right: 10px;
+  padding-bottom: 10px;
+  padding-left: 10px;
+}
+
+.topEventList {
+   display: block;
+   align-items: center;
+   list-style-type: none;
+}
+
+.topEvent {
+   margin: 10px;
+}
+
+.wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.tag {
+    display: inline-block;
+    width: 20%;
+    height: 20%;
+    border-radius: 20%;
+    text-align: center;
+    background: #1779ba;
+    color: #fefefe;
+    font-size: 12px;
+    font-size: 0.8vw;
+}
+
+.tag:hover {
+  background: red;
+}
+
+.localization {
+    display: inline-block;
+    width: 20%;
+    height: 20%;
+    border-radius: 20%;
+    text-align: center;
+    background: green;
+    color: #fefefe;
+    font-size: 12px;
+    font-size: 0.8vw;
+}
+
+.localization:hover {
+  background: purple;
+}

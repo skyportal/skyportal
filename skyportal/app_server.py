@@ -28,7 +28,8 @@ from skyportal.handlers.api import (
     UserHandler
 )
 from skyportal.handlers.api.internal import (
-    PlotPhotometryHandler, PlotSpectroscopyHandler, SourceViewsHandler,
+    PlotPhotometryHandler, PlotSpectroscopyHandler,
+    EventViewsHandler, SourceViewsHandler,
     TokenHandler, DBInfoHandler, ProfileHandler, InstrumentObservationParamsHandler
 )
 
@@ -89,6 +90,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/internal/tokens(/.*)?', TokenHandler),
         (r'/api/internal/profile', ProfileHandler),
         (r'/api/internal/dbinfo', DBInfoHandler),
+        (r'/api/internal/event_views(/.*)?', EventViewsHandler),
         (r'/api/internal/source_views(/.*)?', SourceViewsHandler),
         (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
         (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),

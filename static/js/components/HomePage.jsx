@@ -5,6 +5,7 @@ import SourceList from './SourceList';
 import GroupList from './GroupList';
 import NewsFeed from './NewsFeed';
 import TopSources from './TopSources';
+import TopEvents from './TopEvents';
 import styles from './HomePage.css';
 
 const HomePage = () => {
@@ -19,6 +20,9 @@ const HomePage = () => {
       </div>
       <div className={styles.homePageWidgetDiv}>
         <TopSources />
+      </div>
+      <div className={styles.homePageWidgetDiv}>
+        <TopEvents />
       </div>
       <div className={styles.homePageWidgetDiv}>
         <GroupList title="My Groups" groups={groups} />

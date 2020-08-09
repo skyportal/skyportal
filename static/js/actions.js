@@ -4,6 +4,7 @@ import * as sysInfoActions from './ducks/sysInfo';
 import * as dbInfoActions from './ducks/dbInfo';
 import * as newsFeedActions from './ducks/newsFeed';
 import * as topSourcesActions from './ducks/topSources';
+import * as topEventsActions from './ducks/topEvents';
 import * as instrumentsActions from './ducks/instruments';
 import * as taxonomyActions from './ducks/taxonomies';
 
@@ -15,6 +16,7 @@ export default function hydrate() {
     dispatch(groupsActions.fetchGroups());
     dispatch(newsFeedActions.fetchNewsFeed());
     dispatch(topSourcesActions.fetchTopSources());
+    dispatch(topEventsActions.fetchTopEvents());
     dispatch(instrumentsActions.fetchInstruments());
     dispatch(instrumentsActions.fetchInstrumentObsParams());
     dispatch(taxonomyActions.fetchTaxonomies());

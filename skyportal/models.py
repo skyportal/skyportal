@@ -1070,6 +1070,15 @@ class Event(Base):
             return 'FAR: '+elem.attrib.get('value', '')
 
 
+class EventView(Base):
+    event_id = sa.Column(sa.ForeignKey('events.id', ondelete='CASCADE'),
+                         nullable=False, unique=False)
+    username_or_token_id = sa.Column(sa.String, nullable=False, unique=False)
+    is_token = sa.Column(sa.Boolean, nullable=False, default=False)
+    created_at = sa.Column(sa.DateTime, nullable=False, default=datetime.now,
+                           index=True)
+
+
 class Tag(Base):
     """Store qualitative tags for events."""
 
