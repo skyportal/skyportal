@@ -79,3 +79,14 @@ We use ESLint to ensure that our JavaScript & JSX code is consistent and conform
 ## Docker images
 
 Run `make docker-images` to build and push to Docker hub.
+
+## Debugging GitHub Actions
+
+You can insert the following step to debug your workflow:
+
+```yaml
+  - name: Setup tmate session
+    uses: mxschmitt/action-tmate@v2
+```
+
+It will print a command that you can use to SSH into the runner.
