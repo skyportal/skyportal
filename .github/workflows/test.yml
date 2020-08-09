@@ -125,8 +125,11 @@ jobs:
         run: |
           GECKO_VER=0.27.0
           CACHED_DOWNLOAD_DIR=~/.local/downloads
+          FILENAME=geckodriver-v${GECKO_VER}-linux64.tar.gz
 
-          wget https://github.com/mozilla/geckodriver/releases/download/v${GECKO_VER}/geckodriver-v${GECKO_VER}-linux64.tar.gz --directory-prefix=${CACHED_DOWNLOAD_DIR} --no-clobber
+          if [[ ! -f ${CACHED_DOWNLOAD_DIR=}/${FILENAME} ]]; then
+            wget https://github.com/mozilla/geckodriver/releases/download/v${GECKO_VER}/${FILENAME} --directory-prefix=${CACHED_DOWNLOAD_DIR} --no-clobber
+          fi
           sudo tar -xzf ${CACHED_DOWNLOAD_DIR}/geckodriver-v${GECKO_VER}-linux64.tar.gz -C /usr/local/bin
           geckodriver --version
           pip install --upgrade selenium
