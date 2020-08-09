@@ -117,7 +117,7 @@ jobs:
         with:
           run: |
             make log &
-            make test
+            make test_headless
 
       - name: Upload logs
         uses: actions/upload-artifact@v2
