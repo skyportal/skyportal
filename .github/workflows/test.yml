@@ -112,12 +112,11 @@ jobs:
           sleep 5 && make load_demo_data
           kill %1
 
-      - name: Run headless test
-        uses: GabrielBB/xvfb-action@v1.2
-        with:
-          run: |
-            make log &
-            make test_headless
+      - name: Run test suite
+        run: |
+          make log &
+          make test_headless
+          pkill -f 'make log'
 
       - name: Upload logs
         uses: actions/upload-artifact@v2
