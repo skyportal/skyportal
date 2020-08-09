@@ -1,5 +1,6 @@
 import pytest
 from selenium.common.exceptions import ElementClickInterceptedException
+import time
 
 from skyportal.tests import api
 
@@ -8,10 +9,10 @@ from .test_followup_requests import add_telescope_and_instrument
 
 @pytest.mark.flaky(reruns=2)
 def test_upload_photometry(
-    driver, super_admin_user, public_group, public_source, super_admin_token
+    driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     data = add_telescope_and_instrument(
-        "P60 Camera", [public_group.id], super_admin_token
+        "P60 Camera", super_admin_token
     )
     inst_id = data["id"]
     driver.get(f"/become_user/{super_admin_user.id}")
@@ -26,9 +27,11 @@ def test_upload_photometry(
     driver.wait_for_xpath_to_be_clickable(
         f'//span[text()="P60 Camera (ID: {inst_id})"]'
     ).click()
+    driver.wait_for_xpath_to_be_clickable('//body').click()
     try:
         driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
     except ElementClickInterceptedException:
+        # time.sleep(3)
         try:
             driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
         except ElementClickInterceptedException:
@@ -59,7 +62,7 @@ def test_upload_photometry_multiple_groups(
     user = super_admin_user_two_groups
     public_source = public_source_two_groups
     data = add_telescope_and_instrument(
-        "P60 Camera", [public_group.id], super_admin_token
+        "P60 Camera", super_admin_token
     )
     inst_id = data["id"]
     driver.get(f"/become_user/{user.id}")
@@ -72,9 +75,11 @@ def test_upload_photometry_multiple_groups(
     )
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
     driver.wait_for_xpath(f'//span[text()="P60 Camera (ID: {inst_id})"]').click()
+    driver.wait_for_xpath_to_be_clickable('//body').click()
     try:
         driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
     except ElementClickInterceptedException:
+        # time.sleep(3)
         try:
             driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
         except ElementClickInterceptedException:
@@ -98,10 +103,10 @@ def test_upload_photometry_multiple_groups(
 
 @pytest.mark.flaky(reruns=2)
 def test_upload_photometry_with_altdata(
-    driver, super_admin_user, public_group, public_source, super_admin_token
+    driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     data = add_telescope_and_instrument(
-        "P60 Camera", [public_group.id], super_admin_token
+        "P60 Camera", super_admin_token
     )
     inst_id = data["id"]
     driver.get(f"/become_user/{super_admin_user.id}")
@@ -114,9 +119,11 @@ def test_upload_photometry_with_altdata(
     )
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
     driver.wait_for_xpath(f'//span[text()="P60 Camera (ID: {inst_id})"]').click()
+    driver.wait_for_xpath_to_be_clickable('//body').click()
     try:
         driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
     except ElementClickInterceptedException:
+        # time.sleep(3)
         try:
             driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
         except ElementClickInterceptedException:
@@ -137,10 +144,10 @@ def test_upload_photometry_with_altdata(
 
 @pytest.mark.flaky(reruns=2)
 def test_upload_photometry_form_validation(
-    driver, super_admin_user, public_group, public_source, super_admin_token
+    driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     data = add_telescope_and_instrument(
-        "P60 Camera", [public_group.id], super_admin_token
+        "P60 Camera", super_admin_token
     )
     inst_id = data["id"]
     driver.get(f"/become_user/{super_admin_user.id}")
@@ -179,9 +186,11 @@ def test_upload_photometry_form_validation(
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
     driver.wait_for_xpath(f'//span[text()="P60 Camera (ID: {inst_id})"]').click()
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
+    driver.wait_for_xpath_to_be_clickable('//body').click()
     try:
         driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
     except ElementClickInterceptedException:
+        # time.sleep(3)
         try:
             driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
         except ElementClickInterceptedException:

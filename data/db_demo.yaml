@@ -65,9 +65,6 @@ telescope:
     diameter: 1.5
     robotic: true
     skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
-    group_ids:
-      - =public_group_id
-      - =program_A
     =id: P60
   - name: Nordic Optical Telescope
     nickname: NOT
@@ -77,9 +74,6 @@ telescope:
     elevation: 2000
     diameter: 2.56
     skycam_link: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
-    group_ids:
-      - =public_group_id
-      - =program_A
     =id: NOT
   - diameter: 10.0
     elevation: 4160.0
@@ -89,8 +83,6 @@ telescope:
     nickname: Keck2
     skycam_link: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
     robotic: false
-    group_ids:
-      - =program_A
     =id: Keck2
   - name: Keck I Telescope
     nickname: Keck1
@@ -100,8 +92,6 @@ telescope:
     diameter: 2.56
     skycam_link: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
     robotic: false
-    group_ids:
-      - =program_A
     =id: Keck1
 
 instrument:
