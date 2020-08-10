@@ -99,7 +99,7 @@ class UserHandler(BaseHandler):
 
             user_info["acls"] = sorted(user.acls, key=lambda a: a.id)
             return self.success(data=user_info)
-        users = User.query.all()
+        users = [user.to_dict() for user in User.query.all()]
         for user in users:
             if user.get("contact_phone"):
                 user["contact_phone"] = user["contact_phone"].e164
