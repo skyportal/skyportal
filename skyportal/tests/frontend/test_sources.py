@@ -276,6 +276,7 @@ def test_show_starlist(driver, user, public_source):
     driver.wait_for_xpath(f'//code[contains(text(), _off1)]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_centroid_plot(driver, user, public_source, public_group, ztf_camera, 
                        upload_data_token):
     # Put in some actual photometry data first 
