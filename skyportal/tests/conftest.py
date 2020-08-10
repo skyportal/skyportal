@@ -4,6 +4,8 @@ import pytest
 import os
 import uuid
 import pathlib
+from datetime import datetime
+
 from baselayer.app import models
 from baselayer.app.config import load_config
 from baselayer.app.test_util import (
@@ -36,6 +38,11 @@ cfg = load_config([(basedir / "../../test_config.yaml").absolute()])
 set_server_url(f'http://localhost:{cfg["ports.app"]}')
 print("Setting test database to:", cfg["database"])
 models.init_db(**cfg["database"])
+
+
+def pytest_runtest_setup(item):
+    # Print timestamp when running each test
+    print(datetime.now().strftime('[%H:%M:%S] '), end='')
 
 
 @pytest.fixture(scope='session')
