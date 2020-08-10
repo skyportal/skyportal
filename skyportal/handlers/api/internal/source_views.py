@@ -42,7 +42,7 @@ class SourceViewsHandler(BaseHandler):
                          .joinedload(Obj.thumbnails)])
             public_url = first_public_url(s.thumbnails)
             sources.append({'views': view, 'obj_id': obj_id,
-                            'public_url': public_url})    
+                            'public_url': public_url})
 
         return self.success(data=sources)
 
@@ -54,6 +54,7 @@ class SourceViewsHandler(BaseHandler):
         register_source_view(obj_id=obj_id,
                              username_or_token_id=self.current_user.username,
                              is_token=False)
+        self.push_all(action="skyportal/FETCH_TOP_SOURCES")
         return self.success()
 
 
