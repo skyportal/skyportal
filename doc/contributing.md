@@ -74,8 +74,9 @@ conversation aimed at getting the work mergeable as quickly as
 possible:
 
 - Do not nitpick in comments; add small fixes as suggestions (click
-  the `±` button) or push uncontroversial changes as a commit into
-  the PR branch.
+  the `±` button) or push uncontroversial changes as a commit into the
+  PR branch.  We prefer suggestions, because that stil gives the
+  original author a chance to accept/reject the change.
 
 - Comments should provide provide actionable feedback, and can come in
   two flavors: suggestions and requirements.  Requirements are direct
