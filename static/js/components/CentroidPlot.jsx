@@ -76,8 +76,8 @@ const getMessages = (delRaGroup, delDecGroup) => {
 // The Vega-Lite specifications for the centroid plot
 const spec = (inputData) => ({
   $schema: 'https://vega.github.io/schema/vega-lite/v4.json',
-  width: 450,
-  height: 450,
+  width: 400,
+  height: 400,
   background: 'transparent',
   layer: [
     // Render nuclear-to-host circle
@@ -212,11 +212,11 @@ const spec = (inputData) => ({
       },
       encoding: {
         x: {
-          field: 'x',
+          field: 'delRA',
           type: 'quantitative',
         },
         y: {
-          field: 'y',
+          field: 'delDec',
           type: 'quantitative',
         },
         fill: { value: 'black' },
@@ -279,10 +279,12 @@ const processData = (photometry) => {
   // Text notifications
   const messages = getMessages(delRaGroup, delDecGroup);
 
+  const centerPoint = relativeCoord(refRA, refDec, refRA, refDec);
+
   return {
-    photometryAsArray,
+    photometryData: photometryAsArray,
     circlePoints,
-    centerPoint: [{ x: 0.0, y: 0.0 }],
+    centerPoint,
     messages,
   };
 };
@@ -298,17 +300,21 @@ const CentroidPlot = (props) => {
     }
   }, [sourceId, photometry, dispatch]);
 
-  const plotData = photometry ? processData(photometry) : {};
-
-  return (
-    <div
-      ref={(node) => {
-        embed(node, spec(plotData), {
-          actions: false,
-        });
-      }}
-    />
-  );
+  if (photometry) {
+    const plotData = processData(photometry);
+    console.log(plotData);
+    return (
+      <div
+        ref={(node) => {
+          embed(node, spec(plotData), {
+            actions: false,
+          });
+        }}
+      />
+    );
+  } else {
+    return null;
+  }
 };
 
 CentroidPlot.propTypes = {
