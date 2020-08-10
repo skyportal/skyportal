@@ -8,7 +8,20 @@ from skyportal.utils import (
     get_finding_chart, get_ztfref_url
 )
 
+from skyportal.utils.offset import irsa
 
+
+ztfref_url = irsa['url_search']
+run_ztfref_test = True
+try:
+    r = requests.get(ztfref_url)
+    r.raise_for_status()
+except (HTTPError, TimeoutError, ConnectionError) as e:
+    run_ztfref_test = False
+    print(e)
+
+
+@pytest.mark.skipif(not run_ztfref_test, reason='IRSA server down')
 def test_get_ztfref_url():
     url = get_ztfref_url(123.0, 33.3, 2)
 
