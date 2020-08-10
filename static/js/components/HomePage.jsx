@@ -1,11 +1,11 @@
-import React from 'react';
-import { useSelector } from 'react-redux';
+import React from "react";
+import { useSelector } from "react-redux";
 
-import SourceList from './SourceList';
-import GroupList from './GroupList';
-import NewsFeed from './NewsFeed';
-import TopSources from './TopSources';
-import styles from './HomePage.css';
+import SourceList from "./SourceList";
+import GroupList from "./GroupList";
+import NewsFeed from "./NewsFeed";
+import TopSources from "./TopSources";
+import styles from "./HomePage.css";
 
 const HomePage = () => {
   const groups = useSelector((state) => state.groups.user);

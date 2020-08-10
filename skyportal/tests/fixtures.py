@@ -4,9 +4,20 @@ import uuid
 from tempfile import mkdtemp
 import numpy as np
 import factory
-from skyportal.models import (DBSession, User, Group, Photometry,
-                              Spectrum, Instrument, Telescope, Obj,
-                              Comment, Thumbnail, Filter, ObservingRun)
+from skyportal.models import (
+    DBSession,
+    User,
+    Group,
+    Photometry,
+    Spectrum,
+    Instrument,
+    Telescope,
+    Obj,
+    Comment,
+    Thumbnail,
+    Filter,
+    ObservingRun,
+)
 
 TMP_DIR = mkdtemp()
 
@@ -24,7 +35,7 @@ class TelescopeFactory(factory.alchemy.SQLAlchemyModelFactory):
     nickname = factory.LazyFunction(lambda: f'P48_{str(uuid.uuid4())}')
     lat = 33.3563
     lon = -116.8650
-    elevation = 1712.
+    elevation = 1712.0
     diameter = 1.2
     robotic = True
 
@@ -54,7 +65,7 @@ class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Photometry
 
     instrument = factory.SubFactory(InstrumentFactory)
-    mjd = factory.LazyFunction(lambda: 58000. + np.random.random())
+    mjd = factory.LazyFunction(lambda: 58000.0 + np.random.random())
     flux = factory.LazyFunction(lambda: 20 + 10 * np.random.random())
     fluxerr = factory.LazyFunction(lambda: 2 * np.random.random())
 
@@ -79,6 +90,7 @@ class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
 class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Group
+
     name = factory.LazyFunction(lambda: str(uuid.uuid4())[:15])
     users = []
 
@@ -86,12 +98,14 @@ class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
 class FilterFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Filter
+
     query_string = str(uuid.uuid4())
 
 
 class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Obj
+
     id = factory.LazyFunction(lambda: str(uuid.uuid4()))
     ra = 0.0
     dec = 0.0
@@ -106,23 +120,29 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
         filters = ['ztfg', 'ztfr', 'ztfi']
         for instrument, filter in islice(zip(cycle(instruments), cycle(filters)), 10):
             np.random.seed()
-            phot1 = PhotometryFactory(obj_id=obj.id,
-                                      instrument=instrument,
-                                      filter=filter,
-                                      groups=passed_groups,
-                                      alert_id=np.random.randint(100, 9223372036854775807))
+            phot1 = PhotometryFactory(
+                obj_id=obj.id,
+                instrument=instrument,
+                filter=filter,
+                groups=passed_groups,
+                alert_id=np.random.randint(100, 9223372036854775807),
+            )
             DBSession().add(phot1)
-            DBSession().add(PhotometryFactory(obj_id=obj.id, flux=99.,
-                                              fluxerr=99.,
-                                              instrument=instrument,
-                                              filter=filter,
-                                              groups=passed_groups,
-                                              alert_id=np.random.randint(100, 9223372036854775807)))
+            DBSession().add(
+                PhotometryFactory(
+                    obj_id=obj.id,
+                    flux=99.0,
+                    fluxerr=99.0,
+                    instrument=instrument,
+                    filter=filter,
+                    groups=passed_groups,
+                    alert_id=np.random.randint(100, 9223372036854775807),
+                )
+            )
 
             DBSession().add(ThumbnailFactory(photometry=phot1))
             DBSession().add(CommentFactory(obj_id=obj.id, groups=passed_groups))
-        DBSession().add(SpectrumFactory(obj_id=obj.id,
-                                        instrument=instruments[0]))
+        DBSession().add(SpectrumFactory(obj_id=obj.id, instrument=instruments[0]))
         DBSession().commit()
 
 
@@ -163,16 +183,16 @@ class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
         InstrumentFactory,
         name=factory.LazyFunction(lambda: f'DBSP_{uuid.uuid4()}'),
         type='spectrograph',
-        band='Optical', filters=[],
+        band='Optical',
+        filters=[],
         telescope=factory.SubFactory(
             TelescopeFactory,
             name=factory.LazyFunction(
                 lambda: f'Palomar 200-inch Telescope_{uuid.uuid4()}'
             ),
-            nickname=factory.LazyFunction(
-                lambda: f'P200_{uuid.uuid4()}'
-            ), robotic=False
-        )
+            nickname=factory.LazyFunction(lambda: f'P200_{uuid.uuid4()}'),
+            robotic=False,
+        ),
     )
 
     group = factory.SubFactory(GroupFactory)

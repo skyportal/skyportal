@@ -14,8 +14,13 @@ import FoldBox from "./FoldBox";
 import FormValidationError from "./FormValidationError";
 
 const FilterCandidateList = ({ userGroups }) => {
-  const { pageNumber, lastPage, totalMatches, numberingStart,
-    numberingEnd } = useSelector((state) => state.candidates);
+  const {
+    pageNumber,
+    lastPage,
+    totalMatches,
+    numberingStart,
+    numberingEnd,
+  } = useSelector((state) => state.candidates);
 
   const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
 
@@ -25,7 +30,7 @@ const FilterCandidateList = ({ userGroups }) => {
     reset({
       groupIDs: Array(userGroups.length).fill(true),
       startDate: null,
-      endDate: null
+      endDate: null,
     });
   }, [reset, userGroups]);
 
@@ -73,37 +78,38 @@ const FilterCandidateList = ({ userGroups }) => {
   };
 
   const handleClickJumpToPage = () => {
-    dispatch(candidatesActions.fetchCandidates({ pageNumber: jumpToPageInputValue }));
+    dispatch(
+      candidatesActions.fetchCandidates({ pageNumber: jumpToPageInputValue })
+    );
   };
 
   return (
     <div>
       <form onSubmit={handleSubmit(onSubmit)}>
         <div>
-          {
-            (errors.startDate || errors.endDate) &&
-              <FormValidationError message="Invalid date range." />
-          }
+          {(errors.startDate || errors.endDate) && (
+            <FormValidationError message="Invalid date range." />
+          )}
           <Controller
-            as={(
+            as={
               <KeyboardDatePicker
                 format="YYYY-MM-DD"
                 value={formState.startDate}
                 emptyLabel="Start Date"
               />
-            )}
+            }
             rules={{ validate: validateDates }}
             name="startDate"
             control={control}
           />
           <Controller
-            as={(
+            as={
               <KeyboardDatePicker
                 format="YYYY-MM-DD"
                 value={formState.endDate}
                 emptyLabel="End Date"
               />
-            )}
+            }
             rules={{ validate: validateDates }}
             name="endDate"
             control={control}
@@ -112,14 +118,14 @@ const FilterCandidateList = ({ userGroups }) => {
         </div>
         <div>
           <FormControlLabel
-            control={(
+            control={
               <Controller
                 as={Checkbox}
                 name="unsavedOnly"
                 control={control}
                 defaultValue={false}
               />
-            )}
+            }
             label="Show only unsaved candidates"
           />
         </div>
@@ -129,34 +135,28 @@ const FilterCandidateList = ({ userGroups }) => {
             title="Program Selection"
             mobileProps={{ folded: true }}
           >
-            {
-              errors.groupIDs &&
-                <FormValidationError message="Select at least one group." />
-            }
-            {
-              userGroups.map((group, idx) => (
-                <FormControlLabel
-                  key={group.id}
-                  control={(
-                    <Controller
-                      as={Checkbox}
-                      name={`groupIDs[${idx}]`}
-                      control={control}
-                      rules={{ validate: validateGroups }}
-                      defaultValue
-                    />
-                  )}
-                  label={group.name}
-                />
-              ))
-            }
+            {errors.groupIDs && (
+              <FormValidationError message="Select at least one group." />
+            )}
+            {userGroups.map((group, idx) => (
+              <FormControlLabel
+                key={group.id}
+                control={
+                  <Controller
+                    as={Checkbox}
+                    name={`groupIDs[${idx}]`}
+                    control={control}
+                    rules={{ validate: validateGroups }}
+                    defaultValue
+                  />
+                }
+                label={group.name}
+              />
+            ))}
           </Responsive>
         </div>
         <div>
-          <Button
-            variant="contained"
-            type="submit"
-          >
+          <Button variant="contained" type="submit">
             Submit
           </Button>
         </div>
@@ -173,14 +173,10 @@ const FilterCandidateList = ({ userGroups }) => {
       <div style={{ display: "inline-block" }}>
         <i>
           Displaying&nbsp;
-          {numberingStart}
-          -
-          {numberingEnd}
-          &nbsp;
-          of&nbsp;
+          {numberingStart}-{numberingEnd}
+          &nbsp; of&nbsp;
           {totalMatches}
-          &nbsp;
-          candidates.
+          &nbsp; candidates.
         </i>
       </div>
       <div style={{ display: "inline-block" }}>
@@ -200,10 +196,7 @@ const FilterCandidateList = ({ userGroups }) => {
           value={jumpToPageInputValue}
           name="jumpToPageInputField"
         />
-        <Button
-          variant="contained"
-          onClick={handleClickJumpToPage}
-        >
+        <Button variant="contained" onClick={handleClickJumpToPage}>
           Jump to Page
         </Button>
       </div>
@@ -213,7 +206,7 @@ const FilterCandidateList = ({ userGroups }) => {
   );
 };
 FilterCandidateList.propTypes = {
-  userGroups: PropTypes.arrayOf(PropTypes.object).isRequired
+  userGroups: PropTypes.arrayOf(PropTypes.object).isRequired,
 };
 
 export default FilterCandidateList;

@@ -1,10 +1,11 @@
-import messageHandler from 'baselayer/MessageHandler';
+import messageHandler from "baselayer/MessageHandler";
 
-import * as API from '../API';
-import store from '../store';
+import * as API from "../API";
+import store from "../store";
 
-export const FETCH_SOURCE_PHOTOMETRY = 'skyportal/FETCH_SOURCE_PHOTOMETRY';
-export const FETCH_SOURCE_PHOTOMETRY_OK = 'skyportal/FETCH_SOURCE_PHOTOMETRY_OK';
+export const FETCH_SOURCE_PHOTOMETRY = "skyportal/FETCH_SOURCE_PHOTOMETRY";
+export const FETCH_SOURCE_PHOTOMETRY_OK =
+  "skyportal/FETCH_SOURCE_PHOTOMETRY_OK";
 
 export function fetchSourcePhotometry(id) {
   return API.GET(`/api/sources/${id}/photometry`, FETCH_SOURCE_PHOTOMETRY);
@@ -17,7 +18,7 @@ messageHandler.add((actionType, payload, dispatch) => {
   }
 });
 
-const reducer = (state={}, action) => {
+const reducer = (state = {}, action) => {
   switch (action.type) {
     case FETCH_SOURCE_PHOTOMETRY_OK: {
       const photometry = action.data;
@@ -25,7 +26,7 @@ const reducer = (state={}, action) => {
         const sourceID = photometry[0].obj_id;
         return {
           ...state,
-          [sourceID]: photometry
+          [sourceID]: photometry,
         };
       } else {
         return state;
@@ -36,4 +37,4 @@ const reducer = (state={}, action) => {
   }
 };
 
-store.injectReducer('photometry', reducer);
+store.injectReducer("photometry", reducer);
