@@ -35,6 +35,7 @@ def test_add_new_group(driver, super_admin_user, user):
     driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
     test_proj_name = str(uuid.uuid4())
     driver.get(f'/become_user/{super_admin_user.id}')  # TODO decorator/context manager?
