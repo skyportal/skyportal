@@ -249,8 +249,13 @@ const spec = (inputData) => ({
 });
 
 const processData = (photometry) => {
-  const ras = Object.values(photometry).map((point) => point.ra);
-  const decs = Object.values(photometry).map((point) => point.dec);
+  // Only take points with a non-null RA and Dec
+  const filteredPhotometry = photometry.filter(
+    (point) => point.ra && point.dec
+  );
+
+  const ras = Object.values(filteredPhotometry).map((point) => point.ra);
+  const decs = Object.values(filteredPhotometry).map((point) => point.dec);
 
   // For now, set single reference nearest object to median values for the RA
   // and Dec in the photometry
@@ -269,7 +274,7 @@ const processData = (photometry) => {
 
   const delRaGroup = [];
   const delDecGroup = [];
-  const photometryAsArray = Object.values(photometry).map(
+  const photometryAsArray = Object.values(filteredPhotometry).map(
     computeDeltas(delRaGroup, delDecGroup)
   );
 
@@ -302,9 +307,10 @@ const CentroidPlot = (props) => {
 
   if (photometry) {
     const plotData = processData(photometry);
-    console.log(plotData);
+
     return (
       <div
+        className="centroid-plot-div"
         ref={(node) => {
           embed(node, spec(plotData), {
             actions: false,
