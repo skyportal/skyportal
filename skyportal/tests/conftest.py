@@ -4,7 +4,6 @@ import pytest
 import os
 import uuid
 import pathlib
-from psycopg2 import OperationalError
 from baselayer.app import models
 from baselayer.app.config import load_config
 from baselayer.app.test_util import (
@@ -13,6 +12,7 @@ from baselayer.app.test_util import (
     set_server_url,
     reset_state,
 )
+
 from skyportal.tests.fixtures import (
     TMP_DIR,
     ObjFactory,
@@ -25,6 +25,8 @@ from skyportal.tests.fixtures import (
 )
 from skyportal.model_util import create_token
 from skyportal.models import DBSession, Source, Candidate, Role
+
+from psycopg2 import OperationalError
 import astroplan
 
 
@@ -88,11 +90,6 @@ def public_candidate(public_filter):
     DBSession.add(Candidate(obj=obj, filter=public_filter))
     DBSession.commit()
     return obj
-
-
-@pytest.fixture()
-def ztf_camera():
-    return InstrumentFactory()
 
 
 @pytest.fixture()
