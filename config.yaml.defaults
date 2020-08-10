@@ -34,6 +34,8 @@ app:
       component: UploadPhotometry
     - path: "/about"
       component: About
+    - path: "/share_data/:id"
+      component: ShareDataForm
 
   sidebar:
     # See https://material-ui.com/components/material-icons/

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import PropTypes from 'prop-types';
 import DatePicker from 'react-datepicker';
 import { useForm, Controller } from 'react-hook-form';
@@ -17,6 +17,13 @@ import 'react-datepicker/dist/react-datepicker-cssmodules.css';
 const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsParams, followupRequest = null, title = "Submit new follow-up request", afterSubmit = null }) => {
   const dispatch = useDispatch();
   const obsParams = instrumentObsParams; // Shorten to reduce line length below
+  const telescopeList = useSelector((state) => state.telescopes.telescopeList);
+
+  const telLookUp = {};
+  telescopeList.forEach((tel) => {
+    telLookUp[tel.id] = tel;
+  });
+
 
   const instIDToName = {};
   instrumentList.forEach((instrumentObj) => {
@@ -110,7 +117,10 @@ const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsPara
               as={(
                 <Select labelId="instrumentSelectLabel">
                   {
-                    instrumentList.map((instrument) => (
+                    instrumentList.filter(
+                      (instrument) => (instrument.telescope_id in telLookUp) &&
+                        (telLookUp[instrument.telescope_id].robotic)
+                    ).map((instrument) => (
                       <MenuItem value={instrument.id} key={instrument.id}>
                         {instrument.name}
                       </MenuItem>

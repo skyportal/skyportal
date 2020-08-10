@@ -23,10 +23,12 @@ class PlotPhotometryHandler(BaseHandler):
 class PlotSpectroscopyHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
-        docs_json, render_items, custom_model_js = plot.spectroscopy_plot(obj_id)
+        spec_id = self.get_query_argument("spectrumID", None)
+        docs_json, render_items, custom_model_js = plot.spectroscopy_plot(obj_id,
+                                                                          spec_id)
         if docs_json is None:
             self.success(data={'docs_json': None, 'url': self.request.path})
         else:
             self.success(data={'docs_json': docs_json, 'render_items': render_items,
                                'custom_model_js': custom_model_js,
-                               'url': self.request.path})
+                               'url': self.request.uri})

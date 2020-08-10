@@ -5,6 +5,7 @@ from baselayer.app import model_util as baselayer_model_util
 
 from skyportal.handlers import (BecomeUserHandler, LogoutHandler)
 from skyportal.handlers.api import (
+    AssignmentHandler,
     CandidateHandler,
     ClassificationHandler,
     CommentHandler, CommentAttachmentHandler,
@@ -14,10 +15,12 @@ from skyportal.handlers.api import (
     InstrumentHandler,
     InvalidEndpointHandler,
     NewsFeedHandler,
+    ObservingRunHandler,
     PhotometryHandler, BulkDeletePhotometryHandler, ObjPhotometryHandler,
+    SharingHandler,
     SourceHandler, SourceOffsetsHandler,
     SourceFinderHandler,
-    SpectrumHandler,
+    SpectrumHandler, ObjSpectraHandler,
     SysInfoHandler,
     TaxonomyHandler,
     TelescopeHandler,
@@ -55,6 +58,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
 
     handlers = baselayer_handlers + [
         # API endpoints
+        (r'/api/assignment(/.*)?', AssignmentHandler),
         (r'/api/candidates(/.*)?', CandidateHandler),
         (r'/api/classification(/[0-9]+)?', ClassificationHandler),
         (r'/api/comment(/[0-9]+)?', CommentHandler),
@@ -66,15 +70,18 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/groups(/.*)?', GroupHandler),
         (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
         (r'/api/newsfeed', NewsFeedHandler),
+        (r'/api/observing_run(/[0-9]+)?', ObservingRunHandler),
         (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
+        (r'/api/sharing', SharingHandler),
         (r'/api/photometry/bulk_delete/(.*)', BulkDeletePhotometryHandler),
         (r'/api/sources(/[0-9A-Za-z-_]+)/photometry', ObjPhotometryHandler),
+        (r'/api/sources(/[0-9A-Za-z-_]+)/spectra', ObjSpectraHandler),
         (r'/api/sources(/[0-9A-Za-z-_]+)/offsets', SourceOffsetsHandler),
         (r'/api/sources(/[0-9A-Za-z-_]+)/finder', SourceFinderHandler),
         (r'/api/sources(/.*)?', SourceHandler),
         (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
         (r'/api/sysinfo', SysInfoHandler),
-        (r'/api/taxonomy(/[0-9]+)?', TaxonomyHandler),
+        (r'/api/taxonomy(/.*)?', TaxonomyHandler),
         (r'/api/telescope(/[0-9]+)?', TelescopeHandler),
         (r'/api/thumbnail(/[0-9]+)?', ThumbnailHandler),
         (r'/api/user(/.*)?', UserHandler),

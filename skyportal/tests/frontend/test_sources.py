@@ -6,17 +6,59 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException
 
 from baselayer.app.config import load_config
-
+from skyportal.tests import api
+import time
 
 cfg = load_config()
 
 
-def test_public_source_page(driver, user, public_source):
+def test_public_source_page(driver, user, public_source, public_group):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.wait_for_xpath('//label[contains(text(), "band")]')  # TODO how to check plot?
     driver.wait_for_xpath('//label[contains(text(), "Fe III")]')
+    driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
+
+
+@pytest.mark.flaky(reruns=3)
+def test_classifications(driver, user, taxonomy_token, public_group, public_source):
+
+    simple = {'class': 'Cepheid',
+              'tags': ['giant/supergiant', 'instability strip', 'standard candle'],
+              'other names': ['Cep', 'CEP'],
+              'subclasses': [{'class': 'Anomolous',
+                              'other names': ['Anomolous Cepheid', 'BLBOO']},
+                             {'class': 'Mult-mode',
+                              'other names': ['Double-mode Cepheid',
+                                              'Multi-mode Cepheid',
+                                              'CEP(B)']},
+                             {'class': 'Classical',
+                              'tags': [],
+                              'other names': ['Population I Cepheid',
+                                              'Type I Cepheid',
+                                              'DCEP',
+                                              'Delta Cepheid',
+                                              'Classical Cepheid'],
+                              'subclasses': [{'class': 'Symmetrical',
+                                              'other names': ['DCEPS', 'Delta Cep-type Symmetrical']}]}]}
+
+    status, data = api('POST', 'taxonomy',
+                       data={
+                           'name': str(uuid.uuid4()),
+                           'hierarchy': simple,
+                           'group_ids': [public_group.id],
+                           'version': "test0.1"
+                       },
+                       token=taxonomy_token)
+    assert status == 200
+    taxonomy_id = data['data']['taxonomy_id']
+
+    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    taxonomy_button = driver.wait_for_xpath(f'//div[@id="tax-select"]')
+    taxonomy_button.click()
 
 
 @pytest.mark.flaky(reruns=2)
@@ -43,6 +85,7 @@ def test_comments(driver, user, public_source):
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_comment_groups_validation(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")

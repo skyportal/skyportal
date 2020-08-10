@@ -15,7 +15,7 @@ from ...models import (
 
 
 from ...schema import (PhotometryMag, PhotometryFlux, PhotFluxFlexible, PhotMagFlexible)
-from ...phot_enum import ALLOWED_MAGSYSTEMS
+from ...enum_types import ALLOWED_MAGSYSTEMS
 
 
 def nan_to_none(value):
@@ -39,9 +39,12 @@ def serialize(phot, outsys, format):
         'filter': phot.filter,
         'mjd': phot.mjd,
         'instrument_id': phot.instrument_id,
+        'instrument_name': phot.instrument.name,
         'ra_unc': phot.ra_unc,
         'dec_unc': phot.dec_unc,
-        'alert_id': phot.alert_id
+        'alert_id': phot.alert_id,
+        'id': phot.id,
+        'groups': phot.groups
     }
 
     filter = phot.filter

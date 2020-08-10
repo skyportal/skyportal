@@ -10,6 +10,12 @@ export const FETCH_LOADED_SOURCE_OK = 'skyportal/FETCH_LOADED_SOURCE_OK';
 export const FETCH_LOADED_SOURCE_ERROR = 'skyportal/FETCH_LOADED_SOURCE_ERROR';
 export const FETCH_LOADED_SOURCE_FAIL = 'skyportal/FETCH_LOADED_SOURCE_FAIL';
 
+export const ADD_CLASSIFICATION = 'skyportal/ADD_CLASSIFICATION';
+export const ADD_CLASSIFICATION_OK = 'skyportal/ADD_CLASSIFICATION_OK';
+
+export const DELETE_CLASSIFICATION = 'skyportal/DELETE_CLASSIFICATION';
+export const DELETE_CLASSIFICATION_OK = 'skyportal/DELETE_CLASSIFICATION_OK';
+
 export const ADD_COMMENT = 'skyportal/ADD_COMMENT';
 export const ADD_COMMENT_OK = 'skyportal/ADD_COMMENT_OK';
 
@@ -25,6 +31,15 @@ export const SUBMIT_FOLLOWUP_REQUEST_OK = 'skyportal/SUBMIT_FOLLOWUP_REQUEST_OK'
 export const EDIT_FOLLOWUP_REQUEST = 'skyportal/EDIT_FOLLOWUP_REQUEST';
 export const EDIT_FOLLOWUP_REQUEST_OK = 'skyportal/EDIT_FOLLOWUP_REQUEST_OK';
 
+export const SUBMIT_ASSIGNMENT = 'skyportal/SUBMIT_ASSIGNMENT';
+export const SUBMIT_ASSIGNMENT_OK = 'skyportal/SUBMIT_ASSIGNMENT_OK';
+
+export const EDIT_ASSIGNMENT = 'skyportal/EDIT_ASSIGNMENT';
+export const EDIT_ASSIGNMENT_OK = 'skyportal/EDIT_ASSIGNMENT_OK';
+
+export const DELETE_ASSIGNMENT = 'skyportal/DELETE_ASSIGNMENT';
+export const DELETE_ASSIGNMENT_OK = 'skyportal/DELETE_ASSIGNMENT_OK';
+
 export const SAVE_SOURCE = 'skyportal/SAVE_SOURCE';
 export const SAVE_SOURCE_OK = 'skyportal/SAVE_SOURCE_OK';
 
@@ -34,9 +49,24 @@ export const DELETE_FOLLOWUP_REQUEST_OK = 'skyportal/DELETE_FOLLOWUP_REQUEST_OK'
 export const UPLOAD_PHOTOMETRY = "skyportal/UPLOAD_PHOTOMETRY";
 export const UPLOAD_PHOTOMETRY_OK = "skyportal/UPLOAD_PHOTOMETRY_OK";
 
+export const SHARE_DATA = 'skyportal/SHARE_DATA';
+export const SHARE_DATA_OK = 'skyportal/SHARE_DATA_OK';
+
+export const shareData = (data) => (
+  API.POST("/api/sharing", SHARE_DATA, data)
+);
+
 export const uploadPhotometry = (data) => (
   API.POST("/api/photometry", UPLOAD_PHOTOMETRY, data)
 );
+
+export function addClassification(formData) {
+  return API.POST(`/api/classification`, ADD_CLASSIFICATION, formData);
+}
+
+export function deleteClassification(classification_id) {
+  return API.DELETE(`/api/classification/${classification_id}`, DELETE_CLASSIFICATION);
+}
 
 export function addComment(formData) {
   function fileReaderPromise(file) {
@@ -90,6 +120,12 @@ export const editFollowupRequest = (params, requestID) => {
 export const deleteFollowupRequest = (id) => (
   API.DELETE(`/api/followup_request/${id}`, DELETE_FOLLOWUP_REQUEST)
 );
+
+export const submitAssignment = (params) => API.POST('/api/assignment', SUBMIT_ASSIGNMENT, params);
+
+export const editAssignment = (params, assignmentID) => API.PUT(`/api/assignment/${assignmentID}`, EDIT_ASSIGNMENT, params);
+
+export const deleteAssignment = (id) => API.DELETE(`/api/assignment/${id}`, DELETE_ASSIGNMENT);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
