@@ -1,6 +1,7 @@
 import uuid
 
 from skyportal.tests import api
+import pytest
 
 
 def test_news_feed(driver, user, public_source, public_group, upload_data_token, comment_token):
@@ -31,6 +32,7 @@ def test_news_feed(driver, user, public_source, public_group, upload_data_token,
         driver.wait_for_xpath(f'//span[contains(text(),"comment_text_{i} ({obj_id_base}_{i})")]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_news_feed_prefs_widget(driver, user, public_source, public_group, upload_data_token, comment_token):
     obj_id_base = str(uuid.uuid4())
     for i in range(2):
