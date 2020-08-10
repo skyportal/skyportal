@@ -225,6 +225,9 @@ class PhotometryHandler(BaseHandler):
             bad = magerrnull ^ magnull  # bitwise exclusive or -- returns true
             #  if A and not B or B and not A
 
+            # coerce to numpy array
+            bad = bad.values
+
             if any(bad):
                 # find the first offending packet
                 first_offender = np.argwhere(bad)[0, 0]
@@ -273,7 +276,7 @@ class PhotometryHandler(BaseHandler):
 
         else:
             for field in PhotFluxFlexible.required_keys:
-                missing = df[field].isna()
+                missing = df[field].isna().values
                 if any(missing):
                     first_offender = np.argwhere(missing)[0, 0]
                     packet = df.iloc[first_offender].to_dict()
