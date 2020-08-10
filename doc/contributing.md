@@ -8,9 +8,14 @@ However, we would love to grow the SkyPortal community, and integrate improvemen
 
 ## Including your changes
 
-To make a code contribution to the project: Clone the SkyPortal
-repository, make the changes you wish to submit on a new branch,
-and submit a pull request (PR) on GitHub.
+To make a code contribution to the project, follow these steps (which
+are outlined in more detail in [this GitHub
+guide](https://guides.github.com/activities/forking/)):
+
+1. Make a fork of the [SkyPortal repository](https://github.com/skyportal/skyportal)
+2. Clone your fork, and add `upstream` (`git@github.com:skyportal/skyportal`) as a remote
+3. Create a new branch and add your feature
+4. Submit a pull request (PR) on GitHub
 
 The other developers will provide feedback, and you may push updates
 into the same branch (which will also update your pull request), until
