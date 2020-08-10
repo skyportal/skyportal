@@ -6,23 +6,22 @@ import { GET } from '../API';
 
 import styles from './StarList.css';
 
-function starListElem(starList) {
-  return (
-    <div className={styles.starListDiv}>
-      <code className={styles.starList}>
-        {
-          starList && starList.map((item, idx) => (
-            // eslint-disable-next-line react/no-array-index-key
-            <React.Fragment key={idx}>
-              { item.str }
-              <br />
-            </React.Fragment>
-          ))
-        }
-      </code>
-    </div>
-  );
-}
+const StarListBody = ({ starList }) => (
+  <div className={styles.starListDiv}>
+    <code className={styles.starList}>
+      {
+        starList && starList.map((item, idx) => (
+          // eslint-disable-next-line react/no-array-index-key
+          <React.Fragment key={idx}>
+            { item.str }
+            <br />
+          </React.Fragment>
+        ))
+      }
+    </code>
+  </div>
+);
+
 
 const StarList = ({ sourceId }) => {
   const [starList, setStarList] = useState([{ str: 'Loading starlist...' }]);
@@ -39,49 +38,49 @@ const StarList = ({ sourceId }) => {
     fetchStarList();
   }, [sourceId, dispatch]);
 
-  return starListElem(starList);
+  return <StarListBody starList={starList} />;
 };
 
-export const ObservingRunStarList = ({ observingRunId }) => {
+export const ObservingRunStarList = () => {
   const [starList, setStarList] = useState([{ str: 'Loading starlist...' }]);
   const { assignments } = useSelector((state) => state.observingRun);
   const dispatch = useDispatch();
 
-  useEffect(() => {
-    const fetchStarList = async () => {
-      const promises = assignments.map(
-        (assignment) => (
-          dispatch(
-            GET(
-              `/api/sources/${assignment.obj_id}/offsets?facility=Keck`, 'skyportal/FETCH_STARLIST'
-            )
+  const fetchStarList = async () => {
+    const promises = assignments.map(
+      (assignment) => (
+        dispatch(
+          GET(
+            `/api/sources/${assignment.obj_id}/offsets?facility=Keck`, 'skyportal/FETCH_STARLIST'
           )
         )
-      );
+      )
+    );
 
-      const starlist_info = [];
-      await Promise.allSettled(promises).then(
+    const starlistInfo = [];
+    await Promise.allSettled(promises)
+      .then(
         (values) => {
           values.forEach(
-            (response) => starlist_info.push(...response.value.data.starlist_info)
+            (response) => starlistInfo.push(...response.value.data.starlist_info)
           );
         }
       );
-      setStarList(starlist_info);
-    };
-    fetchStarList();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [observingRunId, dispatch]);
+    setStarList(starlistInfo);
+  };
 
-  return starListElem(starList);
+  fetchStarList();
+  return <StarListBody starList={starList} />;
 };
 
 StarList.propTypes = {
   sourceId: PropTypes.string.isRequired
 };
 
-ObservingRunStarList.propTypes = {
-  observingRunId: PropTypes.number.isRequired
+StarListBody.propTypes = {
+  starList: PropTypes.arrayOf(PropTypes.shape({
+    str: PropTypes.string
+  })).isRequired
 };
 
 export default StarList;

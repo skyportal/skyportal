@@ -67,46 +67,6 @@ const SimpleMenu = ({ assignment }) => {
     );
   };
 
-  const markObserved = (
-    <MenuItem onClick={completeAction} variant="contained" key={`${assignment.id}_done`}>
-      Mark Observed
-    </MenuItem>
-  );
-
-  const markPending = (
-    <MenuItem onClick={pendingAction} variant="contained" key={`${assignment.id}_pending`}>
-      Mark Pending
-    </MenuItem>
-  );
-
-  const markNotObserved = (
-    <MenuItem onClick={notObservedAction} variant="contained" key={`${assignment.id}_notdone`}>
-      Mark Not Observed
-    </MenuItem>
-  );
-
-  const uploadPhotometry = (
-    <MenuItem
-      key={`${assignment.id}_upload_phot`}
-      variant="contained"
-      onClick={handleClose}
-    >
-      <Link
-        href={`/upload_photometry/${assignment.obj.id}`}
-        underline="none"
-        color="textPrimary"
-      >
-        Upload Photometry
-      </Link>
-    </MenuItem>
-  );
-
-  const uploadSpectrum = (
-    <MenuItem key={`${assignment.id}_upload_spec`} onClick={handleClose}>
-      Upload Spectrum
-    </MenuItem>
-  );
-
   return (
     <div>
       <IconButton
@@ -124,11 +84,49 @@ const SimpleMenu = ({ assignment }) => {
         open={Boolean(anchorEl)}
         onClose={handleClose}
       >
-        {(ispending || isnotdone) && markObserved}
-        {(ispending || isdone) && markNotObserved}
-        {(isdone || isnotdone) && markPending}
-        {isdone && uploadSpectrum}
-        {isdone && uploadPhotometry}
+        {
+          (ispending || isnotdone) && (
+          <MenuItem onClick={completeAction} variant="contained" key={`${assignment.id}_done`}>
+            Mark Observed
+          </MenuItem>
+          )
+}
+        {
+          (ispending || isdone) && (
+          <MenuItem onClick={notObservedAction} variant="contained" key={`${assignment.id}_notdone`}>
+            Mark Not Observed
+          </MenuItem>
+          )
+}
+        {
+          (isdone || isnotdone) && (
+          <MenuItem onClick={pendingAction} variant="contained" key={`${assignment.id}_pending`}>
+            Mark Pending
+          </MenuItem>
+          )
+}
+        {isdone && (
+        <MenuItem key={`${assignment.id}_upload_spec`} onClick={handleClose}>
+          Upload Spectrum
+        </MenuItem>
+        )}
+        {
+          isdone && (
+          <MenuItem
+            key={`${assignment.id}_upload_phot`}
+            variant="contained"
+            onClick={handleClose}
+          >
+            <Link
+              href={`/upload_photometry/${assignment.obj.id}`}
+              underline="none"
+              color="textPrimary"
+            >
+              Upload Photometry
+            </Link>
+          </MenuItem>
+          )
+}
       </Menu>
     </div>
   );
@@ -172,6 +170,7 @@ const RunSummary = ({ route }) => {
     const { assignments } = observingRun;
 
     const renderPullOutRow = ((rowData, rowMeta) => {
+      // This is just passed to MUI datatables options -- not meant to be instantiated directly.
       if (observingRun === undefined) {
         return "Loading...";
       }
@@ -218,6 +217,7 @@ const RunSummary = ({ route }) => {
 
 
     const renderObjId = (dataIndex) => {
+      // This is just passed to MUI datatables options -- not meant to be instantiated directly.
       const objid = assignments[dataIndex].obj.id;
       return (
         <a href={`/source/${objid}`} key={`${objid}_objid`}>
@@ -227,6 +227,7 @@ const RunSummary = ({ route }) => {
     };
 
     const renderRA = (dataIndex) => {
+      // This is just passed to MUI datatables options -- not meant to be instantiated directly.
       const assignment = assignments[dataIndex];
       return (
         <div key={`${assignment.id}_ra`}>
@@ -238,6 +239,7 @@ const RunSummary = ({ route }) => {
     };
 
     const renderDec = (dataIndex) => {
+      // This is just passed to MUI datatables options -- not meant to be instantiated directly.
       const assignment = assignments[dataIndex];
       return (
         <div key={`${assignment.id}_dec`}>
@@ -249,6 +251,7 @@ const RunSummary = ({ route }) => {
     };
 
     const renderFinderButton = (dataIndex) => {
+      // This is just passed to MUI datatables options -- not meant to be instantiated directly.
       const assignment = assignments[dataIndex];
       return (
         <IconButton size="small" key={`${assignment.id}_actions`}>
@@ -260,6 +263,7 @@ const RunSummary = ({ route }) => {
     };
 
     const renderActionsButton = (dataIndex) => {
+      // This is just passed to MUI datatables options -- not meant to be instantiated directly.
       const assignment = assignments[dataIndex];
       return <SimpleMenu assignment={assignment} key={`${assignment.id}_menu`} />;
     };
@@ -401,7 +405,7 @@ const RunSummary = ({ route }) => {
               <Typography gutterBottom align="center">
                 Starlist and Offsets
               </Typography>
-              <ObservingRunStarList observingRunId={observingRun.id} />
+              <ObservingRunStarList />
             </Grid>
           </Grid>
         </div>

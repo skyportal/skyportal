@@ -49,15 +49,16 @@ const reducer = (state={ assignments: [] }, action) => {
     }
 
     case FETCH_ASSIGNMENT_OK: {
+      const assignments = [...state.assignments];
       const assignment = action.data;
-      const assignment_ids = state.assignments.map((a) => a.id);
+      const assignment_ids = assignments.map((a) => a.id);
       if (assignment_ids.includes(assignment.id)) {
         const index = assignment_ids.indexOf(assignment.id);
-        state.assignments[index] = assignment;
+        assignments[index] = assignment;
       } else {
-        state.assignments.push(assignment);
+        assignments.push(assignment);
       }
-      return { ...state };
+      return { ...state, assignments };
     }
 
     default:
