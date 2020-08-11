@@ -6,6 +6,8 @@ import * as newsFeedActions from './ducks/newsFeed';
 import * as topSourcesActions from './ducks/topSources';
 import * as topEventsActions from './ducks/topEvents';
 import * as instrumentsActions from './ducks/instruments';
+import * as observingRunsActions from './ducks/observingRuns';
+import * as telescopesActions from './ducks/telescopes';
 import * as taxonomyActions from './ducks/taxonomies';
 
 export default function hydrate() {
@@ -19,6 +21,8 @@ export default function hydrate() {
     dispatch(topEventsActions.fetchTopEvents());
     dispatch(instrumentsActions.fetchInstruments());
     dispatch(instrumentsActions.fetchInstrumentObsParams());
+    dispatch(observingRunsActions.fetchObservingRuns());
+    dispatch(telescopesActions.fetchTelescopes());
     dispatch(taxonomyActions.fetchTaxonomies());
   };
 }

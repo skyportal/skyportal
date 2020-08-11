@@ -12,7 +12,8 @@ from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
     DBSession, Comment, Instrument, Photometry, Obj, Source, SourceView,
-    Thumbnail, Token, User, Group, FollowupRequest
+    Thumbnail, Token, User, Group, FollowupRequest, ClassicalAssignment,
+    ObservingRun
 )
 from .internal.source_views import register_source_view
 from ...utils import (
@@ -173,7 +174,7 @@ class SourceHandler(BaseHandler):
                 register_source_view(obj_id=obj_id,
                                      username_or_token_id=self.current_user.id,
                                      is_token=True)
-            s = Source.get_obj_if_owned_by(  # Returns Source.obj
+            s = Source.get_obj_if_owned_by(
                 obj_id, self.current_user,
                 options=[joinedload(Source.obj)
                          .joinedload(Obj.followup_requests)
@@ -181,6 +182,11 @@ class SourceHandler(BaseHandler):
                          joinedload(Source.obj)
                          .joinedload(Obj.followup_requests)
                          .joinedload(FollowupRequest.instrument),
+                         joinedload(Source.obj)
+                         .joinedload(Obj.assignments)
+                         .joinedload(ClassicalAssignment.run)
+                         .joinedload(ObservingRun.instrument)
+                         .joinedload(Instrument.telescope),
                          joinedload(Source.obj)
                          .joinedload(Obj.thumbnails)
                          .joinedload(Thumbnail.photometry)
@@ -192,6 +198,15 @@ class SourceHandler(BaseHandler):
             s.classifications = s.get_classifications_owned_by(self.current_user)
             source_info = s.to_dict()
             source_info["last_detected"] = s.last_detected
+            source_info["groups"] = Group.query.filter(
+                Group.id.in_(
+                    DBSession().query(Source.group_id).filter(
+                        Source.obj_id == obj_id
+                    )
+                )
+            ).filter(
+                Group.id.in_([g.id for g in self.current_user.accessible_groups])
+            ).all()
 
             return self.success(data=source_info)
         if page_number:

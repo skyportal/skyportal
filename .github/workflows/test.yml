@@ -1,0 +1,150 @@
+name: Test SkyPortal
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    name: Test SkyPortal
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: skyportal
+          POSTGRES_PASSWORD: anything
+        ports:
+          - 5432:5432
+        # needed because the postgres container does not provide a
+        # healthcheck
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Lint
+        run: |
+          pip install pre-commit
+          if pre-commit run --from-ref origin/master --to-ref HEAD; then
+              echo "Linting errored; this will be fatal sometime in the near future"
+          fi
+
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.7'
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/sphinx
+            ~/.local
+            ~/.npm
+          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Write SkyPortal configs
+        run: |
+            cat << EOF > config.yaml
+              database:
+                database: skyportal
+                host: localhost
+                port: 5432
+                user: skyportal
+                password: anything
+            EOF
+
+            cat << EOF > test_config.yaml
+              database:
+                database: skyportal_test
+                user: skyportal
+                host: localhost
+                port: 5432
+                password: anything
+
+              server:
+                auth:
+                  debug_login: True
+            EOF
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-add-repository -y ppa:nginx/stable
+          sudo apt install -y wget nodejs unzip firefox nginx
+
+          pip install --upgrade pip
+          pip install wheel numpy
+
+          export NPM_PACKAGES="${HOME}/.npm-packages"
+          export PATH=${NPM_PACKAGES}/bin:$PATH
+          export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
+
+          sudo npm -g install npm@next
+
+          which python; python --version
+          echo npm $(npm --version)
+          echo node $(node --version)
+          nginx -v
+          firefox --version
+
+      - name: Install SkyPortal dependencies
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          make dependencies
+
+      - name: Initialize SkyPortal
+        run: |
+          # Usually, we create databases on the local machine, so
+          # `createdb` just works out of the box.  However, when doing
+          # this on a server, as in our case, we need to specify extra
+          # options.
+          #
+          # db_init should not complain if the databases exist already
+          #
+          echo "localhost:5432:*:skyportal:anything" > ~/.pgpass
+          chmod 600 ~/.pgpass
+
+          createdb -h localhost -U skyportal skyportal_test
+          psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
+
+          make db_init
+
+          pip list --format=columns
+          npm ls --depth 0
+
+      - name: Install Geckodriver / Selenium
+        run: |
+          GECKO_VER=0.27.0
+          CACHED_DOWNLOAD_DIR=~/.local/downloads
+          FILENAME=geckodriver-v${GECKO_VER}-linux64.tar.gz
+
+          if [[ ! -f ${CACHED_DOWNLOAD_DIR=}/${FILENAME} ]]; then
+            wget https://github.com/mozilla/geckodriver/releases/download/v${GECKO_VER}/${FILENAME} --directory-prefix=${CACHED_DOWNLOAD_DIR} --no-clobber
+          fi
+          sudo tar -xzf ${CACHED_DOWNLOAD_DIR}/geckodriver-v${GECKO_VER}-linux64.tar.gz -C /usr/local/bin
+          geckodriver --version
+          pip install --upgrade selenium
+          python -c "import selenium; print(f'Selenium {selenium.__version__}')"
+
+      - name: Test loading demo data
+        run: |
+          make run &
+          sleep 5 && make load_demo_data
+          kill %1
+
+      - name: Run test suite
+        run: |
+          make test_headless
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v2
+        if: ${{ always() }}
+        with:
+          name: logs
+          path: log

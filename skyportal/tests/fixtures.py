@@ -79,7 +79,7 @@ class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
 class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Group
-    name = factory.LazyFunction(lambda: str(uuid.uuid4()))
+    name = factory.LazyFunction(lambda: str(uuid.uuid4())[:15])
     users = []
 
 

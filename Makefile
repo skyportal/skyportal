@@ -34,8 +34,9 @@ docker-local: ## Build docker images locally
 doc_reqs:
 	pip install -q -r requirements.docs.txt
 
+api-docs: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
 api-docs: | doc_reqs
-	@PYTHONPATH=. python tools/openapi/build-spec.py
+	@PYTHONPATH=. python tools/openapi/build-spec.py $(FLAGS)
 	npx redoc-cli@0.9.8 bundle openapi.json --title "SkyPortal API docs" --cdn
 	rm -f openapi.{yml,json}
 	mkdir -p doc/_build/html
