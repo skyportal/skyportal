@@ -103,7 +103,7 @@ API requests—keeps working correctly.
 
 In the next version of SkyPortal, we intend to support loading sources in
 real-time from astronomical surveys, typically by
-ingesting [Kafka](https://kafka.apache.org/) streams.  We also plan to 
+ingesting [Kafka](https://kafka.apache.org/) streams.  We also plan to
 add the ability to publish processed sub-streams, creating
 so-called "brokers" [@Swinbank14].  Finally, it will be possible to customize views
 (from the web interface), and for developers to easily add and modify

@@ -17,7 +17,7 @@ name: Build and Deploy to Google Kubernetes Engine
 on:
   push:
     branches:
-    - deploy
+      - deploy
 
 env:
   PROJECT_ID: ${{ secrets.GKE_PROJECT }}
@@ -31,53 +31,53 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-      with:
-        submodules: true
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
 
-    - name: Setup gcloud cli
-      uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
-      with:
-        version: '286.0.0'
-        service_account_email: ${{ secrets.GKE_SA_EMAIL }}
-        service_account_key: ${{ secrets.GKE_SA_KEY }}
-        project_id: ${{ secrets.GKE_PROJECT }}
+      - name: Setup gcloud cli
+        uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          version: "286.0.0"
+          service_account_email: ${{ secrets.GKE_SA_EMAIL }}
+          service_account_key: ${{ secrets.GKE_SA_KEY }}
+          project_id: ${{ secrets.GKE_PROJECT }}
 
-    # Configure Docker to use the gcloud command-line tool as a credential
-    # helper for authentication
-    - name: Set up docker credentials
-      run: |-
-        gcloud --quiet auth configure-docker
+      # Configure Docker to use the gcloud command-line tool as a credential
+      # helper for authentication
+      - name: Set up docker credentials
+        run: |-
+          gcloud --quiet auth configure-docker
 
-    # Get the GKE credentials so we can deploy to the cluster
-    - run: |-
-        gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE"
+      # Get the GKE credentials so we can deploy to the cluster
+      - run: |-
+          gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE"
 
-    # # Will use this, once the official Docker action introduces caching
-    # - name: Build and push image
-    #   uses: docker/build-push-action@v1
-    #   with:
-    #     registry: gcr.io
-    #     repository: $PROJECT_ID/$IMAGE
-    #     tags: $GITHUB_SHA
+      # # Will use this, once the official Docker action introduces caching
+      # - name: Build and push image
+      #   uses: docker/build-push-action@v1
+      #   with:
+      #     registry: gcr.io
+      #     repository: $PROJECT_ID/$IMAGE
+      #     tags: $GITHUB_SHA
 
-    - name: Build and push Docker image
-      uses: whoan/docker-build-with-cache-action@v5
-      with:
-        registry: gcr.io
-        image_name: $PROJECT_ID/$IMAGE
-        image_tag: $GITHUB_SHA
+      - name: Build and push Docker image
+        uses: whoan/docker-build-with-cache-action@v5
+        with:
+          registry: gcr.io
+          image_name: $PROJECT_ID/$IMAGE
+          image_tag: $GITHUB_SHA
 
-    - name: Clone deployment scripts
-      run: |-
-        git clone https://github.com/skyportal/deploy
+      - name: Clone deployment scripts
+        run: |-
+          git clone https://github.com/skyportal/deploy
 
-    # Deploy the Docker image to the GKE cluster
-    - name: Deploy
-      run: |-
-        cd deploy
-        (cd base && ../kustomize edit set image gcr.io/PROJECT_ID/IMAGE:TAG=gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA)
-        kubectl apply -k base
-        kubectl rollout status --timeout=5m deployment/$IMAGE
-        kubectl get services -o wide
+      # Deploy the Docker image to the GKE cluster
+      - name: Deploy
+        run: |-
+          cd deploy
+          (cd base && ../kustomize edit set image gcr.io/PROJECT_ID/IMAGE:TAG=gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA)
+          kubectl apply -k base
+          kubectl rollout status --timeout=5m deployment/$IMAGE
+          kubectl get services -o wide
