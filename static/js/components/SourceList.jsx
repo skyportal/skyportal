@@ -114,9 +114,8 @@ const SourceList = () => {
         )}
       </div>
     );
-  } else {
-    return <div>Loading sources...</div>;
   }
+  return <div>Loading sources...</div>;
 };
 
 export default SourceList;

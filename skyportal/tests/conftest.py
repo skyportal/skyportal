@@ -4,7 +4,8 @@ import pytest
 import os
 import uuid
 import pathlib
-from psycopg2 import OperationalError
+from datetime import datetime
+
 from baselayer.app import models
 from baselayer.app.config import load_config
 from baselayer.app.test_util import (
@@ -13,6 +14,7 @@ from baselayer.app.test_util import (
     set_server_url,
     reset_state,
 )
+
 from skyportal.tests.fixtures import (
     TMP_DIR,
     ObjFactory,
@@ -26,6 +28,7 @@ from skyportal.tests.fixtures import (
 )
 from skyportal.model_util import create_token
 from skyportal.models import DBSession, Source, Candidate, Role
+
 import astroplan
 import warnings
 from astroplan import utils as ap_utils
@@ -37,6 +40,11 @@ cfg = load_config([(basedir / "../../test_config.yaml").absolute()])
 set_server_url(f'http://localhost:{cfg["ports.app"]}')
 print("Setting test database to:", cfg["database"])
 models.init_db(**cfg["database"])
+
+
+def pytest_runtest_setup(item):
+    # Print timestamp when running each test
+    print(datetime.now().strftime('[%H:%M:%S] '), end='')
 
 
 @pytest.fixture(scope='session')
@@ -112,11 +120,6 @@ def public_candidate(public_filter):
     DBSession.add(Candidate(obj=obj, filter=public_filter))
     DBSession.commit()
     return obj
-
-
-@pytest.fixture()
-def ztf_camera():
-    return InstrumentFactory()
 
 
 @pytest.fixture()

@@ -23,8 +23,7 @@ const add_node_paths = (node_paths, hierarchy, prefix_path = []) => {
     node_paths.push(this_node_path);
   }
 
-  // eslint-disable-next-line no-unused-expressions
-  hierarchy.subclasses?.map((item) => {
+  hierarchy.subclasses?.forEach((item) => {
     if (typeof item === "object") {
       add_node_paths(node_paths, item, this_node_path);
     }
@@ -173,9 +172,9 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
               value={state.classification || ""}
               onChange={handleClasschange}
               getOptionLabel={(option) => option.class || ""}
-              /* eslint-disable-next-line react/jsx-props-no-spreading */
               renderInput={(params) => (
                 <TextField
+                  /* eslint-disable-next-line react/jsx-props-no-spreading */
                   {...params}
                   style={{ width: "100%" }}
                   label="Classification"

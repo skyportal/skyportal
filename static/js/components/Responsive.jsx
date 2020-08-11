@@ -40,13 +40,12 @@ const Responsive = ({
         }
         if (!renderElement) {
           return null;
-        } else {
-          return React.createElement(
-            renderElement,
-            { ...props, ...otherProps },
-            children
-          );
         }
+        return React.createElement(
+          renderElement,
+          { ...props, ...otherProps },
+          children
+        );
       }}
     </MediaQuery>
   );

@@ -33,7 +33,6 @@
 
 # - A VM with 64bit Ubuntu 12.04 is a huge help for debugging.
 
-
 language: python
 dist: bionic
 sudo: required
@@ -48,10 +47,10 @@ cache:
 addons:
   apt:
     packages:
-    - ccache
-    - wget
-    - nodejs
-    - unzip
+      - ccache
+      - wget
+      - nodejs
+      - unzip
   postgresql: "11"
   firefox: latest
 services:
