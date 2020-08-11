@@ -1,18 +1,17 @@
-import React from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
+import PropTypes from "prop-types";
 
-import dayjs from 'dayjs';
-import calendar from 'dayjs/plugin/calendar';
+import dayjs from "dayjs";
+import calendar from "dayjs/plugin/calendar";
 
-import { makeStyles } from '@material-ui/core/styles';
-import Grid from '@material-ui/core/Grid';
+import { makeStyles } from "@material-ui/core/styles";
+import Grid from "@material-ui/core/Grid";
 
-import Card from '@material-ui/core/Card';
-import CardContent from '@material-ui/core/CardContent';
-import Typography from '@material-ui/core/Typography';
+import Card from "@material-ui/core/Card";
+import CardContent from "@material-ui/core/CardContent";
+import Typography from "@material-ui/core/Typography";
 
 dayjs.extend(calendar);
-
 
 /* const useStyles = makeStyles((theme) => ({
 })); */
@@ -20,9 +19,9 @@ dayjs.extend(calendar);
 const useStyles = makeStyles(() => ({
   root: {
     width: "17rem",
-    margin: 'auto',
+    margin: "auto",
     maxHeight: "42rem",
-    flexGrow: 1
+    flexGrow: 1,
   },
   title: {
     fontSize: 14,
@@ -31,7 +30,7 @@ const useStyles = makeStyles(() => ({
     marginBottom: 0,
   },
   mediaDiv: {
-    position: "relative"
+    position: "relative",
   },
   media: {
     height: "17rem",
@@ -43,10 +42,9 @@ const useStyles = makeStyles(() => ({
     left: 0,
     width: "17rem",
     height: "17rem",
-    paddingBottom: "0.2em"
-  }
+    paddingBottom: "0.2em",
+  },
 }));
-
 
 const Thumbnail = ({ ra, dec, name, url }) => {
   // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
@@ -79,7 +77,6 @@ const Thumbnail = ({ ra, dec, name, url }) => {
       link = "";
   }
 
-
   return (
     <Card className={classes.root} variant="outlined">
       <CardContent>
@@ -91,9 +88,13 @@ const Thumbnail = ({ ra, dec, name, url }) => {
         <a href={link}>
           <img src={url} alt={alt} className={classes.media} title={alt} />
         </a>
-        {
-          (name === "dr8") && <img className={classes.crosshair} src="/static/images/crosshairs.png" alt="" />
-        }
+        {name === "dr8" && (
+          <img
+            className={classes.crosshair}
+            src="/static/images/crosshairs.png"
+            alt=""
+          />
+        )}
       </div>
     </Card>
   );
@@ -106,55 +107,48 @@ Thumbnail.propTypes = {
   url: PropTypes.string.isRequired,
 };
 
-const ThumbnailList = ({ ra, dec, thumbnails, useGrid=true }) => {
-  const thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8'];
+const ThumbnailList = ({ ra, dec, thumbnails, useGrid = true }) => {
+  const thumbnail_order = ["new", "ref", "sub", "sdss", "dr8"];
   // Sort thumbnails by order of appearance in `thumbnail_order`
-  thumbnails.sort((a, b) => (thumbnail_order.indexOf(a.type) <
-  thumbnail_order.indexOf(b.type) ? -1 : 1));
+  thumbnails.sort((a, b) =>
+    thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1
+  );
 
   if (useGrid) {
     return (
-      <Grid
-        container
-        direction="row"
-        spacing={3}
-      >
-        {
-          thumbnails.map((t) => (
-            <Grid item key={t.id}>
-              <Thumbnail
-                key={`thumb_${t.type}`}
-                ra={ra}
-                dec={dec}
-                name={t.type}
-                url={t.public_url}
-              />
-            </Grid>
-          ))
-        }
+      <Grid container direction="row" spacing={3}>
+        {thumbnails.map((t) => (
+          <Grid item key={t.id}>
+            <Thumbnail
+              key={`thumb_${t.type}`}
+              ra={ra}
+              dec={dec}
+              name={t.type}
+              url={t.public_url}
+            />
+          </Grid>
+        ))}
       </Grid>
     );
   } else {
-    return (
-      thumbnails.map((t) => (
-        <Grid item key={t.id}>
-          <Thumbnail
-            key={`thumb_${t.type}`}
-            ra={ra}
-            dec={dec}
-            name={t.type}
-            url={t.public_url}
-          />
-        </Grid>
-      ))
-    );
+    return thumbnails.map((t) => (
+      <Grid item key={t.id}>
+        <Thumbnail
+          key={`thumb_${t.type}`}
+          ra={ra}
+          dec={dec}
+          name={t.type}
+          url={t.public_url}
+        />
+      </Grid>
+    ));
   }
 };
 
 ThumbnailList.propTypes = {
   ra: PropTypes.number.isRequired,
   dec: PropTypes.number.isRequired,
-  thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired
+  thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired,
 };
 
 export default ThumbnailList;

@@ -48,10 +48,7 @@ def test_sharing_photometry(
     status, data = api(
         "POST",
         "sharing",
-        data={
-            "photometryIDs": [photometry_id],
-            "groupIDs": [public_group.id],
-        },
+        data={"photometryIDs": [photometry_id], "groupIDs": [public_group.id],},
         token=upload_data_token,
     )
 

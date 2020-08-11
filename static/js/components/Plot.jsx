@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
-import { useSelector, useDispatch } from 'react-redux';
+import React, { useState, useEffect } from "react";
+import PropTypes from "prop-types";
+import { useSelector, useDispatch } from "react-redux";
 
-import * as Actions from '../ducks/plots';
+import * as Actions from "../ducks/plots";
 
 // These imports are necessary to initialize Bokeh + its extensions
 
@@ -23,7 +23,9 @@ function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
   inner_div.setAttribute("class", "bk-plotdiv");
   inner_div.setAttribute("id", render_items[0].elementid);
   bokeh_div.appendChild(inner_div);
-  while (node.hasChildNodes()) { node.removeChild(node.lastChild); }
+  while (node.hasChildNodes()) {
+    node.removeChild(node.lastChild);
+  }
   node.appendChild(bokeh_div);
 
   // We have to give the Bokeh-generated JS snippet access to Bokeh.
@@ -36,7 +38,7 @@ function bokeh_render_plot(node, docs_json, render_items, custom_model_js) {
 
   // eslint-disable-next-line no-undef
   window.Bokeh = Bokeh;
-  custom_model_js = custom_model_js.replace('this', 'root');
+  custom_model_js = custom_model_js.replace("this", "root");
   // eslint-disable-next-line no-eval
   eval(`const root = { Bokeh: window.Bokeh }; ${custom_model_js}`);
 
@@ -55,22 +57,14 @@ const Plot = (props) => {
   const [error] = useState(false);
   const [fetchingPlotIDs, setFetchingPlotIDs] = useState([]);
 
-  const needsFetching = () => (
-    !plots.plotIDList.includes(url) &&
-    !fetchingPlotIDs.includes(url)
-  );
+  const needsFetching = () =>
+    !plots.plotIDList.includes(url) && !fetchingPlotIDs.includes(url);
   const fetchPlotDataIfNotCached = () => {
     if (needsFetching()) {
-      dispatch(
-        Actions.fetchPlotData(
-          url,
-          Actions.FETCH_SOURCE_PLOT
-        )
-      );
+      dispatch(Actions.fetchPlotData(url, Actions.FETCH_SOURCE_PLOT));
       setFetchingPlotIDs(fetchingPlotIDs.concat([url]));
     }
-    if (plots.plotData[url] &&
-        fetchingPlotIDs.includes(url)) {
+    if (plots.plotData[url] && fetchingPlotIDs.includes(url)) {
       const newFetchingPlotIDs = fetchingPlotIDs.slice();
       newFetchingPlotIDs.splice(fetchingPlotIDs.indexOf(url), 1);
       setFetchingPlotIDs(newFetchingPlotIDs);
@@ -82,25 +76,15 @@ const Plot = (props) => {
 
   const plotData = plots.plotData[url];
   if (error) {
-    return (
-      <b>
-        Error: Could not fetch plotting data
-      </b>
-    );
+    return <b>Error: Could not fetch plotting data</b>;
   }
   if (!plotData) {
-    return (
-      <b>
-        Please wait while we load your plotting data...
-      </b>
-    );
+    return <b>Please wait while we load your plotting data...</b>;
   }
   if (!plotData.docs_json) {
     return (
       <b>
-        <i>
-          No data to plot.
-        </i>
+        <i>No data to plot.</i>
       </b>
     );
   }
@@ -110,29 +94,27 @@ const Plot = (props) => {
   return (
     <div
       className={className}
-      ref={
-        (node) => {
-          if (node) {
-            bokeh_render_plot(
-              node,
-              JSON.parse(docs_json),
-              JSON.parse(render_items),
-              custom_model_js
-            );
-          }
+      ref={(node) => {
+        if (node) {
+          bokeh_render_plot(
+            node,
+            JSON.parse(docs_json),
+            JSON.parse(render_items),
+            custom_model_js
+          );
         }
-      }
+      }}
     />
   );
 };
 
 Plot.propTypes = {
   url: PropTypes.string.isRequired,
-  className: PropTypes.string
+  className: PropTypes.string,
 };
 
 Plot.defaultProps = {
-  className: ""
+  className: "",
 };
 
 export default React.memo(Plot);

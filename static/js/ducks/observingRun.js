@@ -1,22 +1,20 @@
-import messageHandler from 'baselayer/MessageHandler';
+import messageHandler from "baselayer/MessageHandler";
 
-import * as API from '../API';
-import store from '../store';
+import * as API from "../API";
+import store from "../store";
 import { REFRESH_SOURCE } from "./source";
 
-export const FETCH_OBSERVING_RUN = 'skyportal/FETCH_OBSERVING_RUN';
-export const FETCH_OBSERVING_RUN_OK = 'skyportal/FETCH_OBSERVING_RUN_OK';
+export const FETCH_OBSERVING_RUN = "skyportal/FETCH_OBSERVING_RUN";
+export const FETCH_OBSERVING_RUN_OK = "skyportal/FETCH_OBSERVING_RUN_OK";
 
-export const FETCH_ASSIGNMENT = 'skyportal/FETCH_ASSIGNMENT';
-export const FETCH_ASSIGNMENT_OK = 'skyportal/FETCH_ASSIGNMENT_OK';
+export const FETCH_ASSIGNMENT = "skyportal/FETCH_ASSIGNMENT";
+export const FETCH_ASSIGNMENT_OK = "skyportal/FETCH_ASSIGNMENT_OK";
 
-export const fetchObservingRun = (id) => (
-  API.GET(`/api/observing_run/${id}`, FETCH_OBSERVING_RUN)
-);
+export const fetchObservingRun = (id) =>
+  API.GET(`/api/observing_run/${id}`, FETCH_OBSERVING_RUN);
 
-export const fetchAssignment = (id) => (
-  API.GET(`/api/assignment/${id}`, FETCH_ASSIGNMENT)
-);
+export const fetchAssignment = (id) =>
+  API.GET(`/api/assignment/${id}`, FETCH_ASSIGNMENT);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
@@ -30,21 +28,22 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
 
   if (actionType === REFRESH_SOURCE) {
     const { obj_id } = payload;
-    const assignment = observingRun.assignments.filter((a) => (a.obj_id === obj_id))[0];
+    const assignment = observingRun.assignments.filter(
+      (a) => a.obj_id === obj_id
+    )[0];
     if (assignment) {
       dispatch(fetchAssignment(assignment.id));
     }
   }
 });
 
-
-const reducer = (state={ assignments: [] }, action) => {
+const reducer = (state = { assignments: [] }, action) => {
   switch (action.type) {
     case FETCH_OBSERVING_RUN_OK: {
       const observingrun = action.data;
       return {
         ...state,
-        ...observingrun
+        ...observingrun,
       };
     }
 
@@ -66,4 +65,4 @@ const reducer = (state={ assignments: [] }, action) => {
   }
 };
 
-store.injectReducer('observingRun', reducer);
+store.injectReducer("observingRun", reducer);
