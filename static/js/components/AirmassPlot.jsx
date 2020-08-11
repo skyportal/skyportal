@@ -1,7 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import embed from 'vega-embed';
-import VegaPlot from './VegaPlot';
 
 
 const airmass_spec = (url, ephemeris) => ({
@@ -43,22 +42,23 @@ const airmass_spec = (url, ephemeris) => ({
     ]
 });
 
-class AirmassPlot extends VegaPlot {
-  render() {
-    const { dataUrl, ephemeris } = this.props;
-    return (
-      <div
-        ref={
-          (node) => {
-            embed(node, airmass_spec(dataUrl, ephemeris), {
-              actions: false
-            });
-          }
+const AirmassPlot = React.Memo(({ props }) => {
+  const { dataUrl, ephemeris } = props;
+  return (
+    <div
+      ref={
+        (node) => {
+          embed(node, airmass_spec(dataUrl, ephemeris), {
+            actions: false
+          });
         }
-      />
-    );
-  }
-}
+      }
+    />
+  )},
+  // Prevent plots from automatically rerendering to minimize overheads.
+  // eslint-disable-next-line no-unused-vars
+  (prevState, nextState) => true,
+);
 
 AirmassPlot.propTypes = {
   ...VegaPlot.propTypes,

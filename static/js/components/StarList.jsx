@@ -58,14 +58,12 @@ export const ObservingRunStarList = () => {
     );
 
     const starlistInfo = [];
-    await Promise.allSettled(promises)
-      .then(
-        (values) => {
-          values.forEach(
-            (response) => starlistInfo.push(...response.value.data.starlist_info)
-          );
-        }
-      );
+    const values = await Promise.allSettled(promises);
+
+    values.forEach(
+      (response) => starlistInfo.push(...response.value.data.starlist_info)
+    );
+
     setStarList(starlistInfo);
   };
 

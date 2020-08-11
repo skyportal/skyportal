@@ -36,7 +36,7 @@ class PlotSpectroscopyHandler(BaseHandler):
         else:
             self.success(data={'docs_json': docs_json, 'render_items': render_items,
                                'custom_model_js': custom_model_js,
-                               'url': self.request.uri})                               
+                               'url': self.request.uri})
 
 class PlotAirmassHandler(BaseHandler):
     @auth_or_token
@@ -47,7 +47,7 @@ class PlotAirmassHandler(BaseHandler):
         obj = assignment.obj
         permission_check = Source.get_obj_if_owned_by(obj.id, self.current_user)
         if permission_check is None:
-            self.error('Invalid assignment id.')
+            self.error('Could not retrieve assignment.')
 
         sunset = assignment.run.sunset
         sunrise = assignment.run.sunrise

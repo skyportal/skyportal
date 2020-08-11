@@ -2,7 +2,6 @@ import React, { useEffect, Suspense } from 'react';
 import PropTypes from 'prop-types';
 import { useSelector, useDispatch } from 'react-redux';
 
-
 import TableCell from '@material-ui/core/TableCell';
 import TableRow from '@material-ui/core/TableRow';
 
@@ -46,26 +45,12 @@ const SimpleMenu = ({ assignment }) => {
   const isdone = assignment.status === "complete";
   const isnotdone = assignment.status === "not observed";
 
-  const completeAction = () => {
+  const updateAssignmentStatus = ( status ) => (() => {
     handleClose();
     return dispatch(
-      SourceAction.editAssignment({ status: "complete" }, assignment.id)
+      SourceAction.editAssignment({ status }, assignment.id)
     );
-  };
-
-  const pendingAction = () => {
-    handleClose();
-    return dispatch(
-      SourceAction.editAssignment({ status: "pending" }, assignment.id)
-    );
-  };
-
-  const notObservedAction = () => {
-    handleClose();
-    return dispatch(
-      SourceAction.editAssignment({ status: "not observed" }, assignment.id)
-    );
-  };
+  });
 
   return (
     <div>
@@ -86,27 +71,42 @@ const SimpleMenu = ({ assignment }) => {
       >
         {
           (ispending || isnotdone) && (
-          <MenuItem onClick={completeAction} variant="contained" key={`${assignment.id}_done`}>
+          <MenuItem
+            onClick={updateAssignmentStatus("complete")}
+            variant="contained"
+            key={`${assignment.id}_done`}
+          >
             Mark Observed
           </MenuItem>
           )
 }
         {
           (ispending || isdone) && (
-          <MenuItem onClick={notObservedAction} variant="contained" key={`${assignment.id}_notdone`}>
+          <MenuItem
+            onClick={updateAssignmentStatus("not observed")}
+            variant="contained"
+            key={`${assignment.id}_notdone`}
+          >
             Mark Not Observed
           </MenuItem>
           )
 }
         {
           (isdone || isnotdone) && (
-          <MenuItem onClick={pendingAction} variant="contained" key={`${assignment.id}_pending`}>
+          <MenuItem
+            onClick={updateAssignmentStatus("pending")}
+            variant="contained"
+            key={`${assignment.id}_pending`}
+          >
             Mark Pending
           </MenuItem>
           )
 }
         {isdone && (
-        <MenuItem key={`${assignment.id}_upload_spec`} onClick={handleClose}>
+        <MenuItem
+          key={`${assignment.id}_upload_spec (Coming Soon)`}
+          onClick={handleClose}
+        >
           Upload Spectrum
         </MenuItem>
         )}
@@ -126,7 +126,7 @@ const SimpleMenu = ({ assignment }) => {
             </Link>
           </MenuItem>
           )
-}
+        }
       </Menu>
     </div>
   );
@@ -166,7 +166,7 @@ const RunSummary = ({ route }) => {
         Loading run...
       </b>
     );
-  } else {
+  }
     const { assignments } = observingRun;
 
     const renderPullOutRow = ((rowData, rowMeta) => {
@@ -214,7 +214,6 @@ const RunSummary = ({ route }) => {
         </TableRow>
       );
     });
-
 
     const renderObjId = (dataIndex) => {
       // This is just passed to MUI datatables options -- not meant to be instantiated directly.
@@ -353,65 +352,64 @@ const RunSummary = ({ route }) => {
             customBodyRenderLite: renderActionsButton
           }
         }
-      ];
+    ];
 
 
-    const options = {
-      draggableColumns: { enabled: true },
-      expandableRows: true,
-      renderExpandableRow: renderPullOutRow,
-      selectableRows: "none"
-    };
+  const options = {
+    draggableColumns: { enabled: true },
+    expandableRows: true,
+    renderExpandableRow: renderPullOutRow,
+    selectableRows: "none"
+  };
 
-    const data = observingRun.assignments.map(
-      (assignment) => ([
-        assignment.obj.id,
-        assignment.status,
-        assignment.obj.ra,
-        assignment.obj.dec,
-        assignment.obj.redshift,
-        assignment.requester.username,
-        assignment.comment,
-        assignment.priority,
-        assignment.rise_time_utc,
-        assignment.set_time_utc,
-        null,
-        null])
-    );
+  const data = observingRun.assignments.map(
+    (assignment) => ([
+      assignment.obj.id,
+      assignment.status,
+      assignment.obj.ra,
+      assignment.obj.dec,
+      assignment.obj.redshift,
+      assignment.requester.username,
+      assignment.comment,
+      assignment.priority,
+      assignment.rise_time_utc,
+      assignment.set_time_utc,
+      null,
+      null])
+  );
 
-    return (
-      <div className={styles.source}>
-        <div>
-          <Grid container direction="column" alignItems="center" justify="flex-start" spacing={3}>
-            <Grid item>
-              <div>
-                <Typography variant="h4" gutterBottom color="textSecondary" align="center">
-                  <em>Observing Planner for:</em>
-                </Typography>
-                <Typography variant="h4" gutterBottom color="textSecondary">
-                  <b>{observingRunTitle(observingRun, instrumentList, telescopeList, groups)}</b>
-                </Typography>
-              </div>
-            </Grid>
-            <Grid item>
-              <MUIDataTable
-                title="Targets"
-                columns={columns}
-                data={data}
-                options={options}
-              />
-            </Grid>
-            <Grid item>
-              <Typography gutterBottom align="center">
-                Starlist and Offsets
+  return (
+    <div className={styles.source}>
+      <div>
+        <Grid container direction="column" alignItems="center" justify="flex-start" spacing={3}>
+          <Grid item>
+            <div>
+              <Typography variant="h4" gutterBottom color="textSecondary" align="center">
+                <em>Observing Planner for:</em>
               </Typography>
-              <ObservingRunStarList />
-            </Grid>
+              <Typography variant="h4" gutterBottom color="textSecondary">
+                <b>{observingRunTitle(observingRun, instrumentList, telescopeList, groups)}</b>
+              </Typography>
+            </div>
           </Grid>
-        </div>
+          <Grid item>
+            <MUIDataTable
+              title="Targets"
+              columns={columns}
+              data={data}
+              options={options}
+            />
+          </Grid>
+          <Grid item>
+            <Typography gutterBottom align="center">
+              Starlist and Offsets
+            </Typography>
+            <ObservingRunStarList />
+          </Grid>
+        </Grid>
       </div>
-    );
-  }
+    </div>
+  );
 };
 
 RunSummary.propTypes = {
