@@ -2,31 +2,17 @@
 parser: "babel-eslint"
 env:
   browser: true
-plugins: [
-  "import",
-  "react",
-  "react-hooks"
-]
-extends: [
-  "airbnb",
-  "plugin:react/recommended"
-]
+plugins: ["import", "react", "react-hooks"]
+extends: ["airbnb", "plugin:react/recommended", "prettier"]
 settings:
   import/resolver:
     node: {}
     webpack:
       config: webpack.config.js
+  react:
+    version: detect
 rules:
   camelcase: off
-  comma-dangle: [1, only-multiline]
-  no-else-return: 0
-  no-param-reassign: 0
-  quotes: 0
-  space-infix-ops: 0
-  no-multiple-empty-lines: ["error", { "max": 2, "maxEOF": 0 }]
-  no-underscore-dangle: [2, {"allowAfterThis": true}]
-  object-curly-newline: [2, {"consistent": true}]
-  operator-linebreak: [1, after]
   jsx-a11y/click-events-have-key-events: 0
   jsx-a11y/label-has-associated-control: 0
   jsx-a11y/control-has-associated-label: 0
