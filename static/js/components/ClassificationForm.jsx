@@ -173,9 +173,9 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
               value={state.classification || ""}
               onChange={handleClasschange}
               getOptionLabel={(option) => option.class || ""}
-              /* eslint-disable-next-line react/jsx-props-no-spreading */
               renderInput={(params) => (
                 <TextField
+                  /* eslint-disable-next-line react/jsx-props-no-spreading */
                   {...params}
                   style={{ width: "100%" }}
                   label="Classification"

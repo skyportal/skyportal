@@ -18,3 +18,7 @@ rules:
   jsx-a11y/control-has-associated-label: 0
   react-hooks/rules-of-hooks: "error"
   react-hooks/exhaustive-deps: "warn"
+  react/jsx-wrap-multilines: 0
+  react/jsx-one-expression-per-line: 0
+  no-param-reassign: 0
+  react/jsx-curly-newline: 0
