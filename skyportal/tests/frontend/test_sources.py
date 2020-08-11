@@ -7,7 +7,6 @@ from selenium.common.exceptions import TimeoutException
 
 from baselayer.app.config import load_config
 from skyportal.tests import api
-import time
 from PIL import Image, ImageChops
 from io import BytesIO
 
