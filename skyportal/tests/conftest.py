@@ -27,6 +27,8 @@ from skyportal.tests.fixtures import (
 from skyportal.model_util import create_token
 from skyportal.models import DBSession, Source, Candidate, Role
 import astroplan
+import warnings
+from astroplan import utils as ap_utils
 
 
 print("Loading test configuration from _test_config.yaml")
@@ -40,7 +42,16 @@ models.init_db(**cfg["database"])
 @pytest.fixture(scope='session')
 def iers_data():
     # grab the latest earth orientation data for observatory calculations
-    astroplan.download_IERS_A()
+    if ap_utils.IERS_A_in_cache():
+        with warnings.catch_warnings() as w:
+            warnings.filterwarnings(
+                "error",
+                category=astroplan.OldEarthOrientationDataWarning
+            )
+            try:
+                ap_utils._get_IERS_A_table()
+            except astroplan.OldEarthOrientationDataWarning:
+                astroplan.download_IERS_A()
 
 
 @pytest.fixture()
