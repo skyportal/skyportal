@@ -1,11 +1,9 @@
 """Scrape data from PTF marshal website and saves to disk/local `ptf` database."""
 from datetime import datetime
-from glob import glob
 import html
 import os.path
 import re
 
-import pandas as pd
 import requests
 from requests.auth import HTTPBasicAuth
 import sqlalchemy as sa

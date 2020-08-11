@@ -27,8 +27,6 @@ from skyportal.models import (
 )
 
 import sncosmo
-from sncosmo.photdata import PhotometricData
-from astropy.table import Table
 
 
 DETECT_THRESH = 5  # sigma

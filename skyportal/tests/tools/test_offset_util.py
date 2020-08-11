@@ -1,5 +1,4 @@
 import pytest
-import uuid
 import requests
 from requests.exceptions import HTTPError, Timeout, ConnectionError
 

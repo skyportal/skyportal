@@ -3,11 +3,11 @@ import uuid
 import re
 from datetime import datetime, timezone
 from astropy import units as u
+from astropy import time as ap_time
 import astroplan
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy import cast
-from sqlalchemy.orm.session import object_session
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
@@ -18,7 +18,7 @@ from sqlalchemy_utils import ArrowType, URLType
 from astropy import coordinates as ap_coord
 import healpix_alchemy as ha
 
-from baselayer.app.models import (
+from baselayer.app.models import (  # noqa
     init_db,
     join_model,
     Base,
@@ -30,10 +30,7 @@ from baselayer.app.models import (
 )
 from baselayer.app.custom_exceptions import AccessError
 
-import astroplan
 import timezonefinder
-from astropy import units as u
-from astropy import time as ap_time
 
 from . import schema
 from .enum_types import (
@@ -575,7 +572,7 @@ class ArrayOfEnum(ARRAY):
         super_rp = super(ArrayOfEnum, self).result_processor(dialect, coltype)
 
         def handle_raw_string(value):
-            if value == None or value == '{}':  # 2nd case, empty array
+            if value is None or value == '{}':  # 2nd case, empty array
                 return []
             inner = re.match(r"^{(.*)}$", value).group(1)
             return inner.split(",")
@@ -812,7 +809,7 @@ class Photometry(Base, ha.Point):
     def mag(cls):
         return sa.case(
             [
-                sa.and_(cls.flux != None, cls.flux > 0),
+                sa.and_(cls.flux != None, cls.flux > 0),  # noqa
                 -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
             ],
             else_=None,
@@ -823,7 +820,7 @@ class Photometry(Base, ha.Point):
         return sa.case(
             [
                 (
-                    sa.and_(cls.flux != None, cls.flux > 0, cls.fluxerr > 0),
+                    sa.and_(cls.flux != None, cls.flux > 0, cls.fluxerr > 0),  # noqa
                     2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux,
                 )
             ],

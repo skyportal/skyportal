@@ -1,9 +1,5 @@
-import pytest
-from selenium import webdriver
-from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 import uuid
-import requests
 
 
 def test_public_groups_list(driver, user, public_group):
