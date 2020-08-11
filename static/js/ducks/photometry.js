@@ -28,9 +28,8 @@ const reducer = (state = {}, action) => {
           ...state,
           [sourceID]: photometry,
         };
-      } else {
-        return state;
       }
+      return state;
     }
     default:
       return state;

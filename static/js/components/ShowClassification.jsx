@@ -55,9 +55,8 @@ function ShowClassification({ classifications, taxonomyList }) {
         })}
       </div>
     );
-  } else {
-    return <span />;
   }
+  return <span />;
 }
 
 ShowClassification.propTypes = {};
