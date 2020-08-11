@@ -32,11 +32,20 @@ def test_token_user_update_filter(manage_groups_token, public_filter):
     assert data["data"]["name"] == "new_name"
 
 
-def test_cannot_update_filter_without_permission(view_only_token, public_filter):
+def test_cannot_update_filter_group_stream(view_only_token, public_filter):
     status, data = api(
         "PATCH",
         f"filters/{public_filter.id}",
-        data={"name": "new_name"},
+        data={"group_id": 0},
+        token=view_only_token,
+    )
+    assert status == 400
+    assert data["status"] == "error"
+
+    status, data = api(
+        "PATCH",
+        f"filters/{public_filter.id}",
+        data={"stream_id": 0},
         token=view_only_token,
     )
     assert status == 400
@@ -44,7 +53,7 @@ def test_cannot_update_filter_without_permission(view_only_token, public_filter)
 
 
 def test_token_user_post_delete_filter(
-    manage_groups_token, public_group, public_stream
+    manage_groups_token, group_with_stream, public_stream
 ):
     status, data = api(
         "POST",
@@ -52,7 +61,7 @@ def test_token_user_post_delete_filter(
         data={
             "name": str(uuid.uuid4()),
             "stream_id": public_stream.id,
-            "group_id": public_group.id,
+            "group_id": group_with_stream.id,
         },
         token=manage_groups_token,
     )
@@ -69,3 +78,18 @@ def test_token_user_post_delete_filter(
     status, data = api("GET", f"filters/{filter_id}", token=manage_groups_token)
     assert status == 400
     assert data["message"] == "Invalid filter ID."
+
+
+def test_post_filter_with_unauthorized_stream(manage_groups_token, group_with_stream, public_stream):
+
+    status, data = api(
+        "POST",
+        "filters",
+        data={
+            "name": str(uuid.uuid4()),
+            "stream_id": public_stream.id - 1,
+            "group_id": group_with_stream.id,
+        },
+        token=manage_groups_token,
+    )
+    assert status == 400

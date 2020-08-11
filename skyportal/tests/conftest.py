@@ -69,6 +69,14 @@ def public_group2():
 
 
 @pytest.fixture()
+def group_with_stream(super_admin_user, group_admin_user, public_stream):
+    return GroupFactory(
+        users=[super_admin_user, group_admin_user],
+        streams=[public_stream]
+    )
+
+
+@pytest.fixture()
 def public_filter(public_group, public_stream):
     return FilterFactory(group=public_group, stream=public_stream)
 

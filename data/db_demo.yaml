@@ -18,12 +18,12 @@ streams:
       collection: ZTF_alerts
       selector: [1]
     =id: ztf_public
-  - name: ZTF Partnership
+  - name: ZTF Public+Partnership
     altdata:
       collection: ZTF_alerts
       selector: [1, 2]
     =id: ztf_partnership
-  - name: ZTF Caltech
+  - name: ZTF Public+Partnership+Caltech
     altdata:
       collection: ZTF_alerts
       selector: [1, 2, 3]

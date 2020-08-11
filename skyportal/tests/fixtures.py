@@ -107,6 +107,17 @@ class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
     streams = []
     filters = []
 
+    # @factory.post_generation
+    # def streams(obj, create, extracted, **kwargs):
+    #     if not create:
+    #         return
+    #
+    #     if extracted:
+    #         for stream in extracted:
+    #             obj.streams.append(stream)
+    #             DBSession().add(obj)
+    #             DBSession().commit()
+
 
 class FilterFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
