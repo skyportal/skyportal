@@ -43,8 +43,8 @@ class NewsFeedHandler(BaseHandler):
 
         def fetch_newest(model):
             return model.query.filter(model.obj_id.in_(
-                DBSession.query(Source.obj_id).filter(
-                    Source.group_id.in_([g.id for g in self.current_user.groups])
+                DBSession().query(Source.obj_id).filter(
+                    Source.group_id.in_([g.id for g in self.current_user.accessible_groups])
                 ))).order_by(desc(model.created_at or model.saved_at)).limit(n_items).all()
 
         sources = fetch_newest(Source)

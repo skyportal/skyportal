@@ -15,7 +15,6 @@ def test_token_user_retrieving_candidate(view_only_token, public_candidate):
     )
     assert status == 200
     assert data["status"] == "success"
-    print(data["data"])
     assert all(
         k in data["data"]
         for k in ["ra", "dec", "redshift"]
@@ -28,7 +27,6 @@ def test_token_user_update_candidate(manage_sources_token, public_candidate):
         f"candidates/{public_candidate.id}",
         data={
             "ra": 234.22,
-            "dec": -22.33,
             "redshift": 3,
             "transient": False,
             "ra_dis": 2.3,

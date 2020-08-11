@@ -1,4 +1,4 @@
-wavelength,flux,instrument_id
+wavelengths,fluxes,instrument_id
 3315.61709372,-1.57072903217e-16,1
 3321.10565225,1.1435786056e-15,1
 3326.59421078,6.30307403844e-16,1

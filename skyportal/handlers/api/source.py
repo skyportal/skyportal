@@ -7,12 +7,13 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func, desc
 import arrow
 from marshmallow.exceptions import ValidationError
-
+import healpix_alchemy as ha
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
     DBSession, Comment, Instrument, Photometry, Obj, Source, SourceView,
-    Thumbnail, Token, User, Group, FollowupRequest
+    Thumbnail, Token, User, Group, FollowupRequest, ClassicalAssignment,
+    ObservingRun
 )
 from .internal.source_views import register_source_view
 from ...utils import (
@@ -36,7 +37,7 @@ class SourceHandler(BaseHandler):
               name: obj_id
               required: false
               schema:
-                type: integer
+                type: string
           responses:
             200:
               content:
@@ -173,28 +174,47 @@ class SourceHandler(BaseHandler):
                 register_source_view(obj_id=obj_id,
                                      username_or_token_id=self.current_user.id,
                                      is_token=True)
-            s = Source.get_if_owned_by(  # Returns Source.obj
+            s = Source.get_obj_if_owned_by(
                 obj_id, self.current_user,
                 options=[joinedload(Source.obj)
-                         .joinedload(Obj.comments),
-                         joinedload(Source.obj)
                          .joinedload(Obj.followup_requests)
                          .joinedload(FollowupRequest.requester),
                          joinedload(Source.obj)
                          .joinedload(Obj.followup_requests)
                          .joinedload(FollowupRequest.instrument),
                          joinedload(Source.obj)
+                         .joinedload(Obj.assignments)
+                         .joinedload(ClassicalAssignment.run)
+                         .joinedload(ObservingRun.instrument)
+                         .joinedload(Instrument.telescope),
+                         joinedload(Source.obj)
                          .joinedload(Obj.thumbnails)
                          .joinedload(Thumbnail.photometry)
                          .joinedload(Photometry.instrument)
                          .joinedload(Instrument.telescope)])
-            return self.success(data=s)
+            if s is None:
+                return self.error("Invalid source ID.")
+            s.comments = s.get_comments_owned_by(self.current_user)
+            s.classifications = s.get_classifications_owned_by(self.current_user)
+            source_info = s.to_dict()
+            source_info["last_detected"] = s.last_detected
+            source_info["groups"] = Group.query.filter(
+                Group.id.in_(
+                    DBSession().query(Source.group_id).filter(
+                        Source.obj_id == obj_id
+                    )
+                )
+            ).filter(
+                Group.id.in_([g.id for g in self.current_user.accessible_groups])
+            ).all()
+
+            return self.success(data=source_info)
         if page_number:
             try:
                 page = int(page_number)
             except ValueError:
                 return self.error("Invalid page number value.")
-            q = Obj.query.filter(Obj.id.in_(DBSession.query(
+            q = Obj.query.filter(Obj.id.in_(DBSession().query(
                 Source.obj_id).filter(Source.group_id.in_(
                     [g.id for g in self.current_user.groups]))))
             if sourceID:
@@ -209,10 +229,8 @@ class SourceHandler(BaseHandler):
                     radius = float(radius)
                 except ValueError:
                     return self.error("Invalid values for ra, dec or radius - could not convert to float")
-                q = q.filter(Obj.ra <= ra + radius)\
-                     .filter(Obj.ra >= ra - radius)\
-                     .filter(Obj.dec <= dec + radius)\
-                     .filter(Obj.dec >= dec - radius)
+                other = ha.Point(ra=ra, dec=dec)
+                q = q.filter(Obj.within(other, radius))
             if start_date:
                 start_date = arrow.get(start_date.strip())
                 q = q.filter(Obj.last_detected >= start_date)
@@ -233,14 +251,25 @@ class SourceHandler(BaseHandler):
                 if "Page number out of range" in str(e):
                     return self.error("Page number out of range.")
                 raise
+            source_list = []
+            for source in query_results["sources"]:
+                source.comments = source.get_comments_owned_by(self.current_user)
+                source_list.append(source.to_dict())
+                source_list[-1]["last_detected"] = source.last_detected
+            query_results["sources"] = source_list
             return self.success(data=query_results)
 
         sources = Obj.query.filter(Obj.id.in_(
-            DBSession.query(Source.obj_id).filter(Source.group_id.in_(
+            DBSession().query(Source.obj_id).filter(Source.group_id.in_(
                 [g.id for g in self.current_user.groups]
             ))
         )).all()
-        return self.success(data={"sources": sources})
+        source_list = []
+        for source in sources:
+            source.comments = source.get_comments_owned_by(self.current_user)
+            source_list.append(source.to_dict())
+            source_list[-1]["last_detected"] = source.last_detected
+        return self.success(data={"sources": source_list})
 
     @permissions(['Upload data'])
     def post(self):
@@ -280,13 +309,14 @@ class SourceHandler(BaseHandler):
         """
         data = self.get_json()
         schema = Obj.__schema__()
-        user_group_ids = [int(g.id) for g in self.current_user.groups]
+        user_group_ids = [g.id for g in self.current_user.groups]
+        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         if not user_group_ids:
             return self.error("You must belong to one or more groups before "
                               "you can add sources.")
         try:
             group_ids = [int(id) for id in data.pop('group_ids')
-                         if int(id) in user_group_ids]
+                         if int(id) in user_accessible_group_ids]
         except KeyError:
             group_ids = user_group_ids
         if not group_ids:
@@ -301,8 +331,8 @@ class SourceHandler(BaseHandler):
         if not groups:
             return self.error("Invalid group_ids field. Please specify at least "
                               "one valid group ID that you belong to.")
-        DBSession.add(obj)
-        DBSession.add_all([Source(obj=obj, group=group) for group in groups])
+        DBSession().add(obj)
+        DBSession().add_all([Source(obj=obj, group=group) for group in groups])
         DBSession().commit()
 
         self.push_all(action="skyportal/FETCH_SOURCES")
@@ -334,7 +364,7 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        s = Source.get_if_owned_by(obj_id, self.current_user)
+        s = Source.get_obj_if_owned_by(obj_id, self.current_user)
         data = self.get_json()
         data['id'] = obj_id
 
@@ -370,9 +400,9 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        if group_id not in [g.id for g in self.current_user.groups]:
+        if group_id not in [g.id for g in self.current_user.accessible_groups]:
             return self.error("Inadequate permissions.")
-        s = (DBSession.query(Source).filter(Source.obj_id == obj_id)
+        s = (DBSession().query(Source).filter(Source.obj_id == obj_id)
              .filter(Source.group_id == group_id).first())
         s.active = False
         s.unsaved_by = self.current_user
@@ -495,7 +525,7 @@ class SourceOffsetsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_if_owned_by(obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
         if source is None:
             return self.error('Invalid source ID.')
 
@@ -607,7 +637,7 @@ class SourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_if_owned_by(obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
         if source is None:
             return self.error('Invalid source ID.')
 

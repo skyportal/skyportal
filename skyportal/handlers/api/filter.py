@@ -48,8 +48,10 @@ class FilterHandler(BaseHandler):
                 return self.error("Invalid filter ID.")
             return self.success(data=f)
         filters = (
-            DBSession.query(Filter)
-            .filter(Filter.group_id.in_([g.id for g in self.current_user.groups]))
+            DBSession().query(Filter)
+            .filter(Filter.group_id.in_(
+                [g.id for g in self.current_user.accessible_groups]
+            ))
             .all()
         )
         return self.success(data=filters)
@@ -87,7 +89,7 @@ class FilterHandler(BaseHandler):
             return self.error(
                 "Invalid/missing parameters: " f"{e.normalized_messages()}"
             )
-        DBSession.add(fil)
+        DBSession().add(fil)
         DBSession().commit()
 
         return self.success(data={"id": fil.id})
@@ -117,11 +119,16 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        f = Filter.get_if_owned_by(filter_id, self.current_user)
+        if f is None:
+            return self.error('Invalid filter ID')
+
         data = self.get_json()
         data["id"] = filter_id
+
         schema = Filter.__schema__()
         try:
-            schema.load(data)
+            schema.load(data, partial=True)
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
@@ -145,7 +152,7 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        DBSession.delete(Filter.query.get(filter_id))
+        DBSession().delete(Filter.query.get(filter_id))
         DBSession().commit()
 
         return self.success()

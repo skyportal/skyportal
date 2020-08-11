@@ -1,5 +1,6 @@
 import uuid
-import time
+import pytest
+from selenium.common.exceptions import TimeoutException
 
 from skyportal.tests import api
 
@@ -10,6 +11,7 @@ def test_candidates_page_render(driver, user, public_candidate):
     driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_candidate_group_filtering(
     driver,
     user,
@@ -63,6 +65,7 @@ def test_candidate_group_filtering(
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_candidate_unsaved_only_filtering(
     driver,
     user,
@@ -124,6 +127,7 @@ def test_candidate_unsaved_only_filtering(
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_candidate_date_filtering(
     driver,
     user,
@@ -181,19 +185,19 @@ def test_candidate_date_filtering(
     end_date_input = driver.wait_for_xpath("//input[@name='endDate']")
     end_date_input.clear()
     end_date_input.send_keys("20011212")
-    time.sleep(0.1)
-    submit_button = driver.wait_for_xpath('//span[text()="Submit"]')
+    submit_button = driver.wait_for_xpath_to_be_clickable('//span[text()="Submit"]')
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
         driver.wait_for_xpath_to_disappear(f'//a[text()="{candidate_id}_{i}"]', 10)
     end_date_input.clear()
     end_date_input.send_keys("20901212")
-    time.sleep(0.1)
+    submit_button = driver.wait_for_xpath_to_be_clickable('//span[text()="Submit"]')
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]', 10)
 
 
+@pytest.mark.flaky(reruns=2)
 def test_save_candidate_quick_save(
     driver, group_admin_user, public_group, public_candidate
 ):
@@ -204,12 +208,20 @@ def test_save_candidate_quick_save(
         f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
     )
     driver.scroll_to_element_and_click(save_button)
-    driver.wait_for_xpath_to_disappear(
-        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
-    )
-    driver.wait_for_xpath('//a[text()="Previously Saved"]')
+    try:
+        driver.wait_for_xpath_to_disappear(
+            f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
+        )
+        driver.wait_for_xpath('//a[text()="Previously Saved"]')
+    except TimeoutException:
+        driver.refresh()
+        driver.wait_for_xpath_to_disappear(
+            f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
+        )
+        driver.wait_for_xpath('//a[text()="Previously Saved"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_save_candidate_select_groups(
     driver, group_admin_user, public_group, public_candidate
 ):
@@ -236,12 +248,20 @@ def test_save_candidate_select_groups(
         f'//button[@name="finalSaveCandidateButton{public_candidate.id}"]'
     )
     second_save_button.click()
-    driver.wait_for_xpath_to_disappear(
-        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
-    )
-    driver.wait_for_xpath('//a[text()="Previously Saved"]')
+    try:
+        driver.wait_for_xpath_to_disappear(
+            f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
+        )
+        driver.wait_for_xpath('//a[text()="Previously Saved"]')
+    except TimeoutException:
+        driver.refresh()
+        driver.wait_for_xpath_to_disappear(
+            f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
+        )
+        driver.wait_for_xpath('//a[text()="Previously Saved"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_save_candidate_no_groups_error_message(
     driver, group_admin_user, public_group, public_candidate
 ):

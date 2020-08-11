@@ -12,7 +12,7 @@ from marshmallow_sqlalchemy import (
 )
 
 from marshmallow import (Schema as _Schema, fields, validate, post_load,
-                         ValidationError)
+                         pre_dump, ValidationError)
 from marshmallow_enum import EnumField
 
 import sqlalchemy as sa
@@ -23,10 +23,10 @@ from baselayer.app.models import (
     DBSession as _DBSession
 )
 
-from skyportal.phot_enum import (
+from skyportal.enum_types import (
     py_allowed_bandpasses,
     py_allowed_magsystems,
-    py_thumbnail_types,
+    py_followup_priorities,
     ALLOWED_BANDPASSES,
     ALLOWED_MAGSYSTEMS,
     force_render_enum_markdown
@@ -141,7 +141,8 @@ def setup_schema():
             schema_class_name = class_.__name__
             add_schema(schema_class_name, exclude=['created_at', 'modified'],
                        add_to_model=True)
-            add_schema(f'{schema_class_name}NoID', exclude=['created_at', 'id', 'modified'])
+            add_schema(f'{schema_class_name}NoID',
+                       exclude=['created_at', 'id', 'modified', 'single_user_group'])
 
 
 class PhotBaseFlexible(object):
@@ -170,10 +171,10 @@ class PhotBaseFlexible(object):
                           required=True)
 
     instrument_id = fields.Field(description='ID of the `Instrument`(s) with which the '
-                                 'photometry was acquired. '
-                                 'Can be given as a scalar or a 1D list. '
-                                 'If a scalar, will be broadcast to all values '
-                                 'given as lists. Null values are not allowed.',
+                                             'photometry was acquired. '
+                                             'Can be given as a scalar or a 1D list. '
+                                             'If a scalar, will be broadcast to all values '
+                                             'given as lists. Null values are not allowed.',
                                  required=True)
 
     ra = fields.Field(description='ICRS Right Ascension of the centroid '
@@ -181,31 +182,42 @@ class PhotBaseFlexible(object):
                                   'Can be given as a scalar or a 1D list. '
                                   'If a scalar, will be broadcast to all values '
                                   'given as lists. Null values allowed.',
-                      required=False)
+                      required=False, missing=None)
 
     dec = fields.Field(description='ICRS Declination of the centroid '
                                    'of the photometric aperture [deg]. '
                                    'Can be given as a scalar or a 1D list. '
                                    'If a scalar, will be broadcast to all values '
                                    'given as lists. Null values allowed.',
-                       required=False)
+                       required=False, missing=None)
 
     ra_unc = fields.Field(description='Uncertainty on RA [arcsec]. '
                                       'Can be given as a scalar or a 1D list. '
                                       'If a scalar, will be broadcast to all values '
                                       'given as lists. Null values allowed.',
-                          required=False)
+                          required=False, missing=None)
 
     dec_unc = fields.Field(description='Uncertainty on dec [arcsec]. '
                                        'Can be given as a scalar or a 1D list. '
                                        'If a scalar, will be broadcast to all values '
                                        'given as lists. Null values allowed.',
-                           required=False)
+                           required=False, missing=None)
+
+    alert_id = fields.Field(description="Corresponding alert ID. If a record is "
+                            "already present with identical alert ID, only the "
+                            "groups list will be updated (other alert data assumed "
+                            "identical). Defaults to None.")
 
     group_ids = fields.List(fields.Integer(),
                             description="List of group IDs to which photometry "
                                         "points will be visible.",
                             required=True)
+
+    altdata = fields.Field(description="Misc. alternative metadata stored in JSON "
+                           "format, e.g. `{'calibration': {'source': 'ps1', "
+                           "'color_term': 0.012}, 'photometry_method': 'allstar', "
+                           "'method_reference': 'Masci et al. (2015)'}`",
+                           missing=None, default=None, required=False)
 
 
 class PhotFluxFlexible(_Schema, PhotBaseFlexible):
@@ -213,6 +225,9 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
     input data to `PhotometryHandler.post` in redoc. These classes are only
     used for generating documentation and not for validation, serialization,
     or deserialization."""
+
+    required_keys = ['magsys', 'mjd', 'filter', 'obj_id', 'instrument_id',
+                     'fluxerr', 'zp']
 
     magsys = fields.Field(required=True,
                           description='The magnitude system to which the flux, flux error, '
@@ -232,7 +247,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
                                     'used to derive a 5-sigma limiting magnitude '
                                     'when the photometry point is requested in '
                                     'magnitude space from the Photomety GET api.',
-                        required=False)
+                        required=False, missing=None)
 
     fluxerr = fields.Field(description='Gaussian error on the flux in counts. '
                                        'Can be given as a scalar or a 1D list. '
@@ -255,6 +270,9 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
     used for generating documentation and not for validation, serialization,
     or deserialization."""
 
+    required_keys = ['magsys', 'limiting_mag', 'mjd', 'filter',
+                     'obj_id', 'instrument_id']
+
     magsys = fields.Field(required=True,
                           description='The magnitude system to which the magnitude, '
                                       'magnitude error, and limiting magnitude are tied. '
@@ -270,7 +288,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
                                    'given as lists. Null values allowed for non-detections. '
                                    'If `mag` is null, the corresponding '
                                    '`magerr` must also be null.',
-                       required=False)
+                       required=False, missing=None)
 
     magerr = fields.Field(description='Magnitude of the observation in the '
                                       'magnitude system `magsys`. '
@@ -279,7 +297,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
                                       'given as lists. Null values allowed for non-detections. '
                                       'If `magerr` is null, the corresponding `mag` '
                                       'must also be null.',
-                          required=False)
+                          required=False, missing=None)
 
     limiting_mag = fields.Field(description='Limiting magnitude of the image '
                                             'in the magnitude system `magsys`. '
@@ -287,6 +305,12 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
                                             'If a scalar, will be broadcast to all values '
                                             'given as lists. Null values not allowed.',
                                 required=True)
+
+    limiting_mag_nsigma = fields.Field(description='Number of standard deviations '
+                                                   'above the background that the limiting '
+                                                   'magnitudes correspond to. Null values '
+                                                   'not allowed. Default = 5.',
+                                       required=False, missing=5)
 
 
 class PhotBase(object):
@@ -306,6 +330,7 @@ class PhotBase(object):
     obj_id = fields.String(description='ID of the Object to which the '
                                        'photometry will be attached.',
                            required=True)
+
     instrument_id = fields.Integer(description='ID of the instrument with which'
                                                ' the observation was carried '
                                                'out.', required=True)
@@ -323,7 +348,16 @@ class PhotBase(object):
     dec_unc = fields.Number(description='Uncertainty on dec [arcsec].',
                             missing=None, default=None)
 
-    altdata = fields.Dict(description='Misc. alternative metadata.',
+    alert_id = fields.Integer(description="Corresponding alert ID. If a record is "
+                              "already present with identical alert ID, only the "
+                              "groups list will be updated (other alert data assumed "
+                              "identical). Defaults to None.",
+                              missing=None, default=None)
+
+    altdata = fields.Dict(description="Misc. alternative metadata stored in JSON "
+                          "format, e.g. `{'calibration': {'source': 'ps1', "
+                          "'color_term': 0.012}, 'photometry_method': 'allstar', "
+                          "'method_reference': 'Masci et al. (2015)'}`",
                           missing=None, default=None)
 
     @post_load
@@ -348,8 +382,10 @@ class PhotometryFlux(_Schema, PhotBase):
                                      'the flux error is used to derive a '
                                      'limiting magnitude.', required=False,
                          missing=None, default=None)
+
     fluxerr = fields.Number(description='Gaussian error on the flux in counts.',
                             required=True)
+
     zp = fields.Number(description='Magnitude zeropoint, given by `ZP` in the '
                                    'equation m = -2.5 log10(flux) + `ZP`. '
                                    'm is the magnitude of the object in the '
@@ -412,9 +448,10 @@ class PhotometryFlux(_Schema, PhotBase):
                        ra=data['ra'],
                        dec=data['dec'],
                        ra_unc=data['ra_unc'],
-                       dec_unc=data['dec_unc']
+                       dec_unc=data['dec_unc'],
                        )
-
+        if 'alert_id' in data and data['alert_id'] is not None:
+            p.alert_id = data['alert_id']
         return p
 
 
@@ -525,9 +562,65 @@ class PhotometryMag(_Schema, PhotBase):
                        ra=data['ra'],
                        dec=data['dec'],
                        ra_unc=data['ra_unc'],
-                       dec_unc=data['dec_unc'])
-
+                       dec_unc=data['dec_unc'],
+                       )
+        if 'alert_id' in data and data['alert_id'] is not None:
+            p.alert_id = data['alert_id']
         return p
+
+
+class AssignmentSchema(_Schema):
+    # For generating API docs and extremely basic validation
+
+    run_id = fields.Integer(required=True)
+    obj_id = fields.String(required=True, description='The ID of the object to observe.')
+    priority = ApispecEnumField(py_followup_priorities,
+                                required=True, description='Priority of the request, '
+                                                           '(lowest = 1, highest = 5).')
+    comment = fields.String(description='An optional comment describing the request.')
+
+
+class ObservingRunPost(_Schema):
+    instrument_id = fields.Integer(
+        required=True, description='The ID of the instrument to be '
+                                   'used in this run.'
+    )
+
+    # name of the PI
+    pi = fields.String(description='The PI of the observing run.')
+    observers = fields.String(description='The names of the observers')
+    group_id = fields.Integer(description='The ID of the group this run is associated with.')
+    calendar_date = fields.Date(
+        description='The local calendar date of the run.', required=True
+    )
+
+    modified = fields.DateTime(description="The UT datetime at which the "
+                                           "observingrun was last modified.")
+
+
+class ObservingRunGet(ObservingRunPost):
+    owner_id = fields.Integer(description='The User ID of the owner of this run.')
+    ephemeris = fields.Field(description='Observing run ephemeris data.')
+    id = fields.Integer(description='Unique identifier for the run.')
+
+    @pre_dump
+    def serialize(self, data, **kwargs):
+        data.ephemeris = {}
+        data.ephemeris['sunrise_utc'] = data.sunrise.isot
+        data.ephemeris['sunset_utc'] = data.sunset.isot
+        data.ephemeris['twilight_evening_nautical_utc'] = data.twilight_evening_nautical.isot
+        data.ephemeris['twilight_morning_nautical_utc'] = data.twilight_morning_nautical.isot
+        data.ephemeris['twilight_evening_astronomical_utc'] = (
+            data.twilight_evening_astronomical.isot
+        )
+        data.ephemeris['twilight_morning_astronomical_utc'] = (
+            data.twilight_morning_astronomical.isot
+        )
+        return data
+
+
+class ObservingRunGetWithAssignments(ObservingRunGet):
+    assignments = fields.List(fields.Field())
 
 
 def register_components(spec):
@@ -558,3 +651,8 @@ PhotometryFlux = PhotometryFlux()
 PhotometryMag = PhotometryMag()
 PhotMagFlexible = PhotMagFlexible()
 PhotFluxFlexible = PhotFluxFlexible()
+ObservingRunPost = ObservingRunPost()
+ObservingRunGet = ObservingRunGet()
+AssignmentSchema = AssignmentSchema()
+ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
+

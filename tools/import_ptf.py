@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from baselayer.app import load_config
 from skyportal.models import (DBSession, init_db, Comment, Group, Photometry,
                               Source, Spectrum, User)
-from skyportal.model_util import create_tables
+from baselayer.app import model_util as baselayer_model_util
 
 pBase = automap_base()
 pengine = create_engine("postgresql://skyportal:@localhost:5432/ptf")
@@ -28,7 +28,7 @@ pInstrument = pBase.classes.instruments
 
 psession = Session(pengine)
 init_db(**load_config()['database'])
-create_tables()
+baselayer_model_util.create_tables()
 
 
 def import_table(ptf_table, skyportal_table, columns=None, column_map={},

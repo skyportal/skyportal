@@ -44,6 +44,13 @@ const Group = () => {
       )[0].admin
     );
 
+    let numAdmins = 0;
+    group.group_users.forEach((groupUser) => {
+      if (groupUser.admin) {
+        numAdmins += 1;
+      }
+    });
+
     return (
       <div>
         <b>
@@ -74,16 +81,18 @@ const Group = () => {
                   (currentUser.roles.includes('Super admin') ||
                    currentUser.roles.includes('Group admin')) &&
                   (
-                    <input
-                      type="submit"
+                    <button
+                      type="button"
+                      disabled={isAdmin(user, group) && (numAdmins <= 1)}
                       onClick={() => dispatch(
                         groupsActions.deleteGroupUser(
                           { username: user.username,
                             group_id: group.id }
                         )
                       )}
-                      value="Remove from group"
-                    />
+                    >
+                      Remove from group
+                    </button>
                   )
                 }
               </li>

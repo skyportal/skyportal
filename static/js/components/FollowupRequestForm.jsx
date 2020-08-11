@@ -1,8 +1,13 @@
 import React from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import PropTypes from 'prop-types';
 import DatePicker from 'react-datepicker';
 import { useForm, Controller } from 'react-hook-form';
+import Select from "@material-ui/core/Select";
+import InputLabel from "@material-ui/core/InputLabel";
+import FormControl from "@material-ui/core/FormControl";
+import MenuItem from "@material-ui/core/MenuItem";
+import { makeStyles } from "@material-ui/core/styles";
 
 import * as Actions from '../ducks/source';
 import FormValidationError from './FormValidationError';
@@ -12,6 +17,13 @@ import 'react-datepicker/dist/react-datepicker-cssmodules.css';
 const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsParams, followupRequest = null, title = "Submit new follow-up request", afterSubmit = null }) => {
   const dispatch = useDispatch();
   const obsParams = instrumentObsParams; // Shorten to reduce line length below
+  const telescopeList = useSelector((state) => state.telescopes.telescopeList);
+
+  const telLookUp = {};
+  telescopeList.forEach((tel) => {
+    telLookUp[tel.id] = tel;
+  });
+
 
   const instIDToName = {};
   instrumentList.forEach((instrumentObj) => {
@@ -82,6 +94,14 @@ const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsPara
     }
   };
 
+  const useStyles = makeStyles((theme) => ({
+    formControl: {
+      margin: theme.spacing(1),
+      minWidth: 120,
+    }
+  }));
+  const classes = useStyles();
+
   return (
     <div>
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -89,22 +109,31 @@ const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsPara
           {title}
         </h3>
         <div>
-          <label>
-            Select Instrument:&nbsp;
-          </label>
-          <select
-            name="instrument_id"
-            ref={register({ required: true })}
-            onChange={handleSelectedInstrumentChange}
-          >
-            {
-              instrumentList.map((instrument) => (
-                <option value={instrument.id} key={instrument.id}>
-                  {instrument.name}
-                </option>
-              ))
-            }
-          </select>
+          <FormControl className={classes.formControl}>
+            <InputLabel id="instrumentSelectLabel">
+              Instrument
+            </InputLabel>
+            <Controller
+              as={(
+                <Select labelId="instrumentSelectLabel">
+                  {
+                    instrumentList.filter(
+                      (instrument) => (instrument.telescope_id in telLookUp) &&
+                        (telLookUp[instrument.telescope_id].robotic)
+                    ).map((instrument) => (
+                      <MenuItem value={instrument.id} key={instrument.id}>
+                        {instrument.name}
+                      </MenuItem>
+                    ))
+                  }
+                </Select>
+              )}
+              name="instrument_id"
+              rules={{ required: true }}
+              control={control}
+              onChange={([e]) => handleSelectedInstrumentChange(e)}
+            />
+          </FormControl>
         </div>
         {
           (formState.instrument_id) && (
@@ -262,7 +291,7 @@ const FollowupRequestForm = ({ obj_id, action, instrumentList, instrumentObsPara
                 </select>
               </div>
               <br />
-              <input type="submit" />
+              <input type="submit" name={`${action}FollowupRequestSubmitButton`} />
             </div>
           )
         }
@@ -284,8 +313,14 @@ FollowupRequestForm.propTypes = {
   })).isRequired,
   instrumentObsParams: PropTypes.objectOf(PropTypes.any).isRequired,
   followupRequest: PropTypes.shape({
-    requester: PropTypes.object,
-    instrument: PropTypes.object,
+    requester: PropTypes.shape({
+      id: PropTypes.number,
+      username: PropTypes.string
+    }),
+    instrument: PropTypes.shape({
+      id: PropTypes.number,
+      name: PropTypes.string
+    }),
     start_date: PropTypes.string,
     end_date: PropTypes.string,
     priority: PropTypes.string,

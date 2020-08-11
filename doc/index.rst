@@ -10,8 +10,10 @@ Skyportal
    api
    dev
    deploy
+   data_loader
    contributing
    adding_features
+   styling
 
 .. Indices and tables
 .. ==================

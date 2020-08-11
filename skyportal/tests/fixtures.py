@@ -6,7 +6,7 @@ import numpy as np
 import factory
 from skyportal.models import (DBSession, User, Group, Photometry,
                               Spectrum, Instrument, Telescope, Obj,
-                              Comment, Thumbnail, Filter)
+                              Comment, Thumbnail, Filter, ObservingRun)
 
 TMP_DIR = mkdtemp()
 
@@ -20,12 +20,13 @@ class TelescopeFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Telescope
 
-    name = 'Palomar 48 inch'
-    nickname = 'P48'
+    name = factory.LazyFunction(lambda: f'Palomar 48 inch_{str(uuid.uuid4())}')
+    nickname = factory.LazyFunction(lambda: f'P48_{str(uuid.uuid4())}')
     lat = 33.3563
-    lon = 116.8650
+    lon = -116.8650
     elevation = 1712.
     diameter = 1.2
+    robotic = True
 
 
 class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -41,8 +42,8 @@ class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Instrument
 
-    name = 'ZTF'
-    type = 'Imager'
+    name = factory.LazyFunction(lambda: f'ZTF_{str(uuid.uuid4())}')
+    type = 'imager'
     band = 'Optical'
     telescope = factory.SubFactory(TelescopeFactory)
     filters = ['ztfg', 'ztfr', 'ztfi']
@@ -78,7 +79,7 @@ class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
 class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Group
-    name = factory.LazyFunction(lambda: str(uuid.uuid4()))
+    name = factory.LazyFunction(lambda: str(uuid.uuid4())[:15])
     users = []
 
 
@@ -104,19 +105,22 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
         instruments = [InstrumentFactory(), InstrumentFactory()]
         filters = ['ztfg', 'ztfr', 'ztfi']
         for instrument, filter in islice(zip(cycle(instruments), cycle(filters)), 10):
+            np.random.seed()
             phot1 = PhotometryFactory(obj_id=obj.id,
                                       instrument=instrument,
                                       filter=filter,
-                                      groups=passed_groups)
+                                      groups=passed_groups,
+                                      alert_id=np.random.randint(100, 9223372036854775807))
             DBSession().add(phot1)
             DBSession().add(PhotometryFactory(obj_id=obj.id, flux=99.,
                                               fluxerr=99.,
                                               instrument=instrument,
                                               filter=filter,
-                                              groups=passed_groups))
+                                              groups=passed_groups,
+                                              alert_id=np.random.randint(100, 9223372036854775807)))
 
             DBSession().add(ThumbnailFactory(photometry=phot1))
-            DBSession().add(CommentFactory(obj_id=obj.id))
+            DBSession().add(CommentFactory(obj_id=obj.id, groups=passed_groups))
         DBSession().add(SpectrumFactory(obj_id=obj.id,
                                         instrument=instruments[0]))
         DBSession().commit()
@@ -149,3 +153,30 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
                 obj.groups.append(group)
                 DBSession().add(obj)
                 DBSession().commit()
+
+
+class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = ObservingRun
+
+    instrument = factory.SubFactory(
+        InstrumentFactory,
+        name=factory.LazyFunction(lambda: f'DBSP_{uuid.uuid4()}'),
+        type='spectrograph',
+        band='Optical', filters=[],
+        telescope=factory.SubFactory(
+            TelescopeFactory,
+            name=factory.LazyFunction(
+                lambda: f'Palomar 200-inch Telescope_{uuid.uuid4()}'
+            ),
+            nickname=factory.LazyFunction(
+                lambda: f'P200_{uuid.uuid4()}'
+            ), robotic=False
+        )
+    )
+
+    group = factory.SubFactory(GroupFactory)
+    pi = 'Danny Goldstein'
+    observers = 'D. Goldstein, S. Dhawan'
+    calendar_date = '3021-02-27'
+    owner = factory.SubFactory(UserFactory)

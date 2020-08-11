@@ -192,10 +192,10 @@ def photometry_plot(obj_id, user, width=600, height=300):
             Telescope.nickname.label("telescope"),
             Instrument.name.label("instrument"),
         )
-        .join(Instrument)
-        .join(Telescope)
+        .join(Instrument, Instrument.id == Photometry.instrument_id)
+        .join(Telescope, Telescope.id == Instrument.telescope_id)
         .filter(Photometry.obj_id == obj_id)
-        .filter(Photometry.groups.any(Group.id.in_([g.id for g in user.groups])))
+        .filter(Photometry.groups.any(Group.id.in_([g.id for g in user.accessible_groups])))
         .statement,
         DBSession().bind
     )
@@ -520,10 +520,12 @@ def photometry_plot(obj_id, user, width=600, height=300):
 
 
 # TODO make async so that thread isn't blocked
-def spectroscopy_plot(obj_id):
+def spectroscopy_plot(obj_id, spec_id=None):
     """TODO normalization? should this be handled at data ingestion or plot-time?"""
     obj = Obj.query.get(obj_id)
     spectra = Obj.query.get(obj_id).spectra
+    if spec_id is not None:
+        spectra = [spec for spec in spectra if spec.id == int(spec_id)]
     if len(spectra) == 0:
         return None, None, None
 

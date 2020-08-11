@@ -11,12 +11,13 @@ import ListItem from "@material-ui/core/ListItem";
 import ListItemIcon from "@material-ui/core/ListItemIcon";
 import ListItemText from "@material-ui/core/ListItemText";
 import { blue } from "@material-ui/core/colors";
-import HomeIcon from "@material-ui/icons/Home";
-import SearchIcon from "@material-ui/icons/Search";
-import InfoIcon from "@material-ui/icons/Info";
-import MenuIcon from "@material-ui/icons/Menu";
 import IconButton from "@material-ui/core/IconButton";
 import { makeStyles } from "@material-ui/core/styles";
+
+{% for item in app.sidebar %}
+import {{ item.icon }}Icon from "@material-ui/icons/{{ item.icon }}";
+{% endfor %}
+import MenuIcon from "@material-ui/icons/Menu";
 
 import HeaderContent from "./HeaderContent";
 import * as Actions from "../ducks/sidebar";
@@ -29,7 +30,7 @@ const useStyles = makeStyles((theme) => ({
   },
   appBar: {
     position: "fixed",
-    zIndex: 100,
+    zIndex: 150,
     transition: theme.transitions.create(['margin', 'width'], {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
@@ -47,7 +48,7 @@ const useStyles = makeStyles((theme) => ({
   },
   menuButton: {
     marginRight: theme.spacing(2),
-    paddingTop: "1.3em",
+    marginTop: "0.8em",
   },
   hide: {
     display: 'none',
@@ -84,7 +85,7 @@ const useStyles = makeStyles((theme) => ({
   }
 }));
 
-const SidebarAndHeader = ({ open, root }) => {
+const SidebarAndHeader = ({ open }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
 
@@ -107,7 +108,7 @@ const SidebarAndHeader = ({ open, root }) => {
           >
             <MenuIcon />
           </IconButton>
-          <HeaderContent root={root} />
+          <HeaderContent />
         </Toolbar>
       </AppBar>
       <Drawer
@@ -115,36 +116,30 @@ const SidebarAndHeader = ({ open, root }) => {
         variant="persistent"
         anchor="left"
         open={open}
-        classes={{
-          paper: classes.drawerPaper,
-        }}
+        classes={{ "{{ paper: classes.drawerPaper }}" }}
       >
         <div className={classes.drawerHeader} />
         <List>
-          <Link to="/" className={classes.link}>
-            <ListItem button name="sidebarDashboardButton">
+          {%- for item in app.sidebar -%}
+
+          {%- if item.url.startswith('http') %}
+          <a href="{{ item.url }}" className={classes.link}>
+          {% else %}
+          <Link to="{{ item.url }}" className={classes.link}>
+          {%- endif %}
+            <ListItem button name="sidebar{{ item.name }}Button">
               <ListItemIcon>
-                <HomeIcon style={{ color: blue[200] }} />
+                <{{ item.icon }}Icon style={{ "{{ color: blue[200] }}" }} />
               </ListItemIcon>
-              <ListItemText primary="Dashboard" />
+              <ListItemText primary="{{ item.name }}" />
             </ListItem>
+          {%- if item.url.startswith('http') %}
+          </a>
+          {% else %}
           </Link>
-          <Link to="/candidates" className={classes.link}>
-            <ListItem button name="sidebarCandidatesButton">
-              <ListItemIcon>
-                <SearchIcon style={{ color: blue[200] }} />
-              </ListItemIcon>
-              <ListItemText primary="Candidates" />
-            </ListItem>
-          </Link>
-          <Link to="/about" className={classes.link}>
-            <ListItem button name="sidebarAboutButton">
-              <ListItemIcon>
-                <InfoIcon style={{ color: blue[200] }} />
-              </ListItemIcon>
-              <ListItemText primary="About" />
-            </ListItem>
-          </Link>
+          {%- endif -%}
+
+          {%- endfor %}
         </List>
       </Drawer>
     </>
@@ -152,8 +147,7 @@ const SidebarAndHeader = ({ open, root }) => {
 };
 
 SidebarAndHeader.propTypes = {
-  open: PropTypes.bool.isRequired,
-  root: PropTypes.string.isRequired
+  open: PropTypes.bool.isRequired
 };
 
 export default SidebarAndHeader;

@@ -22,4 +22,13 @@ static/thumbnails
 package-lock.json
 .jobs_timestamps.yaml
 skyportal_image_cache
+.tokens.yaml
+
+# Templated files
 static/js/components/Main.jsx
+static/js/components/SidebarAndHeader.jsx
+.tokens.yaml
+# Auto-generated data files
+data/taxonomy_sitewide.yaml
+data/taxonomy_demo.yaml
+.idea

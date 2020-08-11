@@ -32,7 +32,7 @@ export function deleteGroup(group_id) {
 
 export function addGroupUser({ username, admin, group_id }) {
   return API.POST(
-    `/api/groups/${group_id}/users/${username}`,
+    `/api/groups/${group_id}/users`,
     ADD_GROUP_USER,
     { username, admin, group_id }
   );

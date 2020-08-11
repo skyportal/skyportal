@@ -1,0 +1,312 @@
+user:
+  - username: testadmin@cesium-ml.org
+    roles:
+      - Super admin
+  - username: groupadmin@cesium-ml.org
+    roles:
+      - Group admin
+  - username: fulluser@cesium-ml.org
+    roles:
+      - Full user
+  - username: viewonlyuser@cesium-ml.org
+    roles:
+      - View only
+
+groups:
+  - name: Program A
+    group_admins:
+      - testadmin@cesium-ml.org
+      - groupadmin@cesium-ml.org
+    =id: program_A
+  - name: Program B
+    group_admins:
+      - testadmin@cesium-ml.org
+      - groupadmin@cesium-ml.org
+    =id: program_B
+
+groups/=program_A/users:
+  - username: viewonlyuser@cesium-ml.org
+    admin: false
+  - username: fulluser@cesium-ml.org
+    admin: false
+
+filters:
+  - query_string: sample_query_string
+    group_id: =program_A
+    =id: example_filter
+
+telescope:
+  - name: Palomar 1.5m
+    nickname: P60
+    lat: 33.3633675
+    lon: -116.8361345
+    elevation: 1870
+    diameter: 1.5
+    robotic: true
+    skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+    =id: P60
+  - name: Nordic Optical Telescope
+    nickname: NOT
+    lat: 28.75
+    lon: 17.88
+    robotic: true
+    elevation: 2000
+    diameter: 2.56
+    skycam_link: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
+    =id: NOT
+  - diameter: 10.0
+    elevation: 4160.0
+    lat: 19.8283
+    lon: -155.478
+    name: Keck II 10m
+    nickname: Keck2
+    skycam_link: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
+    robotic: false
+    =id: Keck2
+  - name: Keck I Telescope
+    nickname: Keck1
+    lat: 19.8283
+    lon: -155.478
+    elevation: 2000
+    diameter: 2.56
+    skycam_link: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
+    robotic: false
+    =id: Keck1
+
+instrument:
+  - name: P60 Camera
+    type: imager
+    band: V
+    telescope_id: =P60
+    filters: ["ztfg", "ztfr", "ztfi"]
+  - name: ALFOSC
+    type: imaging spectrograph
+    band: V
+    telescope_id: =NOT
+    =id: ALFOSC
+  - name: ESI
+    type: spectrograph
+    band: optical
+    =id: ESI
+    telescope_id: =Keck2
+  - name: LRIS
+    type: spectrograph
+    band: optical
+    =id: LRIS
+    telescope_id: =Keck1
+    
+
+candidates:
+  - id: 14gqr_unsaved_copy
+    filter_ids:
+      - =example_filter
+    ra: 353.36647
+    dec: 33.646149
+    redshift: 0.063
+    altdata:
+      simbad:
+        class: RRLyr
+  - id: 14gqr
+    filter_ids:
+      - =example_filter
+    ra: 353.36647
+    dec: 33.646149
+    redshift: 0.063
+    altdata:
+      simbad:
+        class: RRLyr
+
+  - id: 16fil_unsaved_copy
+    filter_ids:
+      - =example_filter
+    ra: 322.718872
+    dec: 27.574113
+    redshift: 0.0
+    altdata:
+      simbad:
+        class: RRLyr
+  - id: 16fil
+    filter_ids:
+      - =example_filter
+    ra: 322.718872
+    dec: 27.574113
+    redshift: 0.0
+    altdata:
+      simbad:
+        class: RRLyr
+
+sources:
+  - id: 14gqr
+    group_ids:
+      # Adding the public_group_id is a hack until the admin token i
+      # allowed to create sources outside of its own groups, as per
+      # https://github.com/skyportal/skyportal/issues/619
+      - =public_group_id
+      - =program_A
+  - id: 16fil
+    group_ids:
+      - =public_group_id
+      - =program_A
+
+comment:
+  - obj_id: 14gqr_unsaved_copy
+    text: "No source at transient location to R>26 in LRIS imaging"
+  - obj_id: 14gqr_unsaved_copy
+    text: "Strong calcium lines have emerged."
+  - obj_id: 14gqr
+    text: "No source at transient location to R>26 in LRIS imaging"
+  - obj_id: 14gqr
+    text: "Strong calcium lines have emerged."
+
+  - obj_id: 16fil_unsaved_copy
+    text: "Dogs in the park"
+  - obj_id: 16fil_unsaved_copy
+    text: "Birds are not real"
+  - obj_id: 16fil
+    text: "Dogs in the park"
+  - obj_id: 16fil
+    text: "Birds are not real"
+
+photometry:
+  - obj_id: 14gqr_unsaved_copy
+    instrument_id: =P60
+    file: phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+  - obj_id: 14gqr
+    instrument_id: =P60
+    file: phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+  - obj_id: 16fil_unsaved_copy
+    instrument_id: =P60
+    file: phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+  - obj_id: 16fil
+    instrument_id: =P60
+    file: phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+
+thumbnail:
+  - obj_id: 14gqr_unsaved_copy
+    ttype: new
+    data:
+      file: ../skyportal/tests/data/14gqr_new.png
+  - obj_id: 14gqr_unsaved_copy
+    ttype: ref
+    data:
+      file: ../skyportal/tests/data/14gqr_ref.png
+  - obj_id: 14gqr_unsaved_copy
+    ttype: sub
+    data:
+      file: ../skyportal/tests/data/14gqr_sub.png
+
+  - obj_id: 14gqr
+    ttype: new
+    data:
+      file: ../skyportal/tests/data/14gqr_new.png
+  - obj_id: 14gqr
+    ttype: ref
+    data:
+      file: ../skyportal/tests/data/14gqr_ref.png
+  - obj_id: 14gqr
+    ttype: sub
+    data:
+      file: ../skyportal/tests/data/14gqr_sub.png
+
+  - obj_id: 16fil_unsaved_copy
+    ttype: new
+    data:
+      file: ../skyportal/tests/data/16fil_new.png
+  - obj_id: 16fil_unsaved_copy
+    ttype: ref
+    data:
+      file: ../skyportal/tests/data/16fil_ref.png
+  - obj_id: 16fil_unsaved_copy
+    ttype: sub
+    data:
+      file: ../skyportal/tests/data/16fil_sub.png
+
+  - obj_id: 16fil
+    ttype: new
+    data:
+      file: ../skyportal/tests/data/16fil_new.png
+  - obj_id: 16fil
+    ttype: ref
+    data:
+      file: ../skyportal/tests/data/16fil_ref.png
+  - obj_id: 16fil
+    ttype: sub
+    data:
+      file: ../skyportal/tests/data/16fil_sub.png
+
+spectrum:
+  - obj_id: 14gqr_unsaved_copy
+    file: spec1.csv
+    instrument_id: =ALFOSC
+    observed_at: "2019-10-24T00:00:00"
+    group_ids:
+      - =program_A
+      - =program_B
+  - obj_id: 14gqr
+    file: spec1.csv
+    instrument_id: =ALFOSC
+    observed_at: "2019-10-24T00:00:00"
+    group_ids:
+      - =program_A
+      - =program_B
+  - obj_id: 16fil_unsaved_copy
+    file: spec2.csv
+    instrument_id: =ALFOSC
+    observed_at: "2019-10-24T00:00:00"
+    group_ids:
+      - =program_A
+      - =program_B
+  - obj_id: 16fil
+    file: spec2.csv
+    instrument_id: =ALFOSC
+    observed_at: "2019-10-24T00:00:00"
+    group_ids:
+      - =program_A
+      - =program_B
+
+taxonomy:
+  file: taxonomy_demo.yaml
+
+observing_run:
+  - pi: Danny Goldstein
+    instrument_id: =ESI
+    calendar_date: "2021-02-16"
+    group_id: =program_A
+    observers: "Danny Goldstein, Peter Nugent"
+    =id: esi_run
+  - pi: Danny Goldstein
+    instrument_id: =LRIS
+    calendar_date: "2021-06-17"
+    group_id: =program_A
+    observers: "Danny Goldstein, Peter Nugent"
+    =id: lris_run
+
+assignment:
+  - obj_id: 14gqr
+    run_id: =lris_run
+    priority: "4"
+    comment: Please get 2x625s
+  - obj_id: 16fil
+    run_id: =lris_run
+    priority: "3"
+    comment: Please do i-band imaging to 24th mag
+  - obj_id: 14gqr
+    run_id: =esi_run
+    priority: "2"
+    comment: Please integrate for 1200s
+  - obj_id: 16fil
+    run_id: =esi_run
+    priority: "2"
+    comment: Please take only when seeing is less than 1.5"
