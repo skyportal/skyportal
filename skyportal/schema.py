@@ -14,15 +14,12 @@ from marshmallow_sqlalchemy import (
 from marshmallow import (
     Schema as _Schema,
     fields,
-    validate,
     post_load,
     pre_dump,
     ValidationError,
 )
 from marshmallow_enum import EnumField
 
-import sqlalchemy as sa
-from sqlalchemy.orm import mapper
 
 from baselayer.app.models import Base as _Base, DBSession as _DBSession
 
@@ -41,10 +38,7 @@ import operator
 import sys
 import inspect
 import numpy as np
-from uuid import uuid4
 from enum import Enum
-from typing import Any
-import base64
 
 
 class ApispecEnumField(EnumField):

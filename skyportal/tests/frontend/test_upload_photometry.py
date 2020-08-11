@@ -1,8 +1,6 @@
 import pytest
 from selenium.common.exceptions import ElementClickInterceptedException
-import time
 
-from skyportal.tests import api
 
 from .test_followup_requests import add_telescope_and_instrument
 

@@ -1,6 +1,5 @@
 import uuid
 import numpy as np
-import arrow
 from astropy.table import Table
 import pandas as pd
 from marshmallow.exceptions import ValidationError
@@ -13,10 +12,8 @@ from ...models import (
     Group,
     Photometry,
     Instrument,
-    Source,
     Obj,
     PHOT_ZP,
-    PHOT_SYS,
     GroupPhotometry,
 )
 

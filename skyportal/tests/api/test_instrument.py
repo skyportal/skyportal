@@ -1,6 +1,5 @@
 import uuid
 from skyportal.tests import api
-from skyportal.models import Telescope, Instrument, DBSession
 
 
 def test_token_user_post_get_instrument(super_admin_token):

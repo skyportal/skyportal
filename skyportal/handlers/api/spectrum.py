@@ -1,9 +1,7 @@
-import tornado.web
-from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Spectrum, Comment, Instrument, Obj, Source, Group
+from ...models import DBSession, Group, Instrument, Obj, Source, Spectrum
 
 
 class SpectrumHandler(BaseHandler):
@@ -100,7 +98,8 @@ class SpectrumHandler(BaseHandler):
         spectrum = Spectrum.query.get(spectrum_id)
 
         if spectrum is not None:
-            source = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
+            # Permissions check
+            _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
             return self.success(data=spectrum)
         else:
             return self.error(f"Could not load spectrum with ID {spectrum_id}")
@@ -131,7 +130,8 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
         spectrum = Spectrum.query.get(spectrum_id)
-        source = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
+        # Permissions check
+        _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
         data = self.get_json()
         data['id'] = spectrum_id
 
@@ -168,7 +168,8 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
         spectrum = Spectrum.query.get(spectrum_id)
-        source = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
+        # Permissions check
+        _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
         DBSession().delete(spectrum)
         DBSession().commit()
 
