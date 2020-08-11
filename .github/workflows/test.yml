@@ -70,6 +70,8 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-add-repository -y ppa:nginx/stable
+          curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -
+
           sudo apt install -y wget nodejs unzip firefox nginx
 
           pip install --upgrade pip
