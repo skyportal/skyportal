@@ -258,7 +258,7 @@ def test_add_stream_to_group_delete_stream(
 
 
 def test_post_new_filter_delete_group_deletes_filter(
-    manage_groups_token, public_group, public_stream
+    manage_groups_token, group_with_stream, public_stream
 ):
     status, data = api(
         "POST",
@@ -266,7 +266,7 @@ def test_post_new_filter_delete_group_deletes_filter(
         data={
             "name": str(uuid.uuid4()),
             "stream_id": public_stream.id,
-            "group_id": public_group.id,
+            "group_id": group_with_stream.id,
         },
         token=manage_groups_token,
     )
@@ -277,7 +277,7 @@ def test_post_new_filter_delete_group_deletes_filter(
     assert status == 200
     assert data["data"]["id"] == filter_id
 
-    status, data = api("DELETE", f"groups/{public_group.id}", token=manage_groups_token)
+    status, data = api("DELETE", f"groups/{group_with_stream.id}", token=manage_groups_token)
     assert status == 200
 
     status, data = api("GET", f"filters/{filter_id}", token=manage_groups_token)
@@ -286,7 +286,7 @@ def test_post_new_filter_delete_group_deletes_filter(
 
 
 def test_post_new_filter_delete_stream_deletes_filter(
-    manage_groups_token, super_admin_token, public_group, public_stream
+    manage_groups_token, super_admin_token, group_with_stream, public_stream
 ):
     status, data = api(
         "POST",
@@ -294,7 +294,7 @@ def test_post_new_filter_delete_stream_deletes_filter(
         data={
             "name": str(uuid.uuid4()),
             "stream_id": public_stream.id,
-            "group_id": public_group.id,
+            "group_id": group_with_stream.id,
         },
         token=manage_groups_token,
     )
