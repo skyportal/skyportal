@@ -98,7 +98,6 @@ const SourceList = () => {
                     </td>
                     <td>{Number(source.score).toFixed(2)}</td>
                     <td>{source.detect_photometry_count}</td>
-                    {/* eslint-disable-next-line dot-notation */}
                     <td>{source.altdata?.simbad?.["class"] ?? ""}</td>
                     <td>{source.altdata?.tns?.name ?? ""}</td>
                   </tr>
