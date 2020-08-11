@@ -305,22 +305,20 @@ const CentroidPlot = (props) => {
     }
   }, [sourceId, photometry, dispatch]);
 
-  if (photometry) {
-    const plotData = processData(photometry);
+  const plotData = photometry ? processData(photometry) : null;
 
-    return (
-      <div
-        className="centroid-plot-div"
-        ref={(node) => {
-          embed(node, spec(plotData), {
-            actions: false,
-          });
-        }}
-      />
-    );
-  } else {
-    return null;
-  }
+  const returnComponent = plotData ? (
+    <div
+      className="centroid-plot-div"
+      ref={(node) => {
+        embed(node, spec(plotData), {
+          actions: false,
+        });
+      }}
+    />
+  ) : null;
+
+  return returnComponent;
 };
 
 CentroidPlot.propTypes = {
