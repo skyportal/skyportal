@@ -31,8 +31,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: |
-            ~/.cache/pip
-            ~/.cache/sphinx
+            ~/.cache
             ~/.local
             ~/.npm
           key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
