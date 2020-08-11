@@ -1,8 +1,10 @@
 import uuid
+import pytest
 
 from skyportal.tests import api
 
 
+@pytest.mark.flaky(reruns=2)
 def test_news_feed(
     driver, user, public_source, public_group, upload_data_token, comment_token
 ):
@@ -43,6 +45,7 @@ def test_news_feed(
         )
 
 
+@pytest.mark.flaky(reruns=2)
 def test_news_feed_prefs_widget(
     driver, user, public_source, public_group, upload_data_token, comment_token
 ):
