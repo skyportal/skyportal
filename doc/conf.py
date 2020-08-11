@@ -70,8 +70,11 @@ author = 'The skyportal Team'
 version = 'vUndefined'
 setup_lines = open('../skyportal/__init__.py').readlines()
 for l in setup_lines:
-    if l.startswith('__version__'):
-        version = l.split("'")[1]
+    if l.startswith('__version__ = '):
+        try:
+            version = l.split('"')[1]
+        except IndexError:
+            version = l.split("'")[1]
         break
 
 # The full version, including alpha/beta/rc tags.
@@ -228,13 +231,13 @@ htmlhelp_basename = 'skyportaldoc'
 
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
-    #'papersize': 'letterpaper',
+    # 'papersize': 'letterpaper',
     # The font size ('10pt', '11pt' or '12pt').
-    #'pointsize': '10pt',
+    # 'pointsize': '10pt',
     # Additional stuff for the LaTeX preamble.
-    #'preamble': '',
+    # 'preamble': '',
     # Latex figure (float) alignment
-    #'figure_align': 'htbp',
+    # 'figure_align': 'htbp',
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
