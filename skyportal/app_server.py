@@ -3,34 +3,47 @@ import tornado.web
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app import model_util as baselayer_model_util
 
-from skyportal.handlers import (BecomeUserHandler, LogoutHandler)
+from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
     AssignmentHandler,
     CandidateHandler,
     ClassificationHandler,
-    CommentHandler, CommentAttachmentHandler,
+    CommentHandler,
+    CommentAttachmentHandler,
     FilterHandler,
     FollowupRequestHandler,
-    GroupHandler, GroupUserHandler, PublicGroupHandler, GroupStreamHandler,
+    GroupHandler,
+    GroupUserHandler,
+    PublicGroupHandler,
+    GroupStreamHandler,
     InstrumentHandler,
     InvalidEndpointHandler,
     NewsFeedHandler,
     ObservingRunHandler,
-    PhotometryHandler, BulkDeletePhotometryHandler, ObjPhotometryHandler,
+    PhotometryHandler,
+    BulkDeletePhotometryHandler,
+    ObjPhotometryHandler,
     SharingHandler,
-    SourceHandler, SourceOffsetsHandler,
+    SourceHandler,
+    SourceOffsetsHandler,
     SourceFinderHandler,
-    SpectrumHandler, ObjSpectraHandler,
+    SpectrumHandler,
+    ObjSpectraHandler,
     StreamHandler,
     SysInfoHandler,
     TaxonomyHandler,
     TelescopeHandler,
     ThumbnailHandler,
-    UserHandler
+    UserHandler,
 )
 from skyportal.handlers.api.internal import (
-    PlotPhotometryHandler, PlotSpectroscopyHandler, SourceViewsHandler,
-    TokenHandler, DBInfoHandler, ProfileHandler, InstrumentObservationParamsHandler
+    PlotPhotometryHandler,
+    PlotSpectroscopyHandler,
+    SourceViewsHandler,
+    TokenHandler,
+    DBInfoHandler,
+    ProfileHandler,
+    InstrumentObservationParamsHandler,
 )
 
 from . import models, model_util, openapi
@@ -88,7 +101,6 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/telescope(/[0-9]+)?', TelescopeHandler),
         (r'/api/thumbnail(/[0-9]+)?', ThumbnailHandler),
         (r'/api/user(/.*)?', UserHandler),
-
         (r'/api/internal/tokens(/.*)?', TokenHandler),
         (r'/api/internal/profile', ProfileHandler),
         (r'/api/internal/dbinfo', DBInfoHandler),
@@ -97,15 +109,13 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
         (r'/api/internal/instrument_obs_params', InstrumentObservationParamsHandler),
         (r'/api/.*', InvalidEndpointHandler),
-
         (r'/become_user(/.*)?', BecomeUserHandler),
         (r'/logout', LogoutHandler),
-
         # User-facing pages
         (r'/.*', MainPageHandler)  # Route all frontend pages, such as
-                                   # `/source/g647ba`, through the main page.
-                                   #
-                                   # Refer to Main.jsx for routing info.
+        # `/source/g647ba`, through the main page.
+        #
+        # Refer to Main.jsx for routing info.
     ]
 
     settings = baselayer_settings

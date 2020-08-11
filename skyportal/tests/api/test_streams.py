@@ -25,9 +25,7 @@ def test_token_user_update_stream(super_admin_token, public_stream):
     status, data = api(
         "PATCH",
         f"streams/{public_stream.id}",
-        data={
-            "name": new_name,
-        },
+        data={"name": new_name,},
         token=super_admin_token,
     )
     assert status == 200

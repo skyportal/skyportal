@@ -2,11 +2,7 @@ from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
-from ...models import (
-    DBSession,
-    Filter,
-    Stream
-)
+from ...models import DBSession, Filter, Stream
 
 
 class FilterHandler(BaseHandler):
@@ -53,10 +49,11 @@ class FilterHandler(BaseHandler):
 
             return self.success(data=f)
         filters = (
-            DBSession().query(Filter)
-            .filter(Filter.group_id.in_(
-                [g.id for g in self.current_user.accessible_groups]
-            ))
+            DBSession()
+            .query(Filter)
+            .filter(
+                Filter.group_id.in_([g.id for g in self.current_user.accessible_groups])
+            )
             .all()
         )
         return self.success(data=filters)
@@ -135,8 +132,9 @@ class FilterHandler(BaseHandler):
         try:
             schema.load(data, partial=True)
         except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            return self.error(
+                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+            )
         DBSession().commit()
         return self.success()
 

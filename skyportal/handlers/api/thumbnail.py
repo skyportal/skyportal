@@ -71,7 +71,9 @@ class ThumbnailHandler(BaseHandler):
             try:
                 phot = obj.photometry[0]
             except IndexError:
-                return self.error('Specified source does not yet have any photometry data.')
+                return self.error(
+                    'Specified source does not yet have any photometry data.'
+                )
         else:
             return self.error('One of either obj_id or photometry_id are required.')
         try:
@@ -156,8 +158,9 @@ class ThumbnailHandler(BaseHandler):
         try:
             schema.load(data, partial=True)
         except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            return self.error(
+                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+            )
         DBSession().commit()
 
         return self.success()
@@ -200,7 +203,8 @@ def create_thumbnail(thumbnail_data, thumbnail_type, obj_id, photometry_obj):
     if os.path.abspath(basedir).endswith('skyportal/skyportal'):
         basedir = basedir / '..'
     file_uri = os.path.abspath(
-        basedir / f'static/thumbnails/{obj_id}_{thumbnail_type}.png')
+        basedir / f'static/thumbnails/{obj_id}_{thumbnail_type}.png'
+    )
     if not os.path.exists(os.path.dirname(file_uri)):
         (basedir / 'static/thumbnails').mkdir(parents=True)
     file_bytes = base64.b64decode(thumbnail_data)
@@ -208,12 +212,16 @@ def create_thumbnail(thumbnail_data, thumbnail_type, obj_id, photometry_obj):
     if im.format != 'PNG':
         raise ValueError('Invalid thumbnail image type. Only PNG are supported.')
     if not all(16 <= x <= 500 for x in im.size):
-        raise ValueError('Invalid thumbnail size. Only thumbnails '
-                         'between (16, 16) and (500, 500) allowed.')
-    t = Thumbnail(type=thumbnail_type,
-                  photometry=photometry_obj,
-                  file_uri=file_uri,
-                  public_url=f'/static/thumbnails/{obj_id}_{thumbnail_type}.png')
+        raise ValueError(
+            'Invalid thumbnail size. Only thumbnails '
+            'between (16, 16) and (500, 500) allowed.'
+        )
+    t = Thumbnail(
+        type=thumbnail_type,
+        photometry=photometry_obj,
+        file_uri=file_uri,
+        public_url=f'/static/thumbnails/{obj_id}_{thumbnail_type}.png',
+    )
     DBSession().add(t)
     DBSession().flush()
 

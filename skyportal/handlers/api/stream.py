@@ -133,8 +133,9 @@ class StreamHandler(BaseHandler):
         try:
             schema.load(data)
         except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            return self.error(
+                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+            )
         DBSession().commit()
         return self.success()
 
