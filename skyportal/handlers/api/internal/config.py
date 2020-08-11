@@ -5,6 +5,7 @@ from ...base import BaseHandler
 
 import tornado.web
 
+
 class ConfigHandler(BaseHandler):
     def initialize(self, **config):
         self.config = config

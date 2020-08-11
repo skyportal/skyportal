@@ -3,24 +3,34 @@ import uuid
 from skyportal.tests import api
 
 
-def test_news_feed(driver, user, public_source, public_group, upload_data_token, comment_token):
+def test_news_feed(
+    driver, user, public_source, public_group, upload_data_token, comment_token
+):
     obj_id_base = str(uuid.uuid4())
     for i in range(2):
-        status, data = api('POST', 'sources',
-                           data={'id': f'{obj_id_base}_{i}',
-                                 'ra': 234.22,
-                                 'dec': -22.33,
-                                 'redshift': 3,
-                                 'transient': False,
-                                 'ra_dis': 2.3,
-                                 'group_ids': [public_group.id]},
-                           token=upload_data_token)
+        status, data = api(
+            'POST',
+            'sources',
+            data={
+                'id': f'{obj_id_base}_{i}',
+                'ra': 234.22,
+                'dec': -22.33,
+                'redshift': 3,
+                'transient': False,
+                'ra_dis': 2.3,
+                'group_ids': [public_group.id],
+            },
+            token=upload_data_token,
+        )
         assert status == 200
         assert data['data']['id'] == f'{obj_id_base}_{i}'
 
-        status, data = api('POST', 'comment', data={'obj_id': f'{obj_id_base}_{i}',
-                                                    'text': f'comment_text_{i}'},
-                           token=comment_token)
+        status, data = api(
+            'POST',
+            'comment',
+            data={'obj_id': f'{obj_id_base}_{i}', 'text': f'comment_text_{i}'},
+            token=comment_token,
+        )
         assert status == 200
 
     driver.get(f'/become_user/{user.id}')
@@ -28,27 +38,39 @@ def test_news_feed(driver, user, public_source, public_group, upload_data_token,
     driver.wait_for_xpath(f'//span[text()="a few seconds ago"]')
     for i in range(2):
         driver.wait_for_xpath(f'//span[text()="New source {obj_id_base}_{i}"]')
-        driver.wait_for_xpath(f'//span[contains(text(),"comment_text_{i} ({obj_id_base}_{i})")]')
+        driver.wait_for_xpath(
+            f'//span[contains(text(),"comment_text_{i} ({obj_id_base}_{i})")]'
+        )
 
 
-def test_news_feed_prefs_widget(driver, user, public_source, public_group, upload_data_token, comment_token):
+def test_news_feed_prefs_widget(
+    driver, user, public_source, public_group, upload_data_token, comment_token
+):
     obj_id_base = str(uuid.uuid4())
     for i in range(2):
-        status, data = api('POST', 'sources',
-                           data={'id': f'{obj_id_base}_{i}',
-                                 'ra': 234.22,
-                                 'dec': -22.33,
-                                 'redshift': 3,
-                                 'transient': False,
-                                 'ra_dis': 2.3,
-                                 'group_ids': [public_group.id]},
-                           token=upload_data_token)
+        status, data = api(
+            'POST',
+            'sources',
+            data={
+                'id': f'{obj_id_base}_{i}',
+                'ra': 234.22,
+                'dec': -22.33,
+                'redshift': 3,
+                'transient': False,
+                'ra_dis': 2.3,
+                'group_ids': [public_group.id],
+            },
+            token=upload_data_token,
+        )
         assert status == 200
         assert data['data']['id'] == f'{obj_id_base}_{i}'
 
-        status, data = api('POST', 'comment', data={'obj_id': f'{obj_id_base}_{i}',
-                                                    'text': f'comment_text_{i}'},
-                           token=comment_token)
+        status, data = api(
+            'POST',
+            'comment',
+            data={'obj_id': f'{obj_id_base}_{i}', 'text': f'comment_text_{i}'},
+            token=comment_token,
+        )
         assert status == 200
 
     driver.get(f'/become_user/{user.id}')
@@ -56,7 +78,9 @@ def test_news_feed_prefs_widget(driver, user, public_source, public_group, uploa
     driver.wait_for_xpath('//span[text()="a few seconds ago"]')
     for i in range(2):
         driver.wait_for_xpath(f'//span[text()="New source {obj_id_base}_{i}"]')
-        driver.wait_for_xpath(f'//span[contains(text(),"comment_text_{i} ({obj_id_base}_{i})")]')
+        driver.wait_for_xpath(
+            f'//span[contains(text(),"comment_text_{i} ({obj_id_base}_{i})")]'
+        )
     prefs_widget_button = driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]')
     driver.scroll_to_element_and_click(prefs_widget_button)
     n_items_input = driver.wait_for_xpath('//input[@name="numItems"]')
