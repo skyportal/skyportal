@@ -12,6 +12,23 @@ user:
     roles:
       - View only
 
+streams:
+  - name: ZTF Public
+    altdata:
+      collection: ZTF_alerts
+      selector: [1]
+    =id: ztf_public
+  - name: ZTF Public+Partnership
+    altdata:
+      collection: ZTF_alerts
+      selector: [1, 2]
+    =id: ztf_partnership
+  - name: ZTF Public+Partnership+Caltech
+    altdata:
+      collection: ZTF_alerts
+      selector: [1, 2, 3]
+    =id: ztf_caltech
+
 groups:
   - name: Program A
     group_admins:
@@ -30,9 +47,13 @@ groups/=program_A/users:
   - username: fulluser@cesium-ml.org
     admin: false
 
+groups/=program_A/streams:
+  - stream_id: =ztf_partnership
+
 filters:
-  - query_string: sample_query_string
+  - name: Yellow transients
     group_id: =program_A
+    stream_id: =ztf_partnership
     =id: example_filter
 
 telescope:
