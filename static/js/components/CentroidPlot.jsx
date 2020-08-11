@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import PropTypes from 'prop-types';
-import embed from 'vega-embed';
-import * as d3 from 'd3';
-import * as photometryActions from '../ducks/photometry';
+import React, { useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import PropTypes from "prop-types";
+import embed from "vega-embed";
+import * as d3 from "d3";
+import * as photometryActions from "../ducks/photometry";
 
 // Helper functions for computing plot points (taken from GROWTH marshall)
 const gcirc = (ra1, dec1, ra2, dec2) => {
@@ -75,10 +75,10 @@ const getMessages = (delRaGroup, delDecGroup) => {
 
 // The Vega-Lite specifications for the centroid plot
 const spec = (inputData) => ({
-  $schema: 'https://vega.github.io/schema/vega-lite/v4.json',
+  $schema: "https://vega.github.io/schema/vega-lite/v4.json",
   width: 400,
   height: 400,
-  background: 'transparent',
+  background: "transparent",
   layer: [
     // Render nuclear-to-host circle
     {
@@ -86,24 +86,24 @@ const spec = (inputData) => ({
         values: inputData.circlePoints,
       },
       transform: [
-        { calculate: '0.8 * cos(datum.theta)', as: 'x' },
-        { calculate: '0.8 * sin(datum.theta)', as: 'y' },
+        { calculate: "0.8 * cos(datum.theta)", as: "x" },
+        { calculate: "0.8 * sin(datum.theta)", as: "y" },
       ],
       mark: {
-        type: 'line',
+        type: "line",
       },
       encoding: {
         x: {
-          field: 'x',
-          type: 'quantitative',
+          field: "x",
+          type: "quantitative",
         },
         y: {
-          field: 'y',
-          type: 'quantitative',
+          field: "y",
+          type: "quantitative",
         },
-        order: { field: 'theta', type: 'quantitative' },
+        order: { field: "theta", type: "quantitative" },
         fill: {
-          value: '#ccd2db',
+          value: "#ccd2db",
         },
         fillOpacity: { value: 0.5 },
         strokeOpacity: { value: 0 },
@@ -116,24 +116,24 @@ const spec = (inputData) => ({
         values: inputData.circlePoints,
       },
       mark: {
-        type: 'line',
-        point: 'true',
+        type: "line",
+        point: "true",
       },
       encoding: {
         x: {
-          field: 'xx',
-          type: 'quantitative',
+          field: "xx",
+          type: "quantitative",
         },
         y: {
-          field: 'yy',
-          type: 'quantitative',
+          field: "yy",
+          type: "quantitative",
         },
-        order: { field: 'theta', type: 'quantitative' },
+        order: { field: "theta", type: "quantitative" },
         color: {
-          value: 'red',
+          value: "red",
           legend: {
-            values: ['\u03A3'],
-            orient: 'bottom-right',
+            values: ["\u03A3"],
+            orient: "bottom-right",
           },
         },
         strokeWidth: { value: 2 },
@@ -146,41 +146,41 @@ const spec = (inputData) => ({
         values: inputData.photometryData,
       },
       mark: {
-        type: 'point',
+        type: "point",
         filled: true,
       },
       encoding: {
         x: {
-          field: 'delRA',
-          type: 'quantitative',
+          field: "delRA",
+          type: "quantitative",
           axis: {
-            title: '\u0394RA (arcsec)',
+            title: "\u0394RA (arcsec)",
             titleFontSize: 14,
             titlePadding: 8,
           },
         },
         y: {
-          field: 'delDec',
-          type: 'quantitative',
+          field: "delDec",
+          type: "quantitative",
           axis: {
-            title: '\u0394Dec (arcsec)',
+            title: "\u0394Dec (arcsec)",
             titleFontSize: 14,
             titlePadding: 8,
           },
         },
         tooltip: [
-          { field: 'id', type: 'quantitative' },
-          { field: 'delRA', type: 'quantitative' },
-          { field: 'delDec', type: 'quantitative' },
-          { field: 'ra', type: 'quantitative', title: 'RA' },
-          { field: 'dec', type: 'quantitative', title: 'Dec' },
+          { field: "id", type: "quantitative" },
+          { field: "delRA", type: "quantitative" },
+          { field: "delDec", type: "quantitative" },
+          { field: "ra", type: "quantitative", title: "RA" },
+          { field: "dec", type: "quantitative", title: "Dec" },
         ],
         color: {
-          field: 'filter',
-          type: 'nominal',
-          scale: { range: ['#2f5492', '#ff7f0e', '#2ca02c'] },
+          field: "filter",
+          type: "nominal",
+          scale: { range: ["#2f5492", "#ff7f0e", "#2ca02c"] },
           legend: {
-            title: 'Filter',
+            title: "Filter",
             titleFontSize: 14,
             labelFontSize: 12,
             titleLimit: 240,
@@ -189,9 +189,9 @@ const spec = (inputData) => ({
           },
         },
         shape: {
-          field: 'filter',
-          type: 'nominal',
-          scale: { range: ['circle', 'square', 'triangle'] },
+          field: "filter",
+          type: "nominal",
+          scale: { range: ["circle", "square", "triangle"] },
         },
         size: { value: 35 },
         fillOpacity: { value: 1.0 },
@@ -206,20 +206,20 @@ const spec = (inputData) => ({
         values: inputData.centerPoint,
       },
       mark: {
-        type: 'point',
-        shape: 'cross',
-        size: '100',
+        type: "point",
+        shape: "cross",
+        size: "100",
       },
       encoding: {
         x: {
-          field: 'delRA',
-          type: 'quantitative',
+          field: "delRA",
+          type: "quantitative",
         },
         y: {
-          field: 'delDec',
-          type: 'quantitative',
+          field: "delDec",
+          type: "quantitative",
         },
-        fill: { value: 'black' },
+        fill: { value: "black" },
       },
     },
 
@@ -229,19 +229,19 @@ const spec = (inputData) => ({
         values: inputData.messages,
       },
       mark: {
-        type: 'text',
+        type: "text",
         fontSize: 14,
         fontWeight: 500,
       },
       encoding: {
-        text: { field: 'message', type: 'nominal' },
+        text: { field: "message", type: "nominal" },
         x: {
-          field: 'x',
-          type: 'quantitative',
+          field: "x",
+          type: "quantitative",
         },
         y: {
-          field: 'y',
-          type: 'quantitative',
+          field: "y",
+          type: "quantitative",
         },
       },
     },

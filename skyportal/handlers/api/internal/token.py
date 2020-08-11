@@ -34,21 +34,20 @@ class TokenHandler(BaseHandler):
         """
         data = self.get_json()
 
-        user = (User.query.filter(User.username == self.current_user.username)
-                    .first())
+        user = User.query.filter(User.username == self.current_user.username).first()
         user_acls = {acl.id for acl in user.acls}
         token_acls = set(data['acls']) & user_acls
         token_name = data['name']
         if Token.query.filter(Token.name == token_name).first():
             return self.error("Duplicate token name.")
-        token_id = create_token(ACLs=token_acls,
-                                user_id=user.id,
-                                name=token_name)
-        self.push(action='baselayer/SHOW_NOTIFICATION',
-                  payload={'note': f'Token "{token_name}" created.',
-                           'type': 'info'})
-        return self.success(data={'token_id': token_id},
-                            action='skyportal/FETCH_USER_PROFILE')
+        token_id = create_token(ACLs=token_acls, user_id=user.id, name=token_name)
+        self.push(
+            action='baselayer/SHOW_NOTIFICATION',
+            payload={'note': f'Token "{token_name}" created.', 'type': 'info'},
+        )
+        return self.success(
+            data={'token_id': token_id}, action='skyportal/FETCH_USER_PROFILE'
+        )
 
     @auth_or_token
     def delete(self, token_id):
@@ -76,11 +75,14 @@ class TokenHandler(BaseHandler):
             DBSession.delete(token)
             DBSession.commit()
 
-            self.push(action='baselayer/SHOW_NOTIFICATION',
-                      payload={'note': f'Token "{token.name}" deleted.',
-                               'type': 'info'})
+            self.push(
+                action='baselayer/SHOW_NOTIFICATION',
+                payload={'note': f'Token "{token.name}" deleted.', 'type': 'info'},
+            )
             return self.success(action='skyportal/FETCH_USER_PROFILE')
         else:
-            return self.error('Either the specified token does not exist, '
-                              'or the user does not have the necessary '
-                              'permissions to delete it.')
+            return self.error(
+                'Either the specified token does not exist, '
+                'or the user does not have the necessary '
+                'permissions to delete it.'
+            )

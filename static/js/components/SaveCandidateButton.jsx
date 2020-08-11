@@ -6,7 +6,7 @@ import DialogContent from "@material-ui/core/DialogContent";
 import DialogTitle from "@material-ui/core/DialogTitle";
 import Checkbox from "@material-ui/core/Checkbox";
 import Button from "@material-ui/core/Button";
-import ButtonGroup from '@material-ui/core/ButtonGroup';
+import ButtonGroup from "@material-ui/core/ButtonGroup";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import ArrowDropDownIcon from "@material-ui/icons/ArrowDropDown";
 import ClickAwayListener from "@material-ui/core/ClickAwayListener";
@@ -31,7 +31,9 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
 
   useEffect(() => {
     reset({
-      group_ids: userGroups.map((userGroup) => candidate.passing_group_ids.includes(userGroup.id))
+      group_ids: userGroups.map((userGroup) =>
+        candidate.passing_group_ids.includes(userGroup.id)
+      ),
     });
   }, [reset, userGroups, candidate]);
 
@@ -66,11 +68,10 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
   // Split button logic (largely copied from
   // https://material-ui.com/components/button-group/#split-button):
 
-  const passingGroupNames = userGroups.filter(
-    (g) => candidate.passing_group_ids.includes(g.id)
-  ).map(
-    (g) => g.name
-  ).join(",");
+  const passingGroupNames = userGroups
+    .filter((g) => candidate.passing_group_ids.includes(g.id))
+    .map((g) => g.name)
+    .join(",");
 
   const options = [`Save to ${passingGroupNames}`, "Select groups & save"];
 
@@ -83,7 +84,7 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
       setIsSubmitting(true);
       const data = {
         id: candidate.id,
-        group_ids: candidate.passing_group_ids
+        group_ids: candidate.passing_group_ids,
       };
       const result = await dispatch(sourceActions.saveSource(data));
       if (result.status === "error") {
@@ -148,7 +149,8 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
             /* eslint-disable-next-line react/jsx-props-no-spreading */
             {...TransitionProps}
             style={{
-              transformOrigin: placement === "bottom" ? "center top" : "center bottom",
+              transformOrigin:
+                placement === "bottom" ? "center top" : "center bottom",
             }}
           >
             <Paper>
@@ -171,32 +173,31 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
         )}
       </Popper>
 
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} style={{ position: "fixed" }}>
-        <DialogTitle>
-          Select one or more groups:
-        </DialogTitle>
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        style={{ position: "fixed" }}
+      >
+        <DialogTitle>Select one or more groups:</DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(onSubmitGroupSelectSave)}>
-            {
-              errors.group_ids &&
-                <FormValidationError message="Select at least one group." />
-            }
-            {
-              userGroups.map((userGroup, idx) => (
-                <FormControlLabel
-                  key={userGroup.id}
-                  control={(
-                    <Controller
-                      as={Checkbox}
-                      name={`group_ids[${idx}]`}
-                      control={control}
-                      rules={{ validate: validateGroups }}
-                    />
-                  )}
-                  label={userGroup.name}
-                />
-              ))
-            }
+            {errors.group_ids && (
+              <FormValidationError message="Select at least one group." />
+            )}
+            {userGroups.map((userGroup, idx) => (
+              <FormControlLabel
+                key={userGroup.id}
+                control={
+                  <Controller
+                    as={Checkbox}
+                    name={`group_ids[${idx}]`}
+                    control={control}
+                    rules={{ validate: validateGroups }}
+                  />
+                }
+                label={userGroup.name}
+              />
+            ))}
             <br />
             <div style={{ textAlign: "center" }}>
               <Button
@@ -216,14 +217,14 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
 SaveCandidateButton.propTypes = {
   candidate: PropTypes.shape({
     id: PropTypes.string,
-    passing_group_ids: PropTypes.arrayOf(PropTypes.number)
+    passing_group_ids: PropTypes.arrayOf(PropTypes.number),
   }).isRequired,
   userGroups: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number,
-      name: PropTypes.string
+      name: PropTypes.string,
     })
-  ).isRequired
+  ).isRequired,
 };
 
 export default SaveCandidateButton;

@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
-import PropTypes from 'prop-types';
-import Dialog from '@material-ui/core/Dialog';
-import DialogContent from '@material-ui/core/DialogContent';
+import React, { useState } from "react";
+import PropTypes from "prop-types";
+import Dialog from "@material-ui/core/Dialog";
+import DialogContent from "@material-ui/core/DialogContent";
 
-import FollowupRequestForm from './FollowupRequestForm';
+import FollowupRequestForm from "./FollowupRequestForm";
 
-const EditFollowupRequestDialog = ({ followupRequest, instrumentList, instrumentObsParams }) => {
+const EditFollowupRequestDialog = ({
+  followupRequest,
+  instrumentList,
+  instrumentObsParams,
+}) => {
   const [open, setOpen] = useState(false);
 
   const handleClickOpen = () => {
@@ -42,28 +46,30 @@ EditFollowupRequestDialog.propTypes = {
   followupRequest: PropTypes.shape({
     requester: PropTypes.shape({
       id: PropTypes.number,
-      username: PropTypes.string
+      username: PropTypes.string,
     }),
     instrument: PropTypes.shape({
       id: PropTypes.number,
-      name: PropTypes.string
+      name: PropTypes.string,
     }),
     start_date: PropTypes.string,
     end_date: PropTypes.string,
     priority: PropTypes.string,
     status: PropTypes.string,
     obj_id: PropTypes.string,
-    id: PropTypes.number
-  }).isRequired,
-  instrumentList: PropTypes.arrayOf(PropTypes.shape({
-    band: PropTypes.string,
-    created_at: PropTypes.string,
     id: PropTypes.number,
-    name: PropTypes.string,
-    type: PropTypes.string,
-    telescope_id: PropTypes.number
-  })).isRequired,
-  instrumentObsParams: PropTypes.objectOf(PropTypes.any).isRequired
+  }).isRequired,
+  instrumentList: PropTypes.arrayOf(
+    PropTypes.shape({
+      band: PropTypes.string,
+      created_at: PropTypes.string,
+      id: PropTypes.number,
+      name: PropTypes.string,
+      type: PropTypes.string,
+      telescope_id: PropTypes.number,
+    })
+  ).isRequired,
+  instrumentObsParams: PropTypes.objectOf(PropTypes.any).isRequired,
 };
 
 export default EditFollowupRequestDialog;
