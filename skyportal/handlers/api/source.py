@@ -12,7 +12,8 @@ from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
     DBSession, Comment, Instrument, Photometry, Obj, Source, SourceView,
-    Thumbnail, Token, User, Group, FollowupRequest
+    Thumbnail, Token, User, Group, FollowupRequest, ClassicalAssignment,
+    ObservingRun
 )
 from .internal.source_views import register_source_view
 from ...utils import (
@@ -173,7 +174,7 @@ class SourceHandler(BaseHandler):
                 register_source_view(obj_id=obj_id,
                                      username_or_token_id=self.current_user.id,
                                      is_token=True)
-            s = Source.get_obj_if_owned_by(  # Returns Source.obj
+            s = Source.get_obj_if_owned_by(
                 obj_id, self.current_user,
                 options=[joinedload(Source.obj)
                          .joinedload(Obj.followup_requests)
@@ -181,6 +182,11 @@ class SourceHandler(BaseHandler):
                          joinedload(Source.obj)
                          .joinedload(Obj.followup_requests)
                          .joinedload(FollowupRequest.instrument),
+                         joinedload(Source.obj)
+                         .joinedload(Obj.assignments)
+                         .joinedload(ClassicalAssignment.run)
+                         .joinedload(ObservingRun.instrument)
+                         .joinedload(Instrument.telescope),
                          joinedload(Source.obj)
                          .joinedload(Obj.thumbnails)
                          .joinedload(Thumbnail.photometry)
@@ -190,8 +196,19 @@ class SourceHandler(BaseHandler):
                 return self.error("Invalid source ID.")
             s.comments = s.get_comments_owned_by(self.current_user)
             s.classifications = s.get_classifications_owned_by(self.current_user)
+            source_info = s.to_dict()
+            source_info["last_detected"] = s.last_detected
+            source_info["groups"] = Group.query.filter(
+                Group.id.in_(
+                    DBSession().query(Source.group_id).filter(
+                        Source.obj_id == obj_id
+                    )
+                )
+            ).filter(
+                Group.id.in_([g.id for g in self.current_user.accessible_groups])
+            ).all()
 
-            return self.success(data=s)
+            return self.success(data=source_info)
         if page_number:
             try:
                 page = int(page_number)
@@ -234,8 +251,12 @@ class SourceHandler(BaseHandler):
                 if "Page number out of range" in str(e):
                     return self.error("Page number out of range.")
                 raise
+            source_list = []
             for source in query_results["sources"]:
                 source.comments = source.get_comments_owned_by(self.current_user)
+                source_list.append(source.to_dict())
+                source_list[-1]["last_detected"] = source.last_detected
+            query_results["sources"] = source_list
             return self.success(data=query_results)
 
         sources = Obj.query.filter(Obj.id.in_(
@@ -243,9 +264,12 @@ class SourceHandler(BaseHandler):
                 [g.id for g in self.current_user.groups]
             ))
         )).all()
+        source_list = []
         for source in sources:
             source.comments = source.get_comments_owned_by(self.current_user)
-        return self.success(data={"sources": sources})
+            source_list.append(source.to_dict())
+            source_list[-1]["last_detected"] = source.last_detected
+        return self.success(data={"sources": source_list})
 
     @permissions(['Upload data'])
     def post(self):

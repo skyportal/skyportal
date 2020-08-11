@@ -5,7 +5,6 @@
   nickname: Hobby-Eberly Telescope
   name: HET
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: HET
 - diameter: 1.3
   elevation: 2340.0
@@ -14,8 +13,8 @@
   nickname: Peters Automated Infrared Imaging Telescope
   name: PTEL
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: PTEL
+  robotic: true
 - diameter: 8.0
   elevation: 2722.0
   lat: -30.24075
@@ -23,7 +22,6 @@
   nickname: Gemini South
   name: GS
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: GS
 - diameter: 3.5799999
   elevation: 2396.0
@@ -32,7 +30,6 @@
   nickname: Telescopio Nazionale Galileo
   name: TNG
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: TNG
 - diameter: 4.0
   elevation: 7079.0
@@ -41,7 +38,6 @@
   nickname: Kitt Peak 4m
   name: KPNO4m
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: KPNO4m
 - diameter: 3.0
   elevation: 1283.0
@@ -50,7 +46,6 @@
   nickname: Lick 3-m
   name: Lick 3-m
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: Lick 3-m
 - diameter: 4.1999998
   elevation: 2332.0
@@ -59,7 +54,6 @@
   nickname: WHT 4.2m
   name: WHT
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: WHT
 - diameter: 2.1600001
   elevation: 950.0
@@ -68,16 +62,15 @@
   nickname: Xinglong 2.16m
   name: XL216
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: XL216
 - diameter: 0.46000001
   elevation: 875.0
   lat: 34.763333
   lon: 30.595833
-  nickname: Wise 18\"
-  name: C18
+  name: Wise 18\"
+  nickname: C18
   skycam_link: null
-  group_ids: [=public_group_id]
+  robotic: true
   =id: C18
 - diameter: 2.5
   elevation: 2336.0
@@ -86,7 +79,6 @@
   nickname: INT
   name: INT
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: INT
 - diameter: 2.0
   elevation: 2363.0
@@ -95,8 +87,8 @@
   nickname: Liverpool Telescope
   name: LT
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: LT
+  robotic: true
 - diameter: 10.4
   elevation: 2275.0
   lat: 28.756611
@@ -104,7 +96,6 @@
   nickname: Gran Telescopio Canarias 10.4 m
   name: GTC
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: GTC
 - diameter: 2.0
   elevation: 3055.0
@@ -113,7 +104,6 @@
   nickname: Faulkes Telescope North
   name: FTN
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: FTN
 - diameter: 2.0
   elevation: 1116.0
@@ -122,7 +112,6 @@
   nickname: Faulkes Telescope South
   name: FTS
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: FTS
 - diameter: 1.0
   elevation: 1859.0
@@ -131,7 +120,6 @@
   nickname: MLO 1m
   name: MLO
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: MLO
 - diameter: 2.0
   elevation: 1000.0
@@ -140,7 +128,6 @@
   nickname: IUCAA Girawali Observatory
   name: IGO
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: IGO
 - diameter: 2.0
   elevation: 4500.0
@@ -149,7 +136,6 @@
   nickname: Himalyan Chandra Telescope
   name: HCT
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: HCT
 - diameter: 1.5
   elevation: 2790.0
@@ -158,7 +144,6 @@
   nickname: San Pedro Martir 1.5m
   name: SPM15
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: SPM15
 - diameter: 2.4000001
   elevation: 1938.5
@@ -167,7 +152,6 @@
   nickname: MDM 2.4m Hiltner
   name: MDM24
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: MDM24
 - diameter: 9.8000002
   elevation: 1798.0
@@ -176,7 +160,6 @@
   nickname: South African Large Telescope
   name: SALT
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: SALT
 - diameter: 1.0
   elevation: 2070.0
@@ -185,7 +168,7 @@
   nickname: LCOGT 1m Network
   name: LCOGT1m
   skycam_link: null
-  group_ids: [=public_group_id]
+  robotic: true
   =id: LCOGT1m
 - diameter: 2.5
   elevation: 2282.0
@@ -194,7 +177,6 @@
   nickname: du Pont 2.5m
   name: DUP
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: DUP
 - diameter: 1.0
   elevation: 2282.0
@@ -203,7 +185,6 @@
   nickname: Swope 1m
   name: Swope
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: Swope
 - diameter: 1.0
   elevation: 2080.0
@@ -212,7 +193,6 @@
   nickname: Nanshan 1m
   name: Nanshan 1m
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: Nanshan 1m
 - diameter: 4.3000002
   elevation: 2337.0
@@ -221,7 +201,6 @@
   nickname: Discovery Channel Telescope
   name: DCT
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: DCT
 - diameter: 1.23
   elevation: 2168.0
@@ -230,7 +209,6 @@
   nickname: Calar Alto 1.2m
   name: CAHA 1.2m
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: CAHA 1.2m
 - diameter: 1.8200001
   elevation: 1366.0
@@ -239,7 +217,6 @@
   nickname: Ekar 1.82m
   name: Ekar
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: Ekar
 - diameter: 1.8
   elevation: 4215.0
@@ -248,7 +225,6 @@
   nickname: PAN-STARRS 1.8m
   name: PS1
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: PS1
 - diameter: 1.3
   elevation: 2450.0
@@ -257,7 +233,6 @@
   nickname: ARIES 1.3m Devasthal Fast Optical Telescope
   name: DFOT
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: DFOT
 - diameter: 2.5
   elevation: 2788.0
@@ -266,7 +241,6 @@
   nickname: SDSS 2.5-M
   name: SDSS2.5m
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: SDSS2.5m
 - diameter: 3.5799999
   elevation: 2375.0
@@ -275,7 +249,6 @@
   nickname: New Technology Telescope
   name: NTT
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: NTT
 - diameter: 1.2
   elevation: 1870.0
@@ -284,8 +257,8 @@
   nickname: Palomar 1.2m Oschin
   name: P48
   skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
-  group_ids: [=public_group_id]
   =id: P48
+  robotic: true
 - diameter: 10.0
   elevation: 4160.0
   lat: 19.8283
@@ -293,7 +266,6 @@
   nickname: Keck II 10m
   name: Keck2
   skycam_link: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
-  group_ids: [=public_group_id]
   =id: Keck2
 - diameter: 8.1999998
   elevation: 4139.0
@@ -302,7 +274,6 @@
   nickname: Subaru FOCAS
   name: Subaru FOCAS
   skycam_link: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
-  group_ids: [=public_group_id]
   =id: Subaru FOCAS
 - diameter: 8.1000004
   elevation: 4213.0
@@ -311,7 +282,6 @@
   nickname: Gemini North
   name: Gemini N
   skycam_link: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
-  group_ids: [=public_group_id]
   =id: Gemini N
 - diameter: 2.2
   elevation: 4123.0
@@ -320,7 +290,6 @@
   nickname: UH 2.2-m
   name: SNIFS
   skycam_link: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
-  group_ids: [=public_group_id]
   =id: SNIFS
 - diameter: 1.5
   elevation: 1870.0
@@ -329,8 +298,8 @@
   nickname: Palomar 1.5m
   name: P60
   skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
-  group_ids: [=public_group_id]
   =id: P60
+  robotic: true
 - diameter: 5.0999999
   elevation: 1870.0
   lat: 33.3633675
@@ -338,7 +307,6 @@
   nickname: Palomar 5.1m Hale
   name: P200
   skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
-  group_ids: [=public_group_id]
   =id: P200
 - diameter: 0.5
   elevation: 900.0
@@ -347,7 +315,6 @@
   nickname: Akeno MITSuME
   name: Akeno
   skycam_link: http://sncwall.hp.phys.titech.ac.jp:2388/monitor/skymon_s.jpg
-  group_ids: [=public_group_id]
   =id: Akeno
 - diameter: 1.0
   elevation: 2862.0
@@ -356,7 +323,6 @@
   nickname: Lulin
   name: LOT
   skycam_link: http://www.lulin.ncu.edu.tw/wea/cur_sky.jpg
-  group_ids: [=public_group_id]
   =id: LOT
 - diameter: 2.2
   elevation: 4213.5601
@@ -365,7 +331,6 @@
   nickname: UH 88inch
   name: UH88
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: UH88
 - diameter: 10.0
   elevation: 4160.0
@@ -374,7 +339,6 @@
   nickname: Keck I 10m
   name: Keck1
   skycam_link: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
-  group_ids: [=public_group_id]
   =id: Keck1
 - diameter: 1.0
   elevation: 1.0
@@ -383,7 +347,6 @@
   nickname: Swift
   name: Swift
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: Swift
 - diameter: 3.5
   elevation: 2788.0
@@ -392,7 +355,6 @@
   nickname: Apache Point 3.5m
   name: APO
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: APO
 - diameter: 2.5599999
   elevation: 2327.0
@@ -401,8 +363,8 @@
   nickname: Nordic Optical Telescope
   name: NOT
   skycam_link: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
-  group_ids: [=public_group_id]
   =id: NOT
+  robotic: true
 - diameter: 4.0
   elevation: 2207.0
   lat: -30.169661
@@ -410,7 +372,6 @@
   nickname: CTIO Victor M. Blanco 4-meter Telescope
   name: CTIO-4m
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: CTIO-4m
 - diameter: 8.0
   elevation: 2648.0
@@ -419,7 +380,6 @@
   nickname: VLT
   name: VLT
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: VLT
 - diameter: 6.5
   elevation: 2282.0
@@ -428,7 +388,6 @@
   nickname: Magellan_Baade
   name: Magellan_Baade
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: Magellan_Baade
 - diameter: 4.0999999
   elevation: 2518.0
@@ -437,7 +396,6 @@
   nickname: VISTA
   name: VISTA
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: VISTA
 - diameter: 6.5
   elevation: 2282.0
@@ -446,7 +404,6 @@
   nickname: Magellan_Clay
   name: Magellan_Clay
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: Magellan_Clay
 - diameter: 2.4000001
   elevation: null
@@ -455,7 +412,6 @@
   nickname: Hubble Space Telescope
   name: HST
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: HST
 - diameter: 1.4
   elevation: 1798.0
@@ -464,7 +420,6 @@
   nickname: Infrared Survey Facility
   name: IRSF
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: IRSF
 - diameter: 1.6
   elevation: 0.0
@@ -473,7 +428,6 @@
   nickname: Korea Microlensing Telescope Network
   name: KMTNet
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: KMTNet
 - diameter: 0.40000001
   elevation: 1760.0
@@ -482,8 +436,8 @@
   nickname: MASTER-SAAO
   name: MASTER-SAAO
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: MASTER-SAAO
+  robotic: true
 - diameter: 0.41
   elevation: 2286.0
   lat: -30.168
@@ -491,16 +445,14 @@
   nickname: PROMPT5
   name: PROMPT5
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: PROMPT5
 - diameter: 2.3
   elevation: 1165.0
   lat: -31.273333
   lon: 149.064444
-  nickname: Snameing Spring Observatory
+  nickname: Siding Spring Observatory
   name: SSO
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: SSO
 - diameter: 1.35
   elevation: 1163.0
@@ -509,7 +461,6 @@
   nickname: Skymapper
   name: Skymapper
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: Skymapper
 - diameter: 6.6999998
   elevation: 50.0
@@ -518,7 +469,6 @@
   nickname: Zadko
   name: Zadko
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: Zadko
 - diameter: 1.3
   elevation: 2207.0
@@ -527,7 +477,6 @@
   nickname: CTIO 1.3m
   name: CTIO-1.3m
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: CTIO-1.3m
 - diameter: 2.2
   elevation: 2375.0
@@ -536,7 +485,6 @@
   nickname: MPI_ESO-2.2m
   name: MPI_ESO-2.2m
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: MPI_ESO-2.2m
 - diameter: 1.5
   elevation: 267.0
@@ -545,5 +493,4 @@
   nickname: China Near Earth Object Survey Telescope
   name: CNEOST
   skycam_link: null
-  group_ids: [=public_group_id]
   =id: CNEOST

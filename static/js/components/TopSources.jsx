@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom';
 import * as profileActions from '../ducks/profile';
 import WidgetPrefsDialog from './WidgetPrefsDialog';
 
+import styles from "./TopSources.css";
+
 const defaultPrefs = {
   maxNumSources: "",
   sinceDaysAgo: ""
@@ -17,7 +19,7 @@ const TopSources = () => {
   ) || defaultPrefs;
 
   return (
-    <div style={{ border: "1px solid #DDD", padding: "10px" }}>
+    <div className={styles.topSourcesContainer}>
       <h2 style={{ display: "inline-block" }}>
         Top Sources
       </h2>
@@ -32,11 +34,16 @@ const TopSources = () => {
       <p>
         Displaying most-viewed sources
       </p>
-      <ul>
+      <ul className={styles.topSourceList}>
         {
-          sourceViews.map(({ obj_id, views }) => (
-            <li key={`topSources_${obj_id}_${views}`}>
+          sourceViews.map(({ obj_id, views, public_url }) => (
+            <li key={`topSources_${obj_id}_${views}`} className={styles.topSource}>
+              <Link to={`/source/${obj_id}`}>
+                <img className={styles.stamp} src={public_url} alt={obj_id} />
+              </Link>
               <span>
+                &nbsp;
+                -&nbsp;
                 <Link to={`/source/${obj_id}`}>
                   {obj_id}
                 </Link>

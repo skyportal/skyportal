@@ -7,9 +7,24 @@ from ...models import DBSession, User, Group, GroupUser
 env, cfg = load_env()
 
 
-def add_user_and_setup_groups(username, roles, group_ids_and_admin):
+def add_user_and_setup_groups(
+    username,
+    first_name=None,
+    last_name=None,
+    contact_phone=None,
+    contact_email=None,
+    roles=[],
+    group_ids_and_admin=[],
+):
     # Add user
-    user = User(username=username.lower(), role_ids=roles)
+    user = User(
+        username=username.lower(),
+        role_ids=roles,
+        first_name=first_name,
+        last_name=last_name,
+        contact_phone=contact_phone,
+        contact_email=contact_email,
+    )
     DBSession().add(user)
     DBSession().flush()
 
@@ -30,7 +45,7 @@ def add_user_and_setup_groups(username, roles, group_ids_and_admin):
 
 
 class UserHandler(BaseHandler):
-    @permissions(['Manage users'])
+    @permissions(["Manage users"])
     def get(self, user_id=None):
         """
         ---
@@ -75,11 +90,19 @@ class UserHandler(BaseHandler):
         if user_id is not None:
             user = User.query.get(int(user_id))
             if user is None:
-                return self.error(f'Invalid user ID ({user_id}).')
+                return self.error(f"Invalid user ID ({user_id}).")
             user_info = user.to_dict()
-            user_info['acls'] = sorted(user.acls, key=lambda a: a.id)
+
+            # return the phone number so it can be serialized
+            if user_info.get("contact_phone"):
+                user_info["contact_phone"] = user_info["contact_phone"].e164
+
+            user_info["acls"] = sorted(user.acls, key=lambda a: a.id)
             return self.success(data=user_info)
-        users = User.query.all()
+        users = [user.to_dict() for user in User.query.all()]
+        for user in users:
+            if user.get("contact_phone"):
+                user["contact_phone"] = user["contact_phone"].e164
         return self.success(data=users)
 
     @permissions(["Manage users"])
@@ -96,6 +119,14 @@ class UserHandler(BaseHandler):
                   username:
                     type: string
                     description: User's email address
+                  first_name:
+                    type: string
+                  last_name:
+                    type: string
+                  contact_email:
+                    type: string
+                  contact_phone:
+                    type: string
                   roles:
                     type: array
                     items:
@@ -137,13 +168,17 @@ class UserHandler(BaseHandler):
 
         user_id = add_user_and_setup_groups(
             username=data["username"],
+            first_name=data.get("first_name"),
+            last_name=data.get("last_name"),
+            contact_phone=data.get("contact_phone"),
+            contact_email=data.get("contact_email"),
             roles=roles,
-            group_ids_and_admin=group_ids_and_admin
+            group_ids_and_admin=group_ids_and_admin,
         )
         DBSession().commit()
         return self.success(data={"id": user_id})
 
-    @permissions(['Manage users'])
+    @permissions(["Manage users"])
     def delete(self, user_id=None):
         """
         ---

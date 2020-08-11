@@ -1,7 +1,7 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Telescope, Group
+from ...models import DBSession, Telescope
 
 
 class TelescopeHandler(BaseHandler):
@@ -13,18 +13,7 @@ class TelescopeHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/TelescopeNoID'
-                  - type: object
-                    properties:
-                      group_ids:
-                        type: array
-                        items:
-                          type: integer
-                        description: List of group IDs to associate the telescope with
-                    required:
-                      - group_ids
+              schema: TelescopeNoID
         responses:
           200:
             content:
@@ -46,12 +35,6 @@ class TelescopeHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        group_ids = data.pop('group_ids')
-        groups = [g for g in Group.query.filter(Group.id.in_(group_ids)).all()
-                  if g in self.current_user.accessible_groups]
-        if not groups:
-            return self.error('You must specify at least one group of which you '
-                              'are a member.')
         schema = Telescope.__schema__()
 
         try:
@@ -59,39 +42,60 @@ class TelescopeHandler(BaseHandler):
         except ValidationError as e:
             return self.error('Invalid/missing parameters: '
                               f'{e.normalized_messages()}')
-        telescope.groups = groups
         DBSession().add(telescope)
         DBSession().commit()
 
         return self.success(data={"id": telescope.id})
 
     @auth_or_token
-    def get(self, telescope_id):
+    def get(self, telescope_id=None):
         """
         ---
-        description: Retrieve a telescope
-        parameters:
-          - in: path
-            name: telescope_id
-            required: true
-            schema:
-              type: integer
-        responses:
-          200:
-            content:
-              application/json:
-                schema: SingleTelescope
-          400:
-            content:
-              application/json:
-                schema: Error
+        single:
+          description: Retrieve a telescope
+          parameters:
+            - in: path
+              name: telescope_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleTelescope
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all telescopes
+          parameters:
+            - in: query
+              name: name
+              schema:
+                type: string
+              description: Filter by name (exact match)
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfTelescopes
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
-        t = Telescope.get_if_owned_by(int(telescope_id), self.current_user)
-
-        if t is not None:
+        if telescope_id is not None:
+            t = Telescope.query.get(int(telescope_id))
+            if t is None:
+                return self.error(f"Could not load telescope with ID {telescope_id}")
             return self.success(data=t)
-        else:
-            return self.error(f"Could not load telescope with ID {telescope_id}")
+        tel_name = self.get_query_argument("name", None)
+        query = Telescope.query
+        if tel_name is not None:
+            query = query.filter(Telescope.name == tel_name)
+        return self.success(data=query.all())
 
     @permissions(['Manage sources'])
     def put(self, telescope_id):
@@ -118,7 +122,9 @@ class TelescopeHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        t = Telescope.get_if_owned_by(int(telescope_id), self.current_user)
+        t = Telescope.query.get(int(telescope_id))
+        if t is None:
+            return self.error('Invalid telescope ID.')
         data = self.get_json()
         data['id'] = int(telescope_id)
 
@@ -153,7 +159,10 @@ class TelescopeHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        t = Telescope.get_if_owned_by(int(telescope_id), self.current_user)
+        t = Telescope.query.get(int(telescope_id))
+        if t is None:
+            return self.error('Invalid telescope ID.')
+
         DBSession().query(Telescope).filter(Telescope.id == int(telescope_id)).delete()
         DBSession().commit()
 

@@ -15,7 +15,7 @@ from ...models import (
 
 
 from ...schema import (PhotometryMag, PhotometryFlux, PhotFluxFlexible, PhotMagFlexible)
-from ...phot_enum import ALLOWED_MAGSYSTEMS
+from ...enum_types import ALLOWED_MAGSYSTEMS
 
 
 def nan_to_none(value):
@@ -39,9 +39,12 @@ def serialize(phot, outsys, format):
         'filter': phot.filter,
         'mjd': phot.mjd,
         'instrument_id': phot.instrument_id,
+        'instrument_name': phot.instrument.name,
         'ra_unc': phot.ra_unc,
         'dec_unc': phot.dec_unc,
-        'alert_id': phot.alert_id
+        'alert_id': phot.alert_id,
+        'id': phot.id,
+        'groups': phot.groups
     }
 
     filter = phot.filter
@@ -222,6 +225,9 @@ class PhotometryHandler(BaseHandler):
             bad = magerrnull ^ magnull  # bitwise exclusive or -- returns true
             #  if A and not B or B and not A
 
+            # coerce to numpy array
+            bad = bad.values
+
             if any(bad):
                 # find the first offending packet
                 first_offender = np.argwhere(bad)[0, 0]
@@ -270,7 +276,7 @@ class PhotometryHandler(BaseHandler):
 
         else:
             for field in PhotFluxFlexible.required_keys:
-                missing = df[field].isna()
+                missing = df[field].isna().values
                 if any(missing):
                     first_offender = np.argwhere(missing)[0, 0]
                     packet = df.iloc[first_offender].to_dict()

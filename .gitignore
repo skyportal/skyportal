@@ -26,8 +26,9 @@ skyportal_image_cache
 
 # Templated files
 static/js/components/Main.jsx
+static/js/components/SidebarAndHeader.jsx
 .tokens.yaml
 # Auto-generated data files
 data/taxonomy_sitewide.yaml
 data/taxonomy_demo.yaml
-
+.idea

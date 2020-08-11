@@ -1,8 +1,8 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Instrument, Telescope, GroupTelescope
-from ...phot_enum import ALLOWED_BANDPASSES
+from ...models import DBSession, Instrument, Telescope
+from ...enum_types import ALLOWED_BANDPASSES
 
 
 class InstrumentHandler(BaseHandler):
@@ -13,7 +13,7 @@ class InstrumentHandler(BaseHandler):
 
         data = self.get_json()
         telescope_id = data.get('telescope_id')
-        telescope = Telescope.get_if_owned_by(telescope_id, self.current_user)
+        telescope = Telescope.query.get(telescope_id)
         if not telescope:
             return self.error('Invalid telescope ID.')
 
@@ -52,6 +52,12 @@ class InstrumentHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all instruments
+          parameters:
+            - in: query
+              name: name
+              schema:
+                type: string
+              description: Filter by name (exact match)
           responses:
             200:
               content:
@@ -68,14 +74,12 @@ class InstrumentHandler(BaseHandler):
             if instrument is None:
                 return self.error(f"Could not load instrument {instrument_id}",
                                   data={"instrument_id": instrument_id})
-            # Ensure permissions to parent telescope
-            _ = Telescope.get_if_owned_by(instrument.telescope_id,
-                                          self.current_user)
             return self.success(data=instrument)
-        query = Instrument.query.filter(Instrument.telescope_id.in_(
-            DBSession().query(GroupTelescope.telescope_id).filter(GroupTelescope.group_id.in_(
-                [g.id for g in self.current_user.accessible_groups]
-            ))))
+
+        inst_name = self.get_query_argument("name", None)
+        query = Instrument.query
+        if inst_name is not None:
+            query = query.filter(Instrument.name == inst_name)
         return self.success(data=query.all())
 
     @permissions(['System admin'])
@@ -103,9 +107,6 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        instrument = Instrument.query.get(int(instrument_id))
-        _ = Telescope.get_if_owned_by(instrument.telescope_id,
-                                      self.current_user)
         data = self.get_json()
         data['id'] = int(instrument_id)
 
@@ -140,9 +141,6 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        instrument = Instrument.query.get(int(instrument_id))
-        _ = Telescope.get_if_owned_by(instrument.telescope_id,
-                                      self.current_user)
         DBSession().query(Instrument).filter(Instrument.id == int(instrument_id)).delete()
         DBSession().commit()
 
