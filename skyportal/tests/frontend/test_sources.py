@@ -11,6 +11,7 @@ import time
 from PIL import Image, ImageChops
 from io import BytesIO
 
+
 cfg = load_config()
 
 
@@ -70,7 +71,6 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
         token=taxonomy_token,
     )
     assert status == 200
-    taxonomy_id = data['data']['taxonomy_id']
 
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
@@ -174,8 +174,8 @@ def test_upload_download_comment_attachment(driver, user, public_source):
 
     try:
         with open(fpath) as f:
-            l = f.read()
-        assert l.split('\n')[0] == 'wavelengths,fluxes,instrument_id'
+            lines = f.read()
+        assert lines.split('\n')[0] == 'wavelengths,fluxes,instrument_id'
     finally:
         os.remove(fpath)
 

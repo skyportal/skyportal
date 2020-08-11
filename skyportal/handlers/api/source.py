@@ -1,10 +1,8 @@
 import datetime
-from functools import reduce
 
-import tornado.web
 from dateutil.parser import isoparse
 from sqlalchemy.orm import joinedload
-from sqlalchemy import func, desc
+from sqlalchemy import func
 import arrow
 from marshmallow.exceptions import ValidationError
 import healpix_alchemy as ha
@@ -12,15 +10,12 @@ from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
     DBSession,
-    Comment,
     Instrument,
     Photometry,
     Obj,
     Source,
-    SourceView,
     Thumbnail,
     Token,
-    User,
     Group,
     FollowupRequest,
     ClassicalAssignment,
@@ -410,7 +405,8 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        s = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        # Permissions check
+        _ = Source.get_obj_if_owned_by(obj_id, self.current_user)
         data = self.get_json()
         data['id'] = obj_id
 

@@ -2,7 +2,6 @@ import pytest
 import numpy.testing as npt
 import uuid
 from skyportal.tests import api
-from skyportal.models import DBSession, Source
 
 
 def test_source_list(view_only_token):

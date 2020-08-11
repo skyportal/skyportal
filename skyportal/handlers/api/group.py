@@ -3,7 +3,16 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from .user import add_user_and_setup_groups
 from ..base import BaseHandler
-from ...models import DBSession, Group, GroupUser, User, Token
+from ...models import (
+    DBSession,
+    Filter,
+    Group,
+    GroupStream,
+    GroupUser,
+    Stream,
+    User,
+    Token,
+)
 
 
 class GroupHandler(BaseHandler):
@@ -99,6 +108,21 @@ class GroupHandler(BaseHandler):
                     {'id': user.id, 'username': user.username}
                     for user in group['users']
                 ]
+                # grab streams:
+                streams = (
+                    DBSession()
+                    .query(Stream)
+                    .join(GroupStream)
+                    .filter(GroupStream.group_id == group_id)
+                    .all()
+                )
+                group['streams'] = streams
+                # grab filters:
+                filters = (
+                    DBSession().query(Filter).filter(Filter.group_id == group_id).all()
+                )
+                group['filters'] = filters
+
                 return self.success(data=group)
             return self.error(f"Could not load group with ID {group_id}")
         group_name = self.get_query_argument("name", None)
@@ -380,3 +404,122 @@ class GroupUserHandler(BaseHandler):
             action='skyportal/REFRESH_GROUP', payload={'group_id': int(group_id)}
         )
         return self.success()
+
+
+class GroupStreamHandler(BaseHandler):
+    @permissions(['System admin'])
+    def post(self, group_id, *ignored_args):
+        """
+        ---
+        description: Add alert stream access to group
+        parameters:
+          - in: path
+            name: group_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stream_id:
+                    type: integer
+                required:
+                  - stream_id
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            group_id:
+                              type: integer
+                              description: Group ID
+                            stream_id:
+                              type: integer
+                              description: Stream ID
+        """
+        data = self.get_json()
+        group_id = int(group_id)
+        # group = Group.query.filter(Group.id == group_id).first()
+        group = (
+            Group.query.options(joinedload(Group.users))
+            .options(joinedload(Group.group_users))
+            .get(group_id)
+        )
+        if group is None:
+            return self.error("Specified group_id does not exist.")
+        stream_id = data.get('stream_id')
+        stream = Stream.query.filter(Stream.id == stream_id).first()
+        if stream is None:
+            return self.error("Specified stream_id does not exist.")
+        else:
+            # todo: ensure all current group users have access to this stream
+            for user in group.users:
+                # get single user group
+                single_user_group = Group.query.filter(
+                    Group.name == user.username
+                ).first()
+                # todo: do the check
+
+            # Add new GroupStream
+            gs = GroupStream.query.filter(
+                GroupStream.group_id == group_id, GroupStream.stream_id == stream_id
+            ).first()
+            if gs is None:
+                DBSession.add(GroupStream(group_id=group_id, stream_id=stream_id))
+            else:
+                return self.error(
+                    "Specified stream is already associated with this group."
+                )
+        DBSession().commit()
+
+        self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
+        return self.success(data={'group_id': group_id, 'stream_id': stream_id})
+
+    @permissions(['System admin'])
+    def delete(self, group_id, stream_id):
+        """
+        ---
+        description: Delete an alert stream from group
+        parameters:
+          - in: path
+            name: group_id
+            required: true
+            schema:
+              type: integer
+          - in: path
+            name: stream_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        group = Group.query.get(group_id)
+        stream = Stream.query.filter(Stream.id == int(stream_id)).first()
+        stream_id = stream.id
+        if stream is None:
+            return self.error("Specified stream_id does not exist.")
+        else:
+            (
+                GroupStream.query.filter(GroupStream.group_id == group_id)
+                .filter(GroupStream.stream_id == stream_id)
+                .delete()
+            )
+            DBSession().commit()
+            self.push_all(
+                action='skyportal/REFRESH_GROUP', payload={'group_id': int(group_id)}
+            )
+            return self.success()

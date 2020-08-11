@@ -1,10 +1,3 @@
-import pytest
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-import uuid
-import time
-
-
 def test_user_info(driver, super_admin_user):
     user = super_admin_user
     driver.get(f'/become_user/{user.id}')

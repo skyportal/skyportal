@@ -11,12 +11,12 @@ repos:
       - id: black
         pass_filenames: true
         exclude: baselayer|node_modules|static
-  #  - repo: https://gitlab.com/pycqa/flake8
-  #    rev: 3.7.9
-  #    hooks:
-  #      - id: flake8
-  #        pass_filenames: true
-  #        exclude: baselayer|node_modules|static
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: 3.7.9
+    hooks:
+      - id: flake8
+        pass_filenames: true
+        exclude: baselayer|node_modules|static
   - repo: https://github.com/prettier/prettier
     rev: "" # Use the sha or tag you want to point at
     hooks:
