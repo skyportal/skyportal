@@ -35,6 +35,6 @@ class DBInfoHandler(BaseHandler):
         postgres_version = out.decode('utf-8').split()[2]
         info = {
             'source_table_empty': DBSession.query(Source).first() is None,
-            'postgres_version': postgres_version,
+            'postgres_version': postgres_version
         }
         return self.success(data=info)

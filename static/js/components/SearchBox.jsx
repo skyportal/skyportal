@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import PropTypes from "prop-types";
-import { useDispatch } from "react-redux";
+import React, { useState } from 'react';
+import PropTypes from 'prop-types';
+import { useDispatch } from 'react-redux';
 
 import Paper from "@material-ui/core/Paper";
 import Button from "@material-ui/core/Button";
@@ -67,11 +67,8 @@ const SearchBox = ({ sources }) => {
     };
     if (jumpToPageInputValue < 1) {
       data.pageNumber = 1;
-    } else if (
-      jumpToPageInputValue >
-      Math.ceil(sources.totalMatches / formState.numPerPage)
-    ) {
-      data.pageNumber = Math.ceil(sources.totalMatches / formState.numPerPage);
+    } else if (jumpToPageInputValue > Math.ceil(sources.totalMatches/formState.numPerPage)) {
+      data.pageNumber = Math.ceil(sources.totalMatches/formState.numPerPage);
     }
     dispatch(Actions.fetchSources(data));
   };
@@ -177,14 +174,14 @@ const SearchBox = ({ sources }) => {
           <FormControlLabel
             label="TNS Name"
             labelPlacement="start"
-            control={
+            control={(
               <Controller
                 as={<Checkbox color="primary" type="checkbox" />}
                 name="hasTNSname"
                 control={control}
                 defaultValue={false}
               />
-            }
+            )}
           />
         </div>
         <div className={classes.blockWrapper}>
@@ -201,11 +198,7 @@ const SearchBox = ({ sources }) => {
             >
               Submit
             </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleClickReset}
-            >
+            <Button variant="contained" color="primary" onClick={handleClickReset}>
               Reset
             </Button>
           </ButtonGroup>
@@ -222,7 +215,9 @@ const SearchBox = ({ sources }) => {
               </Button>
               <i>
                 Displaying&nbsp;
-                {sources.numberingStart}-{sources.numberingEnd}
+                {sources.numberingStart}
+                -
+                {sources.numberingEnd}
                 &nbsp; of&nbsp;
                 {sources.totalMatches}
                 &nbsp; matching sources.
@@ -237,9 +232,11 @@ const SearchBox = ({ sources }) => {
             </div>
             <div>
               <FormControl variant="filled" className={classes.formControl}>
-                <InputLabel id="nPerPageInputLabel">Num Per Page</InputLabel>
+                <InputLabel id="nPerPageInputLabel">
+                  Num Per Page
+                </InputLabel>
                 <Controller
-                  as={
+                  as={(
                     <Select labelId="nPerPageInputLabel">
                       {[10, 25, 50, 100, 500].map((n) => (
                         <MenuItem value={n} key={n}>
@@ -247,7 +244,7 @@ const SearchBox = ({ sources }) => {
                         </MenuItem>
                       ))}
                     </Select>
-                  }
+                  )}
                   name="numPerPage"
                   control={control}
                   defaultValue={100}

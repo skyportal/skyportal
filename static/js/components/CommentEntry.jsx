@@ -15,15 +15,7 @@ import styles from "./CommentEntry.css";
 const CommentEntry = ({ addComment }) => {
   const userGroups = useSelector((state) => state.groups.user);
 
-  const {
-    handleSubmit,
-    reset,
-    register,
-    getValues,
-    setValue,
-    control,
-    errors,
-  } = useForm();
+  const { handleSubmit, reset, register, getValues, setValue, control, errors } = useForm();
 
   // The file input needs to be registered here, not in the input tag below
   useEffect(() => {
@@ -32,7 +24,7 @@ const CommentEntry = ({ addComment }) => {
 
   useEffect(() => {
     reset({
-      group_ids: Array(userGroups.length).fill(true),
+      group_ids: Array(userGroups.length).fill(true)
     });
   }, [reset, userGroups]);
 
@@ -62,7 +54,9 @@ const CommentEntry = ({ addComment }) => {
 
   return (
     <form className={styles.commentEntry} onSubmit={handleSubmit(onSubmit)}>
-      <Typography variant="h6">Add comment</Typography>
+      <Typography variant="h6">
+        Add comment
+      </Typography>
       <div className={styles.inputDiv}>
         <TextField
           label="Comment text"
@@ -83,32 +77,31 @@ const CommentEntry = ({ addComment }) => {
         </label>
       </div>
       <div className={styles.inputDiv}>
-        {errors.group_ids && (
-          <FormValidationError message="Select at least one group." />
-        )}
-        <Button
-          onClick={toggleGroupSelectVisible}
-          size="small"
-          style={{ textTransform: "none" }}
-        >
+        {
+          errors.group_ids &&
+            <FormValidationError message="Select at least one group." />
+        }
+        <Button onClick={toggleGroupSelectVisible} size="small" style={{ textTransform: "none" }}>
           Customize Group Access
         </Button>
         <Box component="div" display={groupSelectVisible ? "block" : "none"}>
-          {userGroups.map((userGroup, idx) => (
-            <FormControlLabel
-              key={userGroup.id}
-              control={
-                <Controller
-                  as={Checkbox}
-                  name={`group_ids[${idx}]`}
-                  control={control}
-                  rules={{ validate: validateGroups }}
-                  defaultValue
-                />
-              }
-              label={userGroup.name}
-            />
-          ))}
+          {
+            userGroups.map((userGroup, idx) => (
+              <FormControlLabel
+                key={userGroup.id}
+                control={(
+                  <Controller
+                    as={Checkbox}
+                    name={`group_ids[${idx}]`}
+                    control={control}
+                    rules={{ validate: validateGroups }}
+                    defaultValue
+                  />
+                )}
+                label={userGroup.name}
+              />
+            ))
+          }
         </Box>
       </div>
       <div className={styles.inputDiv}>
@@ -119,7 +112,7 @@ const CommentEntry = ({ addComment }) => {
 };
 
 CommentEntry.propTypes = {
-  addComment: PropTypes.func.isRequired,
+  addComment: PropTypes.func.isRequired
 };
 
 export default CommentEntry;

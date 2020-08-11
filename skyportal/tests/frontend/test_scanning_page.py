@@ -236,7 +236,7 @@ def test_save_candidate_select_groups(
         "arguments[0].click();",
         driver.wait_for_xpath_to_be_clickable(
             f'//*[@name="buttonMenuOption{public_candidate.id}_Select groups & save"]'
-        ),
+        )
     )
     save_button = driver.wait_for_xpath_to_be_clickable(
         f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
@@ -276,7 +276,7 @@ def test_save_candidate_no_groups_error_message(
         "arguments[0].click();",
         driver.wait_for_xpath_to_be_clickable(
             f'//*[@name="buttonMenuOption{public_candidate.id}_Select groups & save"]'
-        ),
+        )
     )
     save_button = driver.wait_for_xpath_to_be_clickable(
         f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'

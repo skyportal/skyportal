@@ -8,16 +8,16 @@
   100% {
     transform: rotate(0deg);
   }
+
 }
 
-.rotateLogo,
-.noRotateLogo {
-  vertical-align: middle;
-  height: 50px;
-  margin-top: -0.5em;
+.rotateLogo, .noRotateLogo {
+    vertical-align: middle;
+    height: 50px;
+    margin-top: -0.5em;
 }
 
 .rotateLogo {
-  animation-name: rotateUp;
-  animation-duration: 4s;
+    animation-name: rotateUp;
+    animation-duration: 4s;
 }

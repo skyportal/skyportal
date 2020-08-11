@@ -100,23 +100,23 @@ class ClassificationHandler(BaseHandler):
         group_ids = data.pop("group_ids", user_group_ids)
         group_ids = [gid for gid in group_ids if gid in user_accessible_group_ids]
         if not group_ids:
-            return self.error(
-                f"Invalid group IDs field ({group_ids}): "
-                "You must provide one or more valid group IDs."
-            )
+            return self.error(f"Invalid group IDs field ({group_ids}): "
+                              "You must provide one or more valid group IDs.")
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
 
         author = self.associated_user_object
 
         # check the taxonomy
         taxonomy_id = data["taxonomy_id"]
-        taxonomy = Taxonomy.get_taxonomy_usable_by_user(taxonomy_id, self.current_user)
+        taxonomy = Taxonomy. \
+            get_taxonomy_usable_by_user(taxonomy_id, self.current_user)
         if taxonomy is None:
             return self.error(
                 'That taxonomy does not exist or is not available to user.'
             )
         if not isinstance(taxonomy, list):
             return self.error('Problem retrieving taxonomy')
+
 
         def allowed_classes(hierarchy):
             if "class" in hierarchy:
@@ -127,36 +127,26 @@ class ClassificationHandler(BaseHandler):
                     yield from allowed_classes(item)
 
         if data['classification'] not in allowed_classes(taxonomy[0].hierarchy):
-            return self.error(
-                f"That classification ({data['classification']}) "
-                'is not in the allowed classes for the chosen '
-                f'taxonomy (id={taxonomy_id}'
-            )
+            return self.error(f"That classification ({data['classification']}) "
+                              'is not in the allowed classes for the chosen '
+                              f'taxonomy (id={taxonomy_id}')
 
         probability = data.get('probability')
         if probability is not None:
             if probability < 0 or probability > 1:
-                return self.error(
-                    f"That probability ({probability}) is outside "
-                    "the allowable range (0-1)."
-                )
+                return self.error(f"That probability ({probability}) is outside "
+                                  "the allowable range (0-1).")
 
-        classification = Classification(
-            classification=data['classification'],
-            obj_id=obj_id,
-            probability=probability,
-            taxonomy_id=data["taxonomy_id"],
-            author=author,
-            author_name=author.username,
-            groups=groups,
-        )
+        classification = Classification(classification=data['classification'],
+                          obj_id=obj_id, probability=probability,
+                          taxonomy_id=data["taxonomy_id"],
+                          author=author, author_name=author.username, groups=groups)
 
         DBSession().add(classification)
         DBSession().commit()
 
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE', payload={'obj_id': classification.obj_id}
-        )
+        self.push_all(action='skyportal/REFRESH_SOURCE',
+                      payload={'obj_id': classification.obj_id})
         return self.success(data={'classification_id': classification.id})
 
     @permissions(['Classify'])
@@ -207,27 +197,22 @@ class ClassificationHandler(BaseHandler):
         try:
             schema.load(data, partial=True)
         except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
+            return self.error('Invalid/missing parameters: '
+                              f'{e.normalized_messages()}')
         DBSession().flush()
         if group_ids is not None:
             c = Classification.get_if_owned_by(classification_id, self.current_user)
             groups = Group.query.filter(Group.id.in_(group_ids)).all()
             if not groups:
-                return self.error(
-                    "Invalid group_ids field. " "Specify at least one valid group ID."
-                )
-            if not all(
-                [group in self.current_user.accessible_groups for group in groups]
-            ):
-                return self.error(
-                    "Cannot associate classification with groups you are "
-                    "not a member of."
-                )
+                return self.error("Invalid group_ids field. "
+                                  "Specify at least one valid group ID.")
+            if not all([group in self.current_user.accessible_groups for group in groups]):
+                return self.error("Cannot associate classification with groups you are "
+                                  "not a member of.")
             c.groups = groups
         DBSession().commit()
-        self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_id': c.obj_id})
+        self.push_all(action='skyportal/REFRESH_SOURCE',
+                      payload={'obj_id': c.obj_id})
         return self.success()
 
     @permissions(['Classify'])
@@ -248,7 +233,7 @@ class ClassificationHandler(BaseHandler):
                 schema: Success
         """
         user = self.associated_user_object
-        roles = self.current_user.roles if hasattr(self.current_user, 'roles') else []
+        roles = (self.current_user.roles if hasattr(self.current_user, 'roles') else [])
         c = Classification.query.get(classification_id)
         if c is None:
             return self.error("Invalid classification ID")
@@ -259,5 +244,6 @@ class ClassificationHandler(BaseHandler):
             DBSession().commit()
         else:
             return self.error('Insufficient user permissions.')
-        self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_id': obj_id})
+        self.push_all(action='skyportal/REFRESH_SOURCE',
+                      payload={'obj_id': obj_id})
         return self.success()

@@ -1,35 +1,34 @@
-import React, { useReducer } from "react";
-import { useDispatch } from "react-redux";
-import PropTypes from "prop-types";
+import React, { useReducer } from 'react';
+import { useDispatch } from 'react-redux';
+import PropTypes from 'prop-types';
 import Select from "@material-ui/core/Select";
 import InputLabel from "@material-ui/core/InputLabel";
-import TextField from "@material-ui/core/TextField";
-import Button from "@material-ui/core/Button";
+import TextField from '@material-ui/core/TextField';
+import Button from '@material-ui/core/Button';
 import MenuItem from "@material-ui/core/MenuItem";
-import Autocomplete from "@material-ui/lab/Autocomplete";
+import Autocomplete from '@material-ui/lab/Autocomplete';
 import { showNotification } from "baselayer/components/Notifications";
-import * as Actions from "../ducks/source";
+import * as Actions from '../ducks/source';
+
 
 // For each node in the hierarchy tree, add its full path from root
 // to the node_paths list
-const add_node_paths = (node_paths, hierarchy, prefix_path = []) => {
+const add_node_paths = (node_paths, hierarchy, prefix_path=[]) => {
   const this_node_path = [...prefix_path];
 
-  if (
-    hierarchy.class !== undefined &&
-    hierarchy.class !== "Time-domain Source"
-  ) {
+  if ((hierarchy.class !== undefined) && (hierarchy.class !== "Time-domain Source")) {
     this_node_path.push(hierarchy.class);
     node_paths.push(this_node_path);
   }
 
   // eslint-disable-next-line no-unused-expressions
   hierarchy.subclasses?.map((item) => {
-    if (typeof item === "object") {
+    if (typeof item === 'object') {
       add_node_paths(node_paths, item, this_node_path);
     }
   });
 };
+
 
 // For each class in the hierarchy, return its name
 // as well as the path from the root of hierarchy to that class
@@ -37,10 +36,12 @@ const allowed_classes = (hierarchy) => {
   const class_paths = [];
   add_node_paths(class_paths, hierarchy);
 
-  const classes = class_paths.map((path) => ({
-    class: path.pop(),
-    context: path.reverse(),
-  }));
+  const classes = class_paths.map((path) => (
+    {
+      class: path.pop(),
+      context: path.reverse()
+    }
+  ));
 
   return classes;
 };
@@ -50,18 +51,16 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
 
   function reducer(state, action) {
     switch (action.name) {
-      case "taxonomy_index":
+      case 'taxonomy_index':
         return {
           ...state,
           [action.name]: action.value,
-          allowed_classes: allowed_classes(
-            latestTaxonomyList[action.value].hierarchy
-          ),
+          allowed_classes: allowed_classes(latestTaxonomyList[action.value].hierarchy),
         };
       default:
         return {
           ...state,
-          [action.name]: action.value,
+          [action.name]: action.value
         };
     }
   }
@@ -76,15 +75,17 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
     class_select_enabled: false,
     probability_select_enabled: false,
     probability_errored: false,
-    allowed_classes:
-      latestTaxonomyList.length > 0
-        ? latestTaxonomyList[0].allowed_classes
-        : [null],
+    allowed_classes: latestTaxonomyList.length > 0 ?
+      latestTaxonomyList[0].allowed_classes : [null]
   };
   const [state, localDispatch] = useReducer(reducer, initialState);
 
   if (latestTaxonomyList.length === 0) {
-    return <b>No taxonomies loaded...</b>;
+    return (
+      <b>
+        No taxonomies loaded...
+      </b>
+    );
   }
 
   const handleTaxonomyChange = (event) => {
@@ -105,11 +106,9 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const processProb = (event) => {
     // make sure that the probability in in [0,1], otherwise set
     // an error state on the entry
-    if (
-      Number.isNaN(parseFloat(event.target.value)) ||
-      parseFloat(event.target.value) > 1 ||
-      parseFloat(event.target.value) < 0
-    ) {
+    if ((Number.isNaN(parseFloat(event.target.value))) ||
+       ((parseFloat(event.target.value) > 1) ||
+       (parseFloat(event.target.value) < 0))) {
       localDispatch({ name: "probability_errored", value: true });
     } else {
       localDispatch({ name: "probability_errored", value: false });
@@ -125,7 +124,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       taxonomy_id: latestTaxonomyList[state.taxonomy_index].id,
       obj_id,
       classification: state.classification.class,
-      probability: parseFloat(state.probability),
+      probability: parseFloat(state.probability)
     };
     const result = await reduxDispatch(Actions.addClassification(formData));
     if (result.status === "success") {
@@ -152,58 +151,40 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
               </MenuItem>
             ))}
           </Select>
-          <div
-            style={{ display: state.class_select_enabled ? "block" : "none" }}
-          >
+          <div style={{ display: state.class_select_enabled ? "block" : "none" }}>
             <Autocomplete
               options={state.allowed_classes || []}
               id="classification"
               getOptionSelected={(option) => {
-                if (
-                  state.classification === null ||
-                  state.classification === ""
-                ) {
-                  return true;
+                if ((state.classification === null) || (state.classification === '')) {
+                  return (true);
                 }
-                if (state.classification.class === "") {
-                  return true;
+                if (state.classification.class === '') {
+                  return (true);
                 }
                 return state.classification.class === option.class;
               }}
               value={state.classification || ""}
               onChange={handleClasschange}
               getOptionLabel={(option) => option.class || ""}
-              renderInput={(params) => (
-                <TextField
-                  /* eslint-disable-next-line react/jsx-props-no-spreading */
-                  {...params}
-                  style={{ width: "100%" }}
-                  label="Classification"
-                  fullWidth
-                />
-              )}
+
+              /* eslint-disable-next-line react/jsx-props-no-spreading */
+              renderInput={(params) => <TextField {...params} style={{ width: '100%' }} label="Classification" fullWidth />}
               renderOption={
                 // Note: these come from "options", which in turn come from state.allowed_classes
                 // See the allowed_classes function defined above
                 (option) => (
                   <span>
-                    <b>{option.class}</b>
+                    <b>{ option.class }</b>
                     &nbsp;
-                    {option.context.length > 0 && <br />}
-                    {option.context.join(" « ")}
+                    { option.context.length > 0 && <br /> }
+                    { option.context.join(' « ') }
                   </span>
                 )
               }
             />
           </div>
-          <div
-            style={{
-              display:
-                state.class_select_enabled && state.probability_select_enabled
-                  ? "block"
-                  : "none",
-            }}
-          >
+          <div style={{ display: state.class_select_enabled && state.probability_select_enabled ? "block" : "none" }}>
             <TextField
               id="probability"
               label="Probability"
@@ -222,14 +203,9 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
           <Button
             type="submit"
             id="classificationSubmitButton"
-            disabled={
-              state.isSubmitting ||
-              !(
-                state.class_select_enabled &&
-                state.probability_select_enabled &&
-                !state.probability_errored
-              )
-            }
+            disabled={state.isSubmitting ||
+                      !(state.class_select_enabled && state.probability_select_enabled &&
+                      !(state.probability_errored))}
             variant="contained"
           >
             ↵
@@ -240,16 +216,15 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   );
 };
 
+
 ClassificationForm.propTypes = {
   obj_id: PropTypes.string.isRequired,
-  taxonomyList: PropTypes.arrayOf(
-    PropTypes.shape({
-      name: PropTypes.string,
-      created_at: PropTypes.string,
-      isLatest: PropTypes.bool,
-      version: PropTypes.string,
-    })
-  ).isRequired,
+  taxonomyList: PropTypes.arrayOf(PropTypes.shape({
+    name: PropTypes.string,
+    created_at: PropTypes.string,
+    isLatest: PropTypes.bool,
+    version: PropTypes.string,
+  })).isRequired
 };
 
 export default ClassificationForm;

@@ -1,28 +1,23 @@
-import React from "react";
-import { useSelector, useDispatch } from "react-redux";
-import PropTypes from "prop-types";
-import { useForm, Controller } from "react-hook-form";
+import React from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import PropTypes from 'prop-types';
+import { useForm, Controller } from 'react-hook-form';
 import Select from "@material-ui/core/Select";
 import InputLabel from "@material-ui/core/InputLabel";
-import TextField from "@material-ui/core/TextField";
-import Button from "@material-ui/core/Button";
+import TextField from '@material-ui/core/TextField';
+import Button from '@material-ui/core/Button';
 import FormControl from "@material-ui/core/FormControl";
 import MenuItem from "@material-ui/core/MenuItem";
 import { makeStyles } from "@material-ui/core/styles";
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-import * as Actions from "../ducks/source";
+import utc from 'dayjs/plugin/utc';
+import * as Actions from '../ducks/source';
 
-import "react-datepicker/dist/react-datepicker-cssmodules.css";
+import 'react-datepicker/dist/react-datepicker-cssmodules.css';
 
 dayjs.extend(utc);
 
-export function observingRunTitle(
-  observingRun,
-  instrumentList,
-  telescopeList,
-  groups
-) {
+export function observingRunTitle(observingRun, instrumentList, telescopeList, groups) {
   const { instrument_id } = observingRun;
   const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
 
@@ -40,36 +35,40 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
 
-  const upcomingRuns = observingRunList.filter(
-    (observingrun) => dayjs.utc(observingrun.ephemeris.sunrise_utc) >= dayjs()
-  );
+  const upcomingRuns = observingRunList.filter((observingrun) => (
+    dayjs.utc(observingrun.ephemeris.sunrise_utc) >= dayjs()
+  ));
 
   const { handleSubmit, getValues, reset, register, control } = useForm();
 
   const useStyles = makeStyles((theme) => ({
     formControl: {
       margin: theme.spacing(1),
-      minWidth: 120,
-    },
+      minWidth: 120
+    }
   }));
   const classes = useStyles();
 
   if (upcomingRuns.length === 0) {
-    return <b>No upcoming observing runs to assign target to...</b>;
+    return (
+      <b>
+        No upcoming observing runs to assign target to...
+      </b>
+    );
   }
 
   const initialFormState = {
     comment: "",
     run_id: upcomingRuns.length > 0 ? upcomingRuns[0].id : null,
     priority: "1",
-    obj_id,
+    obj_id
   };
 
   const onSubmit = () => {
     const formData = {
       // Need to add obj_id, etc to form data for request
       ...initialFormState,
-      ...getValues(),
+      ...getValues()
     };
     dispatch(Actions.submitAssignment(formData));
     reset(initialFormState);
@@ -78,10 +77,14 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   return (
     <div>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <h3>Assign Target to Observing Run</h3>
+        <h3>
+          Assign Target to Observing Run
+        </h3>
         <div>
           <FormControl className={classes.formControl}>
-            <InputLabel id="assignmentSelectLabel">Choose Run</InputLabel>
+            <InputLabel id="assignmentSelectLabel">
+              Choose Run
+            </InputLabel>
             <Controller
               as={Select}
               labelId="assignmentSelectLabel"
@@ -90,23 +93,19 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
               rules={{ required: true }}
               defaultValue={upcomingRuns.length > 0 ? upcomingRuns[0].id : null}
             >
-              {upcomingRuns.map((observingRun) => (
-                <MenuItem
-                  value={observingRun.id}
-                  key={observingRun.id.toString()}
-                >
-                  {observingRunTitle(
-                    observingRun,
-                    instrumentList,
-                    telescopeList,
-                    groups
-                  )}
-                </MenuItem>
-              ))}
+              {upcomingRuns.map(
+                (observingRun) => (
+                  <MenuItem value={observingRun.id} key={observingRun.id.toString()}>
+                    {observingRunTitle(observingRun, instrumentList, telescopeList, groups)}
+                  </MenuItem>
+                )
+              )}
             </Controller>
           </FormControl>
           <FormControl className={classes.formControl}>
-            <InputLabel id="prioritySelectLabel">Priority</InputLabel>
+            <InputLabel id="prioritySelectLabel">
+              Priority
+            </InputLabel>
             <Controller
               as={Select}
               labelId="prioritySelectLabel"
@@ -115,11 +114,13 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
               control={control}
               rules={{ required: true }}
             >
-              {["1", "2", "3", "4", "5"].map((prio) => (
-                <MenuItem value={prio} key={prio}>
-                  {prio}
-                </MenuItem>
-              ))}
+              {
+                ["1", "2", "3", "4", "5"].map((prio) => (
+                  <MenuItem value={prio} key={prio}>
+                    {prio}
+                  </MenuItem>
+                ))
+              }
             </Controller>
           </FormControl>
           <TextField
@@ -131,11 +132,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
             name="comment"
             inputRef={register}
           />
-          <Button
-            type="submit"
-            name="assignmentSubmitButton"
-            variant="contained"
-          >
+          <Button type="submit" name="assignmentSubmitButton" variant="contained">
             Submit
           </Button>
         </div>
@@ -146,17 +143,15 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
 
 AssignmentForm.propTypes = {
   obj_id: PropTypes.string.isRequired,
-  observingRunList: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.number,
-      instrument: PropTypes.shape({
-        telescope_id: PropTypes.number,
-        name: PropTypes.string,
-      }),
-      calendar_date: PropTypes.string,
-      pi: PropTypes.string,
-    })
-  ).isRequired,
+  observingRunList: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.number,
+    instrument: PropTypes.shape({
+      telescope_id: PropTypes.number,
+      name: PropTypes.string
+    }),
+    calendar_date: PropTypes.string,
+    pi: PropTypes.string,
+  })).isRequired
 };
 
 export default AssignmentForm;

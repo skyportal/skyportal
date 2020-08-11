@@ -1,27 +1,29 @@
-import React from "react";
-import PropTypes from "prop-types";
-import { ra_to_hours, dec_to_hours } from "../units";
+import React from 'react';
+import PropTypes from 'prop-types';
+import { ra_to_hours, dec_to_hours } from '../units';
 import styles from "./SurveyLinkList.css";
 
 const SurveyLink = ({ name, url }) => (
   <div className={styles.SurveyLink}>
-    <a href={url}>{name}</a>
+    <a href={url}>
+      {name}
+    </a>
   </div>
 );
 
 SurveyLink.propTypes = {
   name: PropTypes.string.isRequired,
-  url: PropTypes.string,
+  url: PropTypes.string
 };
 
 SurveyLink.defaultProps = {
-  url: null,
+  url: null
 };
 
 const SurveyLinkList = ({ ra, dec, id }) => {
   const ra_hrs = ra_to_hours(ra);
   const dec_hrs = dec_to_hours(dec);
-  const thumbnail_timestamp = "TODO";
+  const thumbnail_timestamp = 'TODO';
 
   return (
     <div className={styles.SurveyLinkList}>
@@ -49,7 +51,9 @@ const SurveyLinkList = ({ ra, dec, id }) => {
         name="VizieR"
         url={`http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=&-out.add=_r&-out.add=2C_DEJ&-sort=_r&-to=&-out.max=20&-meta.ucd=2&-meta.foot=1&-c=${ra_hrs}+${dec_hrs}&-c.rs=10`}
       />
-      <SurveyLink name="HEASARC" />
+      <SurveyLink
+        name="HEASARC"
+      />
       <SurveyLink
         name="DECam"
         url={`http://legacysurvey.org/viewer?ra=${ra}&dec=${dec}&zoom=14`}
@@ -62,7 +66,9 @@ const SurveyLinkList = ({ ra, dec, id }) => {
         name="PyMP"
         url={`http://dotastro.org/PyMPC/PyMPC/?in_1=${ra_hrs}&in_2=${dec_hrs}&in_3=${thumbnail_timestamp}&in_4=50`}
       />
-      <SurveyLink name="MPChecker" />
+      <SurveyLink
+        name="MPChecker"
+      />
       <SurveyLink
         name="Extinction"
         url={`http://nedwww.ipac.caltech.edu/cgi-bin/nph-calc?in_csys=Equatorial&amp;in_equinox=J2000.0&amp;obs_epoch=&amp;lon=${ra}fd&amp;lat=${dec}fd&amp;pa=0.0&amp;out_csys=Galactic&amp;out_equinox=J2000.0`}
@@ -91,14 +97,18 @@ const SurveyLinkList = ({ ra, dec, id }) => {
         name="VLT"
         url={`http://archive.eso.org/wdb/wdb/eso/eso_archive_main/query?ra=${ra_hrs}&dec=${dec_hrs}&amp;deg_or_hour=hours&box=00+10+00&max_rows_returned=500`}
       />
-      <SurveyLink name="FIRST" />
-      <SurveyLink name="CRTS" />
-      <SurveyLink name="Variable Marshal (Search)" />
+      <SurveyLink
+        name="FIRST"
+      />
+      <SurveyLink
+        name="CRTS"
+      />
+      <SurveyLink
+        name="Variable Marshal (Search)"
+      />
       <SurveyLink
         name="ADS"
-        url={`http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?db_key=AST&db_key=PRE&qform=AST&arxiv_sel=astro-ph&arxiv_sel=cond-mat&arxiv_sel=cs&arxiv_sel=gr-qc&arxiv_sel=hep-ex&arxiv_sel=hep-lat&arxiv_sel=hep-ph&arxiv_sel=hep-th&arxiv_sel=math&arxiv_sel=math-ph&arxiv_sel=nlin&arxiv_sel=nucl-ex&arxiv_sel=nucl-th&arxiv_sel=physics&arxiv_sel=quant-ph&arxiv_sel=q-bio&sim_query=YES&ned_query=YES&adsobj_query=YES&aut_logic=OR&obj_logic=OR&author=&object=iptf${id}%%0D%%0Aptf${id}%%0D%%0A${ra}+${
-          dec > 0 ? "%2B" : ""
-        }${dec}&start_mon=&start_year=&end_mon=&end_year=&ttl_logic=OR&title=&txt_logic=OR&text=&nr_to_return=200&start_nr=1&jou_pick=ALL&ref_stems=&data_and=ALL&group_and=ALL&start_entry_day=&start_entry_mon=&start_entry_year=&end_entry_day=&end_entry_mon=&end_entry_year=&min_score=&sort=SCORE&data_type=SHORT&aut_syn=YES&ttl_syn=YES&txt_syn=YES&aut_wt=1.0&obj_wt=1.0&ttl_wt=0.3&txt_wt=3.0&aut_wgt=YES&obj_wgt=YES&ttl_wgt=YES&txt_wgt=YES&ttl_sco=YES&txt_sco=YES&version=1`}
+        url={`http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?db_key=AST&db_key=PRE&qform=AST&arxiv_sel=astro-ph&arxiv_sel=cond-mat&arxiv_sel=cs&arxiv_sel=gr-qc&arxiv_sel=hep-ex&arxiv_sel=hep-lat&arxiv_sel=hep-ph&arxiv_sel=hep-th&arxiv_sel=math&arxiv_sel=math-ph&arxiv_sel=nlin&arxiv_sel=nucl-ex&arxiv_sel=nucl-th&arxiv_sel=physics&arxiv_sel=quant-ph&arxiv_sel=q-bio&sim_query=YES&ned_query=YES&adsobj_query=YES&aut_logic=OR&obj_logic=OR&author=&object=iptf${id}%%0D%%0Aptf${id}%%0D%%0A${ra}+${dec > 0 ? '%2B' : ''}${dec}&start_mon=&start_year=&end_mon=&end_year=&ttl_logic=OR&title=&txt_logic=OR&text=&nr_to_return=200&start_nr=1&jou_pick=ALL&ref_stems=&data_and=ALL&group_and=ALL&start_entry_day=&start_entry_mon=&start_entry_year=&end_entry_day=&end_entry_mon=&end_entry_year=&min_score=&sort=SCORE&data_type=SHORT&aut_syn=YES&ttl_syn=YES&txt_syn=YES&aut_wt=1.0&obj_wt=1.0&ttl_wt=0.3&txt_wt=3.0&aut_wgt=YES&obj_wgt=YES&ttl_wgt=YES&txt_wgt=YES&ttl_sco=YES&txt_sco=YES&version=1`}
       />
     </div>
   );
@@ -107,7 +117,7 @@ const SurveyLinkList = ({ ra, dec, id }) => {
 SurveyLinkList.propTypes = {
   ra: PropTypes.number.isRequired,
   dec: PropTypes.number.isRequired,
-  id: PropTypes.string.isRequired,
+  id: PropTypes.string.isRequired
 };
 
 export default SurveyLinkList;

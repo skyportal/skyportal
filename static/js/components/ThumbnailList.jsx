@@ -1,8 +1,8 @@
-import React from "react";
-import PropTypes from "prop-types";
+import React from 'react';
+import PropTypes from 'prop-types';
 
-import dayjs from "dayjs";
-import calendar from "dayjs/plugin/calendar";
+import dayjs from 'dayjs';
+import calendar from 'dayjs/plugin/calendar';
 import clsx from "clsx";
 
 import styles from "./ThumbnailList.css";
@@ -43,34 +43,32 @@ const Thumbnail = ({ ra, dec, telescope, mjd, name, url }) => {
   }
 
   // Always apply Thumbnail style; conditionally apply DR8 style
-  const thumbnailDivClassNames = clsx(styles.Thumbnail, {
-    [styles.dr8]: name === "dr8",
-  });
+  const thumbnailDivClassNames = clsx(
+    styles.Thumbnail, {
+      [styles.dr8]: name === "dr8"
+    }
+  );
 
-  const thumbnailClassNames = clsx({
-    [styles.dr8crosshairs]: name === "dr8",
-  });
+  const thumbnailClassNames = clsx(
+    {
+      [styles.dr8crosshairs]: name === "dr8"
+    }
+  );
 
   return (
     <a href={link}>
       {name === "dr8" && <br />}
       <div className={thumbnailDivClassNames}>
-        <b>{name.toUpperCase()}</b>
+        <b>
+          {name.toUpperCase()}
+        </b>
         <br />
         <div className={styles.thumbnailimgdiv}>
-          <img
-            className={thumbnailClassNames}
-            src={url}
-            alt={alt}
-            title={alt}
-          />
-          {name === "dr8" && (
-            <img
-              className={thumbnailClassNames}
-              src="/static/images/crosshairs.png"
-              alt=""
-            />
-          )}
+          <img className={thumbnailClassNames} src={url} alt={alt} title={alt} />
+          {
+            (name === "dr8") &&
+              <img className={thumbnailClassNames} src="/static/images/crosshairs.png" alt="" />
+          }
         </div>
       </div>
     </a>
@@ -83,15 +81,14 @@ Thumbnail.propTypes = {
   telescope: PropTypes.string.isRequired,
   name: PropTypes.string.isRequired,
   url: PropTypes.string.isRequired,
-  mjd: PropTypes.number.isRequired,
+  mjd: PropTypes.number.isRequired
 };
 
 const ThumbnailList = ({ ra, dec, thumbnails }) => {
-  const thumbnail_order = ["new", "ref", "sub", "sdss", "dr8"];
+  const thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8'];
   // Sort thumbnails by order of appearance in `thumbnail_order`
-  thumbnails.sort((a, b) =>
-    thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1
-  );
+  thumbnails.sort((a, b) => (thumbnail_order.indexOf(a.type) <
+                             thumbnail_order.indexOf(b.type) ? -1 : 1));
 
   return (
     <div className={styles.ThumbnailList}>
@@ -113,7 +110,7 @@ const ThumbnailList = ({ ra, dec, thumbnails }) => {
 ThumbnailList.propTypes = {
   ra: PropTypes.number.isRequired,
   dec: PropTypes.number.isRequired,
-  thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired,
+  thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired
 };
 
 export default ThumbnailList;

@@ -92,35 +92,27 @@ class CommentHandler(BaseHandler):
         group_ids = data.pop("group_ids", user_group_ids)
         group_ids = [gid for gid in group_ids if gid in user_accessible_group_ids]
         if not group_ids:
-            return self.error(
-                f"Invalid group IDs field ({group_ids}): "
-                "You must provide one or more valid group IDs."
-            )
+            return self.error(f"Invalid group IDs field ({group_ids}): "
+                              "You must provide one or more valid group IDs.")
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
         if 'attachment' in data and 'body' in data['attachment']:
-            attachment_bytes = str.encode(
-                data['attachment']['body'].split('base64,')[-1]
-            )
+            attachment_bytes = str.encode(data['attachment']['body']
+                                          .split('base64,')[-1])
             attachment_name = data['attachment']['name']
         else:
             attachment_bytes, attachment_name = None, None
 
         author = self.associated_user_object.username
-        comment = Comment(
-            text=data['text'],
-            obj_id=obj_id,
-            attachment_bytes=attachment_bytes,
-            attachment_name=attachment_name,
-            author=author,
-            groups=groups,
-        )
+        comment = Comment(text=data['text'],
+                          obj_id=obj_id, attachment_bytes=attachment_bytes,
+                          attachment_name=attachment_name,
+                          author=author, groups=groups)
 
         DBSession().add(comment)
         DBSession().commit()
 
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE', payload={'obj_id': comment.obj_id}
-        )
+        self.push_all(action='skyportal/REFRESH_SOURCE',
+                      payload={'obj_id': comment.obj_id})
         return self.success(data={'comment_id': comment.id})
 
     @permissions(['Comment'])
@@ -171,26 +163,22 @@ class CommentHandler(BaseHandler):
         try:
             schema.load(data, partial=True)
         except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
+            return self.error('Invalid/missing parameters: '
+                              f'{e.normalized_messages()}')
         DBSession().flush()
         if group_ids is not None:
             c = Comment.get_if_owned_by(comment_id, self.current_user)
             groups = Group.query.filter(Group.id.in_(group_ids)).all()
             if not groups:
-                return self.error(
-                    "Invalid group_ids field. " "Specify at least one valid group ID."
-                )
-            if not all(
-                [group in self.current_user.accessible_groups for group in groups]
-            ):
-                return self.error(
-                    "Cannot associate comment with groups you are " "not a member of."
-                )
+                return self.error("Invalid group_ids field. "
+                                  "Specify at least one valid group ID.")
+            if not all([group in self.current_user.accessible_groups for group in groups]):
+                return self.error("Cannot associate comment with groups you are "
+                                  "not a member of.")
             c.groups = groups
         DBSession().commit()
-        self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_id': c.obj_id})
+        self.push_all(action='skyportal/REFRESH_SOURCE',
+                      payload={'obj_id': c.obj_id})
         return self.success()
 
     @permissions(['Comment'])
@@ -222,7 +210,8 @@ class CommentHandler(BaseHandler):
             DBSession().commit()
         else:
             return self.error('Insufficient user permissions.')
-        self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_id': obj_id})
+        self.push_all(action='skyportal/REFRESH_SOURCE',
+                      payload={'obj_id': obj_id})
         return self.success()
 
 
@@ -251,7 +240,7 @@ class CommentAttachmentHandler(BaseHandler):
         if comment is None:
             return self.error('Invalid comment ID.')
         self.set_header(
-            "Content-Disposition", "attachment; " f"filename={comment.attachment_name}"
-        )
+            "Content-Disposition", "attachment; "
+            f"filename={comment.attachment_name}")
         self.set_header("Content-type", "application/octet-stream")
         self.write(base64.b64decode(comment.attachment_bytes))

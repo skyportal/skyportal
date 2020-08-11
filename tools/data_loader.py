@@ -18,29 +18,20 @@ from skyportal.tests import api
 
 if __name__ == "__main__":
     parser.description = 'Load data into SkyPortal'
-    parser.add_argument(
-        'data_files', type=str, nargs='+', help='YAML files with data to load'
-    )
-    parser.add_argument(
-        '--host',
-        help=textwrap.dedent(
-            '''Fully specified URI of the running SkyPortal instance.
+    parser.add_argument('data_files', type=str, nargs='+',
+                        help='YAML files with data to load')
+    parser.add_argument('--host',
+                        help=textwrap.dedent('''Fully specified URI of the running SkyPortal instance.
                              E.g., https://myserver.com:9000.
 
                              Defaults to http://localhost on the port specified
-                             in the SkyPortal configuration file.'''
-        ),
-    )
-    parser.add_argument(
-        '--token',
-        help=textwrap.dedent(
-            '''Token required for accessing the SkyPortal API.
+                             in the SkyPortal configuration file.'''))
+    parser.add_argument('--token',
+                        help=textwrap.dedent('''Token required for accessing the SkyPortal API.
 
                              By default, SkyPortal produces a token that is
                              written to .tokens.yaml.  If no token is specified
-                             here, that token will be used.'''
-        ),
-    )
+                             here, that token will be used.'''))
 
     env, cfg = load_env()
 
@@ -61,9 +52,7 @@ if __name__ == "__main__":
             print('Token loaded from `.tokens.yaml`')
             return token
         except (FileNotFoundError, TypeError, KeyError) as e:
-            print(
-                'Error: no token specified, and no suitable token found in .tokens.yaml'
-            )
+            print('Error: no token specified, and no suitable token found in .tokens.yaml')
             return None
 
     print('Testing connection...', end='')
@@ -74,13 +63,16 @@ if __name__ == "__main__":
             admin_token = get_token()
 
             def get(endpoint, token=admin_token):
-                response_status, data = api("GET", endpoint, token=token, host=env.host)
+                response_status, data = api("GET", endpoint,
+                                            token=token,
+                                            host=env.host)
                 return response_status, data
 
             def post(endpoint, data, token=admin_token):
-                response_status, data = api(
-                    "POST", endpoint, data=data, token=token, host=env.host
-                )
+                response_status, data = api("POST", endpoint,
+                                            data=data,
+                                            token=token,
+                                            host=env.host)
                 return response_status, data
 
             def assert_post(endpoint, data, token=admin_token):
@@ -118,9 +110,7 @@ if __name__ == "__main__":
         sys.exit(-1)
 
     if data['status'] != 'success':
-        print(
-            'Error: Could not authenticate against SkyPortal; please specify a valid token.'
-        )
+        print('Error: Could not authenticate against SkyPortal; please specify a valid token.')
         sys.exit(-1)
 
     status, response = get('groups/public')
@@ -131,7 +121,9 @@ if __name__ == "__main__":
 
     error_log = []
 
-    references = {'public_group_id': public_group_id}
+    references = {
+        'public_group_id': public_group_id
+    }
 
     def inject_references(obj):
         if isinstance(obj, dict):
@@ -144,9 +136,7 @@ if __name__ == "__main__":
                 elif filename.endswith('.png'):
                     return base64.b64encode(open(filename, 'rb').read())
                 else:
-                    raise NotImplementedError(
-                        f'{filename}: Only CSV files currently supported for extending individual objects'
-                    )
+                    raise NotImplementedError(f'{filename}: Only CSV files currently supported for extending individual objects')
 
             for k, v in obj.items():
                 obj[k] = inject_references(v)
@@ -155,9 +145,7 @@ if __name__ == "__main__":
             try:
                 return references[obj[1:]]
             except KeyError:
-                print(
-                    f'\nReference {obj[1:]} not found while posting to {endpoint}; skipping'
-                )
+                print(f'\nReference {obj[1:]} not found while posting to {endpoint}; skipping')
                 raise
         elif isinstance(obj, list):
             return [inject_references(item) for item in obj]
@@ -172,9 +160,7 @@ if __name__ == "__main__":
                 if part.startswith('='):
                     endpoint_parts[i] = str(references[part[1:]])
         except KeyError:
-            print(
-                f'\nReference {part[1:]} not found while interpolating endpoint {endpoint}; skipping'
-            )
+            print(f'\nReference {part[1:]} not found while interpolating endpoint {endpoint}; skipping')
             continue
 
         endpoint = '/'.join(endpoint_parts)
@@ -182,7 +168,8 @@ if __name__ == "__main__":
         print(f'Posting to {endpoint}: ', end='')
         if 'file' in to_post:
             filename = pjoin(src_path, to_post['file'])
-            post_objs = yaml.load(open(filename, 'r'), Loader=yaml.Loader)
+            post_objs = yaml.load(open(filename, 'r'),
+                                  Loader=yaml.Loader)
         else:
             post_objs = to_post
 

@@ -18,7 +18,7 @@ const Candidate = ({ route }) => {
   const dispatch = useDispatch();
   const candidate = useSelector((state) => state.candidate);
   const cachedCandidateId = candidate ? candidate.id : null;
-  const isCached = route.id === cachedCandidateId;
+  const isCached = (route.id === cachedCandidateId);
 
   useEffect(() => {
     const fetchCandidate = () => {
@@ -31,40 +31,62 @@ const Candidate = ({ route }) => {
   }, [dispatch, isCached, route.id]);
 
   if (candidate.loadError) {
-    return <div>{candidate.loadError}</div>;
+    return (
+      <div>
+        { candidate.loadError }
+      </div>
+    );
   }
   if (!isCached) {
     return (
       <div>
-        <span>Loading...</span>
+        <span>
+          Loading...
+        </span>
       </div>
     );
   }
   if (candidate.id === undefined) {
-    return <div>Candidate not found</div>;
+    return (
+      <div>
+        Candidate not found
+      </div>
+    );
   }
 
   return (
     <div className={styles.source}>
+
       <div className={styles.leftColumn}>
-        <div className={styles.name}>{candidate.id}</div>
+
+        <div className={styles.name}>
+          {candidate.id}
+        </div>
+
         <br />
-        <b>Position (J2000):</b>
+        <b>
+          Position (J2000):
+        </b>
         &nbsp;
-        {candidate.ra}, &nbsp;
+        {candidate.ra}
+        ,
+        &nbsp;
         {candidate.dec}
-        &nbsp; (&alpha;,&delta;=
-        {ra_to_hours(candidate.ra)}, &nbsp;
+        &nbsp;
+        (&alpha;,&delta;=
+        {ra_to_hours(candidate.ra)}
+        ,
+        &nbsp;
         {dec_to_hours(candidate.dec)}
         )
         <br />
-        <b>Redshift: &nbsp;</b>
+        <b>
+          Redshift:
+          &nbsp;
+        </b>
         {candidate.redshift}
-        <ThumbnailList
-          ra={candidate.ra}
-          dec={candidate.dec}
-          thumbnails={candidate.thumbnails}
-        />
+        <ThumbnailList ra={candidate.ra} dec={candidate.dec} thumbnails={candidate.thumbnails} />
+
         <br />
         <br />
         <Responsive
@@ -72,36 +94,32 @@ const Candidate = ({ route }) => {
           title="Photometry"
           mobileProps={{ folded: true }}
         >
-          <Plot
-            className={styles.plot}
-            url={`/api/internal/plot/photometry/${candidate.id}`}
-          />
+          <Plot className={styles.plot} url={`/api/internal/plot/photometry/${candidate.id}`} />
         </Responsive>
+
         <Responsive
           element={FoldBox}
           title="Spectroscopy"
           mobileProps={{ folded: true }}
         >
-          <Plot
-            className={styles.plot}
-            url={`/api/internal/plot/spectroscopy/${candidate.id}`}
-          />
+
+          <Plot className={styles.plot} url={`/api/internal/plot/spectroscopy/${candidate.id}`} />
         </Responsive>
-        {/* TODO 1) check for dead links; 2) simplify link formatting if possible */}
+
+        { /* TODO 1) check for dead links; 2) simplify link formatting if possible */ }
         <Responsive
           element={FoldBox}
           title="Surveys"
           mobileProps={{ folded: true }}
         >
-          <SurveyLinkList
-            id={candidate.id}
-            ra={candidate.ra}
-            dec={candidate.dec}
-          />
+
+          <SurveyLinkList id={candidate.id} ra={candidate.ra} dec={candidate.dec} />
+
         </Responsive>
       </div>
 
       <div className={styles.rightColumn}>
+
         <Responsive
           element={FoldBox}
           title="Comments"
@@ -110,15 +128,17 @@ const Candidate = ({ route }) => {
         >
           <CommentList isCandidate />
         </Responsive>
+
       </div>
+
     </div>
   );
 };
 
 Candidate.propTypes = {
   route: PropTypes.shape({
-    id: PropTypes.string,
-  }).isRequired,
+    id: PropTypes.string
+  }).isRequired
 };
 
 export default Candidate;

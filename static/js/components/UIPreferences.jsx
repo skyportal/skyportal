@@ -1,13 +1,13 @@
-import React from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 
-import FormGroup from "@material-ui/core/FormGroup";
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import Switch from "@material-ui/core/Switch";
+import FormGroup from '@material-ui/core/FormGroup';
+import FormControlLabel from '@material-ui/core/FormControlLabel';
+import Switch from '@material-ui/core/Switch';
 
 // import { useTheme } from '@material-ui/core/styles';
 
-import * as profileActions from "../ducks/profile";
+import * as profileActions from '../ducks/profile';
 
 const UIPreferences = () => {
   const currentTheme = useSelector((state) => state.profile.preferences.theme);
@@ -15,7 +15,7 @@ const UIPreferences = () => {
 
   const themeToggled = (event) => {
     const prefs = {
-      theme: event.target.checked ? "dark" : "light",
+      theme: event.target.checked ? 'dark' : 'light'
     };
 
     dispatch(profileActions.updateUserPreferences(prefs));
@@ -24,7 +24,7 @@ const UIPreferences = () => {
   const themeSwitch = (
     <Switch
       value="Dark Mode"
-      checked={currentTheme === "dark"}
+      checked={currentTheme === 'dark'}
       onChange={themeToggled}
     />
   );
@@ -41,8 +41,12 @@ const UIPreferences = () => {
       <h2>UI Preferences</h2>
 
       <FormGroup row>
-        <FormControlLabel control={themeSwitch} label="Dark mode" />
+        <FormControlLabel
+          control={themeSwitch}
+          label="Dark mode"
+        />
       </FormGroup>
+
     </div>
   );
 };

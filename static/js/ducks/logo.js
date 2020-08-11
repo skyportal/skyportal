@@ -1,19 +1,19 @@
-import store from "../store";
+import store from '../store';
 
-export const ROTATE_LOGO = "skyportal/ROTATE_LOGO";
+export const ROTATE_LOGO = 'skyportal/ROTATE_LOGO';
 
 export function rotateLogo() {
   return {
-    type: ROTATE_LOGO,
+    type: ROTATE_LOGO
   };
 }
 
-const reducer = (state = { rotateLogo: false }, action) => {
+const reducer = (state={ rotateLogo: false }, action) => {
   switch (action.type) {
     case ROTATE_LOGO: {
       return {
         ...state,
-        rotateLogo: true,
+        rotateLogo: true
       };
     }
     default:
@@ -21,4 +21,4 @@ const reducer = (state = { rotateLogo: false }, action) => {
   }
 };
 
-store.injectReducer("logo", reducer);
+store.injectReducer('logo', reducer);

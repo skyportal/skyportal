@@ -13,39 +13,35 @@ import TextField from "@material-ui/core/TextField";
 import { showNotification } from "baselayer/components/Notifications";
 
 import FormValidationError from "./FormValidationError";
-import Plot from "./Plot";
+import Plot from './Plot';
 
 import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
 import styles from "./Source.css";
 
-const createPhotRow = (
-  id,
-  mjd,
-  mag,
-  magerr,
-  limiting_mag,
-  instrument,
-  filter,
-  groups
-) => ({
-  id,
-  mjd: Number(mjd).toFixed(3),
-  mag: mag === null ? null : Number(mag).toFixed(4),
-  magerr: magerr === null ? null : Number(magerr).toFixed(4),
-  limiting_mag: Number(limiting_mag).toFixed(4),
-  instrument,
-  filter,
-  groups,
-});
 
-const createSpecRow = (id, instrument, observed, groups) => ({
-  id,
-  instrument,
-  observed,
-  groups,
-});
+const createPhotRow = (id, mjd, mag, magerr, limiting_mag, instrument, filter, groups) => (
+  {
+    id,
+    mjd: Number(mjd).toFixed(3),
+    mag: mag === null ? null : Number(mag).toFixed(4),
+    magerr: magerr === null ? null : Number(magerr).toFixed(4),
+    limiting_mag: Number(limiting_mag).toFixed(4),
+    instrument,
+    filter,
+    groups
+  }
+);
+
+const createSpecRow = (id, instrument, observed, groups) => (
+  {
+    id,
+    instrument,
+    observed,
+    groups
+  }
+);
 
 const photHeadCells = [
   { name: "id", label: "ID" },
@@ -77,9 +73,7 @@ const ShareDataForm = ({ route }) => {
   const [selectedPhotRows, setSelectedPhotRows] = useState([]);
   const [selectedSpecRows, setSelectedSpecRows] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user: userGroups, all: allGroups } = useSelector(
-    (state) => state.groups
-  );
+  const { user: userGroups, all: allGroups } = useSelector((state) => state.groups);
   const photometry = useSelector((state) => state.photometry);
   const spectra = useSelector((state) => state.spectra);
   const groups = allGroups || userGroups;
@@ -97,12 +91,8 @@ const ShareDataForm = ({ route }) => {
   };
 
   const onSubmit = async (groupsFormData) => {
-    const selectedPhotIDs = selectedPhotRows.map(
-      (idx) => photometry[route.id][idx].id
-    );
-    const selectedSpecIDs = selectedSpecRows.map(
-      (idx) => spectra[route.id][idx].id
-    );
+    const selectedPhotIDs = selectedPhotRows.map((idx) => photometry[route.id][idx].id);
+    const selectedSpecIDs = selectedSpecRows.map((idx) => spectra[route.id][idx].id);
     setIsSubmitting(true);
     const data = {
       groupIDs: groupsFormData.groups.map((g) => g.id),
@@ -123,37 +113,19 @@ const ShareDataForm = ({ route }) => {
     return <>Loading...</>;
   }
 
-  const photRows = photometry[route.id]
-    ? photometry[route.id].map((phot) =>
-        createPhotRow(
-          phot.id,
-          phot.mjd,
-          phot.mag,
-          phot.magerr,
-          phot.limiting_mag,
-          phot.instrument_name,
-          phot.filter,
-          phot.groups.map((group) => group.name).join(", ")
-        )
-      )
-    : [];
+  const photRows = photometry[route.id] ? photometry[route.id].map((phot) => (
+    createPhotRow(phot.id, phot.mjd, phot.mag, phot.magerr, phot.limiting_mag,
+      phot.instrument_name, phot.filter, phot.groups.map((group) => group.name).join(", ")))) : [];
 
-  const specRows = spectra[route.id]
-    ? spectra[route.id].map((spec) =>
-        createSpecRow(
-          spec.id,
-          spec.instrument_name,
-          spec.observed_at,
-          spec.groups.map((group) => group.name).join(", ")
-        )
-      )
-    : [];
+  const specRows = spectra[route.id] ? spectra[route.id].map((spec) => (
+    createSpecRow(spec.id, spec.instrument_name, spec.observed_at,
+      spec.groups.map((group) => group.name).join(", ")))) : [];
 
   const options = {
     textLabels: {
       body: {
         noMatch: "",
-      },
+      }
     },
     filter: true,
     selectableRows: "multiple",
@@ -161,7 +133,7 @@ const ShareDataForm = ({ route }) => {
     responsive: "vertical",
     rowsPerPage: 10,
     selectableRowsHeader: true,
-    customToolbarSelect: () => {},
+    customToolbarSelect: () => { },
     download: false,
     print: false,
   };
@@ -178,7 +150,8 @@ const ShareDataForm = ({ route }) => {
       </div>
       <br />
       <div>
-        {!!photometry[route.id] && (
+        {
+          !!photometry[route.id] && (
           <MUIDataTable
             columns={photHeadCells}
             data={photRows}
@@ -186,19 +159,17 @@ const ShareDataForm = ({ route }) => {
             options={{
               ...options,
               rowsSelected: selectedPhotRows,
-              onRowSelectionChange: (
-                rowsSelectedData,
-                allRows,
-                rowsSelected
-              ) => {
+              onRowSelectionChange: (rowsSelectedData, allRows, rowsSelected) => {
                 setSelectedPhotRows(rowsSelected);
               },
               selectableRowsOnClick: true,
             }}
           />
-        )}
+          )
+        }
         <br />
-        {!!spectra[route.id] && (
+        {
+          !!spectra[route.id] && (
           <MUIDataTable
             columns={specHeadCells}
             data={specRows}
@@ -206,35 +177,30 @@ const ShareDataForm = ({ route }) => {
             options={{
               ...options,
               rowsSelected: selectedSpecRows,
-              onRowSelectionChange: (
-                rowsSelectedData,
-                allRows,
-                rowsSelected
-              ) => {
+              onRowSelectionChange: (rowsSelectedData, allRows, rowsSelected) => {
                 setSelectedSpecRows(rowsSelected);
               },
               expandableRows: true,
               // eslint-disable-next-line react/display-name,no-unused-vars
               renderExpandableRow: (rowData, rowMeta) => (
-                <Plot
-                  className={styles.plot}
-                  url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`}
-                />
+                <Plot className={styles.plot} url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`} />
               ),
               expandableRowsOnClick: true,
             }}
           />
-        )}
+          )
+        }
       </div>
       <br />
       <div>
         <form onSubmit={handleSubmit(onSubmit)}>
-          {!!errors.groups && (
-            <FormValidationError message="Please select at least one group/user" />
-          )}
+          {
+            !!errors.groups &&
+              <FormValidationError message="Please select at least one group/user" />
+          }
           <Controller
             name="groups"
-            as={
+            as={(
               <Autocomplete
                 multiple
                 options={groups}
@@ -251,7 +217,7 @@ const ShareDataForm = ({ route }) => {
                   />
                 )}
               />
-            }
+              )}
             control={control}
             onChange={([, data]) => data}
             rules={{ validate: validateGroups }}
@@ -278,7 +244,7 @@ const ShareDataForm = ({ route }) => {
 };
 ShareDataForm.propTypes = {
   route: PropTypes.shape({
-    id: PropTypes.string,
+    id: PropTypes.string
   }).isRequired,
 };
 

@@ -7,21 +7,16 @@ from skyportal.tests import api
 
 def test_top_sources(driver, user, public_source, public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
-    status, data = api(
-        'POST',
-        'sources',
-        data={
-            'id': obj_id,
-            'ra': 50.4,
-            'dec': 22.33,
-            'redshift': 2.1,
-            "altdata": {"simbad": {"class": "RRLyr"}},
-            'transient': False,
-            'ra_dis': 2.3,
-            'group_ids': [public_group.id],
-        },
-        token=upload_data_token,
-    )
+    status, data = api('POST', 'sources',
+                       data={'id': obj_id,
+                             'ra': 50.4,
+                             'dec': 22.33,
+                             'redshift': 2.1,
+                             "altdata": {"simbad": {"class": "RRLyr"}},
+                             'transient': False,
+                             'ra_dis': 2.3,
+                             'group_ids': [public_group.id]},
+                       token=upload_data_token)
     assert status == 200
     assert data['data']['id'] == obj_id
 
