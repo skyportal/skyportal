@@ -23,3 +23,11 @@ repos:
       - id: prettier
         pass_filenames: true
         exclude: baselayer|node_modules|doc|data
+  - repo: local
+    hooks:
+      - id: ESLint
+        name: ESLint
+        entry: npx eslint -c .eslintrc.yaml
+        language: system
+        files: \.[j]sx?$
+        types: [file]
