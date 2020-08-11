@@ -112,9 +112,13 @@ def test_edit_existing_followup_request(
     driver.click_xpath('//*[text()="P60 Camera"]')
 
     driver.click_xpath('//input[@name="start_date"]')
-    driver.click_xpath('//div[contains(@class,"react-datepicker__day react-datepicker__day--013")]')
+    driver.click_xpath(
+        '//div[contains(@class,"react-datepicker__day react-datepicker__day--013")]'
+    )
     driver.click_xpath('//input[@name="end_date"]')
-    driver.click_xpath('//div[contains(@class,"react-datepicker__day react-datepicker__day--014")]')
+    driver.click_xpath(
+        '//div[contains(@class,"react-datepicker__day react-datepicker__day--014")]'
+    )
     driver.click_xpath('//input[@value="sdssu"]')
 
     exposure_select = Select(driver.wait_for_xpath('//select[@name="exposure_time"]'))
