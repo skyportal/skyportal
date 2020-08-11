@@ -3,6 +3,7 @@ from os.path import join as pjoin
 import uuid
 import pytest
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
 
 from baselayer.app.config import load_config
@@ -55,29 +56,50 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
         ],
     }
 
+    tax_name = str(uuid.uuid4())
+    tax_version = "test0.1"
+
     status, data = api(
         'POST',
         'taxonomy',
         data={
-            'name': str(uuid.uuid4()),
+            'name': tax_name,
             'hierarchy': simple,
             'group_ids': [public_group.id],
-            'version': "test0.1",
+            'version': tax_version,
         },
         token=taxonomy_token,
     )
     assert status == 200
 
-    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
+    driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    taxonomy_button = driver.wait_for_xpath(f'//div[@id="tax-select"]')
-    taxonomy_button.click()
+    driver.wait_for_xpath_to_be_clickable('//div[@id="tax-select"]').click()
+    driver.wait_for_xpath_to_be_clickable(
+        f'//*[text()="{tax_name} ({tax_version})"]'
+    ).click()
+    driver.wait_for_xpath("//body").click()
+    class_input = driver.wait_for_xpath('//*[@id="classification"]')
+    driver.scroll_to_element_and_click(class_input)
+    class_input.send_keys("Symmetrical", Keys.ENTER)
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath("//*[@id='classificationSubmitButton']")
+    )
+    # Notification
+    driver.wait_for_xpath("//*[text()='Classification saved']")
+    # Button at top of source page
+    driver.wait_for_xpath(
+        "//span[contains(@class, 'MuiButton-label') and text()='Symmetrical']"
+    )
+    # Classifications list entry
+    driver.wait_for_xpath(f"//i[text()='{tax_name}']")
+    driver.wait_for_xpath("//*[contains(text(), '(P=1)')]")
 
 
 @pytest.mark.flaky(reruns=2)
 def test_comments(driver, user, public_source):
-    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
+    driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     comment_box = driver.wait_for_xpath("//input[@name='text']")
