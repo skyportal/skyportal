@@ -1,4 +1,5 @@
 import React from "react";
+import PropTypes from "prop-types";
 import Button from "@material-ui/core/Button";
 import Tooltip from "@material-ui/core/Tooltip";
 
@@ -55,11 +56,13 @@ function ShowClassification({ classifications, taxonomyList }) {
         })}
       </div>
     );
-  } else {
-    return <span />;
   }
+  return <span />;
 }
 
-ShowClassification.propTypes = {};
+ShowClassification.propTypes = {
+  classifications: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
+  taxonomyList: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
+};
 
 export default ShowClassification;

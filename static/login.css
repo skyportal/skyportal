@@ -1,36 +1,36 @@
 body {
-    font-family: 'Roboto', sans-serif;
+  font-family: "Roboto", sans-serif;
 }
 
 .loginBox {
-    border: solid 1px darkgray;
-    width: 50%;
-    padding: 2em;
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-    margin-top: 2em;
+  border: solid 1px darkgray;
+  width: 50%;
+  padding: 2em;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 2em;
 }
 
 .loginBox a {
-    color: #27A3DE;
-    text-decoration: none;
-    font-weight: bold;
+  color: #27a3de;
+  text-decoration: none;
+  font-weight: bold;
 }
 
 .loginButton {
-    padding-top: 1em;
+  padding-top: 1em;
 }
 
 .logo {
-    height: 50px;
-    display: inline-block;
-    vertical-align: middle;
-    padding-right: 1em;
+  height: 50px;
+  display: inline-block;
+  vertical-align: middle;
+  padding-right: 1em;
 }
 
 .title {
-    font-size: 200%;
-    line-height: 50px;
-    vertical-align: middle;
+  font-size: 200%;
+  line-height: 50px;
+  vertical-align: middle;
 }
