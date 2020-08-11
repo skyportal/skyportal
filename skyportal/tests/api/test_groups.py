@@ -52,7 +52,8 @@ def test_token_user_request_all_groups(manage_groups_token, super_admin_user):
 
     status, data = api("GET", "groups", token=manage_groups_token)
     assert data["status"] == "success"
-    assert data["data"]["user_groups"][-1]["name"] == group_name
+    assert any([user_group["name"] == group_name
+                for user_group in data["data"]["user_groups"]])
     assert not any(
         [
             group["single_user_group"] is True

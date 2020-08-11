@@ -45,11 +45,11 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
 
     status, data = api('POST', 'taxonomy',
                        data={
-                             'name': str(uuid.uuid4()),
-                             'hierarchy': simple,
-                             'group_ids': [public_group.id],
-                             'version': "test0.1"
-                             },
+                           'name': str(uuid.uuid4()),
+                           'hierarchy': simple,
+                           'group_ids': [public_group.id],
+                           'version': "test0.1"
+                       },
                        token=taxonomy_token)
     assert status == 200
     taxonomy_id = data['data']['taxonomy_id']
@@ -85,6 +85,7 @@ def test_comments(driver, user, public_source):
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_comment_groups_validation(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
