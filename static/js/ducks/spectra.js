@@ -27,9 +27,8 @@ const reducer = (state = {}, action) => {
           ...state,
           [sourceID]: spectra,
         };
-      } else {
-        return state;
       }
+      return state;
     }
     default:
       return state;

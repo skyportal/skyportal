@@ -15,9 +15,8 @@ const UserAvatar = ({ size, firstName, lastName, username, gravatarUrl }) => {
     if (hash.length >= 6) {
       // make the color string with a slight transparency
       return `#${hash.slice(0, 6)}aa`;
-    } else {
-      return "#aaaaaaaa";
     }
+    return "#aaaaaaaa";
   }
 
   const usercolor = bgcolor();
