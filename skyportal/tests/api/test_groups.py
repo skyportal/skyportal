@@ -277,7 +277,9 @@ def test_post_new_filter_delete_group_deletes_filter(
     assert status == 200
     assert data["data"]["id"] == filter_id
 
-    status, data = api("DELETE", f"groups/{group_with_stream.id}", token=manage_groups_token)
+    status, data = api(
+        "DELETE", f"groups/{group_with_stream.id}", token=manage_groups_token
+    )
     assert status == 200
 
     status, data = api("GET", f"filters/{filter_id}", token=manage_groups_token)

@@ -50,7 +50,9 @@ class FilterHandler(BaseHandler):
                     .query(Filter)
                     .filter(
                         Filter.id == filter_id,
-                        Filter.group_id.in_([g.id for g in self.current_user.accessible_groups])
+                        Filter.group_id.in_(
+                            [g.id for g in self.current_user.accessible_groups]
+                        ),
                     )
                     .first()
                 )
@@ -110,14 +112,11 @@ class FilterHandler(BaseHandler):
 
         # check that user is su or group admin
         if "System admin" not in acls and "Manage groups" not in acls:
-            gu = (
-                GroupUser.query.filter(
-                    GroupUser.group_id == fil.group_id,
-                    GroupUser.user_id == self.associated_user_object.id,
-                    GroupUser.admin == True
-                )
-                .first()
-            )
+            gu = GroupUser.query.filter(
+                GroupUser.group_id == fil.group_id,
+                GroupUser.user_id == self.associated_user_object.id,
+                GroupUser.admin == True,
+            ).first()
             if gu is None:
                 return self.error("Insufficient permissions.")
 
@@ -173,7 +172,9 @@ class FilterHandler(BaseHandler):
                 .query(Filter)
                 .filter(
                     Filter.id == filter_id,
-                    Filter.group_id.in_([g.id for g in self.current_user.accessible_groups])
+                    Filter.group_id.in_(
+                        [g.id for g in self.current_user.accessible_groups]
+                    ),
                 )
                 .first()
             )
@@ -224,7 +225,9 @@ class FilterHandler(BaseHandler):
                 .query(Filter)
                 .filter(
                     Filter.id == filter_id,
-                    Filter.group_id.in_([g.id for g in self.current_user.accessible_groups])
+                    Filter.group_id.in_(
+                        [g.id for g in self.current_user.accessible_groups]
+                    ),
                 )
                 .first()
             )
