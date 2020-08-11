@@ -10,16 +10,9 @@ pre-commit install
 ```
 
 This will check your changes before each commit to ensure that they
-conform with our code style standards. We use black to reformat
-Python code, and PrettierJS for JavaScript.
-
-We also run ESLint to catch several common Redux usage bugs. ESLint
-is installed when you run SkyPortal for the first time, and can be
-invoked with:
-
-```
-make lint
-```
+conform with our code style standards. We use black to reformat Python
+code, and PrettierJS for JavaScript.  We also run ESLint to catch
+several common Redux usage bugs.
 
 ## Testing
 
