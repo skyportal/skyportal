@@ -70,7 +70,7 @@ author = 'The skyportal Team'
 version = 'vUndefined'
 setup_lines = open('../skyportal/__init__.py').readlines()
 for l in setup_lines:
-    if l.startswith('__version__'):
+    if l.startswith('__version__ = '):
         version = l.split("'")[1] if "'" in l else l.split('""')[1]
         break
 
