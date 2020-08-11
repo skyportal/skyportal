@@ -34,4 +34,3 @@ class PublicGroupHandler(BaseHandler):
         if pg is None:
             return self.error('Public group does not exist')
         return self.success(data=pg)
-

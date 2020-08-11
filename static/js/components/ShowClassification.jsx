@@ -1,25 +1,27 @@
-import React from 'react';
+import React from "react";
 import Button from "@material-ui/core/Button";
-import Tooltip from '@material-ui/core/Tooltip';
+import Tooltip from "@material-ui/core/Tooltip";
 
-const groupBy = (array, key) => array.reduce((result, cv) => {
-  // if we've seen this key before, add the value, else generate
-  // a new list for this key
-  (result[cv[key]] = result[cv[key]] || []).push(cv);
-  return result;
-}, {});
+const groupBy = (array, key) =>
+  array.reduce((result, cv) => {
+    // if we've seen this key before, add the value, else generate
+    // a new list for this key
+    (result[cv[key]] = result[cv[key]] || []).push(cv);
+    return result;
+  }, {});
 
 function ShowClassification({ classifications, taxonomyList }) {
   // Here we compute the most recent non-zero probability class for each taxonomy
 
   const filteredClasses = classifications.filter((i) => i.probability > 0);
-  const groupedClasses = groupBy(filteredClasses, 'taxonomy_id');
+  const groupedClasses = groupBy(filteredClasses, "taxonomy_id");
   const sortedClasses = [];
 
-  Object.keys(groupedClasses).forEach((item) => sortedClasses.push(
-    groupedClasses[item].sort((a, b) => (a.modified < b.modified ? 1 : -1))
-  ));
-
+  Object.keys(groupedClasses).forEach((item) =>
+    sortedClasses.push(
+      groupedClasses[item].sort((a, b) => (a.modified < b.modified ? 1 : -1))
+    )
+  );
 
   if (sortedClasses.length > 0) {
     return (
@@ -37,18 +39,15 @@ function ShowClassification({ classifications, taxonomyList }) {
               key={`${c[0].modified}tt`}
               disableFocusListener
               disableTouchListener
-              title={(
+              title={
                 <>
                   P=
-                  {c[0].probability}
-                  {' '}
-                  (
-                  {name}
+                  {c[0].probability} ({name}
                   )
                   <br />
                   <i>{c[0].author_name}</i>
                 </>
-                      )}
+              }
             >
               <Button key={`${c[0].modified}tb`}>{c[0].classification}</Button>
             </Tooltip>
@@ -57,14 +56,10 @@ function ShowClassification({ classifications, taxonomyList }) {
       </div>
     );
   } else {
-    return (
-      <span />
-    );
+    return <span />;
   }
 }
 
-ShowClassification.propTypes = {
-
-};
+ShowClassification.propTypes = {};
 
 export default ShowClassification;

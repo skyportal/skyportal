@@ -40,8 +40,9 @@ class TelescopeHandler(BaseHandler):
         try:
             telescope = schema.load(data)
         except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            return self.error(
+                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+            )
         DBSession().add(telescope)
         DBSession().commit()
 
@@ -132,8 +133,9 @@ class TelescopeHandler(BaseHandler):
         try:
             schema.load(data)
         except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            return self.error(
+                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+            )
         DBSession().commit()
 
         return self.success()

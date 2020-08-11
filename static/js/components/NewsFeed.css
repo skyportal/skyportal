@@ -1,13 +1,13 @@
 .entry {
-    font-style: italic;
+  font-style: italic;
 }
 
 .entryHeader {
-    padding-top: 0.3em;
-    padding-bottom: 0.1em;
+  padding-top: 0.3em;
+  padding-bottom: 0.1em;
 }
 
 .entryTime {
-    color: #AAA;
-    font-size: 80%;
+  color: #aaa;
+  font-size: 80%;
 }
