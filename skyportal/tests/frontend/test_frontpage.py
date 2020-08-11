@@ -1,5 +1,8 @@
 import uuid
 import time
+import pytest
+
+import pytest
 
 from skyportal.tests import api
 
@@ -34,19 +37,25 @@ def test_source_list(driver, user, public_source, private_source):
     assert not el.is_enabled()
 
 
+@pytest.mark.flaky(reruns=3)
 def test_source_filtering_and_pagination(driver, user, public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
     for i in range(205):
-        status, data = api('POST', 'sources',
-                           data={'id': f'{obj_id}_{i}',
-                                 'ra': 234.22,
-                                 'dec': -22.33,
-                                 'redshift': 3,
-                                 'altdata': {'simbad': {'class': 'RRLyr'}},
-                                 'transient': False,
-                                 'ra_dis': 2.3,
-                                 'group_ids': [public_group.id]},
-                           token=upload_data_token)
+        status, data = api(
+            'POST',
+            'sources',
+            data={
+                'id': f'{obj_id}_{i}',
+                'ra': 234.22,
+                'dec': -22.33,
+                'redshift': 3,
+                'altdata': {'simbad': {'class': 'RRLyr'}},
+                'transient': False,
+                'ra_dis': 2.3,
+                'group_ids': [public_group.id],
+            },
+            token=upload_data_token,
+        )
         assert status == 200
         assert data['data']['id'] == f'{obj_id}_{i}'
 
@@ -66,26 +75,26 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
     try:
         assert prev_button.is_enabled()
     except AssertionError:
-        time.sleep(1)
+        time.sleep(5)
         assert prev_button.is_enabled()
 
     next_button.click()
     try:
         assert not next_button.is_enabled()
     except AssertionError:
-        time.sleep(1)
+        time.sleep(5)
         assert not next_button.is_enabled()
     prev_button.click()
     try:
         assert next_button.is_enabled()
     except AssertionError:
-        time.sleep(1)
+        time.sleep(5)
         assert next_button.is_enabled()
     prev_button.click()
     try:
         assert not prev_button.is_enabled()
     except AssertionError:
-        time.sleep(1)
+        time.sleep(5)
         assert not prev_button.is_enabled()
     # Jump to page
     jump_to_page_input = driver.wait_for_xpath("//input[@name='jumpToPageInputField']")
@@ -96,12 +105,12 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
     try:
         assert prev_button.is_enabled()
     except AssertionError:
-        time.sleep(1)
+        time.sleep(5)
         assert prev_button.is_enabled()
     try:
         assert not next_button.is_enabled()
     except AssertionError:
-        time.sleep(1)
+        time.sleep(5)
         assert not next_button.is_enabled()
     jump_to_page_input.clear()
     jump_to_page_input.send_keys('1')
@@ -109,12 +118,12 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
     try:
         assert next_button.is_enabled()
     except AssertionError:
-        time.sleep(1)
+        time.sleep(5)
         assert next_button.is_enabled()
     try:
         assert not prev_button.is_enabled()
     except AssertionError:
-        time.sleep(1)
+        time.sleep(5)
         assert not prev_button.is_enabled()
     # Source filtering
     assert next_button.is_enabled()
@@ -126,10 +135,11 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
     try:
         assert not next_button.is_enabled()
     except AssertionError:
-        time.sleep(1)
+        time.sleep(5)
         assert not next_button.is_enabled()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_jump_to_page_invalid_values(driver):
     driver.get('/')
     jump_to_page_input = driver.wait_for_xpath("//input[@name='jumpToPageInputField']")

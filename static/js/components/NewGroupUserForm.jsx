@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
-import { useDispatch, useSelector } from 'react-redux';
-import TextField from '@material-ui/core/TextField';
-import Autocomplete, { createFilterOptions } from '@material-ui/lab/Autocomplete';
+import React, { useState, useEffect } from "react";
+import PropTypes from "prop-types";
+import { useDispatch, useSelector } from "react-redux";
+import TextField from "@material-ui/core/TextField";
+import Autocomplete, {
+  createFilterOptions,
+} from "@material-ui/lab/Autocomplete";
 
-import * as groupsActions from '../ducks/groups';
-import * as usersActions from '../ducks/users';
-
+import * as groupsActions from "../ducks/groups";
+import * as usersActions from "../ducks/users";
 
 const filter = createFilterOptions();
 
@@ -15,7 +16,7 @@ const NewGroupUserForm = ({ group_id }) => {
   const { allUsers } = useSelector((state) => state.users);
   const [formState, setFormState] = useState({
     newUserEmail: null,
-    admin: false
+    admin: false,
   });
 
   useEffect(() => {
@@ -26,21 +27,23 @@ const NewGroupUserForm = ({ group_id }) => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    dispatch(groupsActions.addGroupUser({
-      username: formState.newUserEmail,
-      admin: formState.admin,
-      group_id
-    }));
+    dispatch(
+      groupsActions.addGroupUser({
+        username: formState.newUserEmail,
+        admin: formState.admin,
+        group_id,
+      })
+    );
     setFormState({
       newUserEmail: null,
-      admin: false
+      admin: false,
     });
   };
 
   const toggleAdmin = (event) => {
     setFormState({
       ...formState,
-      admin: event.target.checked
+      admin: event.target.checked,
     });
   };
 
@@ -50,7 +53,7 @@ const NewGroupUserForm = ({ group_id }) => {
         id="newUserEmail"
         value={formState.newUserEmail}
         onChange={(event, newValue) => {
-          if (typeof newValue === 'string') {
+          if (typeof newValue === "string") {
             setFormState({
               newUserEmail: newValue,
             });
@@ -67,7 +70,7 @@ const NewGroupUserForm = ({ group_id }) => {
           const filtered = filter(options, params);
 
           // Suggest the creation of a new value
-          if (params.inputValue !== '') {
+          if (params.inputValue !== "") {
             filtered.push({
               inputValue: params.inputValue,
               username: `Add "${params.inputValue}"`,
@@ -82,7 +85,7 @@ const NewGroupUserForm = ({ group_id }) => {
         options={allUsers}
         getOptionLabel={(option) => {
           // Value selected with enter, right from the input
-          if (typeof option === 'string') {
+          if (typeof option === "string") {
             return option;
           }
           // Add "xxx" option created dynamically
@@ -101,14 +104,13 @@ const NewGroupUserForm = ({ group_id }) => {
         )}
       />
       <input type="checkbox" checked={formState.admin} onChange={toggleAdmin} />
-      Group Admin
-      &nbsp;&nbsp;
+      Group Admin &nbsp;&nbsp;
       <input type="submit" onClick={handleSubmit} value="Add user" />
     </div>
   );
 };
 NewGroupUserForm.propTypes = {
-  group_id: PropTypes.number.isRequired
+  group_id: PropTypes.number.isRequired,
 };
 
 export default NewGroupUserForm;

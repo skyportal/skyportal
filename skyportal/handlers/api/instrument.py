@@ -1,8 +1,8 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Instrument, Telescope, GroupTelescope
-from ...phot_enum import ALLOWED_BANDPASSES
+from ...models import DBSession, Instrument, Telescope
+from ...enum_types import ALLOWED_BANDPASSES
 
 
 class InstrumentHandler(BaseHandler):
@@ -13,7 +13,7 @@ class InstrumentHandler(BaseHandler):
 
         data = self.get_json()
         telescope_id = data.get('telescope_id')
-        telescope = Telescope.get_if_owned_by(telescope_id, self.current_user)
+        telescope = Telescope.query.get(telescope_id)
         if not telescope:
             return self.error('Invalid telescope ID.')
 
@@ -21,8 +21,9 @@ class InstrumentHandler(BaseHandler):
         try:
             instrument = schema.load(data)
         except ValidationError as exc:
-            return self.error('Invalid/missing parameters: '
-                              f'{exc.normalized_messages()}')
+            return self.error(
+                'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
+            )
         instrument.telescope = telescope
         DBSession().add(instrument)
         DBSession().commit()
@@ -72,18 +73,14 @@ class InstrumentHandler(BaseHandler):
             instrument = Instrument.query.get(int(instrument_id))
 
             if instrument is None:
-                return self.error(f"Could not load instrument {instrument_id}",
-                                  data={"instrument_id": instrument_id})
-            # Ensure permissions to parent telescope
-            _ = Telescope.get_if_owned_by(instrument.telescope_id,
-                                          self.current_user)
+                return self.error(
+                    f"Could not load instrument {instrument_id}",
+                    data={"instrument_id": instrument_id},
+                )
             return self.success(data=instrument)
 
         inst_name = self.get_query_argument("name", None)
-        query = Instrument.query.filter(Instrument.telescope_id.in_(
-            DBSession().query(GroupTelescope.telescope_id).filter(GroupTelescope.group_id.in_(
-                [g.id for g in self.current_user.accessible_groups]
-            ))))
+        query = Instrument.query
         if inst_name is not None:
             query = query.filter(Instrument.name == inst_name)
         return self.success(data=query.all())
@@ -113,9 +110,6 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        instrument = Instrument.query.get(int(instrument_id))
-        _ = Telescope.get_if_owned_by(instrument.telescope_id,
-                                      self.current_user)
         data = self.get_json()
         data['id'] = int(instrument_id)
 
@@ -123,8 +117,9 @@ class InstrumentHandler(BaseHandler):
         try:
             schema.load(data, partial=True)
         except ValidationError as exc:
-            return self.error('Invalid/missing parameters: '
-                              f'{exc.normalized_messages()}')
+            return self.error(
+                'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
+            )
         DBSession().commit()
 
         return self.success()
@@ -150,10 +145,9 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        instrument = Instrument.query.get(int(instrument_id))
-        _ = Telescope.get_if_owned_by(instrument.telescope_id,
-                                      self.current_user)
-        DBSession().query(Instrument).filter(Instrument.id == int(instrument_id)).delete()
+        DBSession().query(Instrument).filter(
+            Instrument.id == int(instrument_id)
+        ).delete()
         DBSession().commit()
 
         return self.success()

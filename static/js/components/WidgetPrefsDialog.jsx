@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
-import { useDispatch } from 'react-redux';
-import Dialog from '@material-ui/core/Dialog';
-import DialogContent from '@material-ui/core/DialogContent';
-import DialogTitle from '@material-ui/core/DialogTitle';
-import SettingsIcon from '@material-ui/icons/Settings';
+import React, { useState, useEffect } from "react";
+import PropTypes from "prop-types";
+import { useDispatch } from "react-redux";
+import Dialog from "@material-ui/core/Dialog";
+import DialogContent from "@material-ui/core/DialogContent";
+import DialogTitle from "@material-ui/core/DialogTitle";
+import SettingsIcon from "@material-ui/icons/Settings";
 
-const WidgetPrefsDialog = ({ title, formValues, onSubmit, stateBranchName }) => {
+const WidgetPrefsDialog = ({
+  title,
+  formValues,
+  onSubmit,
+  stateBranchName,
+}) => {
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
   const [state, updateState] = useState({ ...formValues });
@@ -38,27 +43,27 @@ const WidgetPrefsDialog = ({ title, formValues, onSubmit, stateBranchName }) => 
 
   return (
     <div>
-      <SettingsIcon id={`${stateBranchName}SettingsIcon`} fontSize="small" onClick={handleClickOpen} />
+      <SettingsIcon
+        id={`${stateBranchName}SettingsIcon`}
+        fontSize="small"
+        onClick={handleClickOpen}
+      />
       <Dialog open={open} onClose={handleClose} style={{ position: "fixed" }}>
-        <DialogTitle>
-          {title}
-        </DialogTitle>
+        <DialogTitle>{title}</DialogTitle>
         <DialogContent>
-          {
-            Object.keys(formValues).map((key) => (
-              <div key={key}>
-                {key}
-                :&nbsp;
-                <input
-                  type="text"
-                  size="5"
-                  name={key}
-                  value={state[key]}
-                  onChange={handleInputChange}
-                />
-              </div>
-            ))
-          }
+          {Object.keys(formValues).map((key) => (
+            <div key={key}>
+              {key}
+              :&nbsp;
+              <input
+                type="text"
+                size="5"
+                name={key}
+                value={state[key]}
+                onChange={handleInputChange}
+              />
+            </div>
+          ))}
           <br />
           <br />
           <div style={{ textAlign: "center" }}>
@@ -76,7 +81,7 @@ WidgetPrefsDialog.propTypes = {
   formValues: PropTypes.objectOf(PropTypes.string).isRequired,
   stateBranchName: PropTypes.string.isRequired,
   onSubmit: PropTypes.func.isRequired,
-  title: PropTypes.string.isRequired
+  title: PropTypes.string.isRequired,
 };
 
 export default WidgetPrefsDialog;

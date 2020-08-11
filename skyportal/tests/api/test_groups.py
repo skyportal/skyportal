@@ -52,7 +52,9 @@ def test_token_user_request_all_groups(manage_groups_token, super_admin_user):
 
     status, data = api("GET", "groups", token=manage_groups_token)
     assert data["status"] == "success"
-    assert data["data"]["user_groups"][-1]["name"] == group_name
+    assert any(
+        [user_group["name"] == group_name for user_group in data["data"]["user_groups"]]
+    )
     assert not any(
         [
             group["single_user_group"] is True
@@ -102,9 +104,9 @@ def test_manage_groups_token_get_unowned_group(
     new_group_id = data["data"]["id"]
 
     token_name = str(uuid.uuid4())
-    token_id = create_token(ACLs=['Manage groups'],
-                            user_id=super_admin_user.id,
-                            name=token_name)
+    token_id = create_token(
+        ACLs=['Manage groups'], user_id=super_admin_user.id, name=token_name
+    )
 
     status, data = api("GET", f"groups/{new_group_id}", token=token_id)
     assert data["status"] == "success"
@@ -112,11 +114,7 @@ def test_manage_groups_token_get_unowned_group(
 
 
 def test_public_group(view_only_token):
-    status, response = api(
-        "GET",
-        "groups/public",
-        token=view_only_token
-    )
+    status, response = api("GET", "groups/public", token=view_only_token)
     assert status == 200
     assert response["status"] == "success"
     int(response["data"]["id"])

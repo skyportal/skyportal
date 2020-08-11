@@ -31,3 +31,4 @@ static/js/components/SidebarAndHeader.jsx
 # Auto-generated data files
 data/taxonomy_sitewide.yaml
 data/taxonomy_demo.yaml
+.idea

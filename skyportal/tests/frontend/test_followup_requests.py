@@ -1,13 +1,15 @@
 import uuid
 import pytest
 from selenium.webdriver.support.ui import Select
-from selenium.common.exceptions import (ElementClickInterceptedException,
-                                        TimeoutException)
+from selenium.common.exceptions import (
+    ElementClickInterceptedException,
+    TimeoutException,
+)
 
 from skyportal.tests import api
 
 
-def add_telescope_and_instrument(instrument_name, group_ids, token):
+def add_telescope_and_instrument(instrument_name, token):
     status, data = api("GET", f"instrument?name={instrument_name}", token=token)
     if len(data["data"]) == 1:
         return data["data"][0]
@@ -23,7 +25,7 @@ def add_telescope_and_instrument(instrument_name, group_ids, token):
             "lon": 0.0,
             "elevation": 0.0,
             "diameter": 10.0,
-            "group_ids": group_ids,
+            "robotic": True,
         },
         token=token,
     )
@@ -36,7 +38,7 @@ def add_telescope_and_instrument(instrument_name, group_ids, token):
         "instrument",
         data={
             "name": instrument_name,
-            "type": "type",
+            "type": "imager",
             "band": "Optical",
             "telescope_id": telescope_id,
             "filters": ["ztfg"],
@@ -50,16 +52,18 @@ def add_telescope_and_instrument(instrument_name, group_ids, token):
 
 @pytest.mark.flaky(reruns=2)
 def test_submit_new_followup_request(
-    driver, super_admin_user, public_source, public_group, super_admin_token
+    driver, super_admin_user, public_source, super_admin_token
 ):
-    add_telescope_and_instrument("P60 Camera", [public_group.id], super_admin_token)
+    add_telescope_and_instrument("P60 Camera", super_admin_token)
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
     instrument_select = driver.wait_for_xpath(
         '//*[@id="mui-component-select-instrument_id"]'
     )
     driver.scroll_to_element_and_click(instrument_select)
-    driver.scroll_to_element_and_click(driver.wait_for_xpath('//*[text()="P60 Camera"]'))
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath('//*[text()="P60 Camera"]')
+    )
 
     submit_button = driver.wait_for_xpath(
         '//*[@name="createNewFollowupRequestSubmitButton"]'
@@ -98,9 +102,9 @@ def test_submit_new_followup_request(
 
 @pytest.mark.flaky(reruns=2)
 def test_edit_existing_followup_request(
-    driver, super_admin_user, public_source, public_group, super_admin_token
+    driver, super_admin_user, public_source, super_admin_token
 ):
-    add_telescope_and_instrument("P60 Camera", [public_group.id], super_admin_token)
+    add_telescope_and_instrument("P60 Camera", super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -108,7 +112,9 @@ def test_edit_existing_followup_request(
         '//*[@id="mui-component-select-instrument_id"]'
     )
     driver.scroll_to_element_and_click(instrument_select)
-    driver.scroll_to_element_and_click(driver.wait_for_xpath('//*[text()="P60 Camera"]'))
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath('//*[text()="P60 Camera"]')
+    )
 
     submit_button = driver.wait_for_xpath(
         '//*[@name="createNewFollowupRequestSubmitButton"]'
@@ -157,9 +163,9 @@ def test_edit_existing_followup_request(
 
 @pytest.mark.flaky(reruns=2)
 def test_delete_followup_request(
-    driver, super_admin_user, public_source, public_group, super_admin_token
+    driver, super_admin_user, public_source, super_admin_token
 ):
-    add_telescope_and_instrument("P60 Camera", [public_group.id], super_admin_token)
+    add_telescope_and_instrument("P60 Camera", super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -167,7 +173,9 @@ def test_delete_followup_request(
         '//*[@id="mui-component-select-instrument_id"]'
     )
     driver.scroll_to_element_and_click(instrument_select)
-    driver.scroll_to_element_and_click(driver.wait_for_xpath('//*[text()="P60 Camera"]'))
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath('//*[text()="P60 Camera"]')
+    )
 
     submit_button = driver.wait_for_xpath(
         '//*[@name="createNewFollowupRequestSubmitButton"]'
@@ -210,9 +218,9 @@ def test_delete_followup_request(
 
 @pytest.mark.flaky(reruns=2)
 def test_cannot_edit_uneditable_followup_request(
-    driver, super_admin_user, public_source, public_group, super_admin_token
+    driver, super_admin_user, public_source, super_admin_token
 ):
-    add_telescope_and_instrument("ALFOSC", [public_group.id], super_admin_token)
+    add_telescope_and_instrument("ALFOSC", super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")

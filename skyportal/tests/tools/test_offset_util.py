@@ -3,12 +3,22 @@ import uuid
 import requests
 from requests.exceptions import HTTPError, Timeout, ConnectionError
 
-from skyportal.utils import (
-    get_nearby_offset_stars,
-    get_finding_chart, get_ztfref_url
-)
+from skyportal.utils import get_nearby_offset_stars, get_finding_chart, get_ztfref_url
+
+from skyportal.utils.offset import irsa
 
 
+ztfref_url = irsa['url_search']
+run_ztfref_test = True
+try:
+    r = requests.get(ztfref_url)
+    r.raise_for_status()
+except (HTTPError, TimeoutError, ConnectionError) as e:
+    run_ztfref_test = False
+    print(e)
+
+
+@pytest.mark.skipif(not run_ztfref_test, reason='IRSA server down')
 def test_get_ztfref_url():
     url = get_ztfref_url(123.0, 33.3, 2)
 
@@ -19,9 +29,7 @@ def test_get_ztfref_url():
 def test_get_nearby_offset_stars():
     how_many = 3
     rez = get_nearby_offset_stars(
-        123.0, 33.3, "testSource",
-        how_many=how_many,
-        radius_degrees=3 / 60.0
+        123.0, 33.3, "testSource", how_many=how_many, radius_degrees=3 / 60.0
     )
 
     assert len(rez) == 4
@@ -30,11 +38,13 @@ def test_get_nearby_offset_stars():
 
     with pytest.raises(Exception):
         rez = get_nearby_offset_stars(
-            123.0, 33.3, "testSource",
+            123.0,
+            33.3,
+            "testSource",
             how_many=how_many,
             radius_degrees=3 / 60.0,
             allowed_queries=1,
-            queries_issued=2
+            queries_issued=2,
         )
 
 
@@ -57,9 +67,7 @@ except (HTTPError, Timeout, ConnectionError) as e:
 def test_get_desi_finding_chart():
 
     rez = get_finding_chart(
-        123.0, 33.3, "testSource",
-        image_source='desi',
-        output_format='pdf'
+        123.0, 33.3, "testSource", image_source='desi', output_format='pdf'
     )
 
     assert isinstance(rez, dict)
@@ -67,18 +75,12 @@ def test_get_desi_finding_chart():
     assert rez["name"].find("testSource") != -1
     assert rez["data"].find(bytes("PDF", encoding='utf8')) != -1
 
+
 # test for failure on a too-small image size
 def test_get_finding_chart():
-    rez = get_finding_chart(
-        123.0, 33.3, "testSource",
-        imsize=1.0,
-        image_source='dss'
-    )
+    rez = get_finding_chart(123.0, 33.3, "testSource", imsize=1.0, image_source='dss')
     assert not rez["success"]
 
-    rez = get_finding_chart(
-            123.0, 33.3, "testSource",
-            image_source='zomg_telescope'
-    )
+    rez = get_finding_chart(123.0, 33.3, "testSource", image_source='zomg_telescope')
     assert isinstance(rez, dict)
     assert not rez["success"]
