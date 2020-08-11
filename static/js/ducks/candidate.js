@@ -1,16 +1,17 @@
-import * as API from "../API";
-import store from "../store";
+import * as API from '../API';
+import store from '../store';
 
-export const FETCH_CANDIDATE = "skyportal/FETCH_CANDIDATE";
-export const FETCH_CANDIDATE_OK = "skyportal/FETCH_CANDIDATE_OK";
-export const FETCH_CANDIDATE_FAIL = "skyportal/FETCH_CANDIDATE_FAIL";
-export const FETCH_CANDIDATE_ERROR = "skyportal/FETCH_CANDIDATE_ERROR";
+export const FETCH_CANDIDATE = 'skyportal/FETCH_CANDIDATE';
+export const FETCH_CANDIDATE_OK = 'skyportal/FETCH_CANDIDATE_OK';
+export const FETCH_CANDIDATE_FAIL = 'skyportal/FETCH_CANDIDATE_FAIL';
+export const FETCH_CANDIDATE_ERROR = 'skyportal/FETCH_CANDIDATE_ERROR';
 
-export const fetchCandidate = (id) =>
-  API.GET(`/api/candidates/${id}`, FETCH_CANDIDATE);
+export const fetchCandidate = (id) => (
+  API.GET(`/api/candidates/${id}`, FETCH_CANDIDATE)
+);
 
 const initialState = {
-  candidate: null,
+  candidate: null
 };
 
 const reducer = (state = initialState, action) => {
@@ -20,23 +21,23 @@ const reducer = (state = initialState, action) => {
       return {
         ...state,
         ...candidate,
-        loadError: "",
+        loadError: ""
       };
     }
     case FETCH_CANDIDATE_ERROR:
       return {
         ...state,
-        loadError: action.message,
+        loadError: action.message
       };
 
     case FETCH_CANDIDATE_FAIL:
       return {
         ...state,
-        loadError: "Unknown error while loading candidate",
+        loadError: "Unknown error while loading candidate"
       };
     default:
       return state;
   }
 };
 
-store.injectReducer("candidate", reducer);
+store.injectReducer('candidate', reducer);

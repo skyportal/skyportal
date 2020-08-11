@@ -66,9 +66,8 @@ class SpectrumHandler(BaseHandler):
         try:
             spec = schema.load(data)
         except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
+            return self.error('Invalid/missing parameters: '
+                              f'{e.normalized_messages()}')
         spec.instrument = instrument
         spec.groups = groups
         DBSession().add(spec)
@@ -139,9 +138,8 @@ class SpectrumHandler(BaseHandler):
         try:
             schema.load(data, partial=True)
         except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
+            return self.error('Invalid/missing parameters: '
+                              f'{e.normalized_messages()}')
         DBSession().commit()
 
         return self.success()

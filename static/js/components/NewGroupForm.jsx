@@ -1,16 +1,16 @@
-import React, { useState } from "react";
-import { useDispatch } from "react-redux";
+import React, { useState } from 'react';
+import { useDispatch } from 'react-redux';
 
-import Box from "@material-ui/core/Box";
+import Box from '@material-ui/core/Box';
 
-import * as Action from "../ducks/groups";
-import styles from "./NewGroupForm.css";
+import * as Action from '../ducks/groups';
+import styles from './NewGroupForm.css';
 
 const NewGroupForm = () => {
   const dispatch = useDispatch();
   const [formState, setState] = useState({
     name: "",
-    group_admins: [],
+    group_admins: []
   });
 
   const handleSubmit = (event) => {
@@ -18,30 +18,32 @@ const NewGroupForm = () => {
     dispatch(Action.addNewGroup(formState));
     setState({
       name: "",
-      group_admins: [],
+      group_admins: []
     });
   };
 
   const handleChange = (event) => {
     const newState = {};
-    newState[event.target.name] =
-      event.target.name === "groupAdmins"
-        ? event.target.value.split(",")
-        : event.target.value;
+    newState[event.target.name] = (event.target.name === "groupAdmins" ?
+      event.target.value.split(",") : event.target.value);
     setState({
       ...formState,
-      ...newState,
+      ...newState
     });
   };
 
   return (
     <Box p={1}>
-      <h3>Create New Group</h3>
+      <h3>
+        Create New Group
+      </h3>
       <form className={styles.newGroupForm} onSubmit={handleSubmit}>
         <table>
           <tbody>
             <tr>
-              <td>Group Name:&nbsp;&nbsp;</td>
+              <td>
+                Group Name:&nbsp;&nbsp;
+              </td>
               <td>
                 <input
                   type="text"

@@ -8,23 +8,20 @@
 
 from marshmallow_sqlalchemy import (
     ModelConversionError as _ModelConversionError,
-    ModelSchema as _ModelSchema,
+    ModelSchema as _ModelSchema
 )
 
-from marshmallow import (
-    Schema as _Schema,
-    fields,
-    validate,
-    post_load,
-    pre_dump,
-    ValidationError,
-)
+from marshmallow import (Schema as _Schema, fields, validate, post_load,
+                         pre_dump, ValidationError)
 from marshmallow_enum import EnumField
 
 import sqlalchemy as sa
 from sqlalchemy.orm import mapper
 
-from baselayer.app.models import Base as _Base, DBSession as _DBSession
+from baselayer.app.models import (
+    Base as _Base,
+    DBSession as _DBSession
+)
 
 from skyportal.enum_types import (
     py_allowed_bandpasses,
@@ -32,7 +29,7 @@ from skyportal.enum_types import (
     py_followup_priorities,
     ALLOWED_BANDPASSES,
     ALLOWED_MAGSYSTEMS,
-    force_render_enum_markdown,
+    force_render_enum_markdown
 )
 
 from astropy.table import Table
@@ -86,7 +83,9 @@ def success(schema_name, base_schema=None):
 
     if base_schema is not None:
         if isinstance(base_schema, list):
-            schema_fields['data'] = fields.List(fields.Nested(base_schema[0]),)
+            schema_fields['data'] = fields.List(
+                fields.Nested(base_schema[0]),
+            )
         else:
             schema_fields['data'] = fields.Nested(base_schema)
 
@@ -120,42 +119,30 @@ def setup_schema():
                     Boolean indicating whether to install this schema generator
                     on the model as `model.__schema__`. Defaults to `False`.
                 """
-                schema_class_meta = type(
-                    f'{schema_class_name}_meta',
-                    (),
-                    {
-                        'model': class_,
-                        'sqla_session': _DBSession,
-                        'ordered': True,
-                        'exclude': [],
-                        'include_fk': True,
-                        'include_relationships': False,
-                    },
-                )
+                schema_class_meta = type(f'{schema_class_name}_meta', (),
+                                         {'model': class_, 'sqla_session': _DBSession,
+                                          'ordered': True, 'exclude': [], 'include_fk': True,
+                                          'include_relationships': False}
+                                         )
                 for exclude_attr in exclude:
-                    if (
-                        hasattr(class_, exclude_attr)
-                        and getattr(class_, exclude_attr) is not None
-                    ):
+                    if hasattr(class_, exclude_attr) and getattr(class_, exclude_attr) is not None:
                         schema_class_meta.exclude.append(exclude_attr)
 
-                schema_class = type(
-                    schema_class_name, (_ModelSchema,), {'Meta': schema_class_meta}
-                )
+                schema_class = type(schema_class_name, (_ModelSchema,),
+                                    {'Meta': schema_class_meta}
+                                    )
 
                 if add_to_model:
                     setattr(class_, '__schema__', schema_class)
 
-                setattr(sys.modules[__name__], schema_class_name, schema_class())
+                setattr(sys.modules[__name__], schema_class_name,
+                        schema_class())
 
             schema_class_name = class_.__name__
-            add_schema(
-                schema_class_name, exclude=['created_at', 'modified'], add_to_model=True
-            )
-            add_schema(
-                f'{schema_class_name}NoID',
-                exclude=['created_at', 'id', 'modified', 'single_user_group'],
-            )
+            add_schema(schema_class_name, exclude=['created_at', 'modified'],
+                       add_to_model=True)
+            add_schema(f'{schema_class_name}NoID',
+                       exclude=['created_at', 'id', 'modified', 'single_user_group'])
 
 
 class PhotBaseFlexible(object):
@@ -163,102 +150,74 @@ class PhotBaseFlexible(object):
     input data to `PhotometryHandler.post` in redoc. These classes are only
     used for generating documentation and not for validation, serialization,
     or deserialization."""
+    mjd = fields.Field(description='MJD of the observation(s). Can be a given as a '
+                                   'scalar or a 1D list. If a scalar, will be '
+                                   'broadcast to all values given as lists. '
+                                   'Null values not allowed.',
+                       required=True)
 
-    mjd = fields.Field(
-        description='MJD of the observation(s). Can be a given as a '
-        'scalar or a 1D list. If a scalar, will be '
-        'broadcast to all values given as lists. '
-        'Null values not allowed.',
-        required=True,
-    )
+    filter = fields.Field(required=True,
+                          description='The bandpass of the observation(s). '
+                                      'Can be given as a scalar or a 1D list. '
+                                      'If a scalar, will be broadcast to all values '
+                                      'given as lists. Null values not allowed. Allowed values: '
+                                      f'{force_render_enum_markdown(ALLOWED_BANDPASSES)}')
 
-    filter = fields.Field(
-        required=True,
-        description='The bandpass of the observation(s). '
-        'Can be given as a scalar or a 1D list. '
-        'If a scalar, will be broadcast to all values '
-        'given as lists. Null values not allowed. Allowed values: '
-        f'{force_render_enum_markdown(ALLOWED_BANDPASSES)}',
-    )
+    obj_id = fields.Field(description='ID of the `Obj`(s) to which the '
+                                      'photometry will be attached. '
+                                      'Can be given as a scalar or a 1D list. '
+                                      'If a scalar, will be broadcast to all values '
+                                      'given as lists. Null values are not allowed.',
+                          required=True)
 
-    obj_id = fields.Field(
-        description='ID of the `Obj`(s) to which the '
-        'photometry will be attached. '
-        'Can be given as a scalar or a 1D list. '
-        'If a scalar, will be broadcast to all values '
-        'given as lists. Null values are not allowed.',
-        required=True,
-    )
+    instrument_id = fields.Field(description='ID of the `Instrument`(s) with which the '
+                                             'photometry was acquired. '
+                                             'Can be given as a scalar or a 1D list. '
+                                             'If a scalar, will be broadcast to all values '
+                                             'given as lists. Null values are not allowed.',
+                                 required=True)
 
-    instrument_id = fields.Field(
-        description='ID of the `Instrument`(s) with which the '
-        'photometry was acquired. '
-        'Can be given as a scalar or a 1D list. '
-        'If a scalar, will be broadcast to all values '
-        'given as lists. Null values are not allowed.',
-        required=True,
-    )
+    ra = fields.Field(description='ICRS Right Ascension of the centroid '
+                                  'of the photometric aperture [deg]. '
+                                  'Can be given as a scalar or a 1D list. '
+                                  'If a scalar, will be broadcast to all values '
+                                  'given as lists. Null values allowed.',
+                      required=False, missing=None)
 
-    ra = fields.Field(
-        description='ICRS Right Ascension of the centroid '
-        'of the photometric aperture [deg]. '
-        'Can be given as a scalar or a 1D list. '
-        'If a scalar, will be broadcast to all values '
-        'given as lists. Null values allowed.',
-        required=False,
-        missing=None,
-    )
+    dec = fields.Field(description='ICRS Declination of the centroid '
+                                   'of the photometric aperture [deg]. '
+                                   'Can be given as a scalar or a 1D list. '
+                                   'If a scalar, will be broadcast to all values '
+                                   'given as lists. Null values allowed.',
+                       required=False, missing=None)
 
-    dec = fields.Field(
-        description='ICRS Declination of the centroid '
-        'of the photometric aperture [deg]. '
-        'Can be given as a scalar or a 1D list. '
-        'If a scalar, will be broadcast to all values '
-        'given as lists. Null values allowed.',
-        required=False,
-        missing=None,
-    )
+    ra_unc = fields.Field(description='Uncertainty on RA [arcsec]. '
+                                      'Can be given as a scalar or a 1D list. '
+                                      'If a scalar, will be broadcast to all values '
+                                      'given as lists. Null values allowed.',
+                          required=False, missing=None)
 
-    ra_unc = fields.Field(
-        description='Uncertainty on RA [arcsec]. '
-        'Can be given as a scalar or a 1D list. '
-        'If a scalar, will be broadcast to all values '
-        'given as lists. Null values allowed.',
-        required=False,
-        missing=None,
-    )
+    dec_unc = fields.Field(description='Uncertainty on dec [arcsec]. '
+                                       'Can be given as a scalar or a 1D list. '
+                                       'If a scalar, will be broadcast to all values '
+                                       'given as lists. Null values allowed.',
+                           required=False, missing=None)
 
-    dec_unc = fields.Field(
-        description='Uncertainty on dec [arcsec]. '
-        'Can be given as a scalar or a 1D list. '
-        'If a scalar, will be broadcast to all values '
-        'given as lists. Null values allowed.',
-        required=False,
-        missing=None,
-    )
+    alert_id = fields.Field(description="Corresponding alert ID. If a record is "
+                            "already present with identical alert ID, only the "
+                            "groups list will be updated (other alert data assumed "
+                            "identical). Defaults to None.")
 
-    alert_id = fields.Field(
-        description="Corresponding alert ID. If a record is "
-        "already present with identical alert ID, only the "
-        "groups list will be updated (other alert data assumed "
-        "identical). Defaults to None."
-    )
+    group_ids = fields.List(fields.Integer(),
+                            description="List of group IDs to which photometry "
+                                        "points will be visible.",
+                            required=True)
 
-    group_ids = fields.List(
-        fields.Integer(),
-        description="List of group IDs to which photometry " "points will be visible.",
-        required=True,
-    )
-
-    altdata = fields.Field(
-        description="Misc. alternative metadata stored in JSON "
-        "format, e.g. `{'calibration': {'source': 'ps1', "
-        "'color_term': 0.012}, 'photometry_method': 'allstar', "
-        "'method_reference': 'Masci et al. (2015)'}`",
-        missing=None,
-        default=None,
-        required=False,
-    )
+    altdata = fields.Field(description="Misc. alternative metadata stored in JSON "
+                           "format, e.g. `{'calibration': {'source': 'ps1', "
+                           "'color_term': 0.012}, 'photometry_method': 'allstar', "
+                           "'method_reference': 'Masci et al. (2015)'}`",
+                           missing=None, default=None, required=False)
 
 
 class PhotFluxFlexible(_Schema, PhotBaseFlexible):
@@ -267,58 +226,42 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
     used for generating documentation and not for validation, serialization,
     or deserialization."""
 
-    required_keys = [
-        'magsys',
-        'mjd',
-        'filter',
-        'obj_id',
-        'instrument_id',
-        'fluxerr',
-        'zp',
-    ]
+    required_keys = ['magsys', 'mjd', 'filter', 'obj_id', 'instrument_id',
+                     'fluxerr', 'zp']
 
-    magsys = fields.Field(
-        required=True,
-        description='The magnitude system to which the flux, flux error, '
-        'and the zeropoint are tied. '
-        'Can be given as a scalar or a 1D list. '
-        'If a scalar, will be broadcast to all values '
-        'given as lists. Null values not allowed. Allowed values: '
-        f'{force_render_enum_markdown(ALLOWED_MAGSYSTEMS)}',
-    )
+    magsys = fields.Field(required=True,
+                          description='The magnitude system to which the flux, flux error, '
+                                      'and the zeropoint are tied. '
+                                      'Can be given as a scalar or a 1D list. '
+                                      'If a scalar, will be broadcast to all values '
+                                      'given as lists. Null values not allowed. Allowed values: '
+                                      f'{force_render_enum_markdown(ALLOWED_MAGSYSTEMS)}')
 
-    flux = fields.Field(
-        description='Flux of the observation(s) in counts. '
-        'Can be given as a scalar or a 1D list. '
-        'If a scalar, will be broadcast to all values '
-        'given as lists. Null values allowed, to accommodate,'
-        'e.g., upper limits from ZTF1, where flux is not provided '
-        'for non-detections. For a given photometry '
-        'point, if `flux` is null, `fluxerr` is '
-        'used to derive a 5-sigma limiting magnitude '
-        'when the photometry point is requested in '
-        'magnitude space from the Photomety GET api.',
-        required=False,
-        missing=None,
-    )
+    flux = fields.Field(description='Flux of the observation(s) in counts. '
+                                    'Can be given as a scalar or a 1D list. '
+                                    'If a scalar, will be broadcast to all values '
+                                    'given as lists. Null values allowed, to accommodate,'
+                                    'e.g., upper limits from ZTF1, where flux is not provided '
+                                    'for non-detections. For a given photometry '
+                                    'point, if `flux` is null, `fluxerr` is '
+                                    'used to derive a 5-sigma limiting magnitude '
+                                    'when the photometry point is requested in '
+                                    'magnitude space from the Photomety GET api.',
+                        required=False, missing=None)
 
-    fluxerr = fields.Field(
-        description='Gaussian error on the flux in counts. '
-        'Can be given as a scalar or a 1D list. '
-        'If a scalar, will be broadcast to all values '
-        'given as lists. Null values not allowed.',
-        required=True,
-    )
+    fluxerr = fields.Field(description='Gaussian error on the flux in counts. '
+                                       'Can be given as a scalar or a 1D list. '
+                                       'If a scalar, will be broadcast to all values '
+                                       'given as lists. Null values not allowed.',
+                           required=True)
 
-    zp = fields.Field(
-        description='Magnitude zeropoint, given by `zp` in the '
-        'equation `m = -2.5 log10(flux) + zp`. '
-        '`m` is the magnitude of the object in the '
-        'magnitude system `magsys`. '
-        'Can be given as a scalar or a 1D list. '
-        'Null values not allowed.',
-        required=True,
-    )
+    zp = fields.Field(description='Magnitude zeropoint, given by `zp` in the '
+                      'equation `m = -2.5 log10(flux) + zp`. '
+                      '`m` is the magnitude of the object in the '
+                      'magnitude system `magsys`. '
+                      'Can be given as a scalar or a 1D list. '
+                      'Null values not allowed.',
+                      required=True)
 
 
 class PhotMagFlexible(_Schema, PhotBaseFlexible):
@@ -327,66 +270,47 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
     used for generating documentation and not for validation, serialization,
     or deserialization."""
 
-    required_keys = [
-        'magsys',
-        'limiting_mag',
-        'mjd',
-        'filter',
-        'obj_id',
-        'instrument_id',
-    ]
+    required_keys = ['magsys', 'limiting_mag', 'mjd', 'filter',
+                     'obj_id', 'instrument_id']
 
-    magsys = fields.Field(
-        required=True,
-        description='The magnitude system to which the magnitude, '
-        'magnitude error, and limiting magnitude are tied. '
-        'Can be given as a scalar or a 1D list. '
-        'If a scalar, will be broadcast to all values '
-        'given as lists. Null values not allowed. Allowed values: '
-        f'{force_render_enum_markdown(ALLOWED_MAGSYSTEMS)}',
-    )
+    magsys = fields.Field(required=True,
+                          description='The magnitude system to which the magnitude, '
+                                      'magnitude error, and limiting magnitude are tied. '
+                                      'Can be given as a scalar or a 1D list. '
+                                      'If a scalar, will be broadcast to all values '
+                                      'given as lists. Null values not allowed. Allowed values: '
+                                      f'{force_render_enum_markdown(ALLOWED_MAGSYSTEMS)}')
 
-    mag = fields.Field(
-        description='Magnitude of the observation in the '
-        'magnitude system `magsys`. '
-        'Can be given as a scalar or a 1D list. '
-        'If a scalar, will be broadcast to all values '
-        'given as lists. Null values allowed for non-detections. '
-        'If `mag` is null, the corresponding '
-        '`magerr` must also be null.',
-        required=False,
-        missing=None,
-    )
+    mag = fields.Field(description='Magnitude of the observation in the '
+                                   'magnitude system `magsys`. '
+                                   'Can be given as a scalar or a 1D list. '
+                                   'If a scalar, will be broadcast to all values '
+                                   'given as lists. Null values allowed for non-detections. '
+                                   'If `mag` is null, the corresponding '
+                                   '`magerr` must also be null.',
+                       required=False, missing=None)
 
-    magerr = fields.Field(
-        description='Magnitude of the observation in the '
-        'magnitude system `magsys`. '
-        'Can be given as a scalar or a 1D list. '
-        'If a scalar, will be broadcast to all values '
-        'given as lists. Null values allowed for non-detections. '
-        'If `magerr` is null, the corresponding `mag` '
-        'must also be null.',
-        required=False,
-        missing=None,
-    )
+    magerr = fields.Field(description='Magnitude of the observation in the '
+                                      'magnitude system `magsys`. '
+                                      'Can be given as a scalar or a 1D list. '
+                                      'If a scalar, will be broadcast to all values '
+                                      'given as lists. Null values allowed for non-detections. '
+                                      'If `magerr` is null, the corresponding `mag` '
+                                      'must also be null.',
+                          required=False, missing=None)
 
-    limiting_mag = fields.Field(
-        description='Limiting magnitude of the image '
-        'in the magnitude system `magsys`. '
-        'Can be given as a scalar or a 1D list. '
-        'If a scalar, will be broadcast to all values '
-        'given as lists. Null values not allowed.',
-        required=True,
-    )
+    limiting_mag = fields.Field(description='Limiting magnitude of the image '
+                                            'in the magnitude system `magsys`. '
+                                            'Can be given as a scalar or a 1D list. '
+                                            'If a scalar, will be broadcast to all values '
+                                            'given as lists. Null values not allowed.',
+                                required=True)
 
-    limiting_mag_nsigma = fields.Field(
-        description='Number of standard deviations '
-        'above the background that the limiting '
-        'magnitudes correspond to. Null values '
-        'not allowed. Default = 5.',
-        required=False,
-        missing=5,
-    )
+    limiting_mag_nsigma = fields.Field(description='Number of standard deviations '
+                                                   'above the background that the limiting '
+                                                   'magnitudes correspond to. Null values '
+                                                   'not allowed. Default = 5.',
+                                       required=False, missing=5)
 
 
 class PhotBase(object):
@@ -397,68 +321,44 @@ class PhotBase(object):
     """
 
     mjd = fields.Number(description='MJD of the observation.', required=True)
-    magsys = ApispecEnumField(
-        py_allowed_magsystems,
-        required=True,
-        description='The magnitude system to which the '
-        'flux and the zeropoint are tied.',
-    )
-    filter = ApispecEnumField(
-        py_allowed_bandpasses,
-        required=True,
-        description='The bandpass of the observation.',
-    )
+    magsys = ApispecEnumField(py_allowed_magsystems, required=True,
+                              description='The magnitude system to which the '
+                                          'flux and the zeropoint are tied.')
+    filter = ApispecEnumField(py_allowed_bandpasses, required=True,
+                              description='The bandpass of the observation.')
 
-    obj_id = fields.String(
-        description='ID of the Object to which the ' 'photometry will be attached.',
-        required=True,
-    )
+    obj_id = fields.String(description='ID of the Object to which the '
+                                       'photometry will be attached.',
+                           required=True)
 
-    instrument_id = fields.Integer(
-        description='ID of the instrument with which'
-        ' the observation was carried '
-        'out.',
-        required=True,
-    )
+    instrument_id = fields.Integer(description='ID of the instrument with which'
+                                               ' the observation was carried '
+                                               'out.', required=True)
 
-    ra = fields.Number(
-        description='ICRS Right Ascension of the centroid '
-        'of the photometric aperture [deg].',
-        missing=None,
-        default=None,
-    )
-    dec = fields.Number(
-        description='ICRS Declination of the centroid '
-        'of the photometric aperture [deg].',
-        missing=None,
-        default=None,
-    )
+    ra = fields.Number(description='ICRS Right Ascension of the centroid '
+                                   'of the photometric aperture [deg].',
+                       missing=None, default=None)
+    dec = fields.Number(description='ICRS Declination of the centroid '
+                                    'of the photometric aperture [deg].',
+                        missing=None, default=None)
 
-    ra_unc = fields.Number(
-        description='Uncertainty on RA [arcsec].', missing=None, default=None
-    )
+    ra_unc = fields.Number(description='Uncertainty on RA [arcsec].',
+                           missing=None, default=None)
 
-    dec_unc = fields.Number(
-        description='Uncertainty on dec [arcsec].', missing=None, default=None
-    )
+    dec_unc = fields.Number(description='Uncertainty on dec [arcsec].',
+                            missing=None, default=None)
 
-    alert_id = fields.Integer(
-        description="Corresponding alert ID. If a record is "
-        "already present with identical alert ID, only the "
-        "groups list will be updated (other alert data assumed "
-        "identical). Defaults to None.",
-        missing=None,
-        default=None,
-    )
+    alert_id = fields.Integer(description="Corresponding alert ID. If a record is "
+                              "already present with identical alert ID, only the "
+                              "groups list will be updated (other alert data assumed "
+                              "identical). Defaults to None.",
+                              missing=None, default=None)
 
-    altdata = fields.Dict(
-        description="Misc. alternative metadata stored in JSON "
-        "format, e.g. `{'calibration': {'source': 'ps1', "
-        "'color_term': 0.012}, 'photometry_method': 'allstar', "
-        "'method_reference': 'Masci et al. (2015)'}`",
-        missing=None,
-        default=None,
-    )
+    altdata = fields.Dict(description="Misc. alternative metadata stored in JSON "
+                          "format, e.g. `{'calibration': {'source': 'ps1', "
+                          "'color_term': 0.012}, 'photometry_method': 'allstar', "
+                          "'method_reference': 'Masci et al. (2015)'}`",
+                          missing=None, default=None)
 
     @post_load
     def enum_to_string(self, data, **kwargs):
@@ -475,29 +375,22 @@ class PhotometryFlux(_Schema, PhotBase):
     PhotometryHandler.get`.
     """
 
-    flux = fields.Number(
-        description='Flux of the observation in counts. '
-        'Can be null to accommodate upper '
-        'limits from ZTF1, where no flux is measured '
-        'for non-detections. If flux is null, '
-        'the flux error is used to derive a '
-        'limiting magnitude.',
-        required=False,
-        missing=None,
-        default=None,
-    )
+    flux = fields.Number(description='Flux of the observation in counts. '
+                                     'Can be null to accommodate upper '
+                                     'limits from ZTF1, where no flux is measured '
+                                     'for non-detections. If flux is null, '
+                                     'the flux error is used to derive a '
+                                     'limiting magnitude.', required=False,
+                         missing=None, default=None)
 
-    fluxerr = fields.Number(
-        description='Gaussian error on the flux in counts.', required=True
-    )
+    fluxerr = fields.Number(description='Gaussian error on the flux in counts.',
+                            required=True)
 
-    zp = fields.Number(
-        description='Magnitude zeropoint, given by `ZP` in the '
-        'equation m = -2.5 log10(flux) + `ZP`. '
-        'm is the magnitude of the object in the '
-        'magnitude system `magsys`.',
-        required=True,
-    )
+    zp = fields.Number(description='Magnitude zeropoint, given by `ZP` in the '
+                                   'equation m = -2.5 log10(flux) + `ZP`. '
+                                   'm is the magnitude of the object in the '
+                                   'magnitude system `magsys`.',
+                       required=True)
 
     @post_load
     def parse_flux(self, data, **kwargs):
@@ -529,35 +422,34 @@ class PhotometryFlux(_Schema, PhotBase):
             raise ValidationError(f'Invalid object ID: {data["obj_id"]}')
 
         if data["filter"] not in instrument.filters:
-            raise ValidationError(
-                f"Instrument {instrument.name} has no filter " f"{data['filter']}."
-            )
+            raise ValidationError(f"Instrument {instrument.name} has no filter "
+                                  f"{data['filter']}.")
 
         # convert flux to microJanskies.
         table = Table([data])
         if data['flux'] is None:
             # this needs to be non-null for the conversion step
             # will be replaced later with null
-            table['flux'] = 0.0
+            table['flux'] = 0.
 
         # conversion happens here
-        photdata = PhotometricData(table).normalized(zp=PHOT_ZP, zpsys=PHOT_SYS)
+        photdata = PhotometricData(table).normalized(zp=PHOT_ZP,
+                                                     zpsys=PHOT_SYS)
 
         # replace with null if needed
         final_flux = None if data['flux'] is None else photdata.flux[0]
 
-        p = Photometry(
-            obj_id=data['obj_id'],
-            mjd=data['mjd'],
-            flux=final_flux,
-            fluxerr=photdata.fluxerr[0],
-            instrument_id=data['instrument_id'],
-            filter=data['filter'],
-            ra=data['ra'],
-            dec=data['dec'],
-            ra_unc=data['ra_unc'],
-            dec_unc=data['dec_unc'],
-        )
+        p = Photometry(obj_id=data['obj_id'],
+                       mjd=data['mjd'],
+                       flux=final_flux,
+                       fluxerr=photdata.fluxerr[0],
+                       instrument_id=data['instrument_id'],
+                       filter=data['filter'],
+                       ra=data['ra'],
+                       dec=data['dec'],
+                       ra_unc=data['ra_unc'],
+                       dec_unc=data['dec_unc'],
+                       )
         if 'alert_id' in data and data['alert_id'] is not None:
             p.alert_id = data['alert_id']
         return p
@@ -570,27 +462,17 @@ class PhotometryMag(_Schema, PhotBase):
      `PhotometryHandler.get`.
      """
 
-    mag = fields.Number(
-        description='Magnitude of the observation in the '
-        'magnitude system `magsys`. Can be null '
-        'in the case of a non-detection.',
-        required=False,
-        missing=None,
-        default=None,
-    )
-    magerr = fields.Number(
-        description='Magnitude error of the observation in '
-        'the magnitude system `magsys`. Can be '
-        'null in the case of a non-detection.',
-        required=False,
-        missing=None,
-        default=None,
-    )
-    limiting_mag = fields.Number(
-        description='Limiting magnitude of the image '
-        'in the magnitude system `magsys`.',
-        required=True,
-    )
+    mag = fields.Number(description='Magnitude of the observation in the '
+                                    'magnitude system `magsys`. Can be null '
+                                    'in the case of a non-detection.',
+                        required=False, missing=None, default=None)
+    magerr = fields.Number(description='Magnitude error of the observation in '
+                                       'the magnitude system `magsys`. Can be '
+                                       'null in the case of a non-detection.',
+                           required=False, missing=None, default=None)
+    limiting_mag = fields.Number(description='Limiting magnitude of the image '
+                                             'in the magnitude system `magsys`.',
+                                 required=True)
 
     @post_load
     def parse_mag(self, data, **kwargs):
@@ -614,17 +496,18 @@ class PhotometryMag(_Schema, PhotBase):
         # check that mag and magerr are both null or both not null, not a mix
         ok = any(
             [
-                all([op(field, None) for field in [data['mag'], data['magerr']]])
-                for op in [operator.is_, operator.is_not]
+                all(
+                    [
+                        op(field, None) for field in [data['mag'], data['magerr']]
+                    ]
+                ) for op in [operator.is_, operator.is_not]
             ]
         )
 
         if not ok:
-            raise ValidationError(
-                f'Error parsing packet "{data}": mag '
-                f'and magerr must both be null, or both be '
-                f'not null.'
-            )
+            raise ValidationError(f'Error parsing packet "{data}": mag '
+                                  f'and magerr must both be null, or both be '
+                                  f'not null.')
 
         # get the instrument
         instrument = Instrument.query.get(data['instrument_id'])
@@ -637,57 +520,50 @@ class PhotometryMag(_Schema, PhotBase):
             raise ValidationError(f'Invalid object ID: {data["obj_id"]}')
 
         if data["filter"] not in instrument.filters:
-            raise ValidationError(
-                f"Instrument {instrument.name} has no filter " f"{data['filter']}."
-            )
+            raise ValidationError(f"Instrument {instrument.name} has no filter "
+                                  f"{data['filter']}.")
 
         # determine if this is a limit or a measurement
         hasmag = data['mag'] is not None
 
         if hasmag:
-            flux = 10 ** (-0.4 * (data['mag'] - PHOT_ZP))
+            flux = 10**(-0.4 * (data['mag'] - PHOT_ZP))
             fluxerr = data['magerr'] / (2.5 / np.log(10)) * flux
         else:
-            fivesigflux = 10 ** (-0.4 * (data['limiting_mag'] - PHOT_ZP))
+            fivesigflux = 10**(-0.4 * (data['limiting_mag'] - PHOT_ZP))
             flux = None
             fluxerr = fivesigflux / 5
 
         # convert flux to microJanskies.
-        table = Table(
-            [
-                {
-                    'flux': flux,
-                    'fluxerr': fluxerr,
-                    'magsys': data['magsys'],
-                    'zp': PHOT_ZP,
-                    'filter': data['filter'],
-                    'mjd': data['mjd'],
-                }
-            ]
-        )
+        table = Table([{'flux': flux,
+                        'fluxerr': fluxerr,
+                        'magsys': data['magsys'],
+                        'zp': PHOT_ZP,
+                        'filter': data['filter'],
+                        'mjd': data['mjd']}])
         if flux is None:
             # this needs to be non-null for the conversion step
             # will be replaced later with null
-            table['flux'] = 0.0
+            table['flux'] = 0.
 
         # conversion happens here
-        photdata = PhotometricData(table).normalized(zp=PHOT_ZP, zpsys=PHOT_SYS)
+        photdata = PhotometricData(table).normalized(zp=PHOT_ZP,
+                                                     zpsys=PHOT_SYS)
 
         # replace with null if needed
         final_flux = None if flux is None else photdata.flux[0]
 
-        p = Photometry(
-            obj_id=data['obj_id'],
-            mjd=data['mjd'],
-            flux=final_flux,
-            fluxerr=photdata.fluxerr[0],
-            instrument_id=data['instrument_id'],
-            filter=data['filter'],
-            ra=data['ra'],
-            dec=data['dec'],
-            ra_unc=data['ra_unc'],
-            dec_unc=data['dec_unc'],
-        )
+        p = Photometry(obj_id=data['obj_id'],
+                       mjd=data['mjd'],
+                       flux=final_flux,
+                       fluxerr=photdata.fluxerr[0],
+                       instrument_id=data['instrument_id'],
+                       filter=data['filter'],
+                       ra=data['ra'],
+                       dec=data['dec'],
+                       ra_unc=data['ra_unc'],
+                       dec_unc=data['dec_unc'],
+                       )
         if 'alert_id' in data and data['alert_id'] is not None:
             p.alert_id = data['alert_id']
         return p
@@ -697,35 +573,29 @@ class AssignmentSchema(_Schema):
     # For generating API docs and extremely basic validation
 
     run_id = fields.Integer(required=True)
-    obj_id = fields.String(
-        required=True, description='The ID of the object to observe.'
-    )
-    priority = ApispecEnumField(
-        py_followup_priorities,
-        required=True,
-        description='Priority of the request, ' '(lowest = 1, highest = 5).',
-    )
+    obj_id = fields.String(required=True, description='The ID of the object to observe.')
+    priority = ApispecEnumField(py_followup_priorities,
+                                required=True, description='Priority of the request, '
+                                                           '(lowest = 1, highest = 5).')
     comment = fields.String(description='An optional comment describing the request.')
 
 
 class ObservingRunPost(_Schema):
     instrument_id = fields.Integer(
-        required=True, description='The ID of the instrument to be ' 'used in this run.'
+        required=True, description='The ID of the instrument to be '
+                                   'used in this run.'
     )
 
     # name of the PI
     pi = fields.String(description='The PI of the observing run.')
     observers = fields.String(description='The names of the observers')
-    group_id = fields.Integer(
-        description='The ID of the group this run is associated with.'
-    )
+    group_id = fields.Integer(description='The ID of the group this run is associated with.')
     calendar_date = fields.Date(
         description='The local calendar date of the run.', required=True
     )
 
-    modified = fields.DateTime(
-        description="The UT datetime at which the " "observingrun was last modified."
-    )
+    modified = fields.DateTime(description="The UT datetime at which the "
+                                           "observingrun was last modified.")
 
 
 class ObservingRunGet(ObservingRunPost):
@@ -738,18 +608,14 @@ class ObservingRunGet(ObservingRunPost):
         data.ephemeris = {}
         data.ephemeris['sunrise_utc'] = data.sunrise.isot
         data.ephemeris['sunset_utc'] = data.sunset.isot
-        data.ephemeris[
-            'twilight_evening_nautical_utc'
-        ] = data.twilight_evening_nautical.isot
-        data.ephemeris[
-            'twilight_morning_nautical_utc'
-        ] = data.twilight_morning_nautical.isot
-        data.ephemeris[
-            'twilight_evening_astronomical_utc'
-        ] = data.twilight_evening_astronomical.isot
-        data.ephemeris[
-            'twilight_morning_astronomical_utc'
-        ] = data.twilight_morning_astronomical.isot
+        data.ephemeris['twilight_evening_nautical_utc'] = data.twilight_evening_nautical.isot
+        data.ephemeris['twilight_morning_nautical_utc'] = data.twilight_morning_nautical.isot
+        data.ephemeris['twilight_evening_astronomical_utc'] = (
+            data.twilight_evening_astronomical.isot
+        )
+        data.ephemeris['twilight_morning_astronomical_utc'] = (
+            data.twilight_morning_astronomical.isot
+        )
         return data
 
 
@@ -761,7 +627,8 @@ def register_components(spec):
     print('Registering schemas with APISpec')
 
     schemas = inspect.getmembers(
-        sys.modules[__name__], lambda m: isinstance(m, _Schema)
+        sys.modules[__name__],
+        lambda m: isinstance(m, _Schema)
     )
 
     for (name, schema) in schemas:
@@ -788,3 +655,4 @@ ObservingRunPost = ObservingRunPost()
 ObservingRunGet = ObservingRunGet()
 AssignmentSchema = AssignmentSchema()
 ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
+

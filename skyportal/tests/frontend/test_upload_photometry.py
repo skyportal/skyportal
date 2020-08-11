@@ -11,7 +11,9 @@ from .test_followup_requests import add_telescope_and_instrument
 def test_upload_photometry(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    data = add_telescope_and_instrument("P60 Camera", super_admin_token)
+    data = add_telescope_and_instrument(
+        "P60 Camera", super_admin_token
+    )
     inst_id = data["id"]
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/upload_photometry/{public_source.id}")
@@ -37,14 +39,15 @@ def test_upload_photometry(
     driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
     driver.execute_script(
         "arguments[0].click();",
-        driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]'),
+        driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]')
     )
     driver.wait_for_xpath('//div[text()="58001"]')
     driver.execute_script(
-        "arguments[0].click();",
-        driver.wait_for_xpath('//*[text()="Upload Photometry"]'),
+        "arguments[0].click();", driver.wait_for_xpath('//*[text()="Upload Photometry"]')
     )
-    driver.wait_for_xpath('//*[contains(.,"Upload successful. Your upload ID is")]')
+    driver.wait_for_xpath(
+        '//*[contains(.,"Upload successful. Your upload ID is")]'
+    )
 
 
 @pytest.mark.flaky(reruns=2)
@@ -58,7 +61,9 @@ def test_upload_photometry_multiple_groups(
 ):
     user = super_admin_user_two_groups
     public_source = public_source_two_groups
-    data = add_telescope_and_instrument("P60 Camera", super_admin_token)
+    data = add_telescope_and_instrument(
+        "P60 Camera", super_admin_token
+    )
     inst_id = data["id"]
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/upload_photometry/{public_source.id}")
@@ -85,21 +90,24 @@ def test_upload_photometry_multiple_groups(
     ).click()
     driver.execute_script(
         "arguments[0].click();",
-        driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]'),
+        driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]')
     )
     driver.wait_for_xpath('//div[text()="58001"]')
     driver.execute_script(
-        "arguments[0].click();",
-        driver.wait_for_xpath('//*[text()="Upload Photometry"]'),
+        "arguments[0].click();", driver.wait_for_xpath('//*[text()="Upload Photometry"]')
     )
-    driver.wait_for_xpath('//*[contains(.,"Upload successful. Your upload ID is")]')
+    driver.wait_for_xpath(
+        '//*[contains(.,"Upload successful. Your upload ID is")]'
+    )
 
 
 @pytest.mark.flaky(reruns=2)
 def test_upload_photometry_with_altdata(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    data = add_telescope_and_instrument("P60 Camera", super_admin_token)
+    data = add_telescope_and_instrument(
+        "P60 Camera", super_admin_token
+    )
     inst_id = data["id"]
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/upload_photometry/{public_source.id}")
@@ -123,21 +131,24 @@ def test_upload_photometry_with_altdata(
     driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
     driver.execute_script(
         "arguments[0].click();",
-        driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]'),
+        driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]')
     )
     driver.wait_for_xpath('//div[text()="58001"]')
     driver.execute_script(
-        "arguments[0].click();",
-        driver.wait_for_xpath('//*[text()="Upload Photometry"]'),
+        "arguments[0].click();", driver.wait_for_xpath('//*[text()="Upload Photometry"]')
     )
-    driver.wait_for_xpath('//*[contains(.,"Upload successful. Your upload ID is")]')
+    driver.wait_for_xpath(
+        '//*[contains(.,"Upload successful. Your upload ID is")]'
+    )
 
 
 @pytest.mark.flaky(reruns=2)
 def test_upload_photometry_form_validation(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    data = add_telescope_and_instrument("P60 Camera", super_admin_token)
+    data = add_telescope_and_instrument(
+        "P60 Camera", super_admin_token
+    )
     inst_id = data["id"]
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/upload_photometry/{public_source.id}")
@@ -187,6 +198,6 @@ def test_upload_photometry_form_validation(
     driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
     driver.execute_script(
         "arguments[0].click();",
-        driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]'),
+        driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]')
     )
     driver.wait_for_xpath('//div[text()="58001"]')

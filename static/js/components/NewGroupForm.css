@@ -1,11 +1,11 @@
 .newGroupForm {
-  position: relative;
+    position: relative;
 }
 .newGroupFormDiv {
-  border-style: solid;
-  border-width: 1px;
-  border-color: black;
-  padding-left: 10px;
-  padding-right: 10px;
-  padding-bottom: 10px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: black;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-bottom: 10px;
 }

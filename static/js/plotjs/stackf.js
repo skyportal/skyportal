@@ -1,6 +1,6 @@
 /* eslint-disable */
 const binsize = slider.value;
-const fluxalph = binsize === 0 ? 1.0 : 0.1;
+const fluxalph = ((binsize === 0) ? 1.0 : 0.1);
 
 for (let i = 0; i < toggle.labels.length; i++) {
   const fluxsource = eval(`obs${i}`).data_source;
@@ -28,8 +28,8 @@ for (let i = 0; i < toggle.labels.length; i++) {
   binerrsource.data.color = [];
 
   for (let j = 0; j < fluxsource.get_length(); j++) {
-    fluxsource.data.alpha[j] = fluxalph;
-    fluxerrsource.data.alpha[j] = fluxalph;
+      fluxsource.data.alpha[j] = fluxalph;
+      fluxerrsource.data.alpha[j] = fluxalph;
   }
 
   if (binsize > 0) {
@@ -53,12 +53,8 @@ for (let i = 0; i < toggle.labels.length; i++) {
       let ivarsum = 0;
 
       for (let m = 0; m < fluxsource.get_length(); m++) {
-        if (
-          fluxsource.data.mjd[m] < mjdbins[l + 1] &&
-          fluxsource.data.mjd[m] >= mjdbins[l]
-        ) {
-          const fluxvar =
-            fluxsource.data.fluxerr[m] * fluxsource.data.fluxerr[m];
+        if ((fluxsource.data.mjd[m] < mjdbins[l + 1]) && (fluxsource.data.mjd[m] >= mjdbins[l])) {
+          const fluxvar = fluxsource.data.fluxerr[m] * fluxsource.data.fluxerr[m];
           const ivar = 1 / fluxvar;
 
           weight.push(ivar);
@@ -77,22 +73,22 @@ for (let i = 0; i < toggle.labels.length; i++) {
       }
 
       for (let n = 0; n < weight.length; n++) {
-        myflux += (weight[n] * flux[n]) / ivarsum;
-        mymjd += (weight[n] * mjd[n]) / ivarsum;
+        myflux += weight[n] * flux[n] / ivarsum;
+        mymjd += weight[n] * mjd[n] / ivarsum;
       }
 
       const myfluxerr = Math.sqrt(1 / ivarsum);
 
+
       if (myflux / myfluxerr > detect_thresh) {
         var mymag = -2.5 * Math.log10(myflux) + default_zp;
-        var mymagerr = Math.abs((-2.5 * myfluxerr) / myflux / Math.log(10));
+        var mymagerr = Math.abs(-2.5 * myfluxerr / myflux / Math.log(10));
       } else {
         var mymag = NaN;
         var mymagerr = NaN;
       }
 
-      const mymaglim =
-        -2.5 * Math.log10(detect_thresh * myfluxerr) + default_zp;
+      const mymaglim = -2.5 * Math.log10(detect_thresh * myfluxerr) + default_zp;
 
       binsource.data.mjd.push(mymjd);
       binsource.data.flux.push(myflux);

@@ -1,32 +1,32 @@
 .ThumbnailList {
-  display: inline-block;
+    display: inline-block;
 }
 
 .Thumbnail {
-  display: inline-block;
-  padding: 0.2em;
-  margin: 0.2em;
+    display: inline-block;
+    padding: 0.2em;
+    margin: 0.2em;
 }
 
 .Thumbnail img {
-  width: 200px;
-  height: 200px;
+    width: 200px;
+    height: 200px;
 }
 
 .dr8 {
-  width: 200px;
-  height: 200px;
+    width: 200px;
+    height: 200px;
 }
 
 .dr8crosshairs {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 200px;
-  height: 200px;
-  padding-bottom: 0.2em;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 200px;
+    height: 200px;
+    padding-bottom: 0.2em;
 }
 
 .thumbnailimgdiv {
-  position: relative;
+    position: relative;
 }

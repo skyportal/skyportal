@@ -1,8 +1,8 @@
-import React from "react";
-import PropTypes from "prop-types";
-import { createMuiTheme } from "@material-ui/core/styles";
+import React from 'react';
+import PropTypes from 'prop-types';
+import { createMuiTheme } from '@material-ui/core/styles';
 
-import Avatar from "@material-ui/core/Avatar";
+import Avatar from '@material-ui/core/Avatar';
 
 const theme = createMuiTheme({});
 
@@ -15,16 +15,14 @@ const UserAvatar = ({ size, firstName, lastName, username, gravatarUrl }) => {
     if (hash.length >= 6) {
       // make the color string with a slight transparency
       return `#${hash.slice(0, 6)}aa`;
+    } else {
+      return '#aaaaaaaa';
     }
-    return "#aaaaaaaa";
   }
 
   const usercolor = bgcolor();
 
-  const backUpLetters =
-    firstName === null
-      ? username.slice(0, 2)
-      : `${firstName?.charAt(0)}${lastName?.charAt(0)}`;
+  const backUpLetters = (firstName === null ? username.slice(0, 2) :`${firstName?.charAt(0)}${lastName?.charAt(0)}`);
 
   return (
     <Avatar
@@ -36,7 +34,7 @@ const UserAvatar = ({ size, firstName, lastName, username, gravatarUrl }) => {
         height: size,
         backgroundColor: usercolor,
         color: theme.palette.getContrastText(usercolor),
-        fontSize: `${Math.max(parseInt(parseFloat(size) / 3, 10), 10)}px`,
+        fontSize: `${Math.max(parseInt(parseFloat(size)/3, 10), 10)}px`
       }}
     >
       {backUpLetters}
@@ -49,12 +47,12 @@ UserAvatar.propTypes = {
   firstName: PropTypes.string,
   lastName: PropTypes.string,
   username: PropTypes.string.isRequired,
-  gravatarUrl: PropTypes.string.isRequired,
+  gravatarUrl: PropTypes.string.isRequired
 };
 
 UserAvatar.defaultProps = {
   firstName: null,
-  lastName: null,
+  lastName: null
 };
 
 export default UserAvatar;

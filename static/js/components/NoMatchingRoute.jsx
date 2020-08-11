@@ -1,5 +1,9 @@
-import React from "react";
+import React from 'react';
 
-const NoMatchingRoute = () => <div>Invalid route</div>;
+const NoMatchingRoute = () => (
+  <div>
+    Invalid route
+  </div>
+);
 
 export default NoMatchingRoute;

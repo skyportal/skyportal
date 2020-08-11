@@ -1,10 +1,8 @@
 import uuid
 import pytest
 from selenium.webdriver.support.ui import Select
-from selenium.common.exceptions import (
-    ElementClickInterceptedException,
-    TimeoutException,
-)
+from selenium.common.exceptions import (ElementClickInterceptedException,
+                                        TimeoutException)
 
 from skyportal.tests import api
 
@@ -25,7 +23,7 @@ def add_telescope_and_instrument(instrument_name, token):
             "lon": 0.0,
             "elevation": 0.0,
             "diameter": 10.0,
-            "robotic": True,
+            "robotic": True
         },
         token=token,
     )
@@ -61,9 +59,7 @@ def test_submit_new_followup_request(
         '//*[@id="mui-component-select-instrument_id"]'
     )
     driver.scroll_to_element_and_click(instrument_select)
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//*[text()="P60 Camera"]')
-    )
+    driver.scroll_to_element_and_click(driver.wait_for_xpath('//*[text()="P60 Camera"]'))
 
     submit_button = driver.wait_for_xpath(
         '//*[@name="createNewFollowupRequestSubmitButton"]'
@@ -112,9 +108,7 @@ def test_edit_existing_followup_request(
         '//*[@id="mui-component-select-instrument_id"]'
     )
     driver.scroll_to_element_and_click(instrument_select)
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//*[text()="P60 Camera"]')
-    )
+    driver.scroll_to_element_and_click(driver.wait_for_xpath('//*[text()="P60 Camera"]'))
 
     submit_button = driver.wait_for_xpath(
         '//*[@name="createNewFollowupRequestSubmitButton"]'
@@ -173,9 +167,7 @@ def test_delete_followup_request(
         '//*[@id="mui-component-select-instrument_id"]'
     )
     driver.scroll_to_element_and_click(instrument_select)
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//*[text()="P60 Camera"]')
-    )
+    driver.scroll_to_element_and_click(driver.wait_for_xpath('//*[text()="P60 Camera"]'))
 
     submit_button = driver.wait_for_xpath(
         '//*[@name="createNewFollowupRequestSubmitButton"]'

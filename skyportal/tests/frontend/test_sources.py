@@ -16,9 +16,7 @@ def test_public_source_page(driver, user, public_source, public_group):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    driver.wait_for_xpath(
-        '//label[contains(text(), "band")]'
-    )  # TODO how to check plot?
+    driver.wait_for_xpath('//label[contains(text(), "band")]')  # TODO how to check plot?
     driver.wait_for_xpath('//label[contains(text(), "Fe III")]')
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
@@ -26,47 +24,33 @@ def test_public_source_page(driver, user, public_source, public_group):
 @pytest.mark.flaky(reruns=3)
 def test_classifications(driver, user, taxonomy_token, public_group, public_source):
 
-    simple = {
-        'class': 'Cepheid',
-        'tags': ['giant/supergiant', 'instability strip', 'standard candle'],
-        'other names': ['Cep', 'CEP'],
-        'subclasses': [
-            {'class': 'Anomolous', 'other names': ['Anomolous Cepheid', 'BLBOO']},
-            {
-                'class': 'Mult-mode',
-                'other names': ['Double-mode Cepheid', 'Multi-mode Cepheid', 'CEP(B)'],
-            },
-            {
-                'class': 'Classical',
-                'tags': [],
-                'other names': [
-                    'Population I Cepheid',
-                    'Type I Cepheid',
-                    'DCEP',
-                    'Delta Cepheid',
-                    'Classical Cepheid',
-                ],
-                'subclasses': [
-                    {
-                        'class': 'Symmetrical',
-                        'other names': ['DCEPS', 'Delta Cep-type Symmetrical'],
-                    }
-                ],
-            },
-        ],
-    }
+    simple = {'class': 'Cepheid',
+              'tags': ['giant/supergiant', 'instability strip', 'standard candle'],
+              'other names': ['Cep', 'CEP'],
+              'subclasses': [{'class': 'Anomolous',
+                              'other names': ['Anomolous Cepheid', 'BLBOO']},
+                             {'class': 'Mult-mode',
+                              'other names': ['Double-mode Cepheid',
+                                              'Multi-mode Cepheid',
+                                              'CEP(B)']},
+                             {'class': 'Classical',
+                              'tags': [],
+                              'other names': ['Population I Cepheid',
+                                              'Type I Cepheid',
+                                              'DCEP',
+                                              'Delta Cepheid',
+                                              'Classical Cepheid'],
+                              'subclasses': [{'class': 'Symmetrical',
+                                              'other names': ['DCEPS', 'Delta Cep-type Symmetrical']}]}]}
 
-    status, data = api(
-        'POST',
-        'taxonomy',
-        data={
-            'name': str(uuid.uuid4()),
-            'hierarchy': simple,
-            'group_ids': [public_group.id],
-            'version': "test0.1",
-        },
-        token=taxonomy_token,
-    )
+    status, data = api('POST', 'taxonomy',
+                       data={
+                           'name': str(uuid.uuid4()),
+                           'hierarchy': simple,
+                           'group_ids': [public_group.id],
+                           'version': "test0.1"
+                       },
+                       token=taxonomy_token)
     assert status == 200
     taxonomy_id = data['data']['taxonomy_id']
 
@@ -86,8 +70,7 @@ def test_comments(driver, user, public_source):
     comment_text = str(uuid.uuid4())
     comment_box.send_keys(comment_text)
     driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
-    )
+        driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
     try:
         driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
@@ -97,8 +80,7 @@ def test_comments(driver, user, public_source):
         comment_text = str(uuid.uuid4())
         comment_box.send_keys(comment_text)
         driver.scroll_to_element_and_click(
-            driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
-        )
+            driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
         driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
 
@@ -116,14 +98,12 @@ def test_comment_groups_validation(driver, user, public_source):
     assert group_checkbox.is_selected()
     group_checkbox.click()
     driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
-    )
+        driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
     group_checkbox.click()
     driver.wait_for_xpath_to_disappear('//div[contains(.,"Select at least one group")]')
     driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
-    )
+        driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
     try:
         driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
@@ -142,12 +122,10 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     comment_text = str(uuid.uuid4())
     comment_box.send_keys(comment_text)
     attachment_file = driver.find_element_by_css_selector('input[type=file]')
-    attachment_file.send_keys(
-        pjoin(os.path.dirname(os.path.dirname(__file__)), 'data', 'spec.csv')
-    )
+    attachment_file.send_keys(pjoin(os.path.dirname(os.path.dirname(__file__)),
+                                    'data', 'spec.csv'))
     driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
-    )
+        driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
     try:
         comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     except TimeoutException:
@@ -194,8 +172,7 @@ def test_delete_comment(driver, user, public_source):
     comment_text = str(uuid.uuid4())
     comment_box.send_keys(comment_text)
     driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
-    )
+        driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
     try:
         comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     except TimeoutException:
@@ -204,8 +181,7 @@ def test_delete_comment(driver, user, public_source):
     comment_div = comment_text_div.find_element_by_xpath("..")
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
     delete_button = comment_div.find_element_by_xpath(
-        f"//*[@name='deleteCommentButton{comment_id}']"
-    )
+        f"//*[@name='deleteCommentButton{comment_id}']")
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
     driver.execute_script("arguments[0].click();", delete_button)
@@ -221,8 +197,7 @@ def test_delete_comment(driver, user, public_source):
             comment_div = comment_text_div.find_element_by_xpath("..")
             comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
             delete_button = comment_div.find_element_by_xpath(
-                f"//*[@name='deleteCommentButton{comment_id}']"
-            )
+                f"//*[@name='deleteCommentButton{comment_id}']")
             driver.execute_script("arguments[0].scrollIntoView();", comment_div)
             ActionChains(driver).move_to_element(comment_div).perform()
             driver.execute_script("arguments[0].click();", delete_button)
@@ -230,9 +205,8 @@ def test_delete_comment(driver, user, public_source):
 
 
 @pytest.mark.flaky(reruns=2)
-def test_regular_user_cannot_delete_unowned_comment(
-    driver, super_admin_user, user, public_source
-):
+def test_regular_user_cannot_delete_unowned_comment(driver, super_admin_user,
+                                                    user, public_source):
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
@@ -252,17 +226,15 @@ def test_regular_user_cannot_delete_unowned_comment(
     comment_div = comment_text_div.find_element_by_xpath("..")
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
     delete_button = comment_div.find_element_by_xpath(
-        f"//*[@name='deleteCommentButton{comment_id}']"
-    )
+        f"//*[@name='deleteCommentButton{comment_id}']")
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
     assert not delete_button.is_displayed()
 
 
 @pytest.mark.flaky(reruns=2)
-def test_super_user_can_delete_unowned_comment(
-    driver, super_admin_user, user, public_source
-):
+def test_super_user_can_delete_unowned_comment(driver, super_admin_user,
+                                               user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
@@ -270,8 +242,7 @@ def test_super_user_can_delete_unowned_comment(
     comment_text = str(uuid.uuid4())
     comment_box.send_keys(comment_text)
     driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
-    )
+        driver.find_element_by_xpath('//*[@name="submitCommentButton"]'))
     try:
         comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     except TimeoutException:
@@ -284,8 +255,7 @@ def test_super_user_can_delete_unowned_comment(
     comment_div = comment_text_div.find_element_by_xpath("..")
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
     delete_button = comment_div.find_element_by_xpath(
-        f"//*[@name='deleteCommentButton{comment_id}']"
-    )
+        f"//*[@name='deleteCommentButton{comment_id}']")
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
     driver.execute_script("arguments[0].click();", delete_button)

@@ -61,7 +61,6 @@
     "babel-loader": "8.1.0",
     "eslint": "7.6.0",
     "eslint-config-airbnb": "18.2.0",
-    "eslint-config-prettier": "6.11.0",
     "eslint-import-resolver-webpack": "0.12.2",
     "eslint-loader": "4.0.2",
     "eslint-plugin-import": "2.22.0",

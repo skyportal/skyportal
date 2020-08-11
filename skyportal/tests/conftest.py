@@ -21,7 +21,7 @@ from skyportal.tests.fixtures import (
     FilterFactory,
     InstrumentFactory,
     ObservingRunFactory,
-    TelescopeFactory,
+    TelescopeFactory
 )
 from skyportal.model_util import create_token
 from skyportal.models import DBSession, Source, Candidate, Role
@@ -44,7 +44,8 @@ def iers_data():
     if ap_utils.IERS_A_in_cache():
         with warnings.catch_warnings() as w:
             warnings.filterwarnings(
-                "error", category=astroplan.OldEarthOrientationDataWarning
+                "error",
+                category=astroplan.OldEarthOrientationDataWarning
             )
             try:
                 ap_utils._get_IERS_A_table()
@@ -107,10 +108,9 @@ def ztf_camera():
 
 @pytest.fixture()
 def red_transients_group(group_admin_user, view_only_user):
-    return GroupFactory(
-        name=f'red transients-{uuid.uuid4().hex}',
-        users=[group_admin_user, view_only_user],
-    )
+    return GroupFactory(name=f'red transients-{uuid.uuid4().hex}',
+                        users=[group_admin_user,
+                               view_only_user])
 
 
 @pytest.fixture()
@@ -121,60 +121,44 @@ def ztf_camera():
 @pytest.fixture()
 def keck1_telescope():
     observer = astroplan.Observer.at_site('Keck')
-    return TelescopeFactory(
-        name=f'Keck I Telescope_{uuid.uuid4()}',
-        nickname='Keck1_{uuid.uuid4()}',
-        lat=observer.location.lat.to('deg').value,
-        lon=observer.location.lon.to('deg').value,
-        elevation=observer.location.height.to('m').value,
-        diameter=10.0,
-    )
+    return TelescopeFactory(name=f'Keck I Telescope_{uuid.uuid4()}',
+                            nickname='Keck1_{uuid.uuid4()}',
+                            lat=observer.location.lat.to('deg').value,
+                            lon=observer.location.lon.to('deg').value,
+                            elevation=observer.location.height.to('m').value,
+                            diameter=10.)
 
 
 @pytest.fixture()
 def p60_telescope():
     observer = astroplan.Observer.at_site('Palomar')
-    return TelescopeFactory(
-        name=f'Palomar 60-inch telescope_{uuid.uuid4()}',
-        nickname='p60_{uuid.uuid4()}',
-        lat=observer.location.lat.to('deg').value,
-        lon=observer.location.lon.to('deg').value,
-        elevation=observer.location.height.to('m').value,
-        diameter=1.6,
-    )
+    return TelescopeFactory(name=f'Palomar 60-inch telescope_{uuid.uuid4()}',
+                            nickname='p60_{uuid.uuid4()}',
+                            lat=observer.location.lat.to('deg').value,
+                            lon=observer.location.lon.to('deg').value,
+                            elevation=observer.location.height.to('m').value,
+                            diameter=1.6)
 
 
 @pytest.fixture()
 def lris(keck1_telescope):
-    return InstrumentFactory(
-        name=f'LRIS_{uuid.uuid4()}',
-        type='imaging spectrograph',
-        telescope=keck1_telescope,
-        band='Optical',
-        filters=[
-            'sdssu',
-            'sdssg',
-            'sdssr',
-            'sdssi',
-            'sdssz',
-            'bessellux',
-            'bessellv',
-            'bessellb',
-            'bessellr',
-            'besselli',
-        ],
-    )
+    return InstrumentFactory(name=f'LRIS_{uuid.uuid4()}',
+                             type='imaging spectrograph',
+                             telescope=keck1_telescope,
+                             band='Optical', filters=['sdssu', 'sdssg',
+                                                      'sdssr', 'sdssi',
+                                                      'sdssz', 'bessellux',
+                                                      'bessellv', 'bessellb',
+                                                      'bessellr', 'besselli'])
 
 
 @pytest.fixture()
 def sedm(p60_telescope):
-    return InstrumentFactory(
-        name=f'SEDM_{uuid.uuid4()}',
-        type='imaging spectrograph',
-        telescope=p60_telescope,
-        band='Optical',
-        filters=['sdssu', 'sdssg', 'sdssr', 'sdssi'],
-    )
+    return InstrumentFactory(name=f'SEDM_{uuid.uuid4()}',
+                             type='imaging spectrograph',
+                             telescope=p60_telescope,
+                             band='Optical', filters=['sdssu', 'sdssg', 'sdssr',
+                                                      'sdssi'])
 
 
 @pytest.fixture()
@@ -240,20 +224,26 @@ def super_admin_user_two_groups(public_group, public_group2):
 
 @pytest.fixture()
 def view_only_token(user):
-    token_id = create_token(ACLs=[], user_id=user.id, name=str(uuid.uuid4()))
+    token_id = create_token(
+        ACLs=[], user_id=user.id, name=str(uuid.uuid4())
+    )
     return token_id
 
 
 @pytest.fixture()
 def view_only_token_two_groups(user_two_groups):
-    token_id = create_token(ACLs=[], user_id=user_two_groups.id, name=str(uuid.uuid4()))
+    token_id = create_token(
+        ACLs=[], user_id=user_two_groups.id, name=str(uuid.uuid4())
+    )
     return token_id
 
 
 @pytest.fixture()
 def manage_sources_token(group_admin_user):
     token_id = create_token(
-        ACLs=["Manage sources"], user_id=group_admin_user.id, name=str(uuid.uuid4()),
+        ACLs=["Manage sources"],
+        user_id=group_admin_user.id,
+        name=str(uuid.uuid4()),
     )
     return token_id
 
@@ -279,7 +269,9 @@ def upload_data_token(user):
 @pytest.fixture()
 def upload_data_token_two_groups(user_two_groups):
     token_id = create_token(
-        ACLs=["Upload data"], user_id=user_two_groups.id, name=str(uuid.uuid4()),
+        ACLs=["Upload data"],
+        user_id=user_two_groups.id,
+        name=str(uuid.uuid4()),
     )
     return token_id
 
@@ -287,7 +279,9 @@ def upload_data_token_two_groups(user_two_groups):
 @pytest.fixture()
 def manage_groups_token(super_admin_user):
     token_id = create_token(
-        ACLs=["Manage groups"], user_id=super_admin_user.id, name=str(uuid.uuid4()),
+        ACLs=["Manage groups"],
+        user_id=super_admin_user.id,
+        name=str(uuid.uuid4()),
     )
     return token_id
 
@@ -295,7 +289,9 @@ def manage_groups_token(super_admin_user):
 @pytest.fixture()
 def manage_users_token(super_admin_user):
     token_id = create_token(
-        ACLs=["Manage users"], user_id=super_admin_user.id, name=str(uuid.uuid4()),
+        ACLs=["Manage users"],
+        user_id=super_admin_user.id,
+        name=str(uuid.uuid4()),
     )
     return token_id
 
@@ -324,13 +320,18 @@ def super_admin_token_two_groups(super_admin_user_two_groups):
 
 @pytest.fixture()
 def comment_token(user):
-    token_id = create_token(ACLs=["Comment"], user_id=user.id, name=str(uuid.uuid4()))
+    token_id = create_token(
+        ACLs=["Comment"], user_id=user.id, name=str(uuid.uuid4())
+    )
     return token_id
 
 
 @pytest.fixture()
 def classification_token(user):
-    token_id = create_token(ACLs=["Classify"], user_id=user.id, name=str(uuid.uuid4()))
+    token_id = create_token(
+        ACLs=["Classify"],
+        user_id=user.id, name=str(uuid.uuid4())
+    )
     return token_id
 
 
@@ -338,8 +339,7 @@ def classification_token(user):
 def taxonomy_token(user):
     token_id = create_token(
         ACLs=["Post taxonomy", "Delete taxonomy"],
-        user_id=user.id,
-        name=str(uuid.uuid4()),
+        user_id=user.id, name=str(uuid.uuid4())
     )
     return token_id
 
@@ -347,9 +347,8 @@ def taxonomy_token(user):
 @pytest.fixture()
 def taxonomy_token_two_groups(user_two_groups):
     token_id = create_token(
-        ACLs=["Post taxonomy", "Delete taxonomy"],
-        user_id=user_two_groups.id,
-        name=str(uuid.uuid4()),
+        ACLs=["Post taxonomy", "Delete taxonomy"], user_id=user_two_groups.id,
+        name=str(uuid.uuid4())
     )
     return token_id
 

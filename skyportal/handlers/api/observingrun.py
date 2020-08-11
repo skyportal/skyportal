@@ -2,8 +2,10 @@ from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, ObservingRun, ClassicalAssignment, Obj, Thumbnail
-from ...schema import ObservingRunPost, ObservingRunGet, ObservingRunGetWithAssignments
+from ...models import(DBSession, ObservingRun, ClassicalAssignment, Obj,
+                      Thumbnail)
+from ...schema import (ObservingRunPost, ObservingRunGet,
+                       ObservingRunGetWithAssignments)
 
 
 class ObservingRunHandler(BaseHandler):
@@ -41,9 +43,8 @@ class ObservingRunHandler(BaseHandler):
         try:
             rund = ObservingRunPost.load(data)
         except ValidationError as exc:
-            return self.error(
-                'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
-            )
+            return self.error('Invalid/missing parameters: '
+                              f'{exc.normalized_messages()}')
 
         run = ObservingRun(**rund)
         run.owner_id = self.associated_user_object.id
@@ -87,42 +88,37 @@ class ObservingRunHandler(BaseHandler):
                   schema: Error
         """
         if run_id is not None:
-            run = (
-                DBSession()
-                .query(ObservingRun)
-                .options(
-                    joinedload(ObservingRun.assignments)
-                    .joinedload(ClassicalAssignment.obj)
-                    .joinedload(Obj.thumbnails)
-                    .joinedload(Thumbnail.photometry),
-                    joinedload(ObservingRun.assignments).joinedload(
-                        ClassicalAssignment.requester
-                    ),
-                    joinedload(ObservingRun.assignments)
-                    .joinedload(ClassicalAssignment.obj)
-                    .joinedload(Obj.comments),
-                )
-                .filter(ObservingRun.id == run_id)
-                .first()
-            )
+            run = DBSession().query(ObservingRun).options(
+                joinedload(ObservingRun.assignments)
+                .joinedload(ClassicalAssignment.obj)
+                .joinedload(Obj.thumbnails)
+                .joinedload(Thumbnail.photometry),
+                joinedload(ObservingRun.assignments)
+                .joinedload(ClassicalAssignment.requester),
+                joinedload(ObservingRun.assignments)
+                .joinedload(ClassicalAssignment.obj)
+                .joinedload(Obj.comments),
+            ).filter(ObservingRun.id == run_id).first()
 
             if run is None:
-                return self.error(
-                    f"Could not load observing run {run_id}", data={"run_id": run_id}
-                )
+                return self.error(f"Could not load observing run {run_id}",
+                                  data={"run_id": run_id})
             # order the assignments by ra
-            run.assignments = sorted(run.assignments, key=lambda a: a.obj.ra)
+            run.assignments = sorted(
+                run.assignments, key=lambda a: a.obj.ra
+            )
 
             # filter out the assignments of objects that are not visible to
             # the user
-            run.assignments = list(
-                filter(lambda a: a.obj.is_owned_by(self.current_user), run.assignments)
-            )
+            run.assignments = list(filter(
+                lambda a: a.obj.is_owned_by(self.current_user),
+                run.assignments
+            ))
 
             for assignment in run.assignments:
-                assignment.obj.comments = sorted(
-                    assignment.obj.comments, key=lambda c: c.modified, reverse=True
-                )
+                assignment.obj.comments = sorted(assignment.obj.comments,
+                                                 key=lambda c: c.modified,
+                                                 reverse=True)
 
             data = ObservingRunGetWithAssignments.dump(run)
             data['assignments'] = [a.to_dict() for a in data['assignments']]
@@ -173,15 +169,13 @@ class ObservingRunHandler(BaseHandler):
         current_user_id = self.associated_user_object.id
 
         if orun.owner_id != current_user_id and not is_superadmin:
-            return self.error(
-                'Only the owner of an observing run can modify ' 'the run.'
-            )
+            return self.error('Only the owner of an observing run can modify '
+                              'the run.')
         try:
             new_params = ObservingRunPost.load(data, partial=True)
         except ValidationError as exc:
-            return self.error(
-                'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
-            )
+            return self.error('Invalid/missing parameters: '
+                              f'{exc.normalized_messages()}')
 
         for param in new_params:
             setattr(orun, param, new_params[param])
@@ -219,11 +213,12 @@ class ObservingRunHandler(BaseHandler):
         current_user_id = self.associated_user_object.id
 
         if run.owner_id != current_user_id and not is_superadmin:
-            return self.error(
-                'Only the owner of an observing run can modify ' 'the run.'
-            )
+            return self.error('Only the owner of an observing run can modify '
+                              'the run.')
 
-        DBSession().query(ObservingRun).filter(ObservingRun.id == run_id).delete()
+        DBSession().query(ObservingRun).filter(
+            ObservingRun.id == run_id
+        ).delete()
         DBSession().commit()
 
         return self.success()

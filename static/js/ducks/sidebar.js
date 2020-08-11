@@ -1,20 +1,20 @@
-import store from "../store";
+import store from '../store';
 
-export const TOGGLE_SIDEBAR = "skyportal/TOGGLE_SIDEBAR";
+export const TOGGLE_SIDEBAR = 'skyportal/TOGGLE_SIDEBAR';
 
 export function toggleSidebar() {
   return {
-    type: TOGGLE_SIDEBAR,
+    type: TOGGLE_SIDEBAR
   };
 }
 
 // TODO Set open to false by default on mobile
-const reducer = (state = { open: true }, action) => {
+const reducer = (state={ open: true }, action) => {
   switch (action.type) {
     case TOGGLE_SIDEBAR: {
       return {
         ...state,
-        open: !state.open,
+        open: !state.open
       };
     }
     default:
@@ -22,4 +22,4 @@ const reducer = (state = { open: true }, action) => {
   }
 };
 
-store.injectReducer("sidebar", reducer);
+store.injectReducer('sidebar', reducer);

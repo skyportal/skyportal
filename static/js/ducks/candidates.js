@@ -1,13 +1,13 @@
-import messageHandler from "baselayer/MessageHandler";
+import messageHandler from 'baselayer/MessageHandler';
 
-import * as API from "../API";
-import store from "../store";
+import * as API from '../API';
+import store from '../store';
 
-export const FETCH_CANDIDATES = "skyportal/FETCH_CANDIDATES";
-export const FETCH_CANDIDATES_OK = "skyportal/FETCH_CANDIDATES_OK";
-export const FETCH_CANDIDATES_FAIL = "skyportal/FETCH_CANDIDATES_FAIL";
+export const FETCH_CANDIDATES = 'skyportal/FETCH_CANDIDATES';
+export const FETCH_CANDIDATES_OK = 'skyportal/FETCH_CANDIDATES_OK';
+export const FETCH_CANDIDATES_FAIL = 'skyportal/FETCH_CANDIDATES_FAIL';
 
-export const fetchCandidates = (filterParams = {}) => {
+export const fetchCandidates = (filterParams={}) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
     filterParams.pageNumber = 1;
   }
@@ -31,20 +31,14 @@ const initialState = {
   lastPage: false,
   totalMatches: 0,
   numberingStart: 0,
-  numberingEnd: 0,
+  numberingEnd: 0
 };
 
 const reducer = (state = initialState, action) => {
   switch (action.type) {
     case FETCH_CANDIDATES_OK: {
-      const {
-        candidates,
-        pageNumber,
-        lastPage,
-        totalMatches,
-        numberingStart,
-        numberingEnd,
-      } = action.data;
+      const { candidates, pageNumber, lastPage, totalMatches, numberingStart,
+        numberingEnd } = action.data;
       return {
         ...state,
         candidates,
@@ -52,7 +46,7 @@ const reducer = (state = initialState, action) => {
         lastPage,
         totalMatches,
         numberingStart,
-        numberingEnd,
+        numberingEnd
       };
     }
     default:
@@ -60,4 +54,4 @@ const reducer = (state = initialState, action) => {
   }
 };
 
-store.injectReducer("candidates", reducer);
+store.injectReducer('candidates', reducer);
