@@ -449,11 +449,27 @@ class GroupStreamHandler(BaseHandler):
         """
         data = self.get_json()
         group_id = int(group_id)
+        # group = Group.query.filter(Group.id == group_id).first()
+        group = (
+            Group.query.options(joinedload(Group.users))
+            .options(joinedload(Group.group_users))
+            .get(group_id)
+        )
+        if group is None:
+            return self.error("Specified group_id does not exist.")
         stream_id = data.get('stream_id')
         stream = Stream.query.filter(Stream.id == stream_id).first()
         if stream is None:
             return self.error("Specified stream_id does not exist.")
         else:
+            # todo: ensure all current group users have access to this stream
+            for user in group.users:
+                # get single user group
+                single_user_group = Group.query.filter(
+                    Group.name == user.username
+                ).first()
+                # todo: do the check
+
             # Add new GroupStream
             gs = GroupStream.query.filter(
                 GroupStream.group_id == group_id, GroupStream.stream_id == stream_id
