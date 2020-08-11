@@ -28,7 +28,6 @@ from skyportal.tests.fixtures import (
 from skyportal.model_util import create_token
 from skyportal.models import DBSession, Source, Candidate, Role
 
-from psycopg2 import OperationalError
 import astroplan
 
 
