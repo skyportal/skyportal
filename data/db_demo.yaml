@@ -94,7 +94,7 @@ instrument:
     band: optical
     =id: LRIS
     telescope_id: =Keck1
-    
+
 
 candidates:
   - id: 14gqr_unsaved_copy
