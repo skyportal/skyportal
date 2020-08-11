@@ -3,9 +3,18 @@ from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
-from ...models import (DBSession, Source, FollowupRequest, Token,
-                       ClassicalAssignment, ObservingRun, Source,
-                       Obj, Group, Thumbnail)
+from ...models import (
+    DBSession,
+    Source,
+    FollowupRequest,
+    Token,
+    ClassicalAssignment,
+    ObservingRun,
+    Source,
+    Obj,
+    Group,
+    Thumbnail,
+)
 
 from sqlalchemy.orm import joinedload
 
@@ -49,10 +58,11 @@ class AssignmentHandler(BaseHandler):
 
         # get owned assignments
         assignments = DBSession().query(ClassicalAssignment)
-        assignments = assignments.join(Obj).join(Source).join(Group).filter(
-            Group.id.in_(
-                [g.id for g in self.current_user.accessible_groups]
-            )
+        assignments = (
+            assignments.join(Obj)
+            .join(Source)
+            .join(Group)
+            .filter(Group.id.in_([g.id for g in self.current_user.accessible_groups]))
         )
 
         if assignment_id is not None:
@@ -64,10 +74,9 @@ class AssignmentHandler(BaseHandler):
             assignments = assignments.filter(
                 ClassicalAssignment.id == assignment_id
             ).options(
-                joinedload(ClassicalAssignment.obj)
-                .joinedload(Obj.thumbnails),
+                joinedload(ClassicalAssignment.obj).joinedload(Obj.thumbnails),
                 joinedload(ClassicalAssignment.requester),
-                joinedload(ClassicalAssignment.obj)
+                joinedload(ClassicalAssignment.obj),
             )
 
         assignments = assignments.all()
@@ -119,8 +128,9 @@ class AssignmentHandler(BaseHandler):
         try:
             assignment = ClassicalAssignment(**AssignmentSchema.load(data=data))
         except ValidationError as e:
-            return self.error('Error parsing followup request: '
-                              f'"{e.normalized_messages()}"')
+            return self.error(
+                'Error parsing followup request: ' f'"{e.normalized_messages()}"'
+            )
 
         run_id = assignment.run_id
         data['priority'] = assignment.priority.name
@@ -130,7 +140,7 @@ class AssignmentHandler(BaseHandler):
 
         predecessor = ClassicalAssignment.query.filter(
             ClassicalAssignment.obj_id == assignment.obj_id,
-            ClassicalAssignment.run_id == run_id
+            ClassicalAssignment.run_id == run_id,
         ).first()
 
         if predecessor is not None:
@@ -146,8 +156,7 @@ class AssignmentHandler(BaseHandler):
         DBSession().add(assignment)
         DBSession().commit()
         self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_id": assignment.obj_id},
+            action="skyportal/REFRESH_SOURCE", payload={"obj_id": assignment.obj_id},
         )
         return self.success(data={"id": assignment.id})
 
@@ -185,8 +194,10 @@ class AssignmentHandler(BaseHandler):
         data['id'] = assignment_id
         data["requester_id"] = self.associated_user_object.id
 
-        modok = "System admin" in [a.id for a in self.current_user.acls] \
-                or assignment.requester.username == self.current_user.username
+        modok = (
+            "System admin" in [a.id for a in self.current_user.acls]
+            or assignment.requester.username == self.current_user.username
+        )
         if not modok:
             return self.error("Insufficient permissions.")
 
@@ -194,13 +205,13 @@ class AssignmentHandler(BaseHandler):
         try:
             schema.load(data, partial=True)
         except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            return self.error(
+                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+            )
         DBSession().commit()
 
         self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_id": assignment.obj_id},
+            action="skyportal/REFRESH_SOURCE", payload={"obj_id": assignment.obj_id},
         )
 
         return self.success()
@@ -224,8 +235,10 @@ class AssignmentHandler(BaseHandler):
         """
         assignment = ClassicalAssignment.query.get(int(assignment_id))
         user = self.associated_user_object
-        delok = "System admin" in [a.id for a in user.acls] \
-                or assignment.requester.username == user.username
+        delok = (
+            "System admin" in [a.id for a in user.acls]
+            or assignment.requester.username == user.username
+        )
         if not delok:
             return self.error("Insufficient permissions.")
 
@@ -233,8 +246,7 @@ class AssignmentHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_id": assignment.obj_id},
+            action="skyportal/REFRESH_SOURCE", payload={"obj_id": assignment.obj_id},
         )
         return self.success()
 
@@ -317,8 +329,9 @@ class FollowupRequestHandler(BaseHandler):
         try:
             schema.load(data)
         except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            return self.error(
+                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+            )
         DBSession().commit()
 
         self.push_all(

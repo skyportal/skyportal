@@ -21,8 +21,9 @@ class InstrumentHandler(BaseHandler):
         try:
             instrument = schema.load(data)
         except ValidationError as exc:
-            return self.error('Invalid/missing parameters: '
-                              f'{exc.normalized_messages()}')
+            return self.error(
+                'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
+            )
         instrument.telescope = telescope
         DBSession().add(instrument)
         DBSession().commit()
@@ -72,8 +73,10 @@ class InstrumentHandler(BaseHandler):
             instrument = Instrument.query.get(int(instrument_id))
 
             if instrument is None:
-                return self.error(f"Could not load instrument {instrument_id}",
-                                  data={"instrument_id": instrument_id})
+                return self.error(
+                    f"Could not load instrument {instrument_id}",
+                    data={"instrument_id": instrument_id},
+                )
             return self.success(data=instrument)
 
         inst_name = self.get_query_argument("name", None)
@@ -114,8 +117,9 @@ class InstrumentHandler(BaseHandler):
         try:
             schema.load(data, partial=True)
         except ValidationError as exc:
-            return self.error('Invalid/missing parameters: '
-                              f'{exc.normalized_messages()}')
+            return self.error(
+                'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
+            )
         DBSession().commit()
 
         return self.success()
@@ -141,7 +145,9 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        DBSession().query(Instrument).filter(Instrument.id == int(instrument_id)).delete()
+        DBSession().query(Instrument).filter(
+            Instrument.id == int(instrument_id)
+        ).delete()
         DBSession().commit()
 
         return self.success()

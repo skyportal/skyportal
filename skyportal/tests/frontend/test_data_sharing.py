@@ -22,9 +22,7 @@ def test_share_data(
     driver.wait_for_xpath_to_be_clickable(
         f'//li[text()="{public_group2.name}"]'
     ).click()
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//*[text()="Submit"]')
-    )
+    driver.scroll_to_element_and_click(driver.wait_for_xpath('//*[text()="Submit"]'))
     driver.wait_for_xpath('//*[text()="Data successfully shared"]', 15)
     groups_str = ", ".join([public_group.name, public_group2.name])
     try:

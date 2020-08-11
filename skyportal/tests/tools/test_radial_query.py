@@ -17,7 +17,9 @@ def test_radial_query(n):
     ids = np.asarray([uuid4().hex for _ in range(n)])
 
     # save them to the database
-    point_cloud = [sp_models.Obj(id=id, ra=r, dec=d) for id, r, d in zip(ids, ras, decs)]
+    point_cloud = [
+        sp_models.Obj(id=id, ra=r, dec=d) for id, r, d in zip(ids, ras, decs)
+    ]
     sp_models.DBSession().add_all(point_cloud)
     sp_models.DBSession().commit()
 
@@ -35,8 +37,14 @@ def test_radial_query(n):
     matching_ids = set(ids[indices])
 
     # issue the query on the db
-    db_ids = sp_models.DBSession().query(sp_models.Obj.id).filter(
-        sp_models.Obj.within(ha.Point(ra=coord[0].ra.deg, dec=coord[0].dec.deg), 1.)
+    db_ids = (
+        sp_models.DBSession()
+        .query(sp_models.Obj.id)
+        .filter(
+            sp_models.Obj.within(
+                ha.Point(ra=coord[0].ra.deg, dec=coord[0].dec.deg), 1.0
+            )
+        )
     )
 
     db_ids = {i[0] for i in db_ids}

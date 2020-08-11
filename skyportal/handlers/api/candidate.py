@@ -149,11 +149,13 @@ class CandidateHandler(BaseHandler):
             c = Candidate.get_obj_if_owned_by(
                 obj_id,
                 self.current_user,
-                options=[joinedload(Candidate.obj)
-                         .joinedload(Obj.thumbnails)
-                         .joinedload(Thumbnail.photometry)
-                         .joinedload(Photometry.instrument)
-                         .joinedload(Instrument.telescope)]
+                options=[
+                    joinedload(Candidate.obj)
+                    .joinedload(Obj.thumbnails)
+                    .joinedload(Thumbnail.photometry)
+                    .joinedload(Photometry.instrument)
+                    .joinedload(Instrument.telescope)
+                ],
             )
             if c is None:
                 return self.error("Invalid ID")
@@ -206,10 +208,14 @@ class CandidateHandler(BaseHandler):
             filter_ids = user_filter_ids
 
         # Ensure user has access to specified groups/filters
-        if not (all([gid in user_accessible_group_ids for gid in group_ids]) and
-                all([fid in user_accessible_filter_ids for fid in filter_ids])):
-            return self.error("Insufficient permissions - you must only specify "
-                              "groups/filters that you have access to.")
+        if not (
+            all([gid in user_accessible_group_ids for gid in group_ids])
+            and all([fid in user_accessible_filter_ids for fid in filter_ids])
+        ):
+            return self.error(
+                "Insufficient permissions - you must only specify "
+                "groups/filters that you have access to."
+            )
 
         try:
             page = int(page_number)
@@ -226,9 +232,9 @@ class CandidateHandler(BaseHandler):
             )
             .filter(
                 Obj.id.in_(
-                    DBSession().query(Candidate.obj_id).filter(
-                        Candidate.filter_id.in_(filter_ids)
-                    )
+                    DBSession()
+                    .query(Candidate.obj_id)
+                    .filter(Candidate.filter_id.in_(filter_ids))
                 )
             )
             .order_by(Obj.last_detected.desc().nullslast(), Obj.id)
@@ -236,9 +242,9 @@ class CandidateHandler(BaseHandler):
         if unsaved_only == "true":
             q = q.filter(
                 Obj.id.notin_(
-                    DBSession().query(Source.obj_id).filter(
-                        Source.group_id.in_(group_ids)
-                    )
+                    DBSession()
+                    .query(Source.obj_id)
+                    .filter(Source.group_id.in_(group_ids))
                 )
             )
         if start_date is not None and start_date.strip() not in [
@@ -260,7 +266,8 @@ class CandidateHandler(BaseHandler):
                 return self.error("Page number out of range.")
             raise
         matching_source_ids = (
-            DBSession().query(Source.obj_id)
+            DBSession()
+            .query(Source.obj_id)
             .filter(Source.obj_id.in_([obj.id for obj in query_results["candidates"]]))
             .all()
         )
@@ -274,9 +281,9 @@ class CandidateHandler(BaseHandler):
                     Filter.query.filter(Filter.id.in_(user_accessible_filter_ids))
                     .filter(
                         Filter.id.in_(
-                            DBSession().query(Candidate.filter_id).filter(
-                                Candidate.obj_id == obj.id
-                            )
+                            DBSession()
+                            .query(Candidate.filter_id)
+                            .filter(Candidate.obj_id == obj.id)
                         )
                     )
                     .all()
@@ -347,8 +354,10 @@ class CandidateHandler(BaseHandler):
             if g.filter is not None
         ]
         if not all([fid in user_accessible_filter_ids for fid in filter_ids]):
-            return self.error("Insufficient permissions - you must only specify "
-                              "filters that you have access to.")
+            return self.error(
+                "Insufficient permissions - you must only specify "
+                "filters that you have access to."
+            )
 
         try:
             obj = schema.load(data)
