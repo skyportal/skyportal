@@ -23,8 +23,7 @@ const add_node_paths = (node_paths, hierarchy, prefix_path = []) => {
     node_paths.push(this_node_path);
   }
 
-  // eslint-disable-next-line no-unused-expressions, array-callback-return
-  hierarchy.subclasses?.map((item) => {
+  hierarchy.subclasses?.forEach((item) => {
     if (typeof item === "object") {
       add_node_paths(node_paths, item, this_node_path);
     }
