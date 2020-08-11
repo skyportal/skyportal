@@ -166,23 +166,24 @@ const spec = (url) => ({
   ],
 });
 
-const VegaPlot = React.Memo(
-  ({ props }) => {
-    const { dataUrl } = props;
-    return (
-      <div
-        ref={(node) => {
+
+const VegaPlot = React.memo((props) => {
+  const { dataUrl } = props;
+  return (
+    <div
+      ref={
+        (node) => {
           embed(node, spec(dataUrl), {
-            actions: false,
+            actions: false
           });
-        }}
-      />
-    );
-  },
-  // Prevent plots from automatically rerendering to minimize overheads.
-  // eslint-disable-next-line no-unused-vars
-  (prevState, nextState) => true
-);
+        }
+      }
+    />
+  );
+},
+// Prevent plots from automatically rerendering to minimize overheads.
+// eslint-disable-next-line no-unused-vars
+(prevState, nextState) => true);
 
 VegaPlot.propTypes = {
   dataUrl: PropTypes.string.isRequired,

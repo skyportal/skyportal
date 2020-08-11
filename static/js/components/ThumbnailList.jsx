@@ -18,9 +18,9 @@ dayjs.extend(calendar);
 
 const useStyles = makeStyles(() => ({
   root: {
-    width: "17rem",
-    margin: "auto",
-    maxHeight: "42rem",
+    width: "13rem",
+    margin: '0.5rem auto',
+    maxHeight: "31rem",
     flexGrow: 1,
   },
   title: {
@@ -33,17 +33,17 @@ const useStyles = makeStyles(() => ({
     position: "relative",
   },
   media: {
-    height: "17rem",
-    width: "17rem",
+    height: "13rem",
+    width: "13rem",
   },
   crosshair: {
     position: "absolute",
     top: 0,
     left: 0,
-    width: "17rem",
-    height: "17rem",
-    paddingBottom: "0.2em",
-  },
+    width: "13rem",
+    height: "13rem",
+    paddingBottom: "0.2em"
+  }
 }));
 
 const Thumbnail = ({ ra, dec, name, url }) => {

@@ -40,34 +40,36 @@ const airmass_spec = (url, ephemeris) => ({
   ],
 });
 
-const AirmassPlot = React.Memo(
-  ({ props }) => {
-    const { dataUrl, ephemeris } = props;
-    return (
-      <div
-        ref={(node) => {
+const AirmassPlot = React.memo((props) => {
+  const { dataUrl, ephemeris } = props;
+  return (
+    <div
+      ref={
+        (node) => {
           embed(node, airmass_spec(dataUrl, ephemeris), {
-            actions: false,
+            actions: false
           });
-        }}
-      />
-    );
-  },
-  // Prevent plots from automatically rerendering to minimize overheads.
-  // eslint-disable-next-line no-unused-vars
-  (prevState, nextState) => true
-);
+        }
+      }
+    />
+  );
+},
+// Prevent plots from automatically rerendering to minimize overheads.
+// eslint-disable-next-line no-unused-vars
+(prevState, nextState) => true);
 
 AirmassPlot.propTypes = {
   ...VegaPlot.propTypes,
-  ephemeris: PropTypes.shape({
-    twilight_evening_astronomical_utc: PropTypes.number,
-    twilight_morning_astronomical_utc: PropTypes.number,
-    twilight_evening_nautical_utc: PropTypes.number,
-    twilight_morning_nautical_utc: PropTypes.number,
-    sunset_utc: PropTypes.number,
-    sunrise_utc: PropTypes.number,
-  }).isRequired,
+  ephemeris: PropTypes.shape(
+    {
+      twilight_evening_astronomical_utc: PropTypes.string,
+      twilight_morning_astronomical_utc: PropTypes.string,
+      twilight_evening_nautical_utc: PropTypes.string,
+      twilight_morning_nautical_utc: PropTypes.string,
+      sunset_utc: PropTypes.string,
+      sunrise_utc: PropTypes.string
+    }
+  ).isRequired
 };
 
 export default AirmassPlot;
