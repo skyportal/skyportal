@@ -108,52 +108,28 @@ def test_edit_existing_followup_request(
 
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
-    instrument_select = driver.wait_for_xpath(
-        '//*[@id="mui-component-select-instrument_id"]'
-    )
-    driver.scroll_to_element_and_click(instrument_select)
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//*[text()="P60 Camera"]')
-    )
+    driver.click_xpath('//*[@id="mui-component-select-instrument_id"]')
+    driver.click_xpath('//*[text()="P60 Camera"]')
 
-    submit_button = driver.wait_for_xpath(
-        '//*[@name="createNewFollowupRequestSubmitButton"]'
-    )
-    driver.execute_script("arguments[0].scrollIntoView();", submit_button)
-    driver.execute_script(
-        "arguments[0].click();", driver.wait_for_xpath('//input[@name="start_date"]')
-    )
-    driver.execute_script(
-        "arguments[0].click();",
-        driver.wait_for_xpath(
-            '//div[contains(@class,"react-datepicker__day react-datepicker__day--013")]'
-        ),
-    )
-    driver.execute_script(
-        "arguments[0].click();", driver.wait_for_xpath('//input[@name="end_date"]')
-    )
-    driver.execute_script(
-        "arguments[0].click();",
-        driver.wait_for_xpath(
-            '//div[contains(@class,"react-datepicker__day react-datepicker__day--014")]'
-        ),
-    )
-    driver.execute_script(
-        "arguments[0].click();", driver.wait_for_xpath('//input[@value="sdssu"]')
-    )
+    driver.click_xpath('//input[@name="start_date"]')
+    driver.click_xpath('//div[contains(@class,"react-datepicker__day react-datepicker__day--013")]')
+    driver.click_xpath('//input[@name="end_date"]')
+    driver.click_xpath('//div[contains(@class,"react-datepicker__day react-datepicker__day--014")]')
+    driver.click_xpath('//input[@value="sdssu"]')
+
     exposure_select = Select(driver.wait_for_xpath('//select[@name="exposure_time"]'))
     exposure_select.select_by_visible_text("120s")
     priority_select = Select(driver.wait_for_xpath('//select[@name="priority"]'))
     priority_select.select_by_visible_text("1")
-    submit_button.click()
+    driver.click_xpath('//*[@name="createNewFollowupRequestSubmitButton"]')
+
     driver.wait_for_xpath("//td[contains(.,'1')]")
-    driver.scroll_to_element_and_click(driver.wait_for_xpath('//button[text()="Edit"]'))
+    driver.click_xpath('//button[text()="Edit"]')
     priority_select = Select(driver.wait_for_xpath('//select[@name="priority"]'))
     priority_select.select_by_visible_text("5")
-    submit_button = driver.wait_for_xpath(
+    submit_button = driver.click_xpath(
         '//*[@name="editExistingFollowupRequestSubmitButton"]'
     )
-    driver.execute_script("arguments[0].click();", submit_button)
     try:
         driver.wait_for_xpath("//td[contains(.,'5')]")
     except TimeoutException:
