@@ -1,14 +1,13 @@
-import messageHandler from 'baselayer/MessageHandler';
+import messageHandler from "baselayer/MessageHandler";
 
-import * as API from '../API';
-import store from '../store';
+import * as API from "../API";
+import store from "../store";
 
-export const FETCH_TOP_EVENTS = 'skyportal/FETCH_TOP_EVENTS';
-export const FETCH_TOP_EVENTS_OK = 'skyportal/FETCH_TOP_EVENTS_OK';
+export const FETCH_TOP_EVENTS = "skyportal/FETCH_TOP_EVENTS";
+export const FETCH_TOP_EVENTS_OK = "skyportal/FETCH_TOP_EVENTS_OK";
 
-export const fetchTopEvents = () => (
-  API.GET('/api/internal/event_views', FETCH_TOP_EVENTS)
-);
+export const fetchTopEvents = () =>
+  API.GET("/api/internal/event_views", FETCH_TOP_EVENTS);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {
@@ -17,12 +16,12 @@ messageHandler.add((actionType, payload, dispatch) => {
   }
 });
 
-const reducer = (state={ eventViews: [] }, action) => {
+const reducer = (state = { eventViews: [] }, action) => {
   switch (action.type) {
     case FETCH_TOP_EVENTS_OK: {
       const eventViews = action.data;
       return {
-        eventViews
+        eventViews,
       };
     }
     default:
@@ -30,4 +29,4 @@ const reducer = (state={ eventViews: [] }, action) => {
   }
 };
 
-store.injectReducer('topEvents', reducer);
+store.injectReducer("topEvents", reducer);

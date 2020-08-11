@@ -1,11 +1,14 @@
-import React, { useRef } from 'react';
-import { useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
-import Dropdown, { DropdownTrigger, DropdownContent } from 'react-simple-dropdown';
-import styled from 'styled-components';
+import React, { useRef } from "react";
+import { useSelector } from "react-redux";
+import { Link } from "react-router-dom";
+import Dropdown, {
+  DropdownTrigger,
+  DropdownContent,
+} from "react-simple-dropdown";
+import styled from "styled-components";
 
 import styles from "./ProfileDropdown.css";
-import UserAvatar from './UserAvatar';
+import UserAvatar from "./UserAvatar";
 
 const Container = styled.div`
   padding: 1em;
@@ -34,10 +37,13 @@ const ProfileDropdown = () => {
     <Container>
       <Dropdown ref={dropdown}>
         <DropdownTrigger>
-          <div style={{ display: "flex",
-            justifyContent: "space-between",
-            flexDirection: "row",
-            alignItems: "center" }}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              flexDirection: "row",
+              alignItems: "center",
+            }}
           >
             <UserAvatar
               size={32}
@@ -46,16 +52,19 @@ const ProfileDropdown = () => {
               username={profile.username}
               gravatarUrl={profile.gravatar_url}
             />
-          &nbsp;&nbsp;
-            { profile.username }
-            {' '}
-          &nbsp;▾
+            &nbsp;&nbsp;
+            {profile.username} &nbsp;▾
           </div>
         </DropdownTrigger>
 
         <DropdownContent>
           <Link to="/profile" role="link">
-            <div role="menuitem" tabIndex="0" className={styles.entry} onClick={collapseDropdown}>
+            <div
+              role="menuitem"
+              tabIndex="0"
+              className={styles.entry}
+              onClick={collapseDropdown}
+            >
               Profile
             </div>
           </Link>
@@ -63,7 +72,12 @@ const ProfileDropdown = () => {
           <div className={styles.rule} />
 
           <Link to="/groups" role="link">
-            <div role="menuitem" tabIndex="-1" className={styles.entry} onClick={collapseDropdown}>
+            <div
+              role="menuitem"
+              tabIndex="-1"
+              className={styles.entry}
+              onClick={collapseDropdown}
+            >
               Groups
             </div>
           </Link>
@@ -71,12 +85,16 @@ const ProfileDropdown = () => {
           <div className={styles.rule} />
 
           <a href="/logout">
-            <div role="menuitem" tabIndex="-1" className={styles.entry} onClick={collapseDropdown}>
+            <div
+              role="menuitem"
+              tabIndex="-1"
+              className={styles.entry}
+              onClick={collapseDropdown}
+            >
               Sign out
             </div>
           </a>
         </DropdownContent>
-
       </Dropdown>
     </Container>
   );

@@ -8,8 +8,11 @@ from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler
 from .news_feed import NewsFeedHandler
 from .observingrun import ObservingRunHandler
-from .photometry import (PhotometryHandler, ObjPhotometryHandler,
-                         BulkDeletePhotometryHandler)
+from .photometry import (
+    PhotometryHandler,
+    ObjPhotometryHandler,
+    BulkDeletePhotometryHandler,
+)
 from .plan import PlanHandler
 from .public_group import PublicGroupHandler
 from .sharing import SharingHandler

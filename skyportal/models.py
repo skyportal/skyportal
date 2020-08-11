@@ -25,8 +25,16 @@ import healpy as hp
 import healpix_alchemy as ha
 from ligo.skymap.bayestar import rasterize
 
-from baselayer.app.models import (init_db, join_model, Base, DBSession, ACL,
-                                  Role, User, Token)
+from baselayer.app.models import (
+    init_db,
+    join_model,
+    Base,
+    DBSession,
+    ACL,
+    Role,
+    User,
+    Token,
+)
 from baselayer.app.custom_exceptions import AccessError
 
 import astroplan
@@ -35,8 +43,12 @@ from astropy import units as u
 from astropy import time as ap_time
 
 from . import schema
-from .enum_types import (allowed_bandpasses, thumbnail_types, instrument_types,
-                         followup_priorities)
+from .enum_types import (
+    allowed_bandpasses,
+    thumbnail_types,
+    instrument_types,
+    followup_priorities,
+)
 
 
 # In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
@@ -79,26 +91,38 @@ class NumpyArray(sa.types.TypeDecorator):
 class Group(Base):
     name = sa.Column(sa.String, unique=True, nullable=False)
 
-    streams = relationship('Stream', secondary='stream_groups',
-                           back_populates='groups',
-                           passive_deletes=True)
-    users = relationship('User', secondary='group_users',
-                         back_populates='groups',
-                         passive_deletes=True)
-    group_users = relationship('GroupUser', back_populates='group',
-                               cascade='save-update, merge, refresh-expire, expunge',
-                               passive_deletes=True)
+    streams = relationship(
+        'Stream',
+        secondary='stream_groups',
+        back_populates='groups',
+        passive_deletes=True,
+    )
+    users = relationship(
+        'User', secondary='group_users', back_populates='groups', passive_deletes=True
+    )
+    group_users = relationship(
+        'GroupUser',
+        back_populates='group',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+    )
 
     filter = relationship("Filter", uselist=False, back_populates="group")
     observing_runs = relationship('ObservingRun', back_populates='group')
-    photometry = relationship("Photometry", secondary="group_photometry",
-                              back_populates="groups",
-                              cascade="save-update, merge, refresh-expire, expunge",
-                              passive_deletes=True)
-    spectra = relationship("Spectrum", secondary="group_spectra",
-                           back_populates="groups",
-                           cascade="save-update, merge, refresh-expire, expunge",
-                           passive_deletes=True)
+    photometry = relationship(
+        "Photometry",
+        secondary="group_photometry",
+        back_populates="groups",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
+    spectra = relationship(
+        "Spectrum",
+        secondary="group_spectra",
+        back_populates="groups",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
     single_user_group = sa.Column(sa.Boolean, default=False)
 
 
@@ -112,17 +136,20 @@ class Stream(Base):
     username = sa.Column(sa.String)
     password = sa.Column(sa.String)
 
-    groups = relationship('Group', secondary='stream_groups',
-                          back_populates='streams',
-                          passive_deletes=True)
+    groups = relationship(
+        'Group',
+        secondary='stream_groups',
+        back_populates='streams',
+        passive_deletes=True,
+    )
 
 
 StreamGroup = join_model('stream_groups', Stream, Group)
 
 
-User.groups = relationship('Group', secondary='group_users',
-                           back_populates='users',
-                           passive_deletes=True)
+User.groups = relationship(
+    'Group', secondary='group_users', back_populates='users', passive_deletes=True
+)
 
 
 @property
@@ -158,9 +185,12 @@ class Obj(Base, ha.Point):
     redshift = sa.Column(sa.Float, nullable=True)
 
     # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
-    altdata = sa.Column(JSONB, nullable=True,
-                        doc="Misc. alternative metadata stored in JSON format, e.g. "
-                        "`{'gaia': {'info': {'Teff': 5780}}}`")
+    altdata = sa.Column(
+        JSONB,
+        nullable=True,
+        doc="Misc. alternative metadata stored in JSON format, e.g. "
+        "`{'gaia': {'info': {'Teff': 5780}}}`",
+    )
 
     dist_nearest_source = sa.Column(sa.Float, nullable=True)
     mag_nearest_source = sa.Column(sa.Float, nullable=True)
@@ -174,38 +204,51 @@ class Obj(Base, ha.Point):
 
     origin = sa.Column(sa.String, nullable=True)
 
-    comments = relationship('Comment', back_populates='obj',
-                            cascade='save-update, merge, refresh-expire, expunge',
-                            passive_deletes=True,
-                            order_by="Comment.created_at")
-
-    classifications = relationship(
-        'Classification', back_populates='obj',
+    comments = relationship(
+        'Comment',
+        back_populates='obj',
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
-        order_by="Classification.created_at")
+        order_by="Comment.created_at",
+    )
 
-    photometry = relationship('Photometry', back_populates='obj',
-                              cascade='save-update, merge, refresh-expire, expunge',
-                              single_parent=True,
-                              passive_deletes=True,
-                              order_by="Photometry.mjd")
+    classifications = relationship(
+        'Classification',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        order_by="Classification.created_at",
+    )
+
+    photometry = relationship(
+        'Photometry',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge',
+        single_parent=True,
+        passive_deletes=True,
+        order_by="Photometry.mjd",
+    )
 
     detect_photometry_count = sa.Column(sa.Integer, nullable=True)
 
-    spectra = relationship('Spectrum', back_populates='obj',
-                           cascade='save-update, merge, refresh-expire, expunge',
-                           single_parent=True,
-                           passive_deletes=True,
-                           order_by="Spectrum.observed_at")
-    thumbnails = relationship('Thumbnail', back_populates='obj',
-                              secondary='photometry',
-                              cascade='save-update, merge, refresh-expire, expunge',
-                              passive_deletes=True)
+    spectra = relationship(
+        'Spectrum',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge',
+        single_parent=True,
+        passive_deletes=True,
+        order_by="Spectrum.observed_at",
+    )
+    thumbnails = relationship(
+        'Thumbnail',
+        back_populates='obj',
+        secondary='photometry',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+    )
 
     followup_requests = relationship('FollowupRequest', back_populates='obj')
     assignments = relationship('ClassicalAssignment', back_populates='obj')
-
 
     @hybrid_property
     def last_detected(self):
@@ -214,34 +257,40 @@ class Obj(Base, ha.Point):
 
     @last_detected.expression
     def last_detected(cls):
-        return sa.select([sa.func.max(Photometry.iso)]) \
-                 .where(Photometry.obj_id == cls.id) \
-                 .where(Photometry.snr > 5.) \
-                 .group_by(Photometry.obj_id) \
-                 .label('last_detected')
+        return (
+            sa.select([sa.func.max(Photometry.iso)])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr > 5.0)
+            .group_by(Photometry.obj_id)
+            .label('last_detected')
+        )
 
     def add_linked_thumbnails(self):
-        sdss_thumb = Thumbnail(photometry=self.photometry[0],
-                               public_url=self.sdss_url,
-                               type='sdss')
-        dr8_thumb = Thumbnail(photometry=self.photometry[0],
-                              public_url=self.desi_dr8_url,
-                              type='dr8')
+        sdss_thumb = Thumbnail(
+            photometry=self.photometry[0], public_url=self.sdss_url, type='sdss'
+        )
+        dr8_thumb = Thumbnail(
+            photometry=self.photometry[0], public_url=self.desi_dr8_url, type='dr8'
+        )
         DBSession().add_all([sdss_thumb, dr8_thumb])
         DBSession().commit()
 
     @property
     def sdss_url(self):
         """Construct URL for public Sloan Digital Sky Survey (SDSS) cutout."""
-        return (f"http://skyserver.sdss.org/dr12/SkyserverWS/ImgCutout/getjpeg"
-                f"?ra={self.ra}&dec={self.dec}&scale=0.3&width=200&height=200"
-                f"&opt=G&query=&Grid=on")
+        return (
+            f"http://skyserver.sdss.org/dr12/SkyserverWS/ImgCutout/getjpeg"
+            f"?ra={self.ra}&dec={self.dec}&scale=0.3&width=200&height=200"
+            f"&opt=G&query=&Grid=on"
+        )
 
     @property
     def desi_dr8_url(self):
         """Construct URL for public DESI DR8 cutout."""
-        return (f"http://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
-                f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz")
+        return (
+            f"http://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
+            f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz"
+        )
 
     @property
     def target(self):
@@ -284,7 +333,7 @@ class Obj(Base, ha.Point):
         sinarg = np.zeros_like(altitude)
         airmass = np.ones_like(altitude) * np.inf
         sinarg[above] = altitude[above] + 244 / (165 + 47 * altitude[above] ** 1.1)
-        airmass[above] = 1. / np.sin(np.deg2rad(sinarg[above]))
+        airmass[above] = 1.0 / np.sin(np.deg2rad(sinarg[above]))
 
         # set objects below the horizon to an airmass of infinity
         airmass[~above] = below_horizon
@@ -314,8 +363,7 @@ class Obj(Base, ha.Point):
 
 class Filter(Base):
     query_string = sa.Column(sa.String, nullable=False, unique=False)
-    group_id = sa.Column(sa.ForeignKey("groups.id"), nullable=False,
-                         index=True)
+    group_id = sa.Column(sa.ForeignKey("groups.id"), nullable=False, index=True)
     group = relationship("Group", foreign_keys=[group_id], back_populates="filter")
 
 
@@ -356,21 +404,28 @@ Source = join_model("sources", Group, Obj)
    if this gets more complicated it should become a function/`hybrid_property`
    rather than a `relationship`.
 """
-Source.saved_by_id = sa.Column(sa.ForeignKey("users.id"), nullable=True, unique=False,
-                               index=True)
-Source.saved_by = relationship("User", foreign_keys=[Source.saved_by_id],
-                               backref="saved_sources")
+Source.saved_by_id = sa.Column(
+    sa.ForeignKey("users.id"), nullable=True, unique=False, index=True
+)
+Source.saved_by = relationship(
+    "User", foreign_keys=[Source.saved_by_id], backref="saved_sources"
+)
 Source.saved_at = sa.Column(sa.DateTime, nullable=True)
 Source.active = sa.Column(sa.Boolean, server_default="true")
 Source.requested = sa.Column(sa.Boolean, server_default="false")
-Source.unsaved_by_id = sa.Column(sa.ForeignKey("users.id"), nullable=True, unique=False,
-                                 index=True)
+Source.unsaved_by_id = sa.Column(
+    sa.ForeignKey("users.id"), nullable=True, unique=False, index=True
+)
 Source.unsaved_by = relationship("User", foreign_keys=[Source.unsaved_by_id])
 
 
 def source_is_owned_by(self, user_or_token):
-    source_group_ids = [row[0] for row in DBSession.query(
-        Source.group_id).filter(Source.obj_id == self.obj_id).all()]
+    source_group_ids = [
+        row[0]
+        for row in DBSession.query(Source.group_id)
+        .filter(Source.obj_id == self.obj_id)
+        .all()
+    ]
     return bool(set(source_group_ids) & {g.id for g in user_or_token.accessible_groups})
 
 
@@ -378,8 +433,12 @@ def get_source_if_owned_by(obj_id, user_or_token, options=[]):
     if Source.query.filter(Source.obj_id == obj_id).first() is None:
         return None
     user_group_ids = [g.id for g in user_or_token.accessible_groups]
-    s = (Source.query.filter(Source.obj_id == obj_id)
-         .filter(Source.group_id.in_(user_group_ids)).options(options).first())
+    s = (
+        Source.query.filter(Source.obj_id == obj_id)
+        .filter(Source.group_id.in_(user_group_ids))
+        .options(options)
+        .first()
+    )
     if s is None:
         raise AccessError("Insufficient permissions.")
     return s.obj
@@ -419,7 +478,11 @@ Obj.get_comments_owned_by = get_obj_comments_owned_by
 
 
 def get_obj_classifications_owned_by(self, user_or_token):
-    return [classifications for classifications in self.classifications if classifications.is_owned_by(user_or_token)]
+    return [
+        classifications
+        for classifications in self.classifications
+        if classifications.is_owned_by(user_or_token)
+    ]
 
 
 Obj.get_classifications_owned_by = get_obj_classifications_owned_by
@@ -429,9 +492,9 @@ def get_photometry_owned_by_user(obj_id, user_or_token):
     return (
         Photometry.query.filter(Photometry.obj_id == obj_id)
         .filter(
-            Photometry.groups.any(Group.id.in_(
-                [g.id for g in user_or_token.accessible_groups]
-            ))
+            Photometry.groups.any(
+                Group.id.in_([g.id for g in user_or_token.accessible_groups])
+            )
         )
         .all()
     )
@@ -444,9 +507,9 @@ def get_spectra_owned_by(obj_id, user_or_token):
     return (
         Spectrum.query.filter(Spectrum.obj_id == obj_id)
         .filter(
-            Spectrum.groups.any(Group.id.in_(
-                [g.id for g in user_or_token.accessible_groups]
-            ))
+            Spectrum.groups.any(
+                Group.id.in_([g.id for g in user_or_token.accessible_groups])
+            )
         )
         .all()
     )
@@ -455,19 +518,27 @@ def get_spectra_owned_by(obj_id, user_or_token):
 Obj.get_spectra_owned_by = get_spectra_owned_by
 
 
-User.sources = relationship('Obj', backref='users',
-                            secondary='join(Group, sources).join(group_users)',
-                            primaryjoin='group_users.c.user_id == users.c.id',
-                            passive_deletes=True)
+User.sources = relationship(
+    'Obj',
+    backref='users',
+    secondary='join(Group, sources).join(group_users)',
+    primaryjoin='group_users.c.user_id == users.c.id',
+    passive_deletes=True,
+)
 
 
 class SourceView(Base):
-    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
-                       nullable=False, unique=False, index=True)
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        unique=False,
+        index=True,
+    )
     username_or_token_id = sa.Column(sa.String, nullable=False, unique=False)
     is_token = sa.Column(sa.Boolean, nullable=False, default=False)
-    created_at = sa.Column(sa.DateTime, nullable=False, default=datetime.now,
-                           index=True)
+    created_at = sa.Column(
+        sa.DateTime, nullable=False, default=datetime.now, index=True
+    )
 
 
 class Telescope(Base):
@@ -477,23 +548,30 @@ class Telescope(Base):
     lon = sa.Column(sa.Float, nullable=True, doc='Longitude in deg.')
     elevation = sa.Column(sa.Float, nullable=True, doc='Elevation in meters.')
     diameter = sa.Column(sa.Float, nullable=False, doc='Diameter in meters.')
-    skycam_link = sa.Column(URLType, nullable=True,
-                            doc="Link to the telescope's sky camera.")
-    robotic = sa.Column(sa.Boolean, default=False, nullable=False,
-                        doc="Is this telescope robotic?")
+    skycam_link = sa.Column(
+        URLType, nullable=True, doc="Link to the telescope's sky camera."
+    )
+    robotic = sa.Column(
+        sa.Boolean, default=False, nullable=False, doc="Is this telescope robotic?"
+    )
 
-    instruments = relationship('Instrument', back_populates='telescope',
-                               cascade='save-update, merge, refresh-expire, expunge',
-                               passive_deletes=True)
+    instruments = relationship(
+        'Instrument',
+        back_populates='telescope',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+    )
 
     @property
     def observer(self):
         tf = timezonefinder.TimezoneFinder()
         local_tz = tf.timezone_at(lng=self.lon, lat=self.lat)
-        return astroplan.Observer(longitude=self.lon * u.deg,
-                                  latitude=self.lat * u.deg,
-                                  elevation=self.elevation * u.m,
-                                  timezone=local_tz)
+        return astroplan.Observer(
+            longitude=self.lon * u.deg,
+            latitude=self.lat * u.deg,
+            elevation=self.elevation * u.m,
+            timezone=local_tz,
+        )
 
 
 class ArrayOfEnum(ARRAY):
@@ -511,6 +589,7 @@ class ArrayOfEnum(ARRAY):
 
         def process(value):
             return super_rp(handle_raw_string(value))
+
         return process
 
 
@@ -519,20 +598,23 @@ class Instrument(Base):
     type = sa.Column(instrument_types, nullable=False)
 
     band = sa.Column(sa.String)
-    telescope_id = sa.Column(sa.ForeignKey('telescopes.id', ondelete='CASCADE'),
-                             nullable=False, index=True)
+    telescope_id = sa.Column(
+        sa.ForeignKey('telescopes.id', ondelete='CASCADE'), nullable=False, index=True
+    )
     telescope = relationship('Telescope', back_populates='instruments')
 
-    followup_requests = relationship('FollowupRequest',
-                                     back_populates='instrument')
+    followup_requests = relationship('FollowupRequest', back_populates='instrument')
 
     photometry = relationship('Photometry', back_populates='instrument')
     spectra = relationship('Spectrum', back_populates='instrument')
 
     # can be [] if an instrument is spec only
-    filters = sa.Column(ArrayOfEnum(allowed_bandpasses), nullable=False,
-                        default=[], doc='List of filters on the instrument '
-                                        '(if any).')
+    filters = sa.Column(
+        ArrayOfEnum(allowed_bandpasses),
+        nullable=False,
+        default=[],
+        doc='List of filters on the instrument ' '(if any).',
+    )
 
     observing_runs = relationship('ObservingRun', back_populates='instrument')
 
@@ -547,40 +629,51 @@ class Instrument(Base):
 
 class Taxonomy(Base):
     __tablename__ = 'taxonomies'
-    name = sa.Column(sa.String, nullable=False,
-                     doc='Short string to make this taxonomy memorable '
-                         'to end users.'
-                     )
-    hierarchy = sa.Column(JSONB, nullable=False,
-                          doc='Nested JSON describing the taxonomy '
-                              'which should be validated against '
-                              'a schema before entry'
-                          )
-    provenance = sa.Column(sa.String, nullable=True,
-                           doc='Identifier (e.g., URL or git hash) that '
-                               'uniquely ties this taxonomy back '
-                               'to an origin or place of record'
-                           )
-    version = sa.Column(sa.String, nullable=False,
-                        doc='Semantic version of this taxonomy'
-                        )
+    name = sa.Column(
+        sa.String,
+        nullable=False,
+        doc='Short string to make this taxonomy memorable ' 'to end users.',
+    )
+    hierarchy = sa.Column(
+        JSONB,
+        nullable=False,
+        doc='Nested JSON describing the taxonomy '
+        'which should be validated against '
+        'a schema before entry',
+    )
+    provenance = sa.Column(
+        sa.String,
+        nullable=True,
+        doc='Identifier (e.g., URL or git hash) that '
+        'uniquely ties this taxonomy back '
+        'to an origin or place of record',
+    )
+    version = sa.Column(
+        sa.String, nullable=False, doc='Semantic version of this taxonomy'
+    )
 
-    isLatest = sa.Column(sa.Boolean, default=True, nullable=False,
-                         doc='Consider this the latest version of '
-                             'the taxonomy with this name? Defaults '
-                             'to True.'
-                         )
-    groups = relationship("Group", secondary="group_taxonomy",
-                          cascade="save-update,"
-                                  "merge, refresh-expire, expunge",
-                          passive_deletes=True
-                          )
+    isLatest = sa.Column(
+        sa.Boolean,
+        default=True,
+        nullable=False,
+        doc='Consider this the latest version of '
+        'the taxonomy with this name? Defaults '
+        'to True.',
+    )
+    groups = relationship(
+        "Group",
+        secondary="group_taxonomy",
+        cascade="save-update," "merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
 
     classifications = relationship(
-        'Classification', back_populates='taxonomy',
+        'Classification',
+        back_populates='taxonomy',
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
-        order_by="Classification.created_at")
+        order_by="Classification.created_at",
+    )
 
 
 GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
@@ -589,9 +682,7 @@ GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
 def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
     return (
         Taxonomy.query.filter(Taxonomy.id == taxonomy_id)
-        .filter(
-            Taxonomy.groups.any(Group.id.in_([g.id for g in user_or_token.groups]))
-        )
+        .filter(Taxonomy.groups.any(Group.id.in_([g.id for g in user_or_token.groups])))
         .all()
     )
 
@@ -601,8 +692,9 @@ Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
 
 class Comment(Base):
     text = sa.Column(sa.String, nullable=False)
-    ctype = sa.Column(sa.Enum('text', 'redshift',
-                              name='comment_types', validate_strings=True))
+    ctype = sa.Column(
+        sa.Enum('text', 'redshift', name='comment_types', validate_strings=True)
+    )
 
     attachment_name = sa.Column(sa.String, nullable=True)
     attachment_type = sa.Column(sa.String, nullable=True)
@@ -610,12 +702,16 @@ class Comment(Base):
 
     origin = sa.Column(sa.String, nullable=True)
     author = sa.Column(sa.String, nullable=False)
-    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
-                       nullable=False, index=True)
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
+    )
     obj = relationship('Obj', back_populates='comments')
-    groups = relationship("Group", secondary="group_comments",
-                          cascade="save-update, merge, refresh-expire, expunge",
-                          passive_deletes=True)
+    groups = relationship(
+        "Group",
+        secondary="group_comments",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
 
 
 GroupComment = join_model("group_comments", Group, Comment)
@@ -623,23 +719,31 @@ GroupComment = join_model("group_comments", Group, Comment)
 
 class Classification(Base):
     classification = sa.Column(sa.String, nullable=False)
-    taxonomy_id = sa.Column(sa.ForeignKey('taxonomies.id', ondelete='CASCADE'),
-                            nullable=False, index=True)
+    taxonomy_id = sa.Column(
+        sa.ForeignKey('taxonomies.id', ondelete='CASCADE'), nullable=False, index=True
+    )
     taxonomy = relationship('Taxonomy', back_populates='classifications')
-    probability = sa.Column(sa.Float,
-                            doc='User-assigned probability of belonging '
-                            'to this class', nullable=True)
+    probability = sa.Column(
+        sa.Float,
+        doc='User-assigned probability of belonging ' 'to this class',
+        nullable=True,
+    )
 
-    author_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
-                          nullable=False, index=True)
+    author_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True
+    )
     author = relationship('User')
     author_name = sa.Column(sa.String, nullable=False)
-    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
-                       nullable=False, index=True)
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
+    )
     obj = relationship('Obj', back_populates='classifications')
-    groups = relationship("Group", secondary="group_classifications",
-                          cascade="save-update, merge, refresh-expire, expunge",
-                          passive_deletes=True)
+    groups = relationship(
+        "Group",
+        secondary="group_classifications",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
 
 
 GroupClassifications = join_model("group_classifications", Group, Classification)
@@ -648,39 +752,52 @@ GroupClassifications = join_model("group_classifications", Group, Classification
 class Photometry(Base, ha.Point):
     __tablename__ = 'photometry'
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.')
-    flux = sa.Column(sa.Float,
-                     doc='Flux of the observation in µJy. '
-                         'Corresponds to an AB Zeropoint of 23.9 in all '
-                         'filters.')
-    fluxerr = sa.Column(sa.Float, nullable=False,
-                        doc='Gaussian error on the flux in µJy.')
-    filter = sa.Column(allowed_bandpasses, nullable=False,
-                       doc='Filter with which the observation was taken.')
+    flux = sa.Column(
+        sa.Float,
+        doc='Flux of the observation in µJy. '
+        'Corresponds to an AB Zeropoint of 23.9 in all '
+        'filters.',
+    )
+    fluxerr = sa.Column(
+        sa.Float, nullable=False, doc='Gaussian error on the flux in µJy.'
+    )
+    filter = sa.Column(
+        allowed_bandpasses,
+        nullable=False,
+        doc='Filter with which the observation was taken.',
+    )
 
     ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
     dec_unc = sa.Column(sa.Float, doc="Uncertainty of dec position [arcsec]")
 
-    original_user_data = sa.Column(JSONB, doc='Original data passed by the user '
-                                              'through the PhotometryHandler.POST '
-                                              'API or the PhotometryHandler.PUT '
-                                              'API. The schema of this JSON '
-                                              'validates under either '
-                                              'schema.PhotometryFlux or schema.PhotometryMag '
-                                              '(depending on how the data was passed).')
+    original_user_data = sa.Column(
+        JSONB,
+        doc='Original data passed by the user '
+        'through the PhotometryHandler.POST '
+        'API or the PhotometryHandler.PUT '
+        'API. The schema of this JSON '
+        'validates under either '
+        'schema.PhotometryFlux or schema.PhotometryMag '
+        '(depending on how the data was passed).',
+    )
     altdata = sa.Column(JSONB)
-    upload_id = sa.Column(sa.String, nullable=False,
-                          default=lambda: str(uuid.uuid4()))
+    upload_id = sa.Column(sa.String, nullable=False, default=lambda: str(uuid.uuid4()))
     alert_id = sa.Column(sa.BigInteger, nullable=True, unique=True)
 
-    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
-                       nullable=False, index=True)
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
+    )
     obj = relationship('Obj', back_populates='photometry')
-    groups = relationship("Group", secondary="group_photometry",
-                          back_populates="photometry",
-                          cascade="save-update, merge, refresh-expire, expunge",
-                          passive_deletes=True)
-    instrument_id = sa.Column(sa.ForeignKey('instruments.id'),
-                              nullable=False, index=True)
+    groups = relationship(
+        "Group",
+        secondary="group_photometry",
+        back_populates="photometry",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id'), nullable=False, index=True
+    )
     instrument = relationship('Instrument', back_populates='photometry')
     thumbnails = relationship('Thumbnail', passive_deletes=True)
 
@@ -705,17 +822,19 @@ class Photometry(Base, ha.Point):
                 sa.and_(cls.flux != None, cls.flux > 0),
                 -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
             ],
-            else_=None
+            else_=None,
         )
 
     @e_mag.expression
     def e_mag(cls):
         return sa.case(
             [
-                (sa.and_(cls.flux != None, cls.flux > 0, cls.fluxerr > 0),
-                 2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux)
+                (
+                    sa.and_(cls.flux != None, cls.flux > 0, cls.fluxerr > 0),
+                    2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux,
+                )
             ],
-            else_=None
+            else_=None,
         )
 
     @hybrid_property
@@ -724,12 +843,12 @@ class Photometry(Base, ha.Point):
 
     @hybrid_property
     def iso(self):
-        return arrow.get((self.mjd - 40_587.5) * 86400.)
+        return arrow.get((self.mjd - 40_587.5) * 86400.0)
 
     @iso.expression
     def iso(cls):
         # converts MJD to unix timestamp
-        local = sa.func.to_timestamp((cls.mjd - 40_587.5) * 86400.)
+        local = sa.func.to_timestamp((cls.mjd - 40_587.5) * 86400.0)
         return sa.func.timezone('UTC', local)
 
     @hybrid_property
@@ -751,20 +870,24 @@ class Spectrum(Base):
     fluxes = sa.Column(NumpyArray, nullable=False)
     errors = sa.Column(NumpyArray)
 
-    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
-                       nullable=False, index=True)
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
+    )
     obj = relationship('Obj', back_populates='spectra')
     observed_at = sa.Column(sa.DateTime, nullable=False)
     origin = sa.Column(sa.String, nullable=True)
     # TODO program?
-    instrument_id = sa.Column(sa.ForeignKey('instruments.id',
-                                            ondelete='CASCADE'),
-                              nullable=False, index=True)
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id', ondelete='CASCADE'), nullable=False, index=True
+    )
     instrument = relationship('Instrument', back_populates='spectra')
-    groups = relationship("Group", secondary="group_spectra",
-                          back_populates="spectra",
-                          cascade="save-update, merge, refresh-expire, expunge",
-                          passive_deletes=True)
+    groups = relationship(
+        "Group",
+        secondary="group_spectra",
+        back_populates="spectra",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
 
     @classmethod
     def from_ascii(cls, filename, obj_id, instrument_id, observed_at):
@@ -772,9 +895,13 @@ class Spectrum(Base):
         if data.shape[1] != 2:  # TODO support other formats
             raise ValueError(f"Expected 2 columns, got {data.shape[1]}")
 
-        return cls(wavelengths=data[:, 0], fluxes=data[:, 1],
-                   obj_id=obj_id, instrument_id=instrument_id,
-                   observed_at=observed_at)
+        return cls(
+            wavelengths=data[:, 0],
+            fluxes=data[:, 1],
+            obj_id=obj_id,
+            instrument_id=instrument_id,
+            observed_at=observed_at,
+        )
 
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
@@ -793,52 +920,62 @@ GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 #        return '/' + file_uri.lstrip('./')
 
 
-
 class FollowupRequest(Base):
     requester = relationship(User, back_populates='followup_requests')
-    requester_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
-                             nullable=False, index=True)
+    requester_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True
+    )
     obj = relationship('Obj', back_populates='followup_requests')
-    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
-                       nullable=False, index=True)
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
+    )
     instrument = relationship(Instrument, back_populates='followup_requests')
-    instrument_id = sa.Column(sa.ForeignKey('instruments.id'), nullable=False,
-                              index=True)
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id'), nullable=False, index=True
+    )
     start_date = sa.Column(ArrowType, nullable=False)
     end_date = sa.Column(ArrowType, nullable=False)
     filters = sa.Column(psql.ARRAY(sa.String), nullable=True)
     exposure_time = sa.Column(sa.String, nullable=True)
-    priority = sa.Column(sa.Enum('1', '2', '3', '4', '5',
-                                 name='priority'))
+    priority = sa.Column(sa.Enum('1', '2', '3', '4', '5', name='priority'))
     editable = sa.Column(sa.Boolean, nullable=False, default=True)
     status = sa.Column(sa.String(), nullable=False, default="pending")
 
 
 User.followup_requests = relationship('FollowupRequest', back_populates='requester')
 
+
 class Thumbnail(Base):
     # TODO delete file after deleting row
-    type = sa.Column(thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ...)')
+    type = sa.Column(
+        thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ...)'
+    )
     file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     public_url = sa.Column(sa.String(), nullable=True, index=False, unique=False)
     origin = sa.Column(sa.String, nullable=True)
-    photometry_id = sa.Column(sa.ForeignKey('photometry.id', ondelete='CASCADE'),
-                              nullable=False, index=True)
+    photometry_id = sa.Column(
+        sa.ForeignKey('photometry.id', ondelete='CASCADE'), nullable=False, index=True
+    )
     photometry = relationship('Photometry', back_populates='thumbnails')
-    obj = relationship('Obj', back_populates='thumbnails', uselist=False,
-                       secondary='photometry',
-                       passive_deletes=True)
+    obj = relationship(
+        'Obj',
+        back_populates='thumbnails',
+        uselist=False,
+        secondary='photometry',
+        passive_deletes=True,
+    )
 
 
 class ObservingRun(Base):
 
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id', ondelete='CASCADE'), nullable=False,
-        index=True
+        sa.ForeignKey('instruments.id', ondelete='CASCADE'), nullable=False, index=True
     )
     instrument = relationship(
-        'Instrument', cascade='save-update, merge, refresh-expire, expunge',
-        uselist=False, back_populates='observing_runs'
+        'Instrument',
+        cascade='save-update, merge, refresh-expire, expunge',
+        uselist=False,
+        back_populates='observing_runs',
     )
 
     # name of the PI
@@ -846,20 +983,23 @@ class ObservingRun(Base):
     observers = sa.Column(sa.String)
 
     sources = relationship(
-        'Obj', secondary='join(ClassicalAssignment, Obj)',
+        'Obj',
+        secondary='join(ClassicalAssignment, Obj)',
         cascade='save-update, merge, refresh-expire, expunge',
-        passive_deletes=True
+        passive_deletes=True,
     )
 
     # let this be nullable to accommodate external groups' runs
     group = relationship('Group', back_populates='observing_runs')
-    group_id = sa.Column(sa.ForeignKey('groups.id', ondelete='CASCADE'),
-                         nullable=True, index=True)
+    group_id = sa.Column(
+        sa.ForeignKey('groups.id', ondelete='CASCADE'), nullable=True, index=True
+    )
 
     # the person who uploaded the run
     owner = relationship('User', back_populates='observing_runs')
-    owner_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
-                         nullable=False, index=True)
+    owner_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True
+    )
 
     assignments = relationship('ClassicalAssignment', passive_deletes=True)
     calendar_date = sa.Column(sa.Date, nullable=False, index=True)
@@ -871,8 +1011,9 @@ class ObservingRun(Base):
         month = self.calendar_date.month
         day = self.calendar_date.day
         hour = 12
-        noon = datetime(year=year, month=month, day=day, hour=hour,
-                        tzinfo=observer.timezone)
+        noon = datetime(
+            year=year, month=month, day=day, hour=hour, tzinfo=observer.timezone
+        )
         noon = noon.astimezone(timezone.utc).timestamp()
         noon = ap_time.Time(noon, format='unix')
         return noon
@@ -922,20 +1063,25 @@ User.observing_runs = relationship(
 class ClassicalAssignment(Base):
 
     requester = relationship('User', back_populates='assignments')
-    requester_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'),
-                             nullable=False, index=True)
+    requester_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True
+    )
 
     obj = relationship('Obj', back_populates='assignments')
-    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'),
-                       nullable=False, index=True)
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
+    )
 
     comment = sa.Column(sa.String())
     status = sa.Column(sa.String(), nullable=False, default="pending")
     priority = sa.Column(followup_priorities, nullable=False)
 
     run = relationship('ObservingRun', back_populates='assignments')
-    run_id = sa.Column(sa.ForeignKey('observingruns.id', ondelete='CASCADE'),
-                       nullable=False, index=True)
+    run_id = sa.Column(
+        sa.ForeignKey('observingruns.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
 
     @hybrid_property
     def instrument(self):
@@ -946,51 +1092,43 @@ class ClassicalAssignment(Base):
         """The time at which the object rises on this run."""
         observer = self.instrument.telescope.observer
         target = self.obj.target
-        return observer.target_rise_time(self.run.sunset, target,
-                                         which='next',
-                                         horizon=30 * u.degree)
+        return observer.target_rise_time(
+            self.run.sunset, target, which='next', horizon=30 * u.degree
+        )
 
     @property
     def set_time(self):
         """The time at which the object sets on this run."""
         observer = self.instrument.telescope.observer
         target = self.obj.target
-        return observer.target_set_time(self.rise_time, target,
-                                        which='next',
-                                        horizon=30 * u.degree)
+        return observer.target_set_time(
+            self.rise_time, target, which='next', horizon=30 * u.degree
+        )
 
 
 User.assignments = relationship('ClassicalAssignment', back_populates='requester')
+
 
 class Event(Base):
     """Event information, including an event ID, mission, and time of the
     event"""
 
-    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
-    dateobs = sa.Column(
-        sa.DateTime,
-        comment='Event time',
-        unique=True,
-        nullable=False)
+    dateobs = sa.Column(sa.DateTime, comment='Event time', unique=True, nullable=False)
 
-    gcn_notices = relationship(
-        lambda: GcnNotice,
-        order_by=lambda: GcnNotice.date)
+    gcn_notices = relationship(lambda: GcnNotice, order_by=lambda: GcnNotice.date)
 
     _tags = relationship(
         lambda: Tag,
         order_by=lambda: (
             sa.func.lower(Tag.text).notin_({'fermi', 'swift', 'amon', 'lvc'}),
             sa.func.lower(Tag.text).notin_({'long', 'short'}),
-            sa.func.lower(Tag.text).notin_({'grb', 'gw', 'transient'})
-        )
+            sa.func.lower(Tag.text).notin_({'grb', 'gw', 'transient'}),
+        ),
     )
 
-    tags = association_proxy(
-        '_tags',
-        'text',
-        creator=lambda tag: Tag(text=tag))
+    tags = association_proxy('_tags', 'text', creator=lambda tag: Tag(text=tag))
 
     localizations = relationship(lambda: Localization)
 
@@ -1030,7 +1168,6 @@ class Event(Base):
         else:
             return elem.attrib.get('value', '')
 
-
     @property
     def ned_gwf(self):
         return "https://ned.ipac.caltech.edu/gwf/events"
@@ -1043,7 +1180,7 @@ class Event(Base):
         if elem is None:
             return None
         else:
-            return 'HasNS: '+elem.attrib.get('value', '')
+            return 'HasNS: ' + elem.attrib.get('value', '')
 
     @property
     def HasRemnant(self):
@@ -1053,7 +1190,7 @@ class Event(Base):
         if elem is None:
             return None
         else:
-            return 'HasRemnant: '+elem.attrib.get('value', '')
+            return 'HasRemnant: ' + elem.attrib.get('value', '')
 
     @property
     def FAR(self):
@@ -1063,127 +1200,89 @@ class Event(Base):
         if elem is None:
             return None
         else:
-            return 'FAR: '+elem.attrib.get('value', '')
+            return 'FAR: ' + elem.attrib.get('value', '')
 
 
 class EventView(Base):
-    event_id = sa.Column(sa.ForeignKey('events.id', ondelete='CASCADE'),
-                         nullable=False, unique=False)
+    event_id = sa.Column(
+        sa.ForeignKey('events.id', ondelete='CASCADE'), nullable=False, unique=False
+    )
     username_or_token_id = sa.Column(sa.String, nullable=False, unique=False)
     is_token = sa.Column(sa.Boolean, nullable=False, default=False)
-    created_at = sa.Column(sa.DateTime, nullable=False, default=datetime.now,
-                           index=True)
+    created_at = sa.Column(
+        sa.DateTime, nullable=False, default=datetime.now, index=True
+    )
 
 
 class Tag(Base):
     """Store qualitative tags for events."""
 
-    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
     dateobs = sa.Column(
-        sa.DateTime,
-        sa.ForeignKey(Event.dateobs),
-        nullable=False,
-        primary_key=True)
+        sa.DateTime, sa.ForeignKey(Event.dateobs), nullable=False, primary_key=True
+    )
 
-    text = sa.Column(
-        sa.Unicode,
-        nullable=False,
-        primary_key=True)
+    text = sa.Column(sa.Unicode, nullable=False, primary_key=True)
 
 
 class Tele(Base):
     """Telescope information"""
 
-    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
     telescope = sa.Column(
-        sa.String,
-        primary_key=True,
-        unique=True,
-        comment='Telescope name')
+        sa.String, primary_key=True, unique=True, comment='Telescope name'
+    )
 
-    lat = sa.Column(
-        sa.Float,
-        nullable=False,
-        comment='Latitude')
+    lat = sa.Column(sa.Float, nullable=False, comment='Latitude')
 
-    lon = sa.Column(
-        sa.Float,
-        nullable=False,
-        comment='Longitude')
+    lon = sa.Column(sa.Float, nullable=False, comment='Longitude')
 
-    elevation = sa.Column(
-        sa.Float,
-        nullable=False,
-        comment='Elevation')
+    elevation = sa.Column(sa.Float, nullable=False, comment='Elevation')
 
-    timezone = sa.Column(
-        sa.String,
-        nullable=False,
-        comment='Time zone')
+    timezone = sa.Column(sa.String, nullable=False, comment='Time zone')
 
     filters = sa.Column(
-        sa.ARRAY(sa.String),
-        nullable=False,
-        comment='Available filters')
+        sa.ARRAY(sa.String), nullable=False, comment='Available filters'
+    )
 
     fields = relationship(lambda: Field)
 
     plans = relationship(lambda: Plan)
 
     default_plan_args = sa.Column(
-        sa.JSON,
-        nullable=False,
-        comment='Default plan arguments')
+        sa.JSON, nullable=False, comment='Default plan arguments'
+    )
 
 
 class Field(Base):
     """Footprints and number of observations in each filter for standard PTF
     tiles"""
 
-    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
     telescope = sa.Column(
-        sa.String,
-        sa.ForeignKey(Tele.telescope),
-        primary_key=True,
-        comment='Telescope')
+        sa.String, sa.ForeignKey(Tele.telescope), primary_key=True, comment='Telescope'
+    )
 
-    field_id = sa.Column(
-        sa.Integer,
-        primary_key=True,
-        unique=True,
-        comment='Field ID')
+    field_id = sa.Column(sa.Integer, primary_key=True, unique=True, comment='Field ID')
 
-    ra = sa.Column(
-        sa.Float,
-        nullable=False,
-        comment='RA of field center')
+    ra = sa.Column(sa.Float, nullable=False, comment='RA of field center')
 
-    dec = sa.Column(
-        sa.Float,
-        nullable=False,
-        comment='Dec of field center')
+    dec = sa.Column(sa.Float, nullable=False, comment='Dec of field center')
 
-    contour = sa.Column(
-        sa.JSON,
-        nullable=False,
-        comment='GeoJSON contours')
+    contour = sa.Column(sa.JSON, nullable=False, comment='GeoJSON contours')
 
     reference_filter_ids = sa.Column(
-        sa.ARRAY(sa.Integer),
-        nullable=False,
-        comment='Reference filter IDs')
+        sa.ARRAY(sa.Integer), nullable=False, comment='Reference filter IDs'
+    )
 
     reference_filter_mags = sa.Column(
-        sa.ARRAY(sa.Float),
-        nullable=False,
-        comment='Reference filter magss')
+        sa.ARRAY(sa.Float), nullable=False, comment='Reference filter magss'
+    )
 
-    ipix = sa.Column(
-        sa.ARRAY(sa.Integer),
-        comment='Healpix indices')
+    ipix = sa.Column(sa.ARRAY(sa.Integer), comment='Healpix indices')
 
     subfields = relationship(lambda: SubField)
 
@@ -1191,65 +1290,52 @@ class Field(Base):
 class SubField(Base):
     """SubFields"""
 
-    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
     telescope = sa.Column(
-        sa.String,
-        sa.ForeignKey(Tele.telescope),
-        primary_key=True,
-        comment='Telescope')
+        sa.String, sa.ForeignKey(Tele.telescope), primary_key=True, comment='Telescope'
+    )
 
     field_id = sa.Column(
-        sa.Integer,
-        sa.ForeignKey(Field.field_id),
-        primary_key=True,
-        comment='Field ID')
+        sa.Integer, sa.ForeignKey(Field.field_id), primary_key=True, comment='Field ID'
+    )
 
-    subfield_id = sa.Column(
-        sa.Integer,
-        primary_key=True,
-        comment='SubField ID')
+    subfield_id = sa.Column(sa.Integer, primary_key=True, comment='SubField ID')
 
-    ipix = sa.Column(
-        sa.ARRAY(sa.Integer),
-        comment='Healpix indices')
+    ipix = sa.Column(sa.ARRAY(sa.Integer), comment='Healpix indices')
 
 
 class GcnNotice(Base):
     """Records of ingested GCN notices"""
 
-    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
     ivorn = sa.Column(
-        sa.String,
-        primary_key=True,
-        comment='Unique identifier of VOEvent')
+        sa.String, primary_key=True, comment='Unique identifier of VOEvent'
+    )
 
     notice_type = sa.Column(
         sa.Enum(gcn.NoticeType, native_enum=False),
         nullable=False,
-        comment='GCN Notice type')
+        comment='GCN Notice type',
+    )
 
     stream = sa.Column(
-        sa.String,
-        nullable=False,
-        comment='Event stream or mission (i.e., "Fermi")')
+        sa.String, nullable=False, comment='Event stream or mission (i.e., "Fermi")'
+    )
 
-    date = sa.Column(
-        sa.DateTime,
-        nullable=False,
-        comment='UTC message timestamp')
+    date = sa.Column(sa.DateTime, nullable=False, comment='UTC message timestamp')
 
     dateobs = sa.Column(
         sa.DateTime,
         sa.ForeignKey(Event.dateobs),
         nullable=False,
-        comment='UTC event timestamp')
+        comment='UTC event timestamp',
+    )
 
-    content = deferred(sa.Column(
-        sa.LargeBinary,
-        nullable=False,
-        comment='Raw VOEvent content'))
+    content = deferred(
+        sa.Column(sa.LargeBinary, nullable=False, comment='Raw VOEvent content')
+    )
 
     def _get_property(self, property_name, value=None):
         root = lxml.etree.fromstring(self.content)
@@ -1299,63 +1385,79 @@ class Localization(Base):
     nside = 512
     """HEALPix resolution used for flat (non-multiresolution) operations."""
 
-    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
     dateobs = sa.Column(
         sa.DateTime,
         sa.ForeignKey(Event.dateobs),
         nullable=False,
-        comment='UTC event timestamp')
+        comment='UTC event timestamp',
+    )
 
     localization_name = sa.Column(
-        sa.String,
-        primary_key=True,
-        comment='Localization name')
+        sa.String, primary_key=True, comment='Localization name'
+    )
 
-    uniq = deferred(sa.Column(
-        sa.ARRAY(sa.BigInteger),
-        nullable=False,
-        comment='Multiresolution HEALPix UNIQ pixel index array'))
+    uniq = deferred(
+        sa.Column(
+            sa.ARRAY(sa.BigInteger),
+            nullable=False,
+            comment='Multiresolution HEALPix UNIQ pixel index array',
+        )
+    )
 
-    probdensity = deferred(sa.Column(
-        sa.ARRAY(sa.Float),
-        nullable=False,
-        comment='Multiresolution HEALPix probability density array'))
+    probdensity = deferred(
+        sa.Column(
+            sa.ARRAY(sa.Float),
+            nullable=False,
+            comment='Multiresolution HEALPix probability density array',
+        )
+    )
 
-    distmu = deferred(sa.Column(
-        sa.ARRAY(sa.Float),
-        comment='Multiresolution HEALPix distance mu array'))
+    distmu = deferred(
+        sa.Column(
+            sa.ARRAY(sa.Float), comment='Multiresolution HEALPix distance mu array'
+        )
+    )
 
-    distsigma = deferred(sa.Column(
-        sa.ARRAY(sa.Float),
-        comment='Multiresolution HEALPix distance sigma array'))
+    distsigma = deferred(
+        sa.Column(
+            sa.ARRAY(sa.Float), comment='Multiresolution HEALPix distance sigma array'
+        )
+    )
 
-    distnorm = deferred(sa.Column(
-        sa.ARRAY(sa.Float),
-        comment='Multiresolution HEALPix distance normalization array'))
+    distnorm = deferred(
+        sa.Column(
+            sa.ARRAY(sa.Float),
+            comment='Multiresolution HEALPix distance normalization array',
+        )
+    )
 
-    contour = deferred(sa.Column(
-        sa.JSON,
-        comment='GeoJSON contours'))
+    contour = deferred(sa.Column(sa.JSON, comment='GeoJSON contours'))
 
     @hybrid_property
     def is_3d(self):
-        return (self.distmu is not None and
-                self.distsigma is not None and
-                self.distnorm is not None)
+        return (
+            self.distmu is not None
+            and self.distsigma is not None
+            and self.distnorm is not None
+        )
 
     @is_3d.expression
     def is_3d(self):
-        return (self.distmu.isnot(None) and
-                self.distsigma.isnot(None) and
-                self.distnorm.isnot(None))
+        return (
+            self.distmu.isnot(None)
+            and self.distsigma.isnot(None)
+            and self.distnorm.isnot(None)
+        )
 
     @property
     def table_2d(self):
         """Get multiresolution HEALPix dataset, probability density only."""
         return table.Table(
             [np.asarray(self.uniq, dtype=np.int64), self.probdensity],
-            names=['UNIQ', 'PROBDENSITY'])
+            names=['UNIQ', 'PROBDENSITY'],
+        )
 
     @property
     def table(self):
@@ -1365,10 +1467,13 @@ class Localization(Base):
             return table.Table(
                 [
                     np.asarray(self.uniq, dtype=np.int64),
-                    self.probdensity, self.distmu,
-                    self.distsigma, self.distnorm],
-                names=[
-                    'UNIQ', 'PROBDENSITY', 'DISTMU', 'DISTSIGMA', 'DISTNORM'])
+                    self.probdensity,
+                    self.distmu,
+                    self.distsigma,
+                    self.distnorm,
+                ],
+                names=['UNIQ', 'PROBDENSITY', 'DISTMU', 'DISTSIGMA', 'DISTNORM'],
+            )
         else:
             return self.table_2d
 
@@ -1389,48 +1494,43 @@ class Localization(Base):
             result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
             return hp.reorder(result, 'NESTED', 'RING')
         else:
-            return self.flat_2d,
+            return (self.flat_2d,)
+
 
 class Plan(Base):
     """Tiling information, including the event time, localization ID, tile IDs,
     and plan name"""
 
-    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
     dateobs = sa.Column(
         sa.DateTime,
         sa.ForeignKey(Event.dateobs),
         primary_key=True,
-        comment='UTC event timestamp')
+        comment='UTC event timestamp',
+    )
 
     telescope = sa.Column(
-        sa.String,
-        sa.ForeignKey(Tele.telescope),
-        primary_key=True,
-        comment='Telescope')
+        sa.String, sa.ForeignKey(Tele.telescope), primary_key=True, comment='Telescope'
+    )
 
-    plan_name = sa.Column(
-        sa.String,
-        primary_key=True,
-        unique=True,
-        comment='Plan name')
+    plan_name = sa.Column(sa.String, primary_key=True, unique=True, comment='Plan name')
 
     validity_window_start = sa.Column(
         sa.DateTime,
         nullable=False,
         default=lambda: datetime.now(),
-        comment='Start of validity window')
+        comment='Start of validity window',
+    )
 
     validity_window_end = sa.Column(
         sa.DateTime,
         nullable=False,
         default=lambda: datetime.now() + timedelta(1),
-        comment='End of validity window')
+        comment='End of validity window',
+    )
 
-    plan_args = sa.Column(
-        sa.JSON,
-        nullable=False,
-        comment='Plan arguments')
+    plan_args = sa.Column(sa.JSON, nullable=False, comment='Plan arguments')
 
     # FIXME: Hard-code program_id, filter_id, subprogram_name
     program_id = 2
@@ -1441,14 +1541,14 @@ class Plan(Base):
         SUBMITTED = 2
 
     status = sa.Column(
-        sa.Enum(Status),
-        default=Status.WORKING,
-        nullable=False,
-        comment='Plan status')
+        sa.Enum(Status), default=Status.WORKING, nullable=False, comment='Plan status'
+    )
 
     planned_observations = relationship(
-        'PlannedObservation', backref='plan',
-        order_by=lambda: PlannedObservation.obstime)
+        'PlannedObservation',
+        backref='plan',
+        order_by=lambda: PlannedObservation.obstime,
+    )
 
     @property
     def start_observation(self):
@@ -1490,16 +1590,17 @@ class Plan(Base):
 
     @property
     def tot_time_with_overheads(self):
-        overhead = sum(
-            _.overhead_per_exposure for _ in self.planned_observations)
+        overhead = sum(_.overhead_per_exposure for _ in self.planned_observations)
         return overhead + self.total_time
 
     @property
     def ipix(self):
         return {
-            i for planned_observation in self.planned_observations
+            i
+            for planned_observation in self.planned_observations
             if planned_observation.field.ipix is not None
-            for i in planned_observation.field.ipix}
+            for i in planned_observation.field.ipix
+        }
 
     @property
     def area(self):
@@ -1518,63 +1619,53 @@ class PlannedObservation(Base):
     """Tile information, including the event time, localization ID, field IDs,
     tiling name, and tile probabilities."""
 
-    id = sa.Column(sa.Integer , primary_key=True , autoincrement=True)
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
     planned_observation_id = sa.Column(
-        sa.Integer,
-        primary_key=True,
-        comment='Exposure ID')
+        sa.Integer, primary_key=True, comment='Exposure ID'
+    )
 
     dateobs = sa.Column(
         sa.DateTime,
         sa.ForeignKey(Event.dateobs),
         primary_key=True,
-        comment='UTC event timestamp')
+        comment='UTC event timestamp',
+    )
 
     telescope = sa.Column(
-        sa.String,
-        sa.ForeignKey(Tele.telescope),
-        primary_key=True,
-        comment='Telescope')
+        sa.String, sa.ForeignKey(Tele.telescope), primary_key=True, comment='Telescope'
+    )
 
     field_id = sa.Column(
-        sa.Integer,
-        sa.ForeignKey(Field.field_id),
-        primary_key=True,
-        comment='Field ID')
+        sa.Integer, sa.ForeignKey(Field.field_id), primary_key=True, comment='Field ID'
+    )
 
     plan_name = sa.Column(
-        sa.String,
-        sa.ForeignKey(Plan.plan_name),
-        primary_key=True,
-        comment='Plan name')
+        sa.String, sa.ForeignKey(Plan.plan_name), primary_key=True, comment='Plan name'
+    )
 
     field = relationship(Field, viewonly=True)
 
     exposure_time = sa.Column(
-        sa.Integer,
-        nullable=False,
-        comment='Exposure time in seconds')
+        sa.Integer, nullable=False, comment='Exposure time in seconds'
+    )
 
     # FIXME: remove
     weight = sa.Column(
-        sa.Float,
-        nullable=False,
-        comment='Weight associated with each observation')
+        sa.Float, nullable=False, comment='Weight associated with each observation'
+    )
 
     filter_id = sa.Column(
-        sa.Integer,
-        nullable=False,
-        comment='Filter ID (g=1, r=2, i=3, z=4, J=5)')
+        sa.Integer, nullable=False, comment='Filter ID (g=1, r=2, i=3, z=4, J=5)'
+    )
 
     obstime = sa.Column(
-        sa.DateTime,
-        nullable=False,
-        comment='UTC observation timestamp')
+        sa.DateTime, nullable=False, comment='UTC observation timestamp'
+    )
 
     overhead_per_exposure = sa.Column(
-        sa.Integer,
-        nullable=False,
-        comment='Overhead time per exposure in seconds')
+        sa.Integer, nullable=False, comment='Overhead time per exposure in seconds'
+    )
+
 
 schema.setup_schema()

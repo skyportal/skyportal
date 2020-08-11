@@ -1,17 +1,17 @@
-import React from 'react';
-import PropTypes from 'prop-types';
-import { useDispatch } from 'react-redux';
+import React from "react";
+import PropTypes from "prop-types";
+import { useDispatch } from "react-redux";
 
-import Button from '@material-ui/core/Button';
-import TextField from '@material-ui/core/TextField';
-import Paper from '@material-ui/core/Paper';
-import Table from '@material-ui/core/Table';
-import TableHead from '@material-ui/core/TableHead';
-import TableBody from '@material-ui/core/TableBody';
-import TableRow from '@material-ui/core/TableRow';
-import TableCell from '@material-ui/core/TableCell';
+import Button from "@material-ui/core/Button";
+import TextField from "@material-ui/core/TextField";
+import Paper from "@material-ui/core/Paper";
+import Table from "@material-ui/core/Table";
+import TableHead from "@material-ui/core/TableHead";
+import TableBody from "@material-ui/core/TableBody";
+import TableRow from "@material-ui/core/TableRow";
+import TableCell from "@material-ui/core/TableCell";
 
-import * as Action from '../ducks/profile';
+import * as Action from "../ducks/profile";
 
 const copyToken = (elementID) => {
   const el = document.getElementById(elementID);
@@ -31,9 +31,7 @@ const TokenList = ({ tokens }) => {
 
   return (
     <div>
-      <h3>
-        My Tokens
-      </h3>
+      <h3>My Tokens</h3>
       <Paper>
         <Table size="small">
           <TableHead>
@@ -48,38 +46,30 @@ const TokenList = ({ tokens }) => {
           </TableHead>
 
           <TableBody>
-            {
-              tokens.map((token) => (
-                <TableRow key={token.id}>
-                  <TableCell>
-                    <TextField id={token.id} value={token.id} readOnly={1} />
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="contained"
-                      size="small"
-                      onClick={() => copyToken(token.id)}
-                    >
-                      Copy to Clipboard
-                    </Button>
-                  </TableCell>
-                  <TableCell>
-                    {token.name}
-                  </TableCell>
-                  <TableCell>
-                    {token.acls.join(', ')}
-                  </TableCell>
-                  <TableCell>
-                    {token.created_at}
-                  </TableCell>
-                  <TableCell>
-                    <a href="#top" onClick={() => deleteToken(token.id)}>
-                      Delete
-                    </a>
-                  </TableCell>
-                </TableRow>
-              ))
-            }
+            {tokens.map((token) => (
+              <TableRow key={token.id}>
+                <TableCell>
+                  <TextField id={token.id} value={token.id} readOnly={1} />
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={() => copyToken(token.id)}
+                  >
+                    Copy to Clipboard
+                  </Button>
+                </TableCell>
+                <TableCell>{token.name}</TableCell>
+                <TableCell>{token.acls.join(", ")}</TableCell>
+                <TableCell>{token.created_at}</TableCell>
+                <TableCell>
+                  <a href="#top" onClick={() => deleteToken(token.id)}>
+                    Delete
+                  </a>
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </Paper>
@@ -87,7 +77,7 @@ const TokenList = ({ tokens }) => {
   );
 };
 TokenList.propTypes = {
-  tokens: PropTypes.arrayOf(PropTypes.object).isRequired
+  tokens: PropTypes.arrayOf(PropTypes.object).isRequired,
 };
 
 export default TokenList;

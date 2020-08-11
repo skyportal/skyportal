@@ -1,22 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 
-import TextField from '@material-ui/core/TextField';
-import Button from '@material-ui/core/Button';
-import Card from '@material-ui/core/Card';
-import CardContent from '@material-ui/core/CardContent';
-import Typography from '@material-ui/core/Typography';
+import TextField from "@material-ui/core/TextField";
+import Button from "@material-ui/core/Button";
+import Card from "@material-ui/core/Card";
+import CardContent from "@material-ui/core/CardContent";
+import Typography from "@material-ui/core/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
 
-import InputLabel from '@material-ui/core/InputLabel';
-import Grid from '@material-ui/core/Grid';
+import InputLabel from "@material-ui/core/InputLabel";
+import Grid from "@material-ui/core/Grid";
 
 import { useForm } from "react-hook-form";
 
-import * as ProfileActions from '../ducks/profile';
+import * as ProfileActions from "../ducks/profile";
 
-import UIPreferences from './UIPreferences';
+import UIPreferences from "./UIPreferences";
 
 const UpdateProfileForm = () => {
   const profile = useSelector((state) => state.profile);
@@ -30,7 +30,7 @@ const UpdateProfileForm = () => {
       firstName: profile.first_name,
       lastName: profile.last_name,
       email: profile.contact_email ? profile.contact_email : profile.username,
-      phone: profile.contact_phone
+      phone: profile.contact_phone,
     });
   }, [reset, profile]);
 
@@ -42,7 +42,9 @@ const UpdateProfileForm = () => {
       contact_email: value.email,
       contact_phone: value.phone,
     };
-    const result = await dispatch(ProfileActions.updateBasicUserInfo(basicinfo));
+    const result = await dispatch(
+      ProfileActions.updateBasicUserInfo(basicinfo)
+    );
     if (result.status === "success") {
       dispatch(showNotification("Profile data saved"));
     }
@@ -51,9 +53,7 @@ const UpdateProfileForm = () => {
 
   return (
     <div>
-      <Typography variant="h5">
-        Change User Profile
-      </Typography>
+      <Typography variant="h5">Change User Profile</Typography>
 
       <Card>
         <CardContent>
@@ -94,7 +94,9 @@ const UpdateProfileForm = () => {
               spacing={2}
             >
               <Grid item xs={5} sm={3}>
-                <InputLabel htmlFor="email_id">Preferred Contact Email</InputLabel>
+                <InputLabel htmlFor="email_id">
+                  Preferred Contact Email
+                </InputLabel>
                 <TextField
                   inputRef={register({ pattern: /^\S+@\S+$/i })}
                   name="email"
@@ -113,7 +115,9 @@ const UpdateProfileForm = () => {
               spacing={2}
             >
               <Grid item xs={6} sm={3}>
-                <InputLabel htmlFor="phone_id">Contact Phone (Include Country Code)</InputLabel>
+                <InputLabel htmlFor="phone_id">
+                  Contact Phone (Include Country Code)
+                </InputLabel>
                 <TextField
                   inputRef={register({ maxLength: 16 })}
                   name="phone"
@@ -137,10 +141,7 @@ const UpdateProfileForm = () => {
           <UIPreferences />
         </CardContent>
       </Card>
-
     </div>
-
-
   );
 };
 
