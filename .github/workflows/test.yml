@@ -24,16 +24,9 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Lint
-        run: |
-          pip install pre-commit
-          if pre-commit run --from-ref origin/master --to-ref HEAD; then
-              echo "Linting errored; this will be fatal sometime in the near future"
-          fi
-
       - uses: actions/setup-python@v1
         with:
-          python-version: '3.7'
+          python-version: "3.7"
 
       - uses: actions/cache@v2
         with:
@@ -49,29 +42,34 @@ jobs:
         with:
           submodules: true
 
+      - name: Formatting check
+        run: |
+          pip install pre-commit
+          pre-commit run --from-ref origin/master --to-ref HEAD
+
       - name: Write SkyPortal configs
         run: |
-            cat << EOF > config.yaml
-              database:
-                database: skyportal
-                host: localhost
-                port: 5432
-                user: skyportal
-                password: anything
-            EOF
+          cat << EOF > config.yaml
+            database:
+              database: skyportal
+              host: localhost
+              port: 5432
+              user: skyportal
+              password: anything
+          EOF
 
-            cat << EOF > test_config.yaml
-              database:
-                database: skyportal_test
-                user: skyportal
-                host: localhost
-                port: 5432
-                password: anything
+          cat << EOF > test_config.yaml
+            database:
+              database: skyportal_test
+              user: skyportal
+              host: localhost
+              port: 5432
+              password: anything
 
-              server:
-                auth:
-                  debug_login: True
-            EOF
+            server:
+              auth:
+                debug_login: True
+          EOF
 
       - name: Install system dependencies
         run: |
@@ -97,6 +95,11 @@ jobs:
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           make dependencies
+
+      - name: ESLint
+        run: |
+          # Run eslint to check for common react errors
+          make lint
 
       - name: Initialize SkyPortal
         run: |
