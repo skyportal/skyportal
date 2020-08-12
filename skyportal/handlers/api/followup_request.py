@@ -198,10 +198,10 @@ class AssignmentHandler(BaseHandler):
         data['id'] = assignment_id
         data["requester_id"] = self.associated_user_object.id
 
-        modok = (
-            "System admin" in [a.id for a in self.current_user.acls]
-            or assignment.requester.username == self.current_user.username
-        )
+        modok = assignment.run.group_id in [
+            g.id for g in self.current_user.accessible_groups
+        ]
+
         if not modok:
             return self.error("Insufficient permissions.")
 

@@ -78,7 +78,7 @@ class GroupHandler(BaseHandler):
                   schema: Error
         """
         if group_id is not None:
-            if 'Manage groups' in [acl.id for acl in self.current_user.acls]:
+            if "Manage groups" in [acl.id for acl in self.current_user.acls]:
                 group = (
                     Group.query.options(joinedload(Group.users))
                     .options(joinedload(Group.group_users))
@@ -91,13 +91,13 @@ class GroupHandler(BaseHandler):
                 if group is not None and group.id not in [
                     g.id for g in self.current_user.accessible_groups
                 ]:
-                    return self.error('Insufficient permissions.')
+                    return self.error("Insufficient permissions.")
             if group is not None:
                 group = group.to_dict()
                 # Do not include User.groups to avoid circular reference
-                group['users'] = [
-                    {'id': user.id, 'username': user.username}
-                    for user in group['users']
+                group["users"] = [
+                    {"id": user.id, "username": user.username}
+                    for user in group["users"]
                 ]
                 return self.success(data=group)
             return self.error(f"Could not load group with ID {group_id}")
@@ -114,25 +114,20 @@ class GroupHandler(BaseHandler):
         include_single_user_groups = self.get_query_argument(
             "includeSingleUserGroups", False
         )
-        acls = [acl.id for acl in self.current_user.acls]
         info = {}
-        info['user_groups'] = list(self.current_user.groups)
-        info['all_groups'] = (
-            Group.query.all()
-            if "System admin" in acls or "Manage groups" in acls
-            else None
-        )
+        info["user_groups"] = list(self.current_user.groups)
+        info["all_groups"] = Group.query.all()
+
         if (not include_single_user_groups) or (include_single_user_groups == "false"):
             info["user_groups"] = [
                 g for g in info["user_groups"] if not g.single_user_group
             ]
-            if info["all_groups"]:
-                info["all_groups"] = [
-                    g for g in info["all_groups"] if not g.single_user_group
-                ]
+            info["all_groups"] = [
+                g for g in info["all_groups"] if not g.single_user_group
+            ]
         return self.success(data=info)
 
-    @permissions(['Manage groups'])
+    @permissions(["Manage groups"])
     def post(self):
         """
         ---
@@ -171,7 +166,7 @@ class GroupHandler(BaseHandler):
         data = self.get_json()
 
         group_admin_emails = [
-            e.strip() for e in data.get('group_admins', []) if e.strip()
+            e.strip() for e in data.get("group_admins", []) if e.strip()
         ]
         group_admins = list(User.query.filter(User.username.in_(group_admin_emails)))
         if self.current_user not in group_admins and not isinstance(
@@ -179,7 +174,7 @@ class GroupHandler(BaseHandler):
         ):
             group_admins.append(self.current_user)
 
-        g = Group(name=data['name'])
+        g = Group(name=data["name"])
         DBSession().add(g)
         DBSession().flush()
         DBSession().add_all(
@@ -187,10 +182,10 @@ class GroupHandler(BaseHandler):
         )
         DBSession().commit()
 
-        self.push_all(action='skyportal/FETCH_GROUPS')
+        self.push_all(action="skyportal/FETCH_GROUPS")
         return self.success(data={"id": g.id})
 
-    @permissions(['Manage groups'])
+    @permissions(["Manage groups"])
     def put(self, group_id):
         """
         ---
@@ -215,20 +210,20 @@ class GroupHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        data['id'] = group_id
+        data["id"] = group_id
 
         schema = Group.__schema__()
         try:
             schema.load(data)
         except ValidationError as e:
             return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                "Invalid/missing parameters: " f"{e.normalized_messages()}"
             )
         DBSession().commit()
 
-        return self.success(action='skyportal/FETCH_GROUPS')
+        return self.success(action="skyportal/FETCH_GROUPS")
 
-    @permissions(['Manage groups'])
+    @permissions(["Manage groups"])
     def delete(self, group_id):
         """
         ---
@@ -250,14 +245,14 @@ class GroupHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(
-            action='skyportal/REFRESH_GROUP', payload={'group_id': int(group_id)}
+            action="skyportal/REFRESH_GROUP", payload={"group_id": int(group_id)}
         )
-        self.push_all(action='skyportal/FETCH_GROUPS')
+        self.push_all(action="skyportal/FETCH_GROUPS")
         return self.success()
 
 
 class GroupUserHandler(BaseHandler):
-    @permissions(['Manage groups'])
+    @permissions(["Manage groups"])
     def post(self, group_id, *ignored_args):
         """
         ---
@@ -339,12 +334,12 @@ class GroupUserHandler(BaseHandler):
                 )
         DBSession().commit()
 
-        self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
+        self.push_all(action="skyportal/REFRESH_GROUP", payload={"group_id": group_id})
         return self.success(
-            data={'group_id': group_id, 'user_id': user_id, 'admin': admin}
+            data={"group_id": group_id, "user_id": user_id, "admin": admin}
         )
 
-    @permissions(['Manage groups'])
+    @permissions(["Manage groups"])
     def delete(self, group_id, username):
         """
         ---
@@ -377,6 +372,6 @@ class GroupUserHandler(BaseHandler):
         )
         DBSession().commit()
         self.push_all(
-            action='skyportal/REFRESH_GROUP', payload={'group_id': int(group_id)}
+            action="skyportal/REFRESH_GROUP", payload={"group_id": int(group_id)}
         )
         return self.success()

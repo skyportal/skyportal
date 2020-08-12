@@ -1,32 +1,33 @@
-import React, { useEffect, Suspense } from "react";
-import PropTypes from "prop-types";
-import { useSelector, useDispatch } from "react-redux";
+import React, { useEffect, Suspense } from 'react';
+import PropTypes from 'prop-types';
+import { useSelector, useDispatch } from 'react-redux';
 
-import TableCell from "@material-ui/core/TableCell";
-import TableRow from "@material-ui/core/TableRow";
+import TableCell from '@material-ui/core/TableCell';
+import TableRow from '@material-ui/core/TableRow';
 
-import Typography from "@material-ui/core/Typography";
-import IconButton from "@material-ui/core/IconButton";
-import Grid from "@material-ui/core/Grid";
-import BuildIcon from "@material-ui/icons/Build";
+import Typography from '@material-ui/core/Typography';
+import IconButton from '@material-ui/core/IconButton';
+import Grid from '@material-ui/core/Grid';
+import BuildIcon from '@material-ui/icons/Build';
 
-import Link from "@material-ui/core/Link";
-import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
+import Link from '@material-ui/core/Link';
+import PictureAsPdfIcon from '@material-ui/icons/PictureAsPdf';
 
-import Menu from "@material-ui/core/Menu";
-import MenuItem from "@material-ui/core/MenuItem";
+import Menu from '@material-ui/core/Menu';
+import MenuItem from '@material-ui/core/MenuItem';
 
 import MUIDataTable from "mui-datatables";
 import ThumbnailList from "./ThumbnailList";
-import styles from "./RunSummary.css";
-import { observingRunTitle } from "./AssignmentForm";
-import { ObservingRunStarList } from "./StarList";
-import * as SourceAction from "../ducks/source";
-import * as Action from "../ducks/observingRun";
+import styles from './RunSummary.css';
+import { observingRunTitle } from './AssignmentForm';
+import { ObservingRunStarList } from './StarList';
+import * as SourceAction from '../ducks/source';
+import * as Action from '../ducks/observingRun';
 import { ra_to_hours, dec_to_hours } from "../units";
 
-const VegaPlot = React.lazy(() => import("./VegaPlot"));
-const AirmassPlot = React.lazy(() => import("./AirmassPlot"));
+const VegaPlot = React.lazy(() => import('./VegaPlot'));
+const AirmassPlot = React.lazy(() => import('./AirmassPlot'));
+
 
 const SimpleMenu = ({ assignment }) => {
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -46,7 +47,9 @@ const SimpleMenu = ({ assignment }) => {
 
   const updateAssignmentStatus = (status) => (() => {
     handleClose();
-    return dispatch(SourceAction.editAssignment({ status }, assignment.id));
+    return dispatch(
+      SourceAction.editAssignment({ status }, assignment.id)
+    );
   });
 
   return (
@@ -66,7 +69,8 @@ const SimpleMenu = ({ assignment }) => {
         open={Boolean(anchorEl)}
         onClose={handleClose}
       >
-        {(ispending || isnotdone) && (
+        {
+          (ispending || isnotdone) && (
           <MenuItem
             onClick={updateAssignmentStatus("complete")}
             variant="contained"
@@ -74,8 +78,10 @@ const SimpleMenu = ({ assignment }) => {
           >
             Mark Observed
           </MenuItem>
-        )}
-        {(ispending || isdone) && (
+          )
+}
+        {
+          (ispending || isdone) && (
           <MenuItem
             onClick={updateAssignmentStatus("not observed")}
             variant="contained"
@@ -83,8 +89,10 @@ const SimpleMenu = ({ assignment }) => {
           >
             Mark Not Observed
           </MenuItem>
-        )}
-        {(isdone || isnotdone) && (
+          )
+}
+        {
+          (isdone || isnotdone) && (
           <MenuItem
             onClick={updateAssignmentStatus("pending")}
             variant="contained"
@@ -92,16 +100,18 @@ const SimpleMenu = ({ assignment }) => {
           >
             Mark Pending
           </MenuItem>
-        )}
+          )
+}
         {isdone && (
-          <MenuItem
-            key={`${assignment.id}_upload_spec (Coming Soon)`}
-            onClick={handleClose}
-          >
-            Upload Spectrum
-          </MenuItem>
+        <MenuItem
+          key={`${assignment.id}_upload_spec (Coming Soon)`}
+          onClick={handleClose}
+        >
+          Upload Spectrum
+        </MenuItem>
         )}
-        {isdone && (
+        {
+          isdone && (
           <MenuItem
             key={`${assignment.id}_upload_phot`}
             variant="contained"
@@ -115,7 +125,8 @@ const SimpleMenu = ({ assignment }) => {
               Upload Photometry
             </Link>
           </MenuItem>
-        )}
+          )
+        }
       </Menu>
     </div>
   );
@@ -125,11 +136,14 @@ SimpleMenu.propTypes = {
   assignment: PropTypes.shape({
     status: PropTypes.string,
     id: PropTypes.number,
-    obj: PropTypes.shape({
-      id: PropTypes.string,
-    }).isRequired,
-  }).isRequired,
+    obj: PropTypes.shape(
+      {
+        id: PropTypes.string
+      }
+    ).isRequired
+  }).isRequired
 };
+
 
 const RunSummary = ({ route }) => {
   const dispatch = useDispatch();
@@ -138,18 +152,24 @@ const RunSummary = ({ route }) => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
 
+
   // Load the observing run and its assignments if needed
   useEffect(() => {
     dispatch(Action.fetchObservingRun(route.id));
   }, [route.id, dispatch]);
 
-  if (!("id" in observingRun && observingRun.id === parseInt(route.id, 10))) {
+
+  if (!(("id" in observingRun) && (observingRun.id === parseInt(route.id, 10)))) {
     // Don't need to do this for assignments -- we can just let the page be blank for a short time
-    return <b>Loading run...</b>;
+    return (
+      <b>
+        Loading run...
+      </b>
+    );
   }
   const { assignments } = observingRun;
 
-  const renderPullOutRow = (rowData, rowMeta) => {
+  const renderPullOutRow = ((rowData, rowMeta) => {
     // This is just passed to MUI datatables options -- not meant to be instantiated directly.
     if (observingRun === undefined) {
       return "Loading...";
@@ -160,10 +180,7 @@ const RunSummary = ({ route }) => {
 
     return (
       <TableRow>
-        <TableCell
-          style={{ paddingBottom: 0, paddingTop: 0 }}
-          colSpan={colSpan}
-        >
+        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={colSpan}>
           <Grid
             container
             direction="row"
@@ -196,7 +213,7 @@ const RunSummary = ({ route }) => {
         </TableCell>
       </TableRow>
     );
-  };
+  });
 
   const renderObjId = (dataIndex) => {
     // This is just passed to MUI datatables options -- not meant to be instantiated directly.
@@ -250,141 +267,128 @@ const RunSummary = ({ route }) => {
     return <SimpleMenu assignment={assignment} key={`${assignment.id}_menu`} />;
   };
 
-  const columns = [
-    {
-      name: "Target Name",
-      options: {
-        filter: true,
-        customBodyRenderLite: renderObjId,
-      },
-    },
-    {
-      name: "Status",
-      options: {
-        filter: true,
-      },
-    },
-    {
-      name: "RA",
-      options: {
-        filter: false,
-        customBodyRenderLite: renderRA,
-      },
-    },
-    {
-      name: "Dec",
-      options: {
-        filter: false,
-        customBodyRenderLite: renderDec,
-      },
-    },
-    {
-      name: "Redshift",
-      options: {
-        filter: false,
-      },
-    },
-    {
-      name: "Requester",
-      options: {
-        filter: true,
-      },
-    },
-    {
-      name: "Request",
-      options: {
-        filter: true,
-      },
-    },
-    {
-      name: "Priority",
-      options: {
-        filter: true,
-      },
-    },
-    {
-      name: "Rise Time (UT)",
-      options: {
-        filter: false,
-        customBodyRenderLite: (dataIndex) =>
-          new Date(assignments[dataIndex].rise_time_utc).toLocaleTimeString(),
-      },
-    },
-    {
-      name: "Set Time (UT)",
-      options: {
-        filter: false,
-        customBodyRenderLite: (dataIndex) =>
-          new Date(assignments[dataIndex].set_time_utc).toLocaleTimeString(),
-      },
-    },
-    {
-      name: "Finder",
-      options: {
-        filter: false,
-        customBodyRenderLite: renderFinderButton,
-      },
-    },
-    {
-      name: "Actions",
-      options: {
-        filter: false,
-        customBodyRenderLite: renderActionsButton,
-      },
-    },
-  ];
+  const columns =
+      [
+        {
+          name: "Target Name",
+          options: {
+            filter: true,
+            customBodyRenderLite: renderObjId
+          }
+        },
+        {
+          name: "Status",
+          options: {
+            filter: true
+          }
+        },
+        {
+          name: "RA",
+          options: {
+            filter: false,
+            customBodyRenderLite: renderRA
+          }
+        },
+        {
+          name: "Dec",
+          options: {
+            filter: false,
+            customBodyRenderLite: renderDec
+          }
+        },
+        {
+          name: "Redshift",
+          options: {
+            filter: false
+          }
+        },
+        {
+          name: "Requester",
+          options: {
+            filter: true
+          }
+        },
+        {
+          name: "Request",
+          options: {
+            filter: true
+          }
+        },
+        {
+          name: "Priority",
+          options: {
+            filter: true
+          }
+        },
+        {
+          name: "Rise Time (UT)",
+          options: {
+            filter: false,
+            customBodyRenderLite: (
+              (dataIndex) => new Date(assignments[dataIndex].rise_time_utc).toLocaleTimeString()
+            )
+          }
+        },
+        {
+          name: "Set Time (UT)",
+          options: {
+            filter: false,
+            customBodyRenderLite: (
+              (dataIndex) => new Date(assignments[dataIndex].set_time_utc).toLocaleTimeString()
+            )
+          }
+        },
+        {
+          name: "Finder",
+          options: {
+            filter: false,
+            customBodyRenderLite: renderFinderButton
+          }
+        },
+        {
+          name: "Actions",
+          options: {
+            filter: false,
+            customBodyRenderLite: renderActionsButton
+          }
+        }
+      ];
+
 
   const options = {
     draggableColumns: { enabled: true },
     expandableRows: true,
     renderExpandableRow: renderPullOutRow,
-    selectableRows: "none",
+    selectableRows: "none"
   };
 
-  const data = observingRun.assignments.map((assignment) => [
-    assignment.obj.id,
-    assignment.status,
-    assignment.obj.ra,
-    assignment.obj.dec,
-    assignment.obj.redshift,
-    assignment.requester.username,
-    assignment.comment,
-    assignment.priority,
-    assignment.rise_time_utc,
-    assignment.set_time_utc,
-    null,
-    null,
-  ]);
+  const data = observingRun.assignments.map(
+    (assignment) => ([
+      assignment.obj.id,
+      assignment.status,
+      assignment.obj.ra,
+      assignment.obj.dec,
+      assignment.obj.redshift,
+      assignment.requester.username,
+      assignment.comment,
+      assignment.priority,
+      assignment.rise_time_utc,
+      assignment.set_time_utc,
+      null,
+      null])
+  );
 
   return (
     <div className={styles.source}>
       <div>
-        <Grid
-          container
-          direction="column"
-          alignItems="center"
-          justify="flex-start"
-          spacing={3}
-        >
+        <Grid container direction="column" alignItems="center" justify="flex-start" spacing={3}>
           <Grid item>
             <div>
-              <Typography
-                variant="h4"
-                gutterBottom
-                color="textSecondary"
-                align="center"
-              >
+              <Typography variant="h4" gutterBottom color="textSecondary" align="center">
                 <em>Observing Planner for:</em>
               </Typography>
-              <Typography variant="h4" gutterBottom color="textSecondary">
-                <b>
-                  {observingRunTitle(
-                    observingRun,
-                    instrumentList,
-                    telescopeList,
-                    groups
-                  )}
-                </b>
+              <Typography variant="h4" gutterBottom color="textSecondary" align="center">
+                <b>{observingRunTitle(observingRun, instrumentList, telescopeList, groups)}</b>
               </Typography>
             </div>
           </Grid>
@@ -410,8 +414,8 @@ const RunSummary = ({ route }) => {
 
 RunSummary.propTypes = {
   route: PropTypes.shape({
-    id: PropTypes.string,
-  }).isRequired,
+    id: PropTypes.string
+  }).isRequired
 };
 
 export default RunSummary;
