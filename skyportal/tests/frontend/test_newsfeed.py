@@ -1,10 +1,8 @@
 import uuid
-import pytest
 
 from skyportal.tests import api
 
 
-@pytest.mark.flaky(reruns=2)
 def test_news_feed(
     driver, user, public_source, public_group, upload_data_token, comment_token
 ):
@@ -45,7 +43,6 @@ def test_news_feed(
         )
 
 
-@pytest.mark.flaky(reruns=2)
 def test_news_feed_prefs_widget(
     driver, user, public_source, public_group, upload_data_token, comment_token
 ):
@@ -84,18 +81,18 @@ def test_news_feed_prefs_widget(
         driver.wait_for_xpath(
             f'//span[contains(text(),"comment_text_{i} ({obj_id_base}_{i})")]'
         )
-    prefs_widget_button = driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]')
-    driver.scroll_to_element_and_click(prefs_widget_button)
+    prefs_widget_button = '//*[@id="newsFeedSettingsIcon"]'
+    driver.click_xpath(prefs_widget_button)
     n_items_input = driver.wait_for_xpath('//input[@name="numItems"]')
     n_items_input.clear()
     n_items_input.send_keys("2")
-    widget_save_button = driver.wait_for_xpath('//button[contains(., "Save")]')
-    widget_save_button.click()
+
+    widget_save_button = '//button[contains(., "Save")]'
+    driver.click_xpath(widget_save_button)
     driver.wait_for_xpath_to_disappear(f'//span[text()="New source {obj_id_base}_0"]')
-    prefs_widget_button.click()
+    driver.click_xpath(prefs_widget_button)
     n_items_input = driver.wait_for_xpath('//input[@name="numItems"]')
     n_items_input.clear()
     n_items_input.send_keys("4")
-    widget_save_button = driver.wait_for_xpath('//button[contains(., "Save")]')
-    widget_save_button.click()
+    driver.click_xpath(widget_save_button)
     driver.wait_for_xpath(f'//span[text()="New source {obj_id_base}_0"]')
