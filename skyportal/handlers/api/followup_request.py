@@ -158,6 +158,10 @@ class AssignmentHandler(BaseHandler):
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_id": assignment.obj_id},
         )
+        self.push_all(
+            action="skyportal/REFRESH_OBSERVING_RUN",
+            payload={"run_id": assignment.run_id},
+        )
         return self.success(data={"id": assignment.id})
 
     @auth_or_token
@@ -211,9 +215,13 @@ class AssignmentHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(
-            action="skyportal/REFRESH_SOURCE", payload={"obj_id": assignment.obj_id},
+            action="skyportal/REFRESH_SOURCE",
+            payload={"obj_id": assignment.obj_id},
         )
-
+        self.push_all(
+            action="skyportal/REFRESH_OBSERVING_RUN",
+            payload={"run_id": assignment.run_id},
+        )
         return self.success()
 
     @auth_or_token
@@ -247,6 +255,10 @@ class AssignmentHandler(BaseHandler):
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_id": assignment.obj_id},
+        )
+        self.push_all(
+            action="skyportal/REFRESH_OBSERVING_RUN",
+            payload={"run_id": assignment.run_id},
         )
         return self.success()
 
