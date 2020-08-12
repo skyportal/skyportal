@@ -16,7 +16,7 @@ def test_public_source_page(driver, user, public_source, public_group):
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.wait_for_xpath(
-        '//label[contains(text(), "band")]'
+        '//label[contains(text(), "band")]', 10
     )  # TODO how to check plot?
     driver.wait_for_xpath('//label[contains(text(), "Fe III")]')
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
