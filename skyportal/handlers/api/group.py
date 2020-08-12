@@ -1,3 +1,4 @@
+from copy import deepcopy
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
@@ -80,7 +81,9 @@ class GroupHandler(BaseHandler):
                                 type: array
                                 items:
                                   $ref: '#/components/schemas/Group'
-                                description: List of all groups if current user is Super admin, else None.
+                                description: |
+                                  List of all groups user has access to, optionally
+                                  including single user groups if specified in request.
             400:
               content:
                 application/json:
@@ -138,22 +141,25 @@ class GroupHandler(BaseHandler):
         include_single_user_groups = self.get_query_argument(
             "includeSingleUserGroups", False
         )
-        acls = [acl.id for acl in self.current_user.acls]
         info = {}
         info['user_groups'] = list(self.current_user.groups)
-        info['all_groups'] = (
-            Group.query.all()
-            if "System admin" in acls or "Manage groups" in acls
-            else None
-        )
         if (not include_single_user_groups) or (include_single_user_groups == "false"):
-            info["user_groups"] = [
-                g for g in info["user_groups"] if not g.single_user_group
+            info["all_groups"] = [
+                g
+                for g in self.current_user.accessible_groups
+                if not g.single_user_group
             ]
-            if info["all_groups"]:
-                info["all_groups"] = [
-                    g for g in info["all_groups"] if not g.single_user_group
-                ]
+        else:
+            # `accessible_groups` already includes single user groups for sys admins
+            if "System admin" in self.current_user.permissions:
+                info["all_groups"] = self.current_user.accessible_groups
+            else:
+                info["all_groups"] = deepcopy(info["user_groups"])
+                single_user_groups = Group.query.filter(
+                    Group.single_user_group.is_(True)
+                ).all()
+                info["all_groups"].extend(single_user_groups)
+        print(self.request.uri)
         return self.success(data=info)
 
     @permissions(['Manage groups'])
@@ -465,7 +471,7 @@ class GroupStreamHandler(BaseHandler):
             # todo: ensure all current group users have access to this stream
             for user in group.users:
                 # get single user group
-                single_user_group = Group.query.filter(
+                single_user_group = Group.query.filter(  # noqa
                     Group.name == user.username
                 ).first()
                 # todo: do the check
@@ -507,7 +513,6 @@ class GroupStreamHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        group = Group.query.get(group_id)
         stream = Stream.query.filter(Stream.id == int(stream_id)).first()
         stream_id = stream.id
         if stream is None:
