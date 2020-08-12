@@ -2,6 +2,9 @@ import arrow
 import uuid
 import re
 from datetime import datetime, timezone
+from astropy import units as u
+from astropy import time as ap_time
+import astroplan
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy import cast
@@ -15,19 +18,19 @@ from sqlalchemy_utils import ArrowType, URLType
 from astropy import coordinates as ap_coord
 import healpix_alchemy as ha
 
-from baselayer.app.models import (
+from baselayer.app.models import (  # noqa
+    init_db,
     join_model,
     Base,
     DBSession,
+    ACL,
+    Role,
     User,
     Token,
 )
 from baselayer.app.custom_exceptions import AccessError
 
-import astroplan
 import timezonefinder
-from astropy import units as u
-from astropy import time as ap_time
 
 from . import schema
 from .enum_types import (
