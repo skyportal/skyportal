@@ -3,7 +3,7 @@ from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
-from ...models import (
+from ...models import (  # noqa
     DBSession,
     Source,
     FollowupRequest,
@@ -215,8 +215,7 @@ class AssignmentHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_id": assignment.obj_id},
+            action="skyportal/REFRESH_SOURCE", payload={"obj_id": assignment.obj_id},
         )
         self.push_all(
             action="skyportal/REFRESH_OBSERVING_RUN",
