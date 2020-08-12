@@ -174,13 +174,17 @@ class CandidateHandler(BaseHandler):
         filter_ids = self.get_query_argument("filterIDs", None)
         user_group_ids = [g.id for g in self.current_user.groups]
         user_filter_ids = [
-            g.filter.id for g in self.current_user.groups if g.filter is not None
+            filtr.id
+            for g in self.current_user.groups
+            for filtr in g.filters
+            if g.filters is not None
         ]
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
-            g.filter.id
+            filtr.id
             for g in self.current_user.accessible_groups
-            if g.filter is not None
+            for filtr in g.filters
+            if g.filters is not None
         ]
         if group_ids is not None:
             if isinstance(group_ids, str) and "," in group_ids:
@@ -340,6 +344,7 @@ class CandidateHandler(BaseHandler):
         """
         data = self.get_json()
         schema = Obj.__schema__()
+
         passing_alert_id = data.pop("passing_alert_id", None)
         passed_at = data.pop("passed_at", None)
         if passed_at is not None:
@@ -349,9 +354,10 @@ class CandidateHandler(BaseHandler):
         except KeyError:
             return self.error("Missing required filter_ids parameter.")
         user_accessible_filter_ids = [
-            g.filter.id
+            filtr.id
             for g in self.current_user.accessible_groups
-            if g.filter is not None
+            for filtr in g.filters
+            if g.filters is not None
         ]
         if not all([fid in user_accessible_filter_ids for fid in filter_ids]):
             return self.error(

@@ -1,8 +1,6 @@
-import time
 import uuid
 
 import pytest
-from selenium.webdriver.support.ui import Select
 
 
 def test_token_acls_options_rendering1(driver, user):

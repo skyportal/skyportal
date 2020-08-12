@@ -3,11 +3,11 @@ import uuid
 import re
 from datetime import datetime, timezone
 from astropy import units as u
+from astropy import time as ap_time
 import astroplan
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy import cast
-from sqlalchemy.orm.session import object_session
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
@@ -18,7 +18,7 @@ from sqlalchemy_utils import ArrowType, URLType
 from astropy import coordinates as ap_coord
 import healpix_alchemy as ha
 
-from baselayer.app.models import (
+from baselayer.app.models import (  # noqa
     init_db,
     join_model,
     Base,
@@ -30,10 +30,7 @@ from baselayer.app.models import (
 )
 from baselayer.app.custom_exceptions import AccessError
 
-import astroplan
 import timezonefinder
-from astropy import units as u
-from astropy import time as ap_time
 
 from . import schema
 from .enum_types import (
@@ -86,10 +83,12 @@ class Group(Base):
 
     streams = relationship(
         'Stream',
-        secondary='stream_groups',
+        secondary='group_streams',
         back_populates='groups',
         passive_deletes=True,
     )
+    filters = relationship("Filter", back_populates="group", passive_deletes=True)
+
     users = relationship(
         'User', secondary='group_users', back_populates='groups', passive_deletes=True
     )
@@ -100,7 +99,6 @@ class Group(Base):
         passive_deletes=True,
     )
 
-    filter = relationship("Filter", uselist=False, back_populates="group")
     observing_runs = relationship('ObservingRun', back_populates='group')
     photometry = relationship(
         "Photometry",
@@ -125,23 +123,38 @@ GroupUser.admin = sa.Column(sa.Boolean, nullable=False, default=False)
 
 class Stream(Base):
     name = sa.Column(sa.String, unique=True, nullable=False)
-    url = sa.Column(sa.String, unique=True, nullable=False)
-    username = sa.Column(sa.String)
-    password = sa.Column(sa.String)
+    altdata = sa.Column(
+        JSONB,
+        nullable=True,
+        doc="Misc. metadata stored in JSON format, e.g. "
+        "`{'collection': 'ZTF_alerts', selector: [1, 2]}`",
+    )
 
     groups = relationship(
         'Group',
-        secondary='stream_groups',
+        secondary='group_streams',
         back_populates='streams',
         passive_deletes=True,
     )
+    users = relationship(
+        'User', secondary='stream_users', back_populates='streams', passive_deletes=True
+    )
+    filters = relationship('Filter', back_populates='stream', passive_deletes=True)
 
 
-StreamGroup = join_model('stream_groups', Stream, Group)
+GroupStream = join_model('group_streams', Group, Stream)
+
+
+StreamUser = join_model('stream_users', Stream, User)
 
 
 User.groups = relationship(
     'Group', secondary='group_users', back_populates='users', passive_deletes=True
+)
+
+
+User.streams = relationship(
+    'Stream', secondary='stream_users', back_populates='users', passive_deletes=True
 )
 
 
@@ -355,9 +368,15 @@ class Obj(Base, ha.Point):
 
 
 class Filter(Base):
-    query_string = sa.Column(sa.String, nullable=False, unique=False)
-    group_id = sa.Column(sa.ForeignKey("groups.id"), nullable=False, index=True)
-    group = relationship("Group", foreign_keys=[group_id], back_populates="filter")
+    name = sa.Column(sa.String, nullable=False, unique=False)
+    stream_id = sa.Column(
+        sa.ForeignKey("streams.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    stream = relationship("Stream", foreign_keys=[stream_id], back_populates="filters")
+    group_id = sa.Column(
+        sa.ForeignKey("groups.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    group = relationship("Group", foreign_keys=[group_id], back_populates="filters")
 
 
 Candidate = join_model("candidates", Filter, Obj)
@@ -575,7 +594,7 @@ class ArrayOfEnum(ARRAY):
         super_rp = super(ArrayOfEnum, self).result_processor(dialect, coltype)
 
         def handle_raw_string(value):
-            if value == None or value == '{}':  # 2nd case, empty array
+            if value is None or value == '{}':  # 2nd case, empty array
                 return []
             inner = re.match(r"^{(.*)}$", value).group(1)
             return inner.split(",")
@@ -812,7 +831,7 @@ class Photometry(Base, ha.Point):
     def mag(cls):
         return sa.case(
             [
-                sa.and_(cls.flux != None, cls.flux > 0),
+                sa.and_(cls.flux != None, cls.flux > 0),  # noqa
                 -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
             ],
             else_=None,
@@ -823,7 +842,7 @@ class Photometry(Base, ha.Point):
         return sa.case(
             [
                 (
-                    sa.and_(cls.flux != None, cls.flux > 0, cls.fluxerr > 0),
+                    sa.and_(cls.flux != None, cls.flux > 0, cls.fluxerr > 0),  # noqa
                     2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux,
                 )
             ],

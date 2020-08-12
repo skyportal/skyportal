@@ -1,6 +1,4 @@
-from selenium.webdriver.common.keys import Keys
-
-from skyportal.tests import api
+from selenium.common.exceptions import TimeoutException
 
 
 def test_share_data(
@@ -27,6 +25,6 @@ def test_share_data(
     groups_str = ", ".join([public_group.name, public_group2.name])
     try:
         driver.wait_for_xpath(f"//div[text()='{groups_str}']")
-    except:
+    except TimeoutException:
         groups_str = ", ".join([public_group2.name, public_group.name])
         driver.wait_for_xpath(f"//div[text()='{groups_str}']")
