@@ -12,6 +12,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import * as sourceActions from "../ducks/source";
 import styles from "./CommentList.css";
 import CommentEntry from "./CommentEntry";
+import UserAvatar from "./UserAvatar";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -38,6 +39,9 @@ const CommentList = ({ isCandidate }) => {
   const obj = isCandidate ? candidate : source;
   const userProfile = useSelector((state) => state.profile);
   const acls = useSelector((state) => state.profile.acls);
+  const userColorTheme = useSelector(
+    (state) => state.profile.preferences.theme
+  );
   let { comments } = obj;
   const addComment = (formData) => {
     dispatch(sourceActions.addComment({ obj_id: obj.id, ...formData }));
@@ -45,31 +49,40 @@ const CommentList = ({ isCandidate }) => {
 
   comments = comments || [];
 
+  const commentStyle =
+    userColorTheme === "light" ? styles.comment : styles.commentDark;
+
   const items = comments.map(
     ({ id, author, created_at, text, attachment_name, groups }) => (
       <span
         key={id}
-        className={styles.comment}
+        className={commentStyle}
         onMouseOver={() => handleMouseHover(id, userProfile, author)}
         onMouseOut={() => handleMouseLeave()}
         onFocus={() => handleMouseHover(id, userProfile, author)}
         onBlur={() => handleMouseLeave()}
       >
         <div className={styles.commentHeader}>
+          <div className={styles.commentUserAvatar}>
+            <UserAvatar
+              size={24}
+              firstName={userProfile.first_name}
+              lastName={userProfile.last_name}
+              username={userProfile.username}
+              gravatarUrl={userProfile.gravatar_url}
+            />
+          </div>
           <span className={styles.commentUser}>
             <span className={styles.commentUserName}>{author}</span>
           </span>
-          &nbsp;
           <span className={styles.commentTime}>
             {dayjs().to(dayjs.utc(`${created_at}Z`))}
           </span>
-          &nbsp;
-          <Tooltip title={groups.map((group) => group.name).join(", ")}>
-            <GroupIcon
-              fontSize="small"
-              style={{ paddingTop: "6px", paddingBottom: "0px" }}
-            />
-          </Tooltip>
+          <div className={styles.commentUserGroup}>
+            <Tooltip title={groups.map((group) => group.name).join(", ")}>
+              <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
+            </Tooltip>
+          </div>
         </div>
         <div className={styles.wrap} name={`commentDiv${id}`}>
           <div className={styles.commentMessage}>{text}</div>
