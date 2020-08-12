@@ -174,7 +174,7 @@ class ObservingRunHandler(BaseHandler):
 
         if orun.owner_id != current_user_id and not is_superadmin:
             return self.error(
-                'Only the owner of an observing run can modify ' 'the run.'
+                'Only the owner of an observing run can modify the run.'
             )
         try:
             new_params = ObservingRunPost.load(data, partial=True)
