@@ -1,10 +1,7 @@
 import uuid
 import pytest
 from selenium.webdriver.support.ui import Select
-from selenium.common.exceptions import (
-    ElementClickInterceptedException,
-    TimeoutException,
-)
+from selenium.common.exceptions import TimeoutException
 
 from skyportal.tests import api
 
@@ -131,9 +128,7 @@ def test_edit_existing_followup_request(
     driver.click_xpath('//button[text()="Edit"]')
     priority_select = Select(driver.wait_for_xpath('//select[@name="priority"]'))
     priority_select.select_by_visible_text("5")
-    submit_button = driver.click_xpath(
-        '//*[@name="editExistingFollowupRequestSubmitButton"]'
-    )
+    driver.click_xpath('//*[@name="editExistingFollowupRequestSubmitButton"]')
     try:
         driver.wait_for_xpath("//td[contains(.,'5')]")
     except TimeoutException:
