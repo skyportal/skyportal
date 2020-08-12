@@ -100,16 +100,7 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     ).find_element_by_xpath("..")
     # Hover to raise delete button
     ActionChains(driver).move_to_element(classification_entry_div).perform()
-    delete_button = driver.wait_for_xpath(
-        "//button[starts-with(@name, 'deleteClassificationButton')]"
-    )
-    # Move to delete button
-    ActionChains(driver).move_to_element(delete_button).perform()
-    # Needs to be re-located, otherwise it's stale
-    delete_button = driver.wait_for_xpath(
-        "//button[starts-with(@name, 'deleteClassificationButton')]"
-    )
-    delete_button.click()
+    driver.click_xpath("//button[starts-with(@name, 'deleteClassificationButton')]")
     driver.wait_for_xpath_to_disappear("//*[contains(text(), '(P=1)')]")
     driver.wait_for_xpath_to_disappear(f"//i[text()='{tax_name}']")
     driver.wait_for_xpath_to_disappear(
