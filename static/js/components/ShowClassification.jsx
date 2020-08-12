@@ -50,7 +50,13 @@ function ShowClassification({ classifications, taxonomyList }) {
                 </>
               }
             >
-              <Button key={`${c[0].modified}tb`}>{c[0].classification}</Button>
+              <Button
+                key={`${c[0].modified}tb`}
+                style={{ cursor: "default" }}
+                disableRipple
+              >
+                {c[0].classification}
+              </Button>
             </Tooltip>
           );
         })}
