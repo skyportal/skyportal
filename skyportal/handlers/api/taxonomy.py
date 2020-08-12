@@ -1,4 +1,3 @@
-from marshmallow.exceptions import ValidationError
 from tdtax import schema, validate
 from jsonschema.exceptions import ValidationError as JSONValidationError
 
@@ -42,11 +41,9 @@ class TaxonomyHandler(BaseHandler):
                   schema: Error
         """
         if taxonomy_id is not None:
-            taxonomy = (Taxonomy.
-                        get_taxonomy_usable_by_user(
-                            taxonomy_id,
-                            self.current_user)
-                        )
+            taxonomy = Taxonomy.get_taxonomy_usable_by_user(
+                taxonomy_id, self.current_user
+            )
             if taxonomy is None or len(taxonomy) == 0:
                 return self.error(
                     'Taxonomy does not exist or is not available to user.'
@@ -54,8 +51,7 @@ class TaxonomyHandler(BaseHandler):
 
             return self.success(data=taxonomy[0])
         query = Taxonomy.query.filter(
-            Taxonomy.groups.any(Group.id.in_(
-              [g.id for g in self.current_user.groups]))
+            Taxonomy.groups.any(Group.id.in_([g.id for g in self.current_user.groups]))
         )
         return self.success(data=query.all())
 
@@ -132,13 +128,10 @@ class TaxonomyHandler(BaseHandler):
 
         version = data.get('version', None)
         if version is None:
-            return self.error(
-                "A version string must be provided for a taxonomy"
-            )
+            return self.error("A version string must be provided for a taxonomy")
 
         existing_matches = (
-            Taxonomy.query
-            .filter(Taxonomy.name == name)
+            Taxonomy.query.filter(Taxonomy.name == name)
             .filter(Taxonomy.version == version)
             .all()
         )
@@ -157,9 +150,7 @@ class TaxonomyHandler(BaseHandler):
         try:
             validate(hierarchy, schema)
         except JSONValidationError:
-            return self.error(
-                "Hierarchy does not validate against the schema."
-            )
+            return self.error("Hierarchy does not validate against the schema.")
 
         # establish the groups to use
         user_group_ids = [g.id for g in self.current_user.groups]
@@ -169,8 +160,10 @@ class TaxonomyHandler(BaseHandler):
             group_ids = user_group_ids
         group_ids = [gid for gid in group_ids if gid in user_accessible_group_ids]
         if not group_ids:
-            return self.error(f"Invalid group IDs field ({group_ids}): "
-                              "You must provide one or more valid group IDs.")
+            return self.error(
+                f"Invalid group IDs field ({group_ids}): "
+                "You must provide one or more valid group IDs."
+            )
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
 
         provenance = data.get('provenance', None)
@@ -179,9 +172,9 @@ class TaxonomyHandler(BaseHandler):
         # TODO: deal with the same name but different groups?
         isLatest = data.get('isLatest', True)
         if isLatest:
-            DBSession().query(Taxonomy) \
-                       .filter(Taxonomy.name == name) \
-                       .update({'isLatest': False})
+            DBSession().query(Taxonomy).filter(Taxonomy.name == name).update(
+                {'isLatest': False}
+            )
 
         taxonomy = Taxonomy(
             name=name,
@@ -189,7 +182,7 @@ class TaxonomyHandler(BaseHandler):
             provenance=provenance,
             version=version,
             isLatest=isLatest,
-            groups=groups
+            groups=groups,
         )
 
         DBSession().add(taxonomy)

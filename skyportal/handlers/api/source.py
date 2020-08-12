@@ -1,24 +1,32 @@
 import datetime
-from functools import reduce
 
-import tornado.web
 from dateutil.parser import isoparse
 from sqlalchemy.orm import joinedload
-from sqlalchemy import func, desc
+from sqlalchemy import func
 import arrow
 from marshmallow.exceptions import ValidationError
 import healpix_alchemy as ha
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
-    DBSession, Comment, Instrument, Photometry, Obj, Source, SourceView,
-    Thumbnail, Token, User, Group, FollowupRequest, ClassicalAssignment,
-    ObservingRun
+    DBSession,
+    Instrument,
+    Photometry,
+    Obj,
+    Source,
+    Thumbnail,
+    Token,
+    Group,
+    FollowupRequest,
+    ClassicalAssignment,
+    ObservingRun,
 )
 from .internal.source_views import register_source_view
 from ...utils import (
-    get_nearby_offset_stars, facility_parameters, source_image_parameters,
-    get_finding_chart
+    get_nearby_offset_stars,
+    facility_parameters,
+    source_image_parameters,
+    get_finding_chart,
 )
 from .candidate import grab_query_results_page
 
@@ -171,42 +179,52 @@ class SourceHandler(BaseHandler):
         if obj_id:
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
-                register_source_view(obj_id=obj_id,
-                                     username_or_token_id=self.current_user.id,
-                                     is_token=True)
+                register_source_view(
+                    obj_id=obj_id,
+                    username_or_token_id=self.current_user.id,
+                    is_token=True,
+                )
             s = Source.get_obj_if_owned_by(
-                obj_id, self.current_user,
-                options=[joinedload(Source.obj)
-                         .joinedload(Obj.followup_requests)
-                         .joinedload(FollowupRequest.requester),
-                         joinedload(Source.obj)
-                         .joinedload(Obj.followup_requests)
-                         .joinedload(FollowupRequest.instrument),
-                         joinedload(Source.obj)
-                         .joinedload(Obj.assignments)
-                         .joinedload(ClassicalAssignment.run)
-                         .joinedload(ObservingRun.instrument)
-                         .joinedload(Instrument.telescope),
-                         joinedload(Source.obj)
-                         .joinedload(Obj.thumbnails)
-                         .joinedload(Thumbnail.photometry)
-                         .joinedload(Photometry.instrument)
-                         .joinedload(Instrument.telescope)])
+                obj_id,
+                self.current_user,
+                options=[
+                    joinedload(Source.obj)
+                    .joinedload(Obj.followup_requests)
+                    .joinedload(FollowupRequest.requester),
+                    joinedload(Source.obj)
+                    .joinedload(Obj.followup_requests)
+                    .joinedload(FollowupRequest.instrument),
+                    joinedload(Source.obj)
+                    .joinedload(Obj.assignments)
+                    .joinedload(ClassicalAssignment.run)
+                    .joinedload(ObservingRun.instrument)
+                    .joinedload(Instrument.telescope),
+                    joinedload(Source.obj)
+                    .joinedload(Obj.thumbnails)
+                    .joinedload(Thumbnail.photometry)
+                    .joinedload(Photometry.instrument)
+                    .joinedload(Instrument.telescope),
+                ],
+            )
             if s is None:
                 return self.error("Invalid source ID.")
             s.comments = s.get_comments_owned_by(self.current_user)
             s.classifications = s.get_classifications_owned_by(self.current_user)
             source_info = s.to_dict()
             source_info["last_detected"] = s.last_detected
-            source_info["groups"] = Group.query.filter(
-                Group.id.in_(
-                    DBSession().query(Source.group_id).filter(
-                        Source.obj_id == obj_id
+            source_info["groups"] = (
+                Group.query.filter(
+                    Group.id.in_(
+                        DBSession()
+                        .query(Source.group_id)
+                        .filter(Source.obj_id == obj_id)
                     )
                 )
-            ).filter(
-                Group.id.in_([g.id for g in self.current_user.accessible_groups])
-            ).all()
+                .filter(
+                    Group.id.in_([g.id for g in self.current_user.accessible_groups])
+                )
+                .all()
+            )
 
             return self.success(data=source_info)
         if page_number:
@@ -214,21 +232,31 @@ class SourceHandler(BaseHandler):
                 page = int(page_number)
             except ValueError:
                 return self.error("Invalid page number value.")
-            q = Obj.query.filter(Obj.id.in_(DBSession().query(
-                Source.obj_id).filter(Source.group_id.in_(
-                    [g.id for g in self.current_user.groups]))))
+            q = Obj.query.filter(
+                Obj.id.in_(
+                    DBSession()
+                    .query(Source.obj_id)
+                    .filter(
+                        Source.group_id.in_([g.id for g in self.current_user.groups])
+                    )
+                )
+            )
             if sourceID:
                 q = q.filter(Obj.id.contains(sourceID.strip()))
             if any([ra, dec, radius]):
                 if not all([ra, dec, radius]):
-                    return self.error("If any of 'ra', 'dec' or 'radius' are "
-                                      "provided, all three are required.")
+                    return self.error(
+                        "If any of 'ra', 'dec' or 'radius' are "
+                        "provided, all three are required."
+                    )
                 try:
                     ra = float(ra)
                     dec = float(dec)
                     radius = float(radius)
                 except ValueError:
-                    return self.error("Invalid values for ra, dec or radius - could not convert to float")
+                    return self.error(
+                        "Invalid values for ra, dec or radius - could not convert to float"
+                    )
                 other = ha.Point(ra=ra, dec=dec)
                 q = q.filter(Obj.within(other, radius))
             if start_date:
@@ -238,8 +266,10 @@ class SourceHandler(BaseHandler):
                 end_date = arrow.get(end_date.strip())
                 q = q.filter(Obj.last_detected <= end_date)
             if simbad_class:
-                q = q.filter(func.lower(Obj.altdata['simbad']['class'].astext)
-                             == simbad_class.lower())
+                q = q.filter(
+                    func.lower(Obj.altdata['simbad']['class'].astext)
+                    == simbad_class.lower()
+                )
             if has_tns_name in ['true', True]:
                 q = q.filter(Obj.altdata['tns']['name'].isnot(None))
 
@@ -259,11 +289,13 @@ class SourceHandler(BaseHandler):
             query_results["sources"] = source_list
             return self.success(data=query_results)
 
-        sources = Obj.query.filter(Obj.id.in_(
-            DBSession().query(Source.obj_id).filter(Source.group_id.in_(
-                [g.id for g in self.current_user.groups]
-            ))
-        )).all()
+        sources = Obj.query.filter(
+            Obj.id.in_(
+                DBSession()
+                .query(Source.obj_id)
+                .filter(Source.group_id.in_([g.id for g in self.current_user.groups]))
+            )
+        ).all()
         source_list = []
         for source in sources:
             source.comments = source.get_comments_owned_by(self.current_user)
@@ -312,25 +344,34 @@ class SourceHandler(BaseHandler):
         user_group_ids = [g.id for g in self.current_user.groups]
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         if not user_group_ids:
-            return self.error("You must belong to one or more groups before "
-                              "you can add sources.")
+            return self.error(
+                "You must belong to one or more groups before " "you can add sources."
+            )
         try:
-            group_ids = [int(id) for id in data.pop('group_ids')
-                         if int(id) in user_accessible_group_ids]
+            group_ids = [
+                int(id)
+                for id in data.pop('group_ids')
+                if int(id) in user_accessible_group_ids
+            ]
         except KeyError:
             group_ids = user_group_ids
         if not group_ids:
-            return self.error("Invalid group_ids field. Please specify at least "
-                              "one valid group ID that you belong to.")
+            return self.error(
+                "Invalid group_ids field. Please specify at least "
+                "one valid group ID that you belong to."
+            )
         try:
             obj = schema.load(data)
         except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            return self.error(
+                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+            )
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
         if not groups:
-            return self.error("Invalid group_ids field. Please specify at least "
-                              "one valid group ID that you belong to.")
+            return self.error(
+                "Invalid group_ids field. Please specify at least "
+                "one valid group ID that you belong to."
+            )
         DBSession().add(obj)
         DBSession().add_all([Source(obj=obj, group=group) for group in groups])
         DBSession().commit()
@@ -364,7 +405,8 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        s = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        # Permissions check
+        _ = Source.get_obj_if_owned_by(obj_id, self.current_user)
         data = self.get_json()
         data['id'] = obj_id
 
@@ -372,8 +414,9 @@ class SourceHandler(BaseHandler):
         try:
             schema.load(data)
         except ValidationError as e:
-            return self.error('Invalid/missing parameters: '
-                              f'{e.normalized_messages()}')
+            return self.error(
+                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+            )
         DBSession().commit()
 
         return self.success(action='skyportal/FETCH_SOURCES')
@@ -402,8 +445,13 @@ class SourceHandler(BaseHandler):
         """
         if group_id not in [g.id for g in self.current_user.accessible_groups]:
             return self.error("Inadequate permissions.")
-        s = (DBSession().query(Source).filter(Source.obj_id == obj_id)
-             .filter(Source.group_id == group_id).first())
+        s = (
+            DBSession()
+            .query(Source)
+            .filter(Source.obj_id == obj_id)
+            .filter(Source.group_id == group_id)
+            .first()
+        )
         s.active = False
         s.unsaved_by = self.current_user
         DBSession().commit()
@@ -552,25 +600,31 @@ class SourceOffsetsHandler(BaseHandler):
             return self.error('Invalid argument for `how_many`')
 
         try:
-            starlist_info, query_string, queries_issued, noffsets = \
-                get_nearby_offset_stars(
-                    source.ra, source.dec,
-                    obj_id,
-                    how_many=how_many,
-                    radius_degrees=radius_degrees,
-                    mag_limit=mag_limit,
-                    min_sep_arcsec=min_sep_arcsec,
-                    starlist_type=facility,
-                    mag_min=mag_min,
-                    obstime=obstime,
-                    allowed_queries=2
-                )
+            (
+                starlist_info,
+                query_string,
+                queries_issued,
+                noffsets,
+            ) = get_nearby_offset_stars(
+                source.ra,
+                source.dec,
+                obj_id,
+                how_many=how_many,
+                radius_degrees=radius_degrees,
+                mag_limit=mag_limit,
+                min_sep_arcsec=min_sep_arcsec,
+                starlist_type=facility,
+                mag_min=mag_min,
+                obstime=obstime,
+                allowed_queries=2,
+            )
 
         except ValueError:
             return self.error('Error while querying for nearby offset stars')
 
-        starlist_str = \
-            "\n".join([x["str"].replace(" ", "&nbsp;") for x in starlist_info])
+        starlist_str = "\n".join(
+            [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
+        )
         return self.success(
             data={
                 'facility': facility,
@@ -580,7 +634,7 @@ class SourceOffsetsHandler(BaseHandler):
                 'dec': source.dec,
                 'noffsets': noffsets,
                 'queries_issued': queries_issued,
-                'query': query_string
+                'query': query_string,
             }
         )
 
@@ -649,8 +703,7 @@ class SourceFinderHandler(BaseHandler):
             return self.error('Invalid argument for `imsize`')
 
         if imsize < 2.0 or imsize > 15.0:
-            return \
-                self.error('The value for `imsize` is outside the allowed range')
+            return self.error('The value for `imsize` is outside the allowed range')
 
         facility = self.get_query_argument('facility', 'Keck')
         image_source = self.get_query_argument('image_source', 'desi')
@@ -674,7 +727,9 @@ class SourceFinderHandler(BaseHandler):
         mag_min = facility_parameters[facility]["mag_min"]
 
         rez = get_finding_chart(
-            source.ra, source.dec, obj_id,
+            source.ra,
+            source.dec,
+            obj_id,
             image_source=image_source,
             output_format='pdf',
             imsize=imsize,
@@ -687,7 +742,7 @@ class SourceFinderHandler(BaseHandler):
             obstime=obstime,
             use_source_pos_in_starlist=True,
             allowed_queries=2,
-            queries_issued=0
+            queries_issued=0,
         )
 
         filename = rez["name"]
@@ -696,9 +751,9 @@ class SourceFinderHandler(BaseHandler):
         # do not send result via `.success`, since that creates a JSON
         self.set_status(200)
         self.set_header("Content-Type", "application/pdf; charset='utf-8'")
-        self.set_header("Content-Disposition",
-                        f"attachment; filename={filename}")
-        self.set_header('Cache-Control',
-                        'no-store, no-cache, must-revalidate, max-age=0')
+        self.set_header("Content-Disposition", f"attachment; filename={filename}")
+        self.set_header(
+            'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'
+        )
 
         return self.write(image)

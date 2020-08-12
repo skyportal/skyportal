@@ -1,10 +1,7 @@
-import tornado.web
-from sqlalchemy.orm import joinedload
-from marshmallow.exceptions import ValidationError
-from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from ..base import BaseHandler
-from ...models import DBSession, Group, GroupUser, User, Token
+from ...models import Group
 
 
 env, cfg = load_env()
@@ -34,4 +31,3 @@ class PublicGroupHandler(BaseHandler):
         if pg is None:
             return self.error('Public group does not exist')
         return self.success(data=pg)
-

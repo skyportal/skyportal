@@ -1,21 +1,19 @@
-import * as API from '../API';
-import store from '../store';
+import * as API from "../API";
+import store from "../store";
 
-export const FETCH_TELESCOPES = 'skyportal/FETCH_TELESCOPES';
-export const FETCH_TELESCOPES_OK = 'skyportal/FETCH_TELESCOPES_OK';
+export const FETCH_TELESCOPES = "skyportal/FETCH_TELESCOPES";
+export const FETCH_TELESCOPES_OK = "skyportal/FETCH_TELESCOPES_OK";
 
-export const fetchTelescopes = () => (
-  API.GET('/api/telescope', FETCH_TELESCOPES)
-);
+export const fetchTelescopes = () =>
+  API.GET("/api/telescope", FETCH_TELESCOPES);
 
-
-const reducer = (state={ telescopeList: [] }, action) => {
+const reducer = (state = { telescopeList: [] }, action) => {
   switch (action.type) {
     case FETCH_TELESCOPES_OK: {
       const telescopeList = action.data;
       return {
         ...state,
-        telescopeList
+        telescopeList,
       };
     }
     default:
@@ -23,4 +21,4 @@ const reducer = (state={ telescopeList: [] }, action) => {
   }
 };
 
-store.injectReducer('telescopes', reducer);
+store.injectReducer("telescopes", reducer);

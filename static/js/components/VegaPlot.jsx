@@ -1,7 +1,6 @@
-import React from 'react';
-import PropTypes from 'prop-types';
-import embed from 'vega-embed';
-
+import React from "react";
+import PropTypes from "prop-types";
+import embed from "vega-embed";
 
 const spec = (url) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
@@ -9,8 +8,8 @@ const spec = (url) => ({
     url,
     format: {
       type: "json",
-      property: "data" // where on the JSON does the data live
-    }
+      property: "data", // where on the JSON does the data live
+    },
   },
   background: "transparent",
   layer: [
@@ -19,12 +18,12 @@ const spec = (url) => ({
         filterMags: {
           type: "multi",
           fields: ["filter"],
-          bind: "legend"
+          bind: "legend",
         },
         grid: {
           type: "interval",
-          bind: "scales"
-        }
+          bind: "scales",
+        },
       },
       mark: {
         type: "point",
@@ -33,7 +32,11 @@ const spec = (url) => ({
         size: 15,
       },
       transform: [
-        { calculate: "join([format(datum.mag, '.2f'), ' ± ', format(datum.magerr, '.2f'), ' (', datum.magsys, ')'], '')", as: "magAndErr" }
+        {
+          calculate:
+            "join([format(datum.mag, '.2f'), ' ± ', format(datum.magerr, '.2f'), ' (', datum.magsys, ')'], '')",
+          as: "magAndErr",
+        },
       ],
       encoding: {
         x: {
@@ -48,27 +51,27 @@ const spec = (url) => ({
           type: "quantitative",
           scale: {
             zero: false,
-            reverse: true
+            reverse: true,
           },
           axis: {
-            title: "mag"
-          }
+            title: "mag",
+          },
         },
         color: {
           field: "filter",
-          type: "nominal"
+          type: "nominal",
         },
         tooltip: [
           { field: "magAndErr", title: "mag", type: "nominal" },
           { field: "filter", type: "ordinal" },
           { field: "mjd", type: "quantitative" },
-          { field: "limiting_mag", type: "quantitative", format: ".2f" }
+          { field: "limiting_mag", type: "quantitative", format: ".2f" },
         ],
         opacity: {
           condition: { selection: "filterMags", value: 1 },
-          value: 0
-        }
-      }
+          value: 0,
+        },
+      },
     },
 
     // Render error bars
@@ -77,17 +80,17 @@ const spec = (url) => ({
         filterErrBars: {
           type: "multi",
           fields: ["filter"],
-          bind: "legend"
-        }
+          bind: "legend",
+        },
       },
       transform: [
         { filter: "datum.mag != null && datum.magerr != null" },
         { calculate: "datum.mag - datum.magerr", as: "magMin" },
-        { calculate: "datum.mag + datum.magerr", as: "magMax" }
+        { calculate: "datum.mag + datum.magerr", as: "magMax" },
       ],
       mark: {
         type: "rule",
-        size: 0.5
+        size: 0.5,
       },
       encoding: {
         x: {
@@ -95,50 +98,48 @@ const spec = (url) => ({
           type: "quantitative",
           scale: {
             zero: false,
-          }
+          },
         },
         y: {
           field: "magMin",
           type: "quantitative",
           scale: {
             zero: false,
-            reverse: true
-          }
+            reverse: true,
+          },
         },
         y2: {
           field: "magMax",
           type: "quantitative",
           scale: {
             zero: false,
-            reverse: true
-          }
+            reverse: true,
+          },
         },
         color: {
           field: "filter",
-          type: "nominal"
+          type: "nominal",
         },
         opacity: {
           condition: { selection: "filterErrBars", value: 1 },
-          value: 0
-        }
-      }
+          value: 0,
+        },
+      },
     },
 
     // Render limiting mags
     {
-      transform: [
-        { filter: "datum.mag == null" }
-      ],
+      transform: [{ filter: "datum.mag == null" }],
       selection: {
         filterLimitingMags: {
           type: "multi",
           fields: ["filter"],
-          bind: "legend"
-        }
+          bind: "legend",
+        },
       },
       mark: {
         type: "point",
-        shape: "triangle-down"
+        shape: "triangle-down",
       },
       encoding: {
         x: {
@@ -146,40 +147,37 @@ const spec = (url) => ({
           type: "quantitative",
           scale: {
             zero: false,
-          }
+          },
         },
         y: {
           field: "limiting_mag",
-          type: "quantitative"
+          type: "quantitative",
         },
         color: {
           field: "filter",
-          type: "nominal"
+          type: "nominal",
         },
         opacity: {
           condition: { selection: "filterLimitingMags", value: 0.3 },
-          value: 0
-        }
-      }
-    }
-  ]
+          value: 0,
+        },
+      },
+    },
+  ],
 });
-
 
 const VegaPlot = ({ dataUrl }) => (
   <div
-    ref={
-      (node) => {
-        embed(node, spec(dataUrl), {
-          actions: false
-        });
-      }
-    }
+    ref={(node) => {
+      embed(node, spec(dataUrl), {
+        actions: false,
+      });
+    }}
   />
 );
 
 VegaPlot.propTypes = {
-  dataUrl: PropTypes.string.isRequired
+  dataUrl: PropTypes.string.isRequired,
 };
 
 export default VegaPlot;

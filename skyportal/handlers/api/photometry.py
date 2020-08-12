@@ -1,6 +1,5 @@
 import uuid
 import numpy as np
-import arrow
 from astropy.table import Table
 import pandas as pd
 from marshmallow.exceptions import ValidationError
@@ -9,12 +8,17 @@ from sncosmo.photdata import PhotometricData
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
-    DBSession, Group, Photometry, Instrument, Source, Obj,
-    PHOT_ZP, PHOT_SYS, GroupPhotometry
+    DBSession,
+    Group,
+    Photometry,
+    Instrument,
+    Obj,
+    PHOT_ZP,
+    GroupPhotometry,
 )
 
 
-from ...schema import (PhotometryMag, PhotometryFlux, PhotFluxFlexible, PhotMagFlexible)
+from ...schema import PhotometryMag, PhotometryFlux, PhotFluxFlexible, PhotMagFlexible
 from ...enum_types import ALLOWED_MAGSYSTEMS
 
 
@@ -44,7 +48,7 @@ def serialize(phot, outsys, format):
         'dec_unc': phot.dec_unc,
         'alert_id': phot.alert_id,
         'id': phot.id,
-        'groups': phot.groups
+        'groups': phot.groups,
     }
 
     filter = phot.filter
@@ -66,7 +70,10 @@ def serialize(phot, outsys, format):
     corrected_db_zp = PHOT_ZP + db_correction
 
     if format == 'mag':
-        if phot.original_user_data is not None and 'limiting_mag' in phot.original_user_data:
+        if (
+            phot.original_user_data is not None
+            and 'limiting_mag' in phot.original_user_data
+        ):
             magsys_packet = sncosmo.get_magsystem(phot.original_user_data['magsys'])
             relzp_packet = 2.5 * np.log10(magsys_packet.zpbandflux(filter))
             packet_correction = relzp_out - relzp_packet
@@ -78,22 +85,28 @@ def serialize(phot, outsys, format):
             fivesigma = 5 * fluxerr
             maglimit_out = -2.5 * np.log10(fivesigma) + corrected_db_zp
 
-        retval.update({
-            'mag': phot.mag + db_correction if phot.mag is not None else None,
-            'magerr': phot.e_mag if phot.e_mag is not None else None,
-            'magsys': outsys.name,
-            'limiting_mag': maglimit_out
-        })
+        retval.update(
+            {
+                'mag': phot.mag + db_correction if phot.mag is not None else None,
+                'magerr': phot.e_mag if phot.e_mag is not None else None,
+                'magsys': outsys.name,
+                'limiting_mag': maglimit_out,
+            }
+        )
     elif format == 'flux':
-        retval.update({
-            'flux': phot.flux,
-            'magsys': outsys.name,
-            'zp': corrected_db_zp,
-            'fluxerr': phot.fluxerr
-        })
+        retval.update(
+            {
+                'flux': phot.flux,
+                'magsys': outsys.name,
+                'zp': corrected_db_zp,
+                'fluxerr': phot.fluxerr,
+            }
+        )
     else:
-        raise ValueError('Invalid output format specified. Must be one of '
-                         f"['flux', 'mag'], got '{format}'.")
+        raise ValueError(
+            'Invalid output format specified. Must be one of '
+            f"['flux', 'mag'], got '{format}'."
+        )
     return retval
 
 
@@ -138,8 +151,9 @@ class PhotometryHandler(BaseHandler):
         data = self.get_json()
 
         if not isinstance(data, dict):
-            return self.error('Top level JSON must be an instance of `dict`, got '
-                              f'{type(data)}.')
+            return self.error(
+                'Top level JSON must be an instance of `dict`, got ' f'{type(data)}.'
+            )
 
         if "altdata" in data and not data["altdata"]:
             del data["altdata"]
@@ -151,11 +165,13 @@ class PhotometryHandler(BaseHandler):
             try:
                 data = PhotFluxFlexible.load(data)
             except ValidationError as e2:
-                return self.error('Invalid input format: Tried to parse data '
-                                  f'in mag space, got: '
-                                  f'"{e1.normalized_messages()}." Tried '
-                                  f'to parse data in flux space, got:'
-                                  f' "{e2.normalized_messages()}."')
+                return self.error(
+                    'Invalid input format: Tried to parse data '
+                    f'in mag space, got: '
+                    f'"{e1.normalized_messages()}." Tried '
+                    f'to parse data in flux space, got:'
+                    f' "{e2.normalized_messages()}."'
+                )
             else:
                 kind = 'flux'
         else:
@@ -167,20 +183,25 @@ class PhotometryHandler(BaseHandler):
             return self.error("Missing required field: group_ids")
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
         if not groups:
-            return self.error("Invalid group_ids field. "
-                              "Specify at least one valid group ID.")
+            return self.error(
+                "Invalid group_ids field. " "Specify at least one valid group ID."
+            )
         if not all([group in self.current_user.accessible_groups for group in groups]):
-            return self.error("Cannot upload photometry to groups that you "
-                              "are not a member of.")
+            return self.error(
+                "Cannot upload photometry to groups that you " "are not a member of."
+            )
         if "alert_id" in data:
-            phot = Photometry.query.filter(
-                Photometry.alert_id == data["alert_id"]
-            ).filter(Photometry.alert_id.isnot(None)).first()
+            phot = (
+                Photometry.query.filter(Photometry.alert_id == data["alert_id"])
+                .filter(Photometry.alert_id.isnot(None))
+                .first()
+            )
             if phot is not None:
                 phot.groups = groups
                 DBSession().commit()
-                return self.success(data={"ids": [phot.id],
-                                          "upload_id": phot.upload_id})
+                return self.success(
+                    data={"ids": [phot.id], "upload_id": phot.upload_id}
+                )
 
         if allscalar(data):
             data = [data]
@@ -194,15 +215,21 @@ class PhotometryHandler(BaseHandler):
                 try:
                     data["altdata"] = [
                         {key: value[i] for key, value in data["altdata"].items()}
-                        for i in range(len(data["altdata"][list(data["altdata"].keys())[-1]]))
+                        for i in range(
+                            len(data["altdata"][list(data["altdata"].keys())[-1]])
+                        )
                     ]
                     df = pd.DataFrame(data)
                 except ValueError:
-                    return self.error('Unable to coerce passed JSON to a series of packets. '
-                                      f'Error was: "{e}"')
+                    return self.error(
+                        'Unable to coerce passed JSON to a series of packets. '
+                        f'Error was: "{e}"'
+                    )
             else:
-                return self.error('Unable to coerce passed JSON to a series of packets. '
-                                  f'Error was: "{e}"')
+                return self.error(
+                    'Unable to coerce passed JSON to a series of packets. '
+                    f'Error was: "{e}"'
+                )
 
         # `to_numeric` coerces numbers written as strings to numeric types
         #  (int, float)
@@ -225,6 +252,9 @@ class PhotometryHandler(BaseHandler):
             bad = magerrnull ^ magnull  # bitwise exclusive or -- returns true
             #  if A and not B or B and not A
 
+            # coerce to numpy array
+            bad = bad.values
+
             if any(bad):
                 # find the first offending packet
                 first_offender = np.argwhere(bad)[0, 0]
@@ -234,9 +264,11 @@ class PhotometryHandler(BaseHandler):
                 for key in packet:
                     packet[key] = nan_to_none(packet[key])
 
-                return self.error(f'Error parsing packet "{packet}": mag '
-                                  f'and magerr must both be null, or both be '
-                                  f'not null.')
+                return self.error(
+                    f'Error parsing packet "{packet}": mag '
+                    f'and magerr must both be null, or both be '
+                    f'not null.'
+                )
 
             # ensure nothing is null for the required fields
             for field in PhotMagFlexible.required_keys:
@@ -249,16 +281,18 @@ class PhotometryHandler(BaseHandler):
                     for key in packet:
                         packet[key] = nan_to_none(packet[key])
 
-                    return self.error(f'Error parsing packet "{packet}": '
-                                      f'missing required field {field}.')
+                    return self.error(
+                        f'Error parsing packet "{packet}": '
+                        f'missing required field {field}.'
+                    )
 
             # convert the mags to fluxes
             # detections
-            detflux = 10**(-0.4 * (df[magdet]['mag'] - PHOT_ZP))
+            detflux = 10 ** (-0.4 * (df[magdet]['mag'] - PHOT_ZP))
             detfluxerr = df[magdet]['magerr'] / (2.5 / np.log(10)) * detflux
 
             # non-detections
-            limmag_flux = 10**(-0.4 * (df[magnull]['limiting_mag'] - PHOT_ZP))
+            limmag_flux = 10 ** (-0.4 * (df[magnull]['limiting_mag'] - PHOT_ZP))
             ndetfluxerr = limmag_flux / df[magnull]['limiting_mag_nsigma']
 
             # initialize flux to be none
@@ -273,7 +307,7 @@ class PhotometryHandler(BaseHandler):
 
         else:
             for field in PhotFluxFlexible.required_keys:
-                missing = df[field].isna()
+                missing = df[field].isna().values
                 if any(missing):
                     first_offender = np.argwhere(missing)[0, 0]
                     packet = df.iloc[first_offender].to_dict()
@@ -281,8 +315,10 @@ class PhotometryHandler(BaseHandler):
                     for key in packet:
                         packet[key] = nan_to_none(packet[key])
 
-                    return self.error(f'Error parsing packet "{packet}": '
-                                      f'missing required field {field}.')
+                    return self.error(
+                        f'Error parsing packet "{packet}": '
+                        f'missing required field {field}.'
+                    )
 
             phot_table = Table.from_pandas(df[['mjd', 'magsys', 'filter', 'zp']])
             phot_table['flux'] = df['flux'].fillna(np.nan)
@@ -299,8 +335,7 @@ class PhotometryHandler(BaseHandler):
         for iid in df['instrument_id'].unique():
             instrument = Instrument.query.get(int(iid))
             if not instrument:
-                return self.error(
-                    f'Invalid instrument ID: {iid}')
+                return self.error(f'Invalid instrument ID: {iid}')
             instcache[iid] = instrument
 
         for oid in df['obj_id'].unique():
@@ -312,8 +347,10 @@ class PhotometryHandler(BaseHandler):
         # gapless (e.g., 1, 2, 3, 4, 5, ...) but they are guaranteed
         # to be unique in the table and thus can be used to "reserve"
         # PK slots for uninserted rows
-        pkq = f"SELECT nextval('photometry_id_seq') FROM " \
-              f"generate_series(1, {len(df)})"
+        pkq = (
+            f"SELECT nextval('photometry_id_seq') FROM "
+            f"generate_series(1, {len(df)})"
+        )
 
         proxy = DBSession().execute(pkq)
 
@@ -327,7 +364,8 @@ class PhotometryHandler(BaseHandler):
             if packet["filter"] not in instcache[packet['instrument_id']].filters:
                 raise ValidationError(
                     f"Instrument {instrument.name} has no filter "
-                    f"{packet['filter']}.")
+                    f"{packet['filter']}."
+                )
 
             flux = packet.pop('standardized_flux')
             fluxerr = packet.pop('standardized_fluxerr')
@@ -338,20 +376,22 @@ class PhotometryHandler(BaseHandler):
             if original_user_data == {}:
                 original_user_data = None
 
-            phot = dict(id=packet['id'],
-                        original_user_data=original_user_data,
-                        upload_id=upload_id,
-                        flux=flux,
-                        fluxerr=fluxerr,
-                        obj_id=packet['obj_id'],
-                        altdata=packet['altdata'],
-                        instrument_id=packet['instrument_id'],
-                        ra_unc=packet['ra_unc'],
-                        dec_unc=packet['dec_unc'],
-                        mjd=packet['mjd'],
-                        filter=packet['filter'],
-                        ra=packet['ra'],
-                        dec=packet['dec'])
+            phot = dict(
+                id=packet['id'],
+                original_user_data=original_user_data,
+                upload_id=upload_id,
+                flux=flux,
+                fluxerr=fluxerr,
+                obj_id=packet['obj_id'],
+                altdata=packet['altdata'],
+                instrument_id=packet['instrument_id'],
+                ra_unc=packet['ra_unc'],
+                dec_unc=packet['dec_unc'],
+                mjd=packet['mjd'],
+                filter=packet['filter'],
+                ra=packet['ra'],
+                dec=packet['dec'],
+            )
 
             params.append(phot)
 
@@ -422,11 +462,13 @@ class PhotometryHandler(BaseHandler):
             try:
                 phot = PhotometryMag.load(data)
             except ValidationError as e2:
-                return self.error('Invalid input format: Tried to parse '
-                                  f'{data} as PhotometryFlux, got: '
-                                  f'"{e1.normalized_messages()}." Tried '
-                                  f'to parse {data} as PhotometryMag, got:'
-                                  f' "{e2.normalized_messages()}."')
+                return self.error(
+                    'Invalid input format: Tried to parse '
+                    f'{data} as PhotometryFlux, got: '
+                    f'"{e1.normalized_messages()}." Tried '
+                    f'to parse {data} as PhotometryMag, got:'
+                    f' "{e2.normalized_messages()}."'
+                )
 
         phot.original_user_data = data
         phot.id = photometry_id
@@ -437,11 +479,15 @@ class PhotometryHandler(BaseHandler):
             photometry = Photometry.query.get(photometry_id)
             groups = Group.query.filter(Group.id.in_(group_ids)).all()
             if not groups:
-                return self.error("Invalid group_ids field. "
-                                  "Specify at least one valid group ID.")
-            if not all([group in self.current_user.accessible_groups for group in groups]):
-                return self.error("Cannot upload photometry to groups you "
-                                  "are not a member of.")
+                return self.error(
+                    "Invalid group_ids field. " "Specify at least one valid group ID."
+                )
+            if not all(
+                [group in self.current_user.accessible_groups for group in groups]
+            ):
+                return self.error(
+                    "Cannot upload photometry to groups you " "are not a member of."
+                )
             photometry.groups = groups
         DBSession().commit()
         return self.success()
@@ -468,7 +514,9 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
         _ = Photometry.get_if_owned_by(photometry_id, self.current_user)
-        DBSession().query(Photometry).filter(Photometry.id == int(photometry_id)).delete()
+        DBSession().query(Photometry).filter(
+            Photometry.id == int(photometry_id)
+        ).delete()
         DBSession().commit()
 
         return self.success()
@@ -511,12 +559,15 @@ class BulkDeletePhotometryHandler(BaseHandler):
                 schema: Error
         """
         # Permissions check:
-        phot_id = Photometry.query.filter(
-            Photometry.upload_id == upload_id).first().id
+        phot_id = Photometry.query.filter(Photometry.upload_id == upload_id).first().id
         _ = Photometry.get_if_owned_by(phot_id, self.current_user)
 
-        n_deleted = DBSession().query(Photometry).filter(
-            Photometry.upload_id == upload_id).delete()
+        n_deleted = (
+            DBSession()
+            .query(Photometry)
+            .filter(Photometry.upload_id == upload_id)
+            .delete()
+        )
         DBSession().commit()
 
         return self.success(f"Deleted {n_deleted} photometry points.")

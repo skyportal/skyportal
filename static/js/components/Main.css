@@ -1,23 +1,23 @@
 .main {
-    font-family: 'Roboto', sans-serif;
+  font-family: "Roboto", sans-serif;
 }
 
 .topBannerContent {
-    position: relative;
-    padding-left: 1em;
-    padding-right: 1em;
-    padding-top: 1.5em;
+  position: relative;
+  padding-left: 1em;
+  padding-right: 1em;
+  padding-top: 1.5em;
 }
 
 .title {
-    text-decoration: none;
-    color: white;
-    padding-left: 0.4em;
-    font-size: 200%;
-    font-weight: bold;
-    vertical-align: middle;
+  text-decoration: none;
+  color: white;
+  padding-left: 0.4em;
+  font-size: 200%;
+  font-weight: bold;
+  vertical-align: middle;
 }
 
 .websocket {
-    display: none;
+  display: none;
 }
