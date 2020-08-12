@@ -72,4 +72,6 @@ AirmassPlot.propTypes = {
   ).isRequired
 };
 
+AirmassPlot.displayName = "AirmassPlot";
+
 export default AirmassPlot;

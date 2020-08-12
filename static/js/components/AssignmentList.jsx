@@ -5,7 +5,6 @@ import * as Actions from "../ducks/source";
 import * as UserActions from "../ducks/users";
 import styles from "./AssignmentList.css";
 
-
 const AssignmentList = ({ assignments }) => {
   const dispatch = useDispatch();
 

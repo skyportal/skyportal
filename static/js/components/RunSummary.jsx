@@ -44,10 +44,10 @@ const SimpleMenu = ({ assignment }) => {
   const isdone = assignment.status === "complete";
   const isnotdone = assignment.status === "not observed";
 
-  const updateAssignmentStatus = (status) => () => {
+  const updateAssignmentStatus = (status) => (() => {
     handleClose();
     return dispatch(SourceAction.editAssignment({ status }, assignment.id));
-  };
+  });
 
   return (
     <div>

@@ -189,4 +189,6 @@ VegaPlot.propTypes = {
   dataUrl: PropTypes.string.isRequired,
 };
 
+VegaPlot.displayName = 'VegaPlot';
+
 export default VegaPlot;
