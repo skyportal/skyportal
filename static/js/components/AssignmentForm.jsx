@@ -31,11 +31,15 @@ export function observingRunTitle(
 
   const group = groups?.filter((g) => g.id === observingRun.group_id)[0];
 
-  if (!(observingRun?.calendar_date &&
-    instrument?.name &&
-    telescope?.name &&
-    observingRun?.pi &&
-    group?.name)) {
+  if (
+    !(
+      observingRun?.calendar_date &&
+      instrument?.name &&
+      telescope?.name &&
+      observingRun?.pi &&
+      group?.name
+    )
+  ) {
     return "Loading ...";
   }
 

@@ -49,12 +49,11 @@ export const ObservingRunStarList = () => {
 
   useEffect(() => {
     const fetchStarList = async () => {
-      const promises = assignments.map(
-        (assignment) => (
-          dispatch(
-            GET(
-              `/api/sources/${assignment.obj_id}/offsets?facility=Keck`, 'skyportal/FETCH_STARLIST'
-            )
+      const promises = assignments.map((assignment) =>
+        dispatch(
+          GET(
+            `/api/sources/${assignment.obj_id}/offsets?facility=Keck`,
+            "skyportal/FETCH_STARLIST"
           )
         )
       );
@@ -62,14 +61,14 @@ export const ObservingRunStarList = () => {
       const starlistInfo = [];
       const values = await Promise.allSettled(promises);
 
-      values.forEach(
-        (response) => starlistInfo.push(...response.value.data.starlist_info)
+      values.forEach((response) =>
+        starlistInfo.push(...response.value.data.starlist_info)
       );
 
       setStarList(starlistInfo);
     };
     fetchStarList();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
   return <StarListBody starList={starList} />;
 };
