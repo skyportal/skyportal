@@ -75,17 +75,13 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    driver.wait_for_xpath_to_be_clickable('//div[@id="tax-select"]').click()
-    driver.wait_for_xpath_to_be_clickable(
-        f'//*[text()="{tax_name} ({tax_version})"]'
-    ).click()
-    driver.wait_for_xpath("//body").click()
-    class_input = driver.wait_for_xpath('//*[@id="classification"]')
-    driver.scroll_to_element_and_click(class_input)
-    class_input.send_keys("Symmetrical", Keys.ENTER)
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath("//*[@id='classificationSubmitButton']")
+    driver.click_xpath('//div[@id="tax-select"]')
+    driver.click_xpath(f'//*[text()="{tax_name} ({tax_version})"]')
+    driver.click_xpath('//*[@id="classification"]')
+    driver.wait_for_xpath('//*[@id="classification"]').send_keys(
+        "Symmetrical", Keys.ENTER
     )
+    driver.click_xpath("//*[@id='classificationSubmitButton']")
     # Notification
     driver.wait_for_xpath("//*[text()='Classification saved']")
     # Button at top of source page
