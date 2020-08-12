@@ -4,7 +4,8 @@ import pytest
 import os
 import uuid
 import pathlib
-from psycopg2 import OperationalError
+from datetime import datetime
+
 from baselayer.app import models
 from baselayer.app.config import load_config
 from baselayer.app.test_util import (
@@ -13,9 +14,11 @@ from baselayer.app.test_util import (
     set_server_url,
     reset_state,
 )
+
 from skyportal.tests.fixtures import (
     TMP_DIR,
     ObjFactory,
+    StreamFactory,
     GroupFactory,
     UserFactory,
     FilterFactory,
@@ -25,6 +28,7 @@ from skyportal.tests.fixtures import (
 )
 from skyportal.model_util import create_token
 from skyportal.models import DBSession, Source, Candidate, Role
+
 import astroplan
 import warnings
 from astroplan import utils as ap_utils
@@ -36,6 +40,11 @@ cfg = load_config([(basedir / "../../test_config.yaml").absolute()])
 set_server_url(f'http://localhost:{cfg["ports.app"]}')
 print("Setting test database to:", cfg["database"])
 models.init_db(**cfg["database"])
+
+
+def pytest_runtest_setup(item):
+    # Print timestamp when running each test
+    print(datetime.now().strftime('[%H:%M:%S] '), end='')
 
 
 @pytest.fixture(scope='session')
@@ -53,6 +62,11 @@ def iers_data():
 
 
 @pytest.fixture()
+def public_stream():
+    return StreamFactory()
+
+
+@pytest.fixture()
 def public_group():
     return GroupFactory()
 
@@ -63,8 +77,15 @@ def public_group2():
 
 
 @pytest.fixture()
-def public_filter(public_group):
-    return FilterFactory(group=public_group)
+def group_with_stream(super_admin_user, group_admin_user, public_stream):
+    return GroupFactory(
+        users=[super_admin_user, group_admin_user], streams=[public_stream]
+    )
+
+
+@pytest.fixture()
+def public_filter(public_group, public_stream):
+    return FilterFactory(group=public_group, stream=public_stream)
 
 
 @pytest.fixture()
@@ -98,11 +119,6 @@ def public_candidate(public_filter):
     DBSession.add(Candidate(obj=obj, filter=public_filter))
     DBSession.commit()
     return obj
-
-
-@pytest.fixture()
-def ztf_camera():
-    return InstrumentFactory()
 
 
 @pytest.fixture()

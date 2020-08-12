@@ -1,6 +1,4 @@
 import pytest
-from selenium.webdriver.support.ui import Select
-from selenium.webdriver.common.by import By
 import uuid
 
 

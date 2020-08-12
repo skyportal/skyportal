@@ -1,5 +1,5 @@
 from ...base import BaseHandler
-from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.access import auth_or_token
 from ....models import User, Token, DBSession
 from ....model_util import create_token
 

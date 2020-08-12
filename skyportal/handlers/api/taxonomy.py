@@ -1,4 +1,3 @@
-from marshmallow.exceptions import ValidationError
 from tdtax import schema, validate
 from jsonschema.exceptions import ValidationError as JSONValidationError
 

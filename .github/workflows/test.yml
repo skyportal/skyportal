@@ -24,22 +24,14 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Lint
-        run: |
-          pip install pre-commit
-          if pre-commit run --from-ref origin/master --to-ref HEAD; then
-              echo "Linting errored; this will be fatal sometime in the near future"
-          fi
-
       - uses: actions/setup-python@v1
         with:
-          python-version: '3.7'
+          python-version: "3.7"
 
       - uses: actions/cache@v2
         with:
           path: |
-            ~/.cache/pip
-            ~/.cache/sphinx
+            ~/.cache
             ~/.local
             ~/.npm
           key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
@@ -47,35 +39,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
+          fetch-depth: 0
           submodules: true
 
       - name: Write SkyPortal configs
         run: |
-            cat << EOF > config.yaml
-              database:
-                database: skyportal
-                host: localhost
-                port: 5432
-                user: skyportal
-                password: anything
-            EOF
+          cat << EOF > config.yaml
+            database:
+              database: skyportal
+              host: localhost
+              port: 5432
+              user: skyportal
+              password: anything
+          EOF
 
-            cat << EOF > test_config.yaml
-              database:
-                database: skyportal_test
-                user: skyportal
-                host: localhost
-                port: 5432
-                password: anything
+          cat << EOF > test_config.yaml
+            database:
+              database: skyportal_test
+              user: skyportal
+              host: localhost
+              port: 5432
+              password: anything
 
-              server:
-                auth:
-                  debug_login: True
-            EOF
+            server:
+              auth:
+                debug_login: True
+          EOF
 
       - name: Install system dependencies
         run: |
           sudo apt-add-repository -y ppa:nginx/stable
+          curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -
+
           sudo apt install -y wget nodejs unzip firefox nginx
 
           pip install --upgrade pip
@@ -97,6 +92,11 @@ jobs:
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           make dependencies
+
+      - name: Formatting and linting checks
+        run: |
+          pip install pre-commit
+          pre-commit run --from-ref origin/master --to-ref HEAD
 
       - name: Initialize SkyPortal
         run: |

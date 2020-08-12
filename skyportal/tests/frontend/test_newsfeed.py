@@ -1,9 +1,9 @@
 import uuid
-
-from skyportal.tests import api
 import pytest
+from skyportal.tests import api
 
 
+@pytest.mark.flaky(reruns=2)
 def test_news_feed(
     driver, user, public_source, public_group, upload_data_token, comment_token
 ):

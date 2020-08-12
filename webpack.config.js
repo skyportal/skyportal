@@ -1,38 +1,37 @@
-const path = require('path');
+const path = require("path");
 
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
 const config = {
   entry: {
     main: [
-      '@babel/polyfill',
-      path.resolve(__dirname, 'static/js/components/Main.jsx')
-    ]
+      "@babel/polyfill",
+      path.resolve(__dirname, "static/js/components/Main.jsx"),
+    ],
   },
   output: {
-    path: path.resolve(__dirname, 'static/build'),
-    publicPath: '/static/build/',
-    filename: '[name].bundle.js',
-    chunkFilename: '[name].[chunkHash].bundle.js'
+    path: path.resolve(__dirname, "static/build"),
+    publicPath: "/static/build/",
+    filename: "[name].bundle.js",
+    chunkFilename: "[name].[chunkHash].bundle.js",
   },
   module: {
     rules: [
       {
         test: /\.(js|jsx)?$/,
-        loader: 'babel-loader',
+        loader: "babel-loader",
         include: /static\/js/,
         exclude: /node_modules/,
-        options:
-        {
+        options: {
           presets: ["@babel/preset-env", "@babel/preset-react"],
           plugins: [
-            '@babel/plugin-transform-async-to-generator',
-            '@babel/plugin-transform-arrow-functions',
-            '@babel/plugin-proposal-class-properties',
-            '@babel/plugin-proposal-object-rest-spread'
+            "@babel/plugin-transform-async-to-generator",
+            "@babel/plugin-transform-arrow-functions",
+            "@babel/plugin-proposal-class-properties",
+            "@babel/plugin-proposal-object-rest-spread",
           ],
-          compact: false
-        }
+          compact: false,
+        },
       },
 
       // Enable CSS Modules for Skyportal
@@ -41,17 +40,17 @@ const config = {
         include: [/static\/js/, /node_modules\/react-datepicker\/dist/],
         use: [
           {
-            loader: 'style-loader'
+            loader: "style-loader",
           },
           {
-            loader: 'css-loader',
+            loader: "css-loader",
             options: {
               modules: {
-                localIdentName: '[path][name]__[local]--[hash:base64:5]'
-              }
-            }
-          }
-        ]
+                localIdentName: "[path][name]__[local]--[hash:base64:5]",
+              },
+            },
+          },
+        ],
       },
 
       // bokehjs doesn't like css-modules, but it
@@ -59,7 +58,7 @@ const config = {
       {
         test: /\.css$/,
         include: /node_modules\/bokehjs/,
-        use: ['style-loader', 'raw-loader']
+        use: ["style-loader", "raw-loader"],
       },
       {
         test: /\.js$/,
@@ -68,31 +67,29 @@ const config = {
         // See https://webpack.js.org/guides/shimming/
         // Bokeh needs 'this' to be defined, in part since the npm package
         // does not support the Universal Module spec
-        use: 'imports-loader?this=>window'
-      }
-    ]
+        use: "imports-loader?this=>window",
+      },
+    ],
   },
   plugins: [
-
     // Uncomment the following line to enable bundle size analysis
     //    new BundleAnalyzerPlugin()
-
   ],
   resolve: {
     alias: {
-      baselayer: path.resolve(__dirname, 'baselayer/static/js'),
-      bokehjs: path.resolve(__dirname, 'node_modules/bokehjs/build/js'),
-      bokehcss: path.resolve(__dirname, 'node_modules/bokehjs/build/css')
+      baselayer: path.resolve(__dirname, "baselayer/static/js"),
+      bokehjs: path.resolve(__dirname, "node_modules/bokehjs/build/js"),
+      bokehcss: path.resolve(__dirname, "node_modules/bokehjs/build/css"),
     },
-    extensions: ['.js', '.jsx']
+    extensions: [".js", ".jsx"],
   },
   watchOptions: {
     ignored: /node_modules/,
     // Set to true if you have trouble with JS change monitoring
-    poll: false
+    poll: false,
   },
-  mode: 'development',
-  devtool: 'eval-source-map'
+  mode: "development",
+  devtool: "eval-source-map",
 };
 
 module.exports = config;

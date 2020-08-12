@@ -86,9 +86,8 @@ export function addComment(formData) {
         dispatch(API.POST(`/api/comment`, ADD_COMMENT, formData));
       });
     };
-  } else {
-    return API.POST(`/api/comment`, ADD_COMMENT, formData);
   }
+  return API.POST(`/api/comment`, ADD_COMMENT, formData);
 }
 
 export function deleteComment(comment_id) {
