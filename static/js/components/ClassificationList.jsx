@@ -97,8 +97,7 @@ const ClassificationList = () => {
               <span style={{ fontWeight: "bold", fontSize: "120%" }}>
                 {classification}
               </span>{" "}
-              (P=
-              {probability})
+              <span>{`(P=${probability})`}</span>
               <div>
                 <i>{taxname}</i>
               </div>
