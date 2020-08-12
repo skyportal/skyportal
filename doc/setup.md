@@ -51,19 +51,7 @@ brew install geckodriver
 1. Install dependencies
 
 ```
-sudo apt install nginx supervisor postgresql libpq-dev nodejs npm
-```
-
-If you do not have the python 3 developers tools: 
-
-```
-sudo apt install python3-dev
-```
-
-Also you will need to install astroplan:
-
-```
-pip install astroplan
+sudo apt install nginx supervisor postgresql libpq-dev npm python3-pip
 ```
 
 2. Configure your database permissions.
@@ -91,15 +79,30 @@ sudo service postgresql restart
 - Extract the binary to somewhere on your path
 - Ensure it runs with `geckodriver --version`
 
+4. make the dependencies using
+
+```
+make dependencies
+```
+
 ## Launch
 
 1. Initialize the database with `make db_init` (this only needs to
    happen once).
 2. Copy `config.yaml.defaults` to `config.yaml`.
 3. Run `make log` to monitor the service and, in a separate window, `make run` to start the server.
-4. If you want some test data to play with, run `make load_demo_data` (do this while the server is running!). 
+4. Direct your browser to http://localhost:5000. Login to SkyPortal. 
+5. If you want some test data to play with, run `make load_demo_data` (do this while the server is running!). 
 
-Direct your browser to http://localhost:5000.
+## Troubleshooting
+
+If you have trouble getting the demo data try doing
+
+```make db_clear && make db_init && make run```
+
+and then, after logging in, from a different window, do `make load_demo_data`. 
+
+You should be able to log in as testadmin rather than testuser. 
 
 ## Additional Configuration
 
