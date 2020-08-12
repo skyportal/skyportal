@@ -180,10 +180,7 @@ const VegaPlot = React.memo((props) => {
       }
     />
   );
-},
-// Prevent plots from automatically rerendering to minimize overheads.
-// eslint-disable-next-line no-unused-vars
-(prevState, nextState) => true);
+});
 
 VegaPlot.propTypes = {
   dataUrl: PropTypes.string.isRequired,

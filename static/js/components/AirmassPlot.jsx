@@ -53,10 +53,7 @@ const AirmassPlot = React.memo((props) => {
       }
     />
   );
-},
-// Prevent plots from automatically rerendering to minimize overheads.
-// eslint-disable-next-line no-unused-vars
-(prevState, nextState) => true);
+});
 
 AirmassPlot.propTypes = {
   ...VegaPlot.propTypes,
