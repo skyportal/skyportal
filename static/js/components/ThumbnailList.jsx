@@ -19,7 +19,7 @@ dayjs.extend(calendar);
 const useStyles = makeStyles(() => ({
   root: {
     width: "13rem",
-    margin: '0.5rem auto',
+    margin: "0.5rem auto",
     maxHeight: "31rem",
     flexGrow: 1,
   },
@@ -42,8 +42,8 @@ const useStyles = makeStyles(() => ({
     left: 0,
     width: "13rem",
     height: "13rem",
-    paddingBottom: "0.2em"
-  }
+    paddingBottom: "0.2em",
+  },
 }));
 
 const Thumbnail = ({ ra, dec, name, url }) => {
@@ -130,19 +130,18 @@ const ThumbnailList = ({ ra, dec, thumbnails, useGrid = true }) => {
         ))}
       </Grid>
     );
-  } else {
-    return thumbnails.map((t) => (
-      <Grid item key={t.id}>
-        <Thumbnail
-          key={`thumb_${t.type}`}
-          ra={ra}
-          dec={dec}
-          name={t.type}
-          url={t.public_url}
-        />
-      </Grid>
-    ));
   }
+  return thumbnails.map((t) => (
+    <Grid item key={t.id}>
+      <Thumbnail
+        key={`thumb_${t.type}`}
+        ra={ra}
+        dec={dec}
+        name={t.type}
+        url={t.public_url}
+      />
+    </Grid>
+  ));
 };
 
 ThumbnailList.propTypes = {
