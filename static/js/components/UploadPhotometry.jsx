@@ -23,10 +23,15 @@ import PapaParse from "papaparse";
 import FormValidationError from "./FormValidationError";
 import * as Actions from "../ducks/source";
 
-const textAreaPlaceholderText = `mjd,flux,fluxerr,zp,magsys,instrument_id,filter,altdata.meta1
+const sampleFluxSpaceText = `mjd,flux,fluxerr,zp,magsys,instrument_id,filter,altdata.meta1
 58001.,22.,1.,30.,ab,1,ztfg,44.4
 58002.,23.,1.,30.,ab,1,ztfg,43.1
 58003.,22.,1.,30.,ab,1,ztfg,42.5`;
+
+const sampleMagSpaceText = `mjd,mag,magerr,limiting_mag,magsys,instrument_id,filter,altdata.meta1
+58001.,13.3,0.3,18.0,ab,1,ztfg,44.4
+58002.,13.1,0.2,18.0,ab,1,ztfg,43.1
+58003.,12.9,0.3,18.0,ab,1,ztfg,42.5`;
 
 const HtmlTooltip = withStyles((theme) => ({
   tooltip: {
@@ -53,7 +58,14 @@ const UploadPhotometryForm = () => {
   const [csvData, setCsvData] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
   const { id } = useParams();
-  const { handleSubmit, errors, reset, control, getValues } = useForm();
+  const {
+    handleSubmit,
+    errors,
+    reset,
+    control,
+    getValues,
+    setValue,
+  } = useForm();
   let formState = getValues();
 
   const parseOptions = {
@@ -244,6 +256,26 @@ const UploadPhotometryForm = () => {
       <Card>
         <CardContent>
           <form onSubmit={handleSubmit(handleClickPreview)}>
+            <Box m={1}>
+              <Box component="span" mr={1}>
+                <Button
+                  onClick={() => {
+                    setValue("csvData", sampleFluxSpaceText);
+                  }}
+                >
+                  Load sample flux-space data
+                </Button>
+              </Box>
+              <Box component="span" ml={1}>
+                <Button
+                  onClick={() => {
+                    setValue("csvData", sampleMagSpaceText);
+                  }}
+                >
+                  Load sample mag-space data
+                </Button>
+              </Box>
+            </Box>
             <Box component="span" m={1}>
               {errors.csvData && (
                 <FormValidationError message={errors.csvData.message} />
@@ -253,7 +285,7 @@ const UploadPhotometryForm = () => {
                   as={
                     <TextareaAutosize
                       name="csvData"
-                      placeholder={textAreaPlaceholderText}
+                      placeholder={sampleFluxSpaceText}
                       style={{ height: "20em", width: "40em" }}
                       className={classes.textarea}
                     />
