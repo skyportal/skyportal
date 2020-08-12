@@ -29,8 +29,8 @@ def test_source_is_added_to_observing_run_via_frontend(
         f"{red_transients_run.calendar_date} "
         f"{red_transients_run.instrument.name}/"
         f"{red_transients_run.instrument.telescope.nickname} "
-        f"(PI: {red_transients_run.pi} "
-        f"{red_transients_run.group.name})"
+        f"(PI: {red_transients_run.pi} / "
+        f"Group: {red_transients_run.group.name})"
     )
     driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]')
     driver.scroll_to_element_and_click(
