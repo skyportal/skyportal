@@ -208,7 +208,8 @@ class SourceHandler(BaseHandler):
             )
             if s is None:
                 return self.error("Invalid source ID.")
-            s.comments = s.get_comments_owned_by(self.current_user)
+            comments = s.get_comments_owned_by(self.current_user)
+            s.comments = sorted(comments, key=lambda x: x.created_at, reverse=True)
             s.classifications = s.get_classifications_owned_by(self.current_user)
             source_info = s.to_dict()
             source_info["last_detected"] = s.last_detected
