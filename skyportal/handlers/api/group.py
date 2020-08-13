@@ -468,12 +468,12 @@ class GroupStreamHandler(BaseHandler):
             return self.error("Specified stream_id does not exist.")
         else:
             # todo: ensure all current group users have access to this stream
-            for user in group.users:
-                # get single user group
-                single_user_group = Group.query.filter(  # noqa
-                    Group.name == user.username
-                ).first()
-                # todo: do the check
+            # for user in group.users:
+            # get single user group
+            # single_user_group = Group.query.filter(
+            #     Group.name == user.username
+            # ).first()
+            # todo: do the check
 
             # Add new GroupStream
             gs = GroupStream.query.filter(
