@@ -20,7 +20,6 @@ import MUIDataTable from "mui-datatables";
 import ThumbnailList from "./ThumbnailList";
 import styles from "./RunSummary.css";
 import { observingRunTitle } from "./AssignmentForm";
-import { ObservingRunStarList } from "./StarList";
 import * as SourceAction from "../ducks/source";
 import * as Action from "../ducks/observingRun";
 import { ra_to_hours, dec_to_hours } from "../units";
@@ -405,7 +404,6 @@ const RunSummary = ({ route }) => {
             <Typography gutterBottom align="center">
               Starlist and Offsets
             </Typography>
-            <ObservingRunStarList />
           </Grid>
         </Grid>
       </div>
