@@ -1,5 +1,6 @@
 import arrow
 import uuid
+from hashlib import md5
 import re
 from datetime import datetime, timezone
 from astropy import units as u
@@ -490,12 +491,24 @@ def get_obj_comments_owned_by(self, user_or_token):
     # Grab basic author info for the comments
     for comment in owned_comments:
         author = User.query.filter(User.username == comment.author).first()
-        comment.author_info = {
-            "username": author.username,
-            "first_name": author.first_name,
-            "last_name": author.last_name,
-            "gravatar_url": author.gravatar_url,
-        }
+        if author:
+            comment.author_info = {
+                "username": author.username,
+                "first_name": author.first_name,
+                "last_name": author.last_name,
+                "gravatar_url": author.gravatar_url,
+            }
+        else:
+            username = "unknown user"
+            digest = md5(username.lower().encode('utf-8')).hexdigest()
+            # return a 404 status code if not found on gravatar
+            gravatar_url = f'https://www.gravatar.com/avatar/{digest}?d=404'
+            comment.author_info = {
+                "username": username,
+                "first_name": None,
+                "last_name": None,
+                "gravatar_url": gravatar_url,
+            }
 
     return owned_comments
 
@@ -729,9 +742,7 @@ class Comment(Base):
 
     origin = sa.Column(sa.String, nullable=True)
 
-    author = sa.Column(
-        sa.String, sa.ForeignKey("users.username", ondelete="CASCADE"), nullable=False
-    )
+    author = sa.Column(sa.String, nullable=False)
 
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
@@ -753,12 +764,24 @@ class Comment(Base):
 
         # Grab basic author info for the comment
         author = User.query.filter(User.username == comment.author).first()
-        comment.author_info = {
-            "username": author.username,
-            "first_name": author.first_name,
-            "last_name": author.last_name,
-            "gravatar_url": author.gravatar_url,
-        }
+        if author:
+            comment.author_info = {
+                "username": author.username,
+                "first_name": author.first_name,
+                "last_name": author.last_name,
+                "gravatar_url": author.gravatar_url,
+            }
+        else:
+            username = "unknown user"
+            digest = md5(username.lower().encode('utf-8')).hexdigest()
+            # return a 404 status code if not found on gravatar
+            gravatar_url = f'https://www.gravatar.com/avatar/{digest}?d=404'
+            comment.author_info = {
+                "username": username,
+                "first_name": None,
+                "last_name": None,
+                "gravatar_url": gravatar_url,
+            }
 
         return comment
 

@@ -71,46 +71,48 @@ const CommentList = ({ isCandidate }) => {
           onFocus={() => handleMouseHover(id, userProfile, author)}
           onBlur={() => handleMouseLeave()}
         >
-          <div className={styles.commentHeader}>
-            <div className={styles.commentUserAvatar}>
-              <UserAvatar
-                size={24}
-                firstName={author_info.first_name}
-                lastName={author_info.last_name}
-                username={author_info.username}
-                gravatarUrl={author_info.gravatar_url}
-              />
-            </div>
-            <span className={styles.commentUser}>
-              <span className={styles.commentUserName}>{author}</span>
-            </span>
-            <span className={styles.commentTime}>
-              {dayjs().to(dayjs.utc(`${created_at}Z`))}
-            </span>
-            <div className={styles.commentUserGroup}>
-              <Tooltip title={groups.map((group) => group.name).join(", ")}>
-                <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
-              </Tooltip>
-            </div>
+          <div className={styles.commentUserAvatar}>
+            <UserAvatar
+              size={24}
+              firstName={author_info.first_name}
+              lastName={author_info.last_name}
+              username={author_info.username}
+              gravatarUrl={author_info.gravatar_url}
+            />
           </div>
-          <div className={styles.wrap} name={`commentDiv${id}`}>
-            <div className={styles.commentMessage}>{text}</div>
-            <Button
-              style={
-                hoverID === id ? { display: "block" } : { display: "none" }
-              }
-              size="small"
-              variant="outlined"
-              color="primary"
-              type="button"
-              name={`deleteCommentButton${id}`}
-              onClick={() => {
-                dispatch(sourceActions.deleteComment(id));
-              }}
-              className={styles.commentDelete}
-            >
-              🗑
-            </Button>
+          <div className={styles.commentContent}>
+            <div className={styles.commentHeader}>
+              <span className={styles.commentUser}>
+                <span className={styles.commentUserName}>{author}</span>
+              </span>
+              <span className={styles.commentTime}>
+                {dayjs().to(dayjs.utc(`${created_at}Z`))}
+              </span>
+              <div className={styles.commentUserGroup}>
+                <Tooltip title={groups.map((group) => group.name).join(", ")}>
+                  <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
+                </Tooltip>
+              </div>
+            </div>
+            <div className={styles.wrap} name={`commentDiv${id}`}>
+              <div className={styles.commentMessage}>{text}</div>
+              <Button
+                style={
+                  hoverID === id ? { display: "block" } : { display: "none" }
+                }
+                size="small"
+                variant="outlined"
+                color="primary"
+                type="button"
+                name={`deleteCommentButton${id}`}
+                onClick={() => {
+                  dispatch(sourceActions.deleteComment(id));
+                }}
+                className={styles.commentDelete}
+              >
+                🗑
+              </Button>
+            </div>
           </div>
           {attachment_name && (
             <div>
