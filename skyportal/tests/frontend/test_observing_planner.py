@@ -69,33 +69,3 @@ def test_assignment_posts_to_observing_run(
 
     driver.get(f"/run/{red_transients_run.id}")
     driver.wait_for_xpath(f'//*[text()="{public_source.id}"]')
-
-
-@pytest.mark.flaky(reruns=2)
-def test_add_and_delete_assignment(
-    driver, super_admin_user, public_source, red_transients_run
-):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.click_xpath('//*[@id="mui-component-select-run_id"]')
-    observingrun_title = (
-        f"{red_transients_run.calendar_date} "
-        f"{red_transients_run.instrument.name}/"
-        f"{red_transients_run.instrument.telescope.nickname} "
-        f"(PI: {red_transients_run.pi} / "
-        f"Group: {red_transients_run.group.name})"
-    )
-    driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]')
-    driver.click_xpath(f'//li[@data-value="{red_transients_run.id}"]')
-
-    comment_box = driver.wait_for_xpath("//textarea[@name='comment']")
-    comment_text = str(uuid.uuid4())
-    comment_box.send_keys(comment_text)
-
-    submit_button = driver.wait_for_xpath('//*[@name="assignmentSubmitButton"]')
-
-    driver.scroll_to_element_and_click(submit_button)
-    driver.wait_for_xpath(f'//*[text()="{comment_text}"]')
-
-    driver.click_xpath('//button[text()="Delete"]')
-    driver.wait_for_xpath_to_disappear(f'//*[text()="{comment_text}"]')
