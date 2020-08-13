@@ -8,6 +8,7 @@ import Switch from "@material-ui/core/Switch";
 // import { useTheme } from '@material-ui/core/styles';
 
 import * as profileActions from "../ducks/profile";
+import * as themeActions from "../ducks/theme";
 
 const UIPreferences = () => {
   const currentTheme = useSelector((state) => state.profile.preferences.theme);
@@ -18,6 +19,7 @@ const UIPreferences = () => {
       theme: event.target.checked ? "dark" : "light",
     };
 
+    dispatch(themeActions.updateMaterialTheme(prefs.theme));
     dispatch(profileActions.updateUserPreferences(prefs));
   };
 
