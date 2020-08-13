@@ -16,7 +16,7 @@ repos:
     hooks:
       - id: flake8
         pass_filenames: true
-        exclude: baselayer|node_modules|static
+        exclude: baselayer|node_modules|static|__init__.py
   - repo: https://github.com/prettier/prettier
     rev: "" # Use the sha or tag you want to point at
     hooks:
