@@ -3,17 +3,15 @@ from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
-from ...models import (  # noqa
+from ...models import (
     DBSession,
     Source,
     FollowupRequest,
     Token,
     ClassicalAssignment,
     ObservingRun,
-    Source,
     Obj,
     Group,
-    Thumbnail,
 )
 
 from sqlalchemy.orm import joinedload
