@@ -46,6 +46,7 @@ def test_source_is_added_to_observing_run_via_frontend(
     driver.scroll_to_element_and_click(submit_button)
     driver.get(f"/run/{red_transients_run.id}")
     driver.wait_for_xpath(f'//*[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//*[text()="{comment_text}"]')
 
 
 @pytest.mark.flaky(reruns=2)
