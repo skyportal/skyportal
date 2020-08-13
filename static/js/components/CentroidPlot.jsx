@@ -254,6 +254,12 @@ const processData = (photometry) => {
     (point) => point.ra && point.dec
   );
 
+  if (filteredPhotometry.length === 0) {
+    return {
+      photometryData: [],
+    };
+  }
+
   const ras = Object.values(filteredPhotometry).map((point) => point.ra);
   const decs = Object.values(filteredPhotometry).map((point) => point.dec);
 
@@ -307,16 +313,23 @@ const CentroidPlot = (props) => {
 
   const plotData = photometry ? processData(photometry) : null;
 
-  const returnComponent = plotData ? (
-    <div
-      className="centroid-plot-div"
-      ref={(node) => {
-        embed(node, spec(plotData), {
-          actions: false,
-        });
-      }}
-    />
-  ) : null;
+  let returnComponent = null;
+  if (plotData) {
+    if (plotData.photometryData.length > 0) {
+      returnComponent = (
+        <div
+          className="centroid-plot-div"
+          ref={(node) => {
+            embed(node, spec(plotData), {
+              actions: false,
+            });
+          }}
+        />
+      );
+    } else {
+      returnComponent = <div>No photometry points with RA and Dec found.</div>;
+    }
+  }
 
   return returnComponent;
 };
