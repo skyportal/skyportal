@@ -39,18 +39,20 @@ const CommentList = ({ isCandidate }) => {
   const obj = isCandidate ? candidate : source;
   const userProfile = useSelector((state) => state.profile);
   const acls = useSelector((state) => state.profile.acls);
+
+  // Color styling
   const userColorTheme = useSelector(
     (state) => state.profile.preferences.theme
   );
+  const commentStyle =
+    userColorTheme === "dark" ? styles.commentDark : styles.comment;
+
   let { comments } = obj;
   const addComment = (formData) => {
     dispatch(sourceActions.addComment({ obj_id: obj.id, ...formData }));
   };
 
   comments = comments || [];
-
-  const commentStyle =
-    userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
   const items = comments.map(
     ({

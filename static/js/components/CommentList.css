@@ -85,3 +85,14 @@
 .commentDelete {
   height: 35px;
 }
+
+.commentDark .commentDelete {
+  color: #9fa8da;
+  border: 1px solid rgba(159, 168, 218, 0.5);
+}
+
+.commentDark .commentDelete:hover {
+  color: #9fa8da;
+  border: 1px solid rgba(159, 168, 218);
+  background-color: rgba(159, 168, 218, 0.04);
+}
