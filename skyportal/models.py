@@ -483,7 +483,21 @@ Obj.get_if_owned_by = get_obj_if_owned_by
 
 
 def get_obj_comments_owned_by(self, user_or_token):
-    return [comment for comment in self.comments if comment.is_owned_by(user_or_token)]
+    owned_comments = [
+        comment for comment in self.comments if comment.is_owned_by(user_or_token)
+    ]
+
+    # Grab basic author info for the comments
+    for comment in owned_comments:
+        author = User.query.filter(User.username == comment.author).first()
+        comment.author_info = {
+            "username": author.username,
+            "first_name": author.first_name,
+            "last_name": author.last_name,
+            "gravatar_url": author.gravatar_url,
+        }
+
+    return owned_comments
 
 
 Obj.get_comments_owned_by = get_obj_comments_owned_by
@@ -703,6 +717,7 @@ Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
 
 
 class Comment(Base):
+
     text = sa.Column(sa.String, nullable=False)
     ctype = sa.Column(
         sa.Enum('text', 'redshift', name='comment_types', validate_strings=True)
@@ -713,7 +728,11 @@ class Comment(Base):
     attachment_bytes = sa.Column(sa.types.LargeBinary, nullable=True)
 
     origin = sa.Column(sa.String, nullable=True)
-    author = sa.Column(sa.String, nullable=False)
+
+    author = sa.Column(
+        sa.String, sa.ForeignKey("users.username", ondelete="CASCADE"), nullable=False
+    )
+
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
     )
@@ -724,6 +743,24 @@ class Comment(Base):
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
     )
+
+    @classmethod
+    def get_if_owned_by(cls, ident, user, options=[]):
+        comment = cls.query.options(options).get(ident)
+
+        if comment is not None and not comment.is_owned_by(user):
+            raise AccessError('Insufficient permissions.')
+
+        # Grab basic author info for the comment
+        author = User.query.filter(User.username == comment.author).first()
+        comment.author_info = {
+            "username": author.username,
+            "first_name": author.first_name,
+            "last_name": author.last_name,
+            "gravatar_url": author.gravatar_url,
+        }
+
+        return comment
 
 
 GroupComment = join_model("group_comments", Group, Comment)
