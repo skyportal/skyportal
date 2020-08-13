@@ -1,4 +1,3 @@
-from copy import deepcopy
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
@@ -60,6 +59,13 @@ class GroupHandler(BaseHandler):
               schema:
                 type: string
               description: Fetch by name (exact match)
+            - in: query
+              name: includeSingleUserGroups
+              schema:
+                type: boolean
+              description: |
+                Bool indicating whether to include single user groups.
+                Defaults to false.
           responses:
             200:
               content:
@@ -82,8 +88,9 @@ class GroupHandler(BaseHandler):
                                 items:
                                   $ref: '#/components/schemas/Group'
                                 description: |
-                                  List of all groups user has access to, optionally
-                                  including single user groups if specified in request.
+                                  List of all groups, optionally including single user
+                                  groups if query parameter `includeSingleUserGroups` is
+                                  `true`.
             400:
               content:
                 application/json:
@@ -143,23 +150,15 @@ class GroupHandler(BaseHandler):
         )
         info = {}
         info['user_groups'] = list(self.current_user.groups)
-        if (not include_single_user_groups) or (include_single_user_groups == "false"):
-            info["all_groups"] = [
-                g
-                for g in self.current_user.accessible_groups
-                if not g.single_user_group
-            ]
-        else:
-            # `accessible_groups` already includes single user groups for sys admins
-            if "System admin" in self.current_user.permissions:
-                info["all_groups"] = self.current_user.accessible_groups
-            else:
-                info["all_groups"] = deepcopy(info["user_groups"])
-                single_user_groups = Group.query.filter(
-                    Group.single_user_group.is_(True)
-                ).all()
-                info["all_groups"].extend(single_user_groups)
-        print(self.request.uri)
+        all_groups_query = Group.query
+        if (not include_single_user_groups) or (
+            isinstance(include_single_user_groups, str)
+            and include_single_user_groups.lower() == "false"
+        ):
+            all_groups_query = all_groups_query.filter(
+                Group.single_user_group.is_(False)
+            )
+        info["all_groups"] = all_groups_query.all()
         return self.success(data=info)
 
     @permissions(['Manage groups'])
