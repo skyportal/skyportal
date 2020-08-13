@@ -38,7 +38,7 @@ const HtmlTooltip = withStyles((theme) => ({
   },
 }))(Tooltip);
 
-const getStyles = (groupID, groupIDs, theme) => ({
+const getStyles = (groupID, groupIDs = [], theme) => ({
   fontWeight:
     groupIDs.indexOf(groupID) === -1
       ? theme.typography.fontWeightRegular
@@ -228,6 +228,10 @@ const UploadPhotometryForm = () => {
       },
     },
   };
+
+  if (!instrumentList || !userGroups) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div>
