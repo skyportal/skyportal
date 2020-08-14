@@ -39,7 +39,8 @@ def test_news_feed(
     driver.get('/')
     driver.wait_for_xpath(f'//span[text()="a few seconds ago"]')
     for i in range(2):
-        driver.wait_for_xpath(f'//span[text()="New source {obj_id_base}_{i}"]')
+        new_source_message = f'New source created with ID: {obj_id_base}_{i}'
+        driver.wait_for_xpath(f'//span[text()="{new_source_message}"]')
         driver.wait_for_xpath(
             f'//span[contains(text(),"comment_text_{i} ({obj_id_base}_{i})")]'
         )
@@ -80,7 +81,8 @@ def test_news_feed_prefs_widget(
     driver.get('/')
     driver.wait_for_xpath('//span[text()="a few seconds ago"]')
     for i in range(2):
-        driver.wait_for_xpath(f'//span[text()="New source {obj_id_base}_{i}"]')
+        new_source_message = f'New source created with ID: {obj_id_base}_{i}'
+        driver.wait_for_xpath(f'//span[text()="{new_source_message}"]')
         driver.wait_for_xpath(
             f'//span[contains(text(),"comment_text_{i} ({obj_id_base}_{i})")]'
         )
@@ -91,11 +93,12 @@ def test_news_feed_prefs_widget(
     n_items_input.send_keys("2")
     widget_save_button = driver.wait_for_xpath('//button[contains(., "Save")]')
     widget_save_button.click()
-    driver.wait_for_xpath_to_disappear(f'//span[text()="New source {obj_id_base}_0"]')
+    source_message = f'New source created with ID: {obj_id_base}_0'
+    driver.wait_for_xpath_to_disappear(f'//span[text()="{source_message}"]')
     prefs_widget_button.click()
     n_items_input = driver.wait_for_xpath('//input[@name="numItems"]')
     n_items_input.clear()
     n_items_input.send_keys("4")
     widget_save_button = driver.wait_for_xpath('//button[contains(., "Save")]')
     widget_save_button.click()
-    driver.wait_for_xpath(f'//span[text()="New source {obj_id_base}_0"]')
+    driver.wait_for_xpath(f'//span[text()="{source_message}"]')

@@ -1,11 +1,13 @@
 import React from "react";
 import { useSelector } from "react-redux";
+import { Paper, Avatar } from "@material-ui/core";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
+import UserAvatar from "./UserAvatar";
 import * as profileActions from "../ducks/profile";
 import styles from "./NewsFeed.css";
 
@@ -14,6 +16,73 @@ dayjs.extend(utc);
 
 const defaultPrefs = {
   numItems: "",
+};
+
+const newsFeedItem = (item) => {
+  let EntryAvatar;
+  let entryUserName;
+  // Use switch-case to make it easy to add future newsfeed types
+  switch (item.type) {
+    case "comment":
+      /* eslint-disable react/display-name */
+      EntryAvatar = () => (
+        <UserAvatar
+          size={32}
+          firstName={item.author_info.first_name}
+          lastName={item.author_info.last_name}
+          username={item.author_info.username}
+          gravatarUrl={item.author_info.gravatar_url}
+        />
+      );
+      /* eslint-disable react/display-name */
+      entryUserName = item.author;
+      break;
+    case "source":
+      /* eslint-disable react/display-name */
+      EntryAvatar = () => (
+        <Avatar
+          alt="S"
+          size={32}
+          style={{
+            width: 32,
+            height: 32,
+            backgroundColor: "#38B0DE",
+            color: "white",
+            fontSize: "10px",
+          }}
+        >
+          S
+        </Avatar>
+      );
+      /* eslint-disable react/display-name */
+      entryUserName = "New source";
+      break;
+    default:
+      break;
+  }
+
+  return (
+    <Paper
+      key={`newsFeedItem_${item.time}`}
+      className={styles.entry}
+      elevation={2}
+    >
+      <div className={styles.entryHeader}>
+        <div className={styles.entryAvatar}>
+          <EntryAvatar />
+        </div>
+        <div className={styles.entryIdent}>
+          <span className={styles.entryUser}>
+            <span className={styles.entryUserName}>{entryUserName}</span>
+          </span>
+          <span className={styles.entryTime}>
+            {dayjs().to(dayjs.utc(`${item.time}Z`))}
+          </span>
+        </div>
+      </div>
+      <span className={styles.entryMessage}>{item.message}</span>
+    </Paper>
+  );
 };
 
 const NewsFeed = () => {
@@ -33,20 +102,10 @@ const NewsFeed = () => {
         />
       </div>
       <div>
-        <h4>Newest Activity:</h4>
-        <ul>
-          {items.map((item) => (
-            <li key={`newsFeedItem_${item.time}`}>
-              <span className={styles.entryTime}>
-                {dayjs().to(dayjs.utc(`${item.time}Z`))}
-              </span>
-              &nbsp;
-              {item.type}
-              :&nbsp;
-              <span className={styles.entry}>{item.message}</span>
-            </li>
-          ))}
-        </ul>
+        <h4 className={styles.newsFeedSubtitle}>Most recent activity:</h4>
+        <div className={styles.newsFeed}>
+          {items.map((item) => newsFeedItem(item))}
+        </div>
       </div>
     </div>
   );

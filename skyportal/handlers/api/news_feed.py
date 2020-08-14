@@ -1,7 +1,8 @@
+from hashlib import md5
 from sqlalchemy import desc
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, Comment
+from ...models import DBSession, Source, Comment, User
 
 
 class NewsFeedHandler(BaseHandler):
@@ -61,13 +62,54 @@ class NewsFeedHandler(BaseHandler):
                 .all()
             )
 
+        def fetch_newest_comments():
+            owned_comments = (
+                Comment.query.filter(
+                    Comment.obj_id.in_(
+                        DBSession()
+                        .query(Source.obj_id)
+                        .filter(
+                            Source.group_id.in_(
+                                [g.id for g in self.current_user.accessible_groups]
+                            )
+                        )
+                    )
+                )
+                .order_by(desc(Comment.created_at or Comment.saved_at))
+                .limit(n_items)
+                .all()
+            )
+
+            for comment in owned_comments:
+                author = User.query.filter(User.username == comment.author).first()
+                if author:
+                    comment.author_info = {
+                        "username": author.username,
+                        "first_name": author.first_name,
+                        "last_name": author.last_name,
+                        "gravatar_url": author.gravatar_url,
+                    }
+                else:
+                    username = "unknown user"
+                    digest = md5(username.lower().encode('utf-8')).hexdigest()
+                    # return a 404 status code if not found on gravatar
+                    gravatar_url = f'https://www.gravatar.com/avatar/{digest}?d=404'
+                    comment.author_info = {
+                        "username": username,
+                        "first_name": None,
+                        "last_name": None,
+                        "gravatar_url": gravatar_url,
+                    }
+
+            return owned_comments
+
         sources = fetch_newest(Source)
-        comments = fetch_newest(Comment)
+        comments = fetch_newest_comments()
         news_feed_items = [
             {
                 'type': 'source',
                 'time': s.created_at,
-                'message': f'New source {s.obj_id}',
+                'message': f'New source created with ID: {s.obj_id}',
             }
             for s in sources
         ]
@@ -76,7 +118,9 @@ class NewsFeedHandler(BaseHandler):
                 {
                     'type': 'comment',
                     'time': c.created_at,
-                    'message': f'{c.author}: {c.text} ({c.obj_id})',
+                    'message': f'{c.text} ({c.obj_id})',
+                    'author': c.author,
+                    'author_info': c.author_info,
                 }
                 for c in comments
             ]

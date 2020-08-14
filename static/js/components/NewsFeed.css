@@ -1,13 +1,52 @@
-.entry {
+.newsFeedSubtitle {
+  margin-top: 0.5em;
+}
+
+.newsFeed {
+  display: flex;
+  flex-direction: column;
+}
+
+.entry,
+.entryDark {
+  display: flex;
+  flex-direction: column;
+  min-height: 60px;
+  padding: 5px 10px 10px 10px;
+  margin-bottom: 10px;
+  background-color: white;
+
+  /* Equivalent to 1dp shadow for Material design*/
+  /* box-shadow:  0 1px 1px 0 rgba(0,0,0,0.14), 0 2px 1px -1px rgba(0,0,0,0.12), 0 1px 3px 0 rgba(0,0,0,0.20);; */
+}
+
+.entryMessage {
   font-style: italic;
+  max-width: 350px;
 }
 
 .entryHeader {
   padding-top: 0.3em;
   padding-bottom: 0.1em;
+  margin-bottom: 1em;
+  display: flex;
+  flex-direction: row;
+}
+
+.entryAvatar {
+  margin-right: 0.5em;
+}
+
+.entryIdent {
+  display: flex;
+  flex-direction: column;
 }
 
 .entryTime {
   color: #aaa;
   font-size: 80%;
+}
+
+.entryUser {
+  font-weight: bold;
 }
