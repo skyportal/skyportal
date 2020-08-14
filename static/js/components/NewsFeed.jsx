@@ -73,7 +73,7 @@ const newsFeedItem = (item) => {
         </div>
         <div className={styles.entryIdent}>
           <span className={styles.entryUser}>
-            <span className={styles.entryUserName}>{entryUserName}</span>
+            <span>{entryUserName}</span>
           </span>
           <span className={styles.entryTime}>
             {dayjs().to(dayjs.utc(`${item.time}Z`))}
