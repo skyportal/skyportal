@@ -26,7 +26,7 @@ import store from "../store";
 import hydrate from "../actions";
 import * as rotateLogoActions from "../ducks/logo";
 
-import PropsRoute from "../route";
+import PropsRoute from "./Route";
 import NoMatchingRoute from "./NoMatchingRoute";
 import Responsive from "./Responsive";
 
@@ -37,6 +37,7 @@ import {{ route.component }} from "./{{ route.component }}";
 import Theme from "./Theme";
 import ProfileDropdown from "./ProfileDropdown";
 import SidebarAndHeader from "./SidebarAndHeader";
+import ErrorBoundary from "./ErrorBoundary";
 
 // Main style
 import styles from "./Main.css";
@@ -131,9 +132,11 @@ MainContent.propTypes = {
 
 ReactDOM.render(
   <Provider store={store}>
-    <BrowserRouter basename="/">
-      <MainContent root={`${window.location.host}/`} />
-    </BrowserRouter>
+    <ErrorBoundary key={location.pathname}>
+      <BrowserRouter basename="/">
+        <MainContent root={`${window.location.host}/`} />
+      </BrowserRouter>
+    </ErrorBoundary>
   </Provider>,
   document.getElementById("content")
 );
