@@ -1,6 +1,7 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { Paper, Avatar } from "@material-ui/core";
+import { Paper, Avatar, Tooltip } from "@material-ui/core";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -67,20 +68,30 @@ const newsFeedItem = (item) => {
       className={styles.entry}
       elevation={2}
     >
-      <div className={styles.entryHeader}>
+      <Tooltip
+        title={entryUserName}
+        arrow
+        placement="top-start"
+        classes={{ tooltip: styles.entryUserName }}
+      >
         <div className={styles.entryAvatar}>
           <EntryAvatar />
         </div>
+      </Tooltip>
+      <div className={styles.entryContent}>
+        <span className={styles.entryMessage}>{item.message}</span>
         <div className={styles.entryIdent}>
-          <span className={styles.entryUser}>
-            <span>{entryUserName}</span>
+          <span className={styles.entrySourceId}>
+            <Link to={`/source/${item.source_id}`}>
+              Source: {item.source_id}
+            </Link>
           </span>
+          <span> &#124; </span>
           <span className={styles.entryTime}>
             {dayjs().to(dayjs.utc(`${item.time}Z`))}
           </span>
         </div>
       </div>
-      <span className={styles.entryMessage}>{item.message}</span>
     </Paper>
   );
 };
@@ -89,6 +100,8 @@ const NewsFeed = () => {
   const { items } = useSelector((state) => state.newsFeed);
   const newsFeedPrefs =
     useSelector((state) => state.profile.preferences.newsFeed) || defaultPrefs;
+
+  const height = Math.min(250, parseInt(items.length * 60, 10));
 
   return (
     <div style={{ border: "1px solid #DDD", padding: "10px" }}>
@@ -101,11 +114,8 @@ const NewsFeed = () => {
           onSubmit={profileActions.updateUserPreferences}
         />
       </div>
-      <div>
-        <h4 className={styles.newsFeedSubtitle}>Most recent activity:</h4>
-        <div className={styles.newsFeed}>
-          {items.map((item) => newsFeedItem(item))}
-        </div>
+      <div className={styles.newsFeed} style={{ height }}>
+        {items.map((item) => newsFeedItem(item))}
       </div>
     </div>
   );

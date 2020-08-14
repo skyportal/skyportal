@@ -128,7 +128,7 @@ const CommentList = ({ isCandidate }) => {
   );
   return (
     <div className={styles.comments}>
-      {items}
+      <div className={styles.commentsList}>{items}</div>
       <br />
       {!isCandidate && acls.indexOf("Comment") >= 0 && (
         <CommentEntry addComment={addComment} />

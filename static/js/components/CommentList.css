@@ -1,3 +1,8 @@
+.commentsList {
+  overflow-y: scroll;
+  max-height: 350px;
+}
+
 .comment,
 .commentDark {
   font-size: 90%;

@@ -105,7 +105,8 @@ class NewsFeedHandler(BaseHandler):
             {
                 'type': 'source',
                 'time': s.created_at,
-                'message': f'New source created with ID: {s.obj_id}',
+                'message': 'New source added',
+                'source_id': s.obj_id,
             }
             for s in sources
         ]
@@ -114,7 +115,8 @@ class NewsFeedHandler(BaseHandler):
                 {
                     'type': 'comment',
                     'time': c.created_at,
-                    'message': f'{c.text} ({c.obj_id})',
+                    'message': c.text,
+                    'source_id': c.obj_id,
                     'author': c.author,
                     'author_info': c.author_info,
                 }
