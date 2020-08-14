@@ -105,6 +105,10 @@ const CandidateList = () => {
                     &nbsp;
                     {candidateObj.dec}
                     <br />
+                    Gal. Coords (l,b) :&nbsp;
+                    {candidateObj.gal_lon.toFixed(1)}, &nbsp;
+                    {candidateObj.gal_lat.toFixed(1)}
+                    <br />
                   </td>
                   <td>
                     <Suspense fallback={<div>Loading plot...</div>}>
