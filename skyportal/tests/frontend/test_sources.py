@@ -91,14 +91,19 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath(
         "//span[contains(@class, 'MuiButton-label') and text()='Symmetrical']"
     )
+
+    # Scroll up to get entire classifications list component in view
+    add_comments = driver.find_element_by_xpath("//h6[contains(text(), 'Add comment')]")
+    driver.scroll_to_element(add_comments)
+
     # Classifications list entry
     driver.wait_for_xpath(f"//i[text()='{tax_name}']")
-    prob_span = driver.wait_for_xpath("//*[contains(text(), '(P=1)')]")
-    classification_entry_div = prob_span.find_element_by_xpath(
-        ".."
-    ).find_element_by_xpath("..")
+
+    classification_entry = driver.find_element_by_xpath(
+        f'//li[.//span[contains(text(), "(P=1)")]]'
+    )
     # Hover to raise delete button
-    ActionChains(driver).move_to_element(classification_entry_div).perform()
+    ActionChains(driver).move_to_element(classification_entry).perform()
     driver.click_xpath("//button[starts-with(@name, 'deleteClassificationButton')]")
     driver.wait_for_xpath_to_disappear("//*[contains(text(), '(P=1)')]")
     driver.wait_for_xpath_to_disappear(f"//i[text()='{tax_name}']")
