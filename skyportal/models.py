@@ -1,6 +1,5 @@
 import arrow
 import uuid
-from hashlib import md5
 import re
 from datetime import datetime, timezone
 from astropy import units as u
@@ -499,15 +498,12 @@ def get_obj_comments_owned_by(self, user_or_token):
                 "gravatar_url": author.gravatar_url,
             }
         else:
-            username = "unknown user"
-            digest = md5(username.lower().encode('utf-8')).hexdigest()
-            # return a 404 status code if not found on gravatar
-            gravatar_url = f'https://www.gravatar.com/avatar/{digest}?d=404'
+            unknown_user = User(username="unknown user")
             comment.author_info = {
-                "username": username,
+                "username": unknown_user.username,
                 "first_name": None,
                 "last_name": None,
-                "gravatar_url": gravatar_url,
+                "gravatar_url": unknown_user.gravatar_url,
             }
 
     return owned_comments
@@ -772,15 +768,12 @@ class Comment(Base):
                 "gravatar_url": author.gravatar_url,
             }
         else:
-            username = "unknown user"
-            digest = md5(username.lower().encode('utf-8')).hexdigest()
-            # return a 404 status code if not found on gravatar
-            gravatar_url = f'https://www.gravatar.com/avatar/{digest}?d=404'
+            unknown_user = User(username="unknown user")
             comment.author_info = {
-                "username": username,
+                "username": unknown_user.username,
                 "first_name": None,
                 "last_name": None,
-                "gravatar_url": gravatar_url,
+                "gravatar_url": unknown_user.gravatar_url,
             }
 
         return comment

@@ -1,4 +1,3 @@
-from hashlib import md5
 from sqlalchemy import desc
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
@@ -90,15 +89,12 @@ class NewsFeedHandler(BaseHandler):
                         "gravatar_url": author.gravatar_url,
                     }
                 else:
-                    username = "unknown user"
-                    digest = md5(username.lower().encode('utf-8')).hexdigest()
-                    # return a 404 status code if not found on gravatar
-                    gravatar_url = f'https://www.gravatar.com/avatar/{digest}?d=404'
+                    unknown_user = User(username="unknown user")
                     comment.author_info = {
-                        "username": username,
+                        "username": unknown_user.username,
                         "first_name": None,
                         "last_name": None,
-                        "gravatar_url": gravatar_url,
+                        "gravatar_url": unknown_user.gravatar_url,
                     }
 
             return owned_comments
