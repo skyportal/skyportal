@@ -81,21 +81,12 @@ class NewsFeedHandler(BaseHandler):
 
             for comment in owned_comments:
                 author = User.query.filter(User.username == comment.author).first()
-                if author:
-                    comment.author_info = {
-                        "username": author.username,
-                        "first_name": author.first_name,
-                        "last_name": author.last_name,
-                        "gravatar_url": author.gravatar_url,
-                    }
-                else:
-                    unknown_user = User(username="unknown user")
-                    comment.author_info = {
-                        "username": unknown_user.username,
-                        "first_name": None,
-                        "last_name": None,
-                        "gravatar_url": unknown_user.gravatar_url,
-                    }
+                comment.author_info = {
+                    "username": author.username,
+                    "first_name": author.first_name,
+                    "last_name": author.last_name,
+                    "gravatar_url": author.gravatar_url,
+                }
 
             return owned_comments
 

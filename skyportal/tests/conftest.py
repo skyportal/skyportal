@@ -8,15 +8,13 @@ from datetime import datetime
 
 from baselayer.app import models
 from baselayer.app.config import load_config
-from baselayer.app.test_util import (
+
+from baselayer.app.test_util import (  # noqa: F401
     driver,
-    MyCustomWebDriver,
     set_server_url,
-    reset_state,
 )
 
 from skyportal.tests.fixtures import (
-    TMP_DIR,
     ObjFactory,
     StreamFactory,
     GroupFactory,
@@ -27,7 +25,7 @@ from skyportal.tests.fixtures import (
     TelescopeFactory,
 )
 from skyportal.model_util import create_token
-from skyportal.models import DBSession, Source, Candidate, Role
+from skyportal.models import DBSession, Source, Candidate, Role, User
 
 import astroplan
 import warnings
@@ -41,6 +39,11 @@ set_server_url(f'http://localhost:{cfg["ports.app"]}')
 print("Setting test database to:", cfg["database"])
 models.init_db(**cfg["database"])
 
+# Add a "test factory" User so that all factory-generated comments have a
+# proper author
+DBSession.add(User(username="test factory"))
+DBSession.commit()
+
 
 def pytest_runtest_setup(item):
     # Print timestamp when running each test
@@ -51,7 +54,7 @@ def pytest_runtest_setup(item):
 def iers_data():
     # grab the latest earth orientation data for observatory calculations
     if ap_utils.IERS_A_in_cache():
-        with warnings.catch_warnings() as w:
+        with warnings.catch_warnings():
             warnings.filterwarnings(
                 "error", category=astroplan.OldEarthOrientationDataWarning
             )
