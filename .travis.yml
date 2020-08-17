@@ -53,8 +53,6 @@ addons:
       - unzip
   postgresql: "11"
   firefox: latest
-services:
-  - xvfb
 env:
   global:
     - secure: "oyEPxoRtj+VYzWMDsf3PqWZHZMVw86e1OG5B5e0GS1lKudyi9eOKqiVpKO8Ra0II8Im5IFUKeuAePsJDy6Oxw2NyS6kvmxEWSysNF+qpEEFzqzdgAV7JfIN9PAslNGbq0CG17hEVDHh7Le5L/lNfHsP2/Qh5Dxy/eOh65KFhty0/etmp2cjYhQE8FYp5zRj4XKB83J/R7eGsvfKAJr2UX9DwyvczrGzTTaAU1Gqp5HhsSVLji3AA52OFvhmEKdh0YnGZMzO+DKZuXOPN7lZikkkiUcr1eGwdnKqulNj6viuo2x0t0QBAjoszbBvWgxz3luYihVRmGNO8NRbSgosVZl040so7rG56FCleuxZyc135AH9+U9j5BvBw2p8CSVbxtYIGJffUHoto0kJt5MwjFBo7jINmGyceam/AJM15lASd1DvEzTJuuTqts/As2Msp2pfNCQCuCadpBUY+zNBn7oKvz+cOobUDa8F0jNzexZPr9/8ejv/EKYPUgLux/MjGvWa/dX0tCePzAs6BhQUUdzwX6BGNHptnazIw41VpEJM8vmDP2P7nErOIH8M6pHCESuxb5pkRCjTqhBhSSUMFf88rJd6M9dHxBqzjkipDKRUpncZV+CXEKg13QBArPlkyzO8mNmqjE7cNsMaRNfK+3hBNEgpGCU0SrIH/RNlP/b0="
@@ -63,7 +61,7 @@ matrix:
   include:
     - python: 3.7
       env:
-        - TEST_TARGET=test
+        - TEST_TARGET=test_headless
 
 before_install:
   - ccache -s
