@@ -1,5 +1,8 @@
 # System Architecture
 
+SkyPortal is designed to be effective, fast, and scalable.  The
+following diagram shows the underlying architecture:
+
 ![System architecture](images/architecture.png)
 
 All the technological components used in SkyPortal are applied exactly
