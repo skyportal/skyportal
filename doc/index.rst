@@ -20,7 +20,7 @@ classification and other meta-data, and to coordinate follow-up.
    :target: https://github.com/skyportal/skyportal/workflows/Test%20SkyPortal/badge.svg
 
 .. image:: ../static/images/skyportal_responsive.png
-   :alt: Skyportal
+   :alt: SkyPortal
 
 The project is motivated by the Large Synoptic Survey Telescope
 project (LSST; starting in 2021), which will generate ~20 TB and
@@ -39,7 +39,7 @@ by instruments or humans.
 Quick Start
 -----------
 
-To launch a demo instance of Skyportal, first `clone the source code from
+To launch a demo instance of SkyPortal, first `clone the source code from
 GitHub <https://github.com/skyportal/skyportal>`_:
 
 .. code-block:: bash
