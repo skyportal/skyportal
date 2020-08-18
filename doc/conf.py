@@ -15,12 +15,13 @@
 
 import sys
 import os
-import shlex
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 # sys.path.insert(0, os.path.abspath('.'))
+
+sys.path.insert(0, os.path.abspath('..'))
 
 # -- General configuration ------------------------------------------------
 
@@ -33,7 +34,7 @@ import shlex
 extensions = [
     'recommonmark',
     'sphinx.ext.mathjax',
-    #    'sphinx.ext.autodoc',
+    'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     #    'sphinx.ext.pngmath',
     #    'numpydoc',
@@ -59,7 +60,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'skyportal'
-copyright = '2017, The skyportal Team'
+copyright = '2020, The skyportal Team'
 author = 'The skyportal Team'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -131,7 +132,7 @@ todo_include_todos = False
 # Per https://github.com/snide/sphinx_rtd_theme: specify theme if not on RTD
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 if not on_rtd:  # only import and set the theme if we're building docs locally
-    import sphinx_rtd_theme
+    import sphinx_rtd_theme  # noqa
 
     html_theme = 'sphinx_rtd_theme'
 

@@ -14,6 +14,7 @@ Skyportal
    contributing
    adding_features
    styling
+   database
 
 .. Indices and tables
 .. ==================
