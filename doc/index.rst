@@ -1,9 +1,10 @@
 SkyPortal
 ---------
 
-SkyPortal is an extensible data platform that allows researchers to
-discuss light curve measurements, augment those measurements with
-classification and other meta-data, and to coordinate follow-up.
+SkyPortal is an extensible data platform that allows astronomers to
+visualize and discuss light curves and spectra, augment those
+measurements with classifications and other meta-data, and to
+coordinate follow-up observations.
 
 |github| |license| |build-status| |joss|
 
@@ -29,7 +30,7 @@ gateway through which a diverse set of time-variable sources and
 transient events will be understood.
 
 In order to make this rich but complex data source more accessible, we
-built SkyPortal to filter event streams, publish light curves in an
+built SkyPortal to display light curves and spectra in an
 intuitive and easily-accessible format, allow for subsequent
 annotation and post-processing, provide an API to do machine-based
 access to the data, and to allow subsequent dissemination of the
