@@ -169,9 +169,9 @@ const Group = () => {
   const onSubmitAddFilter = async (data) => {
     const result = await dispatch(
       filterActions.addGroupFilter({
-        name: data.name,
+        name: data.filter_name,
         group_id: group.id,
-        stream_id: data.stream_id,
+        stream_id: data.filter_stream_id,
       })
     );
     if (result.status === "success") {
@@ -238,7 +238,10 @@ const Group = () => {
                 >
                   <ListItemText primary={user.username} />
                   {isAdmin(user, group) && (
-                    <div style={{ display: "inline-block" }}>
+                    <div
+                      style={{ display: "inline-block" }}
+                      id={`${user.id}-admin-chip`}
+                    >
                       <Chip label="Admin" size="small" color="secondary" />
                       &nbsp;&nbsp;
                     </div>
@@ -292,108 +295,112 @@ const Group = () => {
           </AccordionDetails>
         </Accordion>
 
-        <Accordion
-          expanded={expanded2 === "panel2"}
-          onChange={handleChange2("panel2")}
-        >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="panel2-content"
-            id="panel2-header"
-            style={{ borderBottom: "1px solid rgba(0, 0, 0, .125)" }}
+        {currentUser.roles.includes("Super admin") && streams.length > 0 && (
+          <Accordion
+            expanded={expanded2 === "panel2"}
+            onChange={handleChange2("panel2")}
           >
-            <Typography className={classes.heading}>
-              Alert streams and filters
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails className={classes.accordion_details}>
-            <List component="nav" className={classes.padding_bottom}>
-              {group.streams.map((stream) => (
-                <div key={stream.name}>
-                  <ListItem>
-                    <ListItemText primary={stream.name} />
-                  </ListItem>
-                  <List component="nav" disablePadding>
-                    {group.filters.map(
-                      (filter) =>
-                        filter.stream_id === stream.id ? (
-                          <ListItem
-                            button
-                            component="a"
-                            key={filter.id}
-                            href="#"
-                          >
-                            <ListItemText
-                              className={classes.nested}
-                              primary={filter.name}
-                            />
-                            {(currentUser.roles.includes("Super admin") ||
-                              currentUser.roles.includes("Group admin")) && (
-                              <ListItemSecondaryAction>
-                                <IconButton
-                                  edge="end"
-                                  aria-label="delete"
-                                  onClick={async () => {
-                                    const result = await dispatch(
-                                      filterActions.deleteGroupFilter({
-                                        filter_id: filter.id,
-                                      })
-                                    );
-                                    if (result.status === "success") {
-                                      dispatch(
-                                        showNotification(
-                                          "Deleted filter from group"
-                                        )
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="panel2-content"
+              id="panel2-header"
+              style={{ borderBottom: "1px solid rgba(0, 0, 0, .125)" }}
+            >
+              <Typography className={classes.heading}>
+                Alert streams and filters
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails className={classes.accordion_details}>
+              <List component="nav" className={classes.padding_bottom}>
+                {group.streams.map((stream) => (
+                  <div key={stream.name}>
+                    <ListItem>
+                      <ListItemText primary={stream.name} />
+                    </ListItem>
+                    <List component="nav" disablePadding>
+                      {group.filters.map(
+                        (filter) =>
+                          filter.stream_id === stream.id ? (
+                            <ListItem
+                              button
+                              component="a"
+                              key={filter.id}
+                              href="#"
+                            >
+                              <ListItemText
+                                className={classes.nested}
+                                primary={filter.name}
+                              />
+                              {(currentUser.roles.includes("Super admin") ||
+                                currentUser.roles.includes("Group admin")) && (
+                                <ListItemSecondaryAction>
+                                  <IconButton
+                                    edge="end"
+                                    aria-label="delete"
+                                    onClick={async () => {
+                                      const result = await dispatch(
+                                        filterActions.deleteGroupFilter({
+                                          filter_id: filter.id,
+                                        })
                                       );
-                                    }
-                                    dispatch(groupActions.fetchGroup(loadedId));
-                                  }}
-                                >
-                                  <DeleteIcon />
-                                </IconButton>
-                              </ListItemSecondaryAction>
-                            )}
-                          </ListItem>
-                        ) : (
-                          ""
-                        ) /* <div style={{paddingLeft: "2em"}}>No filters defined on stream</div> */
-                    )}
-                  </List>
-                </div>
-              ))}
-            </List>
+                                      if (result.status === "success") {
+                                        dispatch(
+                                          showNotification(
+                                            "Deleted filter from group"
+                                          )
+                                        );
+                                      }
+                                      dispatch(
+                                        groupActions.fetchGroup(loadedId)
+                                      );
+                                    }}
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                </ListItemSecondaryAction>
+                              )}
+                            </ListItem>
+                          ) : (
+                            ""
+                          ) /* <div style={{paddingLeft: "2em"}}>No filters defined on stream</div> */
+                      )}
+                    </List>
+                  </div>
+                ))}
+              </List>
 
-            <div>
-              {/* only Super admins can add streams to groups */}
-              {currentUser.roles.includes("Super admin") &&
-                streams.length > 0 &&
-                group.streams.length < streams.length && (
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    className={classes.button_add}
-                    onClick={handleAddStreamOpen}
-                    style={{ marginRight: 10 }}
-                  >
-                    Add stream
-                  </Button>
-                )}
+              <div>
+                {/* only Super admins can add streams to groups */}
+                {currentUser.roles.includes("Super admin") &&
+                  streams.length > 0 &&
+                  group.streams.length < streams.length && (
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      className={classes.button_add}
+                      onClick={handleAddStreamOpen}
+                      style={{ marginRight: 10 }}
+                    >
+                      Add stream
+                    </Button>
+                  )}
 
-              {(currentUser.roles.includes("Super admin") ||
-                currentUser.roles.includes("Group admin")) &&
-                group.streams.length > 0 && (
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    className={classes.button_add}
-                    onClick={handleClickDialogOpen}
-                  >
-                    Add filter
-                  </Button>
-                )}
-            </div>
-          </AccordionDetails>
-        </Accordion>
+                {(currentUser.roles.includes("Super admin") ||
+                  currentUser.roles.includes("Group admin")) &&
+                  group.streams.length > 0 && (
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      className={classes.button_add}
+                      onClick={handleClickDialogOpen}
+                    >
+                      Add filter
+                    </Button>
+                  )}
+              </div>
+            </AccordionDetails>
+          </Accordion>
+        )}
 
         <br />
         {(currentUser.roles.includes("Super admin") ||
@@ -483,7 +490,7 @@ const Group = () => {
                 autoFocus
                 required
                 margin="dense"
-                name="name"
+                name="filter_name"
                 label="Filter Name"
                 type="text"
                 fullWidth
@@ -495,7 +502,7 @@ const Group = () => {
                 </InputLabel>
                 <Controller
                   labelId="alert-stream-select-required-label"
-                  name="stream_id"
+                  name="filter_stream_id"
                   as={Select}
                   defaultValue={0}
                   control={control}

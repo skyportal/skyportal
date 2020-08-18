@@ -8,15 +8,13 @@ from datetime import datetime
 
 from baselayer.app import models
 from baselayer.app.config import load_config
-from baselayer.app.test_util import (
-    driver,
-    MyCustomWebDriver,
-    set_server_url,
-    reset_state,
-)
+from baselayer.app.test_util import driver  # noqa: F401
+from baselayer.app.test_util import MyCustomWebDriver  # noqa: F401
+from baselayer.app.test_util import set_server_url
+from baselayer.app.test_util import reset_state  # noqa: F401
 
+from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 from skyportal.tests.fixtures import (
-    TMP_DIR,
     ObjFactory,
     StreamFactory,
     GroupFactory,
@@ -51,7 +49,7 @@ def pytest_runtest_setup(item):
 def iers_data():
     # grab the latest earth orientation data for observatory calculations
     if ap_utils.IERS_A_in_cache():
-        with warnings.catch_warnings() as w:
+        with warnings.catch_warnings():
             warnings.filterwarnings(
                 "error", category=astroplan.OldEarthOrientationDataWarning
             )
@@ -208,6 +206,11 @@ def user(public_group):
     return UserFactory(
         groups=[public_group], roles=[models.Role.query.get("Full user")]
     )
+
+
+@pytest.fixture()
+def user_no_groups():
+    return UserFactory(roles=[models.Role.query.get("Full user")])
 
 
 @pytest.fixture()

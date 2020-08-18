@@ -1,3 +1,4 @@
+import pytest
 from selenium.webdriver.common.keys import Keys
 import uuid
 
@@ -5,14 +6,14 @@ import uuid
 def test_public_groups_list(driver, user, public_group):
     driver.get(f'/become_user/{user.id}')  # TODO decorator/context manager?
     driver.get('/groups')
-    driver.wait_for_xpath('//h6[text()="My Groups"]')
+    driver.wait_for_xpath('//h5[text()="My Groups"]')
     driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
 
 
 def test_super_admin_groups_list(driver, super_admin_user, public_group):
     driver.get(f'/become_user/{super_admin_user.id}')  # TODO decorator/context manager?
     driver.get('/groups')
-    driver.wait_for_xpath('//h6[text()="All Groups"]')
+    driver.wait_for_xpath('//h5[text()="All Groups"]')
     driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     # TODO: Make sure ALL groups are actually displayed here - not sure how to
     # get list of names of previously created groups here
@@ -46,45 +47,49 @@ def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
     driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
 
-def test_add_new_group_user_admin(driver, super_admin_user, user, public_group):
+def test_add_new_group_user_admin(
+    driver, super_admin_user, user_no_groups, public_group
+):
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/groups')
-    driver.wait_for_xpath('//h6[text()="All Groups"]')
+    driver.wait_for_xpath('//h5[text()="All Groups"]')
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.execute_script("arguments[0].click();", el)
-    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../button').click()
-    driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(
-        user.username, Keys.ENTER
-    )
+    el_input = driver.wait_for_xpath('//input[@id="newUserEmail"]', timeout=10)
+    el_input.clear()
+    el_input.send_keys(user_no_groups.username, Keys.ENTER)
+
     driver.wait_for_xpath('//input[@type="checkbox"]').click()
     driver.wait_for_xpath('//input[@value="Add user"]').click()
-    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
+    driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
     assert (
         len(
             driver.find_elements_by_xpath(
-                f'//a[contains(.,"{user.username}")]/..//span'
+                f'//div[@id="{user_no_groups.id}-admin-chip"]'
             )
         )
         == 1
     )
 
 
-def test_add_new_group_user_nonadmin(driver, super_admin_user, user, public_group):
+def test_add_new_group_user_nonadmin(
+    driver, super_admin_user, user_no_groups, public_group
+):
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/groups')
-    driver.wait_for_xpath('//h6[text()="All Groups"]')
+    driver.wait_for_xpath('//h5[text()="All Groups"]')
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.execute_script("arguments[0].click();", el)
-    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../button').click()
-    driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(
-        user.username, Keys.ENTER
-    )
+    el_input = driver.wait_for_xpath('//input[@id="newUserEmail"]', timeout=10)
+    el_input.clear()
+    el_input.send_keys(user_no_groups.username, Keys.ENTER)
     driver.wait_for_xpath('//input[@value="Add user"]').click()
-    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
+    driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
+
     assert (
         len(
             driver.find_elements_by_xpath(
-                f'//a[contains(.,"{user.username}")]/..//span'
+                f'//div[@id="{user_no_groups.id}-admin-chip"]'
             )
         )
         == 0
@@ -95,11 +100,10 @@ def test_add_new_group_user_new_username(driver, super_admin_user, user, public_
     new_username = str(uuid.uuid4())
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/groups')
-    driver.wait_for_xpath('//h6[text()="All Groups"]')
+    driver.wait_for_xpath('//h5[text()="All Groups"]')
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.execute_script("arguments[0].click();", el)
-    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../button').click()
-    driver.wait_for_xpath('//input[@id="newUserEmail"]').send_keys(
+    driver.wait_for_xpath('//input[@id="newUserEmail"]', timeout=10).send_keys(
         new_username, Keys.ENTER
     )
     driver.wait_for_xpath('//input[@value="Add user"]').click()
@@ -109,10 +113,12 @@ def test_add_new_group_user_new_username(driver, super_admin_user, user, public_
 def test_delete_group_user(driver, super_admin_user, user, public_group):
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/groups')
-    driver.wait_for_xpath('//h6[text()="All Groups"]')
+    driver.wait_for_xpath('//h5[text()="All Groups"]')
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.execute_script("arguments[0].click();", el)
-    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]/../button').click()
+    delete_button = driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
+    delete_button = delete_button.find_elements_by_xpath("../*/button")
+    delete_button[0].click()
     assert (
         len(driver.find_elements_by_xpath(f'//a[contains(.,"{user.username}")]')) == 0
     )
@@ -121,10 +127,51 @@ def test_delete_group_user(driver, super_admin_user, user, public_group):
 def test_delete_group(driver, super_admin_user, user, public_group):
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/groups')
-    driver.wait_for_xpath('//h6[text()="All Groups"]')
+    driver.wait_for_xpath('//h5[text()="All Groups"]')
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.execute_script("arguments[0].click();", el)
     driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//input[@value="Delete Group"]')
+        driver.wait_for_xpath(f'//button[contains(.,"Delete Group")]')
     )
-    driver.wait_for_xpath('//div[contains(.,"Could not load group")]')
+    driver.wait_for_xpath(f'//button[contains(.,"Confirm")]').click()
+    assert (
+        len(driver.find_elements_by_xpath(f'//a[contains(.,"{public_group.name}")]'))
+        == 0
+    )
+
+
+@pytest.mark.flaky(reruns=2)
+def test_add_stream_filter_group(
+    driver, super_admin_user, user, public_group, public_stream
+):
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/groups')
+    driver.wait_for_xpath('//h5[text()="All Groups"]')
+    el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
+    driver.execute_script("arguments[0].click();", el)
+    # add stream
+    driver.wait_for_xpath(f'//button[contains(.,"Add stream")]').click()
+    driver.wait_for_xpath('//input[@name="stream_id"]/..', timeout=10).click()
+    driver.wait_for_xpath_to_be_clickable(
+        f'//li[contains(.,"{public_stream.id}")]', timeout=10
+    )
+    stream = driver.switch_to.active_element
+    stream.click()
+    add_stream = driver.wait_for_xpath_to_be_clickable(f'//button[@type="submit"]')
+    driver.execute_script("arguments[0].click();", add_stream)
+
+    # add filter
+    filter_name = str(uuid.uuid4())
+    driver.wait_for_xpath(f'//button[contains(.,"Add filter")]').click()
+    driver.wait_for_xpath('//input[@name="filter_name"]/..', timeout=10).click()
+    driver.wait_for_xpath('//input[@name="filter_name"]').send_keys(filter_name)
+    driver.wait_for_xpath('//input[@name="filter_stream_id"]/..', timeout=10).click()
+    driver.wait_for_xpath(f'//li[contains(.,"{public_stream.id}")]', timeout=10)
+    stream = driver.switch_to.active_element
+    stream.click()
+    add_filter = driver.wait_for_xpath_to_be_clickable(f'//button[@type="submit"]')
+    driver.execute_script("arguments[0].click();", add_filter)
+    driver.wait_for_xpath(f'//span[contains(.,"{filter_name}")]', timeout=10)
+    assert (
+        len(driver.find_elements_by_xpath(f'//span[contains(.,"{filter_name}")]')) == 1
+    )
