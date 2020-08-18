@@ -104,7 +104,12 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     )
     # Hover to raise delete button
     ActionChains(driver).move_to_element(classification_entry).perform()
-    driver.click_xpath("//button[starts-with(@name, 'deleteClassificationButton')]")
+    del_button_xpath = "//button[starts-with(@name, 'deleteClassificationButton')]"
+    ActionChains(driver).move_to_element(
+        driver.wait_for_xpath(del_button_xpath)
+    ).perform()
+    driver.click_xpath(del_button_xpath)
+
     driver.wait_for_xpath_to_disappear("//*[contains(text(), '(P=1)')]")
     driver.wait_for_xpath_to_disappear(f"//i[text()='{tax_name}']")
     driver.wait_for_xpath_to_disappear(
