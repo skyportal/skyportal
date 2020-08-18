@@ -84,6 +84,7 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.click_xpath("//*[@id='classificationSubmitButton']")
     # Notification
     driver.wait_for_xpath("//*[text()='Classification saved']")
+
     # Button at top of source page
     driver.wait_for_xpath(
         "//span[contains(@class, 'MuiButton-label') and text()='Symmetrical']"
@@ -95,13 +96,17 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
 
     # Classifications list entry
     driver.wait_for_xpath(f"//i[text()='{tax_name}']")
-
-    classification_entry = driver.find_element_by_xpath(
-        f'//li[.//span[contains(text(), "(P=1)")]]'
-    )
+    prob_span = driver.wait_for_xpath("//*[contains(text(), '(P=1)')]")
+    classification_entry_div = prob_span.find_element_by_xpath(
+        ".."
+    ).find_element_by_xpath("..")
     # Hover to raise delete button
-    ActionChains(driver).move_to_element(classification_entry).perform()
-    driver.click_xpath("//button[starts-with(@name, 'deleteClassificationButton')]")
+    ActionChains(driver).move_to_element(classification_entry_div).perform()
+    del_button_xpath = "//button[starts-with(@name, 'deleteClassificationButton')]"
+    ActionChains(driver).move_to_element(
+        driver.wait_for_xpath(del_button_xpath)
+    ).perform()
+    driver.click_xpath(del_button_xpath)
     driver.wait_for_xpath_to_disappear("//*[contains(text(), '(P=1)')]")
     driver.wait_for_xpath_to_disappear(f"//i[text()='{tax_name}']")
     driver.wait_for_xpath_to_disappear(

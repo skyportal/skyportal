@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import * as Actions from "../ducks/source";
@@ -15,6 +15,20 @@ const AssignmentList = ({ assignments }) => {
   const { users } = useSelector((state) => state);
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { instrumentList } = useSelector((state) => state.instruments);
+
+  // fetch all the requester ids before rendering the component
+  const requesterIDs = assignments.map((assignment) => assignment.requester_id);
+  const uniqueRequesterIDs = [...new Set(requesterIDs)];
+  uniqueRequesterIDs.sort((a, b) => a - b);
+
+  // use useEffect to only send 1 fetchUser per User
+  useEffect(() => {
+    uniqueRequesterIDs.forEach((id) => {
+      if (!users[id]) {
+        dispatch(UserActions.fetchUser(id));
+      }
+    });
+  }, [uniqueRequesterIDs, users, dispatch]);
 
   if (assignments.length === 0) {
     return <b>No assignments to show for this object...</b>;
@@ -55,10 +69,6 @@ const AssignmentList = ({ assignments }) => {
           {assignments.map((assignment) => {
             const { requester_id } = assignment;
             const requester = users[requester_id];
-
-            if (!requester) {
-              dispatch(UserActions.fetchUser(requester_id));
-            }
 
             const { run_id } = assignment;
             const run = observingRunList.filter((r) => r.id === run_id)[0];
