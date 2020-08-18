@@ -17,20 +17,18 @@ const AssignmentList = ({ assignments }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
 
   // fetch all the requester ids before rendering the component
-  const requester_ids = assignments.map(
-    (assignment) => assignment.requester_id
-  );
-  const unique_requester_ids = [...new Set(requester_ids)];
-  unique_requester_ids.sort((a, b) => a - b);
+  const requesterIDs = assignments.map((assignment) => assignment.requester_id);
+  const uniqueRequesterIDs = [...new Set(requesterIDs)];
+  uniqueRequesterIDs.sort((a, b) => a - b);
 
   // use useEffect to only send 1 fetchUser per User
   useEffect(() => {
-    unique_requester_ids.forEach((id) => {
+    uniqueRequesterIDs.forEach((id) => {
       if (!users[id]) {
         dispatch(UserActions.fetchUser(id));
       }
     });
-  }, [...unique_requester_ids, dispatch]);
+  }, [uniqueRequesterIDs, users, dispatch]);
 
   if (assignments.length === 0) {
     return <b>No assignments to show for this object...</b>;
