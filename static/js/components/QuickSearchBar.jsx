@@ -34,7 +34,7 @@ function useDebouncer(value, delay) {
 
 const QuickSearchBar = () => {
   const dispatch = useDispatch();
-  const [options, setOptions] = React.useState([]);
+  const [options, setOptions] = useState([]);
   const [value, setValue] = useState(null);
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
@@ -121,6 +121,7 @@ const QuickSearchBar = () => {
       selectOnFocus
       limitTags={15}
       value={value}
+      popupIcon={null}
       renderOption={(option) => {
         const v = `/source/${option}`;
         return (
@@ -135,6 +136,7 @@ const QuickSearchBar = () => {
           {...params}
           className={classes.root}
           variant="outlined"
+          label="Source ID Search"
           InputProps={{
             ...params.InputProps,
             startAdornment: (
