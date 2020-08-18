@@ -82,7 +82,7 @@ User Guide
    styling
 
 Contributing
-============
+------------
 
 SkyPortal is released under the BSD license.  We encourage you to
 modify it, reuse it, and contributed changes back for the benefit of
