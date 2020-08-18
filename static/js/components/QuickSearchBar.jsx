@@ -124,7 +124,7 @@ const QuickSearchBar = () => {
       renderOption={(option) => {
         const v = `/source/${option}`;
         return (
-          <Link href={v} color="inherit">
+          <Link href={v} id={`quickSearchLinkTo${option}`} color="inherit">
             {option}
           </Link>
         );
