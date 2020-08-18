@@ -20,7 +20,7 @@ coordinate follow-up observations.
 .. |joss| image:: http://joss.theoj.org/papers/10.21105/joss.01247/status.svg
    :target: https://github.com/skyportal/skyportal/workflows/Test%20SkyPortal/badge.svg
 
-.. image:: ../static/images/skyportal_responsive.png
+.. image:: ../static/images/skyportal_responsive.jpg
    :alt: SkyPortal
 
 The project is motivated by the Large Synoptic Survey Telescope
