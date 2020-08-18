@@ -36,19 +36,27 @@ const mdLayout = [
   { i: "groups", x: 8, y: 6, w: 2, h: 3 },
 ];
 
+const smLayout = [
+  { i: "sourceList", x: 0, y: 0, w: 6, h: 6 },
+  { i: "newsFeed", x: 0, y: 6, w: 3, h: 3 },
+  { i: "topSources", x: 3, y: 6, w: 2, h: 3 },
+  { i: "groups", x: 5, y: 6, w: 1, h: 3 },
+];
+
+const xsLayout = [
+  { i: "sourceList", x: 0, y: 0, w: 4, h: 6 },
+  { i: "newsFeed", x: 0, y: 6, w: 4, h: 3 },
+  { i: "topSources", x: 0, y: 9, w: 2, h: 3 },
+  { i: "groups", x: 2, y: 9, w: 2, h: 3 },
+];
+
 const layouts = {
   xlg: xlgLayout,
   lg: lgLayout,
   md: mdLayout,
-  sm: mdLayout,
-  xs: mdLayout,
-  xxs: mdLayout,
+  sm: smLayout,
+  xs: xsLayout,
 };
-
-// const handleLayoutChange = (layout) => console.log(layout);
-
-// const handleBreakpointChange = (newBreakpoint, newCols) =>
-//   console.log(newBreakpoint);
 
 const HomePage = () => {
   const groups = useSelector((state) => state.groups.user);
@@ -56,12 +64,9 @@ const HomePage = () => {
     <ResponsiveGridLayout
       className="layout"
       layouts={layouts}
-      breakpoints={{ xlg: 1400, lg: 1150, md: 996, sm: 768, xs: 480, xxs: 0 }}
-      cols={{ xlg: 16, lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-      // onLayoutChange={handleLayoutChange}
+      breakpoints={{ xlg: 1400, lg: 1150, md: 996, sm: 768, xs: 480 }}
+      cols={{ xlg: 16, lg: 12, md: 10, sm: 6, xs: 4 }}
       margin={[15, 15]}
-      // compactType="horizontal"
-      // onBreakpointChange={handleBreakpointChange}
     >
       <div key="sourceList" className={styles.homePageWidgetDiv}>
         <SourceList />
