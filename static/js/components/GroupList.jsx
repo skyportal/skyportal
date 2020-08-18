@@ -9,7 +9,7 @@ import ListItemText from "@material-ui/core/ListItemText";
 import Typography from "@material-ui/core/Typography";
 
 const GroupList = ({ title, groups }) => (
-  <Box p={1}>
+  <Box p={1} border="1px solid #ddd" height="100%" padding="10px">
     <Typography variant="h6">{title}</Typography>
 
     <List dense>

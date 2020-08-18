@@ -22,7 +22,7 @@ const NewsFeed = () => {
     useSelector((state) => state.profile.preferences.newsFeed) || defaultPrefs;
 
   return (
-    <div style={{ border: "1px solid #DDD", padding: "10px" }}>
+    <div style={{ border: "1px solid #DDD", padding: "10px", height: "100%" }}>
       <h2 style={{ display: "inline-block" }}>News Feed</h2>
       <div style={{ display: "inline-block", float: "right" }}>
         <WidgetPrefsDialog
