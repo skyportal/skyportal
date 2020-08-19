@@ -1,10 +1,14 @@
 SkyPortal
 ---------
 
-SkyPortal is an extensible data platform that allows astronomers to
-visualize and discuss light curves and spectra, augment those
-measurements with classifications and other meta-data, and to
-coordinate follow-up observations.
+SkyPortal is a standalone extensible, API-first web application that
+can be used to serve public and/or private data on infrastructure that
+you manage. Tired of managing observations of thousands of sources for
+you and your group in Google Docs? Got a new astronomical survey you'd
+like to serve to the public and don't want build and maintain a
+website yourself? Want a place to manage requests for observations
+during an upcoming observing run? Sometimes work in a mobile/tablet
+environment? Then this project may be for you!
 
 |github| |license| |build-status| |joss|
 
@@ -23,19 +27,25 @@ coordinate follow-up observations.
 .. image:: ../static/images/skyportal_responsive.jpg
    :alt: SkyPortal
 
-The project is motivated by the Large Synoptic Survey Telescope
-project (LSST; starting in 2021), which will generate ~20 TB and
-detect 100 million sources every night.  The LSST promises to be a
-gateway through which a diverse set of time-variable sources and
-transient events will be understood.
+SkyPortal is a fully open-source portal to manage and collaborate on
+time-domain sources and events. On the backend, it has been designed
+to ingest and store millions of events per night from disparate
+discovery streams. The frontend allows searching by source properties,
+source-level summary pages, synchronous and asynchronous source-level
+communication, and group and user management. It also contemplates
+headless bi-directional interactions with 3rd-party programmatic
+enrichment tools: webhooks and APIs allow, for instance,
+machine-learning classifiers to opine on new events as they arrive.
 
-In order to make this rich but complex data source more accessible, we
-built SkyPortal to display light curves and spectra in an
-intuitive and easily-accessible format, allow for subsequent
-annotation and post-processing, provide an API to do machine-based
-access to the data, and to allow subsequent dissemination of the
-results—either to other SkyPortal instances, or to trigger follow-up
-by instruments or humans.
+By design SkyPortal makes use of hierarchical access control,
+frontend/backend abstractions with strong API contracts, elastic
+scaling, modern CI/CD practices, logging for auditability and
+traceability, and documentation meant to foster extensibility. It is
+built to run at the individual laptop level, in on-premise clusters,
+or in the cloud. The initial use cases were developed in close
+consultation with other time-domain practitioners and studying and
+using proprietary portals.
+
 
 Quick Start
 -----------
