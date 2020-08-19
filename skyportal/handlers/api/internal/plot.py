@@ -55,7 +55,7 @@ class PlotAirmassHandler(BaseHandler):
     def get(self, assignment_id):
         assignment = ClassicalAssignment.query.get(assignment_id)
         if assignment is None:
-            self.error('Invalid assignment id.')
+            return self.error('Invalid assignment id.')
         obj = assignment.obj
         permission_check = Source.get_obj_if_owned_by(obj.id, self.current_user)
         if permission_check is None:
