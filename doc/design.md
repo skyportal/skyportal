@@ -1,22 +1,4 @@
-# About
-
-SkyPortal is an extensible data platform that allows researchers to
-discuss light curve measurements, augment those measurements with
-classification and other meta-data, and to coordinate follow-up.
-
-The project is motivated by the Large Synoptic Survey Telescope
-project (LSST; starting in 2021), which will generate ~20 TB and
-detect 100 million sources every night.  The LSST promises to be a
-gateway through which a diverse set of time-variable sources and
-transient events will be understood.
-
-In order to make this rich but complex data source more accessible, we
-built SkyPortal to filter event streams, publish light curves in an
-intuitive and easily-accessible format, allow for subsequent
-annotation and post-processing, provide an API to do machine-based
-access to the data, and to allow subsequent dissemination of the
-results—either to other SkyPortal instances, or to trigger follow-up
-by instruments or humans.
+# System Architecture
 
 SkyPortal is designed to be effective, fast, and scalable.  The
 following diagram shows the underlying architecture:
