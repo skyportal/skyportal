@@ -44,6 +44,10 @@ app:
       icon: Home
       url: /
 
+    - name: Sources
+      icone: PhotoLibraryIcon
+      url: /sources
+
     - name: Candidates
       icon: Search
       url: /candidates
