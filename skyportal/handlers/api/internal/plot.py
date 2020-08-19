@@ -59,7 +59,7 @@ class PlotAirmassHandler(BaseHandler):
         obj = assignment.obj
         permission_check = Source.get_obj_if_owned_by(obj.id, self.current_user)
         if permission_check is None:
-            self.error('Invalid assignment id.')
+            return self.error('Invalid assignment id.')
 
         sunset = assignment.run.sunset
         sunrise = assignment.run.sunrise
