@@ -10,16 +10,13 @@ website yourself? Want a place to manage requests for observations
 during an upcoming observing run? Sometimes work in a mobile/tablet
 environment? Then this project may be for you!
 
-|github| |license| |build-status| |joss|
+|github| |license| |joss|
 
 .. |github| image:: https://img.shields.io/badge/GitHub-skyportal%2Fskyportal-blue
    :target: https://github.com/skyportal/skyportal
 
 .. |license| image:: https://img.shields.io/badge/License-BSD%203--Clause-blue.svg
    :target: https://github.com/skyportal/skyportal/LICENSE.txt
-
-.. |build-status| image:: https://github.com/skyportal/skyportal/workflows/Test%20SkyPortal/badge.svg
-   :target: https://github.com/skyportal/skyportal/actions?query=workflow%3A%22Test+SkyPortal%22+branch%3Amaster
 
 .. |joss| image:: http://joss.theoj.org/papers/10.21105/joss.01247/status.svg
    :target: https://github.com/skyportal/skyportal/workflows/Test%20SkyPortal/badge.svg
@@ -98,6 +95,16 @@ are submitted as pull requests and, once they pass the test suite,
 reviewed by the team before inclusion.  Please also see
 `our contributing guide <./contributing.html>`_.
 
+Acknowledgments
+---------------
+We thank the Gordon and Betty Moore Foundation for a
+`Software SkyPortal grant <https://www.moore .org/grant-detail?grantId=GBMF9122>`_,
+which partially covered the cost of the development of this project.
+
+
+.. image:: https://www.moore.org/content/images/logo-light.png
+   :target: https://www.moore.org/grant-detail?grantId=GBMF9122
+   :alt: Moore Foundation Logo
 
 .. Indices and tables
 .. ==================
