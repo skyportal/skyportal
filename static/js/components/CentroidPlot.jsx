@@ -300,8 +300,7 @@ const processData = (photometry) => {
   };
 };
 
-const CentroidPlot = (props) => {
-  const { sourceId } = props;
+const CentroidPlot = ({ sourceId }) => {
   const dispatch = useDispatch();
   const photometry = useSelector((state) => state.photometry[sourceId]);
 
@@ -313,10 +312,9 @@ const CentroidPlot = (props) => {
 
   const plotData = photometry ? processData(photometry) : null;
 
-  let returnComponent = null;
   if (plotData) {
     if (plotData.photometryData.length > 0) {
-      returnComponent = (
+      return (
         <div
           className="centroid-plot-div"
           ref={(node) => {
@@ -326,12 +324,12 @@ const CentroidPlot = (props) => {
           }}
         />
       );
-    } else {
-      returnComponent = <div>No photometry points with RA and Dec found.</div>;
     }
+
+    return <div>No photometry points with RA and Dec found.</div>;
   }
 
-  return returnComponent;
+  return null;
 };
 
 CentroidPlot.propTypes = {
