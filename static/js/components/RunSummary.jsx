@@ -40,10 +40,6 @@ const SimpleMenu = ({ assignment }) => {
     setAnchorEl(null);
   };
 
-  const ispending = assignment.status === "pending";
-  const isdone = assignment.status === "complete";
-  const isnotdone = assignment.status === "not observed";
-
   const updateAssignmentStatus = (status) => () => {
     handleClose();
     return dispatch(SourceAction.editAssignment({ status }, assignment.id));
@@ -66,7 +62,8 @@ const SimpleMenu = ({ assignment }) => {
         open={Boolean(anchorEl)}
         onClose={handleClose}
       >
-        {(ispending || isnotdone) && (
+        {(assignment.status === "pending" ||
+          assignment.status === "not observed") && (
           <MenuItem
             onClick={updateAssignmentStatus("complete")}
             variant="contained"
@@ -75,7 +72,8 @@ const SimpleMenu = ({ assignment }) => {
             Mark Observed
           </MenuItem>
         )}
-        {(ispending || isdone) && (
+        {(assignment.status === "pending" ||
+          assignment.status === "complete") && (
           <MenuItem
             onClick={updateAssignmentStatus("not observed")}
             variant="contained"
@@ -84,7 +82,8 @@ const SimpleMenu = ({ assignment }) => {
             Mark Not Observed
           </MenuItem>
         )}
-        {(isdone || isnotdone) && (
+        {(assignment.status === "complete" ||
+          assignment.status === "not observed") && (
           <MenuItem
             onClick={updateAssignmentStatus("pending")}
             variant="contained"
@@ -93,7 +92,7 @@ const SimpleMenu = ({ assignment }) => {
             Mark Pending
           </MenuItem>
         )}
-        {isdone && (
+        {assignment.status === "complete" && (
           <MenuItem
             key={`${assignment.id}_upload_spec (Coming Soon)`}
             onClick={handleClose}
@@ -101,7 +100,7 @@ const SimpleMenu = ({ assignment }) => {
             Upload Spectrum
           </MenuItem>
         )}
-        {isdone && (
+        {assignment.status === "complete" && (
           <MenuItem
             key={`${assignment.id}_upload_phot`}
             variant="contained"
