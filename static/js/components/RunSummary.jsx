@@ -148,14 +148,14 @@ const RunSummary = ({ route }) => {
   }
   const { assignments } = observingRun;
 
+  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
-    // This is just passed to MUI datatables options -- not meant to be instantiated directly.
     if (observingRun === undefined) {
       return "Loading...";
     }
 
     const colSpan = rowData.length + 1;
-    const assignment = observingRun.assignments[rowMeta.rowIndex];
+    const assignment = assignments[rowMeta.rowIndex];
 
     return (
       <TableRow>
@@ -197,8 +197,8 @@ const RunSummary = ({ route }) => {
     );
   };
 
+  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderObjId = (dataIndex) => {
-    // This is just passed to MUI datatables options -- not meant to be instantiated directly.
     const objid = assignments[dataIndex].obj.id;
     return (
       <a href={`/source/${objid}`} key={`${objid}_objid`}>
@@ -207,8 +207,8 @@ const RunSummary = ({ route }) => {
     );
   };
 
+  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderRA = (dataIndex) => {
-    // This is just passed to MUI datatables options -- not meant to be instantiated directly.
     const assignment = assignments[dataIndex];
     return (
       <div key={`${assignment.id}_ra`}>
@@ -219,8 +219,8 @@ const RunSummary = ({ route }) => {
     );
   };
 
+  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderDec = (dataIndex) => {
-    // This is just passed to MUI datatables options -- not meant to be instantiated directly.
     const assignment = assignments[dataIndex];
     return (
       <div key={`${assignment.id}_dec`}>
@@ -231,8 +231,8 @@ const RunSummary = ({ route }) => {
     );
   };
 
+  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderFinderButton = (dataIndex) => {
-    // This is just passed to MUI datatables options -- not meant to be instantiated directly.
     const assignment = assignments[dataIndex];
     return (
       <IconButton size="small" key={`${assignment.id}_actions`}>
@@ -243,8 +243,8 @@ const RunSummary = ({ route }) => {
     );
   };
 
+  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderActionsButton = (dataIndex) => {
-    // This is just passed to MUI datatables options -- not meant to be instantiated directly.
     const assignment = assignments[dataIndex];
     return <SimpleMenu assignment={assignment} key={`${assignment.id}_menu`} />;
   };
@@ -340,7 +340,7 @@ const RunSummary = ({ route }) => {
     selectableRows: "none",
   };
 
-  const data = observingRun.assignments.map((assignment) => [
+  const data = assignments.map((assignment) => [
     assignment.obj.id,
     assignment.status,
     assignment.obj.ra,
