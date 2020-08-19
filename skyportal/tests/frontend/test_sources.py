@@ -8,6 +8,9 @@ from selenium.common.exceptions import TimeoutException
 
 from baselayer.app.config import load_config
 from skyportal.tests import api
+from PIL import Image, ImageChops
+from io import BytesIO
+
 
 cfg = load_config()
 
@@ -94,19 +97,11 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     add_comments = driver.find_element_by_xpath("//h6[contains(text(), 'Add comment')]")
     driver.scroll_to_element(add_comments)
 
-    # Classifications list entry
-    driver.wait_for_xpath(f"//i[text()='{tax_name}']")
-    prob_span = driver.wait_for_xpath("//*[contains(text(), '(P=1)')]")
-    classification_entry_div = prob_span.find_element_by_xpath(
-        ".."
-    ).find_element_by_xpath("..")
-    # Hover to raise delete button
-    ActionChains(driver).move_to_element(classification_entry_div).perform()
     del_button_xpath = "//button[starts-with(@name, 'deleteClassificationButton')]"
     ActionChains(driver).move_to_element(
         driver.wait_for_xpath(del_button_xpath)
     ).perform()
-    driver.click_xpath(del_button_xpath)
+    driver.click_xpath(del_button_xpath, wait_clickable=False)
     driver.wait_for_xpath_to_disappear("//*[contains(text(), '(P=1)')]")
     driver.wait_for_xpath_to_disappear(f"//i[text()='{tax_name}']")
     driver.wait_for_xpath_to_disappear(
@@ -339,3 +334,67 @@ def test_show_starlist(driver, user, public_source):
     button = driver.wait_for_xpath(f'//span[text()="Show Starlist"]')
     button.click()
     driver.wait_for_xpath(f'//code[contains(text(), _off1)]')
+
+
+@pytest.mark.flaky(reruns=2)
+def test_centroid_plot(
+    driver, user, public_source, public_group, ztf_camera, upload_data_token
+):
+    # Put in some actual photometry data first
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': [58000.0, 58001.0, 58002.0],
+            'instrument_id': ztf_camera.id,
+            'flux': [12.24, 15.24, 12.24],
+            'fluxerr': [0.031, 0.029, 0.030],
+            'filter': ['ztfg', 'ztfg', 'ztfg'],
+            'zp': [25.0, 30.0, 21.2],
+            'magsys': ['ab', 'ab', 'ab'],
+            'ra': [264.19482957057863, 264.1948483167286, 264.19475131195185],
+            'ra_unc': 0.17,
+            'dec': [50.54773905413207, 50.547910537435854, 50.547856056708355],
+            'dec_unc': 0.2,
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']['ids']) == 3
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+
+    try:
+        # Look for Suspense fallback to show
+        loading_text = "Loading centroid plot..."
+        driver.wait_for_xpath(f'//div[text()="{loading_text}"]')
+        driver.wait_for_xpath_to_disappear(f'//div[text()="{loading_text}"]')
+
+    except TimeoutException:
+        # The plot may have loaded too quickly to catch the Suspense div
+        driver.wait_for_xpath_to_disappear(f'//div[text()="{loading_text}"]')
+
+    finally:
+        component_class_xpath = "//div[contains(concat(' ', normalize-space(@class), ' '), ' centroid-plot-div ')]"
+        vegaplot_div = driver.wait_for_xpath(component_class_xpath)
+        assert vegaplot_div.is_displayed()
+
+        # Since Vega uses a <canvas> element, we can't examine individual
+        # components of the plot through the DOM, so just compare an image of
+        # the plot to the saved baseline
+        generated_plot_data = vegaplot_div.screenshot_as_png
+        generated_plot = Image.open(BytesIO(generated_plot_data))
+
+        expected_plot_path = os.path.abspath(
+            "skyportal/tests/data/centroid_plot_expected.png"
+        )
+        if not os.path.exists(expected_plot_path):
+            pytest.fail("Missing centroid plot baseline image for comparison")
+        expected_plot = Image.open(expected_plot_path)
+
+        difference = ImageChops.difference(generated_plot, expected_plot)
+        assert difference.getbbox() is None
