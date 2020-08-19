@@ -119,9 +119,7 @@ def test_comments(driver, user, public_source):
     comment_box = driver.wait_for_xpath("//input[@name='text']")
     comment_text = str(uuid.uuid4())
     comment_box.send_keys(comment_text)
-    driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
-    )
+    driver.click_xpath('//*[@name="submitCommentButton"]')
     try:
         driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
@@ -130,9 +128,7 @@ def test_comments(driver, user, public_source):
         comment_box = driver.wait_for_xpath("//input[@name='text']")
         comment_text = str(uuid.uuid4())
         comment_box.send_keys(comment_text)
-        driver.scroll_to_element_and_click(
-            driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
-        )
+        driver.click_xpath('//*[@name="submitCommentButton"]')
         driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
 
@@ -149,15 +145,11 @@ def test_comment_groups_validation(driver, user, public_source):
     group_checkbox = driver.wait_for_xpath("//input[@name='group_ids[0]']")
     assert group_checkbox.is_selected()
     group_checkbox.click()
-    driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
-    )
+    driver.click_xpath('//*[@name="submitCommentButton"]')
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
     group_checkbox.click()
     driver.wait_for_xpath_to_disappear('//div[contains(.,"Select at least one group")]')
-    driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
-    )
+    driver.click_xpath('//*[@name="submitCommentButton"]')
     try:
         driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
@@ -179,9 +171,7 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     attachment_file.send_keys(
         pjoin(os.path.dirname(os.path.dirname(__file__)), 'data', 'spec.csv')
     )
-    driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
-    )
+    driver.click_xpath('//*[@name="submitCommentButton"]')
     try:
         comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     except TimeoutException:
@@ -190,15 +180,14 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     comment_div = comment_text_div.find_element_by_xpath("..")
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
-    download_link = driver.wait_for_xpath_to_be_clickable('//a[text()="spec.csv"]')
-    driver.execute_script("arguments[0].click();", download_link)
+    driver.click_xpath('//a[text()="spec.csv"]')
     fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'spec.csv')))
     try_count = 1
     while not os.path.exists(fpath) and try_count <= 3:
         try_count += 1
         driver.execute_script("arguments[0].scrollIntoView();", comment_div)
         ActionChains(driver).move_to_element(comment_div).perform()
-        driver.execute_script("arguments[0].click();", download_link)
+        driver.click_xpath('//a[text()="spec.csv"]')
         if os.path.exists(fpath):
             break
     else:
@@ -227,9 +216,7 @@ def test_delete_comment(driver, user, public_source):
     comment_box = driver.wait_for_xpath("//input[@name='text']")
     comment_text = str(uuid.uuid4())
     comment_box.send_keys(comment_text)
-    driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
-    )
+    driver.click_xpath('//*[@name="submitCommentButton"]')
     try:
         comment_text_div = driver.wait_for_xpath(f'//div[text()="{comment_text}"]')
     except TimeoutException:
