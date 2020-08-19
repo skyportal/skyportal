@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
+import PropTypes from "prop-types";
 import { Paper, Avatar, Tooltip } from "@material-ui/core";
 
 import dayjs from "dayjs";
@@ -19,9 +20,9 @@ const defaultPrefs = {
   numItems: "",
 };
 
-const newsFeedItem = (item) => {
+const NewsFeedItem = ({ item }) => {
   let EntryAvatar;
-  let entryUserName;
+  let entryTitle;
   // Use switch-case to make it easy to add future newsfeed types
   switch (item.type) {
     case "comment":
@@ -36,7 +37,7 @@ const newsFeedItem = (item) => {
         />
       );
       /* eslint-disable react/display-name */
-      entryUserName = item.author;
+      entryTitle = item.author;
       break;
     case "source":
       /* eslint-disable react/display-name */
@@ -56,7 +57,7 @@ const newsFeedItem = (item) => {
         </Avatar>
       );
       /* eslint-disable react/display-name */
-      entryUserName = "New source";
+      entryTitle = "New source";
       break;
     default:
       break;
@@ -69,10 +70,10 @@ const newsFeedItem = (item) => {
       elevation={2}
     >
       <Tooltip
-        title={entryUserName}
+        title={entryTitle}
         arrow
         placement="top-start"
-        classes={{ tooltip: styles.entryUserName }}
+        classes={{ tooltip: styles.entryTitle }}
       >
         <div className={styles.entryAvatar}>
           <EntryAvatar />
@@ -115,10 +116,28 @@ const NewsFeed = () => {
         />
       </div>
       <div className={styles.newsFeed} style={{ height }}>
-        {items.map((item) => newsFeedItem(item))}
+        {items.map((item) => (
+          <NewsFeedItem key={item.time} item={item} />
+        ))}
       </div>
     </div>
   );
+};
+
+NewsFeedItem.propTypes = {
+  item: PropTypes.shape({
+    type: PropTypes.string.isRequired,
+    time: PropTypes.string.isRequired,
+    message: PropTypes.string.isRequired,
+    source_id: PropTypes.string.isRequired,
+    author: PropTypes.string,
+    author_info: PropTypes.shape({
+      username: PropTypes.string.isRequired,
+      first_name: PropTypes.string,
+      last_name: PropTypes.string,
+      gravatar_url: PropTypes.string.isRequired,
+    }),
+  }).isRequired,
 };
 
 export default NewsFeed;

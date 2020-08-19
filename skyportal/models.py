@@ -490,10 +490,7 @@ def get_obj_comments_owned_by(self, user_or_token):
     # Grab basic author info for the comments
     for comment in owned_comments:
         author = User.query.filter(User.username == comment.author).first()
-        comment.author_info = {
-            field: getattr(author, field)
-            for field in ('username', 'first_name', 'last_name', 'gravatar_url')
-        }
+        comment.author_info = Comment.construct_author_info_dict(author)
 
     return owned_comments
 
@@ -741,6 +738,13 @@ class Comment(Base):
     )
 
     @classmethod
+    def construct_author_info_dict(cls, user):
+        return {
+            field: getattr(user, field)
+            for field in ('username', 'first_name', 'last_name', 'gravatar_url')
+        }
+
+    @classmethod
     def get_if_owned_by(cls, ident, user, options=[]):
         comment = cls.query.options(options).get(ident)
 
@@ -749,10 +753,7 @@ class Comment(Base):
 
         # Grab basic author info for the comment
         author = User.query.filter(User.username == comment.author).first()
-        comment.author_info = {
-            field: getattr(author, field)
-            for field in ('username', 'first_name', 'last_name', 'gravatar_url')
-        }
+        comment.author_info = Comment.construct_author_info_dict(author)
 
         return comment
 

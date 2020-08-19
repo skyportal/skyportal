@@ -44,7 +44,7 @@ class NewsFeedHandler(BaseHandler):
             n_items = 5
 
         def fetch_newest(model):
-            return (
+            newest = (
                 model.query.filter(
                     model.obj_id.in_(
                         DBSession()
@@ -61,35 +61,15 @@ class NewsFeedHandler(BaseHandler):
                 .all()
             )
 
-        def fetch_newest_comments():
-            owned_comments = (
-                Comment.query.filter(
-                    Comment.obj_id.in_(
-                        DBSession()
-                        .query(Source.obj_id)
-                        .filter(
-                            Source.group_id.in_(
-                                [g.id for g in self.current_user.accessible_groups]
-                            )
-                        )
-                    )
-                )
-                .order_by(desc(Comment.created_at or Comment.saved_at))
-                .limit(n_items)
-                .all()
-            )
+            if model == Comment:
+                for comment in newest:
+                    author = User.query.filter(User.username == comment.author).first()
+                    comment.author_info = Comment.construct_author_info_dict(author)
 
-            for comment in owned_comments:
-                author = User.query.filter(User.username == comment.author).first()
-                comment.author_info = {
-                    field: getattr(author, field)
-                    for field in ('username', 'first_name', 'last_name', 'gravatar_url')
-                }
-
-            return owned_comments
+            return newest
 
         sources = fetch_newest(Source)
-        comments = fetch_newest_comments()
+        comments = fetch_newest(Comment)
         news_feed_items = [
             {
                 'type': 'source',
