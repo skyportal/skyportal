@@ -47,6 +47,7 @@ jobs:
           git config --global user.email "ci@skyportal.org"
           git config --global user.name "SkyPortal CI"
           git merge origin/master
+          git submodule update
 
       - name: Write SkyPortal configs
         run: |
