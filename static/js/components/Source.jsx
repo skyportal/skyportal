@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
@@ -27,6 +27,10 @@ import FollowupRequestList from "./FollowupRequestList";
 
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
+
+const CentroidPlot = React.lazy(() =>
+  import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
+);
 
 const useStyles = makeStyles((theme) => ({
   chip: {
@@ -120,6 +124,15 @@ const Source = ({ route }) => {
         />
         <br />
         <br />
+        <Responsive
+          element={FoldBox}
+          title="Centroid Plot"
+          mobileProps={{ folded: true }}
+        >
+          <Suspense fallback={<div>Loading centroid plot...</div>}>
+            <CentroidPlot className={styles.plot} sourceId={source.id} />
+          </Suspense>
+        </Responsive>
         <Responsive
           element={FoldBox}
           title="Photometry"
