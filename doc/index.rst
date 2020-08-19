@@ -1,9 +1,9 @@
 SkyPortal
 ---------
 
-SkyPortal is a standalone extensible, API-first web application that
-can be used to serve public and/or private data on infrastructure that
-you manage. Tired of managing observations of thousands of sources for
+SkyPortal is a standalone, extensible, API-first web application that
+can be used to serve public and/or private astronomical data on infrastructure
+that you manage. Tired of managing observations of thousands of sources for
 you and your group in Google Docs? Got a new astronomical survey you'd
 like to serve to the public and don't want build and maintain a
 website yourself? Want a place to manage requests for observations
@@ -24,7 +24,7 @@ environment? Then this project may be for you!
 .. |joss| image:: http://joss.theoj.org/papers/10.21105/joss.01247/status.svg
    :target: https://github.com/skyportal/skyportal/workflows/Test%20SkyPortal/badge.svg
 
-.. image:: ../static/images/skyportal_responsive.jpg
+.. image:: ../static/images/skyportal_responsive.png
    :alt: SkyPortal
 
 SkyPortal is a fully open-source portal to manage and collaborate on
@@ -32,10 +32,7 @@ time-domain sources and events. On the backend, it has been designed
 to ingest and store millions of events per night from disparate
 discovery streams. The frontend allows searching by source properties,
 source-level summary pages, synchronous and asynchronous source-level
-communication, and group and user management. It also contemplates
-headless bi-directional interactions with 3rd-party programmatic
-enrichment tools: webhooks and APIs allow, for instance,
-machine-learning classifiers to opine on new events as they arrive.
+communication, and group and user management.
 
 By design SkyPortal makes use of hierarchical access control,
 frontend/backend abstractions with strong API contracts, elastic
