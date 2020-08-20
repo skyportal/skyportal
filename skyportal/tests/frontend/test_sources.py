@@ -100,7 +100,7 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.move_to(classification)
 
     del_button_xpath = "//button[starts-with(@name, 'deleteClassificationButton')]"
-    del_button = driver.wait_for_xpath_to_appear(del_button_xpath)
+    del_button = driver.wait_for_xpath(del_button_xpath)
     driver.move_to(del_button)
     driver.click_xpath(del_button_xpath)
     driver.wait_for_xpath_to_disappear("//*[contains(text(), '(P=1)')]")
