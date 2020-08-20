@@ -4,5 +4,4 @@ numpydoc
 sphinx-rtd-theme
 notedown
 jsx-lexer
-graphviz
 eralchemy==1.2.10
