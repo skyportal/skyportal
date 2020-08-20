@@ -13,15 +13,12 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
 import os
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 # sys.path.insert(0, os.path.abspath('.'))
-
-sys.path.insert(0, os.path.abspath('..'))
 
 # -- General configuration ------------------------------------------------
 
@@ -34,7 +31,7 @@ sys.path.insert(0, os.path.abspath('..'))
 extensions = [
     'recommonmark',
     'sphinx.ext.mathjax',
-    'sphinx.ext.autodoc',
+    #    'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     #    'sphinx.ext.pngmath',
     #    'numpydoc',
@@ -60,8 +57,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'skyportal'
-copyright = '2020, The skyportal Team'
-author = 'The skyportal Team'
+copyright = '2020 The SkyPortal Team'
+author = 'The SkyPortal Team'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -139,7 +136,7 @@ if not on_rtd:  # only import and set the theme if we're building docs locally
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-# html_theme_options = {}
+html_theme_options = {'logo_only': True}
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
@@ -153,7 +150,7 @@ if not on_rtd:  # only import and set the theme if we're building docs locally
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-# html_logo = None
+html_logo = '../static/images/skyportal_logo_docs.png'
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
