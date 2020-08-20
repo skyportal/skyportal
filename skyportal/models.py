@@ -1082,7 +1082,7 @@ class Taxonomy(Base):
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
         order_by="Classification.created_at",
-        docs="Classifications made within this Taxonomy.",
+        doc="Classifications made within this Taxonomy.",
     )
 
 
