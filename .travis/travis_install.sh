@@ -7,7 +7,7 @@ section "install.base.requirements"
 # Install v1.7 or newer of nginx to support 'if' statement for logging
 sudo apt-add-repository -y ppa:nginx/stable
 sudo apt update
-sudo apt install -y nginx firefox graphviz
+sudo apt install -y nginx firefox graphviz-dev
 
 nginx -v
 firefox --version
