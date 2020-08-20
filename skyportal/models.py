@@ -304,32 +304,17 @@ class Obj(Base, ha.Point):
         coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
         return astroplan.FixedTarget(name=self.id, coord=coord)
 
-    @hybrid_property
+    @property
     def gal_lat(self):
         """Get the galactic latitute of this object"""
         coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
         return coord.galactic.b.deg
 
-    @gal_lat.expression
-    def gal_lat(cls):
-        ra_array = DBSession.query(cls.ra).all()
-        dec_array = DBSession.query(cls.dec).all()
-        coords = ap_coord.SkyCoord(ra_array, dec_array, unit="deg")
-        return coords.galactic.b.deg
-
-    @hybrid_property
+    @property
     def gal_lon(self):
         """Get the galactic longitude of this object"""
         coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
         return coord.galactic.l.deg
-
-    @gal_lon.expression
-    def gal_lon(cls):
-        ra_array = DBSession.query(cls.ra).all()
-        dec_array = DBSession.query(cls.dec).all()
-        coords = ap_coord.SkyCoord(ra_array, dec_array, unit="deg")
-        # return sa.orm.query.Query(coords.galactic.l.deg).label("gal_lon")
-        return coords.galactic.l.deg
 
     def airmass(self, telescope, time, below_horizon=np.inf):
         """Return the airmass of the object at a given time. Uses the Pickering
