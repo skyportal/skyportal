@@ -39,15 +39,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
-          fetch-depth: 0
           submodules: true
-
-      - name: Merge with master
-        run: |
-          git config --global user.email "ci@skyportal.org"
-          git config --global user.name "SkyPortal CI"
-          git merge origin/master
-          git submodule update
 
       - name: Write SkyPortal configs
         run: |
