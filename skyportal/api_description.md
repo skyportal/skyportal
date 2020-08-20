@@ -1,5 +1,5 @@
 SkyPortal provides an API to access most of its underlying
-functionality. To begin to use it, you will need an API token. This
+functionality. To use it, you will need an API token. This
 can be generated via the web application from your profile page or, if
 you are an admin, you may use the system provisioned token stored
 inside of `.tokens.yaml`.
