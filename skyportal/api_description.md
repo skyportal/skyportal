@@ -28,13 +28,6 @@ if response.status_code in (200, 400):
     print(f'JSON response: {response.json()}')
 ```
 
-For example, if the server is running, this should yield:
-
-```
-HTTP code: 200, OK
-JSON response: {'status': 'success', 'data': {}, 'version': '0.9.dev0+git20200819.84c453a'}
-```
-
 #### Command line (curl)
 
 ```shell
@@ -44,10 +37,15 @@ curl -s -H 'Authorization: token ea70a5f0-b321-43c6-96a1-b2de225e0339' http://lo
 ### Response
 
 In the above examples, the SkyPortal server is located at
-`http://localhost:5000`. The HTTP response is 200 on
-success and 400 on failure. In case of failure, the response packet
-has `status="error"` and the reason for the failure in `message`.
-For example:
+`http://localhost:5000`. In case of success, the HTTP response is 200:
+
+```
+HTTP code: 200, OK
+JSON response: {'status': 'success', 'data': {}, 'version': '0.9.dev0+git20200819.84c453a'}
+```
+
+On failure, it is 400; the JSON response has `status="error"` with the reason
+for the failure given in `message`:
 
 ```js
 {
