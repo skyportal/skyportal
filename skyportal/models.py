@@ -315,7 +315,7 @@ class Obj(Base, ha.Point):
         ra_array = DBSession.query(cls.ra).all()
         dec_array = DBSession.query(cls.dec).all()
         coords = ap_coord.SkyCoord(ra_array, dec_array, unit="deg")
-        return sa.orm.query.Query(coords.galactic.b.deg).label("gal_lat")
+        return coords.galactic.b.deg
 
     @hybrid_property
     def gal_lon(self):
@@ -328,7 +328,8 @@ class Obj(Base, ha.Point):
         ra_array = DBSession.query(cls.ra).all()
         dec_array = DBSession.query(cls.dec).all()
         coords = ap_coord.SkyCoord(ra_array, dec_array, unit="deg")
-        return sa.orm.query.Query(coords.galactic.l.deg).label("gal_lon")
+        # return sa.orm.query.Query(coords.galactic.l.deg).label("gal_lon")
+        return coords.galactic.l.deg
 
     def airmass(self, telescope, time, below_horizon=np.inf):
         """Return the airmass of the object at a given time. Uses the Pickering
