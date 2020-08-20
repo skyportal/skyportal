@@ -49,7 +49,7 @@ GitHub <https://github.com/skyportal/skyportal>`_:
 
 .. code-block:: bash
 
-  $ git clone git@github.com:skyportal/skyportal.git
+  $ git clone --recurse-submodules git@github.com:skyportal/skyportal.git
 
 then install the `system dependencies <./setup.html#dependencies>`_. From the
 ``skyportal`` directory, run
