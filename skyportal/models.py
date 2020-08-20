@@ -489,8 +489,7 @@ def get_obj_comments_owned_by(self, user_or_token):
 
     # Grab basic author info for the comments
     for comment in owned_comments:
-        author = User.query.filter(User.username == comment.author).first()
-        comment.author_info = Comment.construct_author_info_dict(author)
+        comment.author_info = comment.construct_author_info_dict()
 
     return owned_comments
 
@@ -737,8 +736,8 @@ class Comment(Base):
         passive_deletes=True,
     )
 
-    @classmethod
-    def construct_author_info_dict(cls, user):
+    def construct_author_info_dict(self):
+        user = User.query.filter(User.username == self.author).first()
         return {
             field: getattr(user, field)
             for field in ('username', 'first_name', 'last_name', 'gravatar_url')
@@ -752,8 +751,7 @@ class Comment(Base):
             raise AccessError('Insufficient permissions.')
 
         # Grab basic author info for the comment
-        author = User.query.filter(User.username == comment.author).first()
-        comment.author_info = Comment.construct_author_info_dict(author)
+        comment.author_info = comment.construct_author_info_dict()
 
         return comment
 

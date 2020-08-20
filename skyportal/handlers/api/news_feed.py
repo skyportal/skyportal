@@ -1,7 +1,7 @@
 from sqlalchemy import desc
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, Comment, User
+from ...models import DBSession, Source, Comment
 
 
 class NewsFeedHandler(BaseHandler):
@@ -63,8 +63,7 @@ class NewsFeedHandler(BaseHandler):
 
             if model == Comment:
                 for comment in newest:
-                    author = User.query.filter(User.username == comment.author).first()
-                    comment.author_info = Comment.construct_author_info_dict(author)
+                    comment.author_info = comment.construct_author_info_dict()
 
             return newest
 
