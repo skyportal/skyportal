@@ -26,7 +26,6 @@ def test_public_source_page(driver, user, public_source, public_group):
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
-@pytest.mark.flaky(reruns=3)
 def test_classifications(driver, user, taxonomy_token, public_group, public_source):
 
     simple = {
@@ -98,10 +97,11 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.scroll_to_element(add_comments)
 
     del_button_xpath = "//button[starts-with(@name, 'deleteClassificationButton')]"
+    driver.scroll_to_element(driver.wait_for_xpath(del_button_xpath))
     ActionChains(driver).move_to_element(
         driver.wait_for_xpath(del_button_xpath)
     ).perform()
-    driver.click_xpath(del_button_xpath, wait_clickable=False)
+    driver.click_xpath(del_button_xpath)
     driver.wait_for_xpath_to_disappear("//*[contains(text(), '(P=1)')]")
     driver.wait_for_xpath_to_disappear(f"//i[text()='{tax_name}']")
     driver.wait_for_xpath_to_disappear(
