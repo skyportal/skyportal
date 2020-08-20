@@ -97,14 +97,12 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.scroll_to_element(add_comments)
 
     classification = driver.wait_for_xpath('//span[contains(., "Symmetrical")]')
-    driver.scroll_to_element(classification)
-    ActionChains(driver).move_to_element(classification).perform()
+    driver.move_to(classification)
 
     del_button_xpath = "//button[starts-with(@name, 'deleteClassificationButton')]"
     del_button = driver.wait_for_xpath(del_button_xpath)
-    driver.scroll_to_element(del_button)
-    ActionChains(driver).move_to_element(del_button).perform()
-    driver.click_xpath(del_button_xpath, wait_clickable=False)
+    driver.move_to(del_button)
+    driver.click_xpath(del_button_xpath)
     driver.wait_for_xpath_to_disappear("//*[contains(text(), '(P=1)')]")
     driver.wait_for_xpath_to_disappear(f"//i[text()='{tax_name}']")
     driver.wait_for_xpath_to_disappear(
