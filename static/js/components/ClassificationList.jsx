@@ -127,6 +127,7 @@ const ClassificationList = () => {
                 dispatch(sourceActions.deleteClassification(id));
               }}
               className={styles.classificationDelete}
+              disableFocusRipple
             >
               🗑
             </Button>
