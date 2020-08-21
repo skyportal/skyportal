@@ -5,10 +5,19 @@ import RecentSources from "./RecentSources";
 import GroupList from "./GroupList";
 import NewsFeed from "./NewsFeed";
 import TopSources from "./TopSources";
+import UninitializedDBMessage from "./UninitializedDBMessage";
 import styles from "./HomePage.css";
 
 const HomePage = () => {
   const groups = useSelector((state) => state.groups.user);
+
+  const sourceTableEmpty = useSelector(
+    (state) => state.dbInfo.source_table_empty
+  );
+  if (sourceTableEmpty) {
+    return <UninitializedDBMessage />;
+  }
+
   return (
     <div>
       <div className={styles.homePageWidgetDiv}>
