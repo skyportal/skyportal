@@ -1,4 +1,5 @@
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.action_chains import ActionChains
 
 
 def test_share_data(
@@ -12,8 +13,11 @@ def test_share_data(
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.click_xpath('//*[text()="Share data"]')
+    table_select_xpath = '//*[@id="MUIDataTableSelectCell-0"]'
+    table_select = driver.wait_for_xpath(table_select_xpath)
+    driver.move_to(table_select)
     driver.wait_for_xpath(f"//div[text()='{public_group.name}']", 15)
-    driver.click_xpath('//*[@id="MUIDataTableSelectCell-0"]', wait_clickable=False)
+    ActionChains(driver).click().perform()
     driver.click_xpath('//*[@id="dataSharingFormGroupsSelect"]')
     driver.click_xpath(f'//li[text()="{public_group2.name}"]')
     driver.click_xpath('//*[text()="Submit"]')
