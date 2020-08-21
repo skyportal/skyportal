@@ -40,9 +40,11 @@ print("Setting test database to:", cfg["database"])
 models.init_db(**cfg["database"])
 
 # Add a "test factory" User so that all factory-generated comments have a
-# proper author
-DBSession.add(User(username="test factory"))
-DBSession.commit()
+# proper author, if it doesn't already exist (the user may already be in
+# there if running the test server and running tests individually)
+if not DBSession.query(User).filter(User.username == "test factory").scalar():
+    DBSession.add(User(username="test factory"))
+    DBSession.commit()
 
 
 def pytest_runtest_setup(item):
