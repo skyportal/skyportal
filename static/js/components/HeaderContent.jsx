@@ -5,7 +5,6 @@ import Box from "@material-ui/core/Box";
 import Responsive from "./Responsive";
 import ProfileDropdown from "./ProfileDropdown";
 import Logo from "./Logo";
-import QuickSearchBar from "./QuickSearchBar";
 
 import styles from "./Main.css";
 
@@ -17,7 +16,6 @@ const HeaderContent = () => (
         SkyPortal
       </Link>
       <Box p={2} />
-      <QuickSearchBar id="search" />
     </div>
     <div style={{ position: "fixed", right: "1rem", top: "1rem" }}>
       <Responsive desktopElement={ProfileDropdown} />

@@ -19,6 +19,7 @@ import {{ item.icon }}Icon from "@material-ui/icons/{{ item.icon }}";
 {% endfor %}
 import MenuIcon from "@material-ui/icons/Menu";
 
+import QuickSearchBar from "./QuickSearchBar";
 import HeaderContent from "./HeaderContent";
 import * as Actions from "../ducks/sidebar";
 
@@ -141,6 +142,8 @@ const SidebarAndHeader = ({ open }) => {
 
           {%- endfor %}
         </List>
+
+        <QuickSearchBar id="search" />
       </Drawer>
     </>
   );
