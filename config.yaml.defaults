@@ -45,7 +45,7 @@ app:
       url: /
 
     - name: Sources
-      icone: PhotoLibraryIcon
+      icon: PhotoLibrary
       url: /sources
 
     - name: Candidates

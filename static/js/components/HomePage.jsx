@@ -1,7 +1,7 @@
 import React from "react";
 import { useSelector } from "react-redux";
 
-import SourceList from "./SourceList";
+import RecentSources from "./RecentSources";
 import GroupList from "./GroupList";
 import NewsFeed from "./NewsFeed";
 import TopSources from "./TopSources";
@@ -12,7 +12,7 @@ const HomePage = () => {
   return (
     <div>
       <div className={styles.homePageWidgetDiv}>
-        <SourceList />
+        <RecentSources />
       </div>
       <div className={styles.homePageWidgetDiv}>
         <NewsFeed />
