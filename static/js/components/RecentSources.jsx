@@ -27,7 +27,7 @@ const RecentSources = () => {
     useSelector((state) => state.profile.preferences.recentSources) ||
     defaultPrefs;
 
-  const SourcesList = ({ sources }) => {
+  const RecentSourcesList = ({ sources }) => {
     return sources.length === 0 ? (
       <div>Loading recent sources...</div>
     ) : (
@@ -81,14 +81,14 @@ const RecentSources = () => {
     );
   };
 
-  SourcesList.propTypes = {
+  RecentSourcesList.propTypes = {
     sources: PropTypes.arrayOf(
       PropTypes.shape({
         obj_id: PropTypes.string.isRequired,
         ra: PropTypes.number,
         dec: PropTypes.number,
         created_at: PropTypes.string.isRequired,
-        public_url: PropTypes.string.isRequired,
+        public_url: PropTypes.string,
         classifications: PropTypes.arrayOf(
           PropTypes.shape({
             author_name: PropTypes.string,
@@ -117,7 +117,7 @@ const RecentSources = () => {
           onSubmit={profileActions.updateUserPreferences}
         />
       </div>
-      <SourcesList sources={recentSources} />
+      <RecentSourcesList sources={recentSources} />
     </div>
   );
 };
