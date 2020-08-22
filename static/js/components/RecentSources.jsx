@@ -35,16 +35,6 @@ const RecentSources = () => {
       <div>
         <ul className={styles.recentSourceList}>
           {sources.map((source) => {
-            // Add highest probability classification to the name
-            let recentSourceName = `${source.obj_id}`;
-            if (source.classifications.length > 0) {
-              const highestProbClassification = source.classifications.sort(
-                (a, b) => b.probability - a.probability
-              )[0].classification;
-
-              recentSourceName += ` (${highestProbClassification})`;
-            }
-
             return (
               <li key={`recentSources_${source.obj_id}`}>
                 <div className={styles.recentSourceItemWithButton}>
@@ -62,7 +52,7 @@ const RecentSources = () => {
                     <div className={styles.recentSourceInfo}>
                       <span className={styles.recentSourceName}>
                         <Link to={`/source/${source.obj_id}`}>
-                          {recentSourceName}
+                          {`${source.obj_id}`}
                         </Link>
                       </span>
                       <span>
