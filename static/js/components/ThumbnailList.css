@@ -1,5 +1,6 @@
 .ThumbnailList {
-  display: inline-block;
+  display: flex;
+  flex-flow: row nowrap;
 }
 
 .Thumbnail {

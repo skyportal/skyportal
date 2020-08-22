@@ -11,6 +11,7 @@ import { ra_to_hours, dec_to_hours } from "../units";
 
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
+import SourceQuickView from "./SourceQuickView";
 
 import styles from "./RecentSources.css";
 
@@ -33,49 +34,57 @@ const RecentSources = () => {
     ) : (
       <div>
         <ul className={styles.recentSourceList}>
-          {sources.map(
-            ({ obj_id, ra, dec, created_at, public_url, classifications }) => {
-              // Add highest probability classification to the name
-              let recentSourceName = `${obj_id}`;
-              if (classifications.length > 0) {
-                const highestProbClassification = classifications.sort(
-                  (a, b) => b.probability - a.probability
-                )[0].classification;
+          {sources.map((source) => {
+            // Add highest probability classification to the name
+            let recentSourceName = `${source.obj_id}`;
+            if (source.classifications.length > 0) {
+              const highestProbClassification = source.classifications.sort(
+                (a, b) => b.probability - a.probability
+              )[0].classification;
 
-                recentSourceName += ` (${highestProbClassification})`;
-              }
+              recentSourceName += ` (${highestProbClassification})`;
+            }
 
-              return (
-                <li key={`recentSources_${obj_id}`}>
+            return (
+              <li key={`recentSources_${source.obj_id}`}>
+                <div className={styles.recentSourceItemWithButton}>
                   <div className={styles.recentSourceItem}>
                     <Link
-                      to={`/source/${obj_id}`}
+                      to={`/source/${source.obj_id}`}
                       className={styles.stampContainer}
                     >
                       <img
                         className={styles.stamp}
-                        src={public_url}
-                        alt={obj_id}
+                        src={source.public_url}
+                        alt={source.obj_id}
                       />
                     </Link>
                     <div className={styles.recentSourceInfo}>
                       <span className={styles.recentSourceName}>
-                        <Link to={`/source/${obj_id}`}>{recentSourceName}</Link>
+                        <Link to={`/source/${source.obj_id}`}>
+                          {recentSourceName}
+                        </Link>
                       </span>
                       <span>
-                        {`\u03B1, \u03B4: ${ra_to_hours(ra)} ${dec_to_hours(
-                          dec
-                        )}`}
+                        {`\u03B1, \u03B4: ${ra_to_hours(
+                          source.ra
+                        )} ${dec_to_hours(source.dec)}`}
                       </span>
                     </div>
                     <div className={styles.recentSourceTime}>
-                      <span>{dayjs().to(dayjs.utc(`${created_at}Z`))}</span>
+                      <span>
+                        {dayjs().to(dayjs.utc(`${source.created_at}Z`))}
+                      </span>
                     </div>
                   </div>
-                </li>
-              );
-            }
-          )}
+                  <SourceQuickView
+                    sourceId={source.obj_id}
+                    className={styles.quickViewButton}
+                  />
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </div>
     );

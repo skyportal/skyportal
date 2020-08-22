@@ -18,10 +18,7 @@
   border-style: solid;
   border-width: 1px;
   border-color: #ddd;
-  padding-top: 10px;
-  padding-right: 10px;
-  padding-bottom: 10px;
-  padding-left: 10px;
+  padding: 10px;
 }
 
 .recentSourceList {
@@ -34,10 +31,8 @@
 .recentSourceItem {
   display: flex;
   flex-flow: row nowrap;
-  /* justify-content: space-around; */
   align-items: center;
-  margin-bottom: 15px;
-  margin-left: 10px;
+  padding: 10px;
 }
 
 .recentSourceInfo {
@@ -52,4 +47,31 @@
 
 .recentSourceTime {
   color: gray;
+}
+
+.quickViewButton {
+  visibility: hidden;
+  display: none;
+}
+
+.recentSourceItemWithButton {
+  transition: all 0.3s ease;
+}
+
+.recentSourceItemWithButton:hover {
+  background-color: #ddd;
+}
+
+.recentSourceItemWithButton:hover .quickViewButton {
+  visibility: visible;
+  display: block;
+}
+
+.recentSourceItemWithButton {
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: center;
+  margin-bottom: 15px;
+  margin-left: 10px;
+  align-items: center;
 }

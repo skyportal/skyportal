@@ -1,0 +1,34 @@
+.textContent {
+  margin-top: 15px;
+  font-size: 1.2em;
+}
+
+.textContentItem {
+  padding: 6px 0px;
+}
+
+.chip {
+  margin: 0.5em;
+}
+
+.dialogContent img {
+  width: 80%;
+  height: 80%;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+  font-weight: 500;
+  line-height: 1.6;
+  letter-spacing: 0.0075em;
+}
+
+.dialogContent {
+  padding: 15px;
+}
+
+.sourceLinkButton {
+  margin-top: 15px;
+  float: right;
+}
