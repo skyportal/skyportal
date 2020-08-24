@@ -143,12 +143,12 @@ def test_comment_groups_validation(driver, user, public_source):
     comment_text = str(uuid.uuid4())
     comment_box.send_keys(comment_text)
     driver.wait_for_xpath("//*[text()='Customize Group Access']").click()
-    group_checkbox = driver.wait_for_xpath("//input[@name='group_ids[0]']")
-    assert group_checkbox.is_selected()
-    group_checkbox.click()
+    group_checkbox_xpath = "//input[@name='group_ids[0]']"
+    assert driver.wait_for_xpath(group_checkbox_xpath).is_selected()
+    driver.click_xpath(group_checkbox_xpath, wait_clickable=False)
     driver.click_xpath('//*[@name="submitCommentButton"]')
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
-    group_checkbox.click()
+    driver.click_xpath(group_checkbox_xpath, wait_clickable=False)
     driver.wait_for_xpath_to_disappear('//div[contains(.,"Select at least one group")]')
     driver.click_xpath('//*[@name="submitCommentButton"]')
     try:
