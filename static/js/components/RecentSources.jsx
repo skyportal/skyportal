@@ -19,7 +19,7 @@ dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const defaultPrefs = {
-  maxNumSources: "5",
+  maxNumSources: "",
 };
 
 const RecentSources = () => {

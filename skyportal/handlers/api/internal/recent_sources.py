@@ -5,7 +5,7 @@ from ...base import BaseHandler
 from ....models import DBSession, Obj, Source
 
 
-default_prefs = {'maxNumSources': 10}
+default_prefs = {'maxNumSources': 5}
 
 
 class RecentSourcesHandler(BaseHandler):
