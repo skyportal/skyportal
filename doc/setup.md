@@ -86,7 +86,7 @@ sudo service postgresql restart
 
 4. To build the docs, you'll need graphviz:
 ```
-sudo apt install graphviz-dev
+sudo apt install graphviz-dev graphviz
 ```
 
 ## Launch
