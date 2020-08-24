@@ -1,5 +1,6 @@
-from selenium.webdriver.common.keys import Keys
 import uuid
+import pytest
+from selenium.webdriver.common.keys import Keys
 
 
 def test_public_groups_list(driver, user, public_group):
@@ -31,6 +32,7 @@ def test_add_new_group(driver, super_admin_user, user):
     driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
     test_proj_name = str(uuid.uuid4())
     driver.get(f'/become_user/{super_admin_user.id}')  # TODO decorator/context manager?
@@ -42,7 +44,7 @@ def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
         super_admin_user.username
     )
     driver.save_screenshot('/tmp/screenshot1.png')
-    driver.wait_for_xpath('//input[@value="Create Group"]').click()
+    driver.click_xpath('//input[@value="Create Group"]')
     driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
 
