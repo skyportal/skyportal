@@ -34,7 +34,7 @@ def test_recent_sources(driver, user, public_source, public_group, upload_data_t
         "static-js-components-RecentSources__recentSourceItemWithButton"
     )
     recent_source_item = driver.wait_for_xpath(
-        f'//div[starts-with(@class, "{recent_source_class}")][.//span[text()="a few seconds ago"]][.//a[text()="{obj_id}"]]'
+        f'//div[starts-with(@class, "{recent_source_class}")][.//span[text()="a few seconds ago"]][.//a[contains(text(), "{obj_id}")]]'
     )
 
     # Hover over item to see quick view button and click it

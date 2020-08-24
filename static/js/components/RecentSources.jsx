@@ -35,6 +35,19 @@ const RecentSources = () => {
       <div>
         <ul className={styles.recentSourceList}>
           {sources.map((source) => {
+            // Display the most recent non-zero probability class
+            const filteredClasses = source.classifications.filter(
+              (i) => i.probability > 0
+            );
+            const sortedClasses = filteredClasses.sort((a, b) =>
+              a.modified < b.modified ? 1 : -1
+            );
+
+            let recentSourceName = `${source.obj_id}`;
+            if (filteredClasses.length > 0) {
+              recentSourceName += ` (${sortedClasses[0].classification})`;
+            }
+
             return (
               <li key={`recentSources_${source.obj_id}`}>
                 <div className={styles.recentSourceItemWithButton}>
@@ -52,7 +65,7 @@ const RecentSources = () => {
                     <div className={styles.recentSourceInfo}>
                       <span className={styles.recentSourceName}>
                         <Link to={`/source/${source.obj_id}`}>
-                          {`${source.obj_id}`}
+                          {`${recentSourceName}`}
                         </Link>
                       </span>
                       <span>
