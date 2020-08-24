@@ -157,7 +157,7 @@ GroupUser.admin = sa.Column(
     sa.Boolean,
     nullable=False,
     default=False,
-    doc="Boolean flag indicating whether the User " "is an admin of the group.",
+    doc="Boolean flag indicating whether the User is an admin of the group.",
 )
 
 
