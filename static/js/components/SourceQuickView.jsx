@@ -67,7 +67,7 @@ const getDialogContentDiv = (source, isCached, taxonomyList) => {
   }
 
   return (
-    <div className={styles.dialogContent}>
+    <div id="source-quick-view-dialog-content" className={styles.dialogContent}>
       <ThumbnailList
         ra={source.ra}
         dec={source.dec}
@@ -82,10 +82,8 @@ const getDialogContentDiv = (source, isCached, taxonomyList) => {
           <b>Position (J2000):</b>
           &nbsp;
           <br />
-          {source.ra}, &nbsp;
-          {source.dec}
-          &nbsp; (&alpha;, &delta; ={ra_to_hours(source.ra)}, &nbsp;
-          {dec_to_hours(source.dec)})
+          {source.ra}, {source.dec} (&alpha;, &delta; =&nbsp;
+          {ra_to_hours(source.ra)}, {dec_to_hours(source.dec)})
         </div>
         <div className={styles.textContentItem}>
           <b>Redshift: &nbsp;</b>
@@ -150,9 +148,7 @@ const SourceQuickView = ({ sourceId, className }) => {
           QUICK VIEW
         </Button>
         <Dialog open={open} onClose={handleClose} style={{ position: "fixed" }}>
-          <DialogTitle id="customized-dialog-title" onClose={handleClose}>
-            {source.id}
-          </DialogTitle>
+          <DialogTitle onClose={handleClose}>{source.id}</DialogTitle>
           <DialogContent dividers>
             {getDialogContentDiv(source, isCached, taxonomyList)}
           </DialogContent>

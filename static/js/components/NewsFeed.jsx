@@ -17,7 +17,7 @@ dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const defaultPrefs = {
-  numItems: "",
+  numItems: "5",
 };
 
 const NewsFeedItem = ({ item }) => {

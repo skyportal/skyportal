@@ -153,7 +153,7 @@ def test_comment_groups_validation(driver, user, public_source):
         driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
     )
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
-    group_checkbox.click()
+    driver.scroll_to_element_and_click(group_checkbox)
     driver.wait_for_xpath_to_disappear('//div[contains(.,"Select at least one group")]')
     driver.scroll_to_element_and_click(
         driver.find_element_by_xpath('//*[@name="submitCommentButton"]')

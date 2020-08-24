@@ -90,7 +90,27 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
 
 
 @pytest.mark.flaky(reruns=2)
-def test_jump_to_page_invalid_values(driver):
+def test_jump_to_page_invalid_values(driver, user, public_group, upload_data_token):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'sources',
+        data={
+            'id': f'{obj_id}_0',
+            'ra': 234.22,
+            'dec': -22.33,
+            'redshift': 3,
+            'altdata': {'simbad': {'class': 'RRLyr'}},
+            'transient': False,
+            'ra_dis': 2.3,
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['data']['id'] == f'{obj_id}_0'
+
+    driver.get(f"/become_user/{user.id}")
     driver.get('/sources')
     jump_to_page_input = driver.wait_for_xpath("//input[@name='jumpToPageInputField']")
     jump_to_page_input.clear()

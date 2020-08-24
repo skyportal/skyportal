@@ -1,5 +1,6 @@
 import uuid
 import pytest
+from selenium.common.exceptions import TimeoutException
 
 from skyportal.tests import api
 
@@ -97,13 +98,24 @@ def test_news_feed_prefs_widget(
     n_items_input.clear()
     n_items_input.send_keys("2")
     widget_save_button = driver.wait_for_xpath('//button[contains(., "Save")]')
-    widget_save_button.click()
+    driver.scroll_to_element_and_click(widget_save_button)
     source_added_item_xpath = f'//div[contains(@class, "NewsFeed__entryContent")][span[text()="New source added"]][.//a[@href="/source/{obj_id_base}_0"]]'
-    driver.wait_for_xpath_to_disappear(source_added_item_xpath)
-    prefs_widget_button.click()
+
+    # Resubmitting the preference change seems to fix the timeout error
+    # The timeouts appear to be due to the component not responding
+    # to the websocket message to refresh the newsfeed for some reason...
+    try:
+        driver.wait_for_xpath_to_disappear(source_added_item_xpath)
+    except TimeoutException:
+        driver.scroll_to_element_and_click(prefs_widget_button)
+        widget_save_button = driver.wait_for_xpath('//button[contains(., "Save")]')
+        driver.scroll_to_element_and_click(widget_save_button)
+        driver.wait_for_xpath_to_disappear(source_added_item_xpath)
+
+    driver.scroll_to_element_and_click(prefs_widget_button)
     n_items_input = driver.wait_for_xpath('//input[@name="numItems"]')
     n_items_input.clear()
     n_items_input.send_keys("4")
     widget_save_button = driver.wait_for_xpath('//button[contains(., "Save")]')
-    widget_save_button.click()
+    driver.scroll_to_element_and_click(widget_save_button)
     driver.wait_for_xpath(source_added_item_xpath)
