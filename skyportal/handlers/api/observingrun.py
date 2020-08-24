@@ -42,7 +42,7 @@ class ObservingRunHandler(BaseHandler):
             rund = ObservingRunPost.load(data)
         except ValidationError as exc:
             return self.error(
-                "Invalid/missing parameters: " f"{exc.normalized_messages()}"
+                f"Invalid/missing parameters: {exc.normalized_messages()}"
             )
 
         run = ObservingRun(**rund)
@@ -175,14 +175,12 @@ class ObservingRunHandler(BaseHandler):
         current_user_id = self.associated_user_object.id
 
         if orun.owner_id != current_user_id and not is_superadmin:
-            return self.error(
-                "Only the owner of an observing run can modify " "the run."
-            )
+            return self.error("Only the owner of an observing run can modify the run.")
         try:
             new_params = ObservingRunPost.load(data, partial=True)
         except ValidationError as exc:
             return self.error(
-                "Invalid/missing parameters: " f"{exc.normalized_messages()}"
+                f"Invalid/missing parameters: {exc.normalized_messages()}"
             )
 
         for param in new_params:
@@ -221,9 +219,7 @@ class ObservingRunHandler(BaseHandler):
         current_user_id = self.associated_user_object.id
 
         if run.owner_id != current_user_id and not is_superadmin:
-            return self.error(
-                "Only the owner of an observing run can modify " "the run."
-            )
+            return self.error("Only the owner of an observing run can modify the run.")
 
         DBSession().query(ObservingRun).filter(ObservingRun.id == run_id).delete()
         DBSession().commit()
