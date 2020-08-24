@@ -82,7 +82,9 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.click_xpath('//div[@id="tax-select"]')
-    driver.click_xpath(f'//*[text()="{tax_name} ({tax_version})"]')
+    driver.click_xpath(
+        f'//*[text()="{tax_name} ({tax_version})"]', wait_clickable=False
+    )
     driver.click_xpath('//*[@id="classification"]')
     driver.wait_for_xpath('//*[@id="classification"]').send_keys(
         "Symmetrical", Keys.ENTER
