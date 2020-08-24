@@ -9,32 +9,36 @@ default_prefs = {'maxNumSources': 10}
 
 
 class RecentSourcesHandler(BaseHandler):
-    @auth_or_token
-    def get(self):
-        user_prefs = getattr(self.current_user, 'preferences', None) or {}
+    @classmethod
+    def get_recent_source_ids(self, current_user):
+        user_prefs = getattr(current_user, 'preferences', None) or {}
         recent_sources_prefs = user_prefs.get('recentSources', {})
         recent_sources_prefs = {**default_prefs, **recent_sources_prefs}
 
         max_num_sources = int(recent_sources_prefs['maxNumSources'])
-
         query_results = (
             Obj.query.filter(
                 Obj.id.in_(
                     DBSession()
                     .query(Source.obj_id)
-                    .filter(
-                        Source.group_id.in_([g.id for g in self.current_user.groups])
-                    )
+                    .filter(Source.group_id.in_([g.id for g in current_user.groups]))
                 )
             )
             .order_by(desc('created_at'))
             .limit(max_num_sources)
-        ).all()
+            .all()
+        )
+        ids = map(lambda obj: obj.id, query_results)
+        return ids
+
+    @auth_or_token
+    def get(self):
+        query_results = RecentSourcesHandler.get_recent_source_ids(self.current_user)
 
         sources = []
-        for obj in query_results:
+        for obj_id in query_results:
             s = Source.get_obj_if_owned_by(  # Returns Source.obj
-                obj.id,
+                obj_id,
                 self.current_user,
                 options=[joinedload(Source.obj).joinedload(Obj.thumbnails)],
             )

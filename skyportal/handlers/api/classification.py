@@ -2,6 +2,7 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Source, Group, Classification, Taxonomy
+from .internal.recent_sources import RecentSourcesHandler
 
 
 class ClassificationHandler(BaseHandler):
@@ -157,6 +158,10 @@ class ClassificationHandler(BaseHandler):
         self.push_all(
             action='skyportal/REFRESH_SOURCE', payload={'obj_id': classification.obj_id}
         )
+        if classification.obj_id in RecentSourcesHandler.get_recent_source_ids(
+            self.current_user
+        ):
+            self.push_all(action='skyportal/FETCH_RECENT_SOURCES')
         return self.success(data={'classification_id': classification.id})
 
     @permissions(['Classify'])
@@ -228,6 +233,9 @@ class ClassificationHandler(BaseHandler):
             c.groups = groups
         DBSession().commit()
         self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_id': c.obj_id})
+        if c.obj_id in RecentSourcesHandler.get_recent_source_ids(self.current_user):
+            self.push_all(action='skyportal/FETCH_RECENT_SOURCES')
+
         return self.success()
 
     @permissions(['Classify'])
@@ -260,4 +268,8 @@ class ClassificationHandler(BaseHandler):
         else:
             return self.error('Insufficient user permissions.')
         self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_id': obj_id})
+
+        if obj_id in RecentSourcesHandler.get_recent_source_ids(self.current_user):
+            self.push_all(action='skyportal/FETCH_RECENT_SOURCES')
+
         return self.success()
