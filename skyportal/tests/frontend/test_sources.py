@@ -15,6 +15,7 @@ from skyportal.tests import api, IS_CI_BUILD
 cfg = load_config()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_public_source_page(driver, user, public_source, public_group):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
