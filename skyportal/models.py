@@ -305,13 +305,13 @@ class Obj(Base, ha.Point):
         return astroplan.FixedTarget(name=self.id, coord=coord)
 
     @property
-    def gal_lat(self):
+    def gal_lat_deg(self):
         """Get the galactic latitute of this object"""
         coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
         return coord.galactic.b.deg
 
     @property
-    def gal_lon(self):
+    def gal_lon_deg(self):
         """Get the galactic longitude of this object"""
         coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
         return coord.galactic.l.deg

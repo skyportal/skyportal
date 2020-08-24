@@ -213,8 +213,8 @@ class SourceHandler(BaseHandler):
             s.classifications = s.get_classifications_owned_by(self.current_user)
             source_info = s.to_dict()
             source_info["last_detected"] = s.last_detected
-            source_info["gal_lat"] = s.gal_lat
-            source_info["gal_lon"] = s.gal_lon
+            source_info["gal_lat"] = s.gal_lat_deg
+            source_info["gal_lon"] = s.gal_lon_deg
 
             source_info["groups"] = (
                 Group.query.filter(
@@ -290,8 +290,8 @@ class SourceHandler(BaseHandler):
                 source.comments = source.get_comments_owned_by(self.current_user)
                 source_list.append(source.to_dict())
                 source_list[-1]["last_detected"] = source.last_detected
-                source_list[-1]["gal_lon"] = source.gal_lon
-                source_list[-1]["gal_lat"] = source.gal_lat
+                source_list[-1]["gal_lon"] = source.gal_lon_deg
+                source_list[-1]["gal_lat"] = source.gal_lat_deg
             query_results["sources"] = source_list
             return self.success(data=query_results)
 
@@ -307,8 +307,8 @@ class SourceHandler(BaseHandler):
             source.comments = source.get_comments_owned_by(self.current_user)
             source_list.append(source.to_dict())
             source_list[-1]["last_detected"] = source.last_detected
-            source_list[-1]["gal_lon"] = source.gal_lon
-            source_list[-1]["gal_lat"] = source.gal_lat
+            source_list[-1]["gal_lon"] = source.gal_lon_deg
+            source_list[-1]["gal_lat"] = source.gal_lat_deg
         return self.success(data={"sources": source_list})
 
     @permissions(['Upload data'])
