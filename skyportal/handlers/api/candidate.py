@@ -162,6 +162,8 @@ class CandidateHandler(BaseHandler):
             c.comments = c.get_comments_owned_by(self.current_user)
             candidate_info = c.to_dict()
             candidate_info["last_detected"] = c.last_detected
+            candidate_info["gal_lon"] = c.gal_lon_deg
+            candidate_info["gal_lat"] = c.gal_lat_deg
             return self.success(data=candidate_info)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
@@ -295,6 +297,9 @@ class CandidateHandler(BaseHandler):
             ]
             candidate_list.append(obj.to_dict())
             candidate_list[-1]["last_detected"] = obj.last_detected
+            candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
+            candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
+
         query_results["candidates"] = candidate_list
         return self.success(data=query_results)
 
