@@ -65,8 +65,8 @@ const getMessages = (delRaGroup, delDecGroup) => {
   const C = Math.max(d3.deviation(delRaGroup), d3.deviation(delDecGroup));
 
   const offsetMessage = {
-    x: 0.6,
-    y: 0.8,
+    x: 0.5,
+    y: 0.7,
     message: `offset = ${offset.toFixed(2)} \u00B1 ${C.toFixed(2)}`,
   };
 
