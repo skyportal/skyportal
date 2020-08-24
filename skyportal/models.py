@@ -425,6 +425,18 @@ class Obj(Base, ha.Point):
         coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
         return astroplan.FixedTarget(name=self.id, coord=coord)
 
+    @property
+    def gal_lat_deg(self):
+        """Get the galactic latitute of this object"""
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
+        return coord.galactic.b.deg
+
+    @property
+    def gal_lon_deg(self):
+        """Get the galactic longitude of this object"""
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
+        return coord.galactic.l.deg
+
     def airmass(self, telescope, time, below_horizon=np.inf):
         """Return the airmass of the object at a given time. Uses the Pickering
         (2002) interpolation of the Rayleigh (molecular atmosphere) airmass.
