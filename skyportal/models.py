@@ -123,7 +123,7 @@ class Group(Base):
     observing_runs = relationship(
         'ObservingRun',
         back_populates='group',
-        doc='The observing runs associated with ' 'this group.',
+        doc='The observing runs associated with this group.',
     )
     photometry = relationship(
         "Photometry",
