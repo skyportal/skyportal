@@ -763,7 +763,15 @@ def get_obj_comments_owned_by(self, user_or_token):
     comment_list : list of `skyportal.models.Comment`
        The accessible comments attached to this Obj.
     """
-    return [comment for comment in self.comments if comment.is_owned_by(user_or_token)]
+    owned_comments = [
+        comment for comment in self.comments if comment.is_owned_by(user_or_token)
+    ]
+
+    # Grab basic author info for the comments
+    for comment in owned_comments:
+        comment.author_info = comment.construct_author_info_dict()
+
+    return owned_comments
 
 
 Obj.get_comments_owned_by = get_obj_comments_owned_by
@@ -1159,6 +1167,25 @@ class Comment(Base):
         passive_deletes=True,
         doc="Groups that can see the comment.",
     )
+
+    def construct_author_info_dict(self):
+        user = User.query.filter(User.username == self.author).first()
+        return {
+            field: getattr(user, field)
+            for field in ('username', 'first_name', 'last_name', 'gravatar_url')
+        }
+
+    @classmethod
+    def get_if_owned_by(cls, ident, user, options=[]):
+        comment = cls.query.options(options).get(ident)
+
+        if comment is not None and not comment.is_owned_by(user):
+            raise AccessError('Insufficient permissions.')
+
+        # Grab basic author info for the comment
+        comment.author_info = comment.construct_author_info_dict()
+
+        return comment
 
 
 GroupComment = join_model("group_comments", Group, Comment)
