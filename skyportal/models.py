@@ -101,7 +101,7 @@ class Group(Base):
         "Filter",
         back_populates="group",
         passive_deletes=True,
-        doc='All filters (not just active) associated with ' 'a group.',
+        doc='All filters (not just active) associated with a group.',
     )
 
     users = relationship(
