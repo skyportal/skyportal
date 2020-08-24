@@ -63,10 +63,14 @@ const getMessages = (delRaGroup, delDecGroup) => {
     d3.median(delRaGroup) ** 2 + d3.median(delDecGroup) ** 2
   );
   const C = Math.max(d3.deviation(delRaGroup), d3.deviation(delDecGroup));
+  const maxDelRA = Math.max.apply(null, delRaGroup.map(Math.abs));
+  const maxDelDec = Math.max.apply(null, delDecGroup.map(Math.abs));
+
+  const limit = Math.max(maxDelRA, maxDelDec);
 
   const offsetMessage = {
-    x: 0.5,
-    y: 0.7,
+    x: limit * 0.75,
+    y: limit,
     message: `offset = ${offset.toFixed(2)} \u00B1 ${C.toFixed(2)}`,
   };
 

@@ -394,6 +394,11 @@ def test_centroid_plot(
         expected_plot_path = os.path.abspath(
             "skyportal/tests/data/centroid_plot_expected.png"
         )
+
+        # Use this commented line to save a new version of the expected plot
+        # if changes have been made to the component:
+        # generated_plot.save(expected_plot_path)
+
         if not os.path.exists(expected_plot_path):
             pytest.fail("Missing centroid plot baseline image for comparison")
         expected_plot = Image.open(expected_plot_path)
