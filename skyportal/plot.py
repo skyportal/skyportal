@@ -360,7 +360,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         ).read(),
     )
 
-    slider = Slider(start=0.0, end=15.0, value=0.0, step=1.0, title='binsize (days)')
+    slider = Slider(start=0.0, end=15.0, value=0.0, step=1.0, title='Binsize (days)')
 
     callback = CustomJS(
         args={'slider': slider, 'toggle': toggle, **model_dict},
