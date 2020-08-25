@@ -104,9 +104,13 @@ class GroupHandler(BaseHandler):
                     .get(group_id)
                 )
             else:
-                group = Group.query.options(
-                    [joinedload(Group.users).load_only(User.id, User.username)]
-                ).get(group_id)
+                group = (
+                    Group.query.options(
+                        [joinedload(Group.users).load_only(User.id, User.username)]
+                    )
+                    .options(joinedload(Group.group_users))
+                    .get(group_id)
+                )
                 if group is not None and group.id not in [
                     g.id for g in self.current_user.accessible_groups
                 ]:
