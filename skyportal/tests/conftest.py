@@ -8,10 +8,10 @@ from datetime import datetime
 
 from baselayer.app import models
 from baselayer.app.config import load_config
-from baselayer.app.test_util import driver  # noqa: F401
-from baselayer.app.test_util import MyCustomWebDriver  # noqa: F401
-from baselayer.app.test_util import set_server_url
-from baselayer.app.test_util import reset_state  # noqa: F401
+from baselayer.app.test_util import (  # noqa: F401
+    driver,
+    set_server_url,
+)
 
 from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 from skyportal.tests.fixtures import (
@@ -25,7 +25,7 @@ from skyportal.tests.fixtures import (
     TelescopeFactory,
 )
 from skyportal.model_util import create_token
-from skyportal.models import DBSession, Source, Candidate, Role
+from skyportal.models import DBSession, Source, Candidate, Role, User
 
 import astroplan
 import warnings
@@ -38,6 +38,13 @@ cfg = load_config([(basedir / "../../test_config.yaml").absolute()])
 set_server_url(f'http://localhost:{cfg["ports.app"]}')
 print("Setting test database to:", cfg["database"])
 models.init_db(**cfg["database"])
+
+# Add a "test factory" User so that all factory-generated comments have a
+# proper author, if it doesn't already exist (the user may already be in
+# there if running the test server and running tests individually)
+if not DBSession.query(User).filter(User.username == "test factory").scalar():
+    DBSession.add(User(username="test factory"))
+    DBSession.commit()
 
 
 def pytest_runtest_setup(item):

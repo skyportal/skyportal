@@ -44,7 +44,7 @@ class NewsFeedHandler(BaseHandler):
             n_items = 5
 
         def fetch_newest(model):
-            return (
+            newest = (
                 model.query.filter(
                     model.obj_id.in_(
                         DBSession()
@@ -61,13 +61,20 @@ class NewsFeedHandler(BaseHandler):
                 .all()
             )
 
+            if model == Comment:
+                for comment in newest:
+                    comment.author_info = comment.construct_author_info_dict()
+
+            return newest
+
         sources = fetch_newest(Source)
         comments = fetch_newest(Comment)
         news_feed_items = [
             {
                 'type': 'source',
                 'time': s.created_at,
-                'message': f'New source {s.obj_id}',
+                'message': 'New source added',
+                'source_id': s.obj_id,
             }
             for s in sources
         ]
@@ -76,7 +83,10 @@ class NewsFeedHandler(BaseHandler):
                 {
                     'type': 'comment',
                     'time': c.created_at,
-                    'message': f'{c.author}: {c.text} ({c.obj_id})',
+                    'message': c.text,
+                    'source_id': c.obj_id,
+                    'author': c.author,
+                    'author_info': c.author_info,
                 }
                 for c in comments
             ]

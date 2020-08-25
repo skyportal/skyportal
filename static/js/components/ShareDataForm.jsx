@@ -233,6 +233,7 @@ const ShareDataForm = ({ route }) => {
           )}
           <Controller
             name="groups"
+            id="dataSharingFormGroupsSelect"
             as={
               <Autocomplete
                 multiple

@@ -1,6 +1,6 @@
+import uuid
 import pytest
 from selenium.webdriver.common.keys import Keys
-import uuid
 
 
 def test_public_groups_list(driver, user, public_group):
@@ -19,6 +19,7 @@ def test_super_admin_groups_list(driver, super_admin_user, public_group):
     # get list of names of previously created groups here
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_new_group(driver, super_admin_user, user):
     test_proj_name = str(uuid.uuid4())
     driver.get(f'/become_user/{super_admin_user.id}')  # TODO decorator/context manager?
@@ -28,10 +29,11 @@ def test_add_new_group(driver, super_admin_user, user):
     driver.wait_for_xpath('//input[@name="name"]').send_keys(test_proj_name)
     driver.wait_for_xpath('//input[@name="groupAdmins"]').send_keys(user.username)
     driver.save_screenshot('/tmp/screenshot1.png')
-    driver.wait_for_xpath('//input[@value="Create Group"]').click()
+    driver.click_xpath('//input[@value="Create Group"]')
     driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
     test_proj_name = str(uuid.uuid4())
     driver.get(f'/become_user/{super_admin_user.id}')  # TODO decorator/context manager?
@@ -43,7 +45,7 @@ def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
         super_admin_user.username
     )
     driver.save_screenshot('/tmp/screenshot1.png')
-    driver.wait_for_xpath('//input[@value="Create Group"]').click()
+    driver.click_xpath('//input[@value="Create Group"]')
     driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
 
@@ -85,7 +87,6 @@ def test_add_new_group_user_nonadmin(
     el_input.send_keys(user_no_groups.username, Keys.ENTER)
     driver.wait_for_xpath('//input[@value="Add user"]').click()
     driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
-
     assert (
         len(
             driver.find_elements_by_xpath(
@@ -106,7 +107,7 @@ def test_add_new_group_user_new_username(driver, super_admin_user, user, public_
     driver.wait_for_xpath('//input[@id="newUserEmail"]', timeout=10).send_keys(
         new_username, Keys.ENTER
     )
-    driver.wait_for_xpath('//input[@value="Add user"]').click()
+    driver.click_xpath('//input[@value="Add user"]')
     driver.wait_for_xpath(f'//a[contains(.,"{new_username}")]')
 
 
