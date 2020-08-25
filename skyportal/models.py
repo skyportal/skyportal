@@ -115,6 +115,12 @@ class Group(Base):
         passive_deletes=True,
     )
     single_user_group = sa.Column(sa.Boolean, default=False)
+    allocations = relationship(
+        'Allocation',
+        back_populates="groups",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
 
 
 GroupUser = join_model('group_users', Group, User)
@@ -649,6 +655,12 @@ class Instrument(Base):
     )
 
     observing_runs = relationship('ObservingRun', back_populates='instrument')
+    allocations = relationship(
+        'Allocation',
+        back_populates="instruments",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
 
     @property
     def does_spectroscopy(self):
@@ -657,6 +669,37 @@ class Instrument(Base):
     @property
     def does_imaging(self):
         return 'imag' in self.type
+
+
+class Allocation(Base):
+    """An allocation of observing time on a robotic instrument."""
+
+    pi = sa.Column(sa.String, doc="The PI of the allocation's proposal.")
+    proposal_id = sa.Column(sa.String, doc="The ID of the proposal allocated time.")
+    start_date = sa.Column(sa.DateTime, doc='The UTC start date of the allocation.')
+    end_date = sa.Column(sa.DateTime, doc='The UTC end date of the allocation.')
+    hours_allocated = sa.Column(
+        sa.Float, required=True, doc='The number of hours allocated.'
+    )
+    requests = relationship(
+        'FollowupRequest',
+        back_populates='allocation',
+        doc='The requests made against this allocation.',
+    )
+
+    group_id = sa.Column(
+        sa.ForeignKey('groups.id', ondelete='CASCADE'),
+        index=True,
+        doc='The group the allocation is associated with.',
+    )
+    group = relationship('Group', back_populates='allocations')
+
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id', ondelete='CASCADE'),
+        index=True,
+        doc="The instrument the allocation is associated with.",
+    )
+    instrument = relationship('Instrument', back_populates='allocations')
 
 
 class Taxonomy(Base):
