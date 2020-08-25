@@ -225,7 +225,6 @@ const Group = () => {
       <Typography variant="h5" style={{ paddingBottom: 10 }}>
         Group:&nbsp;&nbsp;{group.name}
       </Typography>
-
       <Accordion
         expanded={panelMembersExpanded === "panel-members"}
         onChange={handlePanelMembersChange("panel-members")}
@@ -312,15 +311,16 @@ const Group = () => {
           </List>
           <Divider />
           <div className={classes.paper}>
+            {/*eslint-disable */}
             {(currentUser.roles.includes("Super admin") ||
               (currentUser.roles.includes("Group admin") &&
                 isAdmin(currentGroupUser, group))) && (
-                <NewGroupUserForm group_id={group.id} />
+              <NewGroupUserForm group_id={group.id} />
             )}
+            {/* eslint-enable */}
           </div>
         </AccordionDetails>
       </Accordion>
-
       {streams?.length > 0 && (
         <Accordion
           expanded={panelStreamsExpanded === "panel-streams"}
@@ -344,50 +344,46 @@ const Group = () => {
                     <ListItemText primary={stream.name} />
                   </ListItem>
                   <List component="nav" disablePadding>
-                    {group.filters?.map(
-                      (filter) =>
-                        filter.stream_id === stream.id ? (
-                          <ListItem
-                            button
-                            component="a"
-                            key={filter.id}
-                            href="#"
-                          >
-                            <ListItemText
-                              className={classes.nested}
-                              primary={filter.name}
-                            />
-                            {(currentUser.roles.includes("Super admin") ||
-                              (currentUser.roles.includes("Group admin") &&
-                                isAdmin(currentGroupUser, group))) && (
-                                <ListItemSecondaryAction>
-                                  <IconButton
-                                    edge="end"
-                                    aria-label="delete"
-                                    onClick={async () => {
-                                      const result = await dispatch(
-                                        filterActions.deleteGroupFilter({
-                                          filter_id: filter.id,
-                                        })
-                                      );
-                                      if (result.status === "success") {
-                                        dispatch(
-                                          showNotification(
-                                            "Deleted filter from group"
-                                          )
-                                        );
-                                      }
-                                      dispatch(groupActions.fetchGroup(loadedId));
-                                    }}
-                                  >
-                                    <DeleteIcon />
-                                  </IconButton>
-                                </ListItemSecondaryAction>
-                            )}
-                          </ListItem>
-                        ) : (
-                          ""
-                        )
+                    {group.filters?.map((filter) =>
+                      filter.stream_id === stream.id ? (
+                        <ListItem button component="a" key={filter.id} href="#">
+                          <ListItemText
+                            className={classes.nested}
+                            primary={filter.name}
+                          />
+                          {/*eslint-disable */}
+                          {(currentUser.roles.includes("Super admin") ||
+                            (currentUser.roles.includes("Group admin") &&
+                              isAdmin(currentGroupUser, group))) && (
+                            <ListItemSecondaryAction>
+                              <IconButton
+                                edge="end"
+                                aria-label="delete"
+                                onClick={async () => {
+                                  const result = await dispatch(
+                                    filterActions.deleteGroupFilter({
+                                      filter_id: filter.id,
+                                    })
+                                  );
+                                  if (result.status === "success") {
+                                    dispatch(
+                                      showNotification(
+                                        "Deleted filter from group"
+                                      )
+                                    );
+                                  }
+                                  dispatch(groupActions.fetchGroup(loadedId));
+                                }}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </ListItemSecondaryAction>
+                          )}
+                          {/* eslint-enable */}
+                        </ListItem>
+                      ) : (
+                        ""
+                      )
                     )}
                   </List>
                 </div>
@@ -427,20 +423,20 @@ const Group = () => {
           </AccordionDetails>
         </Accordion>
       )}
-
       <br />
+      {/*eslint-disable */}
       {(currentUser.roles.includes("Super admin") ||
         (currentUser.roles.includes("Group admin") &&
           isAdmin(currentGroupUser, group))) && (
-          <Button
-            variant="contained"
-            color="secondary"
-            onClick={() => setConfirmDeleteOpen(true)}
-          >
-            Delete Group
-          </Button>
+        <Button
+          variant="contained"
+          color="secondary"
+          onClick={() => setConfirmDeleteOpen(true)}
+        >
+          Delete Group
+        </Button>
       )}
-
+      {/* eslint-enable */}
       <Dialog
         fullScreen={fullScreen}
         open={addStreamOpen}
@@ -490,7 +486,6 @@ const Group = () => {
           </DialogActions>
         </form>
       </Dialog>
-
       <Dialog
         fullScreen={fullScreen}
         open={dialogOpen}
@@ -559,7 +554,6 @@ const Group = () => {
           </DialogActions>
         </form>
       </Dialog>
-
       <Dialog
         fullWidth
         open={confirmDeleteOpen}
