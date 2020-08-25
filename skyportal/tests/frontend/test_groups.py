@@ -124,9 +124,7 @@ def test_delete_group_user(driver, super_admin_user, user, public_group):
     delete_button = driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
     delete_button = delete_button.find_elements_by_xpath("../*/button")
     delete_button[0].click()
-    assert (
-        len(driver.find_elements_by_xpath(f'//a[contains(.,"{user.username}")]')) == 0
-    )
+    driver.wait_for_xpath_to_disappear(f'//a[contains(.,"{user.username}")]')
 
 
 def test_delete_group(driver, super_admin_user, user, public_group):
@@ -139,10 +137,7 @@ def test_delete_group(driver, super_admin_user, user, public_group):
         driver.wait_for_xpath(f'//button[contains(.,"Delete Group")]')
     )
     driver.wait_for_xpath(f'//button[contains(.,"Confirm")]').click()
-    assert (
-        len(driver.find_elements_by_xpath(f'//a[contains(.,"{public_group.name}")]'))
-        == 0
-    )
+    driver.wait_for_xpath_to_disappear(f'//a[contains(.,"{public_group.name}")]')
 
 
 @pytest.mark.flaky(reruns=2)
@@ -157,9 +152,7 @@ def test_add_stream_filter_group(
     # add stream
     driver.wait_for_xpath(f'//button[contains(.,"Add stream")]').click()
     driver.wait_for_xpath('//input[@name="stream_id"]/..', timeout=10).click()
-    driver.wait_for_xpath_to_be_clickable(
-        f'//li[contains(.,"{public_stream.id}")]', timeout=10
-    )
+    driver.wait_for_xpath(f'//li[contains(.,"{public_stream.id}")]', timeout=10)
     stream = driver.switch_to.active_element
     stream.click()
     add_stream = driver.wait_for_xpath_to_be_clickable(f'//button[@type="submit"]')
@@ -174,7 +167,7 @@ def test_add_stream_filter_group(
     driver.wait_for_xpath(f'//li[contains(.,"{public_stream.id}")]', timeout=10)
     stream = driver.switch_to.active_element
     stream.click()
-    add_filter = driver.wait_for_xpath_to_be_clickable(f'//button[@type="submit"]')
+    add_filter = driver.wait_for_xpath(f'//button[@type="submit"]', timeout=10)
     driver.execute_script("arguments[0].click();", add_filter)
     driver.wait_for_xpath(f'//span[contains(.,"{filter_name}")]', timeout=10)
     assert (
