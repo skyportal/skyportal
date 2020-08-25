@@ -692,6 +692,7 @@ class Allocation(Base):
         sa.ForeignKey('groups.id', ondelete='CASCADE'),
         index=True,
         doc='The group the allocation is associated with.',
+        nullable=False,
     )
     group = relationship('Group', back_populates='allocations')
 
@@ -699,6 +700,7 @@ class Allocation(Base):
         sa.ForeignKey('instruments.id', ondelete='CASCADE'),
         index=True,
         doc="The instrument the allocation is associated with.",
+        nullable=False,
     )
     instrument = relationship('Instrument', back_populates='allocations')
 
