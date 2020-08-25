@@ -215,7 +215,7 @@ const Group = () => {
     }
   });
 
-  const groupStreamIds = group.streams?.map((stream) => stream.id);
+  const groupStreamIds = group?.streams?.map((stream) => stream.id);
 
   const isStreamIdInStreams = (sid) =>
     streams?.map((stream) => stream.id).includes(sid);
@@ -463,7 +463,7 @@ const Group = () => {
                 {streams?.map(
                   (stream) =>
                     // display only streams that are not yet added
-                    !groupStreamIds.includes(stream.id) && (
+                    !groupStreamIds?.includes(stream.id) && (
                       <MenuItem value={stream.id}>{stream.name}</MenuItem>
                     )
                 )}
