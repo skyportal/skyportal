@@ -12,10 +12,20 @@ import CircularProgress from "@material-ui/core/CircularProgress";
 
 import { GET } from "../API";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   root: {
     background: "#6EB5DC",
-    marginRight: theme.spacing(1),
+    "& label": {
+      color: "black",
+    },
+    "& label.Mui-focused": {
+      color: "white",
+    },
+  },
+  label: {
+    "& label": {
+      color: "white",
+    },
   },
 }));
 
@@ -91,7 +101,7 @@ const QuickSearchBar = () => {
   return (
     <Autocomplete
       id="quick-search-bar"
-      style={{ width: 200 }}
+      style={{ width: "15rem" }}
       getOptionSelected={(option, val) => option.name === val.name}
       getOptionLabel={(option) => option}
       onInputChange={(e, val) => {
