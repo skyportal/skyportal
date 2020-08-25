@@ -42,5 +42,4 @@ const reducer = (state = {}, action) => {
   }
 };
 
-
 store.injectReducer("filter", reducer);
