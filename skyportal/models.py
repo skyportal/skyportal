@@ -691,18 +691,26 @@ class Allocation(Base):
     group_id = sa.Column(
         sa.ForeignKey('groups.id', ondelete='CASCADE'),
         index=True,
-        doc='The group the allocation is associated with.',
+        doc='The ID of the Group the allocation is associated with.',
         nullable=False,
     )
-    group = relationship('Group', back_populates='allocations')
+    group = relationship(
+        'Group',
+        back_populates='allocations',
+        doc='The Group the allocation is associated with.',
+    )
 
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id', ondelete='CASCADE'),
         index=True,
-        doc="The instrument the allocation is associated with.",
+        doc="The ID of the Instrument the allocation is associated with.",
         nullable=False,
     )
-    instrument = relationship('Instrument', back_populates='allocations')
+    instrument = relationship(
+        'Instrument',
+        back_populates='allocations',
+        doc="The Instrument the allocation is associated with.",
+    )
 
 
 class Taxonomy(Base):
@@ -710,7 +718,7 @@ class Taxonomy(Base):
     name = sa.Column(
         sa.String,
         nullable=False,
-        doc='Short string to make this taxonomy memorable ' 'to end users.',
+        doc='Short string to make this taxonomy memorable to end users.',
     )
     hierarchy = sa.Column(
         JSONB,
