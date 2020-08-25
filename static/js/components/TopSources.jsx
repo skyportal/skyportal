@@ -40,15 +40,11 @@ const TopSources = () => {
               <img className={styles.stamp} src={public_url} alt={obj_id} />
             </Link>
             <span>
-              &nbsp; -&nbsp;
+              {" - "}
               <Link to={`/source/${obj_id}`}>{obj_id}</Link>
             </span>
             <span>
-              <em>
-                &nbsp; -&nbsp;
-                {views}
-                &nbsp;view(s)
-              </em>
+              <em>{` - ${views} view(s)`}</em>
             </span>
           </li>
         ))}
