@@ -117,7 +117,7 @@ class Group(Base):
     single_user_group = sa.Column(sa.Boolean, default=False)
     allocations = relationship(
         'Allocation',
-        back_populates="groups",
+        back_populates="group",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
     )
@@ -657,7 +657,7 @@ class Instrument(Base):
     observing_runs = relationship('ObservingRun', back_populates='instrument')
     allocations = relationship(
         'Allocation',
-        back_populates="instruments",
+        back_populates="instrument",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
     )
@@ -679,11 +679,12 @@ class Allocation(Base):
     start_date = sa.Column(sa.DateTime, doc='The UTC start date of the allocation.')
     end_date = sa.Column(sa.DateTime, doc='The UTC end date of the allocation.')
     hours_allocated = sa.Column(
-        sa.Float, required=True, doc='The number of hours allocated.'
+        sa.Float, nullable=False, doc='The number of hours allocated.'
     )
     requests = relationship(
         'FollowupRequest',
         back_populates='allocation',
+        secondary='allocation_requests',
         doc='The requests made against this allocation.',
     )
 
@@ -1039,9 +1040,13 @@ class FollowupRequest(Base):
     priority = sa.Column(sa.Enum('1', '2', '3', '4', '5', name='priority'))
     editable = sa.Column(sa.Boolean, nullable=False, default=True)
     status = sa.Column(sa.String(), nullable=False, default="pending")
+    allocation = relationship(
+        'Allocation', secondary='allocation_requests', back_populates='requests'
+    )
 
 
 User.followup_requests = relationship('FollowupRequest', back_populates='requester')
+AllocationRequest = join_model('allocation_requests', Allocation, FollowupRequest)
 
 
 class Thumbnail(Base):
