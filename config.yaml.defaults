@@ -42,6 +42,8 @@ app:
       component: UploadPhotometry
     - path: "/about"
       component: About
+    - path: "/run/:id"
+      component: RunSummary
     - path: "/share_data/:id"
       component: ShareDataForm
 

@@ -49,6 +49,7 @@ def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
     driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_new_group_user_admin(
     driver, super_admin_user, user_no_groups, public_group
 ):
@@ -74,6 +75,7 @@ def test_add_new_group_user_admin(
     )
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_new_group_user_nonadmin(
     driver, super_admin_user, user_no_groups, public_group
 ):
@@ -97,6 +99,7 @@ def test_add_new_group_user_nonadmin(
     )
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_new_group_user_new_username(driver, super_admin_user, user, public_group):
     new_username = str(uuid.uuid4())
     driver.get(f'/become_user/{super_admin_user.id}')
@@ -111,6 +114,7 @@ def test_add_new_group_user_new_username(driver, super_admin_user, user, public_
     driver.wait_for_xpath(f'//a[contains(.,"{new_username}")]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_delete_group_user(driver, super_admin_user, user, public_group):
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/groups')
