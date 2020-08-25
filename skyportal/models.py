@@ -162,7 +162,7 @@ GroupUser.admin = sa.Column(
 
 
 class Stream(Base):
-    """A stream producing """
+    """A data stream producing alerts that can be programmatically filtered using a Filter."""
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Stream name.")
     altdata = sa.Column(
