@@ -387,7 +387,7 @@ const Group = () => {
                           </ListItem>
                         ) : (
                           ""
-                        ) /* <div style={{paddingLeft: "2em"}}>No filters defined on stream</div> */
+                        )
                     )}
                   </List>
                 </div>
