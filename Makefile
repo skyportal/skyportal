@@ -60,6 +60,16 @@ load_seed_data: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
 load_seed_data: | dependencies prepare_seed_data
 	@PYTHONPATH=. python tools/data_loader.py data/db_seed.yaml $(FLAGS)
 
+db_migrate: ## Migrate database to latest schema
+db_migrate: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
+db_migrate:
+	@PYTHONPATH=. alembic upgrade head
+
+db_generate_migration: ## Generate migration to current model state
+db_generate_migration: FLAGS := $(if $(FLAGS),$(FLAGS),"--config=config.yaml")
+db_generate_migration:
+	PYTHONPATH=. alembic revision --autogenerate
+
 # https://www.gnu.org/software/make/manual/html_node/Overriding-Makefiles.html
 %: baselayer/Makefile force
 	@$(MAKE) --no-print-directory -C . -f baselayer/Makefile $@
