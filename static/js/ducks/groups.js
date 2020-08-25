@@ -18,8 +18,11 @@ export const ADD_GROUP_USER_OK = "skyportal/ADD_GROUP_USER_OK";
 export const DELETE_GROUP_USER = "skyportal/DELETE_GROUP_USER";
 export const DELETE_GROUP_USER_OK = "skyportal/DELETE_GROUP_USER_OK";
 
-export function fetchGroups() {
-  return API.GET("/api/groups", FETCH_GROUPS);
+export function fetchGroups(includeSingleUserGroups = false) {
+  return API.GET(
+    `/api/groups?includeSingleUserGroups=${includeSingleUserGroups}`,
+    FETCH_GROUPS
+  );
 }
 
 export function addNewGroup(form_data) {

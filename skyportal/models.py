@@ -304,6 +304,18 @@ class Obj(Base, ha.Point):
         coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
         return astroplan.FixedTarget(name=self.id, coord=coord)
 
+    @property
+    def gal_lat_deg(self):
+        """Get the galactic latitute of this object"""
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
+        return coord.galactic.b.deg
+
+    @property
+    def gal_lon_deg(self):
+        """Get the galactic longitude of this object"""
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
+        return coord.galactic.l.deg
+
     def airmass(self, telescope, time, below_horizon=np.inf):
         """Return the airmass of the object at a given time. Uses the Pickering
         (2002) interpolation of the Rayleigh (molecular atmosphere) airmass.
@@ -483,7 +495,15 @@ Obj.get_if_owned_by = get_obj_if_owned_by
 
 
 def get_obj_comments_owned_by(self, user_or_token):
-    return [comment for comment in self.comments if comment.is_owned_by(user_or_token)]
+    owned_comments = [
+        comment for comment in self.comments if comment.is_owned_by(user_or_token)
+    ]
+
+    # Grab basic author info for the comments
+    for comment in owned_comments:
+        comment.author_info = comment.construct_author_info_dict()
+
+    return owned_comments
 
 
 Obj.get_comments_owned_by = get_obj_comments_owned_by
@@ -703,6 +723,7 @@ Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
 
 
 class Comment(Base):
+
     text = sa.Column(sa.String, nullable=False)
     ctype = sa.Column(
         sa.Enum('text', 'redshift', name='comment_types', validate_strings=True)
@@ -713,7 +734,9 @@ class Comment(Base):
     attachment_bytes = sa.Column(sa.types.LargeBinary, nullable=True)
 
     origin = sa.Column(sa.String, nullable=True)
+
     author = sa.Column(sa.String, nullable=False)
+
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
     )
@@ -724,6 +747,25 @@ class Comment(Base):
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
     )
+
+    def construct_author_info_dict(self):
+        user = User.query.filter(User.username == self.author).first()
+        return {
+            field: getattr(user, field)
+            for field in ('username', 'first_name', 'last_name', 'gravatar_url')
+        }
+
+    @classmethod
+    def get_if_owned_by(cls, ident, user, options=[]):
+        comment = cls.query.options(options).get(ident)
+
+        if comment is not None and not comment.is_owned_by(user):
+            raise AccessError('Insufficient permissions.')
+
+        # Grab basic author info for the comment
+        comment.author_info = comment.construct_author_info_dict()
+
+        return comment
 
 
 GroupComment = join_model("group_comments", Group, Comment)
@@ -831,8 +873,10 @@ class Photometry(Base, ha.Point):
     def mag(cls):
         return sa.case(
             [
-                sa.and_(cls.flux != None, cls.flux > 0),  # noqa
-                -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
+                (
+                    sa.and_(cls.flux != None, cls.flux > 0),  # noqa
+                    -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
+                )
             ],
             else_=None,
         )
