@@ -675,7 +675,9 @@ class Allocation(Base):
     """An allocation of observing time on a robotic instrument."""
 
     pi = sa.Column(sa.String, doc="The PI of the allocation's proposal.")
-    proposal_id = sa.Column(sa.String, doc="The ID of the proposal allocated time.")
+    proposal_id = sa.Column(
+        sa.String, doc="The ID of the proposal associated with this allocation."
+    )
     start_date = sa.Column(sa.DateTime, doc='The UTC start date of the allocation.')
     end_date = sa.Column(sa.DateTime, doc='The UTC end date of the allocation.')
     hours_allocated = sa.Column(
