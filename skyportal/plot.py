@@ -250,11 +250,8 @@ def photometry_plot(obj_id, user, width=600, height=300):
     # show middle 98% of data
     finite = np.isfinite(data['flux'])
     fdata = data[finite]
-    lower = np.percentile(fdata['flux'], 1.0)
-    upper = np.percentile(fdata['flux'], 99.0)
-
-    lower -= np.abs(lower) * 0.1
-    upper += np.abs(upper) * 0.1
+    lower = np.min(fdata['flux']) * 0.95
+    upper = np.max(fdata['flux']) * 1.05
 
     plot = figure(
         plot_width=width,
@@ -383,19 +380,15 @@ def photometry_plot(obj_id, user, width=600, height=300):
     p1 = Panel(child=layout, title='Flux')
 
     # now make the mag light curve
-    ymax = 1.1 * data['lim_mag']
-    ymin = 0.9 * data['lim_mag']
-
-    if len(data['obs']) > 0:
-        ymax[data['obs']] = (data['mag'] + data['magerr']) * 1.1
-        ymin[data['obs']] = (data['mag'] - data['magerr']) * 0.9
+    ymax = np.nanmax(data['lim_mag']) + 0.1
+    ymin = np.nanmin(data['lim_mag']) - 0.1
 
     plot = figure(
         plot_width=width,
         plot_height=height,
         active_drag='box_zoom',
         tools='box_zoom,wheel_zoom,pan,reset,save',
-        y_range=(np.nanmax(ymax), np.nanmin(ymin)),
+        y_range=(ymax, ymin),
         toolbar_location='above',
     )
 
