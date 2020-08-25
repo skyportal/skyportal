@@ -78,7 +78,7 @@ class AllocationHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: AllocationSchema
+              schema: AllocationNoID
         responses:
           200:
             content:
