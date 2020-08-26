@@ -376,37 +376,27 @@ def photometry_plot(obj_id, user, width=600, height=300):
     # Mark the first and last detections
     detection_dates = data[data['hasflux']]['mjd']
     if len(detection_dates) > 0:
-        first = detection_dates.min()
-        last = detection_dates.max()
+        first = round(detection_dates.min(), 6)
+        last = round(detection_dates.max(), 6)
         first_color = "#34b4eb"
         last_color = "#8992f5"
-        line_top = upper + 50
-        line_bottom = lower - 50
-        first_r = plot.vbar(
-            first,
-            0.05,
-            line_top,
-            line_bottom,
-            alpha=0.5,
-            color=first_color,
-            name="first_detection",
+        midpoint = (upper + lower) / 2
+        line_top = 5 * upper - 4 * midpoint
+        line_bottom = 5 * lower - 4 * midpoint
+        first_x = np.full(5000, first)
+        last_x = np.full(5000, last)
+        y = np.linspace(line_bottom, line_top, num=5000)
+        first_r = plot.line(
+            x=first_x, y=y, line_alpha=0.5, line_color=first_color, line_width=2,
         )
         plot.add_tools(
-            HoverTool(
-                tooltips=[("First detection", f'{first}')],
-                renderers=[first_r],
-                point_policy="follow_mouse",
-            )
+            HoverTool(tooltips=[("First detection", f'{first}')], renderers=[first_r],)
         )
-        last_r = plot.vbar(
-            last, 0.05, line_top, line_bottom, alpha=0.5, color=last_color,
+        last_r = plot.line(
+            x=last_x, y=y, line_alpha=0.5, line_color=last_color, line_width=2
         )
         plot.add_tools(
-            HoverTool(
-                tooltips=[("Last detection", f'{last}')],
-                renderers=[last_r],
-                point_policy="follow_mouse",
-            )
+            HoverTool(tooltips=[("Last detection", f'{last}')], renderers=[last_r],)
         )
 
     layout = row(plot, toggle)
@@ -415,8 +405,8 @@ def photometry_plot(obj_id, user, width=600, height=300):
     p1 = Panel(child=layout, title='Flux')
 
     # now make the mag light curve
-    ymax = np.nanmax(data['lim_mag']) + 0.1
-    ymin = np.nanmin(data['lim_mag']) - 0.1
+    ymax = np.nanmax(data['mag']) + 0.1
+    ymin = np.nanmin(data['mag']) - 0.1
 
     plot = figure(
         plot_width=width,
@@ -429,24 +419,24 @@ def photometry_plot(obj_id, user, width=600, height=300):
 
     # Mark the first and last detections again
     if len(detection_dates) > 0:
-        first_render = plot.vbar(
-            first, 0.05, line_top, line_bottom, alpha=0.5, color=first_color,
+        midpoint = (ymax + ymin) / 2
+        line_top = 5 * ymax - 4 * midpoint
+        line_bottom = 5 * ymin - 4 * midpoint
+        y = np.linspace(line_bottom, line_top, num=5000)
+        first_r = plot.line(
+            x=first_x, y=y, line_alpha=0.5, line_color=first_color, line_width=2,
         )
         plot.add_tools(
-            HoverTool(
-                tooltips=[("First detection", f'{first}')],
-                renderers=[first_render],
-                point_policy="follow_mouse",
-            )
+            HoverTool(tooltips=[("First detection", f'{first}')], renderers=[first_r],)
         )
-        last_render = plot.vbar(
-            last, 0.05, line_top, line_bottom, alpha=0.5, color=last_color,
+        last_r = plot.line(
+            x=last_x, y=y, line_alpha=0.5, line_color=last_color, line_width=2
         )
         plot.add_tools(
             HoverTool(
                 tooltips=[("Last detection", f'{last}')],
-                renderers=[last_render],
-                point_policy="follow_mouse",
+                renderers=[last_r],
+                point_policy='follow_mouse',
             )
         )
 
