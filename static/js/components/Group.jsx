@@ -59,14 +59,14 @@ const useStyles = makeStyles((theme) => ({
     paddingLeft: theme.spacing(2),
   },
   heading: {
-    fontSize: theme.typography.pxToRem(17),
+    fontSize: "1.0625rem",
     fontWeight: 500,
   },
   accordion_details: {
     flexDirection: "column",
   },
   button_add: {
-    maxWidth: "140px",
+    maxWidth: "8.75rem",
   },
   selectEmpty: {
     width: "100%",
@@ -91,7 +91,7 @@ const Group = () => {
     "panel-streams"
   );
   const [dialogOpen, setDialogOpen] = React.useState(false);
-  const fullScreen = useMediaQuery(theme.breakpoints.down("md"));
+  const fullScreen = !useMediaQuery(theme.breakpoints.up("md"));
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 

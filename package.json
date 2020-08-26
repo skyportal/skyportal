@@ -26,7 +26,6 @@
     "mui-datatables": "3.3.1",
     "npm-check": "5.9.2",
     "papaparse": "5.2.0",
-    "prettier": "^2.1.0",
     "prop-types": "15.7.2",
     "raw-loader": "4.0.1",
     "react": "16.13.1",
