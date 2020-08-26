@@ -7,7 +7,7 @@ from ...schema import ObservingRunPost, ObservingRunGet, ObservingRunGetWithAssi
 
 
 class ObservingRunHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -42,7 +42,7 @@ class ObservingRunHandler(BaseHandler):
             rund = ObservingRunPost.load(data)
         except ValidationError as exc:
             return self.error(
-                'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
+                f"Invalid/missing parameters: {exc.normalized_messages()}"
             )
 
         run = ObservingRun(**rund)
@@ -124,21 +124,23 @@ class ObservingRunHandler(BaseHandler):
                     assignment.obj.comments, key=lambda c: c.modified, reverse=True
                 )
 
-            data = ObservingRunGetWithAssignments.dump(run)
-            data['assignments'] = [a.to_dict() for a in data['assignments']]
+            with DBSession().no_autoflush:
+                data = ObservingRunGetWithAssignments.dump(run)
+                data["assignments"] = [a.to_dict() for a in data["assignments"]]
 
-            # calculate when the targets rise and set
-            for d, a in zip(data['assignments'], run.assignments):
-                d['rise_time_utc'] = a.rise_time.isot
-                d['set_time_utc'] = a.set_time.isot
+                # calculate when the targets rise and set
+                for d, a in zip(data["assignments"], run.assignments):
+                    d["rise_time_utc"] = a.rise_time.isot
+                    d["set_time_utc"] = a.set_time.isot
 
-            return self.success(data=data)
+                return self.success(data=data)
+
         runs = ObservingRun.query.all()
         data = ObservingRunGet.dump(runs, many=True)
-        out = sorted(data, key=lambda d: d['ephemeris']['sunrise_utc'])
+        out = sorted(data, key=lambda d: d["ephemeris"]["sunrise_utc"])
         return self.success(data=out)
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def put(self, run_id):
         """
         ---
@@ -166,21 +168,19 @@ class ObservingRunHandler(BaseHandler):
 
         data = self.get_json()
         run_id = int(run_id)
-        is_superadmin = 'System admin' in [a.id for a in self.current_user.acls]
+        is_superadmin = "System admin" in [a.id for a in self.current_user.acls]
 
         orun = ObservingRun.query.get(run_id)
 
         current_user_id = self.associated_user_object.id
 
         if orun.owner_id != current_user_id and not is_superadmin:
-            return self.error(
-                'Only the owner of an observing run can modify ' 'the run.'
-            )
+            return self.error("Only the owner of an observing run can modify the run.")
         try:
             new_params = ObservingRunPost.load(data, partial=True)
         except ValidationError as exc:
             return self.error(
-                'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
+                f"Invalid/missing parameters: {exc.normalized_messages()}"
             )
 
         for param in new_params:
@@ -190,7 +190,7 @@ class ObservingRunHandler(BaseHandler):
         DBSession().commit()
         return self.success()
 
-    @permissions(['Upload data'])
+    @permissions(["Upload data"])
     def delete(self, run_id):
         """
         ---
@@ -212,16 +212,14 @@ class ObservingRunHandler(BaseHandler):
                 schema: Error
         """
         run_id = int(run_id)
-        is_superadmin = 'System admin' in [a.id for a in self.current_user.acls]
+        is_superadmin = "System admin" in [a.id for a in self.current_user.acls]
 
         run = ObservingRun.query.get(run_id)
 
         current_user_id = self.associated_user_object.id
 
         if run.owner_id != current_user_id and not is_superadmin:
-            return self.error(
-                'Only the owner of an observing run can modify ' 'the run.'
-            )
+            return self.error("Only the owner of an observing run can modify the run.")
 
         DBSession().query(ObservingRun).filter(ObservingRun.id == run_id).delete()
         DBSession().commit()

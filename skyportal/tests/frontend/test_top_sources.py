@@ -30,7 +30,7 @@ def test_top_sources(driver, user, public_source, public_group, upload_data_toke
     driver.wait_for_xpath(f'//div[contains(@class, "{recent_source_class}")]')
 
     # Test that front-end views register as source views
-    driver.get(f'/source/{obj_id}')
+    driver.click_xpath(f'//a[text()="{obj_id}"]')
     driver.wait_for_xpath(f'//div[text()="{obj_id}"]')
     driver.get('/')
     top_source_class = "static-js-components-TopSources__topSource"

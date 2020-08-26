@@ -184,6 +184,7 @@ class SourceHandler(BaseHandler):
                     username_or_token_id=self.current_user.id,
                     is_token=True,
                 )
+                self.push_all(action="skyportal/FETCH_TOP_SOURCES")
             s = Source.get_obj_if_owned_by(
                 obj_id,
                 self.current_user,
