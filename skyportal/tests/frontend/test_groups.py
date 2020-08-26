@@ -144,7 +144,7 @@ def test_delete_group(driver, super_admin_user, user, public_group):
 
 @pytest.mark.flaky(reruns=2)
 @pytest.mark.xfail(strict=False)
-def test_add_stream_filter_group(
+def test_add_stream_add_delete_filter_group(
     driver, super_admin_user, user, public_group, public_stream
 ):
     driver.get(f'/become_user/{super_admin_user.id}')
@@ -181,3 +181,9 @@ def test_add_stream_filter_group(
     assert (
         len(driver.find_elements_by_xpath(f'//span[contains(.,"{filter_name}")]')) == 1
     )
+
+    # delete filter
+    delete_button = driver.wait_for_xpath(f'//a[contains(.,"{filter_name}")]')
+    delete_button = delete_button.find_elements_by_xpath("../*/button")
+    delete_button[0].click()
+    driver.wait_for_xpath_to_disappear(f'//a[contains(.,"{filter_name}")]')
