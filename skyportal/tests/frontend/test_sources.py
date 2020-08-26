@@ -410,12 +410,11 @@ def test_dropdown_facility_change(driver, user, public_source):
         driver.wait_for_xpath('//span[text()="Show Starlist"]')
     )
     driver.wait_for_xpath("//code/div[text()[contains(., 'raoffset')]]", timeout=20)
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath(
-            '//div[@id="mui-component-select-StarListSelectFacility"]'
-        )
-    )
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//li[@data-value="P200"]')
-    )
+
+    xpath = '//*[@id="mui-component-select-StarListSelectElement"]'
+    element = driver.wait_for_xpath(xpath)
+    ActionChains(driver).move_to_element(element).click_and_hold().perform()
+    xpath = '//li[@data-value="P200"]'
+    element = driver.wait_for_xpath(xpath)
+    ActionChains(driver).move_to_element(element).click_and_hold().perform()
     driver.wait_for_xpath("//code/div[text()[contains(., 'dist')]]", timeout=20)

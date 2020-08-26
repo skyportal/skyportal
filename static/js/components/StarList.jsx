@@ -35,6 +35,7 @@ const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
           labelId="StarListSelect"
           value={facility}
           onChange={handleChange}
+          name="StarListSelectElement"
         >
           <MenuItem value="Keck">Keck</MenuItem>
           <MenuItem value="P200">P200</MenuItem>
@@ -48,13 +49,13 @@ const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
 const StarList = ({ sourceId }) => {
   const [starList, setStarList] = useState([{ str: "Loading starlist..." }]);
   const dispatch = useDispatch();
-  const [fac, setFacility] = useState("Keck");
+  const [facility, setFacility] = useState("Keck");
 
   useEffect(() => {
     const fetchStarList = async () => {
       const response = await dispatch(
         GET(
-          `/api/sources/${sourceId}/offsets?facility=${fac}`,
+          `/api/sources/${sourceId}/offsets?facility=${facility}`,
           "skyportal/FETCH_STARLIST"
         )
       );
@@ -62,12 +63,12 @@ const StarList = ({ sourceId }) => {
     };
 
     fetchStarList();
-  }, [sourceId, dispatch, fac]);
+  }, [sourceId, dispatch, facility]);
 
   return (
     <StarListBody
       starList={starList}
-      fac={fac}
+      facility={facility}
       setFacility={setFacility}
       setStarList={setStarList}
     />
