@@ -61,7 +61,7 @@ const QuickSearchBar = () => {
       dispatch(
         GET(
           `/api/sources?sourceID=${val}&pageNumber=1&totalMatches=25`,
-          "skyportal/FETCH_SOURCES"
+          "skyportal/FETCH_AUTOCOMPLETE_SOURCES"
         )
       );
     (async () => {
