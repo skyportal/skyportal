@@ -375,36 +375,39 @@ def photometry_plot(obj_id, user, width=600, height=300):
 
     # Mark the first and last detections
     detection_dates = data[data['hasflux']]['mjd']
-    first = detection_dates.min()
-    last = detection_dates.max()
-    first_color = "#34b4eb"
-    last_color = "#8992f5"
-    line_top = upper + 50
-    line_bottom = lower - 50
-    first_r = plot.vbar(
-        first,
-        0.05,
-        line_top,
-        line_bottom,
-        alpha=0.5,
-        color=first_color,
-        name="first_detection",
-    )
-    plot.add_tools(
-        HoverTool(
-            tooltips=[("First detection", f'{first}')],
-            renderers=[first_r],
-            point_policy="follow_mouse",
+    if len(detection_dates) > 0:
+        first = detection_dates.min()
+        last = detection_dates.max()
+        first_color = "#34b4eb"
+        last_color = "#8992f5"
+        line_top = upper + 50
+        line_bottom = lower - 50
+        first_r = plot.vbar(
+            first,
+            0.05,
+            line_top,
+            line_bottom,
+            alpha=0.5,
+            color=first_color,
+            name="first_detection",
         )
-    )
-    last_r = plot.vbar(last, 0.05, line_top, line_bottom, alpha=0.5, color=last_color,)
-    plot.add_tools(
-        HoverTool(
-            tooltips=[("Last detection", f'{last}')],
-            renderers=[last_r],
-            point_policy="follow_mouse",
+        plot.add_tools(
+            HoverTool(
+                tooltips=[("First detection", f'{first}')],
+                renderers=[first_r],
+                point_policy="follow_mouse",
+            )
         )
-    )
+        last_r = plot.vbar(
+            last, 0.05, line_top, line_bottom, alpha=0.5, color=last_color,
+        )
+        plot.add_tools(
+            HoverTool(
+                tooltips=[("Last detection", f'{last}')],
+                renderers=[last_r],
+                point_policy="follow_mouse",
+            )
+        )
 
     layout = row(plot, toggle)
     layout = column(slider, layout)
@@ -425,26 +428,27 @@ def photometry_plot(obj_id, user, width=600, height=300):
     )
 
     # Mark the first and last detections again
-    first_render = plot.vbar(
-        first, 0.05, line_top, line_bottom, alpha=0.5, color=first_color,
-    )
-    plot.add_tools(
-        HoverTool(
-            tooltips=[("First detection", f'{first}')],
-            renderers=[first_render],
-            point_policy="follow_mouse",
+    if len(detection_dates) > 0:
+        first_render = plot.vbar(
+            first, 0.05, line_top, line_bottom, alpha=0.5, color=first_color,
         )
-    )
-    last_render = plot.vbar(
-        last, 0.05, line_top, line_bottom, alpha=0.5, color=last_color,
-    )
-    plot.add_tools(
-        HoverTool(
-            tooltips=[("Last detection", f'{last}')],
-            renderers=[last_render],
-            point_policy="follow_mouse",
+        plot.add_tools(
+            HoverTool(
+                tooltips=[("First detection", f'{first}')],
+                renderers=[first_render],
+                point_policy="follow_mouse",
+            )
         )
-    )
+        last_render = plot.vbar(
+            last, 0.05, line_top, line_bottom, alpha=0.5, color=last_color,
+        )
+        plot.add_tools(
+            HoverTool(
+                tooltips=[("Last detection", f'{last}')],
+                renderers=[last_render],
+                point_policy="follow_mouse",
+            )
+        )
 
     imhover = HoverTool(tooltips=tooltip_format)
     plot.add_tools(imhover)
