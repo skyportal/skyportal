@@ -26,19 +26,16 @@ def test_top_sources(driver, user, public_source, public_group, upload_data_toke
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
     # Wait for just added source to show up in added sources
-    recent_source_class = "static-js-components-RecentSources__recentSourceItem"
-    driver.wait_for_xpath(f'//div[contains(@class, "{recent_source_class}")]')
+    driver.wait_for_xpath(f'//a[text()="{obj_id}"]')
 
     # Test that front-end views register as source views
     driver.click_xpath(f'//a[text()="{obj_id}"]')
     driver.wait_for_xpath(f'//div[text()="{obj_id}"]')
-    driver.get('/')
-    top_source_class = "static-js-components-TopSources__topSource"
-    driver.wait_for_xpath(f'//div[contains(@class, "{top_source_class}")]')
-    driver.wait_for_xpath("//*[contains(.,'1\u00a0view(s)')]")
+    driver.click_xpath('//span[text()="Dashboard"]')
+    driver.wait_for_xpath("//*[contains(.,'1 view(s)')]")
 
     # Test that token requests are registered as source views
     status, data = api('GET', f'sources/{obj_id}', token=upload_data_token)
     assert status == 200
     driver.refresh()
-    driver.wait_for_xpath("//*[contains(.,'2\u00a0view(s)')]")
+    driver.wait_for_xpath("//*[contains(.,'2 view(s)')]")
