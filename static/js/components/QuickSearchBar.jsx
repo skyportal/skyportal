@@ -14,7 +14,7 @@ import { GET } from "../API";
 
 const useStyles = makeStyles(() => ({
   root: {
-    background: "#6EB5DC",
+    background: "#9394c3",
     "& label": {
       color: "black",
     },
@@ -101,7 +101,7 @@ const QuickSearchBar = () => {
   return (
     <Autocomplete
       id="quick-search-bar"
-      style={{ width: "15rem" }}
+      style={{ width: "100%", padding: "0.5rem" }}
       getOptionSelected={(option, val) => option.name === val.name}
       getOptionLabel={(option) => option}
       onInputChange={(e, val) => {
@@ -146,7 +146,8 @@ const QuickSearchBar = () => {
           {...params}
           className={classes.root}
           variant="outlined"
-          label="Source ID Search"
+          placeholder="Source"
+          fullWidth
           InputProps={{
             ...params.InputProps,
             startAdornment: (
