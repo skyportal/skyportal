@@ -664,8 +664,7 @@ def spectroscopy_plot(obj_id, spec_id=None):
         df['telescope'] = s.instrument.telescope.name
         df['instrument'] = s.instrument.name
         df['date_observed'] = s.observed_at.date().isoformat()
-        df['pi'] = s.assignment.run.pi if s.assignment is not None else None
-
+        df['pi'] = s.assignment.run.pi if s.assignment is not None else ""
         dfs.append(df)
 
     data = pd.concat(dfs)
