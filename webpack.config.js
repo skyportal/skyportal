@@ -69,6 +69,12 @@ const config = {
         // does not support the Universal Module spec
         use: "imports-loader?this=>window",
       },
+      {
+        test: /\.json$/,
+        include: /node_modules\/emojilib/,
+        use: 'json-loader'
+        extensions: [".json"],
+      }
     ],
   },
   plugins: [
@@ -81,7 +87,7 @@ const config = {
       bokehjs: path.resolve(__dirname, "node_modules/bokehjs/build/js"),
       bokehcss: path.resolve(__dirname, "node_modules/bokehjs/build/css"),
     },
-    extensions: [".js", ".jsx"],
+    extensions: [".js", ".jsx", ".json"],
   },
   watchOptions: {
     ignored: /node_modules/,
