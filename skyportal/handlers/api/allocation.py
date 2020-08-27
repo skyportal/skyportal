@@ -55,19 +55,13 @@ class AllocationHandler(BaseHandler):
                 allocation_id = int(allocation_id)
             except ValueError:
                 return self.error("Allocation ID must be an integer.")
-
-            allocations = allocations.filter(Allocation.id == allocation_id)
+            allocations = allocations.filter(Allocation.id == allocation_id).all()
+            if len(allocations) == 0:
+                return self.error("Could not retrieve allocation.")
+            return self.success(data=allocations[0])
 
         allocations = allocations.all()
-
-        if len(allocations) == 0 and allocation_id is not None:
-            return self.error("Could not retrieve allocation.")
-
         out_json = Allocation.__schema__().dump(allocations, many=True)
-
-        if allocation_id is not None:
-            out_json = out_json[0]
-
         return self.success(data=out_json)
 
     @permissions(['System admin'])

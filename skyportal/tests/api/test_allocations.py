@@ -95,3 +95,10 @@ def test_read_only_user_cannot_get_unowned_allocation(
     status, data = api('GET', f'allocation/{id}', token=view_only_token)
     assert status == 400
     assert data['status'] == 'error'
+
+
+def test_read_only_user_get_invalid_allocation_id(view_only_token):
+
+    status, data = api('GET', f'allocation/{-1}', token=view_only_token)
+    assert status == 400
+    assert data['status'] == 'error'
