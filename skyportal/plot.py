@@ -731,7 +731,7 @@ def spectroscopy_plot(obj_id, spec_id=None):
         model_dict[f'el{i}'].visible = False
 
     # Split spectral lines into 3 columns
-    element_dicts = np.array_split(np.array(list(SPEC_LINES.items())), 3)
+    element_dicts = np.array_split(np.array(list(SPEC_LINES.items()), dtype=object), 3)
     elements_groups = []
     col_offset = 0
     for element_dict in element_dicts:
