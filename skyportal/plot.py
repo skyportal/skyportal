@@ -660,7 +660,7 @@ def spectroscopy_plot(obj_id, spec_id=None):
                     'telescope': s.instrument.telescope.name,
                     'instrument': s.instrument.name,
                     'date_observed': s.observed_at.date().isoformat(),
-                    'pi': s.assignment.run.pi,
+                    'pi': s.assignment.run.pi if s.assignment is not None else None,
                 }
             )
             for i, s in enumerate(spectra)
