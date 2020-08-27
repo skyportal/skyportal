@@ -739,7 +739,7 @@ def spectroscopy_plot(obj_id, spec_id=None):
     z = column(z_title, z_slider, z_textinput)
 
     v_title = Div(text="<i>V</i><sub>expansion</sub> (km/s): ")
-    v_exp_slider = Slider(value=0.0, start=0.0, end=1e5, step=10.0, show_value=False,)
+    v_exp_slider = Slider(value=0.0, start=0.0, end=3e4, step=10.0, show_value=False,)
     v_exp_textinput = TextInput(value='0')
     v_exp_slider.callback = CustomJS(
         args={'slider': v_exp_slider, 'textinput': v_exp_textinput},
