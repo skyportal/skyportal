@@ -1,0 +1,40 @@
+.source {
+}
+
+.leftColumn {
+  display: inline-block;
+  vertical-align: top;
+  width: auto;
+  padding-right: 1em;
+}
+
+.rightColumn {
+  display: inline-block;
+  min-width: 20em;
+  vertical-align: top;
+}
+
+.name {
+  font-size: 200%;
+  font-weight: 900;
+  color: darkgray;
+  padding-bottom: 0.25em;
+  display: inline-block;
+}
+
+.plot {
+  width: 900px;
+  overflow: auto;
+}
+
+.smallPlot {
+  width: 350px;
+  overflow: auto;
+}
+
+.comments {
+}
+
+.tableContainer {
+  margin: 10px;
+}

@@ -184,6 +184,7 @@ class SourceHandler(BaseHandler):
                     username_or_token_id=self.current_user.id,
                     is_token=True,
                 )
+                self.push_all(action="skyportal/FETCH_TOP_SOURCES")
             s = Source.get_obj_if_owned_by(
                 obj_id,
                 self.current_user,
@@ -213,6 +214,9 @@ class SourceHandler(BaseHandler):
             s.classifications = s.get_classifications_owned_by(self.current_user)
             source_info = s.to_dict()
             source_info["last_detected"] = s.last_detected
+            source_info["gal_lat"] = s.gal_lat_deg
+            source_info["gal_lon"] = s.gal_lon_deg
+
             source_info["groups"] = (
                 Group.query.filter(
                     Group.id.in_(
@@ -238,7 +242,9 @@ class SourceHandler(BaseHandler):
                     DBSession()
                     .query(Source.obj_id)
                     .filter(
-                        Source.group_id.in_([g.id for g in self.current_user.groups])
+                        Source.group_id.in_(
+                            [g.id for g in self.current_user.accessible_groups]
+                        )
                     )
                 )
             )
@@ -287,6 +293,8 @@ class SourceHandler(BaseHandler):
                 source.comments = source.get_comments_owned_by(self.current_user)
                 source_list.append(source.to_dict())
                 source_list[-1]["last_detected"] = source.last_detected
+                source_list[-1]["gal_lon"] = source.gal_lon_deg
+                source_list[-1]["gal_lat"] = source.gal_lat_deg
             query_results["sources"] = source_list
             return self.success(data=query_results)
 
@@ -294,7 +302,11 @@ class SourceHandler(BaseHandler):
             Obj.id.in_(
                 DBSession()
                 .query(Source.obj_id)
-                .filter(Source.group_id.in_([g.id for g in self.current_user.groups]))
+                .filter(
+                    Source.group_id.in_(
+                        [g.id for g in self.current_user.accessible_groups]
+                    )
+                )
             )
         ).all()
         source_list = []
@@ -302,6 +314,8 @@ class SourceHandler(BaseHandler):
             source.comments = source.get_comments_owned_by(self.current_user)
             source_list.append(source.to_dict())
             source_list[-1]["last_detected"] = source.last_detected
+            source_list[-1]["gal_lon"] = source.gal_lon_deg
+            source_list[-1]["gal_lat"] = source.gal_lat_deg
         return self.success(data={"sources": source_list})
 
     @permissions(['Upload data'])

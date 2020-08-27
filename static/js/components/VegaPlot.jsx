@@ -166,18 +166,23 @@ const spec = (url) => ({
   ],
 });
 
-const VegaPlot = ({ dataUrl }) => (
-  <div
-    ref={(node) => {
-      embed(node, spec(dataUrl), {
-        actions: false,
-      });
-    }}
-  />
-);
+const VegaPlot = React.memo((props) => {
+  const { dataUrl } = props;
+  return (
+    <div
+      ref={(node) => {
+        embed(node, spec(dataUrl), {
+          actions: false,
+        });
+      }}
+    />
+  );
+});
 
 VegaPlot.propTypes = {
   dataUrl: PropTypes.string.isRequired,
 };
+
+VegaPlot.displayName = "VegaPlot";
 
 export default VegaPlot;

@@ -1,6 +1,10 @@
 name: Test SkyPortal
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
 
 jobs:
   test:
@@ -41,12 +45,6 @@ jobs:
         with:
           fetch-depth: 0
           submodules: true
-
-      - name: Merge with master
-        run: |
-          git config --global user.email "ci@skyportal.org"
-          git config --global user.name "SkyPortal CI"
-          git merge origin/master
 
       - name: Write SkyPortal configs
         run: |
@@ -100,9 +98,10 @@ jobs:
           make dependencies
 
       - name: Formatting and linting checks
+        if: github.ref != 'refs/heads/master'
         run: |
           pip install pre-commit
-          pre-commit run --from-ref origin/master --to-ref $GITHUB_SHA
+          pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
       - name: Initialize SkyPortal
         run: |

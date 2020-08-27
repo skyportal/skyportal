@@ -162,6 +162,8 @@ class CandidateHandler(BaseHandler):
             c.comments = c.get_comments_owned_by(self.current_user)
             candidate_info = c.to_dict()
             candidate_info["last_detected"] = c.last_detected
+            candidate_info["gal_lon"] = c.gal_lon_deg
+            candidate_info["gal_lat"] = c.gal_lat_deg
             return self.success(data=candidate_info)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
@@ -172,13 +174,6 @@ class CandidateHandler(BaseHandler):
         end_date = self.get_query_argument("endDate", None)
         group_ids = self.get_query_argument("groupIDs", None)
         filter_ids = self.get_query_argument("filterIDs", None)
-        user_group_ids = [g.id for g in self.current_user.groups]
-        user_filter_ids = [
-            filtr.id
-            for g in self.current_user.groups
-            for filtr in g.filters
-            if g.filters is not None
-        ]
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
             filtr.id
@@ -208,8 +203,8 @@ class CandidateHandler(BaseHandler):
             ]
         else:
             # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
-            group_ids = user_group_ids
-            filter_ids = user_filter_ids
+            group_ids = user_accessible_group_ids
+            filter_ids = user_accessible_filter_ids
 
         # Ensure user has access to specified groups/filters
         if not (
@@ -295,6 +290,9 @@ class CandidateHandler(BaseHandler):
             ]
             candidate_list.append(obj.to_dict())
             candidate_list[-1]["last_detected"] = obj.last_detected
+            candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
+            candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
+
         query_results["candidates"] = candidate_list
         return self.success(data=query_results)
 

@@ -1,4 +1,7 @@
+import pytest
 from selenium.common.exceptions import TimeoutException
+
+from skyportal.tests import IS_CI_BUILD
 
 
 def test_share_data(
@@ -9,12 +12,14 @@ def test_share_data(
     public_group,
     public_group2,
 ):
+    if IS_CI_BUILD:
+        pytest.xfail("Xfailing this test on CI builds.")
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.click_xpath('//*[text()="Share data"]')
     driver.wait_for_xpath(f"//div[text()='{public_group.name}']", 15)
     driver.click_xpath('//*[@id="MUIDataTableSelectCell-0"]', wait_clickable=False)
-    driver.click_xpath('//input[contains(@class, "MuiAutocomplete-input")]')
+    driver.click_xpath('//*[@id="dataSharingFormGroupsSelect"]')
     driver.click_xpath(f'//li[text()="{public_group2.name}"]')
     driver.click_xpath('//*[text()="Submit"]')
     driver.wait_for_xpath('//*[text()="Data successfully shared"]', 15)
