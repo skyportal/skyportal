@@ -650,22 +650,26 @@ def spectroscopy_plot(obj_id, spec_id=None):
         return None, None, None
 
     color_map = dict(zip([s.id for s in spectra], viridis(len(spectra))))
-    data = pd.concat(
-        [
-            pd.DataFrame(
-                {
-                    'wavelength': s.wavelengths,
-                    'flux': s.fluxes,
-                    'id': s.id,
-                    'telescope': s.instrument.telescope.name,
-                    'instrument': s.instrument.name,
-                    'date_observed': s.observed_at.date().isoformat(),
-                    'pi': s.assignment.run.pi if s.assignment is not None else None,
-                }
-            )
-            for i, s in enumerate(spectra)
-        ]
-    )
+
+    dfs = []
+    for i, s in enumerate(spectra):
+        # Smooth the spectrum by using a rolling average over 20 values (~100 A)
+        df = (
+            pd.DataFrame({'wavelength': s.wavelengths, 'flux': s.fluxes})
+            .rolling(20)
+            .mean(numeric_only=True)
+            .dropna()
+        )
+        df['id'] = s.id
+        df['telescope'] = s.instrument.telescope.name
+        df['instrument'] = s.instrument.name
+        df['date_observed'] = s.observed_at.date().isoformat()
+        df['pi'] = s.assignment.run.pi if s.assignment is not None else None
+
+        dfs.append(df)
+
+    data = pd.concat(dfs)
+
     split = data.groupby('id')
     hover = HoverTool(
         tooltips=[
@@ -677,9 +681,11 @@ def spectroscopy_plot(obj_id, spec_id=None):
             ('PI', '@pi'),
         ]
     )
+    ymax = np.max(data['flux']) * 1.05
     plot = figure(
         plot_width=600,
         plot_height=300,
+        y_range=(0, ymax),
         sizing_mode='scale_both',
         tools='box_zoom,wheel_zoom,pan,reset',
         active_drag='box_zoom',
