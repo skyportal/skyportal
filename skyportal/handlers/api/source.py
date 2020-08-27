@@ -242,7 +242,9 @@ class SourceHandler(BaseHandler):
                     DBSession()
                     .query(Source.obj_id)
                     .filter(
-                        Source.group_id.in_([g.id for g in self.current_user.groups])
+                        Source.group_id.in_(
+                            [g.id for g in self.current_user.accessible_groups]
+                        )
                     )
                 )
             )
@@ -300,7 +302,11 @@ class SourceHandler(BaseHandler):
             Obj.id.in_(
                 DBSession()
                 .query(Source.obj_id)
-                .filter(Source.group_id.in_([g.id for g in self.current_user.groups]))
+                .filter(
+                    Source.group_id.in_(
+                        [g.id for g in self.current_user.accessible_groups]
+                    )
+                )
             )
         ).all()
         source_list = []

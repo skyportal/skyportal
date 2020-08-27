@@ -9,7 +9,7 @@ from ...models import (
 
 
 class StreamHandler(BaseHandler):
-    @permissions(["System admin"])
+    @auth_or_token
     def get(self, stream_id=None):
         """
         ---

@@ -247,14 +247,10 @@ def photometry_plot(obj_id, user, width=600, height=300):
 
     split = data.groupby('label', sort=False)
 
-    # show middle 98% of data
     finite = np.isfinite(data['flux'])
     fdata = data[finite]
-    lower = np.percentile(fdata['flux'], 1.0)
-    upper = np.percentile(fdata['flux'], 99.0)
-
-    lower -= np.abs(lower) * 0.1
-    upper += np.abs(upper) * 0.1
+    lower = np.min(fdata['flux']) * 0.95
+    upper = np.max(fdata['flux']) * 1.05
 
     plot = figure(
         plot_width=width,
@@ -363,7 +359,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         ).read(),
     )
 
-    slider = Slider(start=0.0, end=15.0, value=0.0, step=1.0, title='binsize (days)')
+    slider = Slider(start=0.0, end=15.0, value=0.0, step=1.0, title='Binsize (days)')
 
     callback = CustomJS(
         args={'slider': slider, 'toggle': toggle, **model_dict},
@@ -377,27 +373,72 @@ def photometry_plot(obj_id, user, width=600, height=300):
 
     slider.js_on_change('value', callback)
 
+    # Mark the first and last detections
+    detection_dates = data[data['hasflux']]['mjd']
+    if len(detection_dates) > 0:
+        first = round(detection_dates.min(), 6)
+        last = round(detection_dates.max(), 6)
+        first_color = "#34b4eb"
+        last_color = "#8992f5"
+        midpoint = (upper + lower) / 2
+        line_top = 5 * upper - 4 * midpoint
+        line_bottom = 5 * lower - 4 * midpoint
+        first_x = np.full(5000, first)
+        last_x = np.full(5000, last)
+        y = np.linspace(line_bottom, line_top, num=5000)
+        first_r = plot.line(
+            x=first_x, y=y, line_alpha=0.5, line_color=first_color, line_width=2,
+        )
+        plot.add_tools(
+            HoverTool(tooltips=[("First detection", f'{first}')], renderers=[first_r],)
+        )
+        last_r = plot.line(
+            x=last_x, y=y, line_alpha=0.5, line_color=last_color, line_width=2
+        )
+        plot.add_tools(
+            HoverTool(tooltips=[("Last detection", f'{last}')], renderers=[last_r],)
+        )
+
     layout = row(plot, toggle)
     layout = column(slider, layout)
 
     p1 = Panel(child=layout, title='Flux')
 
     # now make the mag light curve
-    ymax = 1.1 * data['lim_mag']
-    ymin = 0.9 * data['lim_mag']
-
-    if len(data['obs']) > 0:
-        ymax[data['obs']] = (data['mag'] + data['magerr']) * 1.1
-        ymin[data['obs']] = (data['mag'] - data['magerr']) * 0.9
+    ymax = np.nanmax(data['mag']) + 0.1
+    ymin = np.nanmin(data['mag']) - 0.1
 
     plot = figure(
         plot_width=width,
         plot_height=height,
         active_drag='box_zoom',
         tools='box_zoom,wheel_zoom,pan,reset,save',
-        y_range=(np.nanmax(ymax), np.nanmin(ymin)),
+        y_range=(ymax, ymin),
         toolbar_location='above',
     )
+
+    # Mark the first and last detections again
+    if len(detection_dates) > 0:
+        midpoint = (ymax + ymin) / 2
+        line_top = 5 * ymax - 4 * midpoint
+        line_bottom = 5 * ymin - 4 * midpoint
+        y = np.linspace(line_bottom, line_top, num=5000)
+        first_r = plot.line(
+            x=first_x, y=y, line_alpha=0.5, line_color=first_color, line_width=2,
+        )
+        plot.add_tools(
+            HoverTool(tooltips=[("First detection", f'{first}')], renderers=[first_r],)
+        )
+        last_r = plot.line(
+            x=last_x, y=y, line_alpha=0.5, line_color=last_color, line_width=2
+        )
+        plot.add_tools(
+            HoverTool(
+                tooltips=[("Last detection", f'{last}')],
+                renderers=[last_r],
+                point_policy='follow_mouse',
+            )
+        )
 
     imhover = HoverTool(tooltips=tooltip_format)
     plot.add_tools(imhover)

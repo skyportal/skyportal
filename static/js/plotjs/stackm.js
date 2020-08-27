@@ -189,6 +189,10 @@ for (let i = 0; i < toggle.labels.length; i++) {
       boldsource.data.magsys.push("ab");
       boldsource.data.stacked.push(true);
     }
+
+    // Remove Brokeh-generated 'index' column from converting Pandas DataFrame
+    // The indices will have no meaning once data is binned and is unused
+    delete boldsource.data.index;
   }
 
   fluxsource.change.emit();
