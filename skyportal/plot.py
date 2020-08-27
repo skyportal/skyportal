@@ -661,12 +661,6 @@ def spectroscopy_plot(obj_id, spec_id=None):
     """,
     )
 
-    elements = CheckboxWithLegendGroup(
-        labels=list(SPEC_LINES.keys()),
-        active=[],
-        width=80,
-        colors=[c for w, c in SPEC_LINES.values()],
-    )
     z = TextInput(value=str(obj.redshift), title="z:")
     v_exp = TextInput(value='0', title="v_exp:")
     for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
@@ -683,24 +677,53 @@ def spectroscopy_plot(obj_id, spec_id=None):
         )
         model_dict[f'el{i}'].visible = False
 
-    # TODO callback policy: don't require submit for text changes?
-    elements.callback = CustomJS(
-        args={'elements': elements, 'z': z, 'v_exp': v_exp, **model_dict},
-        code="""
-          let c = 299792.458; // speed of light in km / s
-          for (let i = 0; i < elements.labels.length; i++) {
-              let el = eval("el" + i);
-              el.visible = (elements.active.includes(i))
-              el.data_source.data.x = el.data_source.data.wavelength.map(
-                  x_i => (x_i * (1 + parseFloat(z.value)) /
-                                (1 + parseFloat(v_exp.value) / c))
-              );
-              el.data_source.change.emit();
-          }
-    """,
-    )
-    z.callback = elements.callback
-    v_exp.callback = elements.callback
+    # Split spectral lines into 3 columns
+    element_dicts = np.array_split(np.array(list(SPEC_LINES.items())), 3)
+    elements_groups = []
+    col_offset = 0
+    for element_dict in element_dicts:
+        labels = [key for key, value in element_dict]
+        colors = [c for key, (w, c) in element_dict]
+        elements = CheckboxWithLegendGroup(labels=labels, active=[], colors=colors,)
+        elements_groups.append(elements)
 
-    layout = row(plot, toggle, elements, column(z, v_exp))
+        # TODO callback policy: don't require submit for text changes?
+        elements.callback = CustomJS(
+            args={'elements': elements, 'z': z, 'v_exp': v_exp, **model_dict},
+            code=f"""
+            let c = 299792.458; // speed of light in km / s
+            const i_max = {col_offset} + elements.labels.length;
+            let local_i = 0;
+            for (let i = {col_offset}; i < i_max; i++) {{
+                let el = eval("el" + i);
+                el.visible = (elements.active.includes(local_i))
+                el.data_source.data.x = el.data_source.data.wavelength.map(
+                    x_i => (x_i * (1 + parseFloat(z.value)) /
+                                    (1 + parseFloat(v_exp.value) / c))
+                );
+                el.data_source.change.emit();
+                local_i++;
+            }}
+        """,
+        )
+
+        col_offset += len(labels)
+
+    z.js_on_change(
+        'value',
+        elements_groups[0].callback,
+        elements_groups[1].callback,
+        elements_groups[2].callback,
+    )
+    v_exp.js_on_change(
+        'value',
+        elements_groups[0].callback,
+        elements_groups[1].callback,
+        elements_groups[2].callback,
+    )
+
+    row1 = row(plot, toggle)
+    row2 = row(elements_groups)
+    row3 = column(z, v_exp)
+    layout = column(row1, row2, row3)
     return _plot_to_json(layout)
