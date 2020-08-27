@@ -855,6 +855,16 @@ class Photometry(Base, ha.Point):
     instrument = relationship('Instrument', back_populates='photometry')
     thumbnails = relationship('Thumbnail', passive_deletes=True)
 
+    followup_request_id = sa.Column(
+        sa.ForeignKey('followuprequests.id'), nullable=True, index=True
+    )
+    followup_request = relationship('FollowupRequest', back_populates='photometry')
+
+    assignment_id = sa.Column(
+        sa.ForeignKey('classicalassignments.id'), nullable=True, index=True
+    )
+    assignment = relationship('ClassicalAssignment', back_populates='photometry')
+
     @hybrid_property
     def mag(self):
         if self.flux is not None and self.flux > 0:
@@ -947,6 +957,12 @@ class Spectrum(Base):
         passive_deletes=True,
     )
 
+    followup_request_id = sa.Column(sa.ForeignKey('followuprequests.id'), nullable=True)
+    followup_request = relationship('FollowupRequest', back_populates='spectra')
+
+    assignment_id = sa.Column(sa.ForeignKey('classicalassignments.id'), nullable=True)
+    assignment = relationship('ClassicalAssignment', back_populates='spectra')
+
     @classmethod
     def from_ascii(cls, filename, obj_id, instrument_id, observed_at):
         data = np.loadtxt(filename)
@@ -991,6 +1007,10 @@ class FollowupRequest(Base):
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id'), nullable=False, index=True
     )
+
+    spectra = relationship("Spectrum", back_populates="followup_request")
+    photometry = relationship("Photometry", back_populates="followup_request")
+
     start_date = sa.Column(ArrowType, nullable=False)
     end_date = sa.Column(ArrowType, nullable=False)
     filters = sa.Column(psql.ARRAY(sa.String), nullable=True)
@@ -1138,6 +1158,10 @@ class ClassicalAssignment(Base):
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
     )
+
+    spectra = relationship("Spectrum", back_populates="assignment")
+
+    photometry = relationship("Photometry", back_populates="assignment")
 
     comment = sa.Column(sa.String())
     status = sa.Column(sa.String(), nullable=False, default="pending")
