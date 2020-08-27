@@ -6,7 +6,7 @@ from bokeh.core.properties import List, String
 from bokeh.document import Document
 from bokeh.layouts import row, column
 from bokeh.models import CustomJS, HoverTool, Range1d, Slider, Button
-from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs
+from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
 from bokeh.palettes import viridis
 from bokeh.plotting import figure, ColumnDataSource
 from bokeh.util.compiler import bundle_all_models
@@ -714,8 +714,37 @@ def spectroscopy_plot(obj_id, spec_id=None):
     """,
     )
 
-    z = TextInput(value=str(obj.redshift), title="z:")
-    v_exp = TextInput(value='0', title="v_exp:")
+    z_title = Div(text="Redshift (<i>z</i>): ")
+    z_slider = Slider(
+        value=obj.redshift,
+        start=0.0,
+        end=1.0,
+        step=0.001,
+        show_value=False,
+        format="0[.]000",
+    )
+    z_textinput = TextInput(value=str(obj.redshift))
+    z_slider.callback = CustomJS(
+        args={'slider': z_slider, 'textinput': z_textinput},
+        code="""
+            textinput.value = slider.value.toFixed(3).toString();
+            textinput.change.emit();
+        """,
+    )
+    z = column(z_title, z_slider, z_textinput)
+
+    v_title = Div(text="<i>V</i><sub>expansion</sub> (km/s): ")
+    v_exp_slider = Slider(value=0.0, start=0.0, end=1e5, step=10.0, show_value=False,)
+    v_exp_textinput = TextInput(value='0')
+    v_exp_slider.callback = CustomJS(
+        args={'slider': v_exp_slider, 'textinput': v_exp_textinput},
+        code="""
+            textinput.value = slider.value.toString();
+            textinput.change.emit();
+        """,
+    )
+    v_exp = column(v_title, v_exp_slider, v_exp_textinput)
+
     for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
         el_data = pd.DataFrame({'wavelength': wavelengths})
         el_data['x'] = el_data['wavelength'] * (1 + obj.redshift)
@@ -742,7 +771,12 @@ def spectroscopy_plot(obj_id, spec_id=None):
 
         # TODO callback policy: don't require submit for text changes?
         elements.callback = CustomJS(
-            args={'elements': elements, 'z': z, 'v_exp': v_exp, **model_dict},
+            args={
+                'elements': elements,
+                'z': z_textinput,
+                'v_exp': v_exp_textinput,
+                **model_dict,
+            },
             code=f"""
             let c = 299792.458; // speed of light in km / s
             const i_max = {col_offset} + elements.labels.length;
@@ -762,21 +796,85 @@ def spectroscopy_plot(obj_id, spec_id=None):
 
         col_offset += len(labels)
 
-    z.js_on_change(
+    # Our current version of Bokeh doesn't properly execute multiple callbacks
+    # https://github.com/bokeh/bokeh/issues/6508
+    # Workaround is to manually put the code snippets together
+    z_textinput.js_on_change(
         'value',
-        elements_groups[0].callback,
-        elements_groups[1].callback,
-        elements_groups[2].callback,
+        CustomJS(
+            args={
+                'elements0': elements_groups[0],
+                'elements1': elements_groups[1],
+                'elements2': elements_groups[2],
+                'z': z_textinput,
+                'slider': z_slider,
+                'v_exp': v_exp_textinput,
+                **model_dict,
+            },
+            code="""
+            // Update slider value to match text input
+            slider.value = parseFloat(z.value).toFixed(3);
+
+            // Update plot data for each element
+            let c = 299792.458; // speed of light in km / s
+            const offset_col_1 = elements0.labels.length;
+            const offset_col_2 = offset_col_1 + elements1.labels.length;
+            const i_max = offset_col_2 + elements2.labels.length;
+            for (let i = 0; i < i_max; i++) {{
+                let el = eval("el" + i);
+                el.visible =
+                    elements0.active.includes(i) ||
+                    elements1.active.includes(i - offset_col_1) ||
+                    elements2.active.includes(i - offset_col_2);
+                el.data_source.data.x = el.data_source.data.wavelength.map(
+                    x_i => (x_i * (1 + parseFloat(z.value)) /
+                                    (1 + parseFloat(v_exp.value) / c))
+                );
+                el.data_source.change.emit();
+            }}
+        """,
+        ),
     )
-    v_exp.js_on_change(
+
+    v_exp_textinput.js_on_change(
         'value',
-        elements_groups[0].callback,
-        elements_groups[1].callback,
-        elements_groups[2].callback,
+        CustomJS(
+            args={
+                'elements0': elements_groups[0],
+                'elements1': elements_groups[1],
+                'elements2': elements_groups[2],
+                'z': z_textinput,
+                'slider': v_exp_slider,
+                'v_exp': v_exp_textinput,
+                **model_dict,
+            },
+            code="""
+            // Update slider value to match text input
+            slider.value = parseFloat(v_exp.value).toFixed(3);
+
+            // Update plot data for each element
+            let c = 299792.458; // speed of light in km / s
+            const offset_col_1 = elements0.labels.length;
+            const offset_col_2 = offset_col_1 + elements1.labels.length;
+            const i_max = offset_col_2 + elements2.labels.length;
+            for (let i = 0; i < i_max; i++) {{
+                let el = eval("el" + i);
+                el.visible =
+                    elements0.active.includes(i) ||
+                    elements1.active.includes(i - offset_col_1) ||
+                    elements2.active.includes(i - offset_col_2);
+                el.data_source.data.x = el.data_source.data.wavelength.map(
+                    x_i => (x_i * (1 + parseFloat(z.value)) /
+                                    (1 + parseFloat(v_exp.value) / c))
+                );
+                el.data_source.change.emit();
+            }}
+        """,
+        ),
     )
 
     row1 = row(plot, toggle)
     row2 = row(elements_groups)
-    row3 = column(z, v_exp)
+    row3 = row(z, v_exp)
     layout = column(row1, row2, row3)
     return _plot_to_json(layout)
