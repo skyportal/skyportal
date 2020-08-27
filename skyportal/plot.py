@@ -739,7 +739,7 @@ def spectroscopy_plot(obj_id, spec_id=None):
     v_exp_slider.callback = CustomJS(
         args={'slider': v_exp_slider, 'textinput': v_exp_textinput},
         code="""
-            textinput.value = slider.value.toString();
+            textinput.value = slider.value.toFixed(0).toString();
             textinput.change.emit();
         """,
     )
