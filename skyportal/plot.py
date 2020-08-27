@@ -657,7 +657,9 @@ def spectroscopy_plot(obj_id, spec_id=None):
                     'wavelength': s.wavelengths,
                     'flux': s.fluxes,
                     'id': s.id,
-                    'instrument': s.instrument.telescope.nickname,
+                    'telescope': s.instrument.telescope.name,
+                    'instrument': s.instrument.name,
+                    'date_observed': s.observed_at.date().isoformat(),
                 }
             )
             for i, s in enumerate(spectra)
@@ -665,7 +667,13 @@ def spectroscopy_plot(obj_id, spec_id=None):
     )
     split = data.groupby('id')
     hover = HoverTool(
-        tooltips=[('wavelength', '$x'), ('flux', '$y'), ('instrument', '@instrument')]
+        tooltips=[
+            ('wavelength', '$x'),
+            ('flux', '$y'),
+            ('telesecope', '@telescope'),
+            ('instrument', '@instrument'),
+            ('UTC date observed', '@date_observed'),
+        ]
     )
     plot = figure(
         plot_width=600,
@@ -688,9 +696,11 @@ def spectroscopy_plot(obj_id, spec_id=None):
     plot.y_range = Range1d(0, 1.03 * data.flux.max())
 
     toggle = CheckboxWithLegendGroup(
-        labels=[s.instrument.telescope.nickname for s in spectra],
+        labels=[
+            f'{s.instrument.telescope.nickname}/{s.instrument.name} ({s.observed_at.date().isoformat()})'
+            for s in spectra
+        ],
         active=list(range(len(spectra))),
-        width=100,
         colors=[color_map[k] for k, df in split],
     )
     toggle.callback = CustomJS(
