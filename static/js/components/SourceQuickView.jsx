@@ -35,9 +35,8 @@ const dialogTitleStyles = (theme) => ({
   },
 });
 
-const DialogTitle = withStyles(dialogTitleStyles)((props) => {
-  const { children, classes, onClose } = props;
-  return (
+const DialogTitle = withStyles(dialogTitleStyles)(
+  ({ children, classes, onClose }) => (
     <MuiDialogTitle disableTypography className={classes.root}>
       <Typography variant="h4">{children}</Typography>
       {onClose ? (
@@ -50,10 +49,10 @@ const DialogTitle = withStyles(dialogTitleStyles)((props) => {
         </IconButton>
       ) : null}
     </MuiDialogTitle>
-  );
-});
+  )
+);
 
-const getDialogContentDiv = (source, isCached, taxonomyList) => {
+const DialogContentDiv = ({ source, isCached, taxonomyList }) => {
   if (source.loadError) {
     return <div>{source.loadError}</div>;
   }
@@ -105,6 +104,33 @@ const getDialogContentDiv = (source, isCached, taxonomyList) => {
   );
 };
 
+DialogContentDiv.propTypes = {
+  source: PropTypes.shape({
+    obj_id: PropTypes.string.isRequired,
+    ra: PropTypes.number,
+    dec: PropTypes.number,
+    loadError: PropTypes.bool,
+    thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
+    redshift: PropTypes.number,
+    groups: PropTypes.arrayOf(PropTypes.shape({})),
+    classifications: PropTypes.arrayOf(
+      PropTypes.shape({
+        author_name: PropTypes.string,
+        probability: PropTypes.number,
+        modified: PropTypes.string,
+        classification: PropTypes.string,
+        id: PropTypes.number,
+        obj_id: PropTypes.string,
+        author_id: PropTypes.number,
+        taxonomy_id: PropTypes.number,
+        created_at: PropTypes.string,
+      })
+    ),
+  }).isRequired,
+  isCached: PropTypes.bool.isRequired,
+  taxonomyList: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
+};
+
 const SourceQuickView = ({ sourceId, className }) => {
   const dispatch = useDispatch();
 
@@ -150,7 +176,11 @@ const SourceQuickView = ({ sourceId, className }) => {
         <Dialog open={open} onClose={handleClose} style={{ position: "fixed" }}>
           <DialogTitle onClose={handleClose}>{source.id}</DialogTitle>
           <DialogContent dividers>
-            {getDialogContentDiv(source, isCached, taxonomyList)}
+            <DialogContentDiv
+              source={source}
+              isCached={isCached}
+              taxonomyList={taxonomyList}
+            />
           </DialogContent>
           <DialogActions>
             <div className={styles.sourceLinkButton}>

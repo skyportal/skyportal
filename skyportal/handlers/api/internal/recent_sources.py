@@ -21,7 +21,11 @@ class RecentSourcesHandler(BaseHandler):
                 Obj.id.in_(
                     DBSession()
                     .query(Source.obj_id)
-                    .filter(Source.group_id.in_([g.id for g in current_user.groups]))
+                    .filter(
+                        Source.group_id.in_(
+                            [g.id for g in current_user.accessible_groups]
+                        )
+                    )
                 )
             )
             .order_by(desc('created_at'))
@@ -42,7 +46,7 @@ class RecentSourcesHandler(BaseHandler):
                 self.current_user,
                 options=[joinedload(Source.obj).joinedload(Obj.thumbnails)],
             )
-            public_url = first_public_url(s.thumbnails)
+            public_url = first_thumbnail_public_url(s.thumbnails)
             sources.append(
                 {
                     'obj_id': s.id,
@@ -57,7 +61,7 @@ class RecentSourcesHandler(BaseHandler):
         return self.success(data=sources)
 
 
-def first_public_url(thumbnails):
+def first_thumbnail_public_url(thumbnails):
     urls = [t.public_url for t in sorted(thumbnails, key=lambda t: tIndex(t))]
     return urls[0] if urls else ""
 
