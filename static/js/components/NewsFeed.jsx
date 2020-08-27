@@ -1,4 +1,5 @@
 import React from "react";
+import ReactMarkdown from "react-markdown";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
@@ -7,6 +8,7 @@ import { Paper, Avatar, Tooltip } from "@material-ui/core";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
+import emoji from 'emoji-dictionary';
 
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import UserAvatar from "./UserAvatar";
@@ -21,6 +23,8 @@ const defaultPrefs = {
 };
 
 const NewsFeedItem = ({ item }) => {
+  const emojiSupport = text => text.value.replace(/:\w+:/gi, name => emoji.getUnicode(name));
+
   let EntryAvatar;
   let entryTitle;
   // Use switch-case to make it easy to add future newsfeed types
@@ -80,7 +84,7 @@ const NewsFeedItem = ({ item }) => {
         </div>
       </Tooltip>
       <div className={styles.entryContent}>
-        <span className={styles.entryMessage}>{item.message}</span>
+        <ReactMarkdown source={item.message} escapeHtml={false} renderers={{ text: emojiSupport }} />
         <div className={styles.entryIdent}>
           <span className={styles.entrySourceId}>
             <Link to={`/source/${item.source_id}`}>

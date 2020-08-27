@@ -68,12 +68,6 @@ const config = {
         // Bokeh needs 'this' to be defined, in part since the npm package
         // does not support the Universal Module spec
         use: "imports-loader?this=>window",
-      },
-      {
-        test: /\.json$/,
-        include: /node_modules\/emojilib/,
-        use: 'json-loader'
-        extensions: [".json"],
       }
     ],
   },
