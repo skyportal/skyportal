@@ -69,8 +69,6 @@ const HomePage = () => {
   const currentLayouts =
     preferredLayouts == null ? defaultLayouts : preferredLayouts;
 
-  console.log(preferredLayouts);
-  console.log(currentLayouts);
   const dispatch = useDispatch();
 
   const LayoutChangeHandler = (currentLayout, allLayouts) => {
