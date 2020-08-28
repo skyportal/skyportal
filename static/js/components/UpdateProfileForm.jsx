@@ -27,6 +27,7 @@ const UpdateProfileForm = () => {
 
   useEffect(() => {
     reset({
+      username: profile.username,
       firstName: profile.first_name,
       lastName: profile.last_name,
       email: profile.contact_email ? profile.contact_email : profile.username,
@@ -34,13 +35,14 @@ const UpdateProfileForm = () => {
     });
   }, [reset, profile]);
 
-  const onSubmit = async (value) => {
+  const onSubmit = async (formValues) => {
     setIsSubmitting(true);
     const basicinfo = {
-      first_name: value.firstName,
-      last_name: value.lastName,
-      contact_email: value.email,
-      contact_phone: value.phone,
+      username: formValues.username,
+      first_name: formValues.firstName,
+      last_name: formValues.lastName,
+      contact_email: formValues.email,
+      contact_phone: formValues.phone,
     };
     const result = await dispatch(
       ProfileActions.updateBasicUserInfo(basicinfo)
@@ -53,12 +55,20 @@ const UpdateProfileForm = () => {
 
   return (
     <div>
-      <Typography variant="h5">Change User Profile</Typography>
-
+      <Typography variant="h5">Update User Profile</Typography>
       <Card>
         <CardContent>
-          <h2>Contact Information</h2>
+          <h2>Username</h2>
           <form onSubmit={handleSubmit(onSubmit)}>
+            <InputLabel htmlFor="usernameInput">Username</InputLabel>
+            <TextField
+              inputRef={register({ required: true })}
+              name="username"
+              id="usernameInput"
+              error={!!errors.username}
+              helperText={errors.username ? "Required" : ""}
+            />
+            <h2>Contact Information</h2>
             <Grid
               container
               direction="row"

@@ -3,6 +3,7 @@ from copy import deepcopy
 import phonenumbers
 from phonenumbers.phonenumberutil import NumberParseException
 from validate_email import validate_email
+from sqlalchemy.exc import IntegrityError
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
@@ -106,6 +107,10 @@ class ProfileHandler(BaseHandler):
               schema:
                 type: object
                 properties:
+                  username:
+                    type: string
+                    description: |
+                      User's preferred user name
                   first_name:
                     type: string
                     description: |
@@ -136,7 +141,13 @@ class ProfileHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        user = User.query.filter(User.username == self.current_user.username).first()
+        user = User.query.get(self.current_user.id)
+
+        if data.get("username") is not None:
+            username = data.pop("username").strip()
+            if username == "":
+                return self.error("Invalid username.")
+            user.username = username
 
         if data.get("first_name") is not None:
             user.first_name = data.pop("first_name")
@@ -186,7 +197,14 @@ class ProfileHandler(BaseHandler):
             user_prefs = recursive_update(user_prefs, preferences)
         user.preferences = user_prefs
 
-        DBSession.commit()
+        try:
+            DBSession.commit()
+        except IntegrityError as e:
+            if "duplicate key value violates unique constraint" in str(e):
+                return self.error(
+                    "Username already exists. Please try another username."
+                )
+            raise
         if "newsFeed" in preferences:
             self.push(action="skyportal/FETCH_NEWSFEED")
         if "topSources" in preferences:
