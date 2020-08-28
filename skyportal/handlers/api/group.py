@@ -1,7 +1,7 @@
+import uuid
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
-from .user import add_user_and_setup_groups
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -9,6 +9,7 @@ from ...models import (
     Group,
     GroupStream,
     GroupUser,
+    Invitation,
     Stream,
     User,
     Token,
@@ -349,11 +350,18 @@ class GroupUserHandler(BaseHandler):
             return self.error("Cannot add users to single-user groups.")
         user = User.query.filter(User.username == username.lower()).first()
         if user is None:
-            user_id = add_user_and_setup_groups(
-                username=username,
-                roles=["Full user"],
-                group_ids_and_admin=[[group_id, admin]],
+            groups = Group.query.filter(Group.id == group_id).all()
+            invite_token = str(uuid.uuid4())
+            DBSession.add(
+                Invitation(
+                    token=invite_token,
+                    groups=groups,
+                    admin_for_groups=[admin],
+                    user_email=username,
+                    invited_by=self.associated_user_object,
+                )
             )
+            user_id = None
         else:
             user_id = user.id
             # Just add new GroupUser
