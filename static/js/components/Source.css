@@ -37,3 +37,8 @@
 
 .classifications {
 }
+
+.alignRight {
+  display: inline-block;
+  vertical-align: super;
+}
