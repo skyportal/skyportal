@@ -1,19 +1,22 @@
-import arrow
+import os
 import uuid
 import re
 from datetime import datetime, timezone
+import arrow
 from astropy import units as u
 from astropy import time as ap_time
 import astroplan
 import numpy as np
 import sqlalchemy as sa
-from sqlalchemy import cast
+from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy_utils import ArrowType, URLType
+from sqlalchemy_utils import ArrowType, URLType, EmailType
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 from astropy import coordinates as ap_coord
 import healpix_alchemy as ha
@@ -1262,5 +1265,50 @@ User.assignments = relationship(
     back_populates="requester",
     foreign_keys="ClassicalAssignment.requester_id",
 )
+
+
+class Invitation(Base):
+    token = sa.Column(sa.String(), nullable=False, unique=True)
+    groups = relationship(
+        "Group",
+        secondary="group_invitations",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
+    admin_for_groups = sa.Column(psql.ARRAY(sa.Boolean), nullable=False)
+    user_email = sa.Column(EmailType(), nullable=True)
+    invited_by = relationship(
+        "User",
+        secondary="user_invitations",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        uselist=False,
+    )
+
+
+GroupInvitation = join_model('group_invitations', Group, Invitation)
+UserInvitation = join_model("user_invitations", User, Invitation)
+
+
+@event.listens_for(Invitation, 'after_insert')
+def send_user_invite_email(mapper, connection, target):
+    message = Mail(
+        from_email='a.crellinquick@gmail.com',
+        to_emails=target.user_email,
+        subject="You've been invited to join SkyPortal",
+        html_content=(
+            'Please click <a href="http://localhost:5000/login/google-oauth2/'
+            f'?invite_token={target.token}">here</a> to collaborate on SkyPortal.'
+        ),
+    )
+    try:
+        sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
+        response = sg.send(message)
+        print(response.status_code)
+        print(response.body)
+        print(response.headers)
+    except Exception as e:
+        print(e.message)
+
 
 schema.setup_schema()
