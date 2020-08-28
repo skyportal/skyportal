@@ -35,20 +35,32 @@ SPEC_LINES = {
     'H': ([3970, 4102, 4341, 4861, 6563], '#ff0000'),
     'He': ([3886, 4472, 5876, 6678, 7065], '#002157'),
     'He II': ([3203, 4686], '#003b99'),
+    'C I': ([8335, 9093, 9406, 9658, 10693, 11330, 11754, 14543], '#8a2be2'),
     'C II': ([3919, 4267, 6580, 7234, 9234], '#570199'),
     'C III': ([4650, 5696], '#a30198'),
     'C IV': ([5801], '#ff0073'),
+    'N II': ([5754, 6548, 6583], '#01fee1'),
+    'N III': ([4100, 4640], '#01fe95'),
     'O': ([7772, 7774, 7775, 8447, 9266], '#007236'),
     'O II': ([3727], '#00a64d'),
     'O III': ([4959, 5007], '#00bf59'),
     'Na': ([5890, 5896, 8183, 8195], '#aba000'),
     'Mg': ([2780, 2852, 3829, 3832, 3838, 4571, 5167, 5173, 5184], '#8c6239'),
     'Mg II': ([2791, 2796, 2803, 4481], '#bf874e'),
+    'Si I': ([10585, 10827, 12032, 15888], '#6495ed'),
     'Si II': ([3856, 5041, 5056, 5670, 6347, 6371], '#5674b9'),
+    'S I': ([9223, 10457, 13809, 18940, 22694], '#ffe4b5'),
     'S II': ([5433, 5454, 5606, 5640, 5647, 6715], '#a38409'),
+    'Ca I': ([19453, 19753], '#009000'),
     'Ca II': ([3934, 3969, 7292, 7324, 8498, 8542, 8662], '#005050'),
+    'Mn I': ([12900, 13310, 13630, 13859, 15184, 15263], '#009090'),
+    'Fe I': ([11973], '#cd5c5c'),
     'Fe II': ([5018, 5169], '#f26c4f'),
     'Fe III': ([4397, 4421, 4432, 5129, 5158], '#f9917b'),
+    'Co II': (
+        [15759, 16064, 16361, 17239, 17462, 17772, 21347, 22205, 22497, 23613, 24596],
+        '#ffe4e1',
+    ),
 }
 # TODO add groups
 # Galaxy lines
@@ -656,7 +668,7 @@ def spectroscopy_plot(obj_id, spec_id=None):
         # Smooth the spectrum by using a rolling average over 20 values (~100 A)
         df = (
             pd.DataFrame({'wavelength': s.wavelengths, 'flux': s.fluxes})
-            .rolling(20)
+            .rolling(1)
             .mean(numeric_only=True)
             .dropna()
         )
@@ -681,10 +693,13 @@ def spectroscopy_plot(obj_id, spec_id=None):
         ]
     )
     ymax = np.max(data['flux']) * 1.05
+    xmin = np.min(data['wavelength']) - 100
+    xmax = np.max(data['wavelength']) + 100
     plot = figure(
         plot_width=600,
         plot_height=300,
         y_range=(0, ymax),
+        x_range=(xmin, xmax),
         sizing_mode='scale_both',
         tools='box_zoom,wheel_zoom,pan,reset',
         active_drag='box_zoom',
