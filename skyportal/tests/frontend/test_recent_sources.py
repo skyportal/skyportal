@@ -1,10 +1,12 @@
 import uuid
+import pytest
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import TimeoutException
 
 from skyportal.tests import api
 
 
-def test_recent_sources(driver, user, public_source, public_group, upload_data_token):
+def test_recent_sources(driver, user, public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
     ra = 50.1
     redshift = 2.5
@@ -52,3 +54,38 @@ def test_recent_sources(driver, user, public_source, public_group, upload_data_t
         f'//span[contains(@class, "MuiChip-label")][text()="{group_name}"]'
     )
     driver.click_xpath("//div[contains(@class, 'sourceLinkButton')]")
+
+
+def test_hidden_recent_source(driver, user_no_groups, public_group, upload_data_token):
+    obj_id = str(uuid.uuid4())
+    ra = 50.1
+    redshift = 2.5
+    status, data = api(
+        'POST',
+        'sources',
+        data={
+            'id': obj_id,
+            'ra': ra,
+            'dec': 22.33,
+            'redshift': redshift,
+            "altdata": {"simbad": {"class": "RRLyr"}},
+            'transient': False,
+            'ra_dis': 2.3,
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['data']['id'] == obj_id
+
+    driver.get(f'/become_user/{user_no_groups.id}')
+    driver.get('/')
+
+    # Make sure just added source doesn't show up
+    with pytest.raises(TimeoutException):
+        recent_source_class = (
+            "static-js-components-RecentSources__recentSourceItemWithButton"
+        )
+        driver.wait_for_xpath(
+            f'//div[starts-with(@class, "{recent_source_class}")][.//span[text()="a few seconds ago"]][.//a[contains(text(), "{obj_id}")]]'
+        )
