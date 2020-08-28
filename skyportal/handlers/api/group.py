@@ -362,10 +362,6 @@ class GroupUserHandler(BaseHandler):
                 )
             )
             user_id = None
-            self.push(
-                action='baselayer/SHOW_NOTIFICATION',
-                payload={'note': f'Invitation sent to {username}.', 'type': 'info'},
-            )
         else:
             user_id = user.id
             # Just add new GroupUser

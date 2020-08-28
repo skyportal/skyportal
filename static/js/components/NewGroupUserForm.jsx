@@ -12,6 +12,7 @@ import DialogContent from "@material-ui/core/DialogContent";
 import DialogContentText from "@material-ui/core/DialogContentText";
 import DialogTitle from "@material-ui/core/DialogTitle";
 
+import { showNotification } from "baselayer/components/Notifications";
 import * as groupsActions from "../ducks/groups";
 import * as usersActions from "../ducks/users";
 
@@ -33,14 +34,21 @@ const NewGroupUserForm = ({ group_id }) => {
     }
   }, [dispatch, allUsers]);
 
-  const submitAndResetForm = () => {
-    dispatch(
+  const submitAndResetForm = async () => {
+    const result = await dispatch(
       groupsActions.addGroupUser({
         username: formState.newUserEmail,
         admin: formState.admin,
         group_id,
       })
     );
+    if (formState.invitingNewUser && result.status === "success") {
+      dispatch(
+        showNotification(
+          `Invitation successfully sent to ${formState.newUserEmail}`
+        )
+      );
+    }
     setFormState({
       newUserEmail: null,
       admin: false,

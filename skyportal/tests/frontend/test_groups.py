@@ -99,7 +99,9 @@ def test_add_new_group_user_nonadmin(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.xfail(
+    strict=False
+)  # This will now fail without valid Twilio Sendgrid config files
 def test_add_new_group_user_new_username(driver, super_admin_user, user, public_group):
     new_username = str(uuid.uuid4())
     driver.get(f'/become_user/{super_admin_user.id}')
@@ -111,7 +113,8 @@ def test_add_new_group_user_new_username(driver, super_admin_user, user, public_
         new_username, Keys.ENTER
     )
     driver.click_xpath('//input[@value="Add user"]')
-    driver.wait_for_xpath(f'//a[contains(.,"{new_username}")]')
+    driver.click_xpath('//span[text()="Confirm"]')
+    driver.wait_for_xpath('//*[contains(., "Invitation successfully sent to")]')
 
 
 @pytest.mark.flaky(reruns=2)
