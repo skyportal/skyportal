@@ -20,6 +20,7 @@ from sendgrid.helpers.mail import Mail
 
 from astropy import coordinates as ap_coord
 import healpix_alchemy as ha
+import timezonefinder
 
 from baselayer.app.models import (  # noqa
     init_db,
@@ -32,8 +33,8 @@ from baselayer.app.models import (  # noqa
     Token,
 )
 from baselayer.app.custom_exceptions import AccessError
+from baselayer.app.env import load_env
 
-import timezonefinder
 
 from . import schema
 from .enum_types import (
@@ -1292,23 +1293,19 @@ UserInvitation = join_model("user_invitations", User, Invitation)
 
 @event.listens_for(Invitation, 'after_insert')
 def send_user_invite_email(mapper, connection, target):
+    _, cfg = load_env()
     message = Mail(
-        from_email='a.crellinquick@gmail.com',
+        from_email=cfg["invitations.from_email"],
         to_emails=target.user_email,
-        subject="You've been invited to join SkyPortal",
+        subject=cfg["invitations.email_subject"],
         html_content=(
+            f'{cfg["invitations.email_body_preamble"]}<br /><br />'
             'Please click <a href="http://localhost:5000/login/google-oauth2/'
-            f'?invite_token={target.token}">here</a> to collaborate on SkyPortal.'
+            f'?invite_token={target.token}">here</a> to join.'
         ),
     )
-    try:
-        sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
-        response = sg.send(message)
-        print(response.status_code)
-        print(response.body)
-        print(response.headers)
-    except Exception as e:
-        print(e.message)
+    sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
+    sg.send(message)
 
 
 schema.setup_schema()

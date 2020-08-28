@@ -102,3 +102,11 @@ cron:
   - interval: 1440
     script: jobs/delete_unsaved_candidates.py
     limit: ["01:00", "02:00"]
+
+invitations:
+  # Note that in order for invitations to be sent, a valid Sendgrid API key must be
+  # stored in sendgrid.env as per their setup docs
+  n_days_til_expiry: 3
+  email_subject: You\'ve been invited to collaborate on SkyPortal
+  email_body_preamble: Welcome to SkyPortal!
+  from_email: # This needs to be set to a valid, Sendgrid-registered address in config.yaml
