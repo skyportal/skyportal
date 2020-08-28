@@ -2,7 +2,9 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
+
 import { Paper, Avatar, Tooltip } from "@material-ui/core";
+import Typography from "@material-ui/core/Typography";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -67,7 +69,7 @@ const NewsFeedItem = ({ item }) => {
     <Paper
       key={`newsFeedItem_${item.time}`}
       className={styles.entry}
-      elevation={2}
+      elevation={1}
     >
       <Tooltip
         title={entryTitle}
@@ -102,11 +104,18 @@ const NewsFeed = () => {
   const newsFeedPrefs =
     useSelector((state) => state.profile.preferences.newsFeed) || defaultPrefs;
 
-  const height = Math.min(250, parseInt(items.length * 60, 10));
+  // Color styling
+  const userColorTheme = useSelector(
+    (state) => state.profile.preferences.theme
+  );
+  const newsFeedStyle =
+    userColorTheme === "dark" ? styles.newsFeedDark : styles.newsFeed;
 
   return (
-    <div style={{ border: "1px solid #DDD", padding: "10px", height: "100%" }}>
-      <h2 style={{ display: "inline-block" }}>News Feed</h2>
+    <Paper style={{ padding: "1rem", height: "100%" }} elevation={1}>
+      <Typography variant="h6" display="inline">
+        News Feed
+      </Typography>
       <div style={{ display: "inline-block", float: "right" }}>
         <WidgetPrefsDialog
           formValues={newsFeedPrefs}
@@ -115,12 +124,12 @@ const NewsFeed = () => {
           onSubmit={profileActions.updateUserPreferences}
         />
       </div>
-      <div className={styles.newsFeed} style={{ height }}>
+      <div className={newsFeedStyle} style={{ height: "85%" }}>
         {items.map((item) => (
           <NewsFeedItem key={item.time} item={item} />
         ))}
       </div>
-    </div>
+    </Paper>
   );
 };
 

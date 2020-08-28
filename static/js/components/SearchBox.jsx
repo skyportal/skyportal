@@ -83,6 +83,7 @@ const SearchBox = ({ sources }) => {
     },
     paper: {
       padding: "1rem",
+      marginTop: "10px",
     },
     root: {
       display: "flex",
