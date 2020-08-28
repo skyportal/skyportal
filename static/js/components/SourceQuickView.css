@@ -1,10 +1,10 @@
 .textContent {
-  margin-top: 15px;
+  margin-top: 1rem;
   font-size: 1.2em;
 }
 
 .textContentItem {
-  padding: 6px 0px;
+  padding: 0.375rem 0;
 }
 
 .chip {
@@ -25,10 +25,10 @@
 }
 
 .dialogContent {
-  padding: 15px;
+  padding: 1rem;
 }
 
 .sourceLinkButton {
-  margin-top: 15px;
+  margin-top: 1rem;
   float: right;
 }
