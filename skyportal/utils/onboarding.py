@@ -1,3 +1,5 @@
+import datetime
+from social_core.exceptions import AuthTokenError
 from ..models import DBSession, User, Group, GroupUser, Invitation
 from baselayer.app.env import load_env
 
@@ -11,6 +13,20 @@ def create_user(strategy, details, backend, user=None, *args, **kwargs):
     invite_token = strategy.session_get("invite_token")
 
     if invite_token is not None:
+        try:
+            n_days = int(cfg["invitations.days_til_expiry"])
+        except ValueError:
+            raise ValueError(
+                "Invalid (non-integer) value provided for "
+                "invitations.days_til_expiry in config file."
+            )
+        invitation = Invitation.query.filter(Invitation.token == invite_token).first()
+        if invitation is None:
+            return
+
+        cutoff_datetime = datetime.datetime.now() - datetime.timedelta(days=n_days)
+        if invitation.created_at < cutoff_datetime:
+            raise AuthTokenError("Invite token has expired.")
         user = User(
             username=details["username"],
             contact_email=details["email"],
