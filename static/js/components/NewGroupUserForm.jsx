@@ -5,6 +5,12 @@ import TextField from "@material-ui/core/TextField";
 import Autocomplete, {
   createFilterOptions,
 } from "@material-ui/lab/Autocomplete";
+import Button from "@material-ui/core/Button";
+import Dialog from "@material-ui/core/Dialog";
+import DialogActions from "@material-ui/core/DialogActions";
+import DialogContent from "@material-ui/core/DialogContent";
+import DialogContentText from "@material-ui/core/DialogContentText";
+import DialogTitle from "@material-ui/core/DialogTitle";
 
 import * as groupsActions from "../ducks/groups";
 import * as usersActions from "../ducks/users";
@@ -17,7 +23,9 @@ const NewGroupUserForm = ({ group_id }) => {
   const [formState, setFormState] = useState({
     newUserEmail: null,
     admin: false,
+    invitingNewUser: false,
   });
+  const [confirmDialogOpen, setConfirmDialogOpen] = React.useState(false);
 
   useEffect(() => {
     if (allUsers.length === 0) {
@@ -25,8 +33,7 @@ const NewGroupUserForm = ({ group_id }) => {
     }
   }, [dispatch, allUsers]);
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
+  const submitAndResetForm = () => {
     dispatch(
       groupsActions.addGroupUser({
         username: formState.newUserEmail,
@@ -37,7 +44,18 @@ const NewGroupUserForm = ({ group_id }) => {
     setFormState({
       newUserEmail: null,
       admin: false,
+      invitingNewUser: false,
     });
+  };
+
+  const handleClickSubmit = (event) => {
+    event.preventDefault();
+    if (formState.invitingNewUser) {
+      // If user clicks confirm, `submitAndResetForm` will be called
+      setConfirmDialogOpen(true);
+    } else {
+      submitAndResetForm();
+    }
   };
 
   const toggleAdmin = (event) => {
@@ -61,6 +79,7 @@ const NewGroupUserForm = ({ group_id }) => {
             // Create a new value from the user input
             setFormState({
               newUserEmail: newValue.inputValue,
+              invitingNewUser: true,
             });
           } else {
             setFormState({ newUserEmail: newValue.username });
@@ -105,7 +124,44 @@ const NewGroupUserForm = ({ group_id }) => {
       />
       <input type="checkbox" checked={formState.admin} onChange={toggleAdmin} />
       Group Admin &nbsp;&nbsp;
-      <input type="submit" onClick={handleSubmit} value="Add user" />
+      <input type="submit" onClick={handleClickSubmit} value="Add user" />
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={() => {
+          setConfirmDialogOpen(false);
+        }}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          Invite new user to this group?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            Click Confirm to invite specified user and grant them access to this
+            group.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setConfirmDialogOpen(false);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              setConfirmDialogOpen(false);
+              submitAndResetForm();
+            }}
+            color="primary"
+            autoFocus
+          >
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
