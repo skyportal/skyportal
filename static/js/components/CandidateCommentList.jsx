@@ -2,6 +2,8 @@ import React from "react";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 
+import Tooltip from "@material-ui/core/Tooltip";
+
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -21,39 +23,24 @@ const CandidateCommentList = ({ comments }) => {
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
   const items = comments.map(
-    ({ id, author, author_info, created_at, text, attachment_name }) => {
+    ({ id, author, author_info, created_at, text }) => {
       return (
         <span key={id} className={commentStyle}>
-          <div className={styles.commentUserAvatar}>
-            <UserAvatar
-              size={24}
-              firstName={author_info.first_name}
-              lastName={author_info.last_name}
-              username={author_info.username}
-              gravatarUrl={author_info.gravatar_url}
-            />
-          </div>
+          <Tooltip title={author} arrow placement="top-start">
+            <div className={styles.commentUserAvatar}>
+              <UserAvatar
+                size={24}
+                firstName={author_info.first_name}
+                lastName={author_info.last_name}
+                username={author_info.username}
+                gravatarUrl={author_info.gravatar_url}
+              />
+            </div>
+          </Tooltip>
           <div className={styles.commentContent}>
-            <div className={styles.commentHeader}>
-              <span className={styles.commentUser}>
-                <span className={styles.commentUserName}>{author}</span>
-              </span>
-              <span className={styles.commentTime}>
-                {dayjs().to(dayjs.utc(`${created_at}Z`))}
-              </span>
-            </div>
-            <div className={styles.wrap} name={`commentDiv${id}`}>
-              <div className={styles.commentMessage}>{text}</div>
-            </div>
-            <span>
-              {attachment_name && (
-                <div>
-                  Attachment:&nbsp;
-                  <a href={`/api/comment/${id}/attachment`}>
-                    {attachment_name}
-                  </a>
-                </div>
-              )}
+            <span className={styles.commentMessage}>{text}</span>
+            <span className={styles.commentTime}>
+              {dayjs().to(dayjs.utc(`${created_at}Z`))}
             </span>
           </div>
         </span>
