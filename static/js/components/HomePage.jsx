@@ -1,5 +1,5 @@
 import React from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 
 import { Responsive, WidthProvider } from "react-grid-layout";
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -7,6 +7,7 @@ import "reactgridlayoutcss/styles.css";
 // eslint-disable-next-line import/no-extraneous-dependencies
 import "reactresizablecss/styles.css";
 
+import * as profileActions from "../ducks/profile";
 import SourceList from "./SourceList";
 import GroupList from "./GroupList";
 import NewsFeed from "./NewsFeed";
@@ -50,7 +51,7 @@ const xsLayout = [
   { i: "groups", x: 2, y: 9, w: 2, h: 3, isResizable: false },
 ];
 
-const layouts = {
+const defaultLayouts = {
   xlg: xlgLayout,
   lg: lgLayout,
   md: mdLayout,
@@ -60,13 +61,32 @@ const layouts = {
 
 const HomePage = () => {
   const groups = useSelector((state) => state.groups.user);
+
+  const preferredLayouts = useSelector(
+    (state) => state.profile.preferences.layouts
+  );
+
+  const currentLayouts =
+    preferredLayouts == null ? preferredLayouts : defaultLayouts;
+
+  const dispatch = useDispatch();
+
+  const LayoutChangeHandler = (currentLayout, allLayouts) => {
+    const prefs = {
+      layouts: allLayouts,
+    };
+
+    dispatch(profileActions.updateUserPreferences(prefs));
+  };
+
   return (
     <ResponsiveGridLayout
       className="layout"
-      layouts={layouts}
+      layouts={currentLayouts}
       breakpoints={{ xlg: 1400, lg: 1150, md: 996, sm: 768, xs: 480 }}
       cols={{ xlg: 16, lg: 12, md: 10, sm: 6, xs: 4 }}
       margin={[15, 15]}
+      onLayoutChange={LayoutChangeHandler}
     >
       <div key="sourceList" className={styles.homePageWidgetDiv}>
         <SourceList />

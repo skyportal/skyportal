@@ -8,7 +8,7 @@ import Typography from "@material-ui/core/Typography";
 
 const GroupList = ({ title, groups }) => (
   <Box p={1} border="1px solid #ddd" height="100%" padding="10px">
-    <Typography variant="h6">{title}</Typography>
+    <Typography variant="h5">{title}</Typography>
 
     <List component="nav" aria-label="main mailbox folders">
       {groups &&
