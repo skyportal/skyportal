@@ -19,36 +19,36 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 const xlgLayout = [
   { i: "sourceList", x: 0, y: 0, w: 9, h: 6, minW: 9, isResizable: false },
   { i: "newsFeed", x: 9, y: 0, w: 7, h: 3, isResizable: false },
-  { i: "topSources", x: 9, y: 0, w: 4, h: 3, isResizable: false },
-  { i: "groups", x: 13, y: 0, w: 2, h: 3, isResizable: false },
+  { i: "topSources", x: 9, y: 0, w: 4, h: 2, isResizable: false },
+  { i: "groups", x: 13, y: 0, w: 2, h: 2, isResizable: false },
 ];
 
 const lgLayout = [
   { i: "sourceList", x: 0, y: 0, w: 7, h: 6, isResizable: false },
   { i: "newsFeed", x: 7, y: 0, w: 5, h: 3, isResizable: false },
-  { i: "topSources", x: 7, y: 0, w: 3, h: 3, isResizable: false },
-  { i: "groups", x: 10, y: 0, w: 2, h: 3, isResizable: false },
+  { i: "topSources", x: 7, y: 0, w: 3, h: 2, isResizable: false },
+  { i: "groups", x: 10, y: 0, w: 2, h: 2, isResizable: false },
 ];
 
 const mdLayout = [
   { i: "sourceList", x: 0, y: 0, w: 10, h: 6, isResizable: false },
   { i: "newsFeed", x: 0, y: 6, w: 5, h: 3, isResizable: false },
-  { i: "topSources", x: 5, y: 6, w: 3, h: 3, isResizable: false },
-  { i: "groups", x: 8, y: 6, w: 2, h: 3, isResizable: false },
+  { i: "topSources", x: 5, y: 6, w: 3, h: 2, isResizable: false },
+  { i: "groups", x: 8, y: 6, w: 2, h: 2, isResizable: false },
 ];
 
 const smLayout = [
   { i: "sourceList", x: 0, y: 0, w: 6, h: 6, isResizable: false },
   { i: "newsFeed", x: 0, y: 6, w: 3, h: 3, isResizable: false },
-  { i: "topSources", x: 3, y: 6, w: 2, h: 3, isResizable: false },
-  { i: "groups", x: 5, y: 6, w: 1, h: 3, isResizable: false },
+  { i: "topSources", x: 3, y: 6, w: 2, h: 2, isResizable: false },
+  { i: "groups", x: 5, y: 6, w: 1, h: 2, isResizable: false },
 ];
 
 const xsLayout = [
   { i: "sourceList", x: 0, y: 0, w: 4, h: 6, isResizable: false },
   { i: "newsFeed", x: 0, y: 6, w: 4, h: 3, isResizable: false },
-  { i: "topSources", x: 0, y: 9, w: 2, h: 3, isResizable: false },
-  { i: "groups", x: 2, y: 9, w: 2, h: 3, isResizable: false },
+  { i: "topSources", x: 0, y: 9, w: 2, h: 2, isResizable: false },
+  { i: "groups", x: 2, y: 9, w: 2, h: 2, isResizable: false },
 ];
 
 const defaultLayouts = {
@@ -67,8 +67,10 @@ const HomePage = () => {
   );
 
   const currentLayouts =
-    preferredLayouts == null ? preferredLayouts : defaultLayouts;
+    preferredLayouts == null ? defaultLayouts : preferredLayouts;
 
+  console.log(preferredLayouts);
+  console.log(currentLayouts);
   const dispatch = useDispatch();
 
   const LayoutChangeHandler = (currentLayout, allLayouts) => {
