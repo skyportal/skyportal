@@ -663,23 +663,35 @@ def spectroscopy_plot(obj_id, spec_id=None):
 
     color_map = dict(zip([s.id for s in spectra], viridis(len(spectra))))
 
+    data = pd.concat(
+        [
+            pd.DataFrame(
+                {
+                    'wavelength': s.wavelengths,
+                    'flux': s.fluxes,
+                    'id': s.id,
+                    'telescope': s.instrument.telescope.name,
+                    'instrument': s.instrument.name,
+                    'date_observed': s.observed_at.date().isoformat(),
+                    'pi': s.assignment.run.pi if s.assignment is not None else "",
+                }
+            )
+            for i, s in enumerate(spectra)
+        ]
+    )
+
     dfs = []
     for i, s in enumerate(spectra):
-        # Smooth the spectrum by using a rolling average over 20 values (~100 A)
+        # Smooth the spectrum by using a rolling average
         df = (
             pd.DataFrame({'wavelength': s.wavelengths, 'flux': s.fluxes})
-            .rolling(1)
+            .rolling(2)
             .mean(numeric_only=True)
             .dropna()
         )
-        df['id'] = s.id
-        df['telescope'] = s.instrument.telescope.name
-        df['instrument'] = s.instrument.name
-        df['date_observed'] = s.observed_at.date().isoformat()
-        df['pi'] = s.assignment.run.pi if s.assignment is not None else ""
         dfs.append(df)
 
-    data = pd.concat(dfs)
+    smoothed_data = pd.concat(dfs)
 
     split = data.groupby('id')
     hover = HoverTool(
@@ -692,13 +704,16 @@ def spectroscopy_plot(obj_id, spec_id=None):
             ('PI', '@pi'),
         ]
     )
-    ymax = np.max(data['flux']) * 1.05
+    smoothed_max = np.max(smoothed_data['flux'])
+    smoothed_min = np.min(smoothed_data['flux'])
+    ymax = smoothed_max * 1.05
+    ymin = smoothed_min - 0.05 * (smoothed_max - smoothed_min)
     xmin = np.min(data['wavelength']) - 100
     xmax = np.max(data['wavelength']) + 100
     plot = figure(
         plot_width=600,
         plot_height=300,
-        y_range=(0, ymax),
+        y_range=(ymin, ymax),
         x_range=(xmin, xmax),
         sizing_mode='scale_both',
         tools='box_zoom,wheel_zoom,pan,reset',
