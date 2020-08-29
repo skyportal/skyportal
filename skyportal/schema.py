@@ -749,6 +749,7 @@ class ObservingRunGet(ObservingRunPost):
 
 class ObservingRunGetWithAssignments(ObservingRunGet):
     assignments = fields.List(fields.Field())
+    instrument = fields.Field()
 
 
 def register_components(spec):

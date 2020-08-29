@@ -1,6 +1,15 @@
 .source {
 }
 
+.displayInlineBlock {
+  display: inline-block;
+}
+
+.center {
+  margin: auto;
+  padding: 10px;
+}
+
 .leftColumn {
   display: inline-block;
   vertical-align: top;
