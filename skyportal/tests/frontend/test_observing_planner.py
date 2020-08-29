@@ -1,9 +1,24 @@
 import uuid
 import pytest
+from .. import api
+
+
+def post_assignment(obj, run, priority, comment, token):
+    return api(
+        "POST",
+        "assignment",
+        data={
+            "obj_id": obj.id,
+            "run_id": run.id,
+            "priority": priority,
+            "comment": comment,
+        },
+        token=token,
+    )
 
 
 @pytest.mark.flaky(reruns=2)
-def test_submit_and_delete_new_assignment(
+def test_source_is_added_to_observing_run_via_frontend(
     driver, super_admin_user, public_source, red_transients_run
 ):
     driver.get(f"/become_user/{super_admin_user.id}")
@@ -29,9 +44,28 @@ def test_submit_and_delete_new_assignment(
     submit_button = driver.wait_for_xpath('//*[@name="assignmentSubmitButton"]')
 
     driver.scroll_to_element_and_click(submit_button)
-
-    delbut = driver.wait_for_xpath('//button[text()="Delete"]')
+    driver.get(f"/run/{red_transients_run.id}")
+    driver.wait_for_xpath(f'//*[text()="{public_source.id}"]')
     driver.wait_for_xpath(f'//*[text()="{comment_text}"]')
-    driver.scroll_to_element_and_click(delbut)
-    driver.wait_for_xpath_to_disappear('//button[text()="Delete"]')
-    driver.wait_for_xpath_to_disappear(f'//*[text()="{comment_text}"]')
+
+
+@pytest.mark.flaky(reruns=2)
+def test_assignment_posts_to_observing_run(
+    driver, super_admin_user, public_source, red_transients_run, super_admin_token
+):
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    status, data = post_assignment(
+        public_source,
+        red_transients_run,
+        priority="3",
+        comment="Observe please",
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data["status"] == "success"
+
+    driver.get(f"/run/{red_transients_run.id}")
+    driver.wait_for_xpath(f'//*[text()="{public_source.id}"]')

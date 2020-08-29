@@ -1,6 +1,10 @@
 name: Test SkyPortal
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
 
 jobs:
   test:
@@ -94,6 +98,7 @@ jobs:
           make dependencies
 
       - name: Formatting and linting checks
+        if: github.ref != 'refs/heads/master'
         run: |
           pip install pre-commit
           pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}

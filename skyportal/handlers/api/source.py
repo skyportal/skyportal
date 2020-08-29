@@ -184,6 +184,7 @@ class SourceHandler(BaseHandler):
                     username_or_token_id=self.current_user.id,
                     is_token=True,
                 )
+                self.push_all(action="skyportal/FETCH_TOP_SOURCES")
             s = Source.get_obj_if_owned_by(
                 obj_id,
                 self.current_user,
@@ -231,51 +232,54 @@ class SourceHandler(BaseHandler):
             )
 
             return self.success(data=source_info)
+        q = Obj.query.filter(
+            Obj.id.in_(
+                DBSession()
+                .query(Source.obj_id)
+                .filter(
+                    Source.group_id.in_(
+                        [g.id for g in self.current_user.accessible_groups]
+                    )
+                )
+            )
+        )
+        if sourceID:
+            q = q.filter(Obj.id.contains(sourceID.strip()))
+        if any([ra, dec, radius]):
+            if not all([ra, dec, radius]):
+                return self.error(
+                    "If any of 'ra', 'dec' or 'radius' are "
+                    "provided, all three are required."
+                )
+            try:
+                ra = float(ra)
+                dec = float(dec)
+                radius = float(radius)
+            except ValueError:
+                return self.error(
+                    "Invalid values for ra, dec or radius - could not convert to float"
+                )
+            other = ha.Point(ra=ra, dec=dec)
+            q = q.filter(Obj.within(other, radius))
+        if start_date:
+            start_date = arrow.get(start_date.strip())
+            q = q.filter(Obj.last_detected >= start_date)
+        if end_date:
+            end_date = arrow.get(end_date.strip())
+            q = q.filter(Obj.last_detected <= end_date)
+        if simbad_class:
+            q = q.filter(
+                func.lower(Obj.altdata['simbad']['class'].astext)
+                == simbad_class.lower()
+            )
+        if has_tns_name in ['true', True]:
+            q = q.filter(Obj.altdata['tns']['name'].isnot(None))
+
         if page_number:
             try:
                 page = int(page_number)
             except ValueError:
                 return self.error("Invalid page number value.")
-            q = Obj.query.filter(
-                Obj.id.in_(
-                    DBSession()
-                    .query(Source.obj_id)
-                    .filter(
-                        Source.group_id.in_([g.id for g in self.current_user.groups])
-                    )
-                )
-            )
-            if sourceID:
-                q = q.filter(Obj.id.contains(sourceID.strip()))
-            if any([ra, dec, radius]):
-                if not all([ra, dec, radius]):
-                    return self.error(
-                        "If any of 'ra', 'dec' or 'radius' are "
-                        "provided, all three are required."
-                    )
-                try:
-                    ra = float(ra)
-                    dec = float(dec)
-                    radius = float(radius)
-                except ValueError:
-                    return self.error(
-                        "Invalid values for ra, dec or radius - could not convert to float"
-                    )
-                other = ha.Point(ra=ra, dec=dec)
-                q = q.filter(Obj.within(other, radius))
-            if start_date:
-                start_date = arrow.get(start_date.strip())
-                q = q.filter(Obj.last_detected >= start_date)
-            if end_date:
-                end_date = arrow.get(end_date.strip())
-                q = q.filter(Obj.last_detected <= end_date)
-            if simbad_class:
-                q = q.filter(
-                    func.lower(Obj.altdata['simbad']['class'].astext)
-                    == simbad_class.lower()
-                )
-            if has_tns_name in ['true', True]:
-                q = q.filter(Obj.altdata['tns']['name'].isnot(None))
 
             try:
                 query_results = grab_query_results_page(
@@ -285,31 +289,19 @@ class SourceHandler(BaseHandler):
                 if "Page number out of range" in str(e):
                     return self.error("Page number out of range.")
                 raise
-            source_list = []
-            for source in query_results["sources"]:
-                source.comments = source.get_comments_owned_by(self.current_user)
-                source_list.append(source.to_dict())
-                source_list[-1]["last_detected"] = source.last_detected
-                source_list[-1]["gal_lon"] = source.gal_lon_deg
-                source_list[-1]["gal_lat"] = source.gal_lat_deg
-            query_results["sources"] = source_list
-            return self.success(data=query_results)
+        else:
+            query_results = {"sources": q.all()}
 
-        sources = Obj.query.filter(
-            Obj.id.in_(
-                DBSession()
-                .query(Source.obj_id)
-                .filter(Source.group_id.in_([g.id for g in self.current_user.groups]))
-            )
-        ).all()
         source_list = []
-        for source in sources:
+        for source in query_results["sources"]:
             source.comments = source.get_comments_owned_by(self.current_user)
             source_list.append(source.to_dict())
             source_list[-1]["last_detected"] = source.last_detected
             source_list[-1]["gal_lon"] = source.gal_lon_deg
             source_list[-1]["gal_lat"] = source.gal_lat_deg
-        return self.success(data={"sources": source_list})
+        query_results["sources"] = source_list
+
+        return self.success(data=query_results)
 
     @permissions(['Upload data'])
     def post(self):

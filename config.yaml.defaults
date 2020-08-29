@@ -1,4 +1,12 @@
 app:
+  title: SkyPortal
+  logo: /static/images/skyportal_logo.png
+  login_message: |
+    For more information about the project, see
+    <a href="https://github.com/skyportal/skyportal">
+      https://github.com/skyportal/skyportal
+    </a>
+
   secret_key: abc01234  # This secret key can be any random string of
                         # characters.
                         #
@@ -34,6 +42,8 @@ app:
       component: UploadPhotometry
     - path: "/about"
       component: About
+    - path: "/run/:id"
+      component: RunSummary
     - path: "/share_data/:id"
       component: ShareDataForm
 
@@ -44,9 +54,17 @@ app:
       icon: Home
       url: /
 
+    - name: Sources
+      icon: Storage
+      url: /sources
+
     - name: Candidates
       icon: Search
       url: /candidates
+
+    - name: Groups
+      icon: GroupWork
+      url: /groups
 
     - name: About
       icon: Info

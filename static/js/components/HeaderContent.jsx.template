@@ -5,21 +5,19 @@ import Box from "@material-ui/core/Box";
 import Responsive from "./Responsive";
 import ProfileDropdown from "./ProfileDropdown";
 import Logo from "./Logo";
-import QuickSearchBar from "./QuickSearchBar";
 
 import styles from "./Main.css";
 
 const HeaderContent = () => (
   <div className={styles.topBannerContent}>
-    <div style={{ display: "inline-flex", flexDirection: "row" }}>
+    <div style= {%- raw -%} {{display: "inline-flex", flexDirection: "row" }} {%- endraw -%} >
       <Logo className={styles.logo} />
       <Link className={styles.title} to="/">
-        SkyPortal
+        {{ app.title }}
       </Link>
       <Box p={2} />
-      <QuickSearchBar id="search" />
     </div>
-    <div style={{ position: "fixed", right: "1rem", top: "1rem" }}>
+    <div style= {%- raw -%} {{ position: "fixed", right: "1rem", top: "1rem" }} {%- endraw -%} >
       <Responsive desktopElement={ProfileDropdown} />
     </div>
   </div>
