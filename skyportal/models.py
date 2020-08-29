@@ -942,7 +942,9 @@ class Photometry(Base, ha.Point):
         return sa.case(
             [
                 (
-                    sa.and_(cls.flux != None, cls.flux > 0, cls.fluxerr > 0),  # noqa
+                    sa.and_(
+                        cls.flux != None, cls.flux > 0, cls.fluxerr > 0
+                    ),  # noqa: E711
                     2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux,
                 )
             ],
@@ -1177,13 +1179,22 @@ User.observing_runs = relationship(
 
 
 class ClassicalAssignment(Base):
-
-    requester = relationship('User', back_populates='assignments')
     requester_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True
+        sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    requester = relationship(
+        "User", back_populates="assignments", foreign_keys=[requester_id]
     )
 
-    obj = relationship('Obj', back_populates='assignments')
+    last_modified_by_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        default=None,
+        index=True,
+    )
+    last_modified_by = relationship("User", foreign_keys=[last_modified_by_id])
+
+    obj = relationship("Obj", back_populates="assignments")
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
     )
@@ -1222,6 +1233,10 @@ class ClassicalAssignment(Base):
         )
 
 
-User.assignments = relationship('ClassicalAssignment', back_populates='requester')
+User.assignments = relationship(
+    "ClassicalAssignment",
+    back_populates="requester",
+    foreign_keys="ClassicalAssignment.requester_id",
+)
 
 schema.setup_schema()

@@ -19,6 +19,7 @@ import {{ item.icon }}Icon from "@material-ui/icons/{{ item.icon }}";
 {% endfor %}
 import MenuIcon from "@material-ui/icons/Menu";
 
+import QuickSearchBar from "./QuickSearchBar";
 import HeaderContent from "./HeaderContent";
 import * as Actions from "../ducks/sidebar";
 
@@ -58,7 +59,7 @@ const useStyles = makeStyles((theme) => ({
     flexShrink: 0,
   },
   drawerPaper: {
-    zIndex: 99,
+    zIndex: 140,
     width: drawerWidth,
     paddingLeft: "0.4em",
     background: "#33345C",
@@ -141,6 +142,8 @@ const SidebarAndHeader = ({ open }) => {
 
           {%- endfor %}
         </List>
+
+        <QuickSearchBar id="search" />
       </Drawer>
     </>
   );

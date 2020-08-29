@@ -51,7 +51,7 @@ brew install geckodriver
 1. Install dependencies
 
 ```
-sudo apt install nginx supervisor postgresql libpq-dev nodejs
+sudo apt install nginx supervisor postgresql libpq-dev npm python3-pip
 ```
 
 2. Configure your database permissions.
@@ -84,10 +84,19 @@ sudo service postgresql restart
 1. Initialize the database with `make db_init` (this only needs to
    happen once).
 2. Copy `config.yaml.defaults` to `config.yaml`.
-2. If you want some test data to play with, run `make load_demo_data`.
 3. Run `make log` to monitor the service and, in a separate window, `make run` to start the server.
+4. Direct your browser to `http://localhost:5000`.
+5. If you want some test data to play with, run `make load_demo_data` (do this while the server is running!).
+6. Change users by navigating to `http://localhost:5000/become_user/<#>` where # is a number from 1-5.
+   Different users have different privileges and can see more or less of the demo data.
 
-Direct your browser to http://localhost:5000.
+## Troubleshooting
+
+If you have trouble getting the demo data try doing
+
+```make db_clear && make db_init && make run```
+
+and then, from a different window, do `make load_demo_data`.
 
 ## Additional Configuration
 

@@ -104,9 +104,13 @@ class GroupHandler(BaseHandler):
                     .get(group_id)
                 )
             else:
-                group = Group.query.options(
-                    [joinedload(Group.users).load_only(User.id, User.username)]
-                ).get(group_id)
+                group = (
+                    Group.query.options(
+                        [joinedload(Group.users).load_only(User.id, User.username)]
+                    )
+                    .options(joinedload(Group.group_users))
+                    .get(group_id)
+                )
                 if group is not None and group.id not in [
                     g.id for g in self.current_user.accessible_groups
                 ]:
@@ -467,13 +471,8 @@ class GroupStreamHandler(BaseHandler):
         if stream is None:
             return self.error("Specified stream_id does not exist.")
         else:
-            # todo: ensure all current group users have access to this stream
-            for user in group.users:
-                # get single user group
-                single_user_group = Group.query.filter(  # noqa
-                    Group.name == user.username
-                ).first()
-                # todo: do the check
+            # TODO ensure all current group users have access to this stream
+            # TODO do the check
 
             # Add new GroupStream
             gs = GroupStream.query.filter(
