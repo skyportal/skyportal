@@ -24,6 +24,7 @@ import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 import FollowupRequestForm from "./FollowupRequestForm";
 import FollowupRequestList from "./FollowupRequestList";
+import SharePage from "./SharePage";
 
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
@@ -81,6 +82,9 @@ const Source = ({ route }) => {
   return (
     <div className={styles.source}>
       <div className={styles.leftColumn}>
+        <div className={styles.alignRight}>
+          <SharePage />
+        </div>
         <div className={styles.name}>{source.id}</div>
         <br />
         <ShowClassification
