@@ -28,7 +28,7 @@ const AssignmentList = ({ assignments }) => {
         dispatch(UserActions.fetchUser(id));
       }
     });
-  }, [uniqueRequesterIDs, users, dispatch]);
+  }, [...uniqueRequesterIDs, users, dispatch]);
 
   if (assignments.length === 0) {
     return <b>No assignments to show for this object...</b>;
