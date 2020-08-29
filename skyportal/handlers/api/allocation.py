@@ -61,8 +61,7 @@ class AllocationHandler(BaseHandler):
             return self.success(data=allocations[0])
 
         allocations = allocations.all()
-        out_json = Allocation.__schema__().dump(allocations, many=True)
-        return self.success(data=out_json)
+        return self.success(data=allocations)
 
     @permissions(['System admin'])
     def post(self):
