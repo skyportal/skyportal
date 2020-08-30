@@ -30,25 +30,35 @@ const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const GroupSources = ({ route }) => {
   const dispatch = useDispatch();
   const sources = useSelector((state) => state.sources.latest);
-  //   const observingRun = useSelector((state) => state.observingRun);
-  //   const { instrumentList } = useSelector((state) => state.instruments);
-  //   const { telescopeList } = useSelector((state) => state.telescopes);
-  //   const groups = useSelector((state) => state.groups.all);
+  const groups = useSelector((state) => state.groups.user);
 
   // Load the group sources
   useEffect(() => {
-    dispatch(SourcesAction.fetchSources({ group: route.id }));
+    dispatch(SourcesAction.fetchSources({ group_id: route.id }));
   }, [route.id, dispatch]);
 
   if (sources === undefined || sources === null) {
     return "Loading Sources...";
   }
 
-  //   if (!("id" in observingRun && observingRun.id === parseInt(route.id, 10))) {
-  //     // Don't need to do this for assignments -- we can just let the page be blank for a short time
-  //     return <b>Loading sources...</b>;
-  //   }
-  //   const { assignments } = observingRun;
+  const group_id = parseInt(route.id, 10);
+  let group_name = "";
+
+  if (groups === undefined || groups === null) {
+    // nothing, just wait
+  } else {
+    const group_obj = groups.find((obj) => {
+      // find the object for the group
+      return obj.id === group_id;
+    });
+
+    if (group_obj === undefined || group_obj === null) {
+      // couldn't find a group object
+      group_name = "";
+    } else {
+      group_name = group_obj.name;
+    }
+  }
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
@@ -100,6 +110,7 @@ const GroupSources = ({ route }) => {
   };
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
+
   const renderRA = (dataIndex) => {
     const source = sources[dataIndex];
     return (
@@ -212,7 +223,7 @@ const GroupSources = ({ route }) => {
                 color="textSecondary"
                 align="center"
               >
-                <b>Some group?</b>
+                <b>Sources for {group_name}</b>
               </Typography>
             </div>
           </Grid>
@@ -223,11 +234,6 @@ const GroupSources = ({ route }) => {
               data={data}
               options={options}
             />
-          </Grid>
-          <Grid item>
-            <Typography gutterBottom align="center">
-              Do we need this gutter?
-            </Typography>
           </Grid>
         </Grid>
       </div>
