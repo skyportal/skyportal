@@ -7,8 +7,10 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { ra_to_hours, dec_to_hours } from "../units";
+import Typography from "@material-ui/core/Typography";
+import Paper from "@material-ui/core/Paper";
 
+import { ra_to_hours, dec_to_hours } from "../units";
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import SourceQuickView from "./SourceQuickView";
@@ -119,18 +121,22 @@ const RecentSources = () => {
     defaultPrefs;
 
   return (
-    <div className={styles.recentSourcesContainer}>
-      <h2 style={{ display: "inline-block" }}>Recently Added Sources</h2>
-      <div style={{ display: "inline-block", float: "right" }}>
-        <WidgetPrefsDialog
-          formValues={recentSourcesPrefs}
-          stateBranchName="recentSources"
-          title="Recent Sources Preferences"
-          onSubmit={profileActions.updateUserPreferences}
-        />
+    <Paper elevation={1}>
+      <div className={styles.recentSourcesContainer}>
+        <Typography variant="h6" display="inline">
+          Recently Added Sources
+        </Typography>
+        <div style={{ display: "inline-block", float: "right" }}>
+          <WidgetPrefsDialog
+            formValues={recentSourcesPrefs}
+            stateBranchName="recentSources"
+            title="Recent Sources Preferences"
+            onSubmit={profileActions.updateUserPreferences}
+          />
+        </div>
+        <RecentSourcesList sources={recentSources} />
       </div>
-      <RecentSourcesList sources={recentSources} />
-    </div>
+    </Paper>
   );
 };
 
