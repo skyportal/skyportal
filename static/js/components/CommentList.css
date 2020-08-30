@@ -22,7 +22,7 @@
 }
 
 .comment > .commentContent {
-  background-color: #eee;
+  background-color: #e0e0e0;
 }
 
 .commentDark > .commentContent {
@@ -30,7 +30,7 @@
 }
 
 .comment:hover {
-  background-color: #eee;
+  background-color: #e0e0e0;
 }
 
 .commentDark:hover {
