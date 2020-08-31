@@ -1,4 +1,5 @@
 import uuid
+import python_http_client.exceptions
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
@@ -378,7 +379,14 @@ class GroupUserHandler(BaseHandler):
                 return self.error(
                     "Specified user is already associated with this group."
                 )
-        DBSession().commit()
+        try:
+            DBSession().commit()
+        except python_http_client.exceptions.UnauthorizedError:
+            return self.error(
+                "Twilio Sendgrid authorization error. Please ensure "
+                "valid Sendgrid API key is set in server environment as "
+                "per their setup docs."
+            )
 
         self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
         return self.success(
