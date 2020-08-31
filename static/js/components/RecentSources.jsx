@@ -28,7 +28,7 @@ const RecentSourcesList = ({ sources }) => {
   return sources.length === 0 ? (
     <div>Loading recent sources...</div>
   ) : (
-    <div>
+    <div className={styles.recentSourceListContainer}>
       <ul className={styles.recentSourceList}>
         {sources.map((source) => {
           let recentSourceName = `${source.obj_id}`;
@@ -121,7 +121,7 @@ const RecentSources = () => {
     defaultPrefs;
 
   return (
-    <Paper elevation={1}>
+    <Paper elevation={1} style={{ height: "100%" }}>
       <div className={styles.recentSourcesContainer}>
         <Typography variant="h6" display="inline">
           Recently Added Sources

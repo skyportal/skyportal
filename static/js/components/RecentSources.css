@@ -15,10 +15,14 @@
 
 .recentSourcesContainer {
   display: block;
-  border-style: solid;
-  border-width: 1px;
-  border-color: #ddd;
-  padding: 0.625rem;
+  padding: 1rem;
+  height: 100%;
+}
+
+.recentSourceListContainer {
+  height: calc(100% - 3rem);
+  overflow-y: scroll;
+  margin-top: 0.625rem;
 }
 
 .recentSourceList {
@@ -26,13 +30,14 @@
   align-items: center;
   list-style-type: none;
   padding-left: 0;
+  margin-top: 0;
 }
 
 .recentSourceItem {
   display: flex;
   flex-flow: row nowrap;
   align-items: center;
-  padding: 0.625rem;
+  padding: 0 0.625rem;
 }
 
 .recentSourceInfo {

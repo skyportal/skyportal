@@ -11,11 +11,6 @@
   margin: 0.5em;
 }
 
-.dialogContent img {
-  width: 80%;
-  height: 80%;
-}
-
 .title {
   font-size: 1.5rem;
   font-family: "Roboto", "Helvetica", "Arial", sans-serif;
@@ -26,6 +21,7 @@
 
 .dialogContent {
   padding: 1rem;
+  width: max-content;
 }
 
 .sourceLinkButton {

@@ -173,7 +173,12 @@ const SourceQuickView = ({ sourceId, className }) => {
         >
           QUICK VIEW
         </Button>
-        <Dialog open={open} onClose={handleClose} style={{ position: "fixed" }}>
+        <Dialog
+          open={open}
+          onClose={handleClose}
+          style={{ position: "fixed" }}
+          maxWidth="md"
+        >
           <DialogTitle onClose={handleClose}>{source.id}</DialogTitle>
           <DialogContent dividers>
             <DialogContentDiv
