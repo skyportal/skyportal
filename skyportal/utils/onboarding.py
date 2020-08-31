@@ -38,6 +38,8 @@ def create_user(strategy, details, backend, user=None, *args, **kwargs):
         DBSession().add(user)
         invitation.used = True
         DBSession().commit()
+        return {'is_new': True, 'user': user}
+
     if cfg["server.auth.debug_login"] and user is None:  # Allow uninvited new auths
         fields = dict(
             (name, kwargs.get(name, details.get(name)))
@@ -45,7 +47,9 @@ def create_user(strategy, details, backend, user=None, *args, **kwargs):
         )
         user = strategy.create_user(**fields)
 
-    return {'is_new': True, 'user': user}
+        return {'is_new': True, 'user': user}
+    elif user is not None:
+        return {"is_new": False, "user": user}
 
 
 def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs):
