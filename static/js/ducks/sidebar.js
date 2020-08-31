@@ -8,7 +8,7 @@ export function toggleSidebar() {
   };
 }
 
-const isMobile = window.matchMedia(`(max-width: 768px)`);
+const isMobile = window.matchMedia("(max-width: 768px)").matches;
 const defaultOpen = !isMobile;
 
 const reducer = (state = { open: defaultOpen }, action) => {
