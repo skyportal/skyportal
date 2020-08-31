@@ -8,7 +8,6 @@ import TableRow from "@material-ui/core/TableRow";
 import Typography from "@material-ui/core/Typography";
 import IconButton from "@material-ui/core/IconButton";
 import Grid from "@material-ui/core/Grid";
-// import BuildIcon from "@material-ui/icons/Build";
 
 import Link from "@material-ui/core/Link";
 import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
@@ -23,12 +22,12 @@ const VegaPlot = React.lazy(() => import("./VegaPlot"));
 
 const GroupSources = ({ route }) => {
   const dispatch = useDispatch();
-  const sources = useSelector((state) => state.sources.latest);
+  const sources = useSelector((state) => state.sources.groupSources);
   const groups = useSelector((state) => state.groups.user);
 
   // Load the group sources
   useEffect(() => {
-    dispatch(SourcesAction.fetchSources({ group_id: route.id }));
+    dispatch(SourcesAction.fetchGroupSources({ group_id: route.id }));
   }, [route.id, dispatch]);
 
   if (sources === undefined || sources === null) {
