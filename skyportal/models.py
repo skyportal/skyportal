@@ -1285,6 +1285,7 @@ class Invitation(Base):
         passive_deletes=True,
         uselist=False,
     )
+    used = sa.Column(sa.Boolean, nullable=False, default=False)
 
 
 GroupInvitation = join_model('group_invitations', Group, Invitation)

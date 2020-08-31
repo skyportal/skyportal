@@ -27,6 +27,8 @@ def create_user(strategy, details, backend, user=None, *args, **kwargs):
         cutoff_datetime = datetime.datetime.now() - datetime.timedelta(days=n_days)
         if invitation.created_at < cutoff_datetime:
             raise AuthTokenError("Invite token has expired.")
+        if invitation.used:
+            raise AuthTokenError("Invite token has already been used.")
         user = User(
             username=details["username"],
             contact_email=details["email"],
@@ -34,6 +36,7 @@ def create_user(strategy, details, backend, user=None, *args, **kwargs):
             last_name=details["last_name"],
         )
         DBSession().add(user)
+        invitation.used = True
         DBSession().commit()
     if cfg["server.auth.debug_login"] and user is None:  # Allow uninvited new auths
         fields = dict(
