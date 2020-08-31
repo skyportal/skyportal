@@ -191,4 +191,7 @@ class ProfileHandler(BaseHandler):
             self.push(action="skyportal/FETCH_NEWSFEED")
         if "topSources" in preferences:
             self.push(action="skyportal/FETCH_TOP_SOURCES")
+        if "sourceCounts" in preferences:
+            self.push(action="skyportal/FETCH_SOURCE_COUNTS")
+
         return self.success(action="skyportal/FETCH_USER_PROFILE")

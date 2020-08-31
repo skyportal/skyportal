@@ -12,43 +12,50 @@ import SourceList from "./SourceList";
 import GroupList from "./GroupList";
 import NewsFeed from "./NewsFeed";
 import TopSources from "./TopSources";
+import SourceCounts from "./SourceCounts";
+
 import styles from "./HomePage.css";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const xlgLayout = [
-  { i: "sourceList", x: 0, y: 0, w: 9, h: 6, minW: 9, isResizable: false },
-  { i: "newsFeed", x: 9, y: 0, w: 7, h: 3, isResizable: false },
-  { i: "topSources", x: 9, y: 0, w: 4, h: 2, isResizable: false },
-  { i: "groups", x: 13, y: 0, w: 2, h: 2, isResizable: false },
+  { i: "sourceCounts", x: 0, y: 0, w: 2, h: 2, isResizable: false },
+  { i: "sourceList", x: 0, y: 2, w: 8, h: 6, minW: 6, isResizable: false },
+  { i: "newsFeed", x: 8, y: 0, w: 8, h: 3, isResizable: false },
+  { i: "topSources", x: 8, y: 5, w: 8, h: 3, isResizable: false },
+  { i: "groups", x: 2, y: 0, w: 2, h: 2, isResizable: true },
 ];
 
 const lgLayout = [
-  { i: "sourceList", x: 0, y: 0, w: 7, h: 6, isResizable: false },
-  { i: "newsFeed", x: 7, y: 0, w: 5, h: 3, isResizable: false },
-  { i: "topSources", x: 7, y: 0, w: 3, h: 2, isResizable: false },
-  { i: "groups", x: 10, y: 0, w: 2, h: 2, isResizable: false },
+  { i: "sourceCounts", x: 0, y: 0, w: 2, h: 2, isResizable: false },
+  { i: "sourceList", x: 0, y: 2, w: 6, h: 6, minW: 6, isResizable: false },
+  { i: "newsFeed", x: 6, y: 0, w: 6, h: 3, isResizable: false },
+  { i: "topSources", x: 6, y: 3, w: 6, h: 3, isResizable: false },
+  { i: "groups", x: 2, y: 0, w: 2, h: 2, isResizable: true },
 ];
 
 const mdLayout = [
-  { i: "sourceList", x: 0, y: 0, w: 10, h: 6, isResizable: false },
-  { i: "newsFeed", x: 0, y: 6, w: 5, h: 3, isResizable: false },
-  { i: "topSources", x: 5, y: 6, w: 3, h: 2, isResizable: false },
-  { i: "groups", x: 8, y: 6, w: 2, h: 2, isResizable: false },
+  { i: "sourceCounts", x: 0, y: 0, w: 1, h: 1, isResizable: false },
+  { i: "sourceList", x: 0, y: 2, w: 10, h: 5, isResizable: false },
+  { i: "newsFeed", x: 0, y: 4, w: 4, h: 3, isResizable: false },
+  { i: "topSources", x: 0, y: 8, w: 10, h: 2, isResizable: false },
+  { i: "groups", x: 1, y: 0, w: 1, h: 1, isResizable: false },
 ];
 
 const smLayout = [
-  { i: "sourceList", x: 0, y: 0, w: 6, h: 6, isResizable: false },
-  { i: "newsFeed", x: 0, y: 6, w: 3, h: 3, isResizable: false },
-  { i: "topSources", x: 3, y: 6, w: 2, h: 2, isResizable: false },
-  { i: "groups", x: 5, y: 6, w: 1, h: 2, isResizable: false },
+  { i: "sourceCounts", x: 0, y: 0, w: 1, h: 1, isResizable: false },
+  { i: "sourceList", x: 0, y: 1, w: 6, h: 6, isResizable: false },
+  { i: "newsFeed", x: 0, y: 7, w: 6, h: 3, isResizable: false },
+  { i: "topSources", x: 3, y: 10, w: 6, h: 6, isResizable: false },
+  { i: "groups", x: 1, y: 0, w: 1, h: 1, isResizable: false },
 ];
 
 const xsLayout = [
-  { i: "sourceList", x: 0, y: 0, w: 4, h: 6, isResizable: false },
-  { i: "newsFeed", x: 0, y: 6, w: 4, h: 3, isResizable: false },
-  { i: "topSources", x: 0, y: 9, w: 2, h: 2, isResizable: false },
-  { i: "groups", x: 2, y: 9, w: 2, h: 2, isResizable: false },
+  { i: "sourceCounts", x: 0, y: 0, w: 1, h: 1, isResizable: false },
+  { i: "sourceList", x: 0, y: 1, w: 4, h: 6, isResizable: false },
+  { i: "newsFeed", x: 0, y: 7, w: 5, h: 3, isResizable: false },
+  { i: "topSources", x: 0, y: 10, w: 5, h: 2, isResizable: false },
+  { i: "groups", x: 0, y: 1, w: 1, h: 1, isResizable: false },
 ];
 
 const defaultLayouts = {
@@ -75,7 +82,6 @@ const HomePage = () => {
     const prefs = {
       layouts: allLayouts,
     };
-
     dispatch(profileActions.updateUserPreferences(prefs));
   };
 
@@ -85,9 +91,12 @@ const HomePage = () => {
       layouts={currentLayouts}
       breakpoints={{ xlg: 1400, lg: 1150, md: 996, sm: 768, xs: 480 }}
       cols={{ xlg: 16, lg: 12, md: 10, sm: 6, xs: 4 }}
-      margin={[15, 15]}
+      margin={[10, 10]}
       onLayoutChange={LayoutChangeHandler}
     >
+      <div key="sourceCounts" className={styles.homePageWidgetDiv}>
+        <SourceCounts />
+      </div>
       <div key="sourceList" className={styles.homePageWidgetDiv}>
         <SourceList />
       </div>
