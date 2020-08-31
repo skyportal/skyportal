@@ -14,11 +14,11 @@ def create_user(strategy, details, backend, user=None, *args, **kwargs):
 
     if invite_token is not None:
         try:
-            n_days = int(cfg["invitations.days_til_expiry"])
+            n_days = int(cfg["invitations.days_until_expiry"])
         except ValueError:
             raise ValueError(
                 "Invalid (non-integer) value provided for "
-                "invitations.days_til_expiry in config file."
+                "invitations.days_until_expiry in config file."
             )
         invitation = Invitation.query.filter(Invitation.token == invite_token).first()
         if invitation is None:

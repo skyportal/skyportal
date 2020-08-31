@@ -1294,13 +1294,17 @@ UserInvitation = join_model("user_invitations", User, Invitation)
 @event.listens_for(Invitation, 'after_insert')
 def send_user_invite_email(mapper, connection, target):
     _, cfg = load_env()
+    app_base_url = (
+        f"{'https' if cfg['server.ssl'] else 'http'}:"
+        "//{cfg['server.host']}:{cfg['ports.app']}"
+    )
     message = Mail(
         from_email=cfg["invitations.from_email"],
         to_emails=target.user_email,
         subject=cfg["invitations.email_subject"],
         html_content=(
             f'{cfg["invitations.email_body_preamble"]}<br /><br />'
-            'Please click <a href="http://localhost:5000/login/google-oauth2/'
+            f'Please click <a href="{app_base_url}/login/google-oauth2/'
             f'?invite_token={target.token}">here</a> to join.'
         ),
     )
