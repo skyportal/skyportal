@@ -6,6 +6,11 @@ import Button from "@material-ui/core/Button";
 import Card from "@material-ui/core/Card";
 import CardContent from "@material-ui/core/CardContent";
 import Typography from "@material-ui/core/Typography";
+import Dialog from "@material-ui/core/Dialog";
+import DialogActions from "@material-ui/core/DialogActions";
+import DialogContent from "@material-ui/core/DialogContent";
+import DialogContentText from "@material-ui/core/DialogContentText";
+import DialogTitle from "@material-ui/core/DialogTitle";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -24,6 +29,11 @@ const UpdateProfileForm = () => {
 
   const dispatch = useDispatch();
   const { handleSubmit, register, reset, errors } = useForm();
+
+  const isNewUser =
+    new URL(window.location).searchParams.get("newUser") === "true";
+
+  const [welcomeDialogOpen, setWelcomeDialogOpen] = useState(isNewUser);
 
   useEffect(() => {
     reset({
@@ -151,6 +161,36 @@ const UpdateProfileForm = () => {
           <UIPreferences />
         </CardContent>
       </Card>
+      <Dialog
+        open={welcomeDialogOpen}
+        onClose={() => {
+          setWelcomeDialogOpen(false);
+        }}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">Welcome!</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            First, please change your username as you see fit. You can also
+            change your contact email address to something other than the one
+            you used to authenticate. If you have a gravatar (
+            <a href="https://en.gravatar.com/">https://en.gravatar.com/</a>)
+            account set up for your contact email address then we&apos;ll use
+            that gravatar picture throughout. Once you&apos;re done setting up
+            your profile info, click Dashboard to get started.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setWelcomeDialogOpen(false);
+            }}
+          >
+            Got it. Let&apos;s go!
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

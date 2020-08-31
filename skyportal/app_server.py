@@ -157,7 +157,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
                 'social_core.pipeline.user.user_details',
                 'skyportal.utils.onboarding.setup_invited_user_permissions',
             ),
-            'SOCIAL_AUTH_NEW_USER_REDIRECT_URL': '/profile',  # first-time login
+            'SOCIAL_AUTH_NEW_USER_REDIRECT_URL': '/profile?newUser=true',
             'SOCIAL_AUTH_FIELDS_STORED_IN_SESSION': ['invite_token'],
         }
     )
