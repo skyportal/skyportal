@@ -8,8 +8,10 @@ export function toggleSidebar() {
   };
 }
 
-// TODO Set open to false by default on mobile
-const reducer = (state = { open: true }, action) => {
+const isMobile = window.matchMedia(`(max-width: 768px)`);
+const defaultOpen = !isMobile;
+
+const reducer = (state = { open: defaultOpen }, action) => {
   switch (action.type) {
     case TOGGLE_SIDEBAR: {
       return {
