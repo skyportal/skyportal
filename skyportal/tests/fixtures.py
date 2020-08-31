@@ -216,6 +216,7 @@ class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
             ),
             nickname=factory.LazyFunction(lambda: f'P200_{uuid.uuid4()}'),
             robotic=False,
+            skycam_link='http://palomarwebcam.com/netcam.jpg',
         ),
     )
 

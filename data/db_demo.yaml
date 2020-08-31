@@ -90,7 +90,7 @@ telescope:
     lon: -155.478
     elevation: 2000
     diameter: 2.56
-    skycam_link: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
+    skycam_link: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
     robotic: false
     =id: Keck1
 

@@ -26,6 +26,14 @@ const SkyCam = ({ telescope }) => {
   if (!telescope.skycam_link) {
     return <div />;
   }
+
+  const handleImageError = (e) => {
+    e.target.onerror = null;
+    // e.target.style.display = 'none';
+    e.target.src =
+      "https://ak.picdn.net/shutterstock/videos/5030309/thumb/1.jpg";
+  };
+
   return (
     <Card className={classes.cardDiv}>
       <CardContent>
@@ -34,9 +42,11 @@ const SkyCam = ({ telescope }) => {
         </Typography>
       </CardContent>
       <CardMedia
+        component="img"
         image={telescope.skycam_link}
         title={`${telescope.nickname} SkyCam`}
         className={classes.media}
+        onError={handleImageError}
       />
     </Card>
   );
