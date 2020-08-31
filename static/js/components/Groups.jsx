@@ -11,6 +11,7 @@ const Groups = () => {
   return (
     <div>
       <GroupList title="My Groups" groups={groups} />
+      <br />
       {roles.includes("Super admin") && <GroupManagement />}
     </div>
   );

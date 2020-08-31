@@ -115,13 +115,17 @@ const CommentList = ({ isCandidate }) => {
                 🗑
               </Button>
             </div>
+            <span>
+              {attachment_name && (
+                <div>
+                  Attachment:&nbsp;
+                  <a href={`/api/comment/${id}/attachment`}>
+                    {attachment_name}
+                  </a>
+                </div>
+              )}
+            </span>
           </div>
-          {attachment_name && (
-            <div>
-              Attachment:&nbsp;
-              <a href={`/api/comment/${id}/attachment`}>{attachment_name}</a>
-            </div>
-          )}
         </span>
       );
     }

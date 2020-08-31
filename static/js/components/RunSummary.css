@@ -4,7 +4,7 @@
 .leftColumn {
   display: inline-block;
   vertical-align: top;
-  width: 900px;
+  width: auto;
   padding-right: 1em;
 }
 
@@ -35,10 +35,6 @@
 .comments {
 }
 
-.classifications {
-}
-
-.alignRight {
-  display: inline-block;
-  vertical-align: super;
+.tableContainer {
+  margin: 10px;
 }

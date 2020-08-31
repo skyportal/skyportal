@@ -12,13 +12,8 @@
 
 .topSourcesContainer {
   display: block;
-  border-style: solid;
-  border-width: 1px;
-  border-color: #ddd;
-  padding-top: 10px;
-  padding-right: 10px;
-  padding-bottom: 10px;
-  padding-left: 10px;
+  padding: 1rem;
+  height: 100%;
 }
 
 .topSourceList {

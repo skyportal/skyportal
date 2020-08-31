@@ -11,18 +11,19 @@
   min-height: 60px;
   padding: 5px 0px 10px 10px;
   margin-bottom: 10px;
+  margin-right: 10px;
   border-radius: 15px;
 }
 
 .commentContent {
   display: flex;
   flex-flow: column nowrap;
-  padding: 0.25em 0.75em 0.75em 1em;
+  padding: 0.4rem 0.75rem 0.75rem 1rem;
   border-radius: 15px;
 }
 
 .comment > .commentContent {
-  background-color: #eee;
+  background-color: #e0e0e0;
 }
 
 .commentDark > .commentContent {
@@ -30,7 +31,7 @@
 }
 
 .comment:hover {
-  background-color: #eee;
+  background-color: #e0e0e0;
 }
 
 .commentDark:hover {

@@ -42,6 +42,8 @@ app:
       component: UploadPhotometry
     - path: "/about"
       component: About
+    - path: "/run/:id"
+      component: RunSummary
     - path: "/share_data/:id"
       component: ShareDataForm
 
@@ -52,9 +54,17 @@ app:
       icon: Home
       url: /
 
+    - name: Sources
+      icon: Storage
+      url: /sources
+
     - name: Candidates
       icon: Search
       url: /candidates
+
+    - name: Groups
+      icon: GroupWork
+      url: /groups
 
     - name: About
       icon: Info

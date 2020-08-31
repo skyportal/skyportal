@@ -10,10 +10,8 @@ from ...models import (
     Token,
     ClassicalAssignment,
     ObservingRun,
-    Source,
     Obj,
     Group,
-    Thumbnail,
 )
 
 from sqlalchemy.orm import joinedload
@@ -158,6 +156,10 @@ class AssignmentHandler(BaseHandler):
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_id": assignment.obj_id},
         )
+        self.push_all(
+            action="skyportal/REFRESH_OBSERVING_RUN",
+            payload={"run_id": assignment.run_id},
+        )
         return self.success(data={"id": assignment.id})
 
     @auth_or_token
@@ -195,7 +197,7 @@ class AssignmentHandler(BaseHandler):
         data["requester_id"] = self.associated_user_object.id
 
         modok = (
-            "System admin" in [a.id for a in self.current_user.acls]
+            "System admin" in self.current_user.permissions
             or assignment.requester.username == self.current_user.username
         )
         if not modok:
@@ -213,7 +215,10 @@ class AssignmentHandler(BaseHandler):
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_id": assignment.obj_id},
         )
-
+        self.push_all(
+            action="skyportal/REFRESH_OBSERVING_RUN",
+            payload={"run_id": assignment.run_id},
+        )
         return self.success()
 
     @auth_or_token
@@ -247,6 +252,10 @@ class AssignmentHandler(BaseHandler):
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_id": assignment.obj_id},
+        )
+        self.push_all(
+            action="skyportal/REFRESH_OBSERVING_RUN",
+            payload={"run_id": assignment.run_id},
         )
         return self.success()
 
