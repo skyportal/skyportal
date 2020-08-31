@@ -1299,9 +1299,7 @@ def send_user_invite_email(mapper, connection, target):
         f"{'https' if cfg['server.ssl'] else 'http'}:"
         f"//{cfg['server.host']}:{cfg['ports.app']}"
     )
-    link_location = (
-        f'{app_base_url}/login/google-oauth2/' f'?invite_token={target.token}'
-    )
+    link_location = f'{app_base_url}/login/google-oauth2/?invite_token={target.token}'
     message = Mail(
         from_email=cfg["invitations.from_email"],
         to_emails=target.user_email,
