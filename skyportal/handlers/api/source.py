@@ -10,6 +10,7 @@ from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    Allocation,
     Instrument,
     Photometry,
     Obj,
@@ -205,6 +206,10 @@ class SourceHandler(BaseHandler):
                     .joinedload(Thumbnail.photometry)
                     .joinedload(Photometry.instrument)
                     .joinedload(Instrument.telescope),
+                    joinedload(Source.obj)
+                    .joinedload(Obj.followup_requests)
+                    .joinedload(FollowupRequest.allocation)
+                    .joinedload(Allocation.group),
                 ],
             )
             if s is None:

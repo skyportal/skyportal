@@ -1,4 +1,4 @@
-import arrow
+import jsonschema
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token
@@ -7,11 +7,12 @@ from ...models import (
     DBSession,
     Source,
     FollowupRequest,
-    Token,
     ClassicalAssignment,
     ObservingRun,
     Obj,
     Group,
+    Instrument,
+    Allocation,
 )
 
 from sqlalchemy.orm import joinedload
@@ -288,11 +289,30 @@ class FollowupRequestHandler(BaseHandler):
         """
         data = self.get_json()
         _ = Source.get_obj_if_owned_by(data["obj_id"], self.current_user)
-        data["start_date"] = arrow.get(data["start_date"]).datetime
-        data["end_date"] = arrow.get(data["end_date"]).datetime
         data["requester_id"] = self.associated_user_object.id
-        if isinstance(data["filters"], str):
-            data["filters"] = [data["filters"]]
+        data['instrument_id'] = int(data['instrument_id'])
+        data['allocation_id'] = int(data['allocation_id'])
+
+        instrument = Instrument.query.get(data['instrument_id'])
+        if instrument is None:
+            return self.error('No such instrument.')
+        if instrument.api_classname is None:
+            return self.error('Instrument has no remote API.')
+
+        if not instrument.api_class.implements_submit():
+            return self.error('Cannot submit followup requests to this Instrument.')
+
+        allocation = Allocation.query.get(data['allocation_id'])
+        if allocation is None:
+            return self.error('No such allocation.')
+        if allocation.group_id not in [
+            g.id for g in self.current_user.accessible_groups
+        ]:
+            return self.error('User does not have access to this allocation.')
+
+        # validate the payload
+        jsonschema.validate(data['payload'], instrument.api_class.form_json_schema)
+
         followup_request = FollowupRequest(**data)
         DBSession().add(followup_request)
         DBSession().commit()
@@ -301,6 +321,19 @@ class FollowupRequestHandler(BaseHandler):
             action="skyportal/REFRESH_SOURCE",
             payload={"obj_id": followup_request.obj_id},
         )
+
+        try:
+            instrument.api_class.submit(followup_request)
+        except Exception:
+            followup_request.status = 'failed to submit'
+            DBSession().add(followup_request)
+            DBSession().commit()
+            raise
+        finally:
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_id": followup_request.obj_id},
+            )
         return self.success(data={"id": followup_request.id})
 
     @auth_or_token
@@ -328,21 +361,39 @@ class FollowupRequestHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        followup_request = FollowupRequest.query.get(request_id)
-        _ = Source.get_obj_if_owned_by(followup_request.obj_id, self.current_user)
+
+        followup_request = FollowupRequest.get_if_owned_by(
+            request_id, self.current_user
+        )
+
         data = self.get_json()
         data['id'] = request_id
         data["requester_id"] = self.current_user.id
 
-        schema = FollowupRequest.__schema__()
+        api = followup_request.instrument.api_class
+
+        if not api.implements_update():
+            return self.error('Cannot update requests on this instrument.')
+
+        # validate posted data
         try:
-            schema.load(data)
+            FollowupRequest.__schema__().load(data, partial=True)
         except ValidationError as e:
             return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                f'Error parsing followup request update: "{e.normalized_messages()}"'
             )
-        DBSession().commit()
 
+        for k in data:
+            setattr(followup_request, k, data[k])
+
+        DBSession().add(followup_request)
+        DBSession().commit()
+        self.push_all(
+            action="skyportal/REFRESH_SOURCE",
+            payload={"obj_id": followup_request.obj_id},
+        )
+
+        followup_request.instrument.api_class.update(followup_request)
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
             payload={"obj_id": followup_request.obj_id},
@@ -366,17 +417,23 @@ class FollowupRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        followup_request = FollowupRequest.query.get(int(request_id))
-        if hasattr(self.current_user, "roles"):
-            if not (
-                "Super admin" in [role.id for role in self.current_user.roles]
-                or "Group admin" in [role.id for role in self.current_user.roles]
-                or followup_request.requester.username == self.current_user.username
-            ):
-                return self.error("Insufficient permissions.")
-        elif isinstance(self.current_user, Token):
-            if self.current_user.created_by_id != followup_request.requester.id:
-                return self.error("Insufficient permissions.")
+        followup_request = FollowupRequest.get_if_owned_by(
+            request_id, self.current_user
+        )
+        if not (
+            "Super admin" in [role.id for role in self.associated_user_object.roles]
+            or "Group admin" in [role.id for role in self.associated_user_object.roles]
+            or followup_request.requester.username
+            == self.associated_user_object.username
+        ):
+            return self.error("Insufficient permissions.")
+
+        api = followup_request.instrument.api_class
+        if not api.implements_delete():
+            return self.error('Cannot delete requests on this instrument.')
+
+        api.delete(followup_request)
+
         DBSession().delete(followup_request)
         DBSession().commit()
 

@@ -69,18 +69,6 @@ const config = {
         // does not support the Universal Module spec
         use: "imports-loader?this=>window",
       },
-
-      // react-grid-layout for Home page
-      {
-        test: /\.css$/,
-        include: /node_modules\/react-grid-layout\/css/,
-        use: ["style-loader", "css-loader"],
-      },
-      {
-        test: /\.css$/,
-        include: /node_modules\/react-resizable\/css/,
-        use: ["style-loader", "css-loader"],
-      },
     ],
   },
   plugins: [
@@ -92,14 +80,6 @@ const config = {
       baselayer: path.resolve(__dirname, "baselayer/static/js"),
       bokehjs: path.resolve(__dirname, "node_modules/bokehjs/build/js"),
       bokehcss: path.resolve(__dirname, "node_modules/bokehjs/build/css"),
-      reactgridlayoutcss: path.resolve(
-        __dirname,
-        "node_modules/react-grid-layout/css"
-      ),
-      reactresizablecss: path.resolve(
-        __dirname,
-        "node_modules/react-resizable/css"
-      ),
     },
     extensions: [".js", ".jsx"],
   },

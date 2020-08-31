@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy_utils import ArrowType, URLType
+from sqlalchemy_utils import URLType
 
 from astropy import coordinates as ap_coord
 import healpix_alchemy as ha
@@ -38,8 +38,11 @@ from .enum_types import (
     thumbnail_types,
     instrument_types,
     followup_priorities,
+    api_classnames,
+    followup_http_request_origins,
 )
 
+from skyportal import facility_apis
 
 # In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
 # All DB fluxes are stored in microJy (AB).
@@ -115,6 +118,12 @@ class Group(Base):
         passive_deletes=True,
     )
     single_user_group = sa.Column(sa.Boolean, default=False)
+    allocations = relationship(
+        'Allocation',
+        back_populates="group",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
 
 
 GroupUser = join_model('group_users', Group, User)
@@ -649,6 +658,16 @@ class Instrument(Base):
     )
 
     observing_runs = relationship('ObservingRun', back_populates='instrument')
+    allocations = relationship(
+        'Allocation',
+        back_populates="instrument",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
+
+    api_classname = sa.Column(
+        api_classnames, nullable=True, doc="Name of the instrument's API class."
+    )
 
     @property
     def does_spectroscopy(self):
@@ -658,13 +677,60 @@ class Instrument(Base):
     def does_imaging(self):
         return 'imag' in self.type
 
+    @property
+    def api_class(self):
+        return getattr(facility_apis, self.api_classname)
+
+
+class Allocation(Base):
+    """An allocation of observing time on a robotic instrument."""
+
+    pi = sa.Column(sa.String, doc="The PI of the allocation's proposal.")
+    proposal_id = sa.Column(
+        sa.String, doc="The ID of the proposal associated with this allocation."
+    )
+    start_date = sa.Column(sa.DateTime, doc='The UTC start date of the allocation.')
+    end_date = sa.Column(sa.DateTime, doc='The UTC end date of the allocation.')
+    hours_allocated = sa.Column(
+        sa.Float, nullable=False, doc='The number of hours allocated.'
+    )
+    requests = relationship(
+        'FollowupRequest',
+        back_populates='allocation',
+        doc='The requests made against this allocation.',
+    )
+
+    group_id = sa.Column(
+        sa.ForeignKey('groups.id', ondelete='CASCADE'),
+        index=True,
+        doc='The ID of the Group the allocation is associated with.',
+        nullable=False,
+    )
+    group = relationship(
+        'Group',
+        back_populates='allocations',
+        doc='The Group the allocation is associated with.',
+    )
+
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id', ondelete='CASCADE'),
+        index=True,
+        doc="The ID of the Instrument the allocation is associated with.",
+        nullable=False,
+    )
+    instrument = relationship(
+        'Instrument',
+        back_populates='allocations',
+        doc="The Instrument the allocation is associated with.",
+    )
+
 
 class Taxonomy(Base):
     __tablename__ = 'taxonomies'
     name = sa.Column(
         sa.String,
         nullable=False,
-        doc='Short string to make this taxonomy memorable ' 'to end users.',
+        doc='Short string to make this taxonomy memorable to end users.',
     )
     hierarchy = sa.Column(
         JSONB,
@@ -991,13 +1057,67 @@ class FollowupRequest(Base):
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id'), nullable=False, index=True
     )
-    start_date = sa.Column(ArrowType, nullable=False)
-    end_date = sa.Column(ArrowType, nullable=False)
-    filters = sa.Column(psql.ARRAY(sa.String), nullable=True)
-    exposure_time = sa.Column(sa.String, nullable=True)
-    priority = sa.Column(sa.Enum('1', '2', '3', '4', '5', name='priority'))
-    editable = sa.Column(sa.Boolean, nullable=False, default=True)
-    status = sa.Column(sa.String(), nullable=False, default="pending")
+    payload = sa.Column(
+        psql.JSONB, nullable=True, doc="Content of the followup request."
+    )
+    status = sa.Column(sa.String(), nullable=False, default="pending submission")
+
+    allocation_id = sa.Column(
+        sa.ForeignKey('allocations.id', ondelete='CASCADE'), nullable=False, index=True
+    )
+    allocation = relationship('Allocation', back_populates='requests')
+
+    http_requests = relationship(
+        'FollowupRequestHTTPRequest',
+        back_populates='request',
+        order_by="FollowupRequestHTTPRequest.created_at.desc()",
+    )
+
+    def is_owned_by(self, user_or_token):
+        """Return a boolean indicating whether a FollowupRequest belongs to
+        an allocation that is accessible to the given user or token.
+
+        Parameters
+        ----------
+        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
+           The User or Token to check.
+
+        Returns
+        -------
+        owned: bool
+           Whether the FollowupRequest belongs to an Allocation that is
+           accessible to the given user or token.
+        """
+
+        user_or_token_group_ids = [g.id for g in user_or_token.accessible_groups]
+        allocation_group_id = self.allocation.group_id
+        return allocation_group_id in user_or_token_group_ids
+
+
+class FollowupRequestHTTPRequest(Base):
+
+    created_at = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        index=True,
+        doc="UTC time this FollowupRequestHTTPRequest was created.",
+    )
+    content = sa.Column(sa.Text, doc="The content of the request.")
+
+    request_id = sa.Column(
+        sa.ForeignKey('followuprequests.id', ondelete='CASCADE'),
+        index=True,
+        nullable=False,
+        doc="The ID of the FollowupRequest this message pertains to.",
+    )
+
+    request = relationship(
+        'FollowupRequest',
+        back_populates='http_requests',
+        doc="The FollowupRequest this message pertains to.",
+    )
+    origin = sa.Column(followup_http_request_origins, doc='Origin of the HTTP request.')
 
 
 User.followup_requests = relationship('FollowupRequest', back_populates='requester')
@@ -1178,5 +1298,6 @@ User.assignments = relationship(
     back_populates="requester",
     foreign_keys="ClassicalAssignment.requester_id",
 )
+
 
 schema.setup_schema()

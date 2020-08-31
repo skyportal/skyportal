@@ -5,6 +5,7 @@ from baselayer.app import model_util as baselayer_model_util
 
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
+    AllocationHandler,
     AssignmentHandler,
     CandidateHandler,
     ClassificationHandler,
@@ -43,7 +44,7 @@ from skyportal.handlers.api.internal import (
     TokenHandler,
     DBInfoHandler,
     ProfileHandler,
-    InstrumentObservationParamsHandler,
+    RoboticInstrumentFormsHandler,
     LogHandler,
     PlotAirmassHandler,
 )
@@ -74,6 +75,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
 
     handlers = baselayer_handlers + [
         # API endpoints
+        (r'/api/allocation(/.*)?', AllocationHandler),
         (r'/api/assignment(/.*)?', AssignmentHandler),
         (r'/api/candidates(/.*)?', CandidateHandler),
         (r'/api/classification(/[0-9]+)?', ClassificationHandler),
@@ -109,8 +111,8 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/internal/source_views(/.*)?', SourceViewsHandler),
         (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
         (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
+        (r'/api/internal/instrument_forms', RoboticInstrumentFormsHandler),
         (r'/api/internal/plot/airmass/(.*)', PlotAirmassHandler),
-        (r'/api/internal/instrument_obs_params', InstrumentObservationParamsHandler),
         (r'/api/internal/log', LogHandler),
         (r'/api/.*', InvalidEndpointHandler),
         (r'/become_user(/.*)?', BecomeUserHandler),

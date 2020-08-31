@@ -1,15 +1,16 @@
 import React, { useState } from "react";
+import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
-
-import FollowupRequestForm from "./FollowupRequestForm";
+import Form from "@rjsf/material-ui";
+import * as Actions from "../ducks/source";
 
 const EditFollowupRequestDialog = ({
   followupRequest,
-  instrumentList,
-  instrumentObsParams,
+  instrumentFormParams,
 }) => {
+  const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
 
   const handleClickOpen = () => {
@@ -20,21 +21,35 @@ const EditFollowupRequestDialog = ({
     setOpen(false);
   };
 
+  const handleSubmit = ({ formData }) => {
+    const json = {
+      instrument_id: followupRequest.instrument.id,
+      obj_id: followupRequest.obj_id,
+      payload: formData,
+    };
+    dispatch(Actions.editFollowupRequest(json, followupRequest.id));
+    handleClose();
+  };
+
   return (
     <span key={followupRequest.id}>
-      <button type="button" onClick={handleClickOpen}>
+      <button
+        type="button"
+        onClick={handleClickOpen}
+        name={`editRequest_${followupRequest.id}`}
+      >
         Edit
       </button>
       <Dialog open={open} onClose={handleClose} style={{ position: "fixed" }}>
         <DialogContent>
-          <FollowupRequestForm
-            obj_id={followupRequest.obj_id}
-            action="editExisting"
-            followupRequest={followupRequest}
-            instrumentList={instrumentList}
-            instrumentObsParams={instrumentObsParams}
-            title="Edit Follow-up Request"
-            afterSubmit={handleClose}
+          <Form
+            schema={
+              instrumentFormParams[followupRequest.instrument.id].formSchema
+            }
+            uiSchema={
+              instrumentFormParams[followupRequest.instrument.id].uiSchema
+            }
+            onSubmit={handleSubmit}
           />
         </DialogContent>
       </Dialog>
@@ -59,17 +74,11 @@ EditFollowupRequestDialog.propTypes = {
     obj_id: PropTypes.string,
     id: PropTypes.number,
   }).isRequired,
-  instrumentList: PropTypes.arrayOf(
-    PropTypes.shape({
-      band: PropTypes.string,
-      created_at: PropTypes.string,
-      id: PropTypes.number,
-      name: PropTypes.string,
-      type: PropTypes.string,
-      telescope_id: PropTypes.number,
-    })
-  ).isRequired,
-  instrumentObsParams: PropTypes.objectOf(PropTypes.any).isRequired,
+  instrumentFormParams: PropTypes.shape({
+    formSchema: PropTypes.objectOf(PropTypes.any),
+    uiSchema: PropTypes.objectOf(PropTypes.any),
+    implementedMethods: PropTypes.objectOf(PropTypes.any),
+  }).isRequired,
 };
 
 export default EditFollowupRequestDialog;
