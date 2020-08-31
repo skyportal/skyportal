@@ -135,9 +135,9 @@ class SourceHandler(BaseHandler):
             name: group_id
             nullable: true
             schema:
-              type: integer
+              type: list
             description: |
-               If provided, filter only sources saved to this group ID.
+               If provided, filter only sources saved to one of these group IDs.
           responses:
             200:
               content:
@@ -179,7 +179,9 @@ class SourceHandler(BaseHandler):
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
-        group_id = self.get_query_argument('group_id', None)  # string with group number
+        group_id = self.get_query_argument(
+            'group_id', None
+        )  # list of strings with group numbers
         simbad_class = self.get_query_argument('simbadClass', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
         total_matches = self.get_query_argument('totalMatches', None)
@@ -241,7 +243,7 @@ class SourceHandler(BaseHandler):
 
             return self.success(data=source_info)
 
-        # Instead of single source, let's try to get all of them
+        # Fetch multiple sources
         q = (
             DBSession()
             .query(Obj)
@@ -291,14 +293,17 @@ class SourceHandler(BaseHandler):
         if has_tns_name in ['true', True]:
             q = q.filter(Obj.altdata['tns']['name'].isnot(None))
         if group_id:
-            if not group_id.isdigit() or int(group_id) not in [
-                g.id for g in self.current_user.accessible_groups
-            ]:
+            if not all(g.isdigit() for g in group_id):
                 return self.error(
-                    "Requested group '" + group_id + "' is inaccessible to user."
+                    f"Group id should be a list of numbers, instead got: '{group_id}'"
                 )
-            q = q.filter(Source.group_id == int(group_id))
-            # return self.error(str(self.current_user.accessible_groups))
+            user_group_ids = [g.id for g in self.current_user.accessible_groups]
+            if not all(int(g) in user_group_ids for g in group_id):
+                return self.error(
+                    f"One of the requested groups in '{group_id}' is inaccessible to user."
+                )
+            q = q.filter(Source.group_id.in_([int(g) for g in group_id]))
+
         if page_number:
             try:
                 page = int(page_number)

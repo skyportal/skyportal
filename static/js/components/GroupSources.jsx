@@ -13,16 +13,10 @@ import Grid from "@material-ui/core/Grid";
 import Link from "@material-ui/core/Link";
 import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
 
-// import Menu from "@material-ui/core/Menu";
-// import MenuItem from "@material-ui/core/MenuItem";
-
 import MUIDataTable from "mui-datatables";
 import ThumbnailList from "./ThumbnailList";
 import styles from "./RunSummary.css";
-// import { observingRunTitle } from "./AssignmentForm";
-// import { ObservingRunStarList } from "./StarList";
 import * as SourcesAction from "../ducks/sources";
-// import * as Action from "../ducks/observingRun";
 import { ra_to_hours, dec_to_hours } from "../units";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
@@ -44,19 +38,17 @@ const GroupSources = ({ route }) => {
   const group_id = parseInt(route.id, 10);
   let group_name = "";
 
-  if (groups === undefined || groups === null) {
-    // nothing, just wait
-  } else {
-    const group_obj = groups.find((obj) => {
+  if (groups !== undefined && groups !== null) {
+    const group = groups.find((g) => {
       // find the object for the group
-      return obj.id === group_id;
+      return g.id === group_id;
     });
 
-    if (group_obj === undefined || group_obj === null) {
+    if (group === undefined || group === null) {
       // couldn't find a group object
       group_name = "";
     } else {
-      group_name = group_obj.name;
+      group_name = group.name;
     }
   }
 
@@ -148,7 +140,7 @@ const GroupSources = ({ route }) => {
 
   const columns = [
     {
-      name: "Source Name",
+      name: "Source ID",
       options: {
         filter: true,
         customBodyRenderLite: renderObjId,
