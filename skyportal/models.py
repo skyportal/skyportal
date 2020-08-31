@@ -1297,7 +1297,10 @@ def send_user_invite_email(mapper, connection, target):
     _, cfg = load_env()
     app_base_url = (
         f"{'https' if cfg['server.ssl'] else 'http'}:"
-        "//{cfg['server.host']}:{cfg['ports.app']}"
+        f"//{cfg['server.host']}:{cfg['ports.app']}"
+    )
+    link_location = (
+        f'{app_base_url}/login/google-oauth2/' f'?invite_token={target.token}'
     )
     message = Mail(
         from_email=cfg["invitations.from_email"],
@@ -1305,8 +1308,7 @@ def send_user_invite_email(mapper, connection, target):
         subject=cfg["invitations.email_subject"],
         html_content=(
             f'{cfg["invitations.email_body_preamble"]}<br /><br />'
-            f'Please click <a href="{app_base_url}/login/google-oauth2/'
-            f'?invite_token={target.token}">here</a> to join.'
+            f'Please click <a href="{link_location}">here</a> to join.'
         ),
     )
     sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
