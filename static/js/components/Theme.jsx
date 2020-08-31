@@ -11,7 +11,7 @@ const Theme = ({ children }) => {
     palette: {
       type: theme || "light",
       background:
-        theme === "light" ? { default: "#f0f2f5" } : { default: "#303030" },
+        theme === "dark" ? { default: "#303030" } : { default: "#f0f2f5" },
     },
   });
 
