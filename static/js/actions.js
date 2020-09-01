@@ -1,4 +1,3 @@
-import fetchAllocations from "./ducks/allocations";
 import * as groupsActions from "./ducks/groups";
 import * as profileActions from "./ducks/profile";
 import * as sysInfoActions from "./ducks/sysInfo";
@@ -18,9 +17,8 @@ export default function hydrate() {
     dispatch(groupsActions.fetchGroups());
     dispatch(newsFeedActions.fetchNewsFeed());
     dispatch(topSourcesActions.fetchTopSources());
-    dispatch(fetchAllocations());
     dispatch(instrumentsActions.fetchInstruments());
-    dispatch(instrumentsActions.fetchInstrumentForms());
+    dispatch(instrumentsActions.fetchInstrumentObsParams());
     dispatch(observingRunsActions.fetchObservingRuns());
     dispatch(telescopesActions.fetchTelescopes());
     dispatch(taxonomyActions.fetchTaxonomies());
