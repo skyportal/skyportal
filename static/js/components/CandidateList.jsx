@@ -10,6 +10,7 @@ import TableBody from "@material-ui/core/TableBody";
 import TableCell from "@material-ui/core/TableCell";
 import TableHead from "@material-ui/core/TableHead";
 import TableRow from "@material-ui/core/TableRow";
+import Button from "@material-ui/core/Button";
 
 import * as candidatesActions from "../ducks/candidates";
 import ThumbnailList from "./ThumbnailList";
@@ -28,12 +29,26 @@ const useStyles = makeStyles(() => ({
   title: {
     marginBottom: "0.625rem",
   },
+  pages: {
+    margin: "1rem",
+    "& > div": {
+      display: "inline-block",
+      margin: "1rem",
+    },
+  },
 }));
 
 const CandidateList = () => {
   const classes = useStyles();
 
-  const { candidates } = useSelector((state) => state.candidates);
+  const {
+    candidates,
+    pageNumber,
+    lastPage,
+    totalMatches,
+    numberingStart,
+    numberingEnd,
+  } = useSelector((state) => state.candidates);
 
   const userGroups = useSelector((state) => state.groups.user);
 
@@ -45,13 +60,30 @@ const CandidateList = () => {
     }
   }, [candidates, dispatch]);
 
+  const handleClickNextPage = () => {
+    dispatch(candidatesActions.fetchCandidates({ pageNumber: pageNumber + 1 }));
+  };
+
+  const handleClickPreviousPage = () => {
+    dispatch(candidatesActions.fetchCandidates({ pageNumber: pageNumber - 1 }));
+  };
+
   return (
     <Paper elevation={1}>
       <div className={classes.candidateListContainer}>
         <Typography variant="h6" className={classes.title}>
           Scan candidates for sources
         </Typography>
-        <FilterCandidateList userGroups={userGroups} />
+        <FilterCandidateList
+          userGroups={userGroups}
+          handleClickNextPage={handleClickNextPage}
+          handleClickPreviousPage={handleClickPreviousPage}
+          pageNumber={pageNumber}
+          numberingStart={numberingStart}
+          numberingEnd={numberingEnd}
+          lastPage={lastPage}
+          totalMatches={totalMatches}
+        />
         <Table className={classes.table}>
           <TableHead>
             <TableRow>
@@ -156,6 +188,37 @@ const CandidateList = () => {
               })}
           </TableBody>
         </Table>
+      </div>
+      <div className={classes.pages}>
+        <div>
+          <Button
+            variant="contained"
+            onClick={handleClickPreviousPage}
+            disabled={pageNumber === 1}
+            size="small"
+          >
+            Previous Page
+          </Button>
+        </div>
+        <div>
+          <i>
+            Displaying&nbsp;
+            {numberingStart}-{numberingEnd}
+            &nbsp; of&nbsp;
+            {totalMatches}
+            &nbsp; candidates.
+          </i>
+        </div>
+        <div>
+          <Button
+            variant="contained"
+            onClick={handleClickNextPage}
+            disabled={lastPage}
+            size="small"
+          >
+            Next Page
+          </Button>
+        </div>
       </div>
     </Paper>
   );

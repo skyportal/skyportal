@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
 import PropTypes from "prop-types";
 
@@ -44,16 +44,17 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const FilterCandidateList = ({ userGroups }) => {
+const FilterCandidateList = ({
+  userGroups,
+  handleClickNextPage,
+  handleClickPreviousPage,
+  pageNumber,
+  numberingStart,
+  numberingEnd,
+  totalMatches,
+  lastPage,
+}) => {
   const classes = useStyles();
-
-  const {
-    pageNumber,
-    lastPage,
-    totalMatches,
-    numberingStart,
-    numberingEnd,
-  } = useSelector((state) => state.candidates);
 
   const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
 
@@ -96,14 +97,6 @@ const FilterCandidateList = ({ userGroups }) => {
       data.endDate = data.endDate.toISOString();
     }
     dispatch(candidatesActions.fetchCandidates(data));
-  };
-
-  const handleClickNextPage = () => {
-    dispatch(candidatesActions.fetchCandidates({ pageNumber: pageNumber + 1 }));
-  };
-
-  const handleClickPreviousPage = () => {
-    dispatch(candidatesActions.fetchCandidates({ pageNumber: pageNumber - 1 }));
   };
 
   const handleJumpToPageInputChange = (e) => {
@@ -255,6 +248,13 @@ const FilterCandidateList = ({ userGroups }) => {
 };
 FilterCandidateList.propTypes = {
   userGroups: PropTypes.arrayOf(PropTypes.object).isRequired,
+  handleClickNextPage: PropTypes.func.isRequired,
+  handleClickPreviousPage: PropTypes.func.isRequired,
+  pageNumber: PropTypes.number.isRequired,
+  numberingStart: PropTypes.number.isRequired,
+  numberingEnd: PropTypes.number.isRequired,
+  totalMatches: PropTypes.number.isRequired,
+  lastPage: PropTypes.bool.isRequired,
 };
 
 export default FilterCandidateList;
