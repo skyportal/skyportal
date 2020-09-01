@@ -9,22 +9,90 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
+import { makeStyles } from "@material-ui/core/styles";
 
 import { ra_to_hours, dec_to_hours } from "../units";
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import SourceQuickView from "./SourceQuickView";
 
-import styles from "./RecentSources.css";
-
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
+
+const useStyles = makeStyles(() => ({
+  stampContainer: {
+    display: "contents",
+  },
+  stamp: {
+    transition: "transform 0.1s",
+    width: "5em",
+    height: "auto",
+    display: "block",
+    "&:hover": {
+      transform: "scale(1.5)",
+    },
+  },
+  recentSourcesContainer: {
+    display: "block",
+    padding: "1rem",
+    height: "100%",
+  },
+  recentSourceListContainer: {
+    height: "calc(100% - 3rem)",
+    overflowY: "scroll",
+    marginTop: "0.625rem",
+  },
+  recentSourceList: {
+    display: "block",
+    alignItems: "center",
+    listStyleType: "none",
+    paddingLeft: 0,
+    marginTop: 0,
+  },
+  recentSourceItem: {
+    display: "flex",
+    flexFlow: "row nowrap",
+    alignItems: "center",
+    padding: "0 0.625rem",
+  },
+  recentSourceInfo: {
+    display: "flex",
+    flexFlow: "column wrap",
+    margin: "1rem 2rem",
+  },
+  recentSourceName: {
+    fontSize: "1rem",
+  },
+  recentSourceTime: {
+    color: "gray",
+  },
+  quickViewButton: {
+    visibility: "hidden",
+    display: "none",
+  },
+  recentSourceItemWithButton: {
+    display: "flex",
+    flexFlow: "column nowrap",
+    justifyContent: "center",
+    marginBottom: "1rem",
+    marginLeft: "0.625rem",
+    alignItems: "center",
+    transition: "all 0.3s ease",
+    "&:hover": {
+      backgroundColor: "#ddd",
+    },
+    "&:hover $quickViewButton": {
+      visibility: "visible",
+      display: "block",
+    },
+  },
+}));
 
 const defaultPrefs = {
   maxNumSources: "5",
 };
 
-const RecentSourcesList = ({ sources }) => {
+const RecentSourcesList = ({ sources, styles }) => {
   return sources.length === 0 ? (
     <div>Loading recent sources...</div>
   ) : (
@@ -112,9 +180,12 @@ RecentSourcesList.propTypes = {
       ),
     })
   ).isRequired,
+  styles: PropTypes.shape(Object).isRequired,
 };
 
 const RecentSources = () => {
+  const styles = useStyles();
+
   const { recentSources } = useSelector((state) => state.recentSources);
   const recentSourcesPrefs =
     useSelector((state) => state.profile.preferences.recentSources) ||
@@ -134,7 +205,7 @@ const RecentSources = () => {
             onSubmit={profileActions.updateUserPreferences}
           />
         </div>
-        <RecentSourcesList sources={recentSources} />
+        <RecentSourcesList sources={recentSources} styles={styles} />
       </div>
     </Paper>
   );

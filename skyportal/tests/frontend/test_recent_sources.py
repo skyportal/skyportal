@@ -32,9 +32,7 @@ def test_recent_sources(driver, user, public_group, upload_data_token):
     driver.get('/')
 
     # Wait for just added source to show up in added sources
-    recent_source_class = (
-        "static-js-components-RecentSources__recentSourceItemWithButton"
-    )
+    recent_source_class = "makeStyles-recentSourceItemWithButton"
     recent_source_item = driver.wait_for_xpath(
         f'//div[starts-with(@class, "{recent_source_class}")][.//span[text()="a few seconds ago"]][.//a[contains(text(), "{obj_id}")]]'
     )
@@ -83,9 +81,7 @@ def test_hidden_recent_source(driver, user_no_groups, public_group, upload_data_
 
     # Make sure just added source doesn't show up
     with pytest.raises(TimeoutException):
-        recent_source_class = (
-            "static-js-components-RecentSources__recentSourceItemWithButton"
-        )
+        recent_source_class = "makeStyles-recentSourceItemWithButton"
         driver.wait_for_xpath(
             f'//div[starts-with(@class, "{recent_source_class}")][.//span[text()="a few seconds ago"]][.//a[contains(text(), "{obj_id}")]]'
         )
