@@ -16,8 +16,8 @@ def test_upload_photometry(
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
     csv_text_input.send_keys(
         "mjd,flux,fluxerr,zp,magsys,filter\n"
-        "58001,55,1,25,ab,ztfg\n"
-        "58002,53,1,25,ab,ztfg"
+        "58001,55,1,25,ab,sdssg\n"
+        "58002,53,1,25,ab,sdssg"
     )
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
     driver.wait_for_xpath_to_be_clickable(
@@ -63,8 +63,8 @@ def test_upload_photometry_multiple_groups(
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
     csv_text_input.send_keys(
         "mjd,flux,fluxerr,zp,magsys,filter\n"
-        "58001,55,1,25,ab,ztfg\n"
-        "58002,53,1,25,ab,ztfg"
+        "58001,55,1,25,ab,sdssg\n"
+        "58002,53,1,25,ab,sdssg"
     )
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
     driver.wait_for_xpath(f'//span[text()="P60 Camera (ID: {inst_id})"]').click()
@@ -104,8 +104,8 @@ def test_upload_photometry_with_altdata(
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
     csv_text_input.send_keys(
         "mjd,flux,fluxerr,zp,magsys,filter,altdata.meta1,altdata.meta2\n"
-        "58001,55,1,25,ab,ztfg,44.4,\"abc,abc\"\n"
-        "58002,53,1,25,ab,ztfg,44.2,\"edf,edf\""
+        "58001,55,1,25,ab,sdssg,44.4,\"abc,abc\"\n"
+        "58002,53,1,25,ab,sdssg,44.2,\"edf,edf\""
     )
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
     driver.wait_for_xpath(f'//span[text()="P60 Camera (ID: {inst_id})"]').click()
@@ -142,8 +142,8 @@ def test_upload_photometry_form_validation(
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
     csv_text_input.send_keys(
         "mjd,flux,fluxerr,zp,magsys,OTHER\n"
-        "58001,55,1,25,ab,ztfg\n"
-        "58002,53,1,25,ab,ztfg"
+        "58001,55,1,25,ab,sdssg\n"
+        "58002,53,1,25,ab,sdssg"
     )
     driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]').click()
     driver.wait_for_xpath(
@@ -152,7 +152,7 @@ def test_upload_photometry_form_validation(
     csv_text_input.clear()
     csv_text_input.send_keys(
         "mjd,flux,fluxerr,zp,magsys,filter\n"
-        "58001,55,1,25,ab,ztfg\n"
+        "58001,55,1,25,ab,sdssg\n"
         "58002,53,1,25,ab"
     )
     driver.wait_for_xpath(
@@ -166,8 +166,8 @@ def test_upload_photometry_form_validation(
     csv_text_input.clear()
     csv_text_input.send_keys(
         "mjd,flux,fluxerr,zp,magsys,filter\n"
-        "58001,55,1,25,ab,ztfg\n"
-        "58002,53,1,25,ab,ztfg"
+        "58001,55,1,25,ab,sdssg\n"
+        "58002,53,1,25,ab,sdssg"
     )
     driver.wait_for_xpath('//div[contains(.,"Select an instrument")]')
     driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
