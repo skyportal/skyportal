@@ -1,4 +1,3 @@
-import os
 import uuid
 import re
 from datetime import datetime, timezone
@@ -1309,7 +1308,7 @@ def send_user_invite_email(mapper, connection, target):
             f'Please click <a href="{link_location}">here</a> to join.'
         ),
     )
-    sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
+    sg = SendGridAPIClient(cfg["invitations.sendgrid_api_key"])
     sg.send(message)
 
 

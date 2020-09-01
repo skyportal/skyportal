@@ -106,9 +106,12 @@ cron:
     limit: ["01:00", "02:00"]
 
 invitations:
-  # Note that in order for invitations to be sent, a valid Sendgrid API key must be
-  # available as an environment variable as per their setup docs
+  enabled: False
   days_until_expiry: 3
   email_subject: "You've been invited to collaborate on SkyPortal"
-  email_body_preamble: "Welcome to SkyPortal!"
+  email_body_preamble: |
+    Welcome to SkyPortal!
+
+    Some other text here.
   from_email: # This needs to be set to a valid, Sendgrid-registered address in config.yaml
+  sendgrid_api_key: # This needs to be obtained via Sendgrid setup on their site
