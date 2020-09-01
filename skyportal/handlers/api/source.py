@@ -195,7 +195,8 @@ class SourceHandler(BaseHandler):
                     .joinedload(FollowupRequest.requester),
                     joinedload(Source.obj)
                     .joinedload(Obj.followup_requests)
-                    .joinedload(FollowupRequest.instrument),
+                    .joinedload(FollowupRequest.allocation)
+                    .joinedload(Allocation.instrument),
                     joinedload(Source.obj)
                     .joinedload(Obj.assignments)
                     .joinedload(ClassicalAssignment.run)

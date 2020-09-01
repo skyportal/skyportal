@@ -644,8 +644,6 @@ class Instrument(Base):
     )
     telescope = relationship('Telescope', back_populates='instruments')
 
-    followup_requests = relationship('FollowupRequest', back_populates='instrument')
-
     photometry = relationship('Photometry', back_populates='instrument')
     spectra = relationship('Spectrum', back_populates='instrument')
 
@@ -1053,10 +1051,7 @@ class FollowupRequest(Base):
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
     )
-    instrument = relationship(Instrument, back_populates='followup_requests')
-    instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id'), nullable=False, index=True
-    )
+
     payload = sa.Column(
         psql.JSONB, nullable=True, doc="Content of the followup request."
     )
@@ -1072,6 +1067,10 @@ class FollowupRequest(Base):
         back_populates='request',
         order_by="FollowupRequestHTTPRequest.created_at.desc()",
     )
+
+    @property
+    def instrument(self):
+        return self.allocation.instrument
 
     def is_owned_by(self, user_or_token):
         """Return a boolean indicating whether a FollowupRequest belongs to

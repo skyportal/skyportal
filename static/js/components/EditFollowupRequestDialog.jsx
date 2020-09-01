@@ -23,7 +23,7 @@ const EditFollowupRequestDialog = ({
 
   const handleSubmit = ({ formData }) => {
     const json = {
-      instrument_id: followupRequest.instrument.id,
+      instrument_id: followupRequest.allocation.instrument.id,
       obj_id: followupRequest.obj_id,
       payload: formData,
     };
@@ -44,10 +44,12 @@ const EditFollowupRequestDialog = ({
         <DialogContent>
           <Form
             schema={
-              instrumentFormParams[followupRequest.instrument.id].formSchema
+              instrumentFormParams[followupRequest.allocation.instrument.id]
+                .formSchema
             }
             uiSchema={
-              instrumentFormParams[followupRequest.instrument.id].uiSchema
+              instrumentFormParams[followupRequest.allocation.instrument.id]
+                .uiSchema
             }
             onSubmit={handleSubmit}
           />
@@ -63,9 +65,11 @@ EditFollowupRequestDialog.propTypes = {
       id: PropTypes.number,
       username: PropTypes.string,
     }),
-    instrument: PropTypes.shape({
-      id: PropTypes.number,
-      name: PropTypes.string,
+    allocation: PropTypes.shape({
+      instrument: PropTypes.shape({
+        id: PropTypes.number,
+        name: PropTypes.string,
+      }),
     }),
     start_date: PropTypes.string,
     end_date: PropTypes.string,

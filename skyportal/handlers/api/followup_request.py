@@ -313,6 +313,7 @@ class FollowupRequestHandler(BaseHandler):
         # validate the payload
         jsonschema.validate(data['payload'], instrument.api_class.form_json_schema)
 
+        del data['instrument_id']
         followup_request = FollowupRequest(**data)
         DBSession().add(followup_request)
         DBSession().commit()
