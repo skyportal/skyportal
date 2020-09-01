@@ -1,6 +1,6 @@
 import datetime
 from social_core.exceptions import AuthTokenError
-from ..models import DBSession, User, Group, GroupUser, Invitation
+from .models import DBSession, User, Group, GroupUser, Invitation
 from baselayer.app.env import load_env
 
 
