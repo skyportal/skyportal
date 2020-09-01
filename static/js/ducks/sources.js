@@ -1,3 +1,5 @@
+import messageHandler from "baselayer/MessageHandler";
+
 import * as API from "../API";
 import store from "../store";
 
@@ -22,6 +24,15 @@ const initialState = {
   numberingStart: 0,
   numberingEnd: 0,
 };
+
+// Websocket message handler
+messageHandler.add((actionType, payload, dispatch, getState) => {
+  if (actionType === FETCH_SOURCES) {
+    const { sources } = getState();
+    const pageNumber = sources.pageNumber ? sources.pageNumber : 1;
+    dispatch(fetchSources({ pageNumber }));
+  }
+});
 
 const reducer = (state = initialState, action) => {
   switch (action.type) {
