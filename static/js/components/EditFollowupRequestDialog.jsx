@@ -23,7 +23,7 @@ const EditFollowupRequestDialog = ({
 
   const handleSubmit = ({ formData }) => {
     const json = {
-      instrument_id: followupRequest.allocation.instrument.id,
+      allocation_id: followupRequest.allocation.id,
       obj_id: followupRequest.obj_id,
       payload: formData,
     };
@@ -70,6 +70,7 @@ EditFollowupRequestDialog.propTypes = {
         id: PropTypes.number,
         name: PropTypes.string,
       }),
+      id: PropTypes.number,
     }),
     start_date: PropTypes.string,
     end_date: PropTypes.string,

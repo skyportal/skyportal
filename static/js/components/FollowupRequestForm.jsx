@@ -74,16 +74,13 @@ const FollowupRequestForm = ({
     setSelectedAllocationId(e.target.value);
   };
 
-  const handleSubmit = (instrument_id) => {
-    return ({ formData }) => {
-      const json = {
-        instrument_id,
-        obj_id,
-        allocation_id: selectedAllocationId,
-        payload: formData,
-      };
-      dispatch(Actions.submitFollowupRequest(json));
+  const handleSubmit = ({ formData }) => {
+    const json = {
+      obj_id,
+      allocation_id: selectedAllocationId,
+      payload: formData,
     };
+    dispatch(Actions.submitFollowupRequest(json));
   };
 
   return (
@@ -132,7 +129,7 @@ const FollowupRequestForm = ({
         <Form
           schema={instrumentFormParams[selectedInstrumentId].formSchema}
           uiSchema={instrumentFormParams[selectedInstrumentId].uiSchema}
-          onSubmit={handleSubmit(selectedInstrumentId)}
+          onSubmit={handleSubmit}
         />
       )}
     </div>

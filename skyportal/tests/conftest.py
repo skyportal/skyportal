@@ -25,7 +25,7 @@ from skyportal.tests.fixtures import (
     TelescopeFactory,
 )
 from skyportal.model_util import create_token
-from skyportal.models import DBSession, Source, Candidate, Role, User
+from skyportal.models import DBSession, Source, Candidate, Role, User, Allocation
 
 import astroplan
 import warnings
@@ -195,6 +195,7 @@ def sedm(p60_telescope):
         telescope=p60_telescope,
         band='Optical',
         filters=['sdssu', 'sdssg', 'sdssr', 'sdssi'],
+        api_classname='SEDMAPI',
     )
 
 
@@ -386,3 +387,16 @@ def comment_token_two_groups(user_two_groups):
         ACLs=["Comment"], user_id=user_two_groups.id, name=str(uuid.uuid4())
     )
     return token_id
+
+
+@pytest.fixture()
+def public_group_sedm_allocation(sedm, public_group):
+    allocation = Allocation(
+        instrument=sedm,
+        group=public_group,
+        pi=str(uuid.uuid4()),
+        proposal_id=str(uuid.uuid4()),
+    )
+    DBSession().add(allocation)
+    DBSession().commit()
+    return allocation

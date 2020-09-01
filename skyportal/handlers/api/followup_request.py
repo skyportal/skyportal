@@ -11,7 +11,6 @@ from ...models import (
     ObservingRun,
     Obj,
     Group,
-    Instrument,
     Allocation,
 )
 
@@ -290,17 +289,7 @@ class FollowupRequestHandler(BaseHandler):
         data = self.get_json()
         _ = Source.get_obj_if_owned_by(data["obj_id"], self.current_user)
         data["requester_id"] = self.associated_user_object.id
-        data['instrument_id'] = int(data['instrument_id'])
         data['allocation_id'] = int(data['allocation_id'])
-
-        instrument = Instrument.query.get(data['instrument_id'])
-        if instrument is None:
-            return self.error('No such instrument.')
-        if instrument.api_classname is None:
-            return self.error('Instrument has no remote API.')
-
-        if not instrument.api_class.implements_submit():
-            return self.error('Cannot submit followup requests to this Instrument.')
 
         allocation = Allocation.query.get(data['allocation_id'])
         if allocation is None:
@@ -310,11 +299,17 @@ class FollowupRequestHandler(BaseHandler):
         ]:
             return self.error('User does not have access to this allocation.')
 
+        instrument = allocation.instrument
+        if instrument.api_classname is None:
+            return self.error('Instrument has no remote API.')
+
+        if not instrument.api_class.implements_submit():
+            return self.error('Cannot submit followup requests to this Instrument.')
+
         # validate the payload
         jsonschema.validate(data['payload'], instrument.api_class.form_json_schema)
 
-        del data['instrument_id']
-        followup_request = FollowupRequest(**data)
+        followup_request = FollowupRequest.__schema__().load(data)
         DBSession().add(followup_request)
         DBSession().commit()
 
