@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useHistory, useParams } from "react-router-dom";
+import { useHistory, useParams, Link } from "react-router-dom";
 import PropTypes from "prop-types";
 
 import { useDispatch, useSelector } from "react-redux";
@@ -245,15 +245,10 @@ const Group = () => {
             dense
           >
             {group?.users?.map((user) => (
-              <ListItem
-                button
-                component={
-                  currentUser.acls.includes("Manage users") ? "a" : false
-                }
-                key={user.id}
-                href={`/user/${user.id}`}
-              >
-                <ListItemText primary={user.username} />
+              <ListItem button key={user.id}>
+                <Link to={`/user/${user.id}`}>
+                  <ListItemText primary={user.username} />
+                </Link>
                 {isAdmin(user, group) && (
                   <div
                     style={{ display: "inline-block" }}
