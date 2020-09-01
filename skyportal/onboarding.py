@@ -12,7 +12,7 @@ USER_FIELDS = ['username', 'email']
 def create_user(strategy, details, backend, user=None, *args, **kwargs):
     invite_token = strategy.session_get("invite_token")
 
-    if invite_token is not None:
+    if cfg["invitations.enabled"] and invite_token is not None:
         try:
             n_days = int(cfg["invitations.days_until_expiry"])
         except ValueError:
@@ -53,6 +53,9 @@ def create_user(strategy, details, backend, user=None, *args, **kwargs):
 
 
 def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs):
+    if not cfg["invitations.enabled"]:
+        return
+
     invite_token = strategy.session_get("invite_token")
 
     invitation = Invitation.query.filter(Invitation.token == invite_token).first()
