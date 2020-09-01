@@ -76,6 +76,7 @@ const NewGroupUserForm = ({ group_id }) => {
       admin: event.target.checked,
     });
   };
+  const allUserNames = allUsers.map((user) => user.username);
 
   return (
     <div>
@@ -84,11 +85,13 @@ const NewGroupUserForm = ({ group_id }) => {
         value={formState.newUserEmail}
         onChange={(event, newValue) => {
           if (typeof newValue === "string") {
+            // The user has entered a username and hit the Enter/Return key
             setFormState({
               newUserEmail: newValue,
+              invitingNewUser: !allUserNames.includes(newValue),
             });
           } else if (newValue && newValue.inputValue) {
-            // Create a new value from the user input
+            // The user has entered a new username and clicked the "Add" option
             setFormState({
               newUserEmail: newValue.inputValue,
               invitingNewUser: true,
