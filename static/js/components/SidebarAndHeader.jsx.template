@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
@@ -87,12 +87,32 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const SidebarAndHeader = ({ open }) => {
+  const open = useSelector((state) => state.sidebar.open);
+
   const dispatch = useDispatch();
   const classes = useStyles();
 
   const handleToggleSidebarOpen = () => {
     dispatch(Actions.toggleSidebar());
   };
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        dispatch(Actions.setSidebar(false));
+      }
+    };
+
+    if (open) {
+      window.addEventListener("resize", handleResize);
+    }
+
+    const cleanupListener = () => {
+      console.log("removing");
+      window.removeEventListener("resize", handleResize);
+    };
+    return cleanupListener;
+  }, [open, dispatch]);
 
   return (
     <>
