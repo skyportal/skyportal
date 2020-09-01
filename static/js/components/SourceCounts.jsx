@@ -37,7 +37,7 @@ const SourceCounts = () => {
     defaultPrefs;
 
   return (
-    <Paper id="sourceCounts" elevation={1}>
+    <Paper id="sourceCountsWidget" elevation={1}>
       <div className={classes.counterContainer}>
         <div className={classes.prefwidget}>
           <WidgetPrefsDialog
@@ -50,7 +50,12 @@ const SourceCounts = () => {
         <div className={classes.counter}>
           <Typography align="center" variant="h4">
             <b>
-              <CountUp isCounting end={sourceCounts?.count} duration={2.5} />
+              <CountUp
+                id="sourceCounter"
+                isCounting
+                end={sourceCounts?.count}
+                duration={1.0}
+              />
             </b>
           </Typography>
           <Typography align="center" variant="body1">
