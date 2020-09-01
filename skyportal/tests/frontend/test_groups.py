@@ -1,6 +1,10 @@
 import uuid
 import pytest
 from selenium.webdriver.common.keys import Keys
+from baselayer.app.env import load_env
+
+
+_, cfg = load_env()
 
 
 def test_public_groups_list(driver, user, public_group):
@@ -99,9 +103,7 @@ def test_add_new_group_user_nonadmin(
     )
 
 
-@pytest.mark.xfail(
-    strict=False
-)  # This will now fail without valid Twilio Sendgrid config files
+@pytest.mark.flaky(reruns=2)
 def test_add_new_group_user_new_username(driver, super_admin_user, user, public_group):
     new_username = str(uuid.uuid4())
     driver.get(f'/become_user/{super_admin_user.id}')
@@ -114,7 +116,8 @@ def test_add_new_group_user_new_username(driver, super_admin_user, user, public_
     )
     driver.click_xpath('//input[@value="Add user"]')
     driver.click_xpath('//span[text()="Confirm"]')
-    driver.wait_for_xpath('//*[contains(., "Invitation successfully sent to")]')
+    if cfg["invitations.enabled"]:  # If invites are disabled, we won't see this notif.
+        driver.wait_for_xpath('//*[contains(., "Invitation successfully sent to")]')
 
 
 @pytest.mark.flaky(reruns=2)

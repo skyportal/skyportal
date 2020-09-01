@@ -42,7 +42,11 @@ const NewGroupUserForm = ({ group_id }) => {
         group_id,
       })
     );
-    if (formState.invitingNewUser && result.status === "success") {
+    if (
+      formState.invitingNewUser &&
+      result.status === "success" &&
+      result.data.user_id === null
+    ) {
       dispatch(
         showNotification(
           `Invitation successfully sent to ${formState.newUserEmail}`
