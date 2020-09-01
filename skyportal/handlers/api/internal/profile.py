@@ -147,6 +147,8 @@ class ProfileHandler(BaseHandler):
             username = data.pop("username").strip()
             if username == "":
                 return self.error("Invalid username.")
+            if len(username) < 5:
+                return self.error("Username must be at least five characters long.")
             user.username = username
 
         if data.get("first_name") is not None:
