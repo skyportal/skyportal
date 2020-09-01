@@ -21,7 +21,7 @@ const SourceCounts = () => {
     defaultPrefs;
 
   return (
-    <Paper style={{ padding: "1rem" }} elevation={1}>
+    <Paper elevation={1}>
       <div className={styles.topSourcesContainer}>
         <div style={{ display: "inline-block", float: "right" }}>
           <WidgetPrefsDialog
