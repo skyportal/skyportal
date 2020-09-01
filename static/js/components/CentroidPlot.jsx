@@ -149,6 +149,12 @@ const spec = (inputData) => ({
       data: {
         values: inputData.photometryData,
       },
+      selection: {
+        grid: {
+          type: "interval",
+          bind: "scales",
+        },
+      },
       mark: {
         type: "point",
         filled: true,
