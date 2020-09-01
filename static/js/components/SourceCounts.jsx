@@ -1,6 +1,7 @@
 import React from "react";
 import { useSelector } from "react-redux";
 import { CountUp } from "use-count-up";
+import { makeStyles } from "@material-ui/core/styles";
 
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
@@ -8,22 +9,37 @@ import Typography from "@material-ui/core/Typography";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import * as profileActions from "../ducks/profile";
 
-import styles from "./TopSources.css";
-
 const defaultPrefs = {
   sinceDaysAgo: "",
 };
 
+const useStyles = makeStyles(() => ({
+  prefwidget: {
+    display: "inline-block",
+    float: "right",
+  },
+  counter: {
+    display: "inline-block",
+    align: "center",
+  },
+  counterContainer: {
+    display: "block",
+    padding: "1rem",
+    height: "100%",
+  },
+}));
+
 const SourceCounts = () => {
+  const classes = useStyles();
   const sourceCounts = useSelector((state) => state.sourceCounts.sourceCounts);
   const sourceCountPrefs =
     useSelector((state) => state.profile.preferences.sourceCounts) ||
     defaultPrefs;
 
   return (
-    <Paper elevation={1}>
-      <div className={styles.topSourcesContainer}>
-        <div style={{ display: "inline-block", float: "right" }}>
+    <Paper id="sourceCounts" elevation={1}>
+      <div className={classes.counterContainer}>
+        <div className={classes.prefwidget}>
           <WidgetPrefsDialog
             formValues={sourceCountPrefs}
             stateBranchName="sourceCounts"
@@ -31,7 +47,7 @@ const SourceCounts = () => {
             onSubmit={profileActions.updateUserPreferences}
           />
         </div>
-        <div style={{ display: "inline-block", align: "center" }}>
+        <div className={classes.counter}>
           <Typography align="center" variant="h4">
             <b>
               <CountUp isCounting end={sourceCounts?.count} duration={2.5} />
