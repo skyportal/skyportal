@@ -110,7 +110,7 @@ invitations:
   days_until_expiry: 3
   email_subject: "You've been invited to collaborate on SkyPortal"
   email_body_preamble: |
-    Welcome to SkyPortal!
+    Welcome to <b>SkyPortal</b>!
 
     Some other text here.
   from_email: # This needs to be set to a valid, Sendgrid-registered address in config.yaml
