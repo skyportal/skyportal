@@ -115,6 +115,12 @@ class Group(Base):
         passive_deletes=True,
     )
     single_user_group = sa.Column(sa.Boolean, default=False)
+    allocations = relationship(
+        'Allocation',
+        back_populates="group",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
 
 
 GroupUser = join_model('group_users', Group, User)
@@ -649,6 +655,12 @@ class Instrument(Base):
     )
 
     observing_runs = relationship('ObservingRun', back_populates='instrument')
+    allocations = relationship(
+        'Allocation',
+        back_populates="instrument",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
 
     @property
     def does_spectroscopy(self):
@@ -659,12 +671,56 @@ class Instrument(Base):
         return 'imag' in self.type
 
 
+class Allocation(Base):
+    """An allocation of observing time on a robotic instrument."""
+
+    pi = sa.Column(sa.String, doc="The PI of the allocation's proposal.")
+    proposal_id = sa.Column(
+        sa.String, doc="The ID of the proposal associated with this allocation."
+    )
+    start_date = sa.Column(sa.DateTime, doc='The UTC start date of the allocation.')
+    end_date = sa.Column(sa.DateTime, doc='The UTC end date of the allocation.')
+    hours_allocated = sa.Column(
+        sa.Float, nullable=False, doc='The number of hours allocated.'
+    )
+    requests = relationship(
+        'FollowupRequest',
+        back_populates='allocation',
+        secondary='allocation_requests',
+        doc='The requests made against this allocation.',
+    )
+
+    group_id = sa.Column(
+        sa.ForeignKey('groups.id', ondelete='CASCADE'),
+        index=True,
+        doc='The ID of the Group the allocation is associated with.',
+        nullable=False,
+    )
+    group = relationship(
+        'Group',
+        back_populates='allocations',
+        doc='The Group the allocation is associated with.',
+    )
+
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id', ondelete='CASCADE'),
+        index=True,
+        doc="The ID of the Instrument the allocation is associated with.",
+        nullable=False,
+    )
+    instrument = relationship(
+        'Instrument',
+        back_populates='allocations',
+        doc="The Instrument the allocation is associated with.",
+    )
+
+
 class Taxonomy(Base):
     __tablename__ = 'taxonomies'
     name = sa.Column(
         sa.String,
         nullable=False,
-        doc='Short string to make this taxonomy memorable ' 'to end users.',
+        doc='Short string to make this taxonomy memorable to end users.',
     )
     hierarchy = sa.Column(
         JSONB,
@@ -855,6 +911,16 @@ class Photometry(Base, ha.Point):
     instrument = relationship('Instrument', back_populates='photometry')
     thumbnails = relationship('Thumbnail', passive_deletes=True)
 
+    followup_request_id = sa.Column(
+        sa.ForeignKey('followuprequests.id'), nullable=True, index=True
+    )
+    followup_request = relationship('FollowupRequest', back_populates='photometry')
+
+    assignment_id = sa.Column(
+        sa.ForeignKey('classicalassignments.id'), nullable=True, index=True
+    )
+    assignment = relationship('ClassicalAssignment', back_populates='photometry')
+
     @hybrid_property
     def mag(self):
         if self.flux is not None and self.flux > 0:
@@ -947,6 +1013,12 @@ class Spectrum(Base):
         passive_deletes=True,
     )
 
+    followup_request_id = sa.Column(sa.ForeignKey('followuprequests.id'), nullable=True)
+    followup_request = relationship('FollowupRequest', back_populates='spectra')
+
+    assignment_id = sa.Column(sa.ForeignKey('classicalassignments.id'), nullable=True)
+    assignment = relationship('ClassicalAssignment', back_populates='spectra')
+
     @classmethod
     def from_ascii(cls, filename, obj_id, instrument_id, observed_at):
         data = np.loadtxt(filename)
@@ -991,6 +1063,10 @@ class FollowupRequest(Base):
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id'), nullable=False, index=True
     )
+
+    spectra = relationship("Spectrum", back_populates="followup_request")
+    photometry = relationship("Photometry", back_populates="followup_request")
+
     start_date = sa.Column(ArrowType, nullable=False)
     end_date = sa.Column(ArrowType, nullable=False)
     filters = sa.Column(psql.ARRAY(sa.String), nullable=True)
@@ -998,9 +1074,13 @@ class FollowupRequest(Base):
     priority = sa.Column(sa.Enum('1', '2', '3', '4', '5', name='priority'))
     editable = sa.Column(sa.Boolean, nullable=False, default=True)
     status = sa.Column(sa.String(), nullable=False, default="pending")
+    allocation = relationship(
+        'Allocation', secondary='allocation_requests', back_populates='requests'
+    )
 
 
 User.followup_requests = relationship('FollowupRequest', back_populates='requester')
+AllocationRequest = join_model('allocation_requests', Allocation, FollowupRequest)
 
 
 class Thumbnail(Base):
@@ -1138,6 +1218,10 @@ class ClassicalAssignment(Base):
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
     )
+
+    spectra = relationship("Spectrum", back_populates="assignment")
+
+    photometry = relationship("Photometry", back_populates="assignment")
 
     comment = sa.Column(sa.String())
     status = sa.Column(sa.String(), nullable=False, default="pending")

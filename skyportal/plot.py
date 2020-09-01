@@ -6,7 +6,7 @@ from bokeh.core.properties import List, String
 from bokeh.document import Document
 from bokeh.layouts import row, column
 from bokeh.models import CustomJS, HoverTool, Range1d, Slider, Button
-from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs
+from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
 from bokeh.palettes import viridis
 from bokeh.plotting import figure, ColumnDataSource
 from bokeh.util.compiler import bundle_all_models
@@ -35,20 +35,32 @@ SPEC_LINES = {
     'H': ([3970, 4102, 4341, 4861, 6563], '#ff0000'),
     'He': ([3886, 4472, 5876, 6678, 7065], '#002157'),
     'He II': ([3203, 4686], '#003b99'),
+    'C I': ([8335, 9093, 9406, 9658, 10693, 11330, 11754, 14543], '#8a2be2'),
     'C II': ([3919, 4267, 6580, 7234, 9234], '#570199'),
     'C III': ([4650, 5696], '#a30198'),
     'C IV': ([5801], '#ff0073'),
+    'N II': ([5754, 6548, 6583], '#01fee1'),
+    'N III': ([4100, 4640], '#01fe95'),
     'O': ([7772, 7774, 7775, 8447, 9266], '#007236'),
     'O II': ([3727], '#00a64d'),
     'O III': ([4959, 5007], '#00bf59'),
     'Na': ([5890, 5896, 8183, 8195], '#aba000'),
     'Mg': ([2780, 2852, 3829, 3832, 3838, 4571, 5167, 5173, 5184], '#8c6239'),
     'Mg II': ([2791, 2796, 2803, 4481], '#bf874e'),
+    'Si I': ([10585, 10827, 12032, 15888], '#6495ed'),
     'Si II': ([3856, 5041, 5056, 5670, 6347, 6371], '#5674b9'),
+    'S I': ([9223, 10457, 13809, 18940, 22694], '#ffe4b5'),
     'S II': ([5433, 5454, 5606, 5640, 5647, 6715], '#a38409'),
+    'Ca I': ([19453, 19753], '#009000'),
     'Ca II': ([3934, 3969, 7292, 7324, 8498, 8542, 8662], '#005050'),
+    'Mn I': ([12900, 13310, 13630, 13859, 15184, 15263], '#009090'),
+    'Fe I': ([11973], '#cd5c5c'),
     'Fe II': ([5018, 5169], '#f26c4f'),
     'Fe III': ([4397, 4421, 4432, 5129, 5158], '#f9917b'),
+    'Co II': (
+        [15759, 16064, 16361, 17239, 17462, 17772, 21347, 22205, 22497, 23613, 24596],
+        '#ffe4e1',
+    ),
 }
 # TODO add groups
 # Galaxy lines
@@ -650,6 +662,7 @@ def spectroscopy_plot(obj_id, spec_id=None):
         return None, None, None
 
     color_map = dict(zip([s.id for s in spectra], viridis(len(spectra))))
+
     data = pd.concat(
         [
             pd.DataFrame(
@@ -657,19 +670,51 @@ def spectroscopy_plot(obj_id, spec_id=None):
                     'wavelength': s.wavelengths,
                     'flux': s.fluxes,
                     'id': s.id,
-                    'instrument': s.instrument.telescope.nickname,
+                    'telescope': s.instrument.telescope.name,
+                    'instrument': s.instrument.name,
+                    'date_observed': s.observed_at.date().isoformat(),
+                    'pi': s.assignment.run.pi if s.assignment is not None else "",
                 }
             )
             for i, s in enumerate(spectra)
         ]
     )
+
+    dfs = []
+    for i, s in enumerate(spectra):
+        # Smooth the spectrum by using a rolling average
+        df = (
+            pd.DataFrame({'wavelength': s.wavelengths, 'flux': s.fluxes})
+            .rolling(2)
+            .mean(numeric_only=True)
+            .dropna()
+        )
+        dfs.append(df)
+
+    smoothed_data = pd.concat(dfs)
+
     split = data.groupby('id')
     hover = HoverTool(
-        tooltips=[('wavelength', '$x'), ('flux', '$y'), ('instrument', '@instrument')]
+        tooltips=[
+            ('wavelength', '$x'),
+            ('flux', '$y'),
+            ('telesecope', '@telescope'),
+            ('instrument', '@instrument'),
+            ('UTC date observed', '@date_observed'),
+            ('PI', '@pi'),
+        ]
     )
+    smoothed_max = np.max(smoothed_data['flux'])
+    smoothed_min = np.min(smoothed_data['flux'])
+    ymax = smoothed_max * 1.05
+    ymin = smoothed_min - 0.05 * (smoothed_max - smoothed_min)
+    xmin = np.min(data['wavelength']) - 100
+    xmax = np.max(data['wavelength']) + 100
     plot = figure(
         plot_width=600,
         plot_height=300,
+        y_range=(ymin, ymax),
+        x_range=(xmin, xmax),
         sizing_mode='scale_both',
         tools='box_zoom,wheel_zoom,pan,reset',
         active_drag='box_zoom',
@@ -688,9 +733,11 @@ def spectroscopy_plot(obj_id, spec_id=None):
     plot.y_range = Range1d(0, 1.03 * data.flux.max())
 
     toggle = CheckboxWithLegendGroup(
-        labels=[s.instrument.telescope.nickname for s in spectra],
+        labels=[
+            f'{s.instrument.telescope.nickname}/{s.instrument.name} ({s.observed_at.date().isoformat()})'
+            for s in spectra
+        ],
         active=list(range(len(spectra))),
-        width=100,
         colors=[color_map[k] for k, df in split],
     )
     toggle.callback = CustomJS(
@@ -702,14 +749,37 @@ def spectroscopy_plot(obj_id, spec_id=None):
     """,
     )
 
-    elements = CheckboxWithLegendGroup(
-        labels=list(SPEC_LINES.keys()),
-        active=[],
-        width=80,
-        colors=[c for w, c in SPEC_LINES.values()],
+    z_title = Div(text="Redshift (<i>z</i>): ")
+    z_slider = Slider(
+        value=obj.redshift,
+        start=0.0,
+        end=1.0,
+        step=0.001,
+        show_value=False,
+        format="0[.]000",
     )
-    z = TextInput(value=str(obj.redshift), title="z:")
-    v_exp = TextInput(value='0', title="v_exp:")
+    z_textinput = TextInput(value=str(obj.redshift))
+    z_slider.callback = CustomJS(
+        args={'slider': z_slider, 'textinput': z_textinput},
+        code="""
+            textinput.value = slider.value.toFixed(3).toString();
+            textinput.change.emit();
+        """,
+    )
+    z = column(z_title, z_slider, z_textinput)
+
+    v_title = Div(text="<i>V</i><sub>expansion</sub> (km/s): ")
+    v_exp_slider = Slider(value=0.0, start=0.0, end=3e4, step=10.0, show_value=False,)
+    v_exp_textinput = TextInput(value='0')
+    v_exp_slider.callback = CustomJS(
+        args={'slider': v_exp_slider, 'textinput': v_exp_textinput},
+        code="""
+            textinput.value = slider.value.toFixed(0).toString();
+            textinput.change.emit();
+        """,
+    )
+    v_exp = column(v_title, v_exp_slider, v_exp_textinput)
+
     for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
         el_data = pd.DataFrame({'wavelength': wavelengths})
         el_data['x'] = el_data['wavelength'] * (1 + obj.redshift)
@@ -724,24 +794,122 @@ def spectroscopy_plot(obj_id, spec_id=None):
         )
         model_dict[f'el{i}'].visible = False
 
-    # TODO callback policy: don't require submit for text changes?
-    elements.callback = CustomJS(
-        args={'elements': elements, 'z': z, 'v_exp': v_exp, **model_dict},
-        code="""
-          let c = 299792.458; // speed of light in km / s
-          for (let i = 0; i < elements.labels.length; i++) {
-              let el = eval("el" + i);
-              el.visible = (elements.active.includes(i))
-              el.data_source.data.x = el.data_source.data.wavelength.map(
-                  x_i => (x_i * (1 + parseFloat(z.value)) /
-                                (1 + parseFloat(v_exp.value) / c))
-              );
-              el.data_source.change.emit();
-          }
-    """,
-    )
-    z.callback = elements.callback
-    v_exp.callback = elements.callback
+    # Split spectral lines into 3 columns
+    element_dicts = np.array_split(np.array(list(SPEC_LINES.items()), dtype=object), 3)
+    elements_groups = []
+    col_offset = 0
+    for element_dict in element_dicts:
+        labels = [key for key, value in element_dict]
+        colors = [c for key, (w, c) in element_dict]
+        elements = CheckboxWithLegendGroup(labels=labels, active=[], colors=colors,)
+        elements_groups.append(elements)
 
-    layout = row(plot, toggle, elements, column(z, v_exp))
+        # TODO callback policy: don't require submit for text changes?
+        elements.callback = CustomJS(
+            args={
+                'elements': elements,
+                'z': z_textinput,
+                'v_exp': v_exp_textinput,
+                **model_dict,
+            },
+            code=f"""
+            let c = 299792.458; // speed of light in km / s
+            const i_max = {col_offset} + elements.labels.length;
+            let local_i = 0;
+            for (let i = {col_offset}; i < i_max; i++) {{
+                let el = eval("el" + i);
+                el.visible = (elements.active.includes(local_i))
+                el.data_source.data.x = el.data_source.data.wavelength.map(
+                    x_i => (x_i * (1 + parseFloat(z.value)) /
+                                    (1 + parseFloat(v_exp.value) / c))
+                );
+                el.data_source.change.emit();
+                local_i++;
+            }}
+        """,
+        )
+
+        col_offset += len(labels)
+
+    # Our current version of Bokeh doesn't properly execute multiple callbacks
+    # https://github.com/bokeh/bokeh/issues/6508
+    # Workaround is to manually put the code snippets together
+    z_textinput.js_on_change(
+        'value',
+        CustomJS(
+            args={
+                'elements0': elements_groups[0],
+                'elements1': elements_groups[1],
+                'elements2': elements_groups[2],
+                'z': z_textinput,
+                'slider': z_slider,
+                'v_exp': v_exp_textinput,
+                **model_dict,
+            },
+            code="""
+            // Update slider value to match text input
+            slider.value = parseFloat(z.value).toFixed(3);
+
+            // Update plot data for each element
+            let c = 299792.458; // speed of light in km / s
+            const offset_col_1 = elements0.labels.length;
+            const offset_col_2 = offset_col_1 + elements1.labels.length;
+            const i_max = offset_col_2 + elements2.labels.length;
+            for (let i = 0; i < i_max; i++) {{
+                let el = eval("el" + i);
+                el.visible =
+                    elements0.active.includes(i) ||
+                    elements1.active.includes(i - offset_col_1) ||
+                    elements2.active.includes(i - offset_col_2);
+                el.data_source.data.x = el.data_source.data.wavelength.map(
+                    x_i => (x_i * (1 + parseFloat(z.value)) /
+                                    (1 + parseFloat(v_exp.value) / c))
+                );
+                el.data_source.change.emit();
+            }}
+        """,
+        ),
+    )
+
+    v_exp_textinput.js_on_change(
+        'value',
+        CustomJS(
+            args={
+                'elements0': elements_groups[0],
+                'elements1': elements_groups[1],
+                'elements2': elements_groups[2],
+                'z': z_textinput,
+                'slider': v_exp_slider,
+                'v_exp': v_exp_textinput,
+                **model_dict,
+            },
+            code="""
+            // Update slider value to match text input
+            slider.value = parseFloat(v_exp.value).toFixed(3);
+
+            // Update plot data for each element
+            let c = 299792.458; // speed of light in km / s
+            const offset_col_1 = elements0.labels.length;
+            const offset_col_2 = offset_col_1 + elements1.labels.length;
+            const i_max = offset_col_2 + elements2.labels.length;
+            for (let i = 0; i < i_max; i++) {{
+                let el = eval("el" + i);
+                el.visible =
+                    elements0.active.includes(i) ||
+                    elements1.active.includes(i - offset_col_1) ||
+                    elements2.active.includes(i - offset_col_2);
+                el.data_source.data.x = el.data_source.data.wavelength.map(
+                    x_i => (x_i * (1 + parseFloat(z.value)) /
+                                    (1 + parseFloat(v_exp.value) / c))
+                );
+                el.data_source.change.emit();
+            }}
+        """,
+        ),
+    )
+
+    row1 = row(plot, toggle)
+    row2 = row(elements_groups)
+    row3 = row(z, v_exp)
+    layout = column(row1, row2, row3)
     return _plot_to_json(layout)

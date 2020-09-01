@@ -5,6 +5,7 @@ from baselayer.app import model_util as baselayer_model_util
 
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
+    AllocationHandler,
     AssignmentHandler,
     CandidateHandler,
     ClassificationHandler,
@@ -75,6 +76,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
 
     handlers = baselayer_handlers + [
         # API endpoints
+        (r'/api/allocation(/.*)?', AllocationHandler),
         (r'/api/assignment(/.*)?', AssignmentHandler),
         (r'/api/candidates(/.*)?', CandidateHandler),
         (r'/api/classification(/[0-9]+)?', ClassificationHandler),
