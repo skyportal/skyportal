@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 
 import Tooltip from "@material-ui/core/Tooltip";
+import { makeStyles } from "@material-ui/core/styles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -14,7 +15,17 @@ import UserAvatar from "./UserAvatar";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
+const useStyles = makeStyles(() => ({
+  commentListContainer: {
+    height: "100%",
+    overflowY: "scroll",
+    padding: "0.5rem 0",
+  },
+}));
+
 const CandidateCommentList = ({ comments }) => {
+  const classes = useStyles();
+
   // Color styling
   const userColorTheme = useSelector(
     (state) => state.profile.preferences.theme
@@ -48,7 +59,7 @@ const CandidateCommentList = ({ comments }) => {
     }
   );
 
-  return <div>{items}</div>;
+  return <div className={classes.commentListContainer}>{items}</div>;
 };
 
 CandidateCommentList.propTypes = {
