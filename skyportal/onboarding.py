@@ -6,7 +6,7 @@ from baselayer.app.env import load_env
 
 env, cfg = load_env()
 
-USER_FIELDS = ['username', 'email']
+USER_FIELDS = ["username", "email"]
 
 
 def create_user(strategy, details, backend, user=None, *args, **kwargs):
@@ -38,16 +38,17 @@ def create_user(strategy, details, backend, user=None, *args, **kwargs):
         DBSession().add(user)
         invitation.used = True
         DBSession().commit()
-        return {'is_new': True, 'user': user}
-
-    if cfg["server.auth.debug_login"] and user is None:  # Allow uninvited new auths
+        return {"is_new": True, "user": user}
+    elif not cfg["invitations.enabled"] and not cfg["server.auth.debug_login"]:
+        if user is not None:  # Matching user already exists
+            return {"is_new": False, "user": user}
+        # No matching user exists; create a new user
         fields = dict(
             (name, kwargs.get(name, details.get(name)))
-            for name in backend.setting('USER_FIELDS', USER_FIELDS)
+            for name in backend.setting("USER_FIELDS", USER_FIELDS)
         )
         user = strategy.create_user(**fields)
-
-        return {'is_new': True, 'user': user}
+        return {"is_new": True, "user": user}
     elif user is not None:
         return {"is_new": False, "user": user}
 
