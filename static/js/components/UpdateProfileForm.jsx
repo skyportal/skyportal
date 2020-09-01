@@ -6,6 +6,11 @@ import Button from "@material-ui/core/Button";
 import Card from "@material-ui/core/Card";
 import CardContent from "@material-ui/core/CardContent";
 import Typography from "@material-ui/core/Typography";
+import Dialog from "@material-ui/core/Dialog";
+import DialogActions from "@material-ui/core/DialogActions";
+import DialogContent from "@material-ui/core/DialogContent";
+import DialogContentText from "@material-ui/core/DialogContentText";
+import DialogTitle from "@material-ui/core/DialogTitle";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -25,8 +30,14 @@ const UpdateProfileForm = () => {
   const dispatch = useDispatch();
   const { handleSubmit, register, reset, errors } = useForm();
 
+  const isNewUser =
+    new URL(window.location).searchParams.get("newUser") === "true";
+
+  const [welcomeDialogOpen, setWelcomeDialogOpen] = useState(isNewUser);
+
   useEffect(() => {
     reset({
+      username: profile.username,
       firstName: profile.first_name,
       lastName: profile.last_name,
       email: profile.contact_email ? profile.contact_email : profile.username,
@@ -34,13 +45,14 @@ const UpdateProfileForm = () => {
     });
   }, [reset, profile]);
 
-  const onSubmit = async (value) => {
+  const onSubmit = async (formValues) => {
     setIsSubmitting(true);
     const basicinfo = {
-      first_name: value.firstName,
-      last_name: value.lastName,
-      contact_email: value.email,
-      contact_phone: value.phone,
+      username: formValues.username,
+      first_name: formValues.firstName,
+      last_name: formValues.lastName,
+      contact_email: formValues.email,
+      contact_phone: formValues.phone,
     };
     const result = await dispatch(
       ProfileActions.updateBasicUserInfo(basicinfo)
@@ -53,12 +65,20 @@ const UpdateProfileForm = () => {
 
   return (
     <div>
-      <Typography variant="h5">Change User Profile</Typography>
-
+      <Typography variant="h5">Update User Profile</Typography>
       <Card>
         <CardContent>
-          <h2>Contact Information</h2>
+          <h2>Username</h2>
           <form onSubmit={handleSubmit(onSubmit)}>
+            <InputLabel htmlFor="usernameInput">Username</InputLabel>
+            <TextField
+              inputRef={register({ required: true })}
+              name="username"
+              id="usernameInput"
+              error={!!errors.username}
+              helperText={errors.username ? "Required" : ""}
+            />
+            <h2>Contact Information</h2>
             <Grid
               container
               direction="row"
@@ -141,6 +161,36 @@ const UpdateProfileForm = () => {
           <UIPreferences />
         </CardContent>
       </Card>
+      <Dialog
+        open={welcomeDialogOpen}
+        onClose={() => {
+          setWelcomeDialogOpen(false);
+        }}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">Welcome!</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            First, please change your username as you see fit. You can also
+            change your contact email address to something other than the one
+            you used to authenticate. If you have a gravatar (
+            <a href="https://en.gravatar.com/">https://en.gravatar.com/</a>)
+            account set up for your contact email address then we&apos;ll use
+            that gravatar picture throughout. Once you&apos;re done setting up
+            your profile info, click Dashboard to get started.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setWelcomeDialogOpen(false);
+            }}
+          >
+            Got it. Let&apos;s go!
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
