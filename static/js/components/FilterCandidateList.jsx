@@ -53,6 +53,7 @@ const FilterCandidateList = ({
   numberingEnd,
   totalMatches,
   lastPage,
+  setQueryInProgress,
 }) => {
   const classes = useStyles();
 
@@ -85,7 +86,8 @@ const FilterCandidateList = ({
     return true;
   };
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
+    setQueryInProgress(true);
     const groupIDs = userGroups.map((g) => g.id);
     const selectedGroupIDs = groupIDs.filter((ID, idx) => data.groupIDs[idx]);
     data.groupIDs = selectedGroupIDs;
@@ -96,17 +98,20 @@ const FilterCandidateList = ({
     if (data.endDate) {
       data.endDate = data.endDate.toISOString();
     }
-    dispatch(candidatesActions.fetchCandidates(data));
+    await dispatch(candidatesActions.fetchCandidates(data));
+    setQueryInProgress(false);
   };
 
   const handleJumpToPageInputChange = (e) => {
     setJumpToPageInputValue(e.target.value);
   };
 
-  const handleClickJumpToPage = () => {
-    dispatch(
+  const handleClickJumpToPage = async () => {
+    setQueryInProgress(true);
+    await dispatch(
       candidatesActions.fetchCandidates({ pageNumber: jumpToPageInputValue })
     );
+    setQueryInProgress(false);
   };
 
   return (
@@ -255,6 +260,7 @@ FilterCandidateList.propTypes = {
   numberingEnd: PropTypes.number.isRequired,
   totalMatches: PropTypes.number.isRequired,
   lastPage: PropTypes.bool.isRequired,
+  setQueryInProgress: PropTypes.func.isRequired,
 };
 
 export default FilterCandidateList;
