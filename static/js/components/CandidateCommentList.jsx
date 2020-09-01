@@ -17,7 +17,7 @@ dayjs.extend(utc);
 
 const useStyles = makeStyles(() => ({
   commentListContainer: {
-    height: "100%",
+    height: "15rem",
     overflowY: "scroll",
     padding: "0.5rem 0",
   },
