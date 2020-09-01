@@ -1,19 +1,52 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { useForm, Controller } from "react-hook-form";
 import PropTypes from "prop-types";
+
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Checkbox from "@material-ui/core/Checkbox";
 import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
 import { KeyboardDatePicker } from "@material-ui/pickers";
-import { useForm, Controller } from "react-hook-form";
+import Paper from "@material-ui/core/Paper";
+import SearchIcon from "@material-ui/icons/Search";
+import { makeStyles } from "@material-ui/core/styles";
 
 import * as candidatesActions from "../ducks/candidates";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 import FormValidationError from "./FormValidationError";
 
+const useStyles = makeStyles(() => ({
+  filterListContainer: {
+    padding: "1rem",
+    display: "flex",
+    flexFlow: "column nowrap",
+  },
+  searchButton: {
+    marginTop: "1rem",
+  },
+  pages: {
+    marginTop: "1rem",
+    "& > div": {
+      display: "inline-block",
+      marginRight: "1rem",
+    },
+  },
+  jumpToPage: {
+    marginTop: "0.3125rem",
+    display: "flex",
+    flexFlow: "row nowrap",
+    alignItems: "flex-end",
+    "& > button": {
+      marginLeft: "0.5rem",
+    },
+  },
+}));
+
 const FilterCandidateList = ({ userGroups }) => {
+  const classes = useStyles();
+
   const {
     pageNumber,
     lastPage,
@@ -84,125 +117,140 @@ const FilterCandidateList = ({ userGroups }) => {
   };
 
   return (
-    <div>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <div>
-          {(errors.startDate || errors.endDate) && (
-            <FormValidationError message="Invalid date range." />
-          )}
-          <Controller
-            as={
-              <KeyboardDatePicker
-                format="YYYY-MM-DD"
-                value={formState.startDate}
-                emptyLabel="Start Date"
-              />
-            }
-            rules={{ validate: validateDates }}
-            name="startDate"
-            control={control}
-          />
-          <Controller
-            as={
-              <KeyboardDatePicker
-                format="YYYY-MM-DD"
-                value={formState.endDate}
-                emptyLabel="End Date"
-              />
-            }
-            rules={{ validate: validateDates }}
-            name="endDate"
-            control={control}
-            onChange={([selected]) => selected}
-          />
-        </div>
-        <div>
-          <FormControlLabel
-            control={
-              <Controller
-                as={Checkbox}
-                name="unsavedOnly"
-                control={control}
-                defaultValue={false}
-              />
-            }
-            label="Show only unsaved candidates"
-          />
-        </div>
-        <div>
-          <Responsive
-            element={FoldBox}
-            title="Program Selection"
-            mobileProps={{ folded: true }}
-          >
-            {errors.groupIDs && (
-              <FormValidationError message="Select at least one group." />
+    <Paper variant="outlined">
+      <div className={classes.filterListContainer}>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div>
+            {(errors.startDate || errors.endDate) && (
+              <FormValidationError message="Invalid date range." />
             )}
-            {userGroups.map((group, idx) => (
-              <FormControlLabel
-                key={group.id}
-                control={
-                  <Controller
-                    as={Checkbox}
-                    name={`groupIDs[${idx}]`}
-                    control={control}
-                    rules={{ validate: validateGroups }}
-                    defaultValue
-                  />
-                }
-                label={group.name}
-              />
-            ))}
-          </Responsive>
+            <Controller
+              as={
+                <KeyboardDatePicker
+                  format="YYYY-MM-DD"
+                  value={formState.startDate}
+                  emptyLabel="Start Date"
+                />
+              }
+              rules={{ validate: validateDates }}
+              name="startDate"
+              control={control}
+            />
+            <Controller
+              as={
+                <KeyboardDatePicker
+                  format="YYYY-MM-DD"
+                  value={formState.endDate}
+                  emptyLabel="End Date"
+                />
+              }
+              rules={{ validate: validateDates }}
+              name="endDate"
+              control={control}
+              onChange={([selected]) => selected}
+            />
+          </div>
+          <div>
+            <FormControlLabel
+              control={
+                <Controller
+                  as={Checkbox}
+                  name="unsavedOnly"
+                  control={control}
+                  defaultValue={false}
+                />
+              }
+              label="Show only unsaved candidates"
+            />
+          </div>
+          <div>
+            <Responsive
+              element={FoldBox}
+              title="Program Selection"
+              mobileProps={{ folded: true }}
+            >
+              {errors.groupIDs && (
+                <FormValidationError message="Select at least one group." />
+              )}
+              {userGroups.map((group, idx) => (
+                <FormControlLabel
+                  key={group.id}
+                  control={
+                    <Controller
+                      as={Checkbox}
+                      name={`groupIDs[${idx}]`}
+                      control={control}
+                      rules={{ validate: validateGroups }}
+                      defaultValue
+                    />
+                  }
+                  label={group.name}
+                />
+              ))}
+            </Responsive>
+          </div>
+          <div className={classes.searchButton}>
+            <Button
+              variant="contained"
+              type="submit"
+              endIcon={<SearchIcon />}
+              color="primary"
+            >
+              Search
+            </Button>
+          </div>
+        </form>
+        <div className={classes.pages}>
+          <div>
+            <Button
+              variant="contained"
+              onClick={handleClickPreviousPage}
+              disabled={pageNumber === 1}
+              size="small"
+            >
+              Previous Page
+            </Button>
+          </div>
+          <div>
+            <i>
+              Displaying&nbsp;
+              {numberingStart}-{numberingEnd}
+              &nbsp; of&nbsp;
+              {totalMatches}
+              &nbsp; candidates.
+            </i>
+          </div>
+          <div>
+            <Button
+              variant="contained"
+              onClick={handleClickNextPage}
+              disabled={lastPage}
+              size="small"
+            >
+              Next Page
+            </Button>
+          </div>
         </div>
-        <div>
-          <Button variant="contained" type="submit">
-            Submit
+        <div className={classes.jumpToPage}>
+          <TextField
+            label="Jump to Page Number"
+            type="number"
+            onChange={handleJumpToPageInputChange}
+            value={jumpToPageInputValue}
+            name="jumpToPageInputField"
+          />
+          <Button
+            variant="contained"
+            onClick={handleClickJumpToPage}
+            size="small"
+          >
+            Jump to Page
           </Button>
         </div>
-      </form>
-      <div style={{ display: "inline-block" }}>
-        <Button
-          variant="contained"
-          onClick={handleClickPreviousPage}
-          disabled={pageNumber === 1}
-        >
-          Previous Page
-        </Button>
+        <br />
+        <br />
       </div>
-      <div style={{ display: "inline-block" }}>
-        <i>
-          Displaying&nbsp;
-          {numberingStart}-{numberingEnd}
-          &nbsp; of&nbsp;
-          {totalMatches}
-          &nbsp; candidates.
-        </i>
-      </div>
-      <div style={{ display: "inline-block" }}>
-        <Button
-          variant="contained"
-          onClick={handleClickNextPage}
-          disabled={lastPage}
-        >
-          Next Page
-        </Button>
-      </div>
-      <div>
-        <TextField
-          label="Jump to Page Number"
-          type="number"
-          onChange={handleJumpToPageInputChange}
-          value={jumpToPageInputValue}
-          name="jumpToPageInputField"
-        />
-        <Button variant="contained" onClick={handleClickJumpToPage}>
-          Jump to Page
-        </Button>
-      </div>
-      <br />
-      <br />
-    </div>
+    </Paper>
   );
 };
 FilterCandidateList.propTypes = {
