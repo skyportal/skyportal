@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import PropTypes from "prop-types";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 
 import Drawer from "@material-ui/core/Drawer";
@@ -86,7 +86,7 @@ const useStyles = makeStyles((theme) => ({
   }
 }));
 
-const SidebarAndHeader = ({ open }) => {
+const SidebarAndHeader = () => {
   const open = useSelector((state) => state.sidebar.open);
 
   const dispatch = useDispatch();
@@ -108,7 +108,6 @@ const SidebarAndHeader = ({ open }) => {
     }
 
     const cleanupListener = () => {
-      console.log("removing");
       window.removeEventListener("resize", handleResize);
     };
     return cleanupListener;
