@@ -106,7 +106,7 @@ cron:
     limit: ["01:00", "02:00"]
 
 invitations:
-  enabled: False
+  enabled: False  # If debug_login=True above, invite tokens won't be used during auth
   days_until_expiry: 3
   email_subject: "You've been invited to collaborate on SkyPortal"
   email_body_preamble: | # This can include HTML tags
