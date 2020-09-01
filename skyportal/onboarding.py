@@ -60,7 +60,7 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
 
     invitation = Invitation.query.filter(Invitation.token == invite_token).first()
     if invitation is None:
-        return
+        raise AuthTokenError("Invalid invite token.")
 
     group_ids = [g.id for g in invitation.groups]
 
