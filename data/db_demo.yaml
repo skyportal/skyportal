@@ -203,28 +203,103 @@ comment:
   - obj_id: 16fil
     text: "Birds are not real"
 
+taxonomy:
+  file: taxonomy_demo.yaml
+
+observing_run:
+  - pi: Danny Goldstein
+    instrument_id: =ESI
+    calendar_date: "2021-02-16"
+    group_id: =program_A
+    observers: "Danny Goldstein, Peter Nugent"
+    =id: esi_run
+  - pi: Danny Goldstein
+    instrument_id: =LRIS
+    calendar_date: "2021-06-17"
+    group_id: =program_A
+    observers: "Danny Goldstein, Peter Nugent"
+    =id: lris_run
+
+assignment:
+  - obj_id: 14gqr
+    run_id: =lris_run
+    priority: "4"
+    status: "done"
+    comment: Please get 2x625s
+  - obj_id: 16fil
+    run_id: =lris_run
+    priority: "3"
+    status: "done"
+    comment: Please do i-band imaging to 24th mag
+  - obj_id: 14gqr
+    run_id: =esi_run
+    priority: "2"
+    comment: Please integrate for 1200s
+  - obj_id: 16fil
+    run_id: =esi_run
+    priority: "2"
+    comment: Please take only when seeing is less than 1.5"
+
 photometry:
   - obj_id: 14gqr_unsaved_copy
     instrument_id: =P60
+    assignment_id: 1
     file: phot.csv
     group_ids:
       - =program_A
       - =program_B
   - obj_id: 14gqr
     instrument_id: =P60
+    assignment_id: 1
     file: phot.csv
     group_ids:
       - =program_A
       - =program_B
   - obj_id: 16fil_unsaved_copy
     instrument_id: =P60
+    assignment_id: 2
     file: phot.csv
     group_ids:
       - =program_A
       - =program_B
   - obj_id: 16fil
     instrument_id: =P60
+    assignment_id: 2
     file: phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+
+spectrum:
+  - obj_id: 14gqr_unsaved_copy
+    file: spec1.csv
+    instrument_id: =ALFOSC
+    observed_at: "2019-10-24T00:00:00"
+    assignment_id: 1
+    group_ids:
+      - =program_A
+      - =program_B
+  - obj_id: 14gqr
+    file: spec1.csv
+    instrument_id: =ALFOSC
+    observed_at: "2019-10-24T00:00:00"
+    assignment_id: 1
+    group_ids:
+      - =program_A
+      - =program_B
+  - obj_id: 16fil_unsaved_copy
+    file: spec2.csv
+    instrument_id: =ALFOSC
+    observed_at: "2019-10-24T00:00:00"
+    assignment_id: 2
+    group_ids:
+      - =program_A
+      - =program_B
+  - obj_id: 16fil
+    file: spec2.csv
+    instrument_id: =ALFOSC
+    observed_at: "2019-10-24T00:00:00"
+    assignment_id: 2
     group_ids:
       - =program_A
       - =program_B
@@ -281,68 +356,3 @@ thumbnail:
     ttype: sub
     data:
       file: ../skyportal/tests/data/16fil_sub.png
-
-spectrum:
-  - obj_id: 14gqr_unsaved_copy
-    file: spec1.csv
-    instrument_id: =ALFOSC
-    observed_at: "2019-10-24T00:00:00"
-    group_ids:
-      - =program_A
-      - =program_B
-  - obj_id: 14gqr
-    file: spec1.csv
-    instrument_id: =ALFOSC
-    observed_at: "2019-10-24T00:00:00"
-    group_ids:
-      - =program_A
-      - =program_B
-  - obj_id: 16fil_unsaved_copy
-    file: spec2.csv
-    instrument_id: =ALFOSC
-    observed_at: "2019-10-24T00:00:00"
-    group_ids:
-      - =program_A
-      - =program_B
-  - obj_id: 16fil
-    file: spec2.csv
-    instrument_id: =ALFOSC
-    observed_at: "2019-10-24T00:00:00"
-    group_ids:
-      - =program_A
-      - =program_B
-
-taxonomy:
-  file: taxonomy_demo.yaml
-
-observing_run:
-  - pi: Danny Goldstein
-    instrument_id: =ESI
-    calendar_date: "2021-02-16"
-    group_id: =program_A
-    observers: "Danny Goldstein, Peter Nugent"
-    =id: esi_run
-  - pi: Danny Goldstein
-    instrument_id: =LRIS
-    calendar_date: "2021-06-17"
-    group_id: =program_A
-    observers: "Danny Goldstein, Peter Nugent"
-    =id: lris_run
-
-assignment:
-  - obj_id: 14gqr
-    run_id: =lris_run
-    priority: "4"
-    comment: Please get 2x625s
-  - obj_id: 16fil
-    run_id: =lris_run
-    priority: "3"
-    comment: Please do i-band imaging to 24th mag
-  - obj_id: 14gqr
-    run_id: =esi_run
-    priority: "2"
-    comment: Please integrate for 1200s
-  - obj_id: 16fil
-    run_id: =esi_run
-    priority: "2"
-    comment: Please take only when seeing is less than 1.5"
