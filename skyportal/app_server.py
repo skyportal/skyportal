@@ -145,7 +145,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
                 # Make up a username for this person, appends a random string at the end if
                 # there's any collision.
                 'social_core.pipeline.user.get_username',
-                'skyportal.utils.onboarding.create_user',
+                'skyportal.onboarding.create_user',
                 # Create a user account if we haven't found one yet.
                 # 'social_core.pipeline.user.create_user',
                 # Create the record that associates the social account with the user.
@@ -155,7 +155,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
                 'social_core.pipeline.social_auth.load_extra_data',
                 # Update the user record with any changed info from the auth service.
                 'social_core.pipeline.user.user_details',
-                'skyportal.utils.onboarding.setup_invited_user_permissions',
+                'skyportal.onboarding.setup_invited_user_permissions',
             ),
             'SOCIAL_AUTH_NEW_USER_REDIRECT_URL': '/profile?newUser=true',
             'SOCIAL_AUTH_FIELDS_STORED_IN_SESSION': ['invite_token'],

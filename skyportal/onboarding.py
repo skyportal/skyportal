@@ -22,7 +22,7 @@ def create_user(strategy, details, backend, user=None, *args, **kwargs):
             )
         invitation = Invitation.query.filter(Invitation.token == invite_token).first()
         if invitation is None:
-            return
+            raise AuthTokenError("Invalid invite token.")
 
         cutoff_datetime = datetime.datetime.now() - datetime.timedelta(days=n_days)
         if invitation.created_at < cutoff_datetime:
