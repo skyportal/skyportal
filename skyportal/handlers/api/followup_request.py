@@ -262,6 +262,75 @@ class AssignmentHandler(BaseHandler):
 
 class FollowupRequestHandler(BaseHandler):
     @auth_or_token
+    def get(self, followup_request_id=None):
+        """
+        ---
+        single:
+          description: Retrieve a followup request
+          parameters:
+            - in: path
+              name: followup_request_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+               content:
+                application/json:
+                  schema: SingleFollowupRequest
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all followup requests
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfFollowupRequests
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+
+        # get owned assignments
+        followup_requests = DBSession().query(FollowupRequest)
+        followup_requests = (
+            followup_requests.join(Obj)
+            .join(Source)
+            .join(Group)
+            .filter(Group.id.in_([g.id for g in self.current_user.accessible_groups]))
+        )
+
+        if followup_request_id is not None:
+            try:
+                followup_request_id = int(followup_request_id)
+            except ValueError:
+                return self.error("Assignment ID must be an integer.")
+
+            followup_requests = followup_requests.filter(
+                FollowupRequest.id == followup_request_id
+            ).options(
+                joinedload(FollowupRequest.obj).joinedload(Obj.thumbnails),
+                joinedload(FollowupRequest.requester),
+                joinedload(FollowupRequest.obj),
+            )
+
+        followup_requests = followup_requests.all()
+
+        if len(followup_requests) == 0 and followup_request_id is not None:
+            return self.error("Could not retrieve followup request.")
+
+        out_json = FollowupRequest.__schema__().dump(followup_requests, many=True)
+
+        if followup_request_id is not None:
+            out_json = out_json[0]
+
+        return self.success(data=out_json)
+
+    @auth_or_token
     def post(self):
         """
         ---

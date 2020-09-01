@@ -396,6 +396,21 @@ def public_group_sedm_allocation(sedm, public_group):
         group=public_group,
         pi=str(uuid.uuid4()),
         proposal_id=str(uuid.uuid4()),
+        hours_allocated=100,
+    )
+    DBSession().add(allocation)
+    DBSession().commit()
+    return allocation
+
+
+@pytest.fixture()
+def public_group2_sedm_allocation(sedm, public_group2):
+    allocation = Allocation(
+        instrument=sedm,
+        group=public_group2,
+        pi=str(uuid.uuid4()),
+        proposal_id=str(uuid.uuid4()),
+        hours_allocated=100,
     )
     DBSession().add(allocation)
     DBSession().commit()

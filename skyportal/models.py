@@ -1084,6 +1084,9 @@ class FollowupRequest(Base):
         order_by="FollowupRequestHTTPRequest.created_at.desc()",
     )
 
+    photometry = relationship('Photometry', back_populates='followup_request')
+    spectra = relationship('Spectrum', back_populates='followup_request')
+
     @property
     def instrument(self):
         return self.allocation.instrument
