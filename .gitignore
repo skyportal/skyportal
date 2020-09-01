@@ -35,4 +35,3 @@ static/index.html
 data/taxonomy_sitewide.yaml
 data/taxonomy_demo.yaml
 .idea
-sendgrid.env
