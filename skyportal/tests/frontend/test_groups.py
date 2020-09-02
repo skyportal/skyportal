@@ -90,6 +90,7 @@ def test_add_new_group_user_nonadmin(
     driver.wait_for_xpath('//h6[text()="All Groups"]')
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.execute_script("arguments[0].click();", el)
+    driver.wait_for_xpath(f'//h5[contains(text(),"{public_group.name}")]')
     el_input = driver.wait_for_xpath('//input[@id="newUserEmail"]', timeout=10)
     el_input.clear()
     ActionChains(driver).move_to_element(el_input).click().send_keys(
