@@ -18,6 +18,8 @@ from ...models import (
     Token,
 )
 
+_, cfg = load_env()
+
 
 class GroupHandler(BaseHandler):
     @auth_or_token
@@ -150,7 +152,7 @@ class GroupHandler(BaseHandler):
             if not all(
                 [group in self.current_user.accessible_groups for group in groups]
             ):
-                return self.error("Insufficient permisisons")
+                return self.error("Insufficient permissions")
             return self.success(data=groups)
 
         include_single_user_groups = self.get_query_argument(
@@ -283,6 +285,8 @@ class GroupHandler(BaseHandler):
                 schema: Success
         """
         g = Group.query.get(group_id)
+        if g.name == cfg["misc"]["public_group_name"]:
+            return self.error("Cannot delete site-wide public group.")
         DBSession().delete(g)
         DBSession().commit()
 
@@ -345,7 +349,6 @@ class GroupUserHandler(BaseHandler):
         username = data.pop("username", None)
         if username is None:
             return self.error("Username must be specified")
-        _, cfg = load_env()
 
         admin = data.pop("admin", False)
         group_id = int(group_id)

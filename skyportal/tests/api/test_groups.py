@@ -1,6 +1,9 @@
 import uuid
 from skyportal.tests import api
 from skyportal.model_util import create_token
+from baselayer.app.env import load_env
+
+_, cfg = load_env()
 
 
 def test_token_user_create_new_group(manage_groups_token, super_admin_user):
@@ -124,7 +127,7 @@ def test_add_delete_stream_group(super_admin_token, public_group, public_stream)
     status, data = api(
         "POST",
         f"groups/{public_group.id}/streams",
-        data={"stream_id": public_stream.id,},
+        data={"stream_id": public_stream.id},
         token=super_admin_token,
     )
     assert status == 200
@@ -142,7 +145,7 @@ def test_non_su_add_stream_to_group(manage_groups_token, public_group, public_st
     status, data = api(
         "POST",
         f"groups/{public_group.id}/streams",
-        data={"stream_id": public_stream.id,},
+        data={"stream_id": public_stream.id},
         token=manage_groups_token,
     )
     assert status == 400
@@ -154,7 +157,7 @@ def test_add_already_added_stream_to_group(
     status, data = api(
         "POST",
         f"groups/{public_group.id}/streams",
-        data={"stream_id": public_stream.id,},
+        data={"stream_id": public_stream.id},
         token=super_admin_token,
     )
     assert status == 200
@@ -163,7 +166,7 @@ def test_add_already_added_stream_to_group(
     status, data = api(
         "POST",
         f"groups/{public_group.id}/streams",
-        data={"stream_id": public_stream.id,},
+        data={"stream_id": public_stream.id},
         token=super_admin_token,
     )
     assert status == 400
@@ -188,7 +191,7 @@ def test_add_stream_to_single_user_group_delete_stream(
     assert data["status"] == "success"
     assert any(
         [
-            group["single_user_group"] == True and group["name"] == username
+            group["single_user_group"] and group["name"] == username
             for group in data["data"]["all_groups"]
         ]
     )
@@ -200,7 +203,7 @@ def test_add_stream_to_single_user_group_delete_stream(
     status, data = api(
         "POST",
         f"groups/{single_user_group['id']}/streams",
-        data={"stream_id": public_stream.id,},
+        data={"stream_id": public_stream.id},
         token=super_admin_token,
     )
     assert status == 200
@@ -236,7 +239,7 @@ def test_add_stream_to_group_delete_stream(
     status, data = api(
         "POST",
         f"groups/{public_group.id}/streams",
-        data={"stream_id": public_stream.id,},
+        data={"stream_id": public_stream.id},
         token=super_admin_token,
     )
     assert status == 200
@@ -313,3 +316,17 @@ def test_post_new_filter_delete_stream_deletes_filter(
     status, data = api("GET", f"filters/{filter_id}", token=manage_groups_token)
     assert status == 400
     assert data["message"] == "Invalid filter ID."
+
+
+def test_cannot_delete_sitewide_public_group(super_admin_token):
+    status, data = api(
+        "GET", f"groups?name={cfg['misc.public_group_name']}", token=super_admin_token
+    )
+    assert data["status"] == "success"
+    assert len(data["data"]) == 1
+    assert data["data"][0]["name"] == cfg['misc.public_group_name']
+    group_id = data["data"][0]["id"]
+
+    status, data = api("DELETE", f"groups/{group_id}", token=super_admin_token)
+    assert data["status"] == "error"
+    assert data["message"] == "Cannot delete site-wide public group."
