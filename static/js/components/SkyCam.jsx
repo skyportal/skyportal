@@ -9,14 +9,14 @@ import CardMedia from "@material-ui/core/CardMedia";
 
 const useStyles = makeStyles(() => ({
   cardDiv: {
-    minWidth: 300,
-    minHeight: 300,
+    minWidth: "18.75rem",
+    minHeight: "18.75rem",
   },
   title: {
-    fontSize: 14,
+    fontSize: "0.875rem",
   },
   media: {
-    minHeight: 300,
+    minHeight: "18.75rem",
   },
 }));
 
@@ -29,7 +29,6 @@ const SkyCam = ({ telescope }) => {
 
   const handleImageError = (e) => {
     e.target.onerror = null;
-    // e.target.style.display = 'none';
     e.target.src =
       "https://ak.picdn.net/shutterstock/videos/5030309/thumb/1.jpg";
   };
