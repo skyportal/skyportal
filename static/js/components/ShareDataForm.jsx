@@ -87,8 +87,16 @@ const ShareDataForm = ({ route }) => {
   useEffect(() => {
     dispatch(photometryActions.fetchSourcePhotometry(route.id));
     dispatch(spectraActions.fetchSourceSpectra(route.id));
-    dispatch(groupsActions.fetchGroups(true));
   }, [route.id, dispatch]);
+
+  useEffect(() => {
+    const fetchGroups = () => {
+      dispatch(groupsActions.fetchGroups(true));
+    };
+    if (!groups || !groups.filter((g) => g.single_user_group).length) {
+      fetchGroups();
+    }
+  }, [route.id, dispatch, groups]);
 
   const validateGroups = () => {
     const formState = getValues({ nest: true });
