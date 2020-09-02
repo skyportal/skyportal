@@ -63,3 +63,13 @@
 .react-resizable-hide > .react-resizable-handle {
   display: none;
 }
+
+.dragHandle {
+  float: right;
+  color: gray;
+  margin: 0.25rem 0.25rem 0.25rem 1rem;
+}
+
+.dragHandle:hover {
+  cursor: pointer;
+}

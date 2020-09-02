@@ -7,6 +7,8 @@ import "reactgridlayoutcss/styles.css";
 // eslint-disable-next-line import/no-extraneous-dependencies
 import "reactresizablecss/styles.css";
 
+import DragHandleIcon from "@material-ui/icons/DragHandle";
+
 import * as profileActions from "../ducks/profile";
 import SourceList from "./SourceList";
 import GroupList from "./GroupList";
@@ -87,17 +89,31 @@ const HomePage = () => {
       cols={{ xlg: 16, lg: 12, md: 10, sm: 6, xs: 4 }}
       margin={[15, 15]}
       onLayoutChange={LayoutChangeHandler}
+      draggableHandle=".dragHandle"
     >
       <div key="sourceList" className={styles.homePageWidgetDiv}>
+        <DragHandleIcon className={`${styles.dragHandle} dragHandle`} />
         <SourceList />
       </div>
       <div key="newsFeed" className={styles.homePageWidgetDiv}>
+        <DragHandleIcon
+          id="newsFeedHandle"
+          className={`${styles.dragHandle} dragHandle`}
+        />
         <NewsFeed />
       </div>
       <div key="topSources" className={styles.homePageWidgetDiv}>
+        <DragHandleIcon
+          id="topSourcesHandle"
+          className={`${styles.dragHandle} dragHandle`}
+        />
         <TopSources />
       </div>
       <div key="groups" className={styles.homePageWidgetDiv}>
+        <DragHandleIcon
+          id="groupsHandle"
+          className={`${styles.dragHandle} dragHandle`}
+        />
         <GroupList title="My Groups" groups={groups} />
       </div>
     </ResponsiveGridLayout>
