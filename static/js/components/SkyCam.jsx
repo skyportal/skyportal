@@ -29,8 +29,7 @@ const SkyCam = ({ telescope }) => {
 
   const handleImageError = (e) => {
     e.target.onerror = null;
-    e.target.src =
-      "https://ak.picdn.net/shutterstock/videos/5030309/thumb/1.jpg";
+    e.target.src = "./static/images/static.jpg";
   };
 
   return (
