@@ -65,7 +65,8 @@ def test_add_new_group_user_admin(
     el_input = driver.wait_for_xpath('//input[@id="newUserEmail"]', timeout=10)
     el_input.clear()
     el_input.send_keys(user_no_groups.username, Keys.ENTER)
-
+    # Click somewhere outside to close the dropdown covering the button
+    driver.click_xpath(f'//h5[text()[contains(.,"{public_group.name}")]]')
     driver.click_xpath('//input[@type="checkbox"]')
     driver.click_xpath('//input[@value="Add user"]')
     driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
@@ -91,6 +92,8 @@ def test_add_new_group_user_nonadmin(
     el_input = driver.wait_for_xpath('//input[@id="newUserEmail"]', timeout=10)
     el_input.clear()
     el_input.send_keys(user_no_groups.username, Keys.ENTER)
+    # Click somewhere outside to close the dropdown covering the button
+    driver.click_xpath(f'//h5[text()[contains(.,"{public_group.name}")]]')
     driver.click_xpath('//input[@value="Add user"]')
     driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
     assert (
