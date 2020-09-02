@@ -1,10 +1,12 @@
 import React from "react";
 import { useSelector } from "react-redux";
+import PropTypes from "prop-types";
 import { CountUp } from "use-count-up";
-import { makeStyles } from "@material-ui/core/styles";
 
+import { makeStyles } from "@material-ui/core/styles";
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
+import DragHandleIcon from "@material-ui/icons/DragHandle";
 
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import * as profileActions from "../ducks/profile";
@@ -14,23 +16,14 @@ const defaultPrefs = {
 };
 
 const useStyles = makeStyles(() => ({
-  prefwidget: {
-    display: "inline-block",
-    float: "right",
-  },
   counter: {
     display: "inline-block",
     align: "center",
   },
-  counterContainer: {
-    display: "block",
-    padding: "1rem",
-    height: "100%",
-  },
 }));
 
-const SourceCounts = () => {
-  const classes = useStyles();
+const SourceCounts = ({ classes }) => {
+  const styles = useStyles();
   const sourceCounts = useSelector((state) => state.sourceCounts.sourceCounts);
   const sourceCountPrefs =
     useSelector((state) => state.profile.preferences.sourceCounts) ||
@@ -38,8 +31,9 @@ const SourceCounts = () => {
 
   return (
     <Paper id="sourceCountsWidget" elevation={1}>
-      <div className={classes.counterContainer}>
-        <div className={classes.prefwidget}>
+      <div className={classes.widgetPaperDiv}>
+        <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
+        <div className={classes.widgetIcon}>
           <WidgetPrefsDialog
             formValues={sourceCountPrefs}
             stateBranchName="sourceCounts"
@@ -47,7 +41,7 @@ const SourceCounts = () => {
             onSubmit={profileActions.updateUserPreferences}
           />
         </div>
-        <div className={classes.counter}>
+        <div className={styles.counter}>
           <Typography align="center" variant="h4">
             <b>
               <CountUp
@@ -66,6 +60,13 @@ const SourceCounts = () => {
       </div>
     </Paper>
   );
+};
+
+SourceCounts.propTypes = {
+  classes: PropTypes.shape({
+    widgetPaperDiv: PropTypes.string.isRequired,
+    widgetIcon: PropTypes.string.isRequired,
+  }).isRequired,
 };
 
 export default SourceCounts;
