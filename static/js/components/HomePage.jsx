@@ -10,11 +10,13 @@ import "reactresizablecss/styles.css";
 import { makeStyles } from "@material-ui/core/styles";
 
 import * as profileActions from "../ducks/profile";
-import SourceList from "./SourceList";
+
+import RecentSources from "./RecentSources";
 import GroupList from "./GroupList";
 import NewsFeed from "./NewsFeed";
 import TopSources from "./TopSources";
 import SourceCounts from "./SourceCounts";
+import UninitializedDBMessage from "./UninitializedDBMessage";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -31,11 +33,14 @@ const useStyles = makeStyles(() => ({
     padding: "1rem",
     height: "100%",
   },
+  widgetPaperFillSpace: {
+    height: "100%",
+  },
 }));
 
 const xlgLayout = [
   { i: "sourceCounts", x: 0, y: 0, w: 2, h: 2, isResizable: false },
-  { i: "sourceList", x: 0, y: 2, w: 8, h: 6, minW: 6, isResizable: false },
+  { i: "recentSources", x: 0, y: 2, w: 8, h: 6, minW: 6, isResizable: false },
   { i: "newsFeed", x: 8, y: 0, w: 8, h: 3, isResizable: false },
   { i: "topSources", x: 8, y: 5, w: 8, h: 3, isResizable: false },
   { i: "groups", x: 2, y: 0, w: 2, h: 2, isResizable: true },
@@ -43,7 +48,7 @@ const xlgLayout = [
 
 const lgLayout = [
   { i: "sourceCounts", x: 0, y: 0, w: 2, h: 2, isResizable: false },
-  { i: "sourceList", x: 0, y: 2, w: 6, h: 6, minW: 6, isResizable: false },
+  { i: "recentSources", x: 0, y: 2, w: 6, h: 6, minW: 6, isResizable: false },
   { i: "newsFeed", x: 6, y: 0, w: 6, h: 3, isResizable: false },
   { i: "topSources", x: 6, y: 3, w: 6, h: 3, isResizable: false },
   { i: "groups", x: 2, y: 0, w: 2, h: 2, isResizable: true },
@@ -51,7 +56,7 @@ const lgLayout = [
 
 const mdLayout = [
   { i: "sourceCounts", x: 0, y: 0, w: 1, h: 1, isResizable: false },
-  { i: "sourceList", x: 0, y: 2, w: 10, h: 5, isResizable: false },
+  { i: "recentSources", x: 0, y: 2, w: 10, h: 5, isResizable: false },
   { i: "newsFeed", x: 0, y: 4, w: 4, h: 3, isResizable: false },
   { i: "topSources", x: 0, y: 8, w: 10, h: 2, isResizable: false },
   { i: "groups", x: 1, y: 0, w: 1, h: 1, isResizable: false },
@@ -59,7 +64,7 @@ const mdLayout = [
 
 const smLayout = [
   { i: "sourceCounts", x: 0, y: 0, w: 3, h: 1, isResizable: false },
-  { i: "sourceList", x: 0, y: 1, w: 6, h: 5, isResizable: false },
+  { i: "recentSources", x: 0, y: 1, w: 6, h: 5, isResizable: false },
   { i: "newsFeed", x: 0, y: 8, w: 6, h: 3, isResizable: false },
   { i: "topSources", x: 0, y: 11, w: 6, h: 2, isResizable: false },
   { i: "groups", x: 3, y: 0, w: 3, h: 2, isResizable: false },
@@ -67,7 +72,7 @@ const smLayout = [
 
 const xsLayout = [
   { i: "sourceCounts", x: 0, y: 0, w: 4, h: 1, isResizable: false },
-  { i: "sourceList", x: 0, y: 1, w: 4, h: 5, isResizable: false },
+  { i: "recentSources", x: 0, y: 1, w: 4, h: 5, isResizable: false },
   { i: "newsFeed", x: 0, y: 8, w: 4, h: 3, isResizable: false },
   { i: "topSources", x: 0, y: 11, w: 4, h: 2, isResizable: false },
   { i: "groups", x: 0, y: 6, w: 4, h: 2, isResizable: false },
@@ -86,6 +91,10 @@ const HomePage = () => {
 
   const groups = useSelector((state) => state.groups.user);
 
+  const sourceTableEmpty = useSelector(
+    (state) => state.dbInfo.source_table_empty
+  );
+
   const preferredLayouts = useSelector(
     (state) => state.profile.preferences.layouts
   );
@@ -94,6 +103,10 @@ const HomePage = () => {
     preferredLayouts == null ? defaultLayouts : preferredLayouts;
 
   const dispatch = useDispatch();
+
+  if (sourceTableEmpty) {
+    return <UninitializedDBMessage />;
+  }
 
   const LayoutChangeHandler = (currentLayout, allLayouts) => {
     const prefs = {
@@ -106,7 +119,7 @@ const HomePage = () => {
     <ResponsiveGridLayout
       className="layout"
       layouts={currentLayouts}
-      breakpoints={{ xlg: 1400, lg: 1150, md: 996, sm: 768, xs: 480 }}
+      breakpoints={{ xlg: 1400, lg: 1150, md: 996, sm: 650, xs: 0 }}
       cols={{ xlg: 16, lg: 12, md: 10, sm: 6, xs: 4 }}
       margin={[10, 10]}
       onLayoutChange={LayoutChangeHandler}
@@ -115,8 +128,8 @@ const HomePage = () => {
       <div key="sourceCounts">
         <SourceCounts classes={classes} />
       </div>
-      <div key="sourceList">
-        <SourceList classes={classes} />
+      <div key="recentSources">
+        <RecentSources classes={classes} />
       </div>
       <div key="newsFeed">
         <NewsFeed classes={classes} />

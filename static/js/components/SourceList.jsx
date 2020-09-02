@@ -1,35 +1,28 @@
 import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import PropTypes from "prop-types";
 
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
-import DragHandleIcon from "@material-ui/icons/DragHandle";
 import { makeStyles } from "@material-ui/core/styles";
 
 import SearchBox from "./SearchBox";
 import * as sourcesActions from "../ducks/sources";
 import UninitializedDBMessage from "./UninitializedDBMessage";
 
-const useDefaultStyles = makeStyles(() => ({
-  widgetIcon: {
-    float: "right",
-    color: "gray",
-    margin: "0.25rem 0.25rem 0.25rem 0.25rem",
-    "&:hover": {
-      cursor: "pointer",
-    },
-  },
-  widgetPaperDiv: {
+const useStyles = makeStyles(() => ({
+  paperDiv: {
     padding: "1rem",
     height: "100%",
   },
+  tableDiv: {
+    paddingTop: "0.675rem",
+    overflowX: "scroll",
+  },
 }));
 
-const SourceList = ({ classes }) => {
-  const defaultStyles = useDefaultStyles();
-  const styles = classes === null ? defaultStyles : classes;
+const SourceList = () => {
+  const classes = useStyles();
   const sources = useSelector((state) => state.sources);
   const sourceTableEmpty = useSelector(
     (state) => state.dbInfo.source_table_empty
@@ -49,15 +42,14 @@ const SourceList = ({ classes }) => {
   if (sources) {
     return (
       <Paper elevation={1}>
-        <div className={styles.widgetPaperDiv}>
+        <div className={classes.paperDiv}>
           <Typography variant="h6" display="inline">
             Sources
           </Typography>
-          <DragHandleIcon className={`${styles.widgetIcon} dragHandle`} />
           <SearchBox sources={sources} />
           {!sources.queryInProgress && (
-            <div style={{ overflowX: "scroll" }}>
-              <table id="tab" style={{ paddingTop: "10px" }}>
+            <div className={classes.tableDiv}>
+              <table id="tab">
                 <thead>
                   <tr>
                     <th />
@@ -147,17 +139,6 @@ const SourceList = ({ classes }) => {
     );
   }
   return <div>Loading sources...</div>;
-};
-
-SourceList.propTypes = {
-  classes: PropTypes.shape({
-    widgetPaperDiv: PropTypes.string,
-    widgetIcon: PropTypes.string,
-  }),
-};
-
-SourceList.defaultProps = {
-  classes: null,
 };
 
 export default SourceList;

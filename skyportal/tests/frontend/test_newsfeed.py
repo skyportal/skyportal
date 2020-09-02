@@ -1,5 +1,6 @@
 import uuid
 import pytest
+
 from skyportal.tests import api
 
 
