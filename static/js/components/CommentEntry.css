@@ -4,3 +4,8 @@
 .inputDiv {
   padding: 0.3rem;
 }
+
+.customizeGroupsContainer {
+  flex-wrap: wrap;
+  width: 25rem;
+}
