@@ -1,6 +1,10 @@
 import uuid
 import pytest
 from selenium.webdriver.common.keys import Keys
+from baselayer.app.env import load_env
+
+
+_, cfg = load_env()
 
 
 def test_public_groups_list(driver, user, public_group):
@@ -111,7 +115,12 @@ def test_add_new_group_user_new_username(driver, super_admin_user, user, public_
         new_username, Keys.ENTER
     )
     driver.click_xpath('//input[@value="Add user"]')
-    driver.wait_for_xpath(f'//a[contains(.,"{new_username}")]')
+    driver.click_xpath('//span[text()="Confirm"]')
+    if cfg["invitations.enabled"]:  # If invites are disabled, we won't see this notif.
+        driver.wait_for_xpath('//*[contains(., "Invitation successfully sent to")]')
+    else:
+        # If invitations are disabled, the user will be added and will appear
+        driver.wait_for_xpath(f'//a[contains(.,"{new_username}")]')
 
 
 @pytest.mark.flaky(reruns=2)
@@ -121,8 +130,8 @@ def test_delete_group_user(driver, super_admin_user, user, public_group):
     driver.wait_for_xpath('//h6[text()="All Groups"]')
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.execute_script("arguments[0].click();", el)
-    delete_button = driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
-    delete_button = delete_button.find_elements_by_xpath("../*/button")
+    username_link = driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
+    delete_button = username_link.find_elements_by_xpath("../../*/button")
     delete_button[0].click()
     driver.wait_for_xpath_to_disappear(f'//a[contains(.,"{user.username}")]')
 

@@ -7,6 +7,8 @@ import "reactgridlayoutcss/styles.css";
 // eslint-disable-next-line import/no-extraneous-dependencies
 import "reactresizablecss/styles.css";
 
+import { makeStyles } from "@material-ui/core/styles";
+
 import * as profileActions from "../ducks/profile";
 import SourceList from "./SourceList";
 import GroupList from "./GroupList";
@@ -14,9 +16,22 @@ import NewsFeed from "./NewsFeed";
 import TopSources from "./TopSources";
 import SourceCounts from "./SourceCounts";
 
-import styles from "./HomePage.css";
-
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const useStyles = makeStyles(() => ({
+  widgetIcon: {
+    float: "right",
+    color: "gray",
+    margin: "0.25rem 0.25rem 0.25rem 0.25rem",
+    "&:hover": {
+      cursor: "pointer",
+    },
+  },
+  widgetPaperDiv: {
+    padding: "1rem",
+    height: "100%",
+  },
+}));
 
 const xlgLayout = [
   { i: "sourceCounts", x: 0, y: 0, w: 2, h: 2, isResizable: false },
@@ -67,6 +82,8 @@ const defaultLayouts = {
 };
 
 const HomePage = () => {
+  const classes = useStyles();
+
   const groups = useSelector((state) => state.groups.user);
 
   const preferredLayouts = useSelector(
@@ -93,21 +110,22 @@ const HomePage = () => {
       cols={{ xlg: 16, lg: 12, md: 10, sm: 6, xs: 4 }}
       margin={[10, 10]}
       onLayoutChange={LayoutChangeHandler}
+      draggableHandle=".dragHandle"
     >
-      <div key="sourceCounts" className={styles.homePageWidgetDiv}>
-        <SourceCounts />
+      <div key="sourceCounts">
+        <SourceCounts classes={classes} />
       </div>
-      <div key="sourceList" className={styles.homePageWidgetDiv}>
-        <SourceList />
+      <div key="sourceList">
+        <SourceList classes={classes} />
       </div>
-      <div key="newsFeed" className={styles.homePageWidgetDiv}>
-        <NewsFeed />
+      <div key="newsFeed">
+        <NewsFeed classes={classes} />
       </div>
-      <div key="topSources" className={styles.homePageWidgetDiv}>
-        <TopSources />
+      <div key="topSources">
+        <TopSources classes={classes} />
       </div>
-      <div key="groups" className={styles.homePageWidgetDiv}>
-        <GroupList title="My Groups" groups={groups} />
+      <div key="groups">
+        <GroupList title="My Groups" groups={groups} classes={classes} />
       </div>
     </ResponsiveGridLayout>
   );

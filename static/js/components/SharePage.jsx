@@ -36,7 +36,7 @@ const SharePage = () => {
         aria-label="share page"
         onClick={handleOpen}
         edge="start"
-        disableRipple="true"
+        disableRipple
       >
         <MobileScreenShareIcon color="action" />
       </IconButton>

@@ -40,6 +40,9 @@ RUN bash -c "\
     chown -R skyportal.skyportal /skyportal_env && \
     chown -R skyportal.skyportal /skyportal && \
     \
+    mkdir -p /skyportal/static/thumbnails && \
+    chown -R skyportal.skyportal /skyportal/static/thumbnails && \
+    \
     cp docker.yaml config.yaml"
 
 USER skyportal

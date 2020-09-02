@@ -17,12 +17,12 @@ dayjs.extend(calendar);
 })); */
 
 const useStyles = makeStyles(() => ({
-  root: {
-    width: "13rem",
+  root: (props) => ({
+    width: props.size,
     margin: "0.5rem auto",
     maxHeight: "31rem",
     flexGrow: 1,
-  },
+  }),
   title: {
     fontSize: 14,
   },
@@ -32,25 +32,25 @@ const useStyles = makeStyles(() => ({
   mediaDiv: {
     position: "relative",
   },
-  media: {
-    height: "13rem",
-    width: "13rem",
-  },
-  crosshair: {
+  media: (props) => ({
+    height: props.size,
+    width: props.size,
+  }),
+  crosshair: (props) => ({
     position: "absolute",
     top: 0,
     left: 0,
-    width: "13rem",
-    height: "13rem",
+    width: props.size,
+    height: props.size,
     paddingBottom: "0.2em",
-  },
+  }),
 }));
 
-const Thumbnail = ({ ra, dec, name, url }) => {
+const Thumbnail = ({ ra, dec, name, url, size }) => {
   // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
   // unix timestamp epoch (1970-01-01).
 
-  const classes = useStyles();
+  const classes = useStyles({ size });
 
   let alt = null;
   let link = null;
@@ -105,9 +105,16 @@ Thumbnail.propTypes = {
   dec: PropTypes.number.isRequired,
   name: PropTypes.string.isRequired,
   url: PropTypes.string.isRequired,
+  size: PropTypes.string.isRequired,
 };
 
-const ThumbnailList = ({ ra, dec, thumbnails, useGrid = true }) => {
+const ThumbnailList = ({
+  ra,
+  dec,
+  thumbnails,
+  useGrid = true,
+  size = "13rem",
+}) => {
   const thumbnail_order = ["new", "ref", "sub", "sdss", "dr8"];
   // Sort thumbnails by order of appearance in `thumbnail_order`
   thumbnails.sort((a, b) =>
@@ -125,6 +132,7 @@ const ThumbnailList = ({ ra, dec, thumbnails, useGrid = true }) => {
               dec={dec}
               name={t.type}
               url={t.public_url}
+              size={size}
             />
           </Grid>
         ))}
@@ -139,6 +147,7 @@ const ThumbnailList = ({ ra, dec, thumbnails, useGrid = true }) => {
         dec={dec}
         name={t.type}
         url={t.public_url}
+        size={size}
       />
     </Grid>
   ));
@@ -148,6 +157,7 @@ ThumbnailList.propTypes = {
   ra: PropTypes.number.isRequired,
   dec: PropTypes.number.isRequired,
   thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired,
+  size: PropTypes.string,
 };
 
 export default ThumbnailList;

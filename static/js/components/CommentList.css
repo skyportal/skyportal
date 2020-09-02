@@ -8,16 +8,16 @@
   font-size: 90%;
   display: flex;
   flex-direction: row;
-  min-height: 60px;
-  padding: 5px 0px 10px 10px;
-  margin-bottom: 10px;
-  border-radius: 15px;
+  padding: 0.125rem;
+  margin-bottom: 0.125rem;
+  margin-right: 0.125rem;
+  border-radius: 1rem;
 }
 
 .commentContent {
   display: flex;
   flex-flow: column nowrap;
-  padding: 0.25em 0.75em 0.75em 1em;
+  padding: 0.3125rem 0.625rem 0.3125rem 0.875rem;
   border-radius: 15px;
 }
 
@@ -41,7 +41,7 @@
   flex-grow: 4;
   padding-top: 0.5em;
   padding-bottom: 0.5em;
-  max-width: 20em;
+  max-width: 25em;
 }
 
 .commentTime {

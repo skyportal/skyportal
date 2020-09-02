@@ -1,18 +1,24 @@
+import uuid
+import python_http_client.exceptions
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
-from .user import add_user_and_setup_groups
+from baselayer.app.env import load_env
 from ..base import BaseHandler
+from .user import add_user_and_setup_groups
 from ...models import (
     DBSession,
     Filter,
     Group,
     GroupStream,
     GroupUser,
+    Invitation,
     Stream,
     User,
     Token,
 )
+
+_, cfg = load_env()
 
 
 class GroupHandler(BaseHandler):
@@ -146,7 +152,7 @@ class GroupHandler(BaseHandler):
             if not all(
                 [group in self.current_user.accessible_groups for group in groups]
             ):
-                return self.error("Insufficient permisisons")
+                return self.error("Insufficient permissions")
             return self.success(data=groups)
 
         include_single_user_groups = self.get_query_argument(
@@ -279,6 +285,8 @@ class GroupHandler(BaseHandler):
                 schema: Success
         """
         g = Group.query.get(group_id)
+        if g.name == cfg["misc"]["public_group_name"]:
+            return self.error("Cannot delete site-wide public group.")
         DBSession().delete(g)
         DBSession().commit()
 
@@ -349,11 +357,25 @@ class GroupUserHandler(BaseHandler):
             return self.error("Cannot add users to single-user groups.")
         user = User.query.filter(User.username == username.lower()).first()
         if user is None:
-            user_id = add_user_and_setup_groups(
-                username=username,
-                roles=["Full user"],
-                group_ids_and_admin=[[group_id, admin]],
-            )
+            groups = Group.query.filter(Group.id == group_id).all()
+            if cfg["invitations.enabled"]:
+                invite_token = str(uuid.uuid4())
+                DBSession.add(
+                    Invitation(
+                        token=invite_token,
+                        groups=groups,
+                        admin_for_groups=[admin],
+                        user_email=username,
+                        invited_by=self.associated_user_object,
+                    )
+                )
+                user_id = None
+            else:
+                user_id = add_user_and_setup_groups(
+                    username=username,
+                    roles=["Full user"],
+                    group_ids_and_admin=[[group_id, admin]],
+                )
         else:
             user_id = user.id
             # Just add new GroupUser
@@ -370,7 +392,14 @@ class GroupUserHandler(BaseHandler):
                 return self.error(
                     "Specified user is already associated with this group."
                 )
-        DBSession().commit()
+        try:
+            DBSession().commit()
+        except python_http_client.exceptions.UnauthorizedError:
+            return self.error(
+                "Twilio Sendgrid authorization error. Please ensure "
+                "valid Sendgrid API key is set in server environment as "
+                "per their setup docs."
+            )
 
         self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
         return self.success(

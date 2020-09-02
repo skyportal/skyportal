@@ -46,6 +46,11 @@ brew install supervisor nginx postgresql node
 brew install geckodriver
 ```
 
+4. To build the docs, you'll need graphviz:
+```
+brew install graphviz
+```
+
 ## Installation: Debian-based Linux
 
 1. Install dependencies
@@ -78,6 +83,11 @@ sudo service postgresql restart
 - Download the latest version from https://github.com/mozilla/geckodriver/releases/
 - Extract the binary to somewhere on your path
 - Ensure it runs with `geckodriver --version`
+
+4. To build the docs, you'll need graphviz:
+```
+sudo apt install graphviz-dev graphviz
+```
 
 ## Launch
 

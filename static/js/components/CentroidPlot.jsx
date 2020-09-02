@@ -69,7 +69,7 @@ const getMessages = (delRaGroup, delDecGroup) => {
   const limit = Math.max(maxDelRA, maxDelDec);
 
   const offsetMessage = {
-    x: limit * 0.75,
+    x: limit * 0.6,
     y: limit,
     message: `offset = ${offset.toFixed(2)} \u00B1 ${C.toFixed(2)}`,
   };
@@ -80,8 +80,8 @@ const getMessages = (delRaGroup, delDecGroup) => {
 // The Vega-Lite specifications for the centroid plot
 const spec = (inputData) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
-  width: 400,
-  height: 400,
+  width: 300,
+  height: 300,
   background: "transparent",
   layer: [
     // Render nuclear-to-host circle
@@ -148,6 +148,12 @@ const spec = (inputData) => ({
     {
       data: {
         values: inputData.photometryData,
+      },
+      selection: {
+        grid: {
+          type: "interval",
+          bind: "scales",
+        },
       },
       mark: {
         type: "point",

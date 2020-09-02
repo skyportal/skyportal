@@ -15,7 +15,7 @@ geckodriver.log
 __pycache__/
 node_modules/
 *.pyc
-./config.yaml
+config.yaml
 static/thumbnails
 *.lock
 *.dirlock
@@ -35,3 +35,4 @@ static/index.html
 data/taxonomy_sitewide.yaml
 data/taxonomy_demo.yaml
 .idea
+doc/images/erd.png
