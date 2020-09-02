@@ -39,43 +39,43 @@ const useStyles = makeStyles(() => ({
 }));
 
 const xlgLayout = [
-  { i: "sourceCounts", x: 0, y: 0, w: 2, h: 2, isResizable: false },
-  { i: "recentSources", x: 0, y: 2, w: 8, h: 6, minW: 6, isResizable: false },
-  { i: "newsFeed", x: 8, y: 0, w: 8, h: 3, isResizable: false },
-  { i: "topSources", x: 8, y: 5, w: 8, h: 3, isResizable: false },
-  { i: "groups", x: 2, y: 0, w: 2, h: 2, isResizable: true },
+  { i: "sourceCounts", x: 14, y: 0, w: 2, h: 1, isResizable: false },
+  { i: "recentSources", x: 0, y: 0, w: 5, h: 3, isResizable: false },
+  { i: "newsFeed", x: 10, y: 0, w: 4, h: 3, isResizable: false },
+  { i: "topSources", x: 5, y: 0, w: 5, h: 3, isResizable: false },
+  { i: "groups", x: 14, y: 1, w: 2, h: 2, isResizable: false },
 ];
 
 const lgLayout = [
-  { i: "sourceCounts", x: 0, y: 0, w: 2, h: 2, isResizable: false },
-  { i: "recentSources", x: 0, y: 2, w: 6, h: 6, minW: 6, isResizable: false },
-  { i: "newsFeed", x: 6, y: 0, w: 6, h: 3, isResizable: false },
-  { i: "topSources", x: 6, y: 3, w: 6, h: 3, isResizable: false },
-  { i: "groups", x: 2, y: 0, w: 2, h: 2, isResizable: true },
+  { i: "sourceCounts", x: 10, y: 0, w: 2, h: 1, isResizable: false },
+  { i: "recentSources", x: 0, y: 0, w: 4, h: 3, isResizable: false },
+  { i: "newsFeed", x: 7, y: 0, w: 3, h: 3, isResizable: false },
+  { i: "topSources", x: 4, y: 3, w: 3, h: 3, isResizable: false },
+  { i: "groups", x: 10, y: 1, w: 2, h: 2, isResizable: false },
 ];
 
 const mdLayout = [
-  { i: "sourceCounts", x: 0, y: 0, w: 1, h: 1, isResizable: false },
-  { i: "recentSources", x: 0, y: 2, w: 10, h: 5, isResizable: false },
-  { i: "newsFeed", x: 0, y: 4, w: 4, h: 3, isResizable: false },
-  { i: "topSources", x: 0, y: 8, w: 10, h: 2, isResizable: false },
-  { i: "groups", x: 1, y: 0, w: 1, h: 1, isResizable: false },
+  { i: "sourceCounts", x: 8, y: 0, w: 2, h: 1, isResizable: false },
+  { i: "recentSources", x: 0, y: 3, w: 5, h: 3, isResizable: false },
+  { i: "newsFeed", x: 0, y: 0, w: 8, h: 3, isResizable: false },
+  { i: "topSources", x: 5, y: 3, w: 5, h: 3, isResizable: false },
+  { i: "groups", x: 8, y: 1, w: 2, h: 2, isResizable: false },
 ];
 
 const smLayout = [
-  { i: "sourceCounts", x: 0, y: 0, w: 3, h: 1, isResizable: false },
-  { i: "recentSources", x: 0, y: 1, w: 6, h: 5, isResizable: false },
-  { i: "newsFeed", x: 0, y: 8, w: 6, h: 3, isResizable: false },
-  { i: "topSources", x: 0, y: 11, w: 6, h: 2, isResizable: false },
-  { i: "groups", x: 3, y: 0, w: 3, h: 2, isResizable: false },
+  { i: "sourceCounts", x: 4.5, y: 0, w: 1.5, h: 1, isResizable: false },
+  { i: "recentSources", x: 0, y: 3, w: 3, h: 3, isResizable: false },
+  { i: "newsFeed", x: 0, y: 0, w: 4.5, h: 3, isResizable: false },
+  { i: "topSources", x: 3, y: 3, w: 3, h: 3, isResizable: false },
+  { i: "groups", x: 4.5, y: 1, w: 1.5, h: 2, isResizable: false },
 ];
 
 const xsLayout = [
   { i: "sourceCounts", x: 0, y: 0, w: 4, h: 1, isResizable: false },
-  { i: "recentSources", x: 0, y: 1, w: 4, h: 5, isResizable: false },
-  { i: "newsFeed", x: 0, y: 8, w: 4, h: 3, isResizable: false },
-  { i: "topSources", x: 0, y: 11, w: 4, h: 2, isResizable: false },
-  { i: "groups", x: 0, y: 6, w: 4, h: 2, isResizable: false },
+  { i: "recentSources", x: 0, y: 4, w: 4, h: 3, isResizable: false },
+  { i: "newsFeed", x: 0, y: 1, w: 4, h: 3, isResizable: false },
+  { i: "topSources", x: 0, y: 7, w: 4, h: 3, isResizable: false },
+  { i: "groups", x: 0, y: 10, w: 4, h: 2, isResizable: false },
 ];
 
 const defaultLayouts = {
