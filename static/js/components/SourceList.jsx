@@ -6,12 +6,30 @@ import PropTypes from "prop-types";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
+import { makeStyles } from "@material-ui/core/styles";
 
 import SearchBox from "./SearchBox";
 import * as sourcesActions from "../ducks/sources";
 import UninitializedDBMessage from "./UninitializedDBMessage";
 
+const useDefaultStyles = makeStyles(() => ({
+  widgetIcon: {
+    float: "right",
+    color: "gray",
+    margin: "0.25rem 0.25rem 0.25rem 0.25rem",
+    "&:hover": {
+      cursor: "pointer",
+    },
+  },
+  widgetPaperDiv: {
+    padding: "1rem",
+    height: "100%",
+  },
+}));
+
 const SourceList = ({ classes }) => {
+  const defaultStyles = useDefaultStyles();
+  const styles = classes === null ? defaultStyles : classes;
   const sources = useSelector((state) => state.sources);
   const sourceTableEmpty = useSelector(
     (state) => state.dbInfo.source_table_empty
@@ -31,11 +49,11 @@ const SourceList = ({ classes }) => {
   if (sources) {
     return (
       <Paper elevation={1}>
-        <div className={classes.widgetPaperDiv}>
+        <div className={styles.widgetPaperDiv}>
           <Typography variant="h6" display="inline">
             Sources
           </Typography>
-          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
+          <DragHandleIcon className={`${styles.widgetIcon} dragHandle`} />
           <SearchBox sources={sources} />
           {!sources.queryInProgress && (
             <div style={{ overflowX: "scroll" }}>
@@ -133,9 +151,13 @@ const SourceList = ({ classes }) => {
 
 SourceList.propTypes = {
   classes: PropTypes.shape({
-    widgetPaperDiv: PropTypes.string.isRequired,
-    widgetIcon: PropTypes.string.isRequired,
-  }).isRequired,
+    widgetPaperDiv: PropTypes.string,
+    widgetIcon: PropTypes.string,
+  }),
+};
+
+SourceList.defaultProps = {
+  classes: null,
 };
 
 export default SourceList;
