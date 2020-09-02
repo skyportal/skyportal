@@ -4,12 +4,25 @@ import { useSelector, useDispatch } from "react-redux";
 
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
+import { makeStyles } from "@material-ui/core/styles";
 
 import SearchBox from "./SearchBox";
 import * as sourcesActions from "../ducks/sources";
 import UninitializedDBMessage from "./UninitializedDBMessage";
 
+const useStyles = makeStyles(() => ({
+  paperDiv: {
+    padding: "1rem",
+    height: "100%",
+  },
+  tableDiv: {
+    paddingTop: "0.675rem",
+    overflowX: "scroll",
+  },
+}));
+
 const SourceList = () => {
+  const classes = useStyles();
   const sources = useSelector((state) => state.sources);
   const sourceTableEmpty = useSelector(
     (state) => state.dbInfo.source_table_empty
@@ -29,13 +42,14 @@ const SourceList = () => {
   if (sources) {
     return (
       <Paper elevation={1}>
-        <div style={{ padding: "1rem", height: "100%" }}>
-          <Typography variant="h6">Sources</Typography>
-
+        <div className={classes.paperDiv}>
+          <Typography variant="h6" display="inline">
+            Sources
+          </Typography>
           <SearchBox sources={sources} />
           {!sources.queryInProgress && (
-            <div style={{ overflowX: "scroll" }}>
-              <table id="tab" style={{ paddingTop: "10px" }}>
+            <div className={classes.tableDiv}>
+              <table id="tab">
                 <thead>
                   <tr>
                     <th />

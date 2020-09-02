@@ -27,9 +27,7 @@
 }
 
 .entry {
-  padding-left: 1em;
-  padding-top: 0.5em;
-  padding-bottom: 0.5em;
+  padding: 0.5rem 1rem;
 }
 
 .entry:hover {
@@ -39,6 +37,23 @@
 
 .entry:hover a {
   color: white;
+}
+
+.dropdownTriggerDiv {
+  display: flex;
+  justify-content: space-between;
+  flex-direction: row;
+  align-items: center;
+}
+
+@media only screen and (max-width: 768px) {
+  .username {
+    display: none;
+  }
+
+  .dropdownTriggerDiv {
+    justify-content: flex-end;
+  }
 }
 
 :global(.dropdown) {

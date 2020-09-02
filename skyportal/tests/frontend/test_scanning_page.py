@@ -55,7 +55,7 @@ def test_candidate_group_filtering(
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
     group_checkbox = driver.wait_for_xpath(f'//input[starts-with(@name,"groupIDs[0]")]')
     driver.scroll_to_element_and_click(group_checkbox)
-    submit_button = driver.wait_for_xpath('//span[text()="Submit"]')
+    submit_button = driver.wait_for_xpath('//span[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
         driver.wait_for_xpath_to_disappear(f'//a[text()="{candidate_id}_{i}"]')
@@ -117,7 +117,7 @@ def test_candidate_unsaved_only_filtering(
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
     unsaved_only_checkbox = driver.wait_for_xpath('//input[@name="unsavedOnly"]')
     driver.scroll_to_element_and_click(unsaved_only_checkbox)
-    submit_button = driver.wait_for_xpath('//span[text()="Submit"]')
+    submit_button = driver.wait_for_xpath('//span[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
         driver.wait_for_xpath_to_disappear(f'//a[text()="{candidate_id}_{i}"]')
@@ -185,13 +185,13 @@ def test_candidate_date_filtering(
     end_date_input = driver.wait_for_xpath("//input[@name='endDate']")
     end_date_input.clear()
     end_date_input.send_keys("20011212")
-    submit_button = driver.wait_for_xpath_to_be_clickable('//span[text()="Submit"]')
+    submit_button = driver.wait_for_xpath_to_be_clickable('//span[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
         driver.wait_for_xpath_to_disappear(f'//a[text()="{candidate_id}_{i}"]', 10)
     end_date_input.clear()
     end_date_input.send_keys("20901212")
-    submit_button = driver.wait_for_xpath_to_be_clickable('//span[text()="Submit"]')
+    submit_button = driver.wait_for_xpath_to_be_clickable('//span[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]', 10)
