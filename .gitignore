@@ -15,7 +15,7 @@ geckodriver.log
 __pycache__/
 node_modules/
 *.pyc
-./config.yaml
+config.yaml
 static/thumbnails
 *.lock
 *.dirlock
