@@ -18,6 +18,9 @@ const useStyles = makeStyles(() => ({
     padding: "1rem",
     height: "100%",
   },
+  widgetPaperFillSpace: {
+    height: "100%",
+  },
 }));
 
 const GroupManagement = () => {
