@@ -1689,17 +1689,6 @@ class FollowupRequestHTTPRequest(Base):
     )
     origin = sa.Column(followup_http_request_origins, doc='Origin of the HTTP request.')
 
-    spectra = relationship(
-        "Spectrum",
-        back_populates="followup_request",
-        doc="Spectra produced by this followup request.",
-    )
-    photometry = relationship(
-        "Photometry",
-        back_populates="followup_request",
-        doc="Photometry produced by this followup request.",
-    )
-
 
 User.followup_requests = relationship(
     'FollowupRequest',
