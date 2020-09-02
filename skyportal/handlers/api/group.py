@@ -89,6 +89,13 @@ class GroupHandler(BaseHandler):
                                 items:
                                   $ref: '#/components/schemas/Group'
                                 description: List of groups current user is a member of.
+                              user_accessible_groups:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Group'
+                                description: |
+                                  List of groups current user can access, not including
+                                  single user groups.
                               all_groups:
                                 type: array
                                 items:
@@ -160,6 +167,9 @@ class GroupHandler(BaseHandler):
         )
         info = {}
         info['user_groups'] = list(self.current_user.groups)
+        info['user_accessible_groups'] = [
+            g for g in self.current_user.accessible_groups if not g.single_user_group
+        ]
         all_groups_query = Group.query
         if (not include_single_user_groups) or (
             isinstance(include_single_user_groups, str)
