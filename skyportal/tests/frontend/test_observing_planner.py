@@ -106,7 +106,7 @@ def test_observing_run_skycam_component(
         f'//b[contains(text(), "{red_transients_run.instrument.name}")]'
     )
     driver.wait_for_xpath('//*[text()="Current Conditions"]')
-    fallback_url = "https://ak.picdn.net/shutterstock/videos/5030309/thumb/1.jpg"
+    fallback_url = "./static/images/static.jpg"
     driver.wait_for_xpath(f'//img[contains(@src, "{fallback_url}")]')
 
     red_transients_run.instrument.telescope.skycam_link = None
