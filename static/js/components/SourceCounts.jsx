@@ -17,8 +17,16 @@ const defaultPrefs = {
 
 const useStyles = makeStyles(() => ({
   counter: {
-    display: "inline-block",
-    align: "center",
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
+    justifyContent: "center",
+    marginRight: "2rem",
+  },
+  widgetsBar: {
+    position: "fixed",
+    right: "1rem",
+    zIndex: 1,
   },
 }));
 
@@ -30,16 +38,22 @@ const SourceCounts = ({ classes }) => {
     defaultPrefs;
 
   return (
-    <Paper id="sourceCountsWidget" elevation={1}>
+    <Paper
+      id="sourceCountsWidget"
+      elevation={1}
+      className={classes.widgetPaperFillSpace}
+    >
       <div className={classes.widgetPaperDiv}>
-        <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
-        <div className={classes.widgetIcon}>
-          <WidgetPrefsDialog
-            formValues={sourceCountPrefs}
-            stateBranchName="sourceCounts"
-            title="Source Count Preferences"
-            onSubmit={profileActions.updateUserPreferences}
-          />
+        <div className={styles.widgetsBar}>
+          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
+          <div className={classes.widgetIcon}>
+            <WidgetPrefsDialog
+              formValues={sourceCountPrefs}
+              stateBranchName="sourceCounts"
+              title="Source Count Preferences"
+              onSubmit={profileActions.updateUserPreferences}
+            />
+          </div>
         </div>
         <div className={styles.counter}>
           <Typography align="center" variant="h4">
@@ -66,6 +80,7 @@ SourceCounts.propTypes = {
   classes: PropTypes.shape({
     widgetPaperDiv: PropTypes.string.isRequired,
     widgetIcon: PropTypes.string.isRequired,
+    widgetPaperFillSpace: PropTypes.string.isRequired,
   }).isRequired,
 };
 
