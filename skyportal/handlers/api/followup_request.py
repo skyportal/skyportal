@@ -433,7 +433,7 @@ class FollowupRequestHandler(BaseHandler):
 
         data = self.get_json()
         data['id'] = request_id
-        data["requester_id"] = self.current_user.id
+        data["requester_id"] = self.associated_user_object.id
 
         api = followup_request.instrument.api_class
 

@@ -5,6 +5,10 @@ class _Base:
     def _isimplemented(cls, method_name):
         from .interface import FollowUpAPI
 
+        # check whether the subclass's method is identical in memory to
+        # FollowUpAPI's (unimplemented) method stub. if so the method is
+        # not implemented
+
         func = getattr(cls, method_name)
         unimplemented = getattr(FollowUpAPI, method_name)
         return func is not unimplemented

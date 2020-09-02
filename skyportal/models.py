@@ -731,7 +731,7 @@ class Taxonomy(Base):
     name = sa.Column(
         sa.String,
         nullable=False,
-        doc='Short string to make this taxonomy memorable ' 'to end users.',
+        doc='Short string to make this taxonomy memorable to end users.',
     )
     hierarchy = sa.Column(
         JSONB,
@@ -1124,7 +1124,7 @@ class FollowupRequestHTTPRequest(Base):
         index=True,
         doc="UTC time this FollowupRequestHTTPRequest was created.",
     )
-    content = sa.Column(sa.Text, doc="The content of the request.")
+    content = sa.Column(sa.Text, doc="The content of the request.", nullable=False)
 
     request_id = sa.Column(
         sa.ForeignKey('followuprequests.id', ondelete='CASCADE'),

@@ -44,7 +44,7 @@ from skyportal.handlers.api.internal import (
     TokenHandler,
     DBInfoHandler,
     ProfileHandler,
-    RoboticInstrumentFormsHandler,
+    RoboticInstrumentsHandler,
     LogHandler,
     PlotAirmassHandler,
 )
@@ -111,7 +111,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/internal/source_views(/.*)?', SourceViewsHandler),
         (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
         (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
-        (r'/api/internal/instrument_forms', RoboticInstrumentFormsHandler),
+        (r'/api/internal/instrument_forms', RoboticInstrumentsHandler),
         (r'/api/internal/plot/airmass/(.*)', PlotAirmassHandler),
         (r'/api/internal/log', LogHandler),
         (r'/api/.*', InvalidEndpointHandler),
