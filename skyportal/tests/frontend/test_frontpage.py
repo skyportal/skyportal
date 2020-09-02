@@ -105,7 +105,8 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
 
 
 @pytest.mark.flaky(reruns=2)
-def test_jump_to_page_invalid_values(driver):
+def test_jump_to_page_invalid_values(driver, user, public_source):
+    driver.get(f'/become_user/{user.id}')
     driver.get('/')
     jump_to_page_input = driver.wait_for_xpath("//input[@name='jumpToPageInputField']")
     jump_to_page_input.clear()
