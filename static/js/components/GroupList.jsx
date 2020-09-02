@@ -6,10 +6,12 @@ import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
 import Typography from "@material-ui/core/Typography";
+import DragHandleIcon from "@material-ui/icons/DragHandle";
 
-const GroupList = ({ title, groups }) => (
+const GroupList = ({ title, groups, classes }) => (
   <Paper elevation={1} height="100%">
-    <div style={{ padding: "1rem" }}>
+    <div className={classes.widgetPaperDiv}>
+      <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
       <Typography variant="h6">{title}</Typography>
       <List component="nav" aria-label="main mailbox folders">
         {groups &&
@@ -30,6 +32,10 @@ const GroupList = ({ title, groups }) => (
 GroupList.propTypes = {
   title: PropTypes.string.isRequired,
   groups: PropTypes.arrayOf(PropTypes.object),
+  classes: PropTypes.shape({
+    widgetPaperDiv: PropTypes.string.isRequired,
+    widgetIcon: PropTypes.string.isRequired,
+  }).isRequired,
 };
 GroupList.defaultProps = {
   groups: [],

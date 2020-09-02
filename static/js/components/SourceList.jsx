@@ -1,15 +1,17 @@
 import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
+import PropTypes from "prop-types";
 
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
+import DragHandleIcon from "@material-ui/icons/DragHandle";
 
 import SearchBox from "./SearchBox";
 import * as sourcesActions from "../ducks/sources";
 import UninitializedDBMessage from "./UninitializedDBMessage";
 
-const SourceList = () => {
+const SourceList = ({ classes }) => {
   const sources = useSelector((state) => state.sources);
   const sourceTableEmpty = useSelector(
     (state) => state.dbInfo.source_table_empty
@@ -29,9 +31,11 @@ const SourceList = () => {
   if (sources) {
     return (
       <Paper elevation={1}>
-        <div style={{ padding: "1rem", height: "100%" }}>
-          <Typography variant="h6">Sources</Typography>
-
+        <div className={classes.widgetPaperDiv}>
+          <Typography variant="h6" display="inline">
+            Sources
+          </Typography>
+          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
           <SearchBox sources={sources} />
           {!sources.queryInProgress && (
             <div style={{ overflowX: "scroll" }}>
@@ -125,6 +129,13 @@ const SourceList = () => {
     );
   }
   return <div>Loading sources...</div>;
+};
+
+SourceList.propTypes = {
+  classes: PropTypes.shape({
+    widgetPaperDiv: PropTypes.string.isRequired,
+    widgetIcon: PropTypes.string.isRequired,
+  }).isRequired,
 };
 
 export default SourceList;

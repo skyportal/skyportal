@@ -7,6 +7,8 @@ import "reactgridlayoutcss/styles.css";
 // eslint-disable-next-line import/no-extraneous-dependencies
 import "reactresizablecss/styles.css";
 
+import { makeStyles } from "@material-ui/core/styles";
+
 import * as profileActions from "../ducks/profile";
 
 import RecentSources from "./RecentSources";
@@ -14,9 +16,23 @@ import GroupList from "./GroupList";
 import NewsFeed from "./NewsFeed";
 import TopSources from "./TopSources";
 import UninitializedDBMessage from "./UninitializedDBMessage";
-import styles from "./HomePage.css";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const useStyles = makeStyles(() => ({
+  widgetIcon: {
+    float: "right",
+    color: "gray",
+    margin: "0.25rem 0.25rem 0.25rem 0.25rem",
+    "&:hover": {
+      cursor: "pointer",
+    },
+  },
+  widgetPaperDiv: {
+    padding: "1rem",
+    height: "100%",
+  },
+}));
 
 const xlgLayout = [
   { i: "recentSources", x: 0, y: 0, w: 5, h: 3, isResizable: false },
@@ -62,6 +78,8 @@ const defaultLayouts = {
 };
 
 const HomePage = () => {
+  const classes = useStyles();
+
   const groups = useSelector((state) => state.groups.user);
 
   const sourceTableEmpty = useSelector(
@@ -96,18 +114,19 @@ const HomePage = () => {
       breakpoints={{ xlg: 1400, lg: 1150, md: 996, sm: 650, xs: 0 }}
       cols={{ xlg: 16, lg: 12, md: 10, sm: 6, xs: 4 }}
       onLayoutChange={LayoutChangeHandler}
+      draggableHandle=".dragHandle"
     >
-      <div key="recentSources" className={styles.homePageWidgetDiv}>
-        <RecentSources />
+      <div key="recentSources">
+        <RecentSources classes={classes} />
       </div>
-      <div key="newsFeed" className={styles.homePageWidgetDiv}>
-        <NewsFeed />
+      <div key="newsFeed">
+        <NewsFeed classes={classes} />
       </div>
-      <div key="topSources" className={styles.homePageWidgetDiv}>
-        <TopSources />
+      <div key="topSources">
+        <TopSources classes={classes} />
       </div>
-      <div key="groups" className={styles.homePageWidgetDiv}>
-        <GroupList title="My Groups" groups={groups} />
+      <div key="groups">
+        <GroupList title="My Groups" groups={groups} classes={classes} />
       </div>
     </ResponsiveGridLayout>
   );
