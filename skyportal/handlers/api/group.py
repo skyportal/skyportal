@@ -152,7 +152,7 @@ class GroupHandler(BaseHandler):
             if not all(
                 [group in self.current_user.accessible_groups for group in groups]
             ):
-                return self.error("Insufficient permisisons")
+                return self.error("Insufficient permissions")
             return self.success(data=groups)
 
         include_single_user_groups = self.get_query_argument(
