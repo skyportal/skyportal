@@ -20,7 +20,7 @@ dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const defaultPrefs = {
-  numItems: "",
+  numItems: "5",
 };
 
 const NewsFeedItem = ({ item }) => {
@@ -113,7 +113,7 @@ const NewsFeed = ({ classes }) => {
     userColorTheme === "dark" ? styles.newsFeedDark : styles.newsFeed;
 
   return (
-    <Paper elevation={1}>
+    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <Typography variant="h6" display="inline">
           News Feed
@@ -157,6 +157,7 @@ NewsFeed.propTypes = {
   classes: PropTypes.shape({
     widgetPaperDiv: PropTypes.string.isRequired,
     widgetIcon: PropTypes.string.isRequired,
+    widgetPaperFillSpace: PropTypes.string.isRequired,
   }).isRequired,
 };
 
