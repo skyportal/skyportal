@@ -103,6 +103,13 @@ const SidebarAndHeader = () => {
       }
     };
 
+    // Let home page know content window has resized
+    // A slight delay is used to make sure the sidebar is finished
+    // closing/opening before new content window size is computed
+    setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+    }, 250);
+
     if (open) {
       window.addEventListener("resize", handleResize);
     }
