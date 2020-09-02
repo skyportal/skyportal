@@ -132,15 +132,6 @@ const Source = ({ route }) => {
         <br />
         <Responsive
           element={FoldBox}
-          title="Centroid Plot"
-          mobileProps={{ folded: true }}
-        >
-          <Suspense fallback={<div>Loading centroid plot...</div>}>
-            <CentroidPlot className={styles.plot} sourceId={source.id} />
-          </Suspense>
-        </Responsive>
-        <Responsive
-          element={FoldBox}
           title="Photometry"
           mobileProps={{ folded: true }}
         >
@@ -222,6 +213,15 @@ const Source = ({ route }) => {
             action="createNew"
             taxonomyList={taxonomyList}
           />
+        </Responsive>
+        <Responsive
+          element={FoldBox}
+          title="Centroid Plot"
+          mobileProps={{ folded: true }}
+        >
+          <Suspense fallback={<div>Loading centroid plot...</div>}>
+            <CentroidPlot className={styles.smallPlot} sourceId={source.id} />
+          </Suspense>
         </Responsive>
       </div>
     </div>

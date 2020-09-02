@@ -1,6 +1,10 @@
 import uuid
 import pytest
 from selenium.webdriver.common.keys import Keys
+from baselayer.app.env import load_env
+
+
+_, cfg = load_env()
 
 
 def test_public_groups_list(driver, user, public_group):
@@ -111,7 +115,12 @@ def test_add_new_group_user_new_username(driver, super_admin_user, user, public_
         new_username, Keys.ENTER
     )
     driver.click_xpath('//input[@value="Add user"]')
-    driver.wait_for_xpath(f'//a[contains(.,"{new_username}")]')
+    driver.click_xpath('//span[text()="Confirm"]')
+    if cfg["invitations.enabled"]:  # If invites are disabled, we won't see this notif.
+        driver.wait_for_xpath('//*[contains(., "Invitation successfully sent to")]')
+    else:
+        # If invitations are disabled, the user will be added and will appear
+        driver.wait_for_xpath(f'//a[contains(.,"{new_username}")]')
 
 
 @pytest.mark.flaky(reruns=2)
