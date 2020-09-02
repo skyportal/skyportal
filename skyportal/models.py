@@ -1111,8 +1111,7 @@ class FollowupRequest(Base):
         """
 
         user_or_token_group_ids = [g.id for g in user_or_token.accessible_groups]
-        allocation_group_id = self.allocation.group_id
-        return allocation_group_id in user_or_token_group_ids
+        return self.allocation.group_id in user_or_token_group_ids
 
 
 class FollowupRequestHTTPRequest(Base):
