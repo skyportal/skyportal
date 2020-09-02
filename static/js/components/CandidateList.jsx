@@ -54,7 +54,9 @@ const CandidateList = () => {
     numberingEnd,
   } = useSelector((state) => state.candidates);
 
-  const userGroups = useSelector((state) => state.groups.user);
+  const userAccessibleGroups = useSelector(
+    (state) => state.groups.userAccessible
+  );
 
   const dispatch = useDispatch();
 
@@ -87,7 +89,7 @@ const CandidateList = () => {
           Scan candidates for sources
         </Typography>
         <FilterCandidateList
-          userGroups={userGroups}
+          userAccessibleGroups={userAccessibleGroups}
           handleClickNextPage={handleClickNextPage}
           handleClickPreviousPage={handleClickPreviousPage}
           pageNumber={pageNumber}
@@ -171,7 +173,7 @@ const CandidateList = () => {
                             <br />
                             <SaveCandidateButton
                               candidate={candidateObj}
-                              userGroups={userGroups}
+                              userGroups={userAccessibleGroups}
                             />
                           </div>
                         )}

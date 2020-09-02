@@ -45,7 +45,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const FilterCandidateList = ({
-  userGroups,
+  userAccessibleGroups,
   handleClickNextPage,
   handleClickPreviousPage,
   pageNumber,
@@ -63,11 +63,11 @@ const FilterCandidateList = ({
 
   useEffect(() => {
     reset({
-      groupIDs: Array(userGroups.length).fill(true),
+      groupIDs: Array(userAccessibleGroups.length).fill(true),
       startDate: null,
       endDate: null,
     });
-  }, [reset, userGroups]);
+  }, [reset, userAccessibleGroups]);
 
   const dispatch = useDispatch();
 
@@ -88,7 +88,7 @@ const FilterCandidateList = ({
 
   const onSubmit = async (data) => {
     setQueryInProgress(true);
-    const groupIDs = userGroups.map((g) => g.id);
+    const groupIDs = userAccessibleGroups.map((g) => g.id);
     const selectedGroupIDs = groupIDs.filter((ID, idx) => data.groupIDs[idx]);
     data.groupIDs = selectedGroupIDs;
     // Convert dates to ISO for parsing on back-end
@@ -170,7 +170,7 @@ const FilterCandidateList = ({
               {errors.groupIDs && (
                 <FormValidationError message="Select at least one group." />
               )}
-              {userGroups.map((group, idx) => (
+              {userAccessibleGroups.map((group, idx) => (
                 <FormControlLabel
                   key={group.id}
                   control={
@@ -252,7 +252,7 @@ const FilterCandidateList = ({
   );
 };
 FilterCandidateList.propTypes = {
-  userGroups: PropTypes.arrayOf(PropTypes.object).isRequired,
+  userAccessibleGroups: PropTypes.arrayOf(PropTypes.object).isRequired,
   handleClickNextPage: PropTypes.func.isRequired,
   handleClickPreviousPage: PropTypes.func.isRequired,
   pageNumber: PropTypes.number.isRequired,
