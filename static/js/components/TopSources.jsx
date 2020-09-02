@@ -24,7 +24,7 @@ const TopSources = ({ classes }) => {
     defaultPrefs;
 
   return (
-    <Paper elevation={1}>
+    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <Typography variant="h6" display="inline">
           Top Sources
@@ -67,6 +67,7 @@ TopSources.propTypes = {
   classes: PropTypes.shape({
     widgetPaperDiv: PropTypes.string.isRequired,
     widgetIcon: PropTypes.string.isRequired,
+    widgetPaperFillSpace: PropTypes.string.isRequired,
   }).isRequired,
 };
 

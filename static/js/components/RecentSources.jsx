@@ -10,6 +10,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 import { makeStyles } from "@material-ui/core/styles";
+import DragHandleIcon from "@material-ui/icons/DragHandle";
 
 import { ra_to_hours, dec_to_hours } from "../units";
 import * as profileActions from "../ducks/profile";
@@ -31,11 +32,6 @@ const useStyles = makeStyles(() => ({
     "&:hover": {
       transform: "scale(1.5)",
     },
-  },
-  recentSourcesContainer: {
-    display: "block",
-    padding: "1rem",
-    height: "100%",
   },
   recentSourceListContainer: {
     height: "calc(100% - 3rem)",
@@ -183,7 +179,7 @@ RecentSourcesList.propTypes = {
   styles: PropTypes.shape(Object).isRequired,
 };
 
-const RecentSources = () => {
+const RecentSources = ({ classes }) => {
   const styles = useStyles();
 
   const { recentSources } = useSelector((state) => state.recentSources);
@@ -192,12 +188,13 @@ const RecentSources = () => {
     defaultPrefs;
 
   return (
-    <Paper elevation={1} style={{ height: "100%" }}>
-      <div className={styles.recentSourcesContainer}>
+    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
+      <div className={classes.widgetPaperDiv}>
         <Typography variant="h6" display="inline">
           Recently Added Sources
         </Typography>
-        <div style={{ display: "inline-block", float: "right" }}>
+        <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
+        <div className={classes.widgetIcon}>
           <WidgetPrefsDialog
             formValues={recentSourcesPrefs}
             stateBranchName="recentSources"
@@ -209,6 +206,14 @@ const RecentSources = () => {
       </div>
     </Paper>
   );
+};
+
+RecentSources.propTypes = {
+  classes: PropTypes.shape({
+    widgetPaperDiv: PropTypes.string.isRequired,
+    widgetIcon: PropTypes.string.isRequired,
+    widgetPaperFillSpace: PropTypes.string.isRequired,
+  }).isRequired,
 };
 
 export default RecentSources;
