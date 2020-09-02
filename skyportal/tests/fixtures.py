@@ -83,7 +83,7 @@ class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Spectrum
 
     instrument = factory.SubFactory(InstrumentFactory)
-    wavelengths = np.sort(1000 * np.random.random(10))
+    wavelengths = np.sort(1000 * np.random.random(20))
     fluxes = 1e-9 * np.random.random(len(wavelengths))
     observed_at = datetime.datetime.now()
 

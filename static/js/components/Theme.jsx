@@ -10,6 +10,8 @@ const Theme = ({ children }) => {
   const materialTheme = createMuiTheme({
     palette: {
       type: theme || "light",
+      background:
+        theme === "dark" ? { default: "#303030" } : { default: "#f0f2f5" },
     },
   });
 

@@ -25,7 +25,7 @@ def test_source_list(driver, user, public_source, private_source):
     driver.get('/')
 
     simbad_class = public_source.altdata['simbad']['class']
-    driver.wait_for_xpath('//h2[contains(text(), "Sources")]')
+    driver.wait_for_xpath('//h6[contains(text(), "Sources")]')
     driver.wait_for_xpath(f'//a[text()="{public_source.id}"]')
     driver.wait_for_xpath(f'//td[text()="{simbad_class}"]')
     driver.wait_for_xpath_to_disappear(f'//a[text()="{private_source.id}"]')
@@ -59,7 +59,7 @@ def test_source_filtering_and_pagination(driver, user, public_group, upload_data
     driver.get(f"/become_user/{user.id}")
     driver.get('/')
 
-    driver.wait_for_xpath('//h2[contains(text(), "Sources")]')
+    driver.wait_for_xpath('//h6[contains(text(), "Sources")]')
     driver.wait_for_xpath('//td[text()="RRLyr"]')
 
     # Pagination

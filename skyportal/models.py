@@ -1,22 +1,25 @@
-import arrow
 import uuid
 import re
 from datetime import datetime, timezone
+import arrow
 from astropy import units as u
 from astropy import time as ap_time
 import astroplan
 import numpy as np
 import sqlalchemy as sa
-from sqlalchemy import cast
+from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy_utils import ArrowType, URLType
+from sqlalchemy_utils import ArrowType, URLType, EmailType
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 from astropy import coordinates as ap_coord
 import healpix_alchemy as ha
+import timezonefinder
 
 from baselayer.app.models import (  # noqa
     init_db,
@@ -29,8 +32,8 @@ from baselayer.app.models import (  # noqa
     Token,
 )
 from baselayer.app.custom_exceptions import AccessError
+from baselayer.app.env import load_env
 
-import timezonefinder
 
 from . import schema
 from .enum_types import (
@@ -115,6 +118,12 @@ class Group(Base):
         passive_deletes=True,
     )
     single_user_group = sa.Column(sa.Boolean, default=False)
+    allocations = relationship(
+        'Allocation',
+        back_populates="group",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
 
 
 GroupUser = join_model('group_users', Group, User)
@@ -649,6 +658,12 @@ class Instrument(Base):
     )
 
     observing_runs = relationship('ObservingRun', back_populates='instrument')
+    allocations = relationship(
+        'Allocation',
+        back_populates="instrument",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
 
     @property
     def does_spectroscopy(self):
@@ -659,12 +674,56 @@ class Instrument(Base):
         return 'imag' in self.type
 
 
+class Allocation(Base):
+    """An allocation of observing time on a robotic instrument."""
+
+    pi = sa.Column(sa.String, doc="The PI of the allocation's proposal.")
+    proposal_id = sa.Column(
+        sa.String, doc="The ID of the proposal associated with this allocation."
+    )
+    start_date = sa.Column(sa.DateTime, doc='The UTC start date of the allocation.')
+    end_date = sa.Column(sa.DateTime, doc='The UTC end date of the allocation.')
+    hours_allocated = sa.Column(
+        sa.Float, nullable=False, doc='The number of hours allocated.'
+    )
+    requests = relationship(
+        'FollowupRequest',
+        back_populates='allocation',
+        secondary='allocation_requests',
+        doc='The requests made against this allocation.',
+    )
+
+    group_id = sa.Column(
+        sa.ForeignKey('groups.id', ondelete='CASCADE'),
+        index=True,
+        doc='The ID of the Group the allocation is associated with.',
+        nullable=False,
+    )
+    group = relationship(
+        'Group',
+        back_populates='allocations',
+        doc='The Group the allocation is associated with.',
+    )
+
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id', ondelete='CASCADE'),
+        index=True,
+        doc="The ID of the Instrument the allocation is associated with.",
+        nullable=False,
+    )
+    instrument = relationship(
+        'Instrument',
+        back_populates='allocations',
+        doc="The Instrument the allocation is associated with.",
+    )
+
+
 class Taxonomy(Base):
     __tablename__ = 'taxonomies'
     name = sa.Column(
         sa.String,
         nullable=False,
-        doc='Short string to make this taxonomy memorable ' 'to end users.',
+        doc='Short string to make this taxonomy memorable to end users.',
     )
     hierarchy = sa.Column(
         JSONB,
@@ -855,6 +914,16 @@ class Photometry(Base, ha.Point):
     instrument = relationship('Instrument', back_populates='photometry')
     thumbnails = relationship('Thumbnail', passive_deletes=True)
 
+    followup_request_id = sa.Column(
+        sa.ForeignKey('followuprequests.id'), nullable=True, index=True
+    )
+    followup_request = relationship('FollowupRequest', back_populates='photometry')
+
+    assignment_id = sa.Column(
+        sa.ForeignKey('classicalassignments.id'), nullable=True, index=True
+    )
+    assignment = relationship('ClassicalAssignment', back_populates='photometry')
+
     @hybrid_property
     def mag(self):
         if self.flux is not None and self.flux > 0:
@@ -947,6 +1016,12 @@ class Spectrum(Base):
         passive_deletes=True,
     )
 
+    followup_request_id = sa.Column(sa.ForeignKey('followuprequests.id'), nullable=True)
+    followup_request = relationship('FollowupRequest', back_populates='spectra')
+
+    assignment_id = sa.Column(sa.ForeignKey('classicalassignments.id'), nullable=True)
+    assignment = relationship('ClassicalAssignment', back_populates='spectra')
+
     @classmethod
     def from_ascii(cls, filename, obj_id, instrument_id, observed_at):
         data = np.loadtxt(filename)
@@ -991,6 +1066,10 @@ class FollowupRequest(Base):
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id'), nullable=False, index=True
     )
+
+    spectra = relationship("Spectrum", back_populates="followup_request")
+    photometry = relationship("Photometry", back_populates="followup_request")
+
     start_date = sa.Column(ArrowType, nullable=False)
     end_date = sa.Column(ArrowType, nullable=False)
     filters = sa.Column(psql.ARRAY(sa.String), nullable=True)
@@ -998,9 +1077,13 @@ class FollowupRequest(Base):
     priority = sa.Column(sa.Enum('1', '2', '3', '4', '5', name='priority'))
     editable = sa.Column(sa.Boolean, nullable=False, default=True)
     status = sa.Column(sa.String(), nullable=False, default="pending")
+    allocation = relationship(
+        'Allocation', secondary='allocation_requests', back_populates='requests'
+    )
 
 
 User.followup_requests = relationship('FollowupRequest', back_populates='requester')
+AllocationRequest = join_model('allocation_requests', Allocation, FollowupRequest)
 
 
 class Thumbnail(Base):
@@ -1139,6 +1222,10 @@ class ClassicalAssignment(Base):
         sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
     )
 
+    spectra = relationship("Spectrum", back_populates="assignment")
+
+    photometry = relationship("Photometry", back_populates="assignment")
+
     comment = sa.Column(sa.String())
     status = sa.Column(sa.String(), nullable=False, default="pending")
     priority = sa.Column(followup_priorities, nullable=False)
@@ -1178,5 +1265,51 @@ User.assignments = relationship(
     back_populates="requester",
     foreign_keys="ClassicalAssignment.requester_id",
 )
+
+
+class Invitation(Base):
+    token = sa.Column(sa.String(), nullable=False, unique=True)
+    groups = relationship(
+        "Group",
+        secondary="group_invitations",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
+    admin_for_groups = sa.Column(psql.ARRAY(sa.Boolean), nullable=False)
+    user_email = sa.Column(EmailType(), nullable=True)
+    invited_by = relationship(
+        "User",
+        secondary="user_invitations",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        uselist=False,
+    )
+    used = sa.Column(sa.Boolean, nullable=False, default=False)
+
+
+GroupInvitation = join_model('group_invitations', Group, Invitation)
+UserInvitation = join_model("user_invitations", User, Invitation)
+
+
+@event.listens_for(Invitation, 'after_insert')
+def send_user_invite_email(mapper, connection, target):
+    _, cfg = load_env()
+    app_base_url = (
+        f"{'https' if cfg['server.ssl'] else 'http'}:"
+        f"//{cfg['server.host']}:{cfg['ports.app']}"
+    )
+    link_location = f'{app_base_url}/login/google-oauth2/?invite_token={target.token}'
+    message = Mail(
+        from_email=cfg["invitations.from_email"],
+        to_emails=target.user_email,
+        subject=cfg["invitations.email_subject"],
+        html_content=(
+            f'{cfg["invitations.email_body_preamble"]}<br /><br />'
+            f'Please click <a href="{link_location}">here</a> to join.'
+        ),
+    )
+    sg = SendGridAPIClient(cfg["invitations.sendgrid_api_key"])
+    sg.send(message)
+
 
 schema.setup_schema()
