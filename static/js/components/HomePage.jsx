@@ -10,10 +10,12 @@ import "reactresizablecss/styles.css";
 import { makeStyles } from "@material-ui/core/styles";
 
 import * as profileActions from "../ducks/profile";
-import SourceList from "./SourceList";
+
+import RecentSources from "./RecentSources";
 import GroupList from "./GroupList";
 import NewsFeed from "./NewsFeed";
 import TopSources from "./TopSources";
+import UninitializedDBMessage from "./UninitializedDBMessage";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -30,41 +32,44 @@ const useStyles = makeStyles(() => ({
     padding: "1rem",
     height: "100%",
   },
+  widgetPaperFillSpace: {
+    height: "100%",
+  },
 }));
 
 const xlgLayout = [
-  { i: "sourceList", x: 0, y: 0, w: 9, h: 6, minW: 9, isResizable: false },
-  { i: "newsFeed", x: 9, y: 0, w: 7, h: 3, isResizable: false },
-  { i: "topSources", x: 9, y: 0, w: 4, h: 2, isResizable: false },
-  { i: "groups", x: 13, y: 0, w: 2, h: 2, isResizable: false },
+  { i: "recentSources", x: 0, y: 0, w: 5, h: 3, isResizable: false },
+  { i: "newsFeed", x: 10, y: 0, w: 4, h: 3, isResizable: false },
+  { i: "topSources", x: 5, y: 0, w: 5, h: 3, isResizable: false },
+  { i: "groups", x: 14, y: 0, w: 2, h: 2, isResizable: false },
 ];
 
 const lgLayout = [
-  { i: "sourceList", x: 0, y: 0, w: 7, h: 6, isResizable: false },
-  { i: "newsFeed", x: 7, y: 0, w: 5, h: 3, isResizable: false },
-  { i: "topSources", x: 7, y: 0, w: 3, h: 2, isResizable: false },
-  { i: "groups", x: 10, y: 0, w: 2, h: 2, isResizable: false },
+  { i: "recentSources", x: 0, y: 0, w: 4, h: 3, isResizable: false },
+  { i: "newsFeed", x: 8, y: 0, w: 4, h: 3, isResizable: false },
+  { i: "topSources", x: 4, y: 0, w: 4, h: 3, isResizable: false },
+  { i: "groups", x: 10, y: 3, w: 2, h: 2, isResizable: false },
 ];
 
 const mdLayout = [
-  { i: "sourceList", x: 0, y: 0, w: 10, h: 6, isResizable: false },
-  { i: "newsFeed", x: 0, y: 6, w: 5, h: 3, isResizable: false },
-  { i: "topSources", x: 5, y: 6, w: 3, h: 2, isResizable: false },
-  { i: "groups", x: 8, y: 6, w: 2, h: 2, isResizable: false },
+  { i: "recentSources", x: 0, y: 0, w: 4, h: 3, isResizable: false },
+  { i: "newsFeed", x: 4, y: 0, w: 4, h: 3, isResizable: false },
+  { i: "topSources", x: 0, y: 4, w: 4, h: 3, isResizable: false },
+  { i: "groups", x: 8, y: 0, w: 2, h: 2, isResizable: false },
 ];
 
 const smLayout = [
-  { i: "sourceList", x: 0, y: 0, w: 6, h: 6, isResizable: false },
-  { i: "newsFeed", x: 0, y: 6, w: 3, h: 3, isResizable: false },
-  { i: "topSources", x: 3, y: 6, w: 2, h: 2, isResizable: false },
-  { i: "groups", x: 5, y: 6, w: 1, h: 2, isResizable: false },
+  { i: "recentSources", x: 0, y: 3, w: 3, h: 4, isResizable: false },
+  { i: "newsFeed", x: 0, y: 0, w: 4, h: 3, isResizable: false },
+  { i: "topSources", x: 3, y: 3, w: 3, h: 4, isResizable: false },
+  { i: "groups", x: 4, y: 0, w: 2, h: 2, isResizable: false },
 ];
 
 const xsLayout = [
-  { i: "sourceList", x: 0, y: 0, w: 4, h: 6, isResizable: false },
-  { i: "newsFeed", x: 0, y: 6, w: 4, h: 3, isResizable: false },
-  { i: "topSources", x: 0, y: 9, w: 2, h: 2, isResizable: false },
-  { i: "groups", x: 2, y: 9, w: 2, h: 2, isResizable: false },
+  { i: "recentSources", x: 0, y: 3, w: 4, h: 3, isResizable: false },
+  { i: "newsFeed", x: 0, y: 0, w: 4, h: 3, isResizable: false },
+  { i: "topSources", x: 0, y: 7, w: 4, h: 3, isResizable: false },
+  { i: "groups", x: 0, y: 10, w: 2, h: 2, isResizable: false },
 ];
 
 const defaultLayouts = {
@@ -80,6 +85,10 @@ const HomePage = () => {
 
   const groups = useSelector((state) => state.groups.user);
 
+  const sourceTableEmpty = useSelector(
+    (state) => state.dbInfo.source_table_empty
+  );
+
   const preferredLayouts = useSelector(
     (state) => state.profile.preferences.layouts
   );
@@ -88,6 +97,10 @@ const HomePage = () => {
     preferredLayouts == null ? defaultLayouts : preferredLayouts;
 
   const dispatch = useDispatch();
+
+  if (sourceTableEmpty) {
+    return <UninitializedDBMessage />;
+  }
 
   const LayoutChangeHandler = (currentLayout, allLayouts) => {
     const prefs = {
@@ -101,14 +114,13 @@ const HomePage = () => {
     <ResponsiveGridLayout
       className="layout"
       layouts={currentLayouts}
-      breakpoints={{ xlg: 1400, lg: 1150, md: 996, sm: 768, xs: 480 }}
+      breakpoints={{ xlg: 1400, lg: 1150, md: 996, sm: 650, xs: 0 }}
       cols={{ xlg: 16, lg: 12, md: 10, sm: 6, xs: 4 }}
-      margin={[15, 15]}
       onLayoutChange={LayoutChangeHandler}
       draggableHandle=".dragHandle"
     >
-      <div key="sourceList">
-        <SourceList classes={classes} />
+      <div key="recentSources">
+        <RecentSources classes={classes} />
       </div>
       <div key="newsFeed">
         <NewsFeed classes={classes} />

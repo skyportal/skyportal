@@ -9,7 +9,7 @@ import Typography from "@material-ui/core/Typography";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
 
 const GroupList = ({ title, groups, classes }) => (
-  <Paper elevation={1} height="100%">
+  <Paper elevation={1} className={classes.widgetPaperFillSpace}>
     <div className={classes.widgetPaperDiv}>
       <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
       <Typography variant="h6">{title}</Typography>
@@ -35,6 +35,7 @@ GroupList.propTypes = {
   classes: PropTypes.shape({
     widgetPaperDiv: PropTypes.string.isRequired,
     widgetIcon: PropTypes.string.isRequired,
+    widgetPaperFillSpace: PropTypes.string.isRequired,
   }).isRequired,
 };
 GroupList.defaultProps = {
