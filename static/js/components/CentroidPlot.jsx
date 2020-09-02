@@ -328,9 +328,11 @@ const CentroidPlot = ({ sourceId }) => {
         <div
           className="centroid-plot-div"
           ref={(node) => {
-            embed(node, spec(plotData), {
-              actions: false,
-            });
+            if (node) {
+              embed(node, spec(plotData), {
+                actions: false,
+              });
+            }
           }}
         />
       );

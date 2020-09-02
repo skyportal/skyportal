@@ -75,6 +75,8 @@ Base.is_owned_by = is_owned_by
 
 
 class NumpyArray(sa.types.TypeDecorator):
+    """SQLAlchemy representation of a NumPy array."""
+
     impl = psql.ARRAY(sa.Float)
 
     def process_result_value(self, value, dialect):
@@ -82,56 +84,97 @@ class NumpyArray(sa.types.TypeDecorator):
 
 
 class Group(Base):
-    name = sa.Column(sa.String, unique=True, nullable=False)
+    """A user group. `Group`s controls `User` access to `Filter`s and serve as
+    targets for data sharing requests. `Photometry` and `Spectra` shared with
+    a `Group` will be visible to all its members. `Group`s maintain specific
+    `Stream` permissions. In order for a `User` to join a `Group`, the `User`
+    must have access to all of the `Group`'s data `Stream`s.
+    """
+
+    name = sa.Column(sa.String, unique=True, nullable=False, doc='Name of the group.')
 
     streams = relationship(
         'Stream',
         secondary='group_streams',
         back_populates='groups',
         passive_deletes=True,
+        doc='Stream access required for a User to become a member of the Group.',
     )
-    filters = relationship("Filter", back_populates="group", passive_deletes=True)
+    filters = relationship(
+        "Filter",
+        back_populates="group",
+        passive_deletes=True,
+        doc='All filters (not just active) associated with a group.',
+    )
 
     users = relationship(
-        'User', secondary='group_users', back_populates='groups', passive_deletes=True
+        'User',
+        secondary='group_users',
+        back_populates='groups',
+        passive_deletes=True,
+        doc='The members of this group.',
     )
+
     group_users = relationship(
         'GroupUser',
         back_populates='group',
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
+        doc='Elements of a join table mapping Users to Groups.',
     )
 
-    observing_runs = relationship('ObservingRun', back_populates='group')
+    observing_runs = relationship(
+        'ObservingRun',
+        back_populates='group',
+        doc='The observing runs associated with this group.',
+    )
     photometry = relationship(
         "Photometry",
         secondary="group_photometry",
         back_populates="groups",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
+        doc='The photometry visible to this group.',
     )
+
     spectra = relationship(
         "Spectrum",
         secondary="group_spectra",
         back_populates="groups",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
+        doc='The spectra visible to this group.',
     )
-    single_user_group = sa.Column(sa.Boolean, default=False)
+    single_user_group = sa.Column(
+        sa.Boolean,
+        default=False,
+        doc='Flag indicating whether this group '
+        'is a singleton group for one user only.',
+    )
     allocations = relationship(
         'Allocation',
         back_populates="group",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
+        doc="Allocations made to this group.",
     )
 
 
 GroupUser = join_model('group_users', Group, User)
-GroupUser.admin = sa.Column(sa.Boolean, nullable=False, default=False)
+GroupUser.__doc__ = "Join table mapping `Group`s to `User`s."
+
+GroupUser.admin = sa.Column(
+    sa.Boolean,
+    nullable=False,
+    default=False,
+    doc="Boolean flag indicating whether the User is an admin of the group.",
+)
 
 
 class Stream(Base):
-    name = sa.Column(sa.String, unique=True, nullable=False)
+    """A data stream producing alerts that can be programmatically filtered using a Filter."""
+
+    name = sa.Column(sa.String, unique=True, nullable=False, doc="Stream name.")
     altdata = sa.Column(
         JSONB,
         nullable=True,
@@ -144,31 +187,54 @@ class Stream(Base):
         secondary='group_streams',
         back_populates='streams',
         passive_deletes=True,
+        doc="The Groups with access to this Stream.",
     )
     users = relationship(
-        'User', secondary='stream_users', back_populates='streams', passive_deletes=True
+        'User',
+        secondary='stream_users',
+        back_populates='streams',
+        passive_deletes=True,
+        doc="The users with access to this stream.",
     )
-    filters = relationship('Filter', back_populates='stream', passive_deletes=True)
+    filters = relationship(
+        'Filter',
+        back_populates='stream',
+        passive_deletes=True,
+        doc="The filters with access to this stream.",
+    )
 
 
 GroupStream = join_model('group_streams', Group, Stream)
+GroupStream.__doc__ = "Join table mapping Groups to Streams."
 
 
 StreamUser = join_model('stream_users', Stream, User)
+StreamUser.__doc__ = "Join table mapping Streams to Users."
 
 
 User.groups = relationship(
-    'Group', secondary='group_users', back_populates='users', passive_deletes=True
+    'Group',
+    secondary='group_users',
+    back_populates='users',
+    passive_deletes=True,
+    doc="The Groups this User is a member of.",
 )
 
 
 User.streams = relationship(
-    'Stream', secondary='stream_users', back_populates='users', passive_deletes=True
+    'Stream',
+    secondary='stream_users',
+    back_populates='users',
+    passive_deletes=True,
+    doc="The Streams this User has access to.",
 )
 
 
 @property
 def user_or_token_accessible_groups(self):
+    """Return the list of Groups a User or Token has access to. For non-admin
+    Users or Token owners, this corresponds to the Groups they are a member of.
+    For System Admins, this corresponds to all Groups."""
     if "System admin" in [acl.id for acl in self.acls]:
         return Group.query.all()
     return self.groups
@@ -180,6 +246,7 @@ Token.accessible_groups = user_or_token_accessible_groups
 
 @property
 def token_groups(self):
+    """The groups the Token owner is a member of."""
     return self.created_by.groups
 
 
@@ -187,17 +254,32 @@ Token.groups = token_groups
 
 
 class Obj(Base, ha.Point):
-    id = sa.Column(sa.String, primary_key=True)
+    """A record of an astronomical Object and its metadata, such as position,
+    positional uncertainties, name, and redshift. Permissioning rules,
+    such as group ownership, user visibility, etc., are managed by other
+    entities, namely Source and Candidate."""
+
+    id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
     # TODO should this column type be decimal? fixed-precison numeric
 
-    ra_dis = sa.Column(sa.Float)
-    dec_dis = sa.Column(sa.Float)
+    ra_dis = sa.Column(sa.Float, doc="J2000 Right Ascension at discovery time [deg].")
+    dec_dis = sa.Column(sa.Float, doc="J2000 Declination at discovery time [deg].")
 
-    ra_err = sa.Column(sa.Float, nullable=True)
-    dec_err = sa.Column(sa.Float, nullable=True)
+    ra_err = sa.Column(
+        sa.Float,
+        nullable=True,
+        doc="Error on J2000 Right Ascension at discovery time [deg].",
+    )
+    dec_err = sa.Column(
+        sa.Float,
+        nullable=True,
+        doc="Error on J2000 Declination at discovery time [deg].",
+    )
 
-    offset = sa.Column(sa.Float, default=0.0)
-    redshift = sa.Column(sa.Float, nullable=True)
+    offset = sa.Column(
+        sa.Float, default=0.0, doc="Offset from nearest static object [arcsec]."
+    )
+    redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.")
 
     # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
     altdata = sa.Column(
@@ -207,17 +289,35 @@ class Obj(Base, ha.Point):
         "`{'gaia': {'info': {'Teff': 5780}}}`",
     )
 
-    dist_nearest_source = sa.Column(sa.Float, nullable=True)
-    mag_nearest_source = sa.Column(sa.Float, nullable=True)
-    e_mag_nearest_source = sa.Column(sa.Float, nullable=True)
+    dist_nearest_source = sa.Column(
+        sa.Float, nullable=True, doc="Distance to the nearest Obj [arcsec]."
+    )
+    mag_nearest_source = sa.Column(
+        sa.Float, nullable=True, doc="Magnitude of the nearest Obj [AB]."
+    )
+    e_mag_nearest_source = sa.Column(
+        sa.Float, nullable=True, doc="Error on magnitude of the nearest Obj [mag]."
+    )
 
-    transient = sa.Column(sa.Boolean, default=False)
-    varstar = sa.Column(sa.Boolean, default=False)
-    is_roid = sa.Column(sa.Boolean, default=False)
+    transient = sa.Column(
+        sa.Boolean,
+        default=False,
+        doc="Boolean indicating whether the object is an astrophysical transient.",
+    )
+    varstar = sa.Column(
+        sa.Boolean,
+        default=False,
+        doc="Boolean indicating whether the object is a variable star.",
+    )
+    is_roid = sa.Column(
+        sa.Boolean,
+        default=False,
+        doc="Boolean indicating whether the object is a moving object.",
+    )
 
-    score = sa.Column(sa.Float, nullable=True)
+    score = sa.Column(sa.Float, nullable=True, doc="Machine learning score.")
 
-    origin = sa.Column(sa.String, nullable=True)
+    origin = sa.Column(sa.String, nullable=True, doc="Origin of the object.")
 
     comments = relationship(
         'Comment',
@@ -225,6 +325,7 @@ class Obj(Base, ha.Point):
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
         order_by="Comment.created_at",
+        doc="Comments posted about the object.",
     )
 
     classifications = relationship(
@@ -233,6 +334,7 @@ class Obj(Base, ha.Point):
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
         order_by="Classification.created_at",
+        doc="Classifications of the object.",
     )
 
     photometry = relationship(
@@ -242,9 +344,14 @@ class Obj(Base, ha.Point):
         single_parent=True,
         passive_deletes=True,
         order_by="Photometry.mjd",
+        doc="Photometry of the object.",
     )
 
-    detect_photometry_count = sa.Column(sa.Integer, nullable=True)
+    detect_photometry_count = sa.Column(
+        sa.Integer,
+        nullable=True,
+        doc="How many times the object was detected above :math:`S/N = 5`.",
+    )
 
     spectra = relationship(
         'Spectrum',
@@ -253,6 +360,7 @@ class Obj(Base, ha.Point):
         single_parent=True,
         passive_deletes=True,
         order_by="Spectrum.observed_at",
+        doc="Spectra of the object.",
     )
     thumbnails = relationship(
         'Thumbnail',
@@ -260,18 +368,29 @@ class Obj(Base, ha.Point):
         secondary='photometry',
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
+        doc="Thumbnails of the object.",
     )
 
-    followup_requests = relationship('FollowupRequest', back_populates='obj')
-    assignments = relationship('ClassicalAssignment', back_populates='obj')
+    followup_requests = relationship(
+        'FollowupRequest',
+        back_populates='obj',
+        doc="Robotic follow-up requests of the object.",
+    )
+    assignments = relationship(
+        'ClassicalAssignment',
+        back_populates='obj',
+        doc="Assignments of the object to classical observing runs.",
+    )
 
     @hybrid_property
     def last_detected(self):
+        """UTC ISO date at which the object was last detected above a S/N of 5."""
         detections = [phot.iso for phot in self.photometry if phot.snr and phot.snr > 5]
         return max(detections) if detections else None
 
     @last_detected.expression
     def last_detected(cls):
+        """UTC ISO date at which the object was last detected above a S/N of 5."""
         return (
             sa.select([sa.func.max(Photometry.iso)])
             .where(Photometry.obj_id == cls.id)
@@ -281,6 +400,8 @@ class Obj(Base, ha.Point):
         )
 
     def add_linked_thumbnails(self):
+        """Determine the URLs of the SDSS and DESI DR8 thumbnails of the object,
+        insert them into the Thumbnails table, and link them to the object."""
         sdss_thumb = Thumbnail(
             photometry=self.photometry[0], public_url=self.sdss_url, type='sdss'
         )
@@ -309,7 +430,8 @@ class Obj(Base, ha.Point):
 
     @property
     def target(self):
-        """Representation of this Obj as an astroplan.FixedTarget."""
+        """Representation of the RA and Dec of this Obj as an
+        astroplan.FixedTarget."""
         coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
         return astroplan.FixedTarget(name=self.id, coord=coord)
 
@@ -389,23 +511,71 @@ class Obj(Base, ha.Point):
 
 
 class Filter(Base):
-    name = sa.Column(sa.String, nullable=False, unique=False)
+    """An alert filter that operates on a Stream. A Filter is associated
+    with exactly one Group, and a Group may have multiple operational Filters.
+    """
+
+    name = sa.Column(sa.String, nullable=False, unique=False, doc="Filter name.")
     stream_id = sa.Column(
-        sa.ForeignKey("streams.id", ondelete="CASCADE"), nullable=False, index=True
+        sa.ForeignKey("streams.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the Filter's Stream.",
     )
-    stream = relationship("Stream", foreign_keys=[stream_id], back_populates="filters")
+    stream = relationship(
+        "Stream",
+        foreign_keys=[stream_id],
+        back_populates="filters",
+        doc="The Filter's Stream.",
+    )
     group_id = sa.Column(
-        sa.ForeignKey("groups.id", ondelete="CASCADE"), nullable=False, index=True
+        sa.ForeignKey("groups.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the Filter's Group.",
     )
-    group = relationship("Group", foreign_keys=[group_id], back_populates="filters")
+    group = relationship(
+        "Group",
+        foreign_keys=[group_id],
+        back_populates="filters",
+        doc="The Filter's Group.",
+    )
 
 
 Candidate = join_model("candidates", Filter, Obj)
-Candidate.passed_at = sa.Column(sa.DateTime, nullable=True)
-Candidate.passing_alert_id = sa.Column(sa.BigInteger)
+Candidate.__doc__ = (
+    "An Obj that passed a Filter, becoming scannable on the " "Filter's scanning page."
+)
+Candidate.passed_at = sa.Column(
+    sa.DateTime, nullable=True, doc="ISO UTC time when the Candidate passed the Filter."
+)
+
+Candidate.passing_alert_id = sa.Column(
+    sa.BigInteger, doc="ID of the Stream alert that passed the Filter."
+)
 
 
 def get_candidate_if_owned_by(obj_id, user_or_token, options=[]):
+    """Return an Obj from the database if the Obj is a Candidate in at least
+    one of the requesting User or Token owner's accessible Groups. If the Obj is not a
+    Candidate in one of the User or Token owner's accessible Groups, raise an AccessError.
+    If the Obj does not exist, return `None`.
+
+    Parameters
+    ----------
+    obj_id : integer or string
+       Primary key of the Obj.
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+    options : list of `sqlalchemy.orm.MapperOption`s
+       Options that wil be passed to `options()` in the loader query.
+
+    Returns
+    -------
+    obj : `skyportal.models.Obj`
+       The requested Obj.
+    """
+
     if Candidate.query.filter(Candidate.obj_id == obj_id).first() is None:
         return None
     user_group_ids = [g.id for g in user_or_token.accessible_groups]
@@ -425,6 +595,20 @@ def get_candidate_if_owned_by(obj_id, user_or_token, options=[]):
 
 
 def candidate_is_owned_by(self, user_or_token):
+    """Return a boolean indicating whether the Candidate passed the Filter
+    of any of a User or Token owner's accessible Groups.
+
+
+    Parameters
+    ----------
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    owned : bool
+       Whether the Candidate is owned by the User or Token owner.
+    """
     return self.filter.group in user_or_token.accessible_groups
 
 
@@ -433,26 +617,70 @@ Candidate.is_owned_by = candidate_is_owned_by
 
 
 Source = join_model("sources", Group, Obj)
-"""User.sources defines the logic for whether a user has access to a source;
-   if this gets more complicated it should become a function/`hybrid_property`
-   rather than a `relationship`.
-"""
+Source.__doc__ = (
+    "An Obj that has been saved to a Group. Once an Obj is saved as a Source, "
+    "the Obj is shielded in perpetuity from automatic database removal. "
+    "If a Source is 'unsaved', its 'active' flag is set to False, but "
+    "it is not purged."
+)
+
 Source.saved_by_id = sa.Column(
-    sa.ForeignKey("users.id"), nullable=True, unique=False, index=True
+    sa.ForeignKey("users.id"),
+    nullable=True,
+    unique=False,
+    index=True,
+    doc="ID of the User that saved the Obj to its Group.",
 )
 Source.saved_by = relationship(
-    "User", foreign_keys=[Source.saved_by_id], backref="saved_sources"
+    "User",
+    foreign_keys=[Source.saved_by_id],
+    backref="saved_sources",
+    doc="User that saved the Obj to its Group.",
 )
-Source.saved_at = sa.Column(sa.DateTime, nullable=True)
-Source.active = sa.Column(sa.Boolean, server_default="true")
-Source.requested = sa.Column(sa.Boolean, server_default="false")
+Source.saved_at = sa.Column(
+    sa.DateTime, nullable=True, doc="ISO UTC time when the Obj was saved to its Group."
+)
+Source.active = sa.Column(
+    sa.Boolean,
+    server_default="true",
+    doc="Whether the Obj is still 'active' as a Source in its Group. "
+    "If this flag is set to False, the Source will not appear in the Group's "
+    "sample.",
+)
+Source.requested = sa.Column(
+    sa.Boolean,
+    server_default="false",
+    doc="True if the source has been shared with another Group, but not saved "
+    "by the recipient Group.",
+)
+
 Source.unsaved_by_id = sa.Column(
-    sa.ForeignKey("users.id"), nullable=True, unique=False, index=True
+    sa.ForeignKey("users.id"),
+    nullable=True,
+    unique=False,
+    index=True,
+    doc="ID of the User who unsaved the Source.",
 )
-Source.unsaved_by = relationship("User", foreign_keys=[Source.unsaved_by_id])
+Source.unsaved_by = relationship(
+    "User", foreign_keys=[Source.unsaved_by_id], doc="User who unsaved the Source."
+)
 
 
 def source_is_owned_by(self, user_or_token):
+    """Return a boolean indicating whether the Source has been saved to
+    any of a User or Token owner's accessible Groups.
+
+    Parameters
+    ----------
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    owned : bool
+       Whether the Candidate is owned by the User or Token owner.
+    """
+
     source_group_ids = [
         row[0]
         for row in DBSession.query(Source.group_id)
@@ -463,6 +691,26 @@ def source_is_owned_by(self, user_or_token):
 
 
 def get_source_if_owned_by(obj_id, user_or_token, options=[]):
+    """Return an Obj from the database if the Obj is a Source in at least
+    one of the requesting User or Token owner's accessible Groups. If the Obj is not a
+    Source in one of the User or Token owner's accessible Groups, raise an AccessError.
+    If the Obj does not exist, return `None`.
+
+    Parameters
+    ----------
+    obj_id : integer or string
+       Primary key of the Obj.
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+    options : list of `sqlalchemy.orm.MapperOption`s
+       Options that wil be passed to `options()` in the loader query.
+
+    Returns
+    -------
+    obj : `skyportal.models.Obj`
+       The requested Obj.
+    """
+
     if Source.query.filter(Source.obj_id == obj_id).first() is None:
         return None
     user_group_ids = [g.id for g in user_or_token.accessible_groups]
@@ -482,6 +730,26 @@ Source.get_obj_if_owned_by = get_source_if_owned_by
 
 
 def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
+    """Return an Obj from the database if the Obj is either a Source or a Candidate in at least
+    one of the requesting User or Token owner's accessible Groups. If the Obj is not a
+    Source or a Candidate in one of the User or Token owner's accessible Groups, raise an AccessError.
+    If the Obj does not exist, return `None`.
+
+    Parameters
+    ----------
+    obj_id : integer or string
+       Primary key of the Obj.
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+    options : list of `sqlalchemy.orm.MapperOption`s
+       Options that wil be passed to `options()` in the loader query.
+
+    Returns
+    -------
+    obj : `skyportal.models.Obj`
+       The requested Obj.
+    """
+
     if Obj.query.get(obj_id) is None:
         return None
     try:
@@ -504,6 +772,19 @@ Obj.get_if_owned_by = get_obj_if_owned_by
 
 
 def get_obj_comments_owned_by(self, user_or_token):
+    """Query the database and return the Comments on this Obj that are accessible
+    to any of the User or Token owner's accessible Groups.
+
+    Parameters
+    ----------
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    comment_list : list of `skyportal.models.Comment`
+       The accessible comments attached to this Obj.
+    """
     owned_comments = [
         comment for comment in self.comments if comment.is_owned_by(user_or_token)
     ]
@@ -519,6 +800,19 @@ Obj.get_comments_owned_by = get_obj_comments_owned_by
 
 
 def get_obj_classifications_owned_by(self, user_or_token):
+    """Query the database and return the Classifications on this Obj that are accessible
+    to any of the User or Token owner's accessible Groups.
+
+    Parameters
+    ----------
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    comment_list : list of `skyportal.models.Classification`
+       The accessible classifications attached to this Obj.
+    """
     return [
         classifications
         for classifications in self.classifications
@@ -530,6 +824,21 @@ Obj.get_classifications_owned_by = get_obj_classifications_owned_by
 
 
 def get_photometry_owned_by_user(obj_id, user_or_token):
+    """Query the database and return the Photometry for this Obj that is shared
+    with any of the User or Token owner's accessible Groups.
+
+    Parameters
+    ----------
+    obj_id : string
+       The ID of the Obj to look up.
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    photometry_list : list of `skyportal.models.Photometry`
+       The accessible Photometry of this Obj.
+    """
     return (
         Photometry.query.filter(Photometry.obj_id == obj_id)
         .filter(
@@ -545,6 +854,22 @@ Obj.get_photometry_owned_by_user = get_photometry_owned_by_user
 
 
 def get_spectra_owned_by(obj_id, user_or_token):
+    """Query the database and return the Spectra for this Obj that are shared
+    with any of the User or Token owner's accessible Groups.
+
+    Parameters
+    ----------
+    obj_id : string
+       The ID of the Obj to look up.
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    photometry_list : list of `skyportal.models.Spectrum`
+       The accessible Spectra of this Obj.
+    """
+
     return (
         Spectrum.query.filter(Spectrum.obj_id == obj_id)
         .filter(
@@ -565,26 +890,56 @@ User.sources = relationship(
     secondary='join(Group, sources).join(group_users)',
     primaryjoin='group_users.c.user_id == users.c.id',
     passive_deletes=True,
+    doc='The Sources accessible to this User.',
 )
 
 
 class SourceView(Base):
+    """Record of an instance in which a Source was viewed via the frontend or
+    retrieved via the API (for use in the "Top Sources" widget).
+    """
+
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
         nullable=False,
         unique=False,
         index=True,
+        doc="Object ID for which the view was registered.",
     )
-    username_or_token_id = sa.Column(sa.String, nullable=False, unique=False)
-    is_token = sa.Column(sa.Boolean, nullable=False, default=False)
+    username_or_token_id = sa.Column(
+        sa.String,
+        nullable=False,
+        unique=False,
+        doc="Username or token ID of the viewer.",
+    )
+    is_token = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=False,
+        doc="Whether the viewer was a User or a Token.",
+    )
     created_at = sa.Column(
-        sa.DateTime, nullable=False, default=datetime.now, index=True
+        sa.DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        index=True,
+        doc="UTC timestamp of the view.",
     )
 
 
 class Telescope(Base):
-    name = sa.Column(sa.String, unique=True, nullable=False)
-    nickname = sa.Column(sa.String, nullable=False)
+    """A ground or space-based observational facility that can host Instruments.
+    """
+
+    name = sa.Column(
+        sa.String,
+        unique=True,
+        nullable=False,
+        doc="Unabbreviated facility name (e.g., Palomar 200-inch Hale Telescope).",
+    )
+    nickname = sa.Column(
+        sa.String, nullable=False, doc="Abbreviated facility name (e.g., P200)."
+    )
     lat = sa.Column(sa.Float, nullable=True, doc='Latitude in deg.')
     lon = sa.Column(sa.Float, nullable=True, doc='Longitude in deg.')
     elevation = sa.Column(sa.Float, nullable=True, doc='Elevation in meters.')
@@ -601,10 +956,14 @@ class Telescope(Base):
         back_populates='telescope',
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
+        doc="The Instruments on this telescope.",
     )
 
     @property
     def observer(self):
+        """Return an `astroplan.Observer` representing an observer at this
+        facility, accounting for the latitude, longitude, elevation, and
+        local time zone of the observatory (if ground based)."""
         tf = timezonefinder.TimezoneFinder()
         local_tz = tf.timezone_at(lng=self.lon, lat=self.lat)
         return astroplan.Observer(
@@ -635,42 +994,78 @@ class ArrayOfEnum(ARRAY):
 
 
 class Instrument(Base):
-    name = sa.Column(sa.String, unique=True, nullable=False)
-    type = sa.Column(instrument_types, nullable=False)
+    """An instrument attached to a telescope."""
 
-    band = sa.Column(sa.String)
-    telescope_id = sa.Column(
-        sa.ForeignKey('telescopes.id', ondelete='CASCADE'), nullable=False, index=True
+    name = sa.Column(sa.String, unique=True, nullable=False, doc="Instrument name.")
+    type = sa.Column(
+        instrument_types,
+        nullable=False,
+        doc="Instrument type, one of Imager, Spectrograph, or Imaging Spectrograph.",
     )
-    telescope = relationship('Telescope', back_populates='instruments')
 
-    followup_requests = relationship('FollowupRequest', back_populates='instrument')
+    band = sa.Column(
+        sa.String,
+        doc="The spectral band covered by the instrument " "(e.g., Optical, IR).",
+    )
+    telescope_id = sa.Column(
+        sa.ForeignKey('telescopes.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the Telescope that hosts the Instrument.",
+    )
+    telescope = relationship(
+        'Telescope',
+        back_populates='instruments',
+        doc="The Telescope that hosts the Instrument.",
+    )
 
-    photometry = relationship('Photometry', back_populates='instrument')
-    spectra = relationship('Spectrum', back_populates='instrument')
+    followup_requests = relationship(
+        'FollowupRequest',
+        back_populates='instrument',
+        doc="The robotic follow-up requests made on this instrument.",
+    )
+
+    photometry = relationship(
+        'Photometry',
+        back_populates='instrument',
+        doc="The Photometry produced by this instrument.",
+    )
+    spectra = relationship(
+        'Spectrum',
+        back_populates='instrument',
+        doc="The Spectra produced by this instrument.",
+    )
 
     # can be [] if an instrument is spec only
     filters = sa.Column(
         ArrayOfEnum(allowed_bandpasses),
         nullable=False,
         default=[],
-        doc='List of filters on the instrument ' '(if any).',
+        doc='List of filters on the instrument (if any).',
     )
 
-    observing_runs = relationship('ObservingRun', back_populates='instrument')
     allocations = relationship(
         'Allocation',
         back_populates="instrument",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
     )
+    observing_runs = relationship(
+        'ObservingRun',
+        back_populates='instrument',
+        doc="List of ObservingRuns on the Instrument.",
+    )
 
     @property
     def does_spectroscopy(self):
+        """Return a boolean indicating whether the instrument is capable of
+        performing spectroscopy."""
         return 'spec' in self.type
 
     @property
     def does_imaging(self):
+        """Return a boolean indicating whether the instrument is capable of
+        performing imaging."""
         return 'imag' in self.type
 
 
@@ -719,6 +1114,8 @@ class Allocation(Base):
 
 
 class Taxonomy(Base):
+    """An ontology within which Objs can be classified."""
+
     __tablename__ = 'taxonomies'
     name = sa.Column(
         sa.String,
@@ -730,14 +1127,14 @@ class Taxonomy(Base):
         nullable=False,
         doc='Nested JSON describing the taxonomy '
         'which should be validated against '
-        'a schema before entry',
+        'a schema before entry.',
     )
     provenance = sa.Column(
         sa.String,
         nullable=True,
         doc='Identifier (e.g., URL or git hash) that '
         'uniquely ties this taxonomy back '
-        'to an origin or place of record',
+        'to an origin or place of record.',
     )
     version = sa.Column(
         sa.String, nullable=False, doc='Semantic version of this taxonomy'
@@ -756,6 +1153,7 @@ class Taxonomy(Base):
         secondary="group_taxonomy",
         cascade="save-update," "merge, refresh-expire, expunge",
         passive_deletes=True,
+        doc="List of Groups that have access to this Taxonomy.",
     )
 
     classifications = relationship(
@@ -764,13 +1162,32 @@ class Taxonomy(Base):
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
         order_by="Classification.created_at",
+        doc="Classifications made within this Taxonomy.",
     )
 
 
 GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
+GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
 
 
 def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
+    """Query the database and return the requested Taxonomy if it is accessible
+    to the requesting User or Token owner. If the Taxonomy is not accessible or
+    if it does not exist, return `None`.
+
+    Parameters
+    ----------
+    taxonomy_id : integer
+       The ID of the requested Taxonomy.
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    tax : `skyportal.models.Taxonomy`
+       The requested Taxonomy.
+    """
+
     return (
         Taxonomy.query.filter(Taxonomy.id == taxonomy_id)
         .filter(Taxonomy.groups.any(Group.id.in_([g.id for g in user_or_token.groups])))
@@ -782,29 +1199,45 @@ Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
 
 
 class Comment(Base):
+    """A comment made by a User or a Robot (via the API) on a Source."""
 
-    text = sa.Column(sa.String, nullable=False)
+    text = sa.Column(sa.String, nullable=False, doc="Comment body.")
     ctype = sa.Column(
-        sa.Enum('text', 'redshift', name='comment_types', validate_strings=True)
+        sa.Enum('text', 'redshift', name='comment_types', validate_strings=True),
+        doc="Comment type. Can be one of 'text' or 'redshift'.",
     )
 
-    attachment_name = sa.Column(sa.String, nullable=True)
-    attachment_type = sa.Column(sa.String, nullable=True)
-    attachment_bytes = sa.Column(sa.types.LargeBinary, nullable=True)
+    attachment_name = sa.Column(
+        sa.String, nullable=True, doc="Filename of the attachment."
+    )
+    attachment_type = sa.Column(
+        sa.String, nullable=True, doc="Attachment extension, (e.g., pdf, png)."
+    )
+    attachment_bytes = sa.Column(
+        sa.types.LargeBinary,
+        nullable=True,
+        doc="Binary representation of the attachment.",
+    )
 
-    origin = sa.Column(sa.String, nullable=True)
-
-    author = sa.Column(sa.String, nullable=False)
-
+    origin = sa.Column(sa.String, nullable=True, doc='Comment origin.')
+    author = sa.Column(
+        sa.String,
+        nullable=False,
+        doc="User.username or Token.id " "of the Comment's author.",
+    )
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Comment's Obj.",
     )
-    obj = relationship('Obj', back_populates='comments')
+    obj = relationship('Obj', back_populates='comments', doc="The Comment's Obj.")
     groups = relationship(
         "Group",
         secondary="group_comments",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
+        doc="Groups that can see the comment.",
     )
 
     def construct_author_info_dict(self):
@@ -828,41 +1261,67 @@ class Comment(Base):
 
 
 GroupComment = join_model("group_comments", Group, Comment)
+GroupComment.__doc__ = "Join table mapping Groups to Comments."
 
 
 class Classification(Base):
-    classification = sa.Column(sa.String, nullable=False)
+    """Classification of an Obj."""
+
+    classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
     taxonomy_id = sa.Column(
-        sa.ForeignKey('taxonomies.id', ondelete='CASCADE'), nullable=False, index=True
+        sa.ForeignKey('taxonomies.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Taxonomy in which this Classification was made.",
     )
-    taxonomy = relationship('Taxonomy', back_populates='classifications')
+    taxonomy = relationship(
+        'Taxonomy',
+        back_populates='classifications',
+        doc="Taxonomy in which this Classification was made.",
+    )
     probability = sa.Column(
         sa.Float,
-        doc='User-assigned probability of belonging ' 'to this class',
+        doc='User-assigned probability of belonging to this class',
         nullable=True,
     )
 
     author_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the User that made this Classification",
     )
-    author = relationship('User')
-    author_name = sa.Column(sa.String, nullable=False)
+    author = relationship('User', doc="The User that made this classification.")
+    author_name = sa.Column(
+        sa.String,
+        nullable=False,
+        doc="User.username or Token.id " "of the Classification's author.",
+    )
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Classification's Obj.",
     )
-    obj = relationship('Obj', back_populates='classifications')
+    obj = relationship(
+        'Obj', back_populates='classifications', doc="The Classification's Obj."
+    )
     groups = relationship(
         "Group",
         secondary="group_classifications",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
+        doc="Groups that can access this Classification.",
     )
 
 
 GroupClassifications = join_model("group_classifications", Group, Classification)
+GroupClassifications.__doc__ = "Join table mapping Groups to Classifications."
 
 
 class Photometry(Base, ha.Point):
+    """Calibrated measurement of the flux of an object through a broadband filter."""
+
     __tablename__ = 'photometry'
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.')
     flux = sa.Column(
@@ -893,26 +1352,49 @@ class Photometry(Base, ha.Point):
         'schema.PhotometryFlux or schema.PhotometryMag '
         '(depending on how the data was passed).',
     )
-    altdata = sa.Column(JSONB)
-    upload_id = sa.Column(sa.String, nullable=False, default=lambda: str(uuid.uuid4()))
-    alert_id = sa.Column(sa.BigInteger, nullable=True, unique=True)
+    altdata = sa.Column(JSONB, doc="Arbitrary metadata in JSON format..")
+    upload_id = sa.Column(
+        sa.String,
+        nullable=False,
+        default=lambda: str(uuid.uuid4()),
+        doc="ID of the batch in which this Photometry was uploaded (for bulk deletes).",
+    )
+    alert_id = sa.Column(
+        sa.BigInteger,
+        nullable=True,
+        unique=True,
+        doc="ID of the alert from which this Photometry was extracted (if any).",
+    )
 
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Photometry's Obj.",
     )
-    obj = relationship('Obj', back_populates='photometry')
+    obj = relationship('Obj', back_populates='photometry', doc="The Photometry's Obj.")
     groups = relationship(
         "Group",
         secondary="group_photometry",
         back_populates="photometry",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
+        doc="Groups that can access this Photometry.",
     )
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id'), nullable=False, index=True
+        sa.ForeignKey('instruments.id'),
+        nullable=False,
+        index=True,
+        doc="ID of the Instrument that took this Photometry.",
     )
-    instrument = relationship('Instrument', back_populates='photometry')
-    thumbnails = relationship('Thumbnail', passive_deletes=True)
+    instrument = relationship(
+        'Instrument',
+        back_populates='photometry',
+        doc="Instrument that took this Photometry.",
+    )
+    thumbnails = relationship(
+        'Thumbnail', passive_deletes=True, doc="Thumbnails for this Photometry."
+    )
 
     followup_request_id = sa.Column(
         sa.ForeignKey('followuprequests.id'), nullable=True, index=True
@@ -926,6 +1408,7 @@ class Photometry(Base, ha.Point):
 
     @hybrid_property
     def mag(self):
+        """The magnitude of the photometry point in the AB system."""
         if self.flux is not None and self.flux > 0:
             return -2.5 * np.log10(self.flux) + PHOT_ZP
         else:
@@ -933,6 +1416,7 @@ class Photometry(Base, ha.Point):
 
     @hybrid_property
     def e_mag(self):
+        """The error on the magnitude of the photometry point."""
         if self.flux is not None and self.flux > 0 and self.fluxerr > 0:
             return (2.5 / np.log(10)) * (self.fluxerr / self.flux)
         else:
@@ -940,6 +1424,7 @@ class Photometry(Base, ha.Point):
 
     @mag.expression
     def mag(cls):
+        """The magnitude of the photometry point in the AB system."""
         return sa.case(
             [
                 (
@@ -952,6 +1437,7 @@ class Photometry(Base, ha.Point):
 
     @e_mag.expression
     def e_mag(cls):
+        """The error on the magnitude of the photometry point."""
         return sa.case(
             [
                 (
@@ -966,54 +1452,87 @@ class Photometry(Base, ha.Point):
 
     @hybrid_property
     def jd(self):
+        """Julian Date of the exposure that produced this Photometry."""
         return self.mjd + 2_400_000.5
 
     @hybrid_property
     def iso(self):
+        """UTC ISO timestamp (ArrowType) of the exposure that produced this Photometry."""
         return arrow.get((self.mjd - 40_587.5) * 86400.0)
 
     @iso.expression
     def iso(cls):
+        """UTC ISO timestamp (ArrowType) of the exposure that produced this Photometry."""
         # converts MJD to unix timestamp
         local = sa.func.to_timestamp((cls.mjd - 40_587.5) * 86400.0)
         return sa.func.timezone('UTC', local)
 
     @hybrid_property
     def snr(self):
+        """Signal-to-noise ratio of this Photometry point."""
         return self.flux / self.fluxerr if self.flux and self.fluxerr else None
 
     @snr.expression
     def snr(self):
+        """Signal-to-noise ratio of this Photometry point."""
         return self.flux / self.fluxerr
 
 
 GroupPhotometry = join_model("group_photometry", Group, Photometry)
+GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 
 
 class Spectrum(Base):
+    """Wavelength-dependent measurement of the flux of an object through a
+    dispersive element."""
+
     __tablename__ = 'spectra'
     # TODO better numpy integration
-    wavelengths = sa.Column(NumpyArray, nullable=False)
-    fluxes = sa.Column(NumpyArray, nullable=False)
-    errors = sa.Column(NumpyArray)
+    wavelengths = sa.Column(
+        NumpyArray, nullable=False, doc="Wavelengths of the spectrum [Angstrom]."
+    )
+    fluxes = sa.Column(
+        NumpyArray,
+        nullable=False,
+        doc="Flux of the Spectrum [F_lambda, arbitrary units].",
+    )
+    errors = sa.Column(
+        NumpyArray,
+        doc="Errors on the fluxes of the spectrum [F_lambda, same units as `fluxes`.]",
+    )
 
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of this Spectrum's Obj.",
     )
-    obj = relationship('Obj', back_populates='spectra')
-    observed_at = sa.Column(sa.DateTime, nullable=False)
-    origin = sa.Column(sa.String, nullable=True)
+    obj = relationship('Obj', back_populates='spectra', doc="The Spectrum's Obj.")
+    observed_at = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        doc="Median UTC ISO time stamp of the exposure or exposures in which the Spectrum was acquired.",
+    )
+    origin = sa.Column(sa.String, nullable=True, doc="Origin of the spectrum.")
     # TODO program?
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id', ondelete='CASCADE'), nullable=False, index=True
+        sa.ForeignKey('instruments.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Instrument that acquired the Spectrum.",
     )
-    instrument = relationship('Instrument', back_populates='spectra')
+    instrument = relationship(
+        'Instrument',
+        back_populates='spectra',
+        doc="The Instrument that acquired the Spectrum.",
+    )
     groups = relationship(
         "Group",
         secondary="group_spectra",
         back_populates="spectra",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
+        doc='Groups that can view this spectrum.',
     )
 
     followup_request_id = sa.Column(sa.ForeignKey('followuprequests.id'), nullable=True)
@@ -1024,6 +1543,27 @@ class Spectrum(Base):
 
     @classmethod
     def from_ascii(cls, filename, obj_id, instrument_id, observed_at):
+        """Generate a `Spectrum` from an ascii file.
+
+        Parameters
+        ----------
+
+        filename : str
+           The name of the ASCII file containing the spectrum.
+        obj_id : str
+           The name of the Spectrum's Obj.
+        instrument_id : int
+           ID of the Instrument with which this Spectrum was acquired.
+        observed_at : string or datetime
+           Median UTC ISO time stamp of the exposure or exposures in which the Spectrum was acquired."
+
+        Returns
+        -------
+
+        spec : `skyportal.models.Spectrum`
+           The Spectrum generated from the ASCII file.
+
+        """
         data = np.loadtxt(filename)
         if data.shape[1] != 2:  # TODO support other formats
             raise ValueError(f"Expected 2 columns, got {data.shape[1]}")
@@ -1038,6 +1578,7 @@ class Spectrum(Base):
 
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
+GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
 
 
 # def format_public_url(context):
@@ -1054,96 +1595,203 @@ GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 
 
 class FollowupRequest(Base):
-    requester = relationship(User, back_populates='followup_requests')
+    """A request for follow-up data (spectroscopy, photometry, or both) using a
+    robotic instrument."""
+
+    requester = relationship(
+        User,
+        back_populates='followup_requests',
+        doc="The User who requested the follow-up.",
+    )
     requester_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the User who requested the follow-up.",
     )
-    obj = relationship('Obj', back_populates='followup_requests')
+    obj = relationship('Obj', back_populates='followup_requests', doc="The target Obj.")
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the target Obj.",
     )
-    instrument = relationship(Instrument, back_populates='followup_requests')
+    instrument = relationship(
+        Instrument,
+        back_populates='followup_requests',
+        doc="Instrument on which follow-up was requested.",
+    )
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id'), nullable=False, index=True
+        sa.ForeignKey('instruments.id'),
+        nullable=False,
+        index=True,
+        doc='ID of the Instrument on which follow-up was requested.',
+    )
+    start_date = sa.Column(
+        ArrowType,
+        nullable=False,
+        doc='UTC timestamp indicating when the request becomes active.',
+    )
+    end_date = sa.Column(
+        ArrowType,
+        nullable=False,
+        doc='UTC timestamp indicating when the request expires.',
+    )
+    filters = sa.Column(
+        psql.ARRAY(sa.String), nullable=True, doc='Filters requested for Photometry.'
+    )
+    exposure_time = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="Exposure time of the follow-up observations [sec].",
+    )
+    priority = sa.Column(
+        sa.Enum('1', '2', '3', '4', '5', name='priority'),
+        doc="Priority of the request (1 = lowest, 5 = highest).",
+    )
+    editable = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=True,
+        doc="Whether the request can be modified after it is submitted.",
+    )
+    status = sa.Column(
+        sa.String(), nullable=False, default="pending", doc="Status of the request."
     )
 
-    spectra = relationship("Spectrum", back_populates="followup_request")
-    photometry = relationship("Photometry", back_populates="followup_request")
-
-    start_date = sa.Column(ArrowType, nullable=False)
-    end_date = sa.Column(ArrowType, nullable=False)
-    filters = sa.Column(psql.ARRAY(sa.String), nullable=True)
-    exposure_time = sa.Column(sa.String, nullable=True)
-    priority = sa.Column(sa.Enum('1', '2', '3', '4', '5', name='priority'))
-    editable = sa.Column(sa.Boolean, nullable=False, default=True)
-    status = sa.Column(sa.String(), nullable=False, default="pending")
     allocation = relationship(
-        'Allocation', secondary='allocation_requests', back_populates='requests'
+        "Allocation",
+        secondary="allocation_requests",
+        back_populates='requests',
+        doc="Allocation associated with this request.",
+    )
+
+    spectra = relationship(
+        "Spectrum",
+        back_populates="followup_request",
+        doc="Spectra produced by this followup request.",
+    )
+    photometry = relationship(
+        "Photometry",
+        back_populates="followup_request",
+        doc="Photometry produced by this followup request.",
     )
 
 
-User.followup_requests = relationship('FollowupRequest', back_populates='requester')
 AllocationRequest = join_model('allocation_requests', Allocation, FollowupRequest)
+User.followup_requests = relationship(
+    'FollowupRequest',
+    back_populates='requester',
+    doc="The follow-up requests this User has made.",
+)
 
 
 class Thumbnail(Base):
+    """Thumbnail image centered on the location of an Obj."""
+
     # TODO delete file after deleting row
     type = sa.Column(
         thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ...)'
     )
-    file_uri = sa.Column(sa.String(), nullable=True, index=False, unique=False)
-    public_url = sa.Column(sa.String(), nullable=True, index=False, unique=False)
-    origin = sa.Column(sa.String, nullable=True)
-    photometry_id = sa.Column(
-        sa.ForeignKey('photometry.id', ondelete='CASCADE'), nullable=False, index=True
+    file_uri = sa.Column(
+        sa.String(),
+        nullable=True,
+        index=False,
+        unique=False,
+        doc="Path of the Thumbnail on the machine running SkyPortal.",
     )
-    photometry = relationship('Photometry', back_populates='thumbnails')
+    public_url = sa.Column(
+        sa.String(),
+        nullable=True,
+        index=False,
+        unique=False,
+        doc="Publically accessible URL of the thumbnail.",
+    )
+    origin = sa.Column(sa.String, nullable=True, doc="Origin of the Thumbnail.")
+    photometry_id = sa.Column(
+        sa.ForeignKey('photometry.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Thumbnail's corresponding Photometry point.",
+    )
+    photometry = relationship(
+        'Photometry',
+        back_populates='thumbnails',
+        doc="The Thumbnail's corresponding Photometry point.",
+    )
     obj = relationship(
         'Obj',
         back_populates='thumbnails',
         uselist=False,
         secondary='photometry',
         passive_deletes=True,
+        doc="The Thumbnail's Obj.",
     )
 
 
 class ObservingRun(Base):
+    """A classical observing run with a target list (of Objs)."""
 
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id', ondelete='CASCADE'), nullable=False, index=True
+        sa.ForeignKey('instruments.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Instrument used for this run.",
     )
     instrument = relationship(
         'Instrument',
         cascade='save-update, merge, refresh-expire, expunge',
         uselist=False,
         back_populates='observing_runs',
+        doc="The Instrument for this run.",
     )
 
     # name of the PI
-    pi = sa.Column(sa.String)
-    observers = sa.Column(sa.String)
+    pi = sa.Column(sa.String, doc="The name(s) of the PI(s) of this run.")
+    observers = sa.Column(sa.String, doc="The name(s) of the observer(s) on this run.")
 
     sources = relationship(
         'Obj',
         secondary='join(ClassicalAssignment, Obj)',
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
+        doc="The targets [Objs] for this run.",
     )
 
     # let this be nullable to accommodate external groups' runs
-    group = relationship('Group', back_populates='observing_runs')
+    group = relationship(
+        'Group',
+        back_populates='observing_runs',
+        doc='The Group associated with this Run.',
+    )
     group_id = sa.Column(
-        sa.ForeignKey('groups.id', ondelete='CASCADE'), nullable=True, index=True
+        sa.ForeignKey('groups.id', ondelete='CASCADE'),
+        nullable=True,
+        index=True,
+        doc='The ID of the Group associated with this run.',
     )
 
     # the person who uploaded the run
-    owner = relationship('User', back_populates='observing_runs')
+    owner = relationship(
+        'User',
+        back_populates='observing_runs',
+        doc="The User who created this ObservingRun.",
+    )
     owner_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this ObservingRun.",
     )
 
-    assignments = relationship('ClassicalAssignment', passive_deletes=True)
-    calendar_date = sa.Column(sa.Date, nullable=False, index=True)
+    assignments = relationship(
+        'ClassicalAssignment',
+        passive_deletes=True,
+        doc="The Target Assignments for this Run.",
+    )
+    calendar_date = sa.Column(
+        sa.Date, nullable=False, index=True, doc="The Local Calendar date of this Run."
+    )
 
     @property
     def _calendar_noon(self):
@@ -1161,52 +1809,68 @@ class ObservingRun(Base):
 
     @property
     def sunset(self):
+        """The UTC timestamp of Sunset on this run."""
         return self.instrument.telescope.observer.sun_set_time(
             self._calendar_noon, which='next'
         )
 
     @property
     def sunrise(self):
+        """The UTC timestamp of Sunrise on this run."""
         return self.instrument.telescope.observer.sun_rise_time(
             self._calendar_noon, which='next'
         )
 
     @property
     def twilight_evening_nautical(self):
+        """The UTC timestamp of evening nautical (-12 degree) twilight on this run."""
         return self.instrument.telescope.observer.twilight_evening_nautical(
             self._calendar_noon, which='next'
         )
 
     @property
     def twilight_morning_nautical(self):
+        """The UTC timestamp of morning nautical (-12 degree) twilight on this run."""
         return self.instrument.telescope.observer.twilight_morning_nautical(
             self._calendar_noon, which='next'
         )
 
     @property
     def twilight_evening_astronomical(self):
+        """The UTC timestamp of evening astronomical (-18 degree) twilight on this run."""
         return self.instrument.telescope.observer.twilight_evening_astronomical(
             self._calendar_noon, which='next'
         )
 
     @property
     def twilight_morning_astronomical(self):
+        """The UTC timestamp of morning astronomical (-18 degree) twilight on this run."""
         return self.instrument.telescope.observer.twilight_morning_astronomical(
             self._calendar_noon, which='next'
         )
 
 
 User.observing_runs = relationship(
-    'ObservingRun', cascade='save-update, merge, refresh-expire, expunge'
+    'ObservingRun',
+    cascade='save-update, merge, refresh-expire, expunge',
+    doc="Observing Runs this User has created.",
 )
 
 
 class ClassicalAssignment(Base):
+    """Assignment of an Obj to an Observing Run as a target."""
+
     requester_id = sa.Column(
-        sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this assignment.",
     )
     requester = relationship(
-        "User", back_populates="assignments", foreign_keys=[requester_id]
+        "User",
+        back_populates="assignments",
+        foreign_keys=[requester_id],
+        doc="The User who created this assignment.",
     )
 
     last_modified_by_id = sa.Column(
@@ -1217,33 +1881,62 @@ class ClassicalAssignment(Base):
     )
     last_modified_by = relationship("User", foreign_keys=[last_modified_by_id])
 
-    obj = relationship("Obj", back_populates="assignments")
+    obj = relationship('Obj', back_populates='assignments', doc='The assigned Obj.')
     obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False, index=True
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc='ID of the assigned Obj.',
     )
 
-    spectra = relationship("Spectrum", back_populates="assignment")
+    comment = sa.Column(
+        sa.String(),
+        doc="A comment on the assignment. "
+        "Typically a justification for the request, "
+        "or instructions for taking the data.",
+    )
+    status = sa.Column(
+        sa.String(),
+        nullable=False,
+        default="pending",
+        doc='Status of the assignment [done, not done, pending].',
+    )
+    priority = sa.Column(
+        followup_priorities,
+        nullable=False,
+        doc='Priority of the request (1 = lowest, 5 = highest).',
+    )
+    spectra = relationship(
+        "Spectrum",
+        back_populates="assignment",
+        doc="Spectra produced by the assignment.",
+    )
+    photometry = relationship(
+        "Photometry",
+        back_populates="assignment",
+        doc="Photometry produced by the assignment.",
+    )
 
-    photometry = relationship("Photometry", back_populates="assignment")
-
-    comment = sa.Column(sa.String())
-    status = sa.Column(sa.String(), nullable=False, default="pending")
-    priority = sa.Column(followup_priorities, nullable=False)
-
-    run = relationship('ObservingRun', back_populates='assignments')
+    run = relationship(
+        'ObservingRun',
+        back_populates='assignments',
+        doc="The ObservingRun this target was assigned to.",
+    )
     run_id = sa.Column(
         sa.ForeignKey('observingruns.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
+        doc="ID of the ObservingRun this target was assigned to.",
     )
 
     @hybrid_property
     def instrument(self):
+        """The instrument in use on the assigned ObservingRun."""
         return self.run.instrument
 
     @property
     def rise_time(self):
-        """The time at which the object rises on this run."""
+        """The UTC time at which the object rises on this run."""
         observer = self.instrument.telescope.observer
         target = self.obj.target
         return observer.target_rise_time(
@@ -1252,7 +1945,7 @@ class ClassicalAssignment(Base):
 
     @property
     def set_time(self):
-        """The time at which the object sets on this run."""
+        """The UTC time at which the object sets on this run."""
         observer = self.instrument.telescope.observer
         target = self.obj.target
         return observer.target_set_time(
@@ -1261,8 +1954,9 @@ class ClassicalAssignment(Base):
 
 
 User.assignments = relationship(
-    "ClassicalAssignment",
-    back_populates="requester",
+    'ClassicalAssignment',
+    back_populates='requester',
+    doc="Objs the User has assigned to ObservingRuns.",
     foreign_keys="ClassicalAssignment.requester_id",
 )
 

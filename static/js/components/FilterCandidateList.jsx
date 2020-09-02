@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
 import PropTypes from "prop-types";
 
@@ -44,16 +44,18 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const FilterCandidateList = ({ userGroups }) => {
+const FilterCandidateList = ({
+  userGroups,
+  handleClickNextPage,
+  handleClickPreviousPage,
+  pageNumber,
+  numberingStart,
+  numberingEnd,
+  totalMatches,
+  lastPage,
+  setQueryInProgress,
+}) => {
   const classes = useStyles();
-
-  const {
-    pageNumber,
-    lastPage,
-    totalMatches,
-    numberingStart,
-    numberingEnd,
-  } = useSelector((state) => state.candidates);
 
   const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
 
@@ -84,7 +86,8 @@ const FilterCandidateList = ({ userGroups }) => {
     return true;
   };
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
+    setQueryInProgress(true);
     const groupIDs = userGroups.map((g) => g.id);
     const selectedGroupIDs = groupIDs.filter((ID, idx) => data.groupIDs[idx]);
     data.groupIDs = selectedGroupIDs;
@@ -95,25 +98,20 @@ const FilterCandidateList = ({ userGroups }) => {
     if (data.endDate) {
       data.endDate = data.endDate.toISOString();
     }
-    dispatch(candidatesActions.fetchCandidates(data));
-  };
-
-  const handleClickNextPage = () => {
-    dispatch(candidatesActions.fetchCandidates({ pageNumber: pageNumber + 1 }));
-  };
-
-  const handleClickPreviousPage = () => {
-    dispatch(candidatesActions.fetchCandidates({ pageNumber: pageNumber - 1 }));
+    await dispatch(candidatesActions.fetchCandidates(data));
+    setQueryInProgress(false);
   };
 
   const handleJumpToPageInputChange = (e) => {
     setJumpToPageInputValue(e.target.value);
   };
 
-  const handleClickJumpToPage = () => {
-    dispatch(
+  const handleClickJumpToPage = async () => {
+    setQueryInProgress(true);
+    await dispatch(
       candidatesActions.fetchCandidates({ pageNumber: jumpToPageInputValue })
     );
+    setQueryInProgress(false);
   };
 
   return (
@@ -255,6 +253,14 @@ const FilterCandidateList = ({ userGroups }) => {
 };
 FilterCandidateList.propTypes = {
   userGroups: PropTypes.arrayOf(PropTypes.object).isRequired,
+  handleClickNextPage: PropTypes.func.isRequired,
+  handleClickPreviousPage: PropTypes.func.isRequired,
+  pageNumber: PropTypes.number.isRequired,
+  numberingStart: PropTypes.number.isRequired,
+  numberingEnd: PropTypes.number.isRequired,
+  totalMatches: PropTypes.number.isRequired,
+  lastPage: PropTypes.bool.isRequired,
+  setQueryInProgress: PropTypes.func.isRequired,
 };
 
 export default FilterCandidateList;
