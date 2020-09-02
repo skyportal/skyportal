@@ -7,16 +7,30 @@ import "reactgridlayoutcss/styles.css";
 // eslint-disable-next-line import/no-extraneous-dependencies
 import "reactresizablecss/styles.css";
 
-import DragHandleIcon from "@material-ui/icons/DragHandle";
+import { makeStyles } from "@material-ui/core/styles";
 
 import * as profileActions from "../ducks/profile";
 import SourceList from "./SourceList";
 import GroupList from "./GroupList";
 import NewsFeed from "./NewsFeed";
 import TopSources from "./TopSources";
-import styles from "./HomePage.css";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const useStyles = makeStyles(() => ({
+  widgetIcon: {
+    float: "right",
+    color: "gray",
+    margin: "0.25rem 0.25rem 0.25rem 0.25rem",
+    "&:hover": {
+      cursor: "pointer",
+    },
+  },
+  widgetPaperDiv: {
+    padding: "1rem",
+    height: "100%",
+  },
+}));
 
 const xlgLayout = [
   { i: "sourceList", x: 0, y: 0, w: 9, h: 6, minW: 9, isResizable: false },
@@ -62,6 +76,8 @@ const defaultLayouts = {
 };
 
 const HomePage = () => {
+  const classes = useStyles();
+
   const groups = useSelector((state) => state.groups.user);
 
   const preferredLayouts = useSelector(
@@ -91,30 +107,17 @@ const HomePage = () => {
       onLayoutChange={LayoutChangeHandler}
       draggableHandle=".dragHandle"
     >
-      <div key="sourceList" className={styles.homePageWidgetDiv}>
-        <DragHandleIcon className={`${styles.dragHandle} dragHandle`} />
-        <SourceList />
+      <div key="sourceList">
+        <SourceList classes={classes} />
       </div>
-      <div key="newsFeed" className={styles.homePageWidgetDiv}>
-        <DragHandleIcon
-          id="newsFeedHandle"
-          className={`${styles.dragHandle} dragHandle`}
-        />
-        <NewsFeed />
+      <div key="newsFeed">
+        <NewsFeed classes={classes} />
       </div>
-      <div key="topSources" className={styles.homePageWidgetDiv}>
-        <DragHandleIcon
-          id="topSourcesHandle"
-          className={`${styles.dragHandle} dragHandle`}
-        />
-        <TopSources />
+      <div key="topSources">
+        <TopSources classes={classes} />
       </div>
-      <div key="groups" className={styles.homePageWidgetDiv}>
-        <DragHandleIcon
-          id="groupsHandle"
-          className={`${styles.dragHandle} dragHandle`}
-        />
-        <GroupList title="My Groups" groups={groups} />
+      <div key="groups">
+        <GroupList title="My Groups" groups={groups} classes={classes} />
       </div>
     </ResponsiveGridLayout>
   );
