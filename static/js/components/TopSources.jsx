@@ -1,9 +1,11 @@
 import React from "react";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
+import PropTypes from "prop-types";
 
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
+import DragHandleIcon from "@material-ui/icons/DragHandle";
 
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
@@ -15,7 +17,7 @@ const defaultPrefs = {
   sinceDaysAgo: "",
 };
 
-const TopSources = () => {
+const TopSources = ({ classes }) => {
   const { sourceViews } = useSelector((state) => state.topSources);
   const topSourcesPrefs =
     useSelector((state) => state.profile.preferences.topSources) ||
@@ -23,11 +25,12 @@ const TopSources = () => {
 
   return (
     <Paper elevation={1}>
-      <div className={styles.topSourcesContainer}>
+      <div className={classes.widgetPaperDiv}>
         <Typography variant="h6" display="inline">
           Top Sources
         </Typography>
-        <div style={{ display: "inline-block", float: "right" }}>
+        <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
+        <div className={classes.widgetIcon}>
           <WidgetPrefsDialog
             formValues={topSourcesPrefs}
             stateBranchName="topSources"
@@ -58,6 +61,13 @@ const TopSources = () => {
       </div>
     </Paper>
   );
+};
+
+TopSources.propTypes = {
+  classes: PropTypes.shape({
+    widgetPaperDiv: PropTypes.string.isRequired,
+    widgetIcon: PropTypes.string.isRequired,
+  }).isRequired,
 };
 
 export default TopSources;
