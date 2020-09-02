@@ -1659,6 +1659,13 @@ class FollowupRequest(Base):
         sa.String(), nullable=False, default="pending", doc="Status of the request."
     )
 
+    allocation = relationship(
+        "Allocation",
+        secondary="allocation_requests",
+        back_populates='requests',
+        doc="Allocation associated with this request.",
+    )
+
     spectra = relationship(
         "Spectrum",
         back_populates="followup_request",
