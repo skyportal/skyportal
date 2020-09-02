@@ -5,6 +5,7 @@ import PropTypes from "prop-types";
 
 import { Paper, Avatar, Tooltip } from "@material-ui/core";
 import Typography from "@material-ui/core/Typography";
+import DragHandleIcon from "@material-ui/icons/DragHandle";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -19,7 +20,7 @@ dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const defaultPrefs = {
-  numItems: "",
+  numItems: "5",
 };
 
 const NewsFeedItem = ({ item }) => {
@@ -99,7 +100,7 @@ const NewsFeedItem = ({ item }) => {
   );
 };
 
-const NewsFeed = () => {
+const NewsFeed = ({ classes }) => {
   const { items } = useSelector((state) => state.newsFeed);
   const newsFeedPrefs =
     useSelector((state) => state.profile.preferences.newsFeed) || defaultPrefs;
@@ -112,22 +113,25 @@ const NewsFeed = () => {
     userColorTheme === "dark" ? styles.newsFeedDark : styles.newsFeed;
 
   return (
-    <Paper style={{ padding: "1rem", height: "100%" }} elevation={1}>
-      <Typography variant="h6" display="inline">
-        News Feed
-      </Typography>
-      <div style={{ display: "inline-block", float: "right" }}>
-        <WidgetPrefsDialog
-          formValues={newsFeedPrefs}
-          stateBranchName="newsFeed"
-          title="News Feed Preferences"
-          onSubmit={profileActions.updateUserPreferences}
-        />
-      </div>
-      <div className={newsFeedStyle} style={{ height: "85%" }}>
-        {items.map((item) => (
-          <NewsFeedItem key={item.time} item={item} />
-        ))}
+    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
+      <div className={classes.widgetPaperDiv}>
+        <Typography variant="h6" display="inline">
+          News Feed
+        </Typography>
+        <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
+        <div className={classes.widgetIcon}>
+          <WidgetPrefsDialog
+            formValues={newsFeedPrefs}
+            stateBranchName="newsFeed"
+            title="News Feed Preferences"
+            onSubmit={profileActions.updateUserPreferences}
+          />
+        </div>
+        <div className={newsFeedStyle} style={{ height: "85%" }}>
+          {items.map((item) => (
+            <NewsFeedItem key={item.time} item={item} />
+          ))}
+        </div>
       </div>
     </Paper>
   );
@@ -146,6 +150,14 @@ NewsFeedItem.propTypes = {
       last_name: PropTypes.string,
       gravatar_url: PropTypes.string.isRequired,
     }),
+  }).isRequired,
+};
+
+NewsFeed.propTypes = {
+  classes: PropTypes.shape({
+    widgetPaperDiv: PropTypes.string.isRequired,
+    widgetIcon: PropTypes.string.isRequired,
+    widgetPaperFillSpace: PropTypes.string.isRequired,
   }).isRequired,
 };
 

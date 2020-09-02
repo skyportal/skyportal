@@ -378,6 +378,7 @@ class SourceHandler(BaseHandler):
 
         self.push_all(action="skyportal/FETCH_SOURCES")
         self.push_all(action="skyportal/FETCH_CANDIDATES")
+        self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
         return self.success(data={"id": obj.id})
 
     @permissions(['Manage sources'])
