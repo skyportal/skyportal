@@ -48,7 +48,7 @@ const EditFollowupRequestDialog = ({
       >
         Edit
       </button>
-      <Dialog open={open} onClose={handleClose} style={classes.dialog}>
+      <Dialog open={open} onClose={handleClose} className={classes.dialog}>
         <DialogContent>
           <Form
             schema={
