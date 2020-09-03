@@ -1687,7 +1687,9 @@ class FollowupRequestHTTPRequest(Base):
         back_populates='http_requests',
         doc="The FollowupRequest this message pertains to.",
     )
-    origin = sa.Column(followup_http_request_origins, doc='Origin of the HTTP request.')
+    origin = sa.Column(
+        followup_http_request_origins, doc='Origin of the HTTP request.', nullable=False
+    )
 
 
 User.followup_requests = relationship(

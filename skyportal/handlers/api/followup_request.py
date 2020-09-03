@@ -324,9 +324,7 @@ class FollowupRequestHandler(BaseHandler):
 
         followup_requests = followup_requests.all()
 
-        out_json = FollowupRequest.__schema__().dump(followup_requests, many=True)
-
-        return self.success(data=out_json)
+        return self.success(data=followup_requests)
 
     @auth_or_token
     def post(self):
