@@ -6,7 +6,7 @@ import * as dbInfoActions from "./ducks/dbInfo";
 import * as newsFeedActions from "./ducks/newsFeed";
 import * as topSourcesActions from "./ducks/topSources";
 import * as recentSourcesActions from "./ducks/recentSources";
-import * as instrumentActions from "./ducks/instruments";
+import * as instrumentsActions from "./ducks/instruments";
 import * as sourceCountsActions from "./ducks/sourceCounts";
 import * as observingRunsActions from "./ducks/observingRuns";
 import * as telescopesActions from "./ducks/telescopes";
