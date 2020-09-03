@@ -6,7 +6,7 @@ import * as dbInfoActions from "./ducks/dbInfo";
 import * as newsFeedActions from "./ducks/newsFeed";
 import * as topSourcesActions from "./ducks/topSources";
 import * as recentSourcesActions from "./ducks/recentSources";
-import fetchInstruments from "./ducks/instruments";
+import fetchInstruments, { fetchInstrumentForms } from "./ducks/instruments";
 import * as sourceCountsActions from "./ducks/sourceCounts";
 import * as observingRunsActions from "./ducks/observingRuns";
 import * as telescopesActions from "./ducks/telescopes";
@@ -22,6 +22,7 @@ export default function hydrate() {
     dispatch(topSourcesActions.fetchTopSources());
     dispatch(fetchInstruments());
     dispatch(fetchAllocations());
+    dispatch(fetchInstrumentForms());
     dispatch(recentSourcesActions.fetchRecentSources());
     dispatch(sourceCountsActions.fetchSourceCounts());
     dispatch(observingRunsActions.fetchObservingRuns());

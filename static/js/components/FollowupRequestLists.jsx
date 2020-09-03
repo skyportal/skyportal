@@ -30,7 +30,10 @@ const FollowupRequestLists = ({
   }, {});
 
   const requestsGroupedByInstId = followupRequests.reduce((r, a) => {
-    r[a.instrument.id] = [...(r[a.instrument.id] || []), a];
+    r[a.allocation.instrument.id] = [
+      ...(r[a.allocation.instrument.id] || []),
+      a,
+    ];
     return r;
   }, {});
 

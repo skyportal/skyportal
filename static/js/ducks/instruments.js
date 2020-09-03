@@ -7,8 +7,7 @@ const FETCH_INSTRUMENTS_OK = "skyportal/FETCH_INSTRUMENTS_OK";
 const FETCH_INSTRUMENT_FORMS = "skyportal/FETCH_INSTRUMENT_FORMS";
 const FETCH_INSTRUMENT_FORMS_OK = "skyportal/FETCH_INSTRUMENT_FORMS_OK";
 
-export const fetchInstruments = () =>
-  API.GET("/api/instrument", FETCH_INSTRUMENTS);
+const fetchInstruments = () => API.GET("/api/instrument", FETCH_INSTRUMENTS);
 
 export const fetchInstrumentForms = () =>
   API.GET(`/api/internal/instrument_forms`, FETCH_INSTRUMENT_FORMS);
@@ -37,4 +36,5 @@ const reducer = (
   }
 };
 
+export default fetchInstruments;
 store.injectReducer("instruments", reducer);
