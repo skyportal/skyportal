@@ -1,6 +1,6 @@
 import datetime
 from social_core.exceptions import AuthTokenError
-from .models import DBSession, User, Group, GroupUser, Invitation
+from .models import DBSession, User, Group, GroupUser, Invitation, Role
 from baselayer.app.env import load_env
 
 
@@ -46,6 +46,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
             last_name=details["last_name"],
             oauth_uid=uid,
         )
+        user.roles.append(Role.query.get("Full user"))
         DBSession().add(user)
         invitation.used = True
         DBSession().commit()
@@ -93,6 +94,11 @@ def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
 
 def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs):
     if not cfg["invitations.enabled"]:
+        return
+
+    existing_user = DBSession().query(User).filter(User.oauth_uid == uid).first()
+
+    if existing_user is not None:
         return
 
     invite_token = strategy.session_get("invite_token")
