@@ -8,7 +8,7 @@ from skyportal.tests import api
 
 env, cfg = load_env()
 endpoint = cfg['app.sedm_endpoint']
-sedm_isonline = requests.get(endpoint).status_code in [200, 400]
+sedm_isonline = requests.get(endpoint, timeout=5).status_code in [200, 400]
 
 
 def add_telescope_and_instrument(instrument_name, token):

@@ -15,13 +15,13 @@ const FollowupRequestForm = ({
   instrumentFormParams,
 }) => {
   const dispatch = useDispatch();
-  const telescopeList = useSelector((state) => state.telescopes.telescopeList);
+  const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationList } = useSelector((state) => state.allocations);
   const allGroups = useSelector((state) => state.groups.all);
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
   const allocationInstIds = allocationList.map((a) => a.instrument_id);
-  const instIds = Object.keys(instrumentFormParams)
+  const allocatedInstrumentIds = Object.keys(instrumentFormParams)
     .map((k) => parseInt(k, 10))
     .filter((i) => allocationInstIds.includes(i));
 
@@ -29,29 +29,25 @@ const FollowupRequestForm = ({
   // this needs to be in a useEffect hook so that the state setters are not
   // called unconditionally, resulting in an infinite re-render loop
   useEffect(() => {
-    const defaultInstId = instIds[0];
+    const defaultInstId = allocatedInstrumentIds[0];
     const defaultAllocationId = allocationList.filter(
       (allocation) => allocation.instrument_id === defaultInstId
     )[0]?.id;
     setSelectedInstrumentId(defaultInstId);
     setSelectedAllocationId(defaultAllocationId);
-  }, [allocationList, instrumentFormParams]);
+  }, [allocationList, instrumentFormParams, allocatedInstrumentIds]);
 
-  if (instIds.length === 0) {
+  if (allocatedInstrumentIds.length === 0) {
     return <h3>No robotic instruments available...</h3>;
   }
 
-  if (allGroups.length === 0) {
+  if (allGroups.length === 0 || telescopeList.length === 0) {
     return <h3>Loading...</h3>;
   }
 
-  if (telescopeList.length === 0) {
-    return <h3>Loading...</h3>;
-  }
-
-  const groupLookUp = allGroups.reduce((r, a) => {
-    r[a.id] = a;
-    return r;
+  const groupLookUp = {};
+  allGroups.foreach((group) => {
+    groupLookUp[group.id] = group;
   });
 
   const telLookUp = {};
@@ -92,7 +88,7 @@ const FollowupRequestForm = ({
         onChange={handleSelectedInstrumentChange}
         name="followupRequestInstrumentSelect"
       >
-        {instIds
+        {allocatedInstrumentIds
           .filter((instrument_id) =>
             Object.keys(telLookUp)
               .map((t) => parseInt(t, 10))
