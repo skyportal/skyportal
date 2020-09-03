@@ -10,8 +10,8 @@ class _Base:
         # not implemented
 
         func = getattr(cls, method_name)
-        unimplemented = getattr(FollowUpAPI, method_name)
-        return func is not unimplemented
+        default_implementation = getattr(FollowUpAPI, method_name)
+        return func is not default_implementation
 
     # subclasses should not modify this
     @classmethod
