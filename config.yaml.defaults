@@ -49,6 +49,8 @@ app:
       component: RunSummary
     - path: "/share_data/:id"
       component: ShareDataForm
+    - path: "/filter/:fid"
+      component: Filter
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
