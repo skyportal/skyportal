@@ -7,7 +7,7 @@
 
 .center {
   margin: auto;
-  padding: 10px;
+  padding: 0.625rem;
 }
 
 .leftColumn {
@@ -32,12 +32,12 @@
 }
 
 .plot {
-  width: 900px;
+  width: 56.25rem;
   overflow: auto;
 }
 
 .smallPlot {
-  width: 350px;
+  width: 21.875rem;
   overflow: auto;
 }
 
@@ -45,5 +45,5 @@
 }
 
 .tableContainer {
-  margin: 10px;
+  margin: 0.625rem;
 }
