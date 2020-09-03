@@ -103,12 +103,15 @@ const SidebarAndHeader = () => {
       }
     };
 
-    // Let home page know content window has resized
+    // For bigger screens, let home page know content window has resized
+    // so that it can adjust widget sizes
     // A slight delay is used to make sure the sidebar is finished
     // closing/opening before new content window size is computed
-    setTimeout(() => {
-      window.dispatchEvent(new Event("resize"));
-    }, 250);
+    if (!window.matchMedia("(max-width: 768px)").matches) {
+      setTimeout(() => {
+        window.dispatchEvent(new Event("resize"));
+      }, 250);
+    }
 
     if (open) {
       window.addEventListener("resize", handleResize);
