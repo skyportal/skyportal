@@ -342,39 +342,41 @@ const Group = () => {
                     {group.filters?.map((filter) =>
                       filter.stream_id === stream.id ? (
                         <ListItem button component="a" key={filter.id} href="#">
-                          <ListItemText
-                            className={classes.nested}
-                            primary={filter.name}
-                          />
-                          {/*eslint-disable */}
-                          {(currentUser.roles.includes("Super admin") ||
-                            (currentUser.roles.includes("Group admin") &&
-                              isAdmin(currentGroupUser, group))) && (
-                            <ListItemSecondaryAction>
-                              <IconButton
-                                edge="end"
-                                aria-label="delete"
-                                onClick={async () => {
-                                  const result = await dispatch(
-                                    filterActions.deleteGroupFilter({
-                                      filter_id: filter.id,
-                                    })
-                                  );
-                                  if (result.status === "success") {
-                                    dispatch(
-                                      showNotification(
-                                        "Deleted filter from group"
-                                      )
+                          <Link to={`/filter/${filter.id}`}>
+                            <ListItemText
+                              className={classes.nested}
+                              primary={filter.name}
+                            />
+                            {/*eslint-disable */}
+                            {(currentUser.roles.includes("Super admin") ||
+                              (currentUser.roles.includes("Group admin") &&
+                                isAdmin(currentGroupUser, group))) && (
+                              <ListItemSecondaryAction>
+                                <IconButton
+                                  edge="end"
+                                  aria-label="delete"
+                                  onClick={async () => {
+                                    const result = await dispatch(
+                                      filterActions.deleteGroupFilter({
+                                        filter_id: filter.id,
+                                      })
                                     );
-                                  }
-                                  dispatch(groupActions.fetchGroup(loadedId));
-                                }}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </ListItemSecondaryAction>
-                          )}
-                          {/* eslint-enable */}
+                                    if (result.status === "success") {
+                                      dispatch(
+                                        showNotification(
+                                          "Deleted filter from group"
+                                        )
+                                      );
+                                    }
+                                    dispatch(groupActions.fetchGroup(loadedId));
+                                  }}
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </ListItemSecondaryAction>
+                            )}
+                            {/* eslint-enable */}
+                          </Link>
                         </ListItem>
                       ) : (
                         ""
