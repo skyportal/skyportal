@@ -72,6 +72,9 @@ const useStyles = makeStyles((theme) => ({
     width: "100%",
     marginTop: theme.spacing(2),
   },
+  filterLink: {
+    width: "100%",
+  },
 }));
 
 const Group = () => {
@@ -246,7 +249,7 @@ const Group = () => {
           >
             {group?.users?.map((user) => (
               <ListItem button key={user.id}>
-                <Link to={`/user/${user.id}`}>
+                <Link to={`/user/${user.id}`} className={classes.filterLink}>
                   <ListItemText primary={user.username} />
                 </Link>
                 {isAdmin(user, group) && (
@@ -335,17 +338,23 @@ const Group = () => {
             <List component="nav" className={classes.padding_bottom}>
               {group.streams?.map((stream) => (
                 <div key={stream.name}>
-                  <ListItem>
+                  <ListItem key={stream.name}>
                     <ListItemText primary={stream.name} />
                   </ListItem>
                   <List component="nav" disablePadding>
                     {group.filters?.map((filter) =>
                       filter.stream_id === stream.id ? (
-                        <ListItem button component="a" key={filter.id} href="#">
-                          <ListItemText
-                            className={classes.nested}
-                            primary={filter.name}
-                          />
+                        <ListItem button key={filter.id}>
+                          <Link
+                            to={`/filter/${filter.id}`}
+                            className={classes.filterLink}
+                          >
+                            <ListItemText
+                              key={filter.id}
+                              className={classes.nested}
+                              primary={filter.name}
+                            />
+                          </Link>
                           {/*eslint-disable */}
                           {(currentUser.roles.includes("Super admin") ||
                             (currentUser.roles.includes("Group admin") &&
