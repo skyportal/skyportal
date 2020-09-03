@@ -3,7 +3,7 @@ from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 
 
-class RoboticInstrumentFormsHandler(BaseHandler):
+class RoboticInstrumentsHandler(BaseHandler):
     @auth_or_token
     def get(self):
         instruments = Instrument.query.filter(

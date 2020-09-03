@@ -149,6 +149,12 @@ const spec = (inputData) => ({
       data: {
         values: inputData.photometryData,
       },
+      selection: {
+        grid: {
+          type: "interval",
+          bind: "scales",
+        },
+      },
       mark: {
         type: "point",
         filled: true,
@@ -322,9 +328,11 @@ const CentroidPlot = ({ sourceId }) => {
         <div
           className="centroid-plot-div"
           ref={(node) => {
-            embed(node, spec(plotData), {
-              actions: false,
-            });
+            if (node) {
+              embed(node, spec(plotData), {
+                actions: false,
+              });
+            }
           }}
         />
       );

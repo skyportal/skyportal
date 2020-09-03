@@ -18,6 +18,7 @@ def convert_request_to_sedm(request, method_value='new'):
             and p.filter not in photometry_payload
             and p.mag is not None
         ):
+            # using filter[-1] as SEDM expects the bandpass name without "ZTF"
             photometry_payload[p.filter[-1]] = {
                 'jd': p.mjd + 2_400_000.5,
                 'mag': p.mag,
@@ -70,13 +71,11 @@ def convert_request_to_sedm(request, method_value='new'):
 
 
 class SEDMAPI(FollowUpAPI):
+    """SkyPortal interface to the Spectral Energy Distribution machine (SEDM)."""
 
-    """An interface that User-contributed remote facility APIs must provide."""
-
-    # subclasses *must* implement the method below
     @staticmethod
     def submit(request):
-        """Submit a follow-up request to a remote observatory."""
+        """Submit a follow-up request to SEDM."""
         from ..models import DBSession, FollowupRequestHTTPRequest
 
         payload = convert_request_to_sedm(request, method_value='new')
@@ -101,6 +100,7 @@ class SEDMAPI(FollowUpAPI):
 
     @staticmethod
     def delete(request):
+        """Delete a follow-up request from SEDM queue."""
         from ..models import DBSession, FollowupRequest
 
         payload = convert_request_to_sedm(request, method_value='delete')
@@ -118,6 +118,7 @@ class SEDMAPI(FollowUpAPI):
 
     @staticmethod
     def update(request):
+        """Update a request in the SEDM queue."""
         from ..models import DBSession, FollowupRequestHTTPRequest
 
         payload = convert_request_to_sedm(request, method_value='edit')

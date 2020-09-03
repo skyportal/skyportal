@@ -317,18 +317,14 @@ class FollowupRequestHandler(BaseHandler):
                 joinedload(FollowupRequest.requester),
                 joinedload(FollowupRequest.obj),
             )
+            followup_request = followup_requests.first()
+            if followup_request is None:
+                return self.error("Could not retrieve followup request.")
+            return self.success(data=followup_request)
 
         followup_requests = followup_requests.all()
 
-        if len(followup_requests) == 0 and followup_request_id is not None:
-            return self.error("Could not retrieve followup request.")
-
-        out_json = FollowupRequest.__schema__().dump(followup_requests, many=True)
-
-        if followup_request_id is not None:
-            out_json = out_json[0]
-
-        return self.success(data=out_json)
+        return self.success(data=followup_requests)
 
     @auth_or_token
     def post(self):
@@ -433,7 +429,7 @@ class FollowupRequestHandler(BaseHandler):
 
         data = self.get_json()
         data['id'] = request_id
-        data["requester_id"] = self.current_user.id
+        data["requester_id"] = self.associated_user_object.id
 
         api = followup_request.instrument.api_class
 
