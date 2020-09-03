@@ -335,48 +335,49 @@ const Group = () => {
             <List component="nav" className={classes.padding_bottom}>
               {group.streams?.map((stream) => (
                 <div key={stream.name}>
-                  <ListItem>
+                  <ListItem key={stream.name}>
                     <ListItemText primary={stream.name} />
                   </ListItem>
                   <List component="nav" disablePadding>
                     {group.filters?.map((filter) =>
                       filter.stream_id === stream.id ? (
-                        <ListItem button component="a" key={filter.id} href="#">
+                        <ListItem button key={filter.id}>
                           <Link to={`/filter/${filter.id}`}>
                             <ListItemText
+                              key={filter.id}
                               className={classes.nested}
                               primary={filter.name}
                             />
-                            {/*eslint-disable */}
-                            {(currentUser.roles.includes("Super admin") ||
-                              (currentUser.roles.includes("Group admin") &&
-                                isAdmin(currentGroupUser, group))) && (
-                              <ListItemSecondaryAction>
-                                <IconButton
-                                  edge="end"
-                                  aria-label="delete"
-                                  onClick={async () => {
-                                    const result = await dispatch(
-                                      filterActions.deleteGroupFilter({
-                                        filter_id: filter.id,
-                                      })
-                                    );
-                                    if (result.status === "success") {
-                                      dispatch(
-                                        showNotification(
-                                          "Deleted filter from group"
-                                        )
-                                      );
-                                    }
-                                    dispatch(groupActions.fetchGroup(loadedId));
-                                  }}
-                                >
-                                  <DeleteIcon />
-                                </IconButton>
-                              </ListItemSecondaryAction>
-                            )}
-                            {/* eslint-enable */}
                           </Link>
+                          {/*eslint-disable */}
+                          {(currentUser.roles.includes("Super admin") ||
+                            (currentUser.roles.includes("Group admin") &&
+                              isAdmin(currentGroupUser, group))) && (
+                            <ListItemSecondaryAction>
+                              <IconButton
+                                edge="end"
+                                aria-label="delete"
+                                onClick={async () => {
+                                  const result = await dispatch(
+                                    filterActions.deleteGroupFilter({
+                                      filter_id: filter.id,
+                                    })
+                                  );
+                                  if (result.status === "success") {
+                                    dispatch(
+                                      showNotification(
+                                        "Deleted filter from group"
+                                      )
+                                    );
+                                  }
+                                  dispatch(groupActions.fetchGroup(loadedId));
+                                }}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </ListItemSecondaryAction>
+                          )}
+                          {/* eslint-enable */}
                         </ListItem>
                       ) : (
                         ""
