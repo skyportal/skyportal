@@ -21,9 +21,8 @@ def test_upload_photometry(
     driver.scroll_to_element(inst_select)
     ActionChains(driver).move_to_element(inst_select).pause(2).click().perform()
 
-    sedm_element = driver.wait_for_xpath(
-        f'//span[text()="{sedm.name} (ID: {inst_id})"]'
-    )
+    sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
+
     driver.scroll_to_element_and_click(sedm_element)
     driver.wait_for_xpath_to_be_clickable('//body').click()
     try:
@@ -72,9 +71,8 @@ def test_upload_photometry_multiple_groups(
     driver.scroll_to_element(inst_select)
     ActionChains(driver).move_to_element(inst_select).pause(2).click().perform()
 
-    sedm_element = driver.wait_for_xpath(
-        f'//span[text()="{sedm.name} (ID: {inst_id})"]'
-    )
+    sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
+
     driver.scroll_to_element_and_click(sedm_element)
     driver.wait_for_xpath_to_be_clickable('//body').click()
 
@@ -119,9 +117,7 @@ def test_upload_photometry_with_altdata(
     driver.scroll_to_element(inst_select)
     ActionChains(driver).move_to_element(inst_select).pause(2).click().perform()
 
-    sedm_element = driver.wait_for_xpath(
-        f'//span[text()="{sedm.name} (ID: {inst_id})"]'
-    )
+    sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
     driver.scroll_to_element_and_click(sedm_element)
     driver.wait_for_xpath_to_be_clickable('//body').click()
 
@@ -189,9 +185,7 @@ def test_upload_photometry_form_validation(
     driver.scroll_to_element(inst_select)
     ActionChains(driver).move_to_element(inst_select).pause(2).click().perform()
 
-    sedm_element = driver.wait_for_xpath(
-        f'//span[text()="{sedm.name} (ID: {inst_id})"]'
-    )
+    sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
     driver.scroll_to_element_and_click(sedm_element)
     driver.wait_for_xpath_to_be_clickable('//body').click()
 
