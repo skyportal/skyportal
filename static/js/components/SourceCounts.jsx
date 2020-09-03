@@ -1,5 +1,5 @@
-import React from "react";
-import { useSelector } from "react-redux";
+import React, { useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import { CountUp } from "use-count-up";
 
@@ -10,10 +10,6 @@ import DragHandleIcon from "@material-ui/icons/DragHandle";
 
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import * as profileActions from "../ducks/profile";
-
-const defaultPrefs = {
-  sinceDaysAgo: "",
-};
 
 const useStyles = makeStyles(() => ({
   counter: {
@@ -30,12 +26,25 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourceCounts = ({ classes }) => {
+const SourceCounts = ({ classes, sinceDaysAgo }) => {
   const styles = useStyles();
   const sourceCounts = useSelector((state) => state.sourceCounts.sourceCounts);
-  const sourceCountPrefs =
-    useSelector((state) => state.profile.preferences.sourceCounts) ||
-    defaultPrefs;
+  const userPrefs = useSelector(
+    (state) => state.profile.preferences.sourceCounts
+  );
+  const dispatch = useDispatch();
+
+  const defaultPrefs = {
+    sinceDaysAgo: sinceDaysAgo ? parseInt(sinceDaysAgo, 10) : "",
+  };
+  const sourceCountPrefs = userPrefs || defaultPrefs;
+
+  useEffect(() => {
+    // If user prefs is blank, update to app default
+    if (!userPrefs) {
+      dispatch(profileActions.updateUserPreferences(sourceCountPrefs));
+    }
+  });
 
   return (
     <Paper
@@ -82,6 +91,10 @@ SourceCounts.propTypes = {
     widgetIcon: PropTypes.string.isRequired,
     widgetPaperFillSpace: PropTypes.string.isRequired,
   }).isRequired,
+  sinceDaysAgo: PropTypes.number,
 };
 
+SourceCounts.defaultProps = {
+  sinceDaysAgo: undefined,
+};
 export default SourceCounts;

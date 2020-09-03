@@ -83,7 +83,7 @@ app:
       show: true
       component_name: SourceCounts
       component_props:
-        days_past_to_include: 7
+        sinceDaysAgo: 7
       resizeable: false
       layouts:
         xlg: [14, 0, 2, 1]
