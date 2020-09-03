@@ -38,48 +38,50 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-{% set ns = namespace(xlg=[], lg=[], md=[], sm=[], xs=[]) %}
-{% for widgetName, widgetProps in app.homepage_widgets.items() %}
-  {% set ns.xlg = [{
-    "i": widgetName,
-    "x": widgetProps.layouts.xlg[0],
-    "y": widgetProps.layouts.xlg[1],
-    "w": widgetProps.layouts.xlg[2],
-    "h": widgetProps.layouts.xlg[3],
-    "isResizable": widgetProps.resizeable}] + ns.xlg
-  %}
-  {% set ns.lg = [{
-    "i": widgetName,
-    "x": widgetProps.layouts.lg[0],
-    "y": widgetProps.layouts.lg[1],
-    "w": widgetProps.layouts.lg[2],
-    "h": widgetProps.layouts.lg[3],
-    "isResizable": widgetProps.resizeable}] + ns.lg
-  %}
-  {% set ns.md = [{
-    "i": widgetName,
-    "x": widgetProps.layouts.md[0],
-    "y": widgetProps.layouts.md[1],
-    "w": widgetProps.layouts.md[2],
-    "h": widgetProps.layouts.md[3],
-    "isResizable": widgetProps.resizeable }] + ns.md
-  %}
-  {% set ns.sm = [{
-    "i": widgetName,
-    "x": widgetProps.layouts.sm[0],
-    "y": widgetProps.layouts.sm[1],
-    "w": widgetProps.layouts.sm[2],
-    "h": widgetProps.layouts.sm[3],
-    "isResizable": widgetProps.resizeable }] + ns.sm
-  %}
-  {% set ns.xs = [{
-    "i": widgetName,
-    "x": widgetProps.layouts.xs[0],
-    "y": widgetProps.layouts.xs[1],
-    "w": widgetProps.layouts.xs[2],
-    "h": widgetProps.layouts.xs[3],
-    "isResizable": widgetProps.resizeable }] + ns.xs
-  %}
+{%- set ns = namespace(xlg=[], lg=[], md=[], sm=[], xs=[]) -%}
+{%- for widgetName, widgetProps in app.homepage_widgets.items() %}
+  {%- if widgetProps.show %}
+    {%- set ns.xlg = [{
+      "i": widgetName,
+      "x": widgetProps.layouts.xlg[0],
+      "y": widgetProps.layouts.xlg[1],
+      "w": widgetProps.layouts.xlg[2],
+      "h": widgetProps.layouts.xlg[3],
+      "isResizable": widgetProps.resizeable}] + ns.xlg
+    -%}
+    {%- set ns.lg = [{
+      "i": widgetName,
+      "x": widgetProps.layouts.lg[0],
+      "y": widgetProps.layouts.lg[1],
+      "w": widgetProps.layouts.lg[2],
+      "h": widgetProps.layouts.lg[3],
+      "isResizable": widgetProps.resizeable}] + ns.lg
+    -%}
+    {%- set ns.md = [{
+      "i": widgetName,
+      "x": widgetProps.layouts.md[0],
+      "y": widgetProps.layouts.md[1],
+      "w": widgetProps.layouts.md[2],
+      "h": widgetProps.layouts.md[3],
+      "isResizable": widgetProps.resizeable }] + ns.md
+    -%}
+    {%- set ns.sm = [{
+      "i": widgetName,
+      "x": widgetProps.layouts.sm[0],
+      "y": widgetProps.layouts.sm[1],
+      "w": widgetProps.layouts.sm[2],
+      "h": widgetProps.layouts.sm[3],
+      "isResizable": widgetProps.resizeable }] + ns.sm
+    -%}
+    {%- set ns.xs = [{
+      "i": widgetName,
+      "x": widgetProps.layouts.xs[0],
+      "y": widgetProps.layouts.xs[1],
+      "w": widgetProps.layouts.xs[2],
+      "h": widgetProps.layouts.xs[3],
+      "isResizable": widgetProps.resizeable }] + ns.xs
+    -%}
+  {% endif -%}
 {% endfor %}
 
 const defaultLayouts = {
