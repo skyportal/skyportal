@@ -58,6 +58,9 @@ const useStyles = makeStyles((theme) => ({
   pos: {
     marginBottom: "0.75rem",
   },
+  header: {
+    paddingBottom: 10,
+  },
 }));
 
 const Filter = () => {
@@ -116,7 +119,7 @@ const Filter = () => {
 
   return (
     <div>
-      <Typography variant="h6" style={{ paddingBottom: 10 }}>
+      <Typography variant="h6" className={classes.header}>
         Filter:&nbsp;&nbsp;
         {filter.name}
       </Typography>

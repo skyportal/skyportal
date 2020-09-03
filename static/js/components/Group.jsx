@@ -72,6 +72,9 @@ const useStyles = makeStyles((theme) => ({
     width: "100%",
     marginTop: theme.spacing(2),
   },
+  filterLink: {
+    width: "100%",
+  },
 }));
 
 const Group = () => {
@@ -246,7 +249,7 @@ const Group = () => {
           >
             {group?.users?.map((user) => (
               <ListItem button key={user.id}>
-                <Link to={`/user/${user.id}`}>
+                <Link to={`/user/${user.id}`} className={classes.filterLink}>
                   <ListItemText primary={user.username} />
                 </Link>
                 {isAdmin(user, group) && (
@@ -342,7 +345,10 @@ const Group = () => {
                     {group.filters?.map((filter) =>
                       filter.stream_id === stream.id ? (
                         <ListItem button key={filter.id}>
-                          <Link to={`/filter/${filter.id}`}>
+                          <Link
+                            to={`/filter/${filter.id}`}
+                            className={classes.filterLink}
+                          >
                             <ListItemText
                               key={filter.id}
                               className={classes.nested}

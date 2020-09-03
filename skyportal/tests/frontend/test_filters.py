@@ -29,10 +29,12 @@ def test_add_filter(driver, super_admin_user, user, public_group, public_stream)
     )
     flt = driver.switch_to.active_element
     flt.click()
-    driver.wait_for_xpath(f'//button[contains(.,"Add filter")]').click()
-    driver.wait_for_xpath('//input[@name="filter_name"]/..', timeout=10).click()
+    driver.click_xpath(f'//button[contains(.,"Add filter")]')
+    driver.click_xpath('//input[@name="filter_name"]/..', timeout=10)
     driver.wait_for_xpath('//input[@name="filter_name"]').send_keys(filter_name)
-    driver.wait_for_xpath('//input[@name="filter_stream_id"]/..', timeout=10).click()
+    driver.click_xpath(
+        '//input[@name="filter_stream_id"]/..', wait_clickable=False, timeout=10
+    )
     driver.wait_for_xpath(f'//li[contains(.,"{public_stream.id}")]', timeout=10)
     stream = driver.switch_to.active_element
     stream.click()
@@ -44,6 +46,6 @@ def test_add_filter(driver, super_admin_user, user, public_group, public_stream)
     )
 
     # go to filter page
-    driver.wait_for_xpath(f'//span[contains(.,"{filter_name}")]').click()
+    driver.click_xpath(f'//span[contains(.,"{filter_name}")]')
     driver.wait_for_xpath(f'//h6[contains(.,"{filter_name}")]', timeout=10)
     # driver.wait_for_xpath(f"//h6[text()='Filter:&nbsp;&nbsp;{filter_name}']")
