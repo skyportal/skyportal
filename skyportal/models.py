@@ -322,6 +322,13 @@ class Obj(Base, ha.Point):
 
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the object.")
 
+    internal_key = sa.Column(
+        sa.String,
+        nullable=False,
+        default=lambda: str(uuid.uuid4()),
+        doc="Internal key used for secure websocket messaging.",
+    )
+
     comments = relationship(
         'Comment',
         back_populates='obj',

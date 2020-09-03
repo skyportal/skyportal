@@ -1,6 +1,15 @@
 .source {
 }
 
+.displayInlineBlock {
+  display: inline-block;
+}
+
+.center {
+  margin: auto;
+  padding: 0.625rem;
+}
+
 .leftColumn {
   display: inline-block;
   vertical-align: top;
@@ -23,12 +32,12 @@
 }
 
 .plot {
-  width: 900px;
+  width: 56.25rem;
   overflow: auto;
 }
 
 .smallPlot {
-  width: 350px;
+  width: 21.875rem;
   overflow: auto;
 }
 
@@ -36,5 +45,5 @@
 }
 
 .tableContainer {
-  margin: 10px;
+  margin: 0.625rem;
 }

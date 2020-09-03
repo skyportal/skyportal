@@ -81,7 +81,7 @@ telescope:
     lon: -155.478
     name: Keck II 10m
     nickname: Keck2
-    skycam_link: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
+    skycam_link: /static/images/kcam_2.jpg
     robotic: false
     =id: Keck2
   - name: Keck I Telescope
@@ -90,7 +90,7 @@ telescope:
     lon: -155.478
     elevation: 2000
     diameter: 2.56
-    skycam_link: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
+    skycam_link: /static/images/kcam_2.jpg
     robotic: false
     =id: Keck1
 
