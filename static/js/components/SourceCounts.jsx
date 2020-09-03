@@ -35,7 +35,7 @@ const SourceCounts = ({ classes, sinceDaysAgo }) => {
   const dispatch = useDispatch();
 
   const defaultPrefs = {
-    sinceDaysAgo: sinceDaysAgo ? parseInt(sinceDaysAgo, 10) : "",
+    sinceDaysAgo: sinceDaysAgo ? sinceDaysAgo.toString() : "",
   };
   const sourceCountPrefs = userPrefs || defaultPrefs;
 
@@ -44,7 +44,7 @@ const SourceCounts = ({ classes, sinceDaysAgo }) => {
     if (!userPrefs) {
       dispatch(profileActions.updateUserPreferences(sourceCountPrefs));
     }
-  });
+  }, [userPrefs, dispatch]);
 
   return (
     <Paper
