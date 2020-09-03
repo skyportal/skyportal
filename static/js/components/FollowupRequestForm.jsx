@@ -20,8 +20,14 @@ const FollowupRequestForm = ({
   const allGroups = useSelector((state) => state.groups.all);
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
+
+  // list of the instrument IDs corresponding to each element of the
+  // allocationList (all visible allocations to user)
   const allocationInstIds = allocationList.map((a) => a.instrument_id);
-  const allocatedInstrumentIds = Object.keys(instrumentFormParams)
+
+  // list of the instrument IDs corresponding to each element of
+  // instrumentFormParams (list of instrument APIs).
+  const idsOfInstrumentswithAPIs = Object.keys(instrumentFormParams)
     .map((k) => parseInt(k, 10))
     .filter((i) => allocationInstIds.includes(i));
 
@@ -29,15 +35,15 @@ const FollowupRequestForm = ({
   // this needs to be in a useEffect hook so that the state setters are not
   // called unconditionally, resulting in an infinite re-render loop
   useEffect(() => {
-    const defaultInstId = allocatedInstrumentIds[0];
+    const defaultInstId = idsOfInstrumentswithAPIs[0];
     const defaultAllocationId = allocationList.filter(
       (allocation) => allocation.instrument_id === defaultInstId
     )[0]?.id;
     setSelectedInstrumentId(defaultInstId);
     setSelectedAllocationId(defaultAllocationId);
-  }, [allocationList, instrumentFormParams, allocatedInstrumentIds]);
+  }, [allocationList, instrumentFormParams, idsOfInstrumentswithAPIs]);
 
-  if (allocatedInstrumentIds.length === 0) {
+  if (idsOfInstrumentswithAPIs.length === 0) {
     return <h3>No robotic instruments available...</h3>;
   }
 
@@ -88,7 +94,7 @@ const FollowupRequestForm = ({
         onChange={handleSelectedInstrumentChange}
         name="followupRequestInstrumentSelect"
       >
-        {allocatedInstrumentIds
+        {idsOfInstrumentswithAPIs
           .filter((instrument_id) =>
             Object.keys(telLookUp)
               .map((t) => parseInt(t, 10))

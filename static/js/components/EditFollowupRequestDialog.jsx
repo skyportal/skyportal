@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
 import Form from "@rjsf/material-ui";
-import * as styles from "./EditFollowupRequestDialog.css";
+import styles from "./EditFollowupRequestDialog.css";
 import * as Actions from "../ducks/source";
 
 const EditFollowupRequestDialog = ({
