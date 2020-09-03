@@ -20,7 +20,7 @@ export default function hydrate() {
     dispatch(groupsActions.fetchGroups());
     dispatch(newsFeedActions.fetchNewsFeed());
     dispatch(topSourcesActions.fetchTopSources());
-    dispatch(instrumentActions.fetchInstruments());
+    dispatch(instrumentsActions.fetchInstruments());
     dispatch(fetchAllocations());
     dispatch(instrumentsActions.fetchInstrumentForms());
     dispatch(recentSourcesActions.fetchRecentSources());
