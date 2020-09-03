@@ -22,6 +22,9 @@ import { ra_to_hours, dec_to_hours } from "../units";
 import styles from "./Source.css";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
+import FollowupRequestForm from "./FollowupRequestForm";
+
+import FollowupRequestLists from "./FollowupRequestLists";
 import SharePage from "./SharePage";
 
 import AssignmentForm from "./AssignmentForm";
@@ -57,6 +60,9 @@ const Source = ({ route }) => {
       fetchSource();
     }
   }, [dispatch, isCached, route.id]);
+  const { instrumentList, instrumentFormParams } = useSelector(
+    (state) => state.instruments
+  );
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
 
@@ -127,6 +133,15 @@ const Source = ({ route }) => {
         <br />
         <Responsive
           element={FoldBox}
+          title="Centroid Plot"
+          mobileProps={{ folded: true }}
+        >
+          <Suspense fallback={<div>Loading centroid plot...</div>}>
+            <CentroidPlot className={styles.plot} sourceId={source.id} />
+          </Suspense>
+        </Responsive>
+        <Responsive
+          element={FoldBox}
           title="Photometry"
           mobileProps={{ folded: true }}
         >
@@ -167,6 +182,16 @@ const Source = ({ route }) => {
           title="Follow-up"
           mobileProps={{ folded: true }}
         >
+          <FollowupRequestForm
+            obj_id={source.id}
+            instrumentList={instrumentList}
+            instrumentFormParams={instrumentFormParams}
+          />
+          <FollowupRequestLists
+            followupRequests={source.followup_requests}
+            instrumentList={instrumentList}
+            instrumentFormParams={instrumentFormParams}
+          />
           <AssignmentForm
             obj_id={source.id}
             observingRunList={observingRunList}
@@ -197,15 +222,6 @@ const Source = ({ route }) => {
             action="createNew"
             taxonomyList={taxonomyList}
           />
-        </Responsive>
-        <Responsive
-          element={FoldBox}
-          title="Centroid Plot"
-          mobileProps={{ folded: true }}
-        >
-          <Suspense fallback={<div>Loading centroid plot...</div>}>
-            <CentroidPlot className={styles.smallPlot} sourceId={source.id} />
-          </Suspense>
         </Responsive>
       </div>
     </div>
