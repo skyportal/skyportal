@@ -22,8 +22,6 @@ import { ra_to_hours, dec_to_hours } from "../units";
 import styles from "./Source.css";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
-import FollowupRequestForm from "./FollowupRequestForm";
-import FollowupRequestList from "./FollowupRequestList";
 import SharePage from "./SharePage";
 
 import AssignmentForm from "./AssignmentForm";
@@ -59,9 +57,6 @@ const Source = ({ route }) => {
       fetchSource();
     }
   }, [dispatch, isCached, route.id]);
-  const { instrumentList, instrumentObsParams } = useSelector(
-    (state) => state.instruments
-  );
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
 
@@ -172,17 +167,6 @@ const Source = ({ route }) => {
           title="Follow-up"
           mobileProps={{ folded: true }}
         >
-          <FollowupRequestForm
-            obj_id={source.id}
-            action="createNew"
-            instrumentList={instrumentList}
-            instrumentObsParams={instrumentObsParams}
-          />
-          <FollowupRequestList
-            followupRequests={source.followup_requests}
-            instrumentList={instrumentList}
-            instrumentObsParams={instrumentObsParams}
-          />
           <AssignmentForm
             obj_id={source.id}
             observingRunList={observingRunList}

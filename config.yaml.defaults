@@ -16,6 +16,9 @@ app:
                         # base64.b64encode(os.urandom(50)).decode('ascii')
   factory: skyportal.app_server.make_app
 
+  # this endpoint does not actually do anything -- it is just for testing
+  sedm_endpoint: http://pharos.caltech.edu/add_fritz
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:

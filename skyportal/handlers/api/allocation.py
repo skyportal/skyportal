@@ -28,6 +28,13 @@ class AllocationHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all allocations
+          parameters:
+          - in: query
+            name: instrument_id
+            nullable: true
+            schema:
+              type: number
+            description: Instrument ID to retrieve allocations for
           responses:
             200:
               content:
@@ -59,6 +66,10 @@ class AllocationHandler(BaseHandler):
             if len(allocations) == 0:
                 return self.error("Could not retrieve allocation.")
             return self.success(data=allocations[0])
+
+        instrument_id = self.get_query_argument('instrument_id', None)
+        if instrument_id is not None:
+            allocations = allocations.filter(Allocation.instrument_id == instrument_id)
 
         allocations = allocations.all()
         return self.success(data=allocations)
