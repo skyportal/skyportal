@@ -7,27 +7,40 @@ import ListItem from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
 import Typography from "@material-ui/core/Typography";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
+import { makeStyles } from "@material-ui/core/styles";
 
-const GroupList = ({ title, groups, classes }) => (
-  <Paper elevation={1} className={classes.widgetPaperFillSpace}>
-    <div className={classes.widgetPaperDiv}>
-      <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
-      <Typography variant="h6">{title}</Typography>
-      <List component="nav" aria-label="main mailbox folders">
-        {groups &&
-          groups
-            .filter((group) => !group.single_user_group)
-            .map((group) => (
-              <Link to={`/group/${group.id}`} key={group.id}>
-                <ListItem key={group.id} button>
-                  <ListItemText primary={group.name} />
-                </ListItem>
-              </Link>
-            ))}
-      </List>
-    </div>
-  </Paper>
-);
+const useStyles = makeStyles(() => ({
+  listContainer: {
+    overflowX: "hidden",
+  },
+}));
+
+const GroupList = ({ title, groups, classes }) => {
+  const styles = useStyles();
+
+  return (
+    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
+      <div className={classes.widgetPaperDiv}>
+        <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
+        <Typography variant="h6">{title}</Typography>
+        <div className={styles.listContainer}>
+          <List component="nav" aria-label="main mailbox folders">
+            {groups &&
+              groups
+                .filter((group) => !group.single_user_group)
+                .map((group) => (
+                  <Link to={`/group/${group.id}`} key={group.id}>
+                    <ListItem key={group.id} button>
+                      <ListItemText primary={group.name} />
+                    </ListItem>
+                  </Link>
+                ))}
+          </List>
+        </div>
+      </div>
+    </Paper>
+  );
+};
 
 GroupList.propTypes = {
   title: PropTypes.string.isRequired,
