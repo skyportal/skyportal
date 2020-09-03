@@ -131,21 +131,40 @@ const HomePage = () => {
       onLayoutChange={LayoutChangeHandler}
       draggableHandle=".dragHandle"
     >
-      <div key="sourceCounts">
-        <SourceCounts classes={classes} />
+      {%- for widgetName, widgetProps in app.homepage_widgets.items() %}
+        {%- if widgetProps.show %}
+          {%- if widgetName == "groups" %}
+      <div key="{{ widgetName }}">
+        <{{ widgetProps.component_name }}
+          groups={groups}
+          classes={classes}
+          {%- for key, value in widgetProps.component_props.items() -%}
+          {%- if value is string %}
+          {{ key }}={"{{ value }}"}
+          {%- else -%}
+          {{ key }}={ {{ value }} }
+          {%- endif -%}
+          {%- endfor %}
+        />
       </div>
-      <div key="recentSources">
-        <RecentSources classes={classes} />
+          {% else %}
+      <div key="{{ widgetName }}">
+        <{{ widgetProps.component_name }}
+          classes={classes}
+          {% if widgetProps.component_props is defined -%}
+          {%- for key, value in widgetProps.component_props.items() -%}
+          {%- if value is string %}
+          {{ key }}={"{{ value }}"}
+          {%- else -%}
+          {{ key }}={ {{ value }} }
+          {%- endif -%}
+          {%- endfor -%}
+          {%- endif -%}
+        />
       </div>
-      <div key="newsFeed">
-        <NewsFeed classes={classes} />
-      </div>
-      <div key="topSources">
-        <TopSources classes={classes} />
-      </div>
-      <div key="groups">
-        <GroupList title="My Groups" groups={groups} classes={classes} />
-      </div>
+          {% endif -%}
+        {% endif -%}
+      {% endfor -%}
     </ResponsiveGridLayout>
   );
 };
