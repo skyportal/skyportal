@@ -196,7 +196,7 @@ const RecentSources = ({ classes }) => {
   const recentSourcesPrefs =
     useSelector((state) => state.profile.preferences.recentSources) ||
     defaultPrefs;
-  console.log(recentSources);
+
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
