@@ -368,7 +368,7 @@ class FollowupRequestHandler(BaseHandler):
         if instrument.api_classname is None:
             return self.error('Instrument has no remote API.')
 
-        if not instrument.api_class.implements_submit():
+        if not instrument.api_class.implements()['submit']:
             return self.error('Cannot submit followup requests to this Instrument.')
 
         # validate the payload
@@ -433,7 +433,7 @@ class FollowupRequestHandler(BaseHandler):
 
         api = followup_request.instrument.api_class
 
-        if not api.implements_update():
+        if not api.implements()['update']:
             return self.error('Cannot update requests on this instrument.')
 
         # validate posted data
@@ -490,7 +490,7 @@ class FollowupRequestHandler(BaseHandler):
             return self.error("Insufficient permissions.")
 
         api = followup_request.instrument.api_class
-        if not api.implements_delete():
+        if not api.implements()['delete']:
             return self.error('Cannot delete requests on this instrument.')
 
         api.delete(followup_request)
