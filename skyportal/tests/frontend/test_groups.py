@@ -49,7 +49,7 @@ def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
     driver.wait_for_xpath('//input[@name="groupAdmins"]').send_keys(
         super_admin_user.username
     )
-    driver.save_screenshot('/tmp/screenshot1.png')
+    driver.save_screenshot('test_add_new_group_explicit_self_admin.png')
     driver.click_xpath('//input[@value="Create Group"]')
     driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
@@ -70,6 +70,8 @@ def test_add_new_group_user_admin(
     ).pause(2).send_keys(Keys.ENTER).perform()
     driver.click_xpath('//input[@type="checkbox"]')
     driver.click_xpath('//input[@value="Add user"]')
+
+    driver.save_screenshot('test_add_new_group_user_admin.png')
     driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
     assert (
         len(
@@ -96,6 +98,7 @@ def test_add_new_group_user_nonadmin(
         user_no_groups.username
     ).pause(2).send_keys(Keys.ENTER).perform()
     driver.click_xpath('//input[@value="Add user"]')
+    driver.save_screenshot('test_add_new_group_user_nonadmin.png')
     driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
     assert (
         len(
@@ -126,6 +129,7 @@ def test_add_new_group_user_new_username(driver, super_admin_user, user, public_
         driver.wait_for_xpath('//*[contains(., "Invitation successfully sent to")]')
     else:
         # If invitations are disabled, the user will be added and will appear
+        driver.save_screenshot('test_add_new_group_user_new_username.png')
         driver.wait_for_xpath(f'//a[contains(.,"{new_username}")]')
 
 
