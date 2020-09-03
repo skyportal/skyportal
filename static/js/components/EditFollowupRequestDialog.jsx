@@ -4,8 +4,14 @@ import PropTypes from "prop-types";
 import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
 import Form from "@rjsf/material-ui";
-import styles from "./EditFollowupRequestDialog.css";
+import { makeStyles } from "@material-ui/core/styles";
 import * as Actions from "../ducks/source";
+
+const useStyles = makeStyles(() => ({
+  dialog: {
+    position: "fixed",
+  },
+}));
 
 const EditFollowupRequestDialog = ({
   followupRequest,
@@ -13,6 +19,7 @@ const EditFollowupRequestDialog = ({
 }) => {
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
+  const classes = useStyles();
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -41,7 +48,7 @@ const EditFollowupRequestDialog = ({
       >
         Edit
       </button>
-      <Dialog open={open} onClose={handleClose} style={styles.dialog}>
+      <Dialog open={open} onClose={handleClose} style={classes.dialog}>
         <DialogContent>
           <Form
             schema={
