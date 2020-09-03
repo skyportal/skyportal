@@ -177,7 +177,7 @@ class SourceHandler(BaseHandler):
         has_tns_name = self.get_query_argument('hasTNSname', None)
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
-        if obj_id:
+        if obj_id is not None:
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
                 register_source_view(

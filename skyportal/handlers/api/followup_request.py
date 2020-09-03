@@ -154,7 +154,8 @@ class AssignmentHandler(BaseHandler):
         DBSession().add(assignment)
         DBSession().commit()
         self.push_all(
-            action="skyportal/REFRESH_SOURCE", payload={"obj_id": assignment.obj_id},
+            action="skyportal/REFRESH_SOURCE",
+            payload={"obj_key": assignment.obj.internal_key},
         )
         self.push_all(
             action="skyportal/REFRESH_OBSERVING_RUN",
@@ -213,7 +214,8 @@ class AssignmentHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(
-            action="skyportal/REFRESH_SOURCE", payload={"obj_id": assignment.obj_id},
+            action="skyportal/REFRESH_SOURCE",
+            payload={"obj_key": assignment.obj.internal_key},
         )
         self.push_all(
             action="skyportal/REFRESH_OBSERVING_RUN",
@@ -251,7 +253,8 @@ class AssignmentHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(
-            action="skyportal/REFRESH_SOURCE", payload={"obj_id": assignment.obj_id},
+            action="skyportal/REFRESH_SOURCE",
+            payload={"obj_key": assignment.obj.internal_key},
         )
         self.push_all(
             action="skyportal/REFRESH_OBSERVING_RUN",
@@ -380,7 +383,7 @@ class FollowupRequestHandler(BaseHandler):
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
-            payload={"obj_id": followup_request.obj_id},
+            payload={"obj_key": followup_request.obj.internal_key},
         )
 
         try:
@@ -457,7 +460,7 @@ class FollowupRequestHandler(BaseHandler):
         followup_request.instrument.api_class.update(followup_request)
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
-            payload={"obj_id": followup_request.obj_id},
+            payload={"obj_key": followup_request.obj.internal_key},
         )
         return self.success()
 
@@ -500,6 +503,6 @@ class FollowupRequestHandler(BaseHandler):
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
-            payload={"obj_id": followup_request.obj_id},
+            payload={"obj_key": followup_request.obj.internal_key},
         )
         return self.success()

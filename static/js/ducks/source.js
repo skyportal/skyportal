@@ -140,10 +140,10 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   const { source } = getState();
 
   if (actionType === REFRESH_SOURCE) {
-    const loaded_obj_id = source ? source.id : null;
+    const loaded_obj_key = source ? source.internal_key : null;
 
-    if (loaded_obj_id === payload.obj_id) {
-      dispatch(fetchSource(loaded_obj_id));
+    if (loaded_obj_key === payload.obj_key) {
+      dispatch(fetchSource(source.id));
     }
   }
 });
