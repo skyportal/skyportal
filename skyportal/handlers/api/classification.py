@@ -156,7 +156,8 @@ class ClassificationHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(
-            action='skyportal/REFRESH_SOURCE', payload={'obj_id': classification.obj_id}
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': classification.obj.internal_key},
         )
         if classification.obj_id in RecentSourcesHandler.get_recent_source_ids(
             self.current_user
@@ -232,7 +233,9 @@ class ClassificationHandler(BaseHandler):
                 )
             c.groups = groups
         DBSession().commit()
-        self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_id': c.obj_id})
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE', payload={'obj_key': c.obj.internal_key},
+        )
         if c.obj_id in RecentSourcesHandler.get_recent_source_ids(self.current_user):
             self.push_all(action='skyportal/FETCH_RECENT_SOURCES')
 
@@ -261,13 +264,16 @@ class ClassificationHandler(BaseHandler):
         if c is None:
             return self.error("Invalid classification ID")
         obj_id = c.obj_id
+        obj_key = c.obj.internal_key
         author = c.author
         if ("Super admin" in [role.id for role in roles]) or (user.id == author.id):
             Classification.query.filter_by(id=classification_id).delete()
             DBSession().commit()
         else:
             return self.error('Insufficient user permissions.')
-        self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_id': obj_id})
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key},
+        )
 
         if obj_id in RecentSourcesHandler.get_recent_source_ids(self.current_user):
             self.push_all(action='skyportal/FETCH_RECENT_SOURCES')

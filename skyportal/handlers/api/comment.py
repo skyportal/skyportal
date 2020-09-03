@@ -119,7 +119,8 @@ class CommentHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(
-            action='skyportal/REFRESH_SOURCE', payload={'obj_id': comment.obj_id}
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': comment.obj.internal_key},
         )
         return self.success(data={'comment_id': comment.id})
 
@@ -171,26 +172,26 @@ class CommentHandler(BaseHandler):
         try:
             schema.load(data, partial=True)
         except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
+            return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
         DBSession().flush()
         if group_ids is not None:
             c = Comment.get_if_owned_by(comment_id, self.current_user)
             groups = Group.query.filter(Group.id.in_(group_ids)).all()
             if not groups:
                 return self.error(
-                    "Invalid group_ids field. " "Specify at least one valid group ID."
+                    "Invalid group_ids field. Specify at least one valid group ID."
                 )
             if not all(
                 [group in self.current_user.accessible_groups for group in groups]
             ):
                 return self.error(
-                    "Cannot associate comment with groups you are " "not a member of."
+                    "Cannot associate comment with groups you are not a member of."
                 )
             c.groups = groups
         DBSession().commit()
-        self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_id': c.obj_id})
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE', payload={'obj_key': c.obj.internal_key}
+        )
         return self.success()
 
     @permissions(['Comment'])
@@ -215,14 +216,14 @@ class CommentHandler(BaseHandler):
         c = Comment.query.get(comment_id)
         if c is None:
             return self.error("Invalid comment ID")
-        obj_id = c.obj_id
+        obj_key = c.obj.internal_key
         author = c.author
         if ("System admin" in acls or "Manage groups" in acls) or (user == author):
             Comment.query.filter_by(id=comment_id).delete()
             DBSession().commit()
         else:
             return self.error('Insufficient user permissions.')
-        self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_id': obj_id})
+        self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key})
         return self.success()
 
 
