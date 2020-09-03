@@ -19,11 +19,12 @@ def test_upload_photometry(
 
     inst_select = driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]')
     driver.scroll_to_element(inst_select)
-    ActionChains(driver).move_to_element(inst_select).pause(2).click().perform()
+    ActionChains(driver).move_to_element(inst_select).click().pause(2).perform()
 
     sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
 
     driver.scroll_to_element_and_click(sedm_element)
+    driver.save_screenshot("test_upload_photometry.png")
     driver.wait_for_xpath_to_be_clickable('//body').click()
     try:
         driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
@@ -69,11 +70,11 @@ def test_upload_photometry_multiple_groups(
     )
     inst_select = driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]')
     driver.scroll_to_element(inst_select)
-    ActionChains(driver).move_to_element(inst_select).pause(2).click().perform()
+    ActionChains(driver).move_to_element(inst_select).click().pause(2).perform()
 
     sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
-
     driver.scroll_to_element_and_click(sedm_element)
+    driver.save_screenshot("test_upload_photometry_multiple_groups.png")
     driver.wait_for_xpath_to_be_clickable('//body').click()
 
     try:
@@ -115,10 +116,11 @@ def test_upload_photometry_with_altdata(
     )
     inst_select = driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]')
     driver.scroll_to_element(inst_select)
-    ActionChains(driver).move_to_element(inst_select).pause(2).click().perform()
+    ActionChains(driver).move_to_element(inst_select).click().pause(2).perform()
 
     sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
     driver.scroll_to_element_and_click(sedm_element)
+    driver.save_screenshot("test_upload_photometry_with_altdata.png")
     driver.wait_for_xpath_to_be_clickable('//body').click()
 
     try:
@@ -183,7 +185,7 @@ def test_upload_photometry_form_validation(
 
     inst_select = driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]')
     driver.scroll_to_element(inst_select)
-    ActionChains(driver).move_to_element(inst_select).pause(2).click().perform()
+    ActionChains(driver).move_to_element(inst_select).click().pause(2).perform()
 
     sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
     driver.scroll_to_element_and_click(sedm_element)
