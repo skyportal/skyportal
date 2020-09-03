@@ -129,7 +129,10 @@ const NewsFeed = ({ classes }) => {
         </div>
         <div className={newsFeedStyle} style={{ height: "85%" }}>
           {items.map((item) => (
-            <NewsFeedItem key={item.time} item={item} />
+            <NewsFeedItem
+              key={`${item.author}-${item.source_id}-${item.time}`}
+              item={item}
+            />
           ))}
         </div>
       </div>
