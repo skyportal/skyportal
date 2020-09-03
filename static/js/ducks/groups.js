@@ -56,13 +56,14 @@ messageHandler.add((actionType, payload, dispatch) => {
   }
 });
 
-function reducer(state = { user: [], all: null }, action) {
+function reducer(state = { user: [], userAccessible: [], all: null }, action) {
   switch (action.type) {
     case FETCH_GROUPS_OK: {
-      const { user_groups, all_groups } = action.data;
+      const { user_groups, user_accessible_groups, all_groups } = action.data;
       return {
         ...state,
         user: user_groups,
+        userAccessible: user_accessible_groups,
         all: all_groups,
       };
     }

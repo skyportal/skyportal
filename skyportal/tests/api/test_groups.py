@@ -65,6 +65,19 @@ def test_token_user_request_all_groups(manage_groups_token, super_admin_user):
             for group in data["data"]["user_groups"]
         ]
     )
+    assert any(
+        [
+            user_group["name"] == group_name
+            for user_group in data["data"]["user_accessible_groups"]
+        ]
+    )
+    assert not any(
+        [
+            group["single_user_group"] is True
+            and group["name"] == super_admin_user.username
+            for group in data["data"]["user_accessible_groups"]
+        ]
+    )
 
 
 def test_token_user_update_group(manage_groups_token, public_group):
