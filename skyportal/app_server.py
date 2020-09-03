@@ -147,9 +147,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
                     'social_core.pipeline.social_auth.auth_allowed',
                     # Checks if the current social-account is already associated in the site.
                     'social_core.pipeline.social_auth.social_user',
-                    # Make up a username for this person, appends a random string at the end if
-                    # there's any collision.
-                    'social_core.pipeline.user.get_username',
+                    'skyportal.onboarding.get_username',
                     'skyportal.onboarding.create_user',
                     # Create a user account if we haven't found one yet.
                     # 'social_core.pipeline.user.create_user',
