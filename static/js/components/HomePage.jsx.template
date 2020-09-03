@@ -38,52 +38,17 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const xlgLayout = [
-  { i: "sourceCounts", x: 14, y: 0, w: 2, h: 1, isResizable: false },
-  { i: "recentSources", x: 0, y: 0, w: 5, h: 3, isResizable: false },
-  { i: "newsFeed", x: 10, y: 0, w: 4, h: 3, isResizable: false },
-  { i: "topSources", x: 5, y: 0, w: 5, h: 3, isResizable: false },
-  { i: "groups", x: 14, y: 1, w: 2, h: 2, isResizable: false },
-];
-
-const lgLayout = [
-  { i: "sourceCounts", x: 10, y: 0, w: 2, h: 1, isResizable: false },
-  { i: "recentSources", x: 0, y: 0, w: 4, h: 3, isResizable: false },
-  { i: "newsFeed", x: 7, y: 0, w: 3, h: 3, isResizable: false },
-  { i: "topSources", x: 4, y: 3, w: 3, h: 3, isResizable: false },
-  { i: "groups", x: 10, y: 1, w: 2, h: 2, isResizable: false },
-];
-
-const mdLayout = [
-  { i: "sourceCounts", x: 8, y: 0, w: 2, h: 1, isResizable: false },
-  { i: "recentSources", x: 0, y: 3, w: 5, h: 3, isResizable: false },
-  { i: "newsFeed", x: 0, y: 0, w: 8, h: 3, isResizable: false },
-  { i: "topSources", x: 5, y: 3, w: 5, h: 3, isResizable: false },
-  { i: "groups", x: 8, y: 1, w: 2, h: 2, isResizable: false },
-];
-
-const smLayout = [
-  { i: "sourceCounts", x: 4.5, y: 0, w: 1.5, h: 1, isResizable: false },
-  { i: "recentSources", x: 0, y: 3, w: 3, h: 3, isResizable: false },
-  { i: "newsFeed", x: 0, y: 0, w: 4.5, h: 3, isResizable: false },
-  { i: "topSources", x: 3, y: 3, w: 3, h: 3, isResizable: false },
-  { i: "groups", x: 4.5, y: 1, w: 1.5, h: 2, isResizable: false },
-];
-
-const xsLayout = [
-  { i: "sourceCounts", x: 0, y: 0, w: 4, h: 1, isResizable: false },
-  { i: "recentSources", x: 0, y: 4, w: 4, h: 3, isResizable: false },
-  { i: "newsFeed", x: 0, y: 1, w: 4, h: 3, isResizable: false },
-  { i: "topSources", x: 0, y: 7, w: 4, h: 3, isResizable: false },
-  { i: "groups", x: 0, y: 10, w: 4, h: 2, isResizable: false },
-];
-
 const defaultLayouts = {
-  xlg: xlgLayout,
-  lg: lgLayout,
-  md: mdLayout,
-  sm: smLayout,
-  xs: xsLayout,
+  xlg: {{ app.homepage_layouts.xlg | replace("True", "true") |
+    replace("False", "false") }},
+  lg: {{ app.homepage_layouts.lg | replace("True", "true") |
+    replace("False", "false") }},
+  md: {{ app.homepage_layouts.md | replace("True", "true") |
+    replace("False", "false") }},
+  sm: {{ app.homepage_layouts.sm | replace("True", "true") |
+    replace("False", "false") }},
+  xs: {{ app.homepage_layouts.xs | replace("True", "true") |
+    replace("False", "false") }},
 };
 
 const HomePage = () => {
@@ -119,8 +84,8 @@ const HomePage = () => {
     <ResponsiveGridLayout
       className="layout"
       layouts={currentLayouts}
-      breakpoints={{ xlg: 1400, lg: 1150, md: 996, sm: 650, xs: 0 }}
-      cols={{ xlg: 16, lg: 12, md: 10, sm: 6, xs: 4 }}
+      breakpoints={{ '{{ xlg: 1400, lg: 1150, md: 996, sm: 650, xs: 0 }}' }}
+      cols={{ '{{ xlg: 16, lg: 12, md: 10, sm: 6, xs: 4 }}' }}
       margin={[10, 10]}
       onLayoutChange={LayoutChangeHandler}
       draggableHandle=".dragHandle"
