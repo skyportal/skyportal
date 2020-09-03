@@ -1,6 +1,6 @@
 import uuid
 import pytest
-
+from selenium.webdriver.common.action_chains import ActionChains
 from skyportal.tests import api
 
 
@@ -94,13 +94,13 @@ def test_news_feed_prefs_widget(
     driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]').click()
     n_items_input = driver.wait_for_xpath('//input[@name="numItems"]')
     n_items_input.clear()
-    n_items_input.send_keys("2")
+    ActionChains(driver).send_keys_to_element(n_items_input, "2").pause(1).perform()
     driver.wait_for_xpath('//button[contains(., "Save")]').click()
     source_added_item_xpath = f'//div[contains(@class, "NewsFeed__entryContent")][span[text()="New source added"]][.//a[@href="/source/{obj_id_base}_0"]]'
     driver.wait_for_xpath_to_disappear(source_added_item_xpath)
     driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]').click()
     n_items_input = driver.wait_for_xpath('//input[@name="numItems"]')
     n_items_input.clear()
-    n_items_input.send_keys("4")
+    ActionChains(driver).send_keys_to_element(n_items_input, "4").pause(1).perform()
     driver.wait_for_xpath('//button[contains(., "Save")]').click()
     driver.wait_for_xpath(source_added_item_xpath)
