@@ -3,3 +3,8 @@ update_configs:
   - package_manager: "javascript"
     directory: "/"
     update_schedule: "monthly"
+  - ignored_updates:
+      - match:
+          dependency_name: "react-dnd"
+      - match:
+          dependency_name: "@date-io/dayjs"
