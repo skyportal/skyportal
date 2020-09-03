@@ -21,7 +21,10 @@ def test_upload_photometry(
     driver.scroll_to_element(inst_select)
     ActionChains(driver).move_to_element(inst_select).pause(2).click().perform()
 
-    driver.scroll_to_element_and_click(f'//span[text()="{sedm.name} (ID: {inst_id})"]')
+    sedm_element = driver.wait_for_xpath(
+        f'//span[text()="{sedm.name} (ID: {inst_id})"]'
+    )
+    driver.scroll_to_element_and_click(sedm_element)
     driver.wait_for_xpath_to_be_clickable('//body').click()
     try:
         driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
@@ -69,7 +72,10 @@ def test_upload_photometry_multiple_groups(
     driver.scroll_to_element(inst_select)
     ActionChains(driver).move_to_element(inst_select).pause(2).click().perform()
 
-    driver.scroll_to_element_and_click(f'//span[text()="{sedm.name} (ID: {inst_id})"]')
+    sedm_element = driver.wait_for_xpath(
+        f'//span[text()="{sedm.name} (ID: {inst_id})"]'
+    )
+    driver.scroll_to_element_and_click(sedm_element)
     driver.wait_for_xpath_to_be_clickable('//body').click()
 
     try:
@@ -113,7 +119,10 @@ def test_upload_photometry_with_altdata(
     driver.scroll_to_element(inst_select)
     ActionChains(driver).move_to_element(inst_select).pause(2).click().perform()
 
-    driver.scroll_to_element_and_click(f'//span[text()="{sedm.name} (ID: {inst_id})"]')
+    sedm_element = driver.wait_for_xpath(
+        f'//span[text()="{sedm.name} (ID: {inst_id})"]'
+    )
+    driver.scroll_to_element_and_click(sedm_element)
     driver.wait_for_xpath_to_be_clickable('//body').click()
 
     try:
@@ -180,8 +189,12 @@ def test_upload_photometry_form_validation(
     driver.scroll_to_element(inst_select)
     ActionChains(driver).move_to_element(inst_select).pause(2).click().perform()
 
-    driver.scroll_to_element_and_click(f'//span[text()="{sedm.name} (ID: {inst_id})"]')
+    sedm_element = driver.wait_for_xpath(
+        f'//span[text()="{sedm.name} (ID: {inst_id})"]'
+    )
+    driver.scroll_to_element_and_click(sedm_element)
     driver.wait_for_xpath_to_be_clickable('//body').click()
+
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
     driver.wait_for_xpath_to_be_clickable('//body').click()
     try:
