@@ -249,12 +249,13 @@ class AssignmentHandler(BaseHandler):
         if not delok:
             return self.error("Insufficient permissions.")
 
+        obj_key = assignment.obj.internal_key
+
         DBSession().delete(assignment)
         DBSession().commit()
 
         self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_key": assignment.obj.internal_key},
+            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj_key},
         )
         self.push_all(
             action="skyportal/REFRESH_OBSERVING_RUN",
@@ -498,11 +499,12 @@ class FollowupRequestHandler(BaseHandler):
 
         api.delete(followup_request)
 
+        obj_key = followup_request.obj.internal_key
+
         DBSession().delete(followup_request)
         DBSession().commit()
 
         self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_key": followup_request.obj.internal_key},
+            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj_key},
         )
         return self.success()
