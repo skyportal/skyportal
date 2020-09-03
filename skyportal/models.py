@@ -1475,8 +1475,7 @@ class Photometry(Base, ha.Point):
     def iso(cls):
         """UTC ISO timestamp (ArrowType) of the exposure that produced this Photometry."""
         # converts MJD to unix timestamp
-        local = sa.func.to_timestamp((cls.mjd - 40_587.5) * 86400.0)
-        return sa.func.timezone('UTC', local)
+        return sa.func.to_timestamp((cls.mjd - 40_587.5) * 86400.0)
 
     @hybrid_property
     def snr(self):
