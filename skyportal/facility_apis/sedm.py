@@ -9,6 +9,18 @@ env, cfg = load_env()
 
 
 def convert_request_to_sedm(request, method_value='new'):
+    """Convert a FollowupRequest into a dictionary that can be directly
+    submitted via HTTP to the SEDM queue.
+
+    Parameters
+    ----------
+    request: skyportal.models.FollowupRequest
+        The request to send to SEDM.
+
+    method_value: 'new', 'edit', 'delete'
+        The desired SEDM queue action.
+    """
+
     photometry = sorted(request.obj.photometry, key=lambda p: p.mjd, reverse=True)
     photometry_payload = {}
 
@@ -26,28 +38,25 @@ def convert_request_to_sedm(request, method_value='new'):
             }
 
     rtype = request.payload['observation_type']
-    if rtype == 'IFU':
-        filters = ''
-        followup = 'IFU'
-    elif rtype == '3-shot (gri)':
-        filters = 'g,r,i'
-        followup = ''
-    elif rtype == '4-shot (ugri)':
-        filters = 'u,g,r,i'
-        followup = ''
-    elif rtype == '4-shot+IFU':
-        filters = 'u,g,r,i'
-        followup = 'IFU'
-    elif rtype == '3-shot+IFU':
-        filters = 'g,r,i'
-        followup = 'IFU'
-    elif rtype == "Mix 'n Match":
+
+    filtdict = {
+        'IFU': '',
+        '3-shot (gri)': 'g,r,i',
+        '4-shot (ugri)': 'u,g,r,i',
+        '4-shot+IFU': 'u,g,r,i',
+        '3-shot+IFU': 'g,r,i',
+    }
+
+    if rtype == "Mix 'n Match":
         choices = request.payload['observation_choices']
         hasspec = 'IFU' in choices
         followup = 'IFU' if hasspec else ''
         if hasspec:
             choices.remove('IFU')
         filters = ','.join(choices)
+    elif rtype in filtdict:
+        filters = filtdict[rtype]
+        followup = 'IFU' if 'IFU' in rtype else ''
     else:
         raise ValueError('Cannot coerce payload into SEDM format.')
 
@@ -75,7 +84,13 @@ class SEDMAPI(FollowUpAPI):
 
     @staticmethod
     def submit(request):
-        """Submit a follow-up request to SEDM."""
+        """Submit a follow-up request to SEDM.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to submit.
+        """
         from ..models import DBSession, FollowupRequestHTTPRequest
 
         payload = convert_request_to_sedm(request, method_value='new')
@@ -100,7 +115,13 @@ class SEDMAPI(FollowUpAPI):
 
     @staticmethod
     def delete(request):
-        """Delete a follow-up request from SEDM queue."""
+        """Delete a follow-up request from SEDM queue.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to delete from the queue and the SkyPortal database.
+        """
         from ..models import DBSession, FollowupRequest
 
         payload = convert_request_to_sedm(request, method_value='delete')
@@ -118,7 +139,13 @@ class SEDMAPI(FollowUpAPI):
 
     @staticmethod
     def update(request):
-        """Update a request in the SEDM queue."""
+        """Update a request in the SEDM queue.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The updated request.
+        """
         from ..models import DBSession, FollowupRequestHTTPRequest
 
         payload = convert_request_to_sedm(request, method_value='edit')
