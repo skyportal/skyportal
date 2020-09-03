@@ -46,7 +46,7 @@ const FollowupRequestForm = ({
   }
 
   const groupLookUp = {};
-  allGroups.foreach((group) => {
+  allGroups.forEach((group) => {
     groupLookUp[group.id] = group;
   });
 
