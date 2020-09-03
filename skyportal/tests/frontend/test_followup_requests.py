@@ -70,7 +70,7 @@ def add_allocation(instrument_id, group_id, token):
     return data["data"]
 
 
-def _followup_request_test_body(
+def add_followup_request_using_frontend_and_verify(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
@@ -139,7 +139,7 @@ def test_submit_new_followup_request(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
 
-    _followup_request_test_body(
+    add_followup_request_using_frontend_and_verify(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
@@ -149,7 +149,7 @@ def test_submit_new_followup_request(
 def test_edit_existing_followup_request(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    _followup_request_test_body(
+    add_followup_request_using_frontend_and_verify(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
     edit_button = driver.wait_for_xpath(f'//button[contains(@name, "editRequest")]')
@@ -184,7 +184,7 @@ def test_edit_existing_followup_request(
 def test_delete_followup_request(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    _followup_request_test_body(
+    add_followup_request_using_frontend_and_verify(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
     delete_button = driver.wait_for_xpath(f'//button[contains(@name, "deleteRequest")]')
