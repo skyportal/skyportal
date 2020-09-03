@@ -89,9 +89,15 @@ const defaultPrefs = {
 };
 
 const RecentSourcesList = ({ sources, styles }) => {
-  return sources.length === 0 ? (
-    <div>Loading recent sources...</div>
-  ) : (
+  if (sources === undefined) {
+    return <div>Loading recent sources...</div>;
+  }
+
+  if (sources.length === 0) {
+    return <div>No recent sources available.</div>;
+  }
+
+  return (
     <div className={styles.recentSourceListContainer}>
       <ul className={styles.recentSourceList}>
         {sources.map((source) => {
@@ -175,8 +181,12 @@ RecentSourcesList.propTypes = {
         })
       ),
     })
-  ).isRequired,
+  ),
   styles: PropTypes.shape(Object).isRequired,
+};
+
+RecentSourcesList.defaultProps = {
+  sources: undefined,
 };
 
 const RecentSources = ({ classes }) => {
@@ -186,7 +196,7 @@ const RecentSources = ({ classes }) => {
   const recentSourcesPrefs =
     useSelector((state) => state.profile.preferences.recentSources) ||
     defaultPrefs;
-
+  console.log(recentSources);
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
