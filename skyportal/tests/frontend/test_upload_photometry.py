@@ -1,5 +1,6 @@
 import pytest
 from selenium.common.exceptions import ElementClickInterceptedException
+from selenium.webdriver import ActionChains
 
 
 @pytest.mark.flaky(reruns=2)
@@ -15,8 +16,12 @@ def test_upload_photometry(
         "58001,55,1,25,ab,sdssg\n"
         "58002,53,1,25,ab,sdssg"
     )
-    driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
-    driver.click_xpath(f'//span[text()="{sedm.name} (ID: {inst_id})"]')
+
+    inst_select = driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]')
+    driver.scroll_to_element(inst_select)
+    ActionChains(driver).move_to_element(inst_select).pause(2).click().perform()
+
+    driver.scroll_to_element_and_click(f'//span[text()="{sedm.name} (ID: {inst_id})"]')
     driver.wait_for_xpath_to_be_clickable('//body').click()
     try:
         driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
@@ -60,9 +65,13 @@ def test_upload_photometry_multiple_groups(
         "58001,55,1,25,ab,sdssg\n"
         "58002,53,1,25,ab,sdssg"
     )
-    driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
-    driver.click_xpath(f'//span[text()="{sedm.name} (ID: {inst_id})"]')
+    inst_select = driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]')
+    driver.scroll_to_element(inst_select)
+    ActionChains(driver).move_to_element(inst_select).pause(2).click().perform()
+
+    driver.scroll_to_element_and_click(f'//span[text()="{sedm.name} (ID: {inst_id})"]')
     driver.wait_for_xpath_to_be_clickable('//body').click()
+
     try:
         driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
     except ElementClickInterceptedException:
@@ -100,9 +109,13 @@ def test_upload_photometry_with_altdata(
         "58001,55,1,25,ab,sdssg,44.4,\"abc,abc\"\n"
         "58002,53,1,25,ab,sdssg,44.2,\"edf,edf\""
     )
-    driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
-    driver.click_xpath(f'//span[text()="{sedm.name} (ID: {inst_id})"]')
+    inst_select = driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]')
+    driver.scroll_to_element(inst_select)
+    ActionChains(driver).move_to_element(inst_select).pause(2).click().perform()
+
+    driver.scroll_to_element_and_click(f'//span[text()="{sedm.name} (ID: {inst_id})"]')
     driver.wait_for_xpath_to_be_clickable('//body').click()
+
     try:
         driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
     except ElementClickInterceptedException:
@@ -162,8 +175,13 @@ def test_upload_photometry_form_validation(
         "58002,53,1,25,ab,sdssg"
     )
     driver.wait_for_xpath('//div[contains(.,"Select an instrument")]')
-    driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]').click()
-    driver.wait_for_xpath(f'//span[text()="{sedm.name} (ID: {inst_id})"]').click()
+
+    inst_select = driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]')
+    driver.scroll_to_element(inst_select)
+    ActionChains(driver).move_to_element(inst_select).pause(2).click().perform()
+
+    driver.scroll_to_element_and_click(f'//span[text()="{sedm.name} (ID: {inst_id})"]')
+    driver.wait_for_xpath_to_be_clickable('//body').click()
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
     driver.wait_for_xpath_to_be_clickable('//body').click()
     try:
