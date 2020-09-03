@@ -70,162 +70,60 @@ app:
       icon: Info
       url: /about
 
-  homepage_layouts:
-    xlg:
-      - i: sourceCounts
-        x: 14
-        y: 0
-        w: 2
-        h: 1
-        isResizable: false
-      - i: recentSources
-        x: 0
-        y: 0
-        w: 5
-        h: 3
-        isResizable: false
-      - i: newsFeed
-        x: 10
-        y: 0
-        w: 4
-        h: 3
-        isResizable: false
-      - i: topSources
-        x: 5
-        y: 0
-        w: 5
-        h: 3
-        isResizable: false
-      - i: groups
-        x: 14
-        y: 1
-        w: 2
-        h: 2
-        isResizable: false
-    lg:
-      - i: sourceCounts
-        x: 10
-        y: 0
-        w: 2
-        h: 1
-        isResizable: false
-      - i: recentSources
-        x: 0
-        y: 0
-        w: 4
-        h: 3
-        isResizable: false
-      - i: newsFeed
-        x: 7
-        y: 0
-        w: 3
-        h: 3
-        isResizable: false
-      - i: topSources
-        x: 4
-        y: 3
-        w: 3
-        h: 3
-        isResizable: false
-      - i: groups
-        x: 10
-        y: 1
-        w: 2
-        h: 2
-        isResizable: false
-    md:
-      - i: sourceCounts
-        x: 8
-        y: 0
-        w: 2
-        h: 1
-        isResizable: false
-      - i: recentSources
-        x: 0
-        y: 3
-        w: 5
-        h: 3
-        isResizable: false
-      - i: newsFeed
-        x: 0
-        y: 0
-        w: 8
-        h: 3
-        isResizable: false
-      - i: topSources
-        x: 5
-        y: 3
-        w: 5
-        h: 3
-        isResizable: false
-      - i: groups
-        x: 8
-        y: 1
-        w: 2
-        h: 2
-        isResizable: false
-    sm:
-      - i: sourceCounts
-        x: 4.5
-        y: 0
-        w: 1.5
-        h: 1
-        isResizable: false
-      - i: recentSources
-        x: 0
-        y: 3
-        w: 3
-        h: 3
-        isResizable: false
-      - i: newsFeed
-        x: 0
-        y: 0
-        w: 4.5
-        h: 3
-        isResizable: false
-      - i: topSources
-        x: 3
-        y: 3
-        w: 3
-        h: 3
-        isResizable: false
-      - i: groups
-        x: 4.5
-        y: 1
-        w: 1.5
-        h: 2
-        isResizable: false
-    xs:
-      - i: sourceCounts
-        x: 0
-        y: 0
-        w: 4
-        h: 1
-        isResizable: false
-      - i: recentSources
-        x: 0
-        y: 4
-        w: 4
-        h: 3
-        isResizable: false
-      - i: newsFeed
-        x: 0
-        y: 1
-        w: 4
-        h: 3
-        isResizable: false
-      - i: topSources
-        x: 0
-        y: 7
-        w: 4
-        h: 3
-        isResizable: false
-      - i: groups
-        x: 0
-        y: 10
-        w: 4
-        h: 2
-        isResizable: false
+  homepage_widgets:
+    # Layouts arrays should be [x, y, w, h]
+    # See https://github.com/STRML/react-grid-layout
+
+    sourceCounts:
+      show: true
+      days_past_to_include: 7
+      resizeable: false
+      layouts:
+        xlg: [14, 0, 2, 1]
+        lg: [10, 0, 2, 1]
+        md: [8, 0, 2, 1]
+        sm: [4.5, 0, 1.5, 1]
+        xs: [0, 0, 4, 1]
+
+    recentSources:
+      show: true
+      resizeable: false
+      layouts:
+        xlg: [0, 0, 5, 3]
+        lg: [0, 0, 4, 3]
+        md: [0, 3, 3, 3]
+        sm: [4.5, 0, 1.5, 1]
+        xs: [0, 4, 4, 3]
+
+    newsFeed:
+      show: true
+      resizeable: false
+      layouts:
+        xlg: [10, 0, 4, 3]
+        lg: [7, 0, 3, 3]
+        md: [0, 0, 8, 3]
+        sm: [0, 0, 4.5, 3]
+        xs: [0, 1, 4, 3]
+
+    topSources:
+      show: true
+      resizeable: false
+      layouts:
+        xlg: [5, 0, 5, 3]
+        lg: [4, 3, 3, 3]
+        md: [5, 3, 5, 3]
+        sm: [3, 3, 3, 3]
+        xs: [0, 7, 4, 3]
+
+    groups:
+      show: true
+      resizeable: true
+      layouts:
+        xlg: [14, 1, 2, 2]
+        lg: [10, 1, 2, 2]
+        md: [8, 1, 2, 2]
+        sm: [4.5, 1, 1.5, 2]
+        xs: [0, 10, 4, 2]
 
 database:
   database: skyportal
