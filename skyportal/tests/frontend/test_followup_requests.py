@@ -1,6 +1,7 @@
 import uuid
 import pytest
 import requests
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
 from baselayer.app.env import load_env
 from skyportal.tests import api
@@ -80,13 +81,23 @@ def _followup_request_test_body(
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
 
-    # wait for the plots to load
-    driver.wait_for_xpath(
-        '//div[@class="bk-root"]//span[text()="Flux"]'
-    )  # waits for photometry plot
-    driver.wait_for_xpath(
-        '//div[@class="bk-root"]//label[text()="Mg"]'
-    )  # waits for spectroscopy plot
+    try:
+        # wait for the plots to load
+        driver.wait_for_xpath(
+            '//div[@class="bk-root"]//span[text()="Flux"]'
+        )  # waits for photometry plot
+        driver.wait_for_xpath(
+            '//div[@class="bk-root"]//label[text()="Mg"]'
+        )  # waits for spectroscopy plot
+    except TimeoutException:
+        driver.get(f"/source/{public_source.id}")
+        # wait for the plots to load
+        driver.wait_for_xpath(
+            '//div[@class="bk-root"]//span[text()="Flux"]'
+        )  # waits for photometry plot
+        driver.wait_for_xpath(
+            '//div[@class="bk-root"]//label[text()="Mg"]'
+        )  # waits for spectroscopy plot
 
     submit_button = driver.wait_for_xpath(
         '//form[@class="rjsf"]//button[@type="submit"]'
