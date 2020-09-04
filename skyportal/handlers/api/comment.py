@@ -105,7 +105,7 @@ class CommentHandler(BaseHandler):
         else:
             attachment_bytes, attachment_name = None, None
 
-        author = self.associated_user_object.username
+        author = self.associated_user_object
         comment = Comment(
             text=data['text'],
             obj_id=obj_id,
@@ -211,14 +211,14 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        user = self.associated_user_object.username
-        acls = [acl.id for acl in self.current_user.acls]
+        user = self.associated_user_object
         c = Comment.query.get(comment_id)
         if c is None:
             return self.error("Invalid comment ID")
         obj_key = c.obj.internal_key
-        author = c.author
-        if ("System admin" in acls or "Manage groups" in acls) or (user == author):
+        if (
+            "System admin" in user.permissions or "Manage groups" in user.permissions
+        ) or (c.author == user):
             Comment.query.filter_by(id=comment_id).delete()
             DBSession().commit()
         else:
