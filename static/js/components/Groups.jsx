@@ -25,6 +25,10 @@ const Groups = () => {
   const roles = useSelector((state) => state.profile.roles);
   const groups = useSelector((state) => state.groups.user);
 
+  if (groups.length === 0) {
+    return <h3>Loading...</h3>;
+  }
+
   return (
     <div>
       <GroupList title="My Groups" groups={groups} classes={classes} />
