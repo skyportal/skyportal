@@ -228,5 +228,6 @@ class ProfileHandler(BaseHandler):
             self.push(action="skyportal/FETCH_SOURCE_COUNTS")
         if username_updated:
             self.push_all(action="skyportal/FETCH_GROUPS")
+            self.push_all(action="skyportal/FETCH_USERS")
 
         return self.success(action="skyportal/FETCH_USER_PROFILE")
