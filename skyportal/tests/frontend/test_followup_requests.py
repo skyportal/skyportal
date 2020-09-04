@@ -81,25 +81,27 @@ def add_followup_request_using_frontend_and_verify(
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
 
+    id = str(uuid.uuid4())
+
     try:
         # wait for the plots to load
         driver.wait_for_xpath(
             '//div[@class="bk-root"]//span[text()="Flux"]'
         )  # waits for photometry plot. wait for a long time because the plots are big can sometimes take a long time to load
-        driver.take_screenshot('screenshot1.png')
+        driver.save_screenshot(f'screenshot1-{id}.png')
         driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]')
-        driver.take_screenshot('screenshot2.png')
+        driver.save_screenshot(f'screenshot2-{id}.png')
     except TimeoutException:
         driver.get(f"/source/{public_source.id}")
         # wait for the plots to load
         driver.wait_for_xpath(
             '//div[@class="bk-root"]//span[text()="Flux"]',
         )  # waits for photometry plot
-        driver.take_screenshot('screenshot3.png')
+        driver.save_screenshot(f'screenshot3-{id}.png')
         driver.wait_for_xpath(
             '//div[@class="bk-root"]//label[text()="Mg"]',
         )  # waits for spectroscopy plot
-        driver.take_screenshot('screenshot4.png')
+        driver.save_screenshot(f'screenshot4-{id}.png')
 
     submit_button = driver.wait_for_xpath(
         '//form[@class="rjsf"]//button[@type="submit"]'
@@ -135,7 +137,7 @@ def add_followup_request_using_frontend_and_verify(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_submit_new_followup_request(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -146,7 +148,7 @@ def test_submit_new_followup_request(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_edit_existing_followup_request(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -181,7 +183,7 @@ def test_edit_existing_followup_request(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason='SEDM server down')
 def test_delete_followup_request(
     driver, super_admin_user, public_source, super_admin_token, public_group
