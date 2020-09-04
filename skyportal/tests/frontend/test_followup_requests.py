@@ -140,6 +140,7 @@ def add_followup_request_using_frontend_and_verify(
     driver.wait_for_xpath(
         '''//table[contains(@class, "FollowupRequestLists")]//td[contains(., "submitted")]'''
     )
+    driver.save_screenshot(f'screenshot10-{id}.png')
 
 
 # @pytest.mark.flaky(reruns=2)
