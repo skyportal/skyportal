@@ -16,6 +16,13 @@
   list-style-type: none;
 }
 
+.topSourceListContainer {
+  overflow-y: scroll;
+  height: calc(100% - 5.5rem);
+  margin-top: 0.625rem;
+  padding-top: 0.625rem;
+}
+
 .topSource {
   margin: 10px;
 }

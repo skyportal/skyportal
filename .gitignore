@@ -28,6 +28,7 @@ skyportal_image_cache
 static/js/components/Main.jsx
 static/js/components/SidebarAndHeader.jsx
 static/js/components/HeaderContent.jsx
+static/js/components/HomePage.jsx
 static/login.html
 static/index.html
 .tokens.yaml

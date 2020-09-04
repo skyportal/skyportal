@@ -31,7 +31,7 @@ def test_top_sources(driver, user, public_source, public_group, upload_data_toke
     # Test that front-end views register as source views
     driver.click_xpath(f'//a[text()="{obj_id}"]')
     driver.wait_for_xpath(f'//div[text()="{obj_id}"]')
-    driver.click_xpath('//span[text()="Dashboard"]')
+    driver.click_xpath('//p[text()="Dashboard"]')
     driver.wait_for_xpath("//*[contains(.,'1 view(s)')]")
 
     # Test that token requests are registered as source views
