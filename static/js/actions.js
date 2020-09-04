@@ -17,7 +17,7 @@ export default function hydrate() {
     dispatch(sysInfoActions.fetchSystemInfo());
     dispatch(dbInfoActions.fetchDBInfo());
     dispatch(profileActions.fetchUserProfile());
-    dispatch(groupsActions.fetchGroups());
+    dispatch(groupsActions.fetchGroups(true));
     dispatch(newsFeedActions.fetchNewsFeed());
     dispatch(topSourcesActions.fetchTopSources());
     dispatch(instrumentsActions.fetchInstruments());

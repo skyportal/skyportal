@@ -1,10 +1,15 @@
 import datetime
 
+import tornado
+from tornado.ioloop import IOLoop
+import io
+import math
 from dateutil.parser import isoparse
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func
 import arrow
 from marshmallow.exceptions import ValidationError
+import functools
 import healpix_alchemy as ha
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -648,7 +653,7 @@ class SourceOffsetsHandler(BaseHandler):
 
 class SourceFinderHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    async def get(self, obj_id):
         """
         ---
         description: Generate a PDF finding chart to aid in spectroscopy
@@ -733,7 +738,8 @@ class SourceFinderHandler(BaseHandler):
         min_sep_arcsec = facility_parameters[facility]["min_sep_arcsec"]
         mag_min = facility_parameters[facility]["mag_min"]
 
-        rez = get_finding_chart(
+        finder = functools.partial(
+            get_finding_chart,
             source.ra,
             source.dec,
             obj_id,
@@ -752,8 +758,23 @@ class SourceFinderHandler(BaseHandler):
             queries_issued=0,
         )
 
+        self.push_notification(
+            'Finding chart generation in progress. Download will start soon.'
+        )
+        rez = await IOLoop.current().run_in_executor(None, finder)
+
         filename = rez["name"]
-        image = rez["data"]
+        image = io.BytesIO(rez["data"])
+
+        # Adapted from
+        # https://bhch.github.io/posts/2017/12/serving-large-files-with-tornado-safely-without-blocking/
+        mb = 1024 * 1024 * 1
+        chunk_size = 1 * mb
+        max_file_size = 15 * mb
+        if not (image.getbuffer().nbytes < max_file_size):
+            return self.error(
+                f"Refusing to send files larger than {max_file_size / mb:.2f} MB"
+            )
 
         # do not send result via `.success`, since that creates a JSON
         self.set_status(200)
@@ -763,4 +784,23 @@ class SourceFinderHandler(BaseHandler):
             'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'
         )
 
-        return self.write(image)
+        for i in range(math.ceil(max_file_size / chunk_size)):
+            chunk = image.read(chunk_size)
+            if not chunk:
+                break
+            try:
+                self.write(chunk)  # write the chunk to response
+                await self.flush()  # send the chunk to client
+            except tornado.iostream.StreamClosedError:
+                # this means the client has closed the connection
+                # so break the loop
+                break
+            finally:
+                # deleting the chunk is very important because
+                # if many clients are downloading files at the
+                # same time, the chunks in memory will keep
+                # increasing and will eat up the RAM
+                del chunk
+
+                # pause the coroutine so other handlers can run
+                await tornado.gen.sleep(1e-9)  # 1 ns
