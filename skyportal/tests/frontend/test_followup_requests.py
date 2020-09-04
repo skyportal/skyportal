@@ -118,32 +118,38 @@ def add_followup_request_using_frontend_and_verify(
     mix_n_match_option = driver.wait_for_xpath('''//li[@data-value="Mix 'n Match"]''')
     driver.save_screenshot(f'screenshot9-{id}.png')
     driver.scroll_to_element_and_click(mix_n_match_option)
+    driver.save_screenshot(f'screenshot10-{id}.png')
 
     u_band_option = driver.wait_for_xpath('//input[@id="root_observation_choices_0"]')
+    driver.save_screenshot(f'screenshot11-{id}.png')
 
     driver.scroll_to_element_and_click(u_band_option)
+    driver.save_screenshot(f'screenshot12-{id}.png')
 
     ifu_option = driver.wait_for_xpath('//input[@id="root_observation_choices_4"]')
+    driver.save_screenshot(f'screenshot13-{id}.png')
+
     driver.scroll_to_element_and_click(ifu_option)
+    driver.save_screenshot(f'screenshot14-{id}.png')
     driver.scroll_to_element_and_click(submit_button)
 
-    driver.save_screenshot(f'screenshot10-{id}.png')
+    driver.save_screenshot(f'screenshot15-{id}.png')
     driver.wait_for_xpath(
         '//table[contains(@class, "FollowupRequestLists")]//td[contains(., "Mix \'n Match")]'
     )
-    driver.save_screenshot(f'screenshot11-{id}.png')
+    driver.save_screenshot(f'screenshot16-{id}.png')
     driver.wait_for_xpath(
         '''//table[contains(@class, "FollowupRequestLists")]//td[contains(., "u,IFU")]'''
     )
-    driver.save_screenshot(f'screenshot12-{id}.png')
+    driver.save_screenshot(f'screenshot17-{id}.png')
     driver.wait_for_xpath(
         '''//table[contains(@class, "FollowupRequestLists")]//td[contains(., "1")]'''
     )
-    driver.save_screenshot(f'screenshot13-{id}.png')
+    driver.save_screenshot(f'screenshot18-{id}.png')
     driver.wait_for_xpath(
         '''//table[contains(@class, "FollowupRequestLists")]//td[contains(., "submitted")]'''
     )
-    driver.save_screenshot(f'screenshot14-{id}.png')
+    driver.save_screenshot(f'screenshot19-{id}.png')
 
 
 # @pytest.mark.flaky(reruns=2)
