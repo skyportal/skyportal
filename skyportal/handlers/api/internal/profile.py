@@ -159,7 +159,8 @@ class ProfileHandler(BaseHandler):
                     .filter(Group.name == current_username)
                     .first()
                 )
-                user_group.name = username
+                if user_group is not None:
+                    user_group.name = username
                 username_updated = True
 
         if data.get("first_name") is not None:
