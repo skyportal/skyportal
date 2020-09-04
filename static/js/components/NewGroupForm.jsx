@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 
 import Box from "@material-ui/core/Box";
-
+import Button from "@material-ui/core/Button";
 import * as Action from "../ducks/groups";
 import styles from "./NewGroupForm.css";
 
@@ -66,7 +66,9 @@ const NewGroupForm = () => {
             </tr>
             <tr>
               <td colSpan="2">
-                <input type="submit" value="Create Group" />
+                <Button type="submit" variant="contained" size="small">
+                  Create Group
+                </Button>
               </td>
             </tr>
           </tbody>
