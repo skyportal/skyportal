@@ -30,13 +30,14 @@ const useStyles = makeStyles(() => ({
     height: "auto",
     display: "block",
     "&:hover": {
-      transform: "scale(1.5)",
+      transform: "scale(1.25)",
     },
   },
   recentSourceListContainer: {
     height: "calc(100% - 3rem)",
     overflowY: "scroll",
     marginTop: "0.625rem",
+    paddingTop: "0.625rem",
   },
   recentSourceList: {
     display: "block",
@@ -89,9 +90,15 @@ const defaultPrefs = {
 };
 
 const RecentSourcesList = ({ sources, styles }) => {
-  return sources.length === 0 ? (
-    <div>Loading recent sources...</div>
-  ) : (
+  if (sources === undefined) {
+    return <div>Loading recent sources...</div>;
+  }
+
+  if (sources.length === 0) {
+    return <div>No recent sources available.</div>;
+  }
+
+  return (
     <div className={styles.recentSourceListContainer}>
       <ul className={styles.recentSourceList}>
         {sources.map((source) => {
@@ -175,8 +182,12 @@ RecentSourcesList.propTypes = {
         })
       ),
     })
-  ).isRequired,
+  ),
   styles: PropTypes.shape(Object).isRequired,
+};
+
+RecentSourcesList.defaultProps = {
+  sources: undefined,
 };
 
 const RecentSources = ({ classes }) => {

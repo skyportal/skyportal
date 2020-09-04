@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy_utils import ArrowType, URLType, EmailType
+from sqlalchemy_utils import URLType, EmailType
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
@@ -41,8 +41,11 @@ from .enum_types import (
     thumbnail_types,
     instrument_types,
     followup_priorities,
+    api_classnames,
+    followup_http_request_origins,
 )
 
+from skyportal import facility_apis
 
 # In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
 # All DB fluxes are stored in microJy (AB).
@@ -318,6 +321,13 @@ class Obj(Base, ha.Point):
     score = sa.Column(sa.Float, nullable=True, doc="Machine learning score.")
 
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the object.")
+
+    internal_key = sa.Column(
+        sa.String,
+        nullable=False,
+        default=lambda: str(uuid.uuid4()),
+        doc="Internal key used for secure websocket messaging.",
+    )
 
     comments = relationship(
         'Comment',
@@ -1019,12 +1029,6 @@ class Instrument(Base):
         doc="The Telescope that hosts the Instrument.",
     )
 
-    followup_requests = relationship(
-        'FollowupRequest',
-        back_populates='instrument',
-        doc="The robotic follow-up requests made on this instrument.",
-    )
-
     photometry = relationship(
         'Photometry',
         back_populates='instrument',
@@ -1056,6 +1060,10 @@ class Instrument(Base):
         doc="List of ObservingRuns on the Instrument.",
     )
 
+    api_classname = sa.Column(
+        api_classnames, nullable=True, doc="Name of the instrument's API class."
+    )
+
     @property
     def does_spectroscopy(self):
         """Return a boolean indicating whether the instrument is capable of
@@ -1067,6 +1075,10 @@ class Instrument(Base):
         """Return a boolean indicating whether the instrument is capable of
         performing imaging."""
         return 'imag' in self.type
+
+    @property
+    def api_class(self):
+        return getattr(facility_apis, self.api_classname)
 
 
 class Allocation(Base):
@@ -1084,7 +1096,6 @@ class Allocation(Base):
     requests = relationship(
         'FollowupRequest',
         back_populates='allocation',
-        secondary='allocation_requests',
         doc='The requests made against this allocation.',
     )
 
@@ -1458,14 +1469,13 @@ class Photometry(Base, ha.Point):
     @hybrid_property
     def iso(self):
         """UTC ISO timestamp (ArrowType) of the exposure that produced this Photometry."""
-        return arrow.get((self.mjd - 40_587.5) * 86400.0)
+        return arrow.get((self.mjd - 40_587) * 86400.0)
 
     @iso.expression
     def iso(cls):
         """UTC ISO timestamp (ArrowType) of the exposure that produced this Photometry."""
         # converts MJD to unix timestamp
-        local = sa.func.to_timestamp((cls.mjd - 40_587.5) * 86400.0)
-        return sa.func.timezone('UTC', local)
+        return sa.func.to_timestamp((cls.mjd - 40_587) * 86400.0)
 
     @hybrid_property
     def snr(self):
@@ -1616,69 +1626,78 @@ class FollowupRequest(Base):
         index=True,
         doc="ID of the target Obj.",
     )
-    instrument = relationship(
-        Instrument,
-        back_populates='followup_requests',
-        doc="Instrument on which follow-up was requested.",
+
+    payload = sa.Column(
+        psql.JSONB, nullable=True, doc="Content of the followup request."
     )
-    instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id'),
+    status = sa.Column(sa.String(), nullable=False, default="pending submission")
+
+    allocation_id = sa.Column(
+        sa.ForeignKey('allocations.id', ondelete='CASCADE'), nullable=False, index=True
+    )
+    allocation = relationship('Allocation', back_populates='requests')
+
+    http_requests = relationship(
+        'FollowupRequestHTTPRequest',
+        back_populates='request',
+        order_by="FollowupRequestHTTPRequest.created_at.desc()",
+    )
+
+    photometry = relationship('Photometry', back_populates='followup_request')
+    spectra = relationship('Spectrum', back_populates='followup_request')
+
+    @property
+    def instrument(self):
+        return self.allocation.instrument
+
+    def is_owned_by(self, user_or_token):
+        """Return a boolean indicating whether a FollowupRequest belongs to
+        an allocation that is accessible to the given user or token.
+
+        Parameters
+        ----------
+        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
+           The User or Token to check.
+
+        Returns
+        -------
+        owned: bool
+           Whether the FollowupRequest belongs to an Allocation that is
+           accessible to the given user or token.
+        """
+
+        user_or_token_group_ids = [g.id for g in user_or_token.accessible_groups]
+        return self.allocation.group_id in user_or_token_group_ids
+
+
+class FollowupRequestHTTPRequest(Base):
+
+    created_at = sa.Column(
+        sa.DateTime,
         nullable=False,
+        default=datetime.utcnow,
         index=True,
-        doc='ID of the Instrument on which follow-up was requested.',
+        doc="UTC time this FollowupRequestHTTPRequest was created.",
     )
-    start_date = sa.Column(
-        ArrowType,
+    content = sa.Column(sa.Text, doc="The content of the request.", nullable=False)
+
+    request_id = sa.Column(
+        sa.ForeignKey('followuprequests.id', ondelete='CASCADE'),
+        index=True,
         nullable=False,
-        doc='UTC timestamp indicating when the request becomes active.',
-    )
-    end_date = sa.Column(
-        ArrowType,
-        nullable=False,
-        doc='UTC timestamp indicating when the request expires.',
-    )
-    filters = sa.Column(
-        psql.ARRAY(sa.String), nullable=True, doc='Filters requested for Photometry.'
-    )
-    exposure_time = sa.Column(
-        sa.String,
-        nullable=True,
-        doc="Exposure time of the follow-up observations [sec].",
-    )
-    priority = sa.Column(
-        sa.Enum('1', '2', '3', '4', '5', name='priority'),
-        doc="Priority of the request (1 = lowest, 5 = highest).",
-    )
-    editable = sa.Column(
-        sa.Boolean,
-        nullable=False,
-        default=True,
-        doc="Whether the request can be modified after it is submitted.",
-    )
-    status = sa.Column(
-        sa.String(), nullable=False, default="pending", doc="Status of the request."
+        doc="The ID of the FollowupRequest this message pertains to.",
     )
 
-    allocation = relationship(
-        "Allocation",
-        secondary="allocation_requests",
-        back_populates='requests',
-        doc="Allocation associated with this request.",
+    request = relationship(
+        'FollowupRequest',
+        back_populates='http_requests',
+        doc="The FollowupRequest this message pertains to.",
     )
-
-    spectra = relationship(
-        "Spectrum",
-        back_populates="followup_request",
-        doc="Spectra produced by this followup request.",
-    )
-    photometry = relationship(
-        "Photometry",
-        back_populates="followup_request",
-        doc="Photometry produced by this followup request.",
+    origin = sa.Column(
+        followup_http_request_origins, doc='Origin of the HTTP request.', nullable=False
     )
 
 
-AllocationRequest = join_model('allocation_requests', Allocation, FollowupRequest)
 User.followup_requests = relationship(
     'FollowupRequest',
     back_populates='requester',
@@ -1988,9 +2007,18 @@ UserInvitation = join_model("user_invitations", User, Invitation)
 @event.listens_for(Invitation, 'after_insert')
 def send_user_invite_email(mapper, connection, target):
     _, cfg = load_env()
+    ports_to_ignore = {True: 443, False: 80}  # True/False <-> server.ssl=True/False
     app_base_url = (
         f"{'https' if cfg['server.ssl'] else 'http'}:"
-        f"//{cfg['server.host']}:{cfg['ports.app']}"
+        f"//{cfg['server.host']}"
+        + (
+            f":{cfg['server.port']}"
+            if (
+                cfg["server.port"] is not None
+                and cfg["server.port"] != ports_to_ignore[cfg["server.ssl"]]
+            )
+            else ""
+        )
     )
     link_location = f'{app_base_url}/login/google-oauth2/?invite_token={target.token}'
     message = Mail(

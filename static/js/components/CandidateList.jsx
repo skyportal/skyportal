@@ -38,6 +38,9 @@ const useStyles = makeStyles(() => ({
       margin: "1rem",
     },
   },
+  spinnerDiv: {
+    paddingTop: "2rem",
+  },
 }));
 
 const CandidateList = () => {
@@ -54,7 +57,9 @@ const CandidateList = () => {
     numberingEnd,
   } = useSelector((state) => state.candidates);
 
-  const userGroups = useSelector((state) => state.groups.user);
+  const userAccessibleGroups = useSelector(
+    (state) => state.groups.userAccessible
+  );
 
   const dispatch = useDispatch();
 
@@ -87,7 +92,7 @@ const CandidateList = () => {
           Scan candidates for sources
         </Typography>
         <FilterCandidateList
-          userGroups={userGroups}
+          userAccessibleGroups={userAccessibleGroups}
           handleClickNextPage={handleClickNextPage}
           handleClickPreviousPage={handleClickPreviousPage}
           pageNumber={pageNumber}
@@ -97,7 +102,10 @@ const CandidateList = () => {
           totalMatches={totalMatches}
           setQueryInProgress={setQueryInProgress}
         />
-        <Box display={queryInProgress ? "block" : "none"}>
+        <Box
+          display={queryInProgress ? "block" : "none"}
+          className={classes.spinnerDiv}
+        >
           <CircularProgress />
         </Box>
         <Box display={queryInProgress ? "none" : "block"}>
@@ -171,7 +179,7 @@ const CandidateList = () => {
                             <br />
                             <SaveCandidateButton
                               candidate={candidateObj}
-                              userGroups={userGroups}
+                              userGroups={userAccessibleGroups}
                             />
                           </div>
                         )}

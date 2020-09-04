@@ -23,7 +23,8 @@ import styles from "./Source.css";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 import FollowupRequestForm from "./FollowupRequestForm";
-import FollowupRequestList from "./FollowupRequestList";
+
+import FollowupRequestLists from "./FollowupRequestLists";
 import SharePage from "./SharePage";
 
 import AssignmentForm from "./AssignmentForm";
@@ -59,7 +60,7 @@ const Source = ({ route }) => {
       fetchSource();
     }
   }, [dispatch, isCached, route.id]);
-  const { instrumentList, instrumentObsParams } = useSelector(
+  const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
   );
   const { observingRunList } = useSelector((state) => state.observingRuns);
@@ -174,14 +175,13 @@ const Source = ({ route }) => {
         >
           <FollowupRequestForm
             obj_id={source.id}
-            action="createNew"
             instrumentList={instrumentList}
-            instrumentObsParams={instrumentObsParams}
+            instrumentFormParams={instrumentFormParams}
           />
-          <FollowupRequestList
+          <FollowupRequestLists
             followupRequests={source.followup_requests}
             instrumentList={instrumentList}
-            instrumentObsParams={instrumentObsParams}
+            instrumentFormParams={instrumentFormParams}
           />
           <AssignmentForm
             obj_id={source.id}

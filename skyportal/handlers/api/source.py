@@ -10,6 +10,7 @@ from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    Allocation,
     Instrument,
     Photometry,
     Obj,
@@ -176,7 +177,7 @@ class SourceHandler(BaseHandler):
         has_tns_name = self.get_query_argument('hasTNSname', None)
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
-        if obj_id:
+        if obj_id is not None:
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
                 register_source_view(
@@ -194,7 +195,8 @@ class SourceHandler(BaseHandler):
                     .joinedload(FollowupRequest.requester),
                     joinedload(Source.obj)
                     .joinedload(Obj.followup_requests)
-                    .joinedload(FollowupRequest.instrument),
+                    .joinedload(FollowupRequest.allocation)
+                    .joinedload(Allocation.instrument),
                     joinedload(Source.obj)
                     .joinedload(Obj.assignments)
                     .joinedload(ClassicalAssignment.run)
@@ -205,6 +207,10 @@ class SourceHandler(BaseHandler):
                     .joinedload(Thumbnail.photometry)
                     .joinedload(Photometry.instrument)
                     .joinedload(Instrument.telescope),
+                    joinedload(Source.obj)
+                    .joinedload(Obj.followup_requests)
+                    .joinedload(FollowupRequest.allocation)
+                    .joinedload(Allocation.group),
                 ],
             )
             if s is None:

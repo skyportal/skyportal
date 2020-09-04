@@ -41,10 +41,11 @@ from skyportal.handlers.api.internal import (
     PlotPhotometryHandler,
     PlotSpectroscopyHandler,
     SourceViewsHandler,
+    SourceCountHandler,
     TokenHandler,
     DBInfoHandler,
     ProfileHandler,
-    InstrumentObservationParamsHandler,
+    RoboticInstrumentsHandler,
     LogHandler,
     RecentSourcesHandler,
     PlotAirmassHandler,
@@ -110,10 +111,11 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/internal/profile', ProfileHandler),
         (r'/api/internal/dbinfo', DBInfoHandler),
         (r'/api/internal/source_views(/.*)?', SourceViewsHandler),
+        (r'/api/internal/source_counts(/.*)?', SourceCountHandler),
         (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
         (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
+        (r'/api/internal/instrument_forms', RoboticInstrumentsHandler),
         (r'/api/internal/plot/airmass/(.*)', PlotAirmassHandler),
-        (r'/api/internal/instrument_obs_params', InstrumentObservationParamsHandler),
         (r'/api/internal/log', LogHandler),
         (r'/api/internal/recent_sources(/.*)?', RecentSourcesHandler),
         (r'/api/.*', InvalidEndpointHandler),
@@ -145,9 +147,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
                     'social_core.pipeline.social_auth.auth_allowed',
                     # Checks if the current social-account is already associated in the site.
                     'social_core.pipeline.social_auth.social_user',
-                    # Make up a username for this person, appends a random string at the end if
-                    # there's any collision.
-                    'social_core.pipeline.user.get_username',
+                    'skyportal.onboarding.get_username',
                     'skyportal.onboarding.create_user',
                     # Create a user account if we haven't found one yet.
                     # 'social_core.pipeline.user.create_user',

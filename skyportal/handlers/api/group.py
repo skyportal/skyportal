@@ -89,6 +89,13 @@ class GroupHandler(BaseHandler):
                                 items:
                                   $ref: '#/components/schemas/Group'
                                 description: List of groups current user is a member of.
+                              user_accessible_groups:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Group'
+                                description: |
+                                  List of groups current user can access, not including
+                                  single user groups.
                               all_groups:
                                 type: array
                                 items:
@@ -160,6 +167,9 @@ class GroupHandler(BaseHandler):
         )
         info = {}
         info['user_groups'] = list(self.current_user.groups)
+        info['user_accessible_groups'] = [
+            g for g in self.current_user.accessible_groups if not g.single_user_group
+        ]
         all_groups_query = Group.query
         if (not include_single_user_groups) or (
             isinstance(include_single_user_groups, str)
@@ -298,7 +308,7 @@ class GroupHandler(BaseHandler):
 
 
 class GroupUserHandler(BaseHandler):
-    @permissions(['Manage groups'])
+    @auth_or_token
     def post(self, group_id, *ignored_args):
         """
         ---
@@ -344,6 +354,22 @@ class GroupUserHandler(BaseHandler):
                               type: boolean
                               description: Boolean indicating whether user is group admin
         """
+        current_groupuser = (
+            GroupUser.query.filter(GroupUser.group_id == group_id)
+            .filter(GroupUser.user_id == self.associated_user_object.id)
+            .first()
+        )
+        if (
+            len(
+                {"System admin", "Manage users", "Manage groups"}.intersection(
+                    set(self.current_user.permissions)
+                )
+            )
+            == 0
+            and not current_groupuser.admin
+        ):
+            return self.error("Inadequate permissions.")
+
         data = self.get_json()
 
         username = data.pop("username", None)
@@ -406,7 +432,7 @@ class GroupUserHandler(BaseHandler):
             data={'group_id': group_id, 'user_id': user_id, 'admin': admin}
         )
 
-    @permissions(['Manage groups'])
+    @auth_or_token
     def delete(self, group_id, username):
         """
         ---
@@ -428,6 +454,22 @@ class GroupUserHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        current_groupuser = (
+            GroupUser.query.filter(GroupUser.group_id == group_id)
+            .filter(GroupUser.user_id == self.associated_user_object.id)
+            .first()
+        )
+        if (
+            len(
+                {"System admin", "Manage users", "Manage groups"}.intersection(
+                    set(self.current_user.permissions)
+                )
+            )
+            == 0
+            and not current_groupuser.admin
+        ):
+            return self.error("Inadequate permissions.")
+
         group = Group.query.get(group_id)
         if group.single_user_group:
             return self.error("Cannot delete users from single user groups.")

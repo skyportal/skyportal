@@ -1,6 +1,6 @@
 def test_foldable_sidebar(driver):
     driver.get('/')
-    dashboard = '//span[contains(text(),"Dashboard")]'
+    dashboard = '//p[contains(text(),"Dashboard")]'
     sidebar_text = driver.wait_for_xpath(dashboard)
     assert sidebar_text.is_displayed()
 
