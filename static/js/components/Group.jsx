@@ -128,7 +128,7 @@ const Group = () => {
   };
 
   const { id } = useParams();
-  const loadedId = useSelector((state) => state.group.id);
+  const loadedId = useSelector((state) => state.group?.id);
 
   useEffect(() => {
     const fetchGroup = async () => {

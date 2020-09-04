@@ -82,7 +82,7 @@ const NewGroupUserForm = ({ group_id }) => {
     <div>
       <Autocomplete
         id="newUserEmail"
-        value={formState.newUserEmail}
+        value={formState.newUserEmail || ""}
         onChange={(event, newValue) => {
           if (typeof newValue === "string") {
             // The user has entered a username and hit the Enter/Return key
@@ -97,7 +97,7 @@ const NewGroupUserForm = ({ group_id }) => {
               invitingNewUser: true,
             });
           } else {
-            setFormState({ newUserEmail: newValue.username });
+            setFormState({ newUserEmail: newValue?.username });
           }
         }}
         filterOptions={(options, params) => {
@@ -137,7 +137,11 @@ const NewGroupUserForm = ({ group_id }) => {
           <TextField {...params} label="Enter user email" />
         )}
       />
-      <input type="checkbox" checked={formState.admin} onChange={toggleAdmin} />
+      <input
+        type="checkbox"
+        checked={formState.admin || false}
+        onChange={toggleAdmin}
+      />
       Group Admin &nbsp;&nbsp;
       <input type="submit" onClick={handleClickSubmit} value="Add user" />
       <Dialog
