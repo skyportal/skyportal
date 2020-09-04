@@ -27,15 +27,9 @@ def has_admin_access_for_group(user, group_id):
         .filter(GroupUser.user_id == user.id)
         .first()
     )
-    return (
-        len(
-            {"System admin", "Manage users", "Manage groups"}.intersection(
-                set(user.permissions)
-            )
-        )
-        > 0
-        or groupuser.admin
-    )
+    return {"System admin", "Manage users", "Manage groups"}.intersection(
+        set(user.permissions)
+    ) or groupuser.admin
 
 
 class GroupHandler(BaseHandler):
