@@ -4,6 +4,10 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from baselayer.app.env import load_env
 
+from ..fixtures import GroupFactory
+
+for i in range(100):
+    GroupFactory()  # add a bunch of groups to the DB
 
 _, cfg = load_env()
 
