@@ -75,17 +75,67 @@ app:
       icon: Info
       url: /about
 
+  # See https://github.com/STRML/react-grid-layout for more on the grid package
+  homepage_grid:
+    # This section describes the grid on which Home Page widgets are laid out.
+    #
+    # The breakpoints describe screen sizes at which a different set of widget
+    # layouts should be used.
+    #
+    # The cols describe the number of evenly spaced columns that make up the
+    # grid at a given breakpoint. For example, on extra-large screens (greater
+    # than ${breakpoints.xlg} pixels), the grid will use ${cols.xlg} columns of
+    # equal width to describe sizes of widgets based on the layouts provided.
+    #
+    # Optionally, you may provide a "row_height: {number of pixels}" property in
+    # this section to change the height of a row on the grid. By default, this
+    # value is 150px.
+
+    breakpoints:
+      xlg: 1400
+      lg: 1150
+      md: 996
+      sm: 650
+      xs: 0
+
+    cols:
+      xlg: 16
+      lg: 12
+      md: 10
+      sm: 6
+      xs: 4
+
   homepage_widgets:
-    # Layouts arrays should be [x, y, w, h]
-    # See https://github.com/STRML/react-grid-layout
+    # This section describes the specific widgets shown on the Home Page and how
+    # they are laid out by default on the grid of the page.
+    #
+    # The name of section should be the same as the widget's React component.
+    #
+    # The props property should be a set of properties to be passed on to the
+    # underlying React component for the widget. You may run into cases in which
+    # you must pass a more complex, dyamic property (perhaps fetched from the
+    # application redux store). Since you can not know that in the time of the
+    # configuration writing, such properties should be directly coded into the
+    # HomePage.jsx.template file (see the GroupList widget for an example)
+    #
+    # By default, any widget listed here is shown on the Home Page. However, you
+    # can give a widget the property "show: false" to turn off rendering of the
+    # widget.
+    #
+    # The resizable property determines whether the user is able to resize the
+    # widget after it has been rendered based on default layouts.
+    #
+    # Finally, the layouts property provides an array of default sizes/locations
+    # for each screen width breakpoint for the given widget. Layout arrays are
+    # given in the order [x, y, width, height], in units of grid columns/rows.
+    # For example, a layout array of [1, 2, 3, 4] will render a widget 3 grid
+    # columns in width, 4 grid rows in height, and have its upper-left corner at
+    # the column 1 (zero-indexed) and row 2. Note that each row is by default
+    # 150px in height. The row height can be altered in the homepage_grid
+    # section above (as well as other grid characteristics).
 
-    # component_props are properties passed down to the
-    # underlying React component, indicated by component_name
-
-    sourceCounts:
-      show: true
-      component_name: SourceCounts
-      component_props:
+    SourceCounts:
+      props:
         sinceDaysAgo: 7
       resizeable: false
       layouts:
@@ -95,9 +145,7 @@ app:
         sm: [4.5, 0, 1.5, 1]
         xs: [0, 0, 4, 1]
 
-    recentSources:
-      show: true
-      component_name: RecentSources
+    RecentSources:
       resizeable: false
       layouts:
         xlg: [0, 0, 5, 3]
@@ -106,9 +154,7 @@ app:
         sm: [0, 3, 3, 3]
         xs: [0, 4, 4, 3]
 
-    newsFeed:
-      show: true
-      component_name: NewsFeed
+    NewsFeed:
       resizeable: false
       layouts:
         xlg: [10, 0, 4, 3]
@@ -117,9 +163,7 @@ app:
         sm: [0, 0, 4.5, 3]
         xs: [0, 1, 4, 3]
 
-    topSources:
-      show: true
-      component_name: TopSources
+    TopSources:
       resizeable: false
       layouts:
         xlg: [5, 0, 5, 3]
@@ -128,10 +172,8 @@ app:
         sm: [3, 3, 3, 3]
         xs: [0, 7, 4, 3]
 
-    groups:
-      show: true
-      component_name: GroupList
-      component_props:
+    GroupList:
+      props:
         title: My Groups
       resizeable: true
       layouts:
