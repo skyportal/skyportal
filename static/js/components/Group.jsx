@@ -311,8 +311,7 @@ const Group = () => {
           <div className={classes.paper}>
             {/*eslint-disable */}
             {(currentUser.roles.includes("Super admin") ||
-              (currentUser.roles.includes("Group admin") &&
-                isAdmin(currentGroupUser, group))) && (
+              isAdmin(currentGroupUser, group)) && (
               <NewGroupUserForm group_id={group.id} />
             )}
             {/* eslint-enable */}
