@@ -93,7 +93,6 @@ class ProfileHandler(BaseHandler):
                 "acls": user_acls,
                 "tokens": user_tokens,
                 "preferences": self.current_user.preferences or {},
-                "permissions": user.permissions,
             }
         )
 

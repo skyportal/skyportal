@@ -209,8 +209,8 @@ const Group = () => {
         group.group_users.filter(
           (group_user) => group_user.user_id === currentGroupUser.id
         )[0].admin) ||
-      aUser.permissions?.includes("System admin") ||
-      aUser.permissions?.includes("Manage groups")
+      aUser.acls?.includes("System admin") ||
+      aUser.acls?.includes("Manage groups")
     );
   };
 
