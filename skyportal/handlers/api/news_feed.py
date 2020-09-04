@@ -57,6 +57,7 @@ class NewsFeedHandler(BaseHandler):
                     )
                 )
                 .order_by(desc(model.created_at or model.saved_at))
+                .distinct(model.obj_id, model.created_at)
                 .limit(n_items)
                 .all()
             )
