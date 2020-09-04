@@ -34,7 +34,7 @@ def test_add_new_group(driver, super_admin_user, user):
     driver.wait_for_xpath('//input[@name="name"]').send_keys(test_proj_name)
     driver.wait_for_xpath('//input[@name="groupAdmins"]').send_keys(user.username)
     driver.save_screenshot('/tmp/screenshot1.png')
-    driver.click_xpath('//input[@value="Create Group"]')
+    driver.click_xpath('//button[contains(.,"Create Group")]')
     driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
 
@@ -50,7 +50,7 @@ def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
         super_admin_user.username
     )
     driver.save_screenshot('/tmp/screenshot1.png')
-    driver.click_xpath('//input[@value="Create Group"]')
+    driver.click_xpath('//button[contains(.,"Create Group")]')
     driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
 
