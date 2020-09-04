@@ -13,8 +13,8 @@ def test_upload_photometry(
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
     csv_text_input.send_keys(
         "mjd,flux,fluxerr,zp,magsys,filter\n"
-        "58001,55,1,25,ab,sdssg\n"
-        "58002,53,1,25,ab,sdssg"
+        "58001,55,1,25,ab,ztfg\n"
+        "58002,53,1,25,ab,ztfg"
     )
 
     inst_select = driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]')
@@ -24,7 +24,6 @@ def test_upload_photometry(
     sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
 
     driver.scroll_to_element_and_click(sedm_element)
-    driver.save_screenshot("test_upload_photometry.png")
     driver.wait_for_xpath_to_be_clickable('//body').click()
     try:
         driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
@@ -65,8 +64,8 @@ def test_upload_photometry_multiple_groups(
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
     csv_text_input.send_keys(
         "mjd,flux,fluxerr,zp,magsys,filter\n"
-        "58001,55,1,25,ab,sdssg\n"
-        "58002,53,1,25,ab,sdssg"
+        "58001,55,1,25,ab,ztfg\n"
+        "58002,53,1,25,ab,ztfg"
     )
     inst_select = driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]')
     driver.scroll_to_element(inst_select)
@@ -74,7 +73,6 @@ def test_upload_photometry_multiple_groups(
 
     sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
     driver.scroll_to_element_and_click(sedm_element)
-    driver.save_screenshot("test_upload_photometry_multiple_groups.png")
     driver.wait_for_xpath_to_be_clickable('//body').click()
 
     try:
@@ -111,8 +109,8 @@ def test_upload_photometry_with_altdata(
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
     csv_text_input.send_keys(
         "mjd,flux,fluxerr,zp,magsys,filter,altdata.meta1,altdata.meta2\n"
-        "58001,55,1,25,ab,sdssg,44.4,\"abc,abc\"\n"
-        "58002,53,1,25,ab,sdssg,44.2,\"edf,edf\""
+        "58001,55,1,25,ab,ztfg,44.4,\"abc,abc\"\n"
+        "58002,53,1,25,ab,ztfg,44.2,\"edf,edf\""
     )
     inst_select = driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]')
     driver.scroll_to_element(inst_select)
@@ -120,7 +118,6 @@ def test_upload_photometry_with_altdata(
 
     sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
     driver.scroll_to_element_and_click(sedm_element)
-    driver.save_screenshot("test_upload_photometry_with_altdata.png")
     driver.wait_for_xpath_to_be_clickable('//body').click()
 
     try:
@@ -154,8 +151,8 @@ def test_upload_photometry_form_validation(
     csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
     csv_text_input.send_keys(
         "mjd,flux,fluxerr,zp,magsys,OTHER\n"
-        "58001,55,1,25,ab,sdssg\n"
-        "58002,53,1,25,ab,sdssg"
+        "58001,55,1,25,ab,ztfg\n"
+        "58002,53,1,25,ab,ztfg"
     )
     driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]').click()
     driver.wait_for_xpath(
@@ -164,7 +161,7 @@ def test_upload_photometry_form_validation(
     csv_text_input.clear()
     csv_text_input.send_keys(
         "mjd,flux,fluxerr,zp,magsys,filter\n"
-        "58001,55,1,25,ab,sdssg\n"
+        "58001,55,1,25,ab,ztfg\n"
         "58002,53,1,25,ab"
     )
     driver.wait_for_xpath(
@@ -178,8 +175,8 @@ def test_upload_photometry_form_validation(
     csv_text_input.clear()
     csv_text_input.send_keys(
         "mjd,flux,fluxerr,zp,magsys,filter\n"
-        "58001,55,1,25,ab,sdssg\n"
-        "58002,53,1,25,ab,sdssg"
+        "58001,55,1,25,ab,ztfg\n"
+        "58002,53,1,25,ab,ztfg"
     )
     driver.wait_for_xpath('//div[contains(.,"Select an instrument")]')
 

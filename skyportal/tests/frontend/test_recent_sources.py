@@ -6,6 +6,7 @@ from selenium.common.exceptions import TimeoutException
 from skyportal.tests import api
 
 
+@pytest.mark.flaky(reruns=2)
 def test_recent_sources(driver, user, public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
     ra = 50.1
@@ -54,6 +55,7 @@ def test_recent_sources(driver, user, public_group, upload_data_token):
     driver.click_xpath("//div[contains(@class, 'sourceLinkButton')]")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_hidden_recent_source(driver, user_no_groups, public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
     ra = 50.1

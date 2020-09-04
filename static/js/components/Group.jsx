@@ -128,7 +128,7 @@ const Group = () => {
   };
 
   const { id } = useParams();
-  const loadedId = useSelector((state) => state.group.id);
+  const loadedId = useSelector((state) => state.group?.id);
 
   useEffect(() => {
     const fetchGroup = async () => {
@@ -311,8 +311,7 @@ const Group = () => {
           <div className={classes.paper}>
             {/*eslint-disable */}
             {(currentUser.roles.includes("Super admin") ||
-              (currentUser.roles.includes("Group admin") &&
-                isAdmin(currentGroupUser, group))) && (
+              isAdmin(currentGroupUser, group)) && (
               <NewGroupUserForm group_id={group.id} />
             )}
             {/* eslint-enable */}
