@@ -59,6 +59,7 @@ const initialState = {
   acls: [],
   tokens: [],
   preferences: {},
+  permissions: [],
 };
 
 const reducer = (state = initialState, action) => {
