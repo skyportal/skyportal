@@ -32,4 +32,6 @@ timezonefinder>=4.4.0
 astroplan>=0.6
 phonenumbers>=8.12.7
 py3-validate-email>=0.2.9
+marshmallow-jsonschema>=0.10.0
+requests_toolbelt>=0.9.1
 sendgrid>=6.4.6

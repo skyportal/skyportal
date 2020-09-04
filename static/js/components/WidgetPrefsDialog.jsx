@@ -5,6 +5,17 @@ import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogTitle from "@material-ui/core/DialogTitle";
 import SettingsIcon from "@material-ui/icons/Settings";
+import Button from "@material-ui/core/Button";
+import { makeStyles } from "@material-ui/core/styles";
+import SaveIcon from "@material-ui/icons/Save";
+import TextField from "@material-ui/core/TextField";
+
+const useStyles = makeStyles(() => ({
+  saveButton: {
+    textAlign: "center",
+    margin: "1rem",
+  },
+}));
 
 const WidgetPrefsDialog = ({
   title,
@@ -12,6 +23,7 @@ const WidgetPrefsDialog = ({
   onSubmit,
   stateBranchName,
 }) => {
+  const classes = useStyles();
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
   const [state, updateState] = useState({ ...formValues });
@@ -30,7 +42,7 @@ const WidgetPrefsDialog = ({
 
   const handleInputChange = (event) => {
     const stateCopy = { ...state };
-    stateCopy[event.target.name] = event.target.value;
+    stateCopy[event.target.id] = event.target.value;
     updateState(stateCopy);
   };
 
@@ -51,25 +63,29 @@ const WidgetPrefsDialog = ({
       <Dialog open={open} onClose={handleClose} style={{ position: "fixed" }}>
         <DialogTitle>{title}</DialogTitle>
         <DialogContent>
-          {Object.keys(formValues).map((key) => (
-            <div key={key}>
-              {key}
-              :&nbsp;
-              <input
-                type="text"
-                size="5"
-                name={key}
-                value={state[key]}
-                onChange={handleInputChange}
-              />
-            </div>
-          ))}
-          <br />
-          <br />
-          <div style={{ textAlign: "center" }}>
-            <button type="button" onClick={handleSubmit}>
+          <form noValidate autoComplete="off">
+            {Object.keys(formValues).map((key) => (
+              <div key={key}>
+                <TextField
+                  id={`${key}`}
+                  size="small"
+                  label={key}
+                  value={state[key]}
+                  onChange={handleInputChange}
+                  variant="outlined"
+                />
+              </div>
+            ))}
+          </form>
+          <div className={classes.saveButton}>
+            <Button
+              color="primary"
+              onClick={handleSubmit}
+              startIcon={<SaveIcon />}
+              size="large"
+            >
               Save
-            </button>
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

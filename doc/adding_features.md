@@ -442,7 +442,7 @@ Execute the test suite with `make test`, or, to run the new test on its own, run
 
 ### Websockets
 
-SkyPortal utilizes [websockets](http://cesium-ml.org/blog/2016/07/13/a-pattern-for-websockets-in-python/) for pushing messages from the back-end to the front-end. Websockets can be used for telling the front-end that a long-running job has finished, that the DB state has changed and should be re-fetched, for displaying notifications, etc. In SkyPortal, websocket messages are pushed from within the body of request handlers, and always contain an _action type_. When a message is received by the front-end, its action type is used to determine how to handle the message, which typically involves dispatching actions that update the state. For example, when a new comment is added to a source, we want the comment to automatically appear in the comments section if a user is currently viewing that source. To do this, `CommentHandler.post` pushes a websocket message to all active sessions with an action type of "skyportal/REFRESH_SOURCE" and a payload containing the source ID:
+SkyPortal utilizes [websockets](http://cesium-ml.org/blog/2016/07/13/a-pattern-for-websockets-in-python/) for pushing messages from the back-end to the front-end. Websockets can be used for telling the front-end that a long-running job has finished, that the DB state has changed and should be re-fetched, for displaying notifications, etc. In SkyPortal, websocket messages are pushed from within the body of request handlers, and always contain an _action type_. When a message is received by the front-end, its action type is used to determine how to handle the message, which typically involves dispatching actions that update the state. For example, when a new comment is added to a source, we want the comment to automatically appear in the comments section if a user is currently viewing that source. To do this, `CommentHandler.post` pushes a websocket message to all active sessions with an action type of "skyportal/REFRESH_SOURCE" and a payload containing the source's internal key:
 
 ``` python
 ...
@@ -452,7 +452,7 @@ class CommentHandler(BaseHandler):
         ...
 
         self.push_all(action='skyportal/REFRESH_SOURCE',
-                      payload={'obj_id': comment.obj_id})
+                      payload={'obj_key: comment.obj.internal_key})
 
         return self.success(...)
 ```
@@ -480,17 +480,17 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   const { source } = getState();
 
   if (actionType === REFRESH_SOURCE) {
-    const loaded_obj_id = source ? source.id : null;
+    const loaded_obj_key = source?.internal_key;
 
-    if (loaded_obj_id === payload.obj_id) {
-      dispatch(fetchSource(loaded_obj_id));
+    if (loaded_obj_key === payload.obj_key) {
+      dispatch(fetchSource(source.id));
     }
   }
 });
 ...
 ```
 
-Our handler must be a function with the same signature as above (`getState`, a function that returns the application state, is optional and can be omitted if your handler doesn't need to access the state). Each handler added to the `messageHandler` will be called on all incoming messages. In this case, if the message has an action type equal to "skyportal/REFRESH_SOURCE", we check whether the user is currently viewing the source whose ID matches that provided in the message's payload (if a user is currently viewing a source, `state.source.id` will contain that source's ID), and if so, we dispatch an action creator that will re-fetch the source data and update the state accordingly.
+Our handler must be a function with the same signature as above (`getState`, a function that returns the application state, is optional and can be omitted if your handler doesn't need to access the state). Each handler added to the `messageHandler` will be called on all incoming messages. In this case, if the message has an action type equal to "skyportal/REFRESH_SOURCE", we check whether the user is currently viewing the source whose `internal_key` value matches that provided in the message's payload (if a user is currently viewing a source, `state.source.internal_key` will contain that source's key), and if so, we dispatch an action creator that will re-fetch the source data and update the state accordingly.
 
 By using websocket messages whenever the back-end state has changed, in conjuction with the automatic re-rendering capabilities of React, we ensure that any changes to the DB state are automatically reflected by real time updates to the front-end view.
 

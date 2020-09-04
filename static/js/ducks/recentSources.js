@@ -16,7 +16,7 @@ messageHandler.add((actionType, payload, dispatch) => {
   }
 });
 
-const reducer = (state = { recentSources: [] }, action) => {
+const reducer = (state = { recentSources: undefined }, action) => {
   switch (action.type) {
     case FETCH_RECENT_SOURCES_OK: {
       const recentSources = action.data;

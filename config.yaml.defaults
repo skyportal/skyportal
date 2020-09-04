@@ -16,6 +16,9 @@ app:
                         # base64.b64encode(os.urandom(50)).decode('ascii')
   factory: skyportal.app_server.make_app
 
+  # this endpoint does not actually do anything -- it is just for testing
+  sedm_endpoint: http://pharos.caltech.edu/add_fritz
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:
@@ -88,7 +91,8 @@ server:
   #
   # You need to have Google+ API enabled; it takes a few minutes to activate.
   host: localhost
-  ssl: False
+  port: 5000  # This is the public-facing port
+  ssl: False  # Must be either True or False
 
   auth:
     debug_login: True
