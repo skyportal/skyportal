@@ -757,6 +757,9 @@ class SourceFinderHandler(BaseHandler):
             queries_issued=0,
         )
 
+        self.push_notification(
+            'Finding chart generation in progress. Download will start soon.'
+        )
         rez = await IOLoop.current().run_in_executor(None, finder)
 
         filename = rez["name"]
