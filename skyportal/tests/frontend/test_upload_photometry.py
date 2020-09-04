@@ -24,7 +24,6 @@ def test_upload_photometry(
     sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
 
     driver.scroll_to_element_and_click(sedm_element)
-    driver.save_screenshot("test_upload_photometry.png")
     driver.wait_for_xpath_to_be_clickable('//body').click()
     try:
         driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
@@ -74,7 +73,6 @@ def test_upload_photometry_multiple_groups(
 
     sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
     driver.scroll_to_element_and_click(sedm_element)
-    driver.save_screenshot("test_upload_photometry_multiple_groups.png")
     driver.wait_for_xpath_to_be_clickable('//body').click()
 
     try:
@@ -120,7 +118,6 @@ def test_upload_photometry_with_altdata(
 
     sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
     driver.scroll_to_element_and_click(sedm_element)
-    driver.save_screenshot("test_upload_photometry_with_altdata.png")
     driver.wait_for_xpath_to_be_clickable('//body').click()
 
     try:
