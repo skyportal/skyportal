@@ -38,6 +38,9 @@ const useStyles = makeStyles(() => ({
       margin: "1rem",
     },
   },
+  spinnerDiv: {
+    paddingTop: "2rem",
+  },
 }));
 
 const CandidateList = () => {
@@ -99,7 +102,10 @@ const CandidateList = () => {
           totalMatches={totalMatches}
           setQueryInProgress={setQueryInProgress}
         />
-        <Box display={queryInProgress ? "block" : "none"}>
+        <Box
+          display={queryInProgress ? "block" : "none"}
+          className={classes.spinnerDiv}
+        >
           <CircularProgress />
         </Box>
         <Box display={queryInProgress ? "none" : "block"}>
