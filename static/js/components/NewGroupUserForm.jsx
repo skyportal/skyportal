@@ -143,7 +143,14 @@ const NewGroupUserForm = ({ group_id }) => {
         onChange={toggleAdmin}
       />
       Group Admin &nbsp;&nbsp;
-      <input type="submit" onClick={handleClickSubmit} value="Add user" />
+      <Button
+        onClick={handleClickSubmit}
+        variant="contained"
+        size="small"
+        disableElevation
+      >
+        Add user
+      </Button>
       <Dialog
         open={confirmDialogOpen}
         onClose={() => {
