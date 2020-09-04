@@ -3,6 +3,7 @@ import datetime
 import tornado
 from tornado.ioloop import IOLoop
 import io
+import math
 from dateutil.parser import isoparse
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func
@@ -765,6 +766,16 @@ class SourceFinderHandler(BaseHandler):
         filename = rez["name"]
         image = io.BytesIO(rez["data"])
 
+        # Adapted from
+        # https://bhch.github.io/posts/2017/12/serving-large-files-with-tornado-safely-without-blocking/
+        mb = 1024 * 1024 * 1
+        chunk_size = 1 * mb
+        max_file_size = 15 * mb
+        if not (image.getbuffer().nbytes < max_file_size):
+            return self.error(
+                f"Refusing to send files larger than {max_file_size / mb:.2f} MB"
+            )
+
         # do not send result via `.success`, since that creates a JSON
         self.set_status(200)
         self.set_header("Content-Type", "application/pdf; charset='utf-8'")
@@ -773,10 +784,7 @@ class SourceFinderHandler(BaseHandler):
             'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'
         )
 
-        # From
-        # https://bhch.github.io/posts/2017/12/serving-large-files-with-tornado-safely-without-blocking/
-        chunk_size = 1024 * 1024 * 1  # 1 MiB
-        while True:
+        for i in range(math.ceil(max_file_size / chunk_size)):
             chunk = image.read(chunk_size)
             if not chunk:
                 break
