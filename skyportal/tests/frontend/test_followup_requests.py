@@ -83,9 +83,8 @@ def add_followup_request_using_frontend_and_verify(
 
     try:
         # wait for the plots to load
-        driver.wait_for_xpath(
-            '//div[@class="bk-root"]//span[text()="Flux"]'
-        )  # waits for photometry plot. wait for a long time because the plots are big can sometimes take a long time to load
+        driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]')
+        # this waits for the spectroscopy plot by looking for the element Mg
         driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]')
     except TimeoutException:
         driver.get(f"/source/{public_source.id}")
@@ -113,21 +112,21 @@ def add_followup_request_using_frontend_and_verify(
     driver.scroll_to_element_and_click(u_band_option)
 
     ifu_option = driver.wait_for_xpath('//input[@id="root_observation_choices_4"]')
+
     driver.scroll_to_element_and_click(ifu_option)
     driver.scroll_to_element_and_click(submit_button)
 
     driver.wait_for_xpath(
-        '//table[contains(@class, "FollowupRequestLists")]//td[contains(., "Mix \'n Match")]'
-    )
-
-    driver.wait_for_xpath(
-        '''//table[contains(@class, "FollowupRequestLists")]//td[contains(., "u,IFU")]'''
+        '//table[contains(@class, "followupRequestTable")]//td[contains(., "Mix \'n Match")]'
     )
     driver.wait_for_xpath(
-        '''//table[contains(@class, "FollowupRequestLists")]//td[contains(., "1")]'''
+        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "u,IFU")]'''
     )
     driver.wait_for_xpath(
-        '''//table[contains(@class, "FollowupRequestLists")]//td[contains(., "submitted")]'''
+        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "1")]'''
+    )
+    driver.wait_for_xpath(
+        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
 
 
@@ -167,13 +166,13 @@ def test_edit_existing_followup_request(
     driver.scroll_to_element_and_click(submit_button)
 
     driver.wait_for_xpath(
-        '//table[contains(@class, "FollowupRequestLists")]//td[contains(., "IFU")]'
+        '//table[contains(@class, "followupRequestTable")]//td[contains(., "IFU")]'
     )
     driver.wait_for_xpath(
-        '''//table[contains(@class, "FollowupRequestLists")]//td[contains(., "1")]'''
+        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "1")]'''
     )
     driver.wait_for_xpath(
-        '''//table[contains(@class, "FollowupRequestLists")]//td[contains(., "submitted")]'''
+        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
 
 
@@ -189,11 +188,11 @@ def test_delete_followup_request(
     driver.scroll_to_element_and_click(delete_button)
 
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@class, "FollowupRequestLists")]//td[contains(., "u,IFU")]'''
+        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "u,IFU")]'''
     )
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@class, "FollowupRequestLists")]//td[contains(., "1")]'''
+        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "1")]'''
     )
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@class, "FollowupRequestLists")]//td[contains(., "submitted")]'''
+        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
