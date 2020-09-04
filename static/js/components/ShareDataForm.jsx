@@ -18,7 +18,6 @@ import Plot from "./Plot";
 import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
-import * as groupsActions from "../ducks/groups";
 import styles from "./Source.css";
 
 const createPhotRow = (
@@ -88,15 +87,6 @@ const ShareDataForm = ({ route }) => {
     dispatch(photometryActions.fetchSourcePhotometry(route.id));
     dispatch(spectraActions.fetchSourceSpectra(route.id));
   }, [route.id, dispatch]);
-
-  useEffect(() => {
-    const fetchGroups = () => {
-      dispatch(groupsActions.fetchGroups(true));
-    };
-    if (!groups || !groups.filter((g) => g.single_user_group).length) {
-      fetchGroups();
-    }
-  }, [route.id, dispatch, groups]);
 
   const validateGroups = () => {
     const formState = getValues({ nest: true });
