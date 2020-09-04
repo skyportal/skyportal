@@ -1,6 +1,6 @@
 import uuid
 import pytest
-from ...models import DBSession
+from ...models import DBSession, ObservingRun
 from .. import api
 
 
@@ -121,3 +121,21 @@ def test_observing_run_skycam_component(
     driver.wait_for_xpath_to_disappear(
         f'//img[contains(@src, "{red_transients_run.instrument.telescope.skycam_link}")]'
     )
+
+
+@pytest.mark.flaky(reruns=2)
+def test_observing_run_page(driver, view_only_user, red_transients_run):
+    driver.get(f'/become_user/{view_only_user.id}')
+    driver.get(f'/runs')
+    runs = ObservingRun.query.all()
+
+    for run in runs:
+        observingrun_title = (
+            f"{run.calendar_date} "
+            f"{run.instrument.name}/"
+            f"{run.instrument.telescope.nickname} "
+            f"(PI: {run.pi} / "
+            f"Group: {run.group.name})"
+        )
+
+        driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]')
