@@ -79,22 +79,18 @@ def add_followup_request_using_frontend_and_verify(
     add_allocation(idata['id'], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/source/{public_source.id}")
 
-    try:
-        # wait for the plots to load
-        driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]')
-        # this waits for the spectroscopy plot by looking for the element Mg
-        driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]')
-    except TimeoutException:
-        driver.get(f"/source/{public_source.id}")
-        # wait for the plots to load
-        driver.wait_for_xpath(
-            '//div[@class="bk-root"]//span[text()="Flux"]',
-        )  # waits for photometry plot
-        driver.wait_for_xpath(
-            '//div[@class="bk-root"]//label[text()="Mg"]',
-        )  # waits for spectroscopy plot
+    for _ in range(2):
+        try:
+            driver.get(f"/source/{public_source.id}")
+            # wait for the plots to load
+            driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]')
+            # this waits for the spectroscopy plot by looking for the element Mg
+            driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]')
+        except TimeoutException:
+            continue
+        else:
+            break
 
     submit_button = driver.wait_for_xpath(
         '//form[@class="rjsf"]//button[@type="submit"]'
