@@ -127,20 +127,23 @@ def add_followup_request_using_frontend_and_verify(
     driver.scroll_to_element_and_click(ifu_option)
     driver.scroll_to_element_and_click(submit_button)
 
+    driver.save_screenshot(f'screenshot10-{id}.png')
     driver.wait_for_xpath(
         '//table[contains(@class, "FollowupRequestLists")]//td[contains(., "Mix \'n Match")]'
     )
-
+    driver.save_screenshot(f'screenshot11-{id}.png')
     driver.wait_for_xpath(
         '''//table[contains(@class, "FollowupRequestLists")]//td[contains(., "u,IFU")]'''
     )
+    driver.save_screenshot(f'screenshot12-{id}.png')
     driver.wait_for_xpath(
         '''//table[contains(@class, "FollowupRequestLists")]//td[contains(., "1")]'''
     )
+    driver.save_screenshot(f'screenshot13-{id}.png')
     driver.wait_for_xpath(
         '''//table[contains(@class, "FollowupRequestLists")]//td[contains(., "submitted")]'''
     )
-    driver.save_screenshot(f'screenshot10-{id}.png')
+    driver.save_screenshot(f'screenshot14-{id}.png')
 
 
 # @pytest.mark.flaky(reruns=2)
