@@ -369,6 +369,7 @@ class GroupUserHandler(BaseHandler):
             and not current_groupuser.admin
         ):
             return self.error("Inadequate permissions.")
+
         data = self.get_json()
 
         username = data.pop("username", None)
@@ -453,6 +454,22 @@ class GroupUserHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        current_groupuser = (
+            GroupUser.query.filter(GroupUser.group_id == group_id)
+            .filter(GroupUser.user_id == self.current_user.id)
+            .first()
+        )
+        if (
+            len(
+                {"System admin", "Manage users", "Manage groups"}.intersection(
+                    set(self.current_user.permissions)
+                )
+            )
+            == 0
+            and not current_groupuser.admin
+        ):
+            return self.error("Inadequate permissions.")
+
         group = Group.query.get(group_id)
         if group.single_user_group:
             return self.error("Cannot delete users from single user groups.")
