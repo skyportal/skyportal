@@ -356,7 +356,7 @@ class GroupUserHandler(BaseHandler):
         """
         current_groupuser = (
             GroupUser.query.filter(GroupUser.group_id == group_id)
-            .filter(GroupUser.user_id == self.current_user.id)
+            .filter(GroupUser.user_id == self.associated_user_object.id)
             .first()
         )
         if (
@@ -456,7 +456,7 @@ class GroupUserHandler(BaseHandler):
         """
         current_groupuser = (
             GroupUser.query.filter(GroupUser.group_id == group_id)
-            .filter(GroupUser.user_id == self.current_user.id)
+            .filter(GroupUser.user_id == self.associated_user_object.id)
             .first()
         )
         if (
