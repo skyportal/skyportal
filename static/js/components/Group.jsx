@@ -199,17 +199,20 @@ const Group = () => {
     );
   }
 
-  // currentUser may not have the "Group admin" role, but can still be the group admin?
-  const currentGroupUser = group?.users?.filter(
-    (group_user) => group_user.username === currentUser.username
-  )[0];
-
-  const isAdmin = (aUser, aGroup) =>
-    aUser &&
-    aGroup.group_users &&
-    aGroup.group_users.filter(
-      (group_user) => group_user.user_id === aUser.id
-    )[0].admin;
+  const isAdmin = (aUser, aGroup) => {
+    const currentGroupUser = group?.users?.filter(
+      (group_user) => group_user.username === aUser.username
+    )[0];
+    return (
+      (currentGroupUser &&
+        aGroup.group_users &&
+        aGroup.group_users.filter(
+          (group_user) => group_user.user_id === currentGroupUser.id
+        )[0].admin) ||
+      aUser.permissions.includes("System admin") ||
+      aUser.permissions.includes("Manage groups")
+    );
+  };
 
   let numAdmins = 0;
   group?.group_users?.forEach((groupUser) => {
@@ -261,32 +264,9 @@ const Group = () => {
                     &nbsp;&nbsp;
                   </div>
                 )}
-                {(currentUser.roles.includes("Super admin") ||
-                  (currentUser.roles.includes("Group admin") &&
-                    isAdmin(currentGroupUser, group))) &&
-                  isAdmin(user, group) &&
-                  numAdmins > 1 && (
-                    <ListItemSecondaryAction>
-                      <IconButton
-                        edge="end"
-                        aria-label="delete"
-                        onClick={() =>
-                          dispatch(
-                            groupsActions.deleteGroupUser({
-                              username: user.username,
-                              group_id: group.id,
-                            })
-                          )
-                        }
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </ListItemSecondaryAction>
-                  )}
-                {(currentUser.roles.includes("Super admin") ||
-                  (currentUser.roles.includes("Group admin") &&
-                    isAdmin(currentGroupUser, group))) &&
-                  !isAdmin(user, group) && (
+                {isAdmin(currentUser, group) &&
+                  ((isAdmin(user, group) && numAdmins > 1) ||
+                    !isAdmin(user, group)) && (
                     <ListItemSecondaryAction>
                       <IconButton
                         edge="end"
@@ -310,8 +290,7 @@ const Group = () => {
           <Divider />
           <div className={classes.paper}>
             {/*eslint-disable */}
-            {(currentUser.roles.includes("Super admin") ||
-              isAdmin(currentGroupUser, group)) && (
+            {isAdmin(currentUser, group) && (
               <NewGroupUserForm group_id={group.id} />
             )}
             {/* eslint-enable */}
@@ -355,9 +334,7 @@ const Group = () => {
                             />
                           </Link>
                           {/*eslint-disable */}
-                          {(currentUser.roles.includes("Super admin") ||
-                            (currentUser.roles.includes("Group admin") &&
-                              isAdmin(currentGroupUser, group))) && (
+                          {isAdmin(currentUser, group) && (
                             <ListItemSecondaryAction>
                               <IconButton
                                 edge="end"
@@ -409,28 +386,23 @@ const Group = () => {
                   </Button>
                 )}
 
-              {(currentUser.roles.includes("Super admin") ||
-                (currentUser.roles.includes("Group admin") &&
-                  isAdmin(currentGroupUser, group))) &&
-                group?.streams?.length > 0 && (
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    className={classes.button_add}
-                    onClick={handleClickDialogOpen}
-                  >
-                    Add filter
-                  </Button>
-                )}
+              {isAdmin(currentUser, group) && group?.streams?.length > 0 && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  className={classes.button_add}
+                  onClick={handleClickDialogOpen}
+                >
+                  Add filter
+                </Button>
+              )}
             </div>
           </AccordionDetails>
         </Accordion>
       )}
       <br />
       {/*eslint-disable */}
-      {(currentUser.roles.includes("Super admin") ||
-        (currentUser.roles.includes("Group admin") &&
-          isAdmin(currentGroupUser, group))) && (
+      {isAdmin(currentUser, group) && (
         <Button
           variant="contained"
           color="secondary"
