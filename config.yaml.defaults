@@ -80,16 +80,21 @@ app:
     # This section describes the grid on which Home Page widgets are laid out.
     #
     # The breakpoints describe screen sizes at which a different set of widget
-    # layouts should be used.
+    # layouts should be used. Note that these breakpoints describe minimum width
+    # values, unlike the maximum width bounds used by Material UI breakpoints.
+    # For example, a breakpoint of "sm: 650" will match windows with width 650px
+    # or greater, until the next highest breakpoint is hit (probably a "md").
+    # This is different from Material UI, where a breakpoint of 650 would match
+    # window widths that are at most 650px.
     #
     # The cols describe the number of evenly spaced columns that make up the
     # grid at a given breakpoint. For example, on extra-large screens (greater
     # than ${breakpoints.xlg} pixels), the grid will use ${cols.xlg} columns of
     # equal width to describe sizes of widgets based on the layouts provided.
     #
-    # Optionally, you may provide a "row_height: {number of pixels}" property in
+    # Optionally, you may provide a "row_height: {a rem value}" property in
     # this section to change the height of a row on the grid. By default, this
-    # value is 150px.
+    # value is 9.375rem (150px for the default 16px = 1rem configuration).
 
     breakpoints:
       xlg: 1400

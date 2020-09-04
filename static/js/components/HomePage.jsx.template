@@ -11,6 +11,7 @@ import { makeStyles } from "@material-ui/core/styles";
 import IconButton from "@material-ui/core/IconButton";
 import CachedIcon from "@material-ui/icons/Cached";
 import Tooltip from "@material-ui/core/Tooltip";
+import convertLength from "convert-css-length";
 
 import * as profileActions from "../ducks/profile";
 
@@ -59,6 +60,16 @@ const defaultLayouts = {
 const HomePage = () => {
   const classes = useStyles();
 
+  // Taken from configs
+  const rem = "{{ app.homepage_grid.row_height|default("9.375rem")}}";
+  // The body tag has font 0.875 rem
+  const rootFont =
+    parseFloat(
+      window.getComputedStyle(document.body).getPropertyValue("font-size")
+    ) / 0.875;
+  const convert = convertLength(rootFont);
+  const gridRowHeight = parseFloat(convert(rem, "px"));
+
   const groups = useSelector((state) => state.groups.user);
 
   const sourceTableEmpty = useSelector(
@@ -103,7 +114,7 @@ const HomePage = () => {
         margin={[10, 10]}
         onLayoutChange={LayoutChangeHandler}
         draggableHandle=".dragHandle"
-        rowHeight={ {{ app.homepage_grid.row_height|default(150)}} }
+        rowHeight={gridRowHeight}
       >
         {%- for widgetName, widgetProps in app.homepage_widgets.items() %}
           {%- if not (widgetProps.show is defined and not widgetProps.show) %}
