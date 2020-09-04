@@ -86,16 +86,20 @@ def add_followup_request_using_frontend_and_verify(
         driver.wait_for_xpath(
             '//div[@class="bk-root"]//span[text()="Flux"]'
         )  # waits for photometry plot. wait for a long time because the plots are big can sometimes take a long time to load
+        driver.take_screenshot('screenshot1.png')
         driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]')
+        driver.take_screenshot('screenshot2.png')
     except TimeoutException:
         driver.get(f"/source/{public_source.id}")
         # wait for the plots to load
         driver.wait_for_xpath(
             '//div[@class="bk-root"]//span[text()="Flux"]',
         )  # waits for photometry plot
+        driver.take_screenshot('screenshot3.png')
         driver.wait_for_xpath(
             '//div[@class="bk-root"]//label[text()="Mg"]',
         )  # waits for spectroscopy plot
+        driver.take_screenshot('screenshot4.png')
 
     submit_button = driver.wait_for_xpath(
         '//form[@class="rjsf"]//button[@type="submit"]'
