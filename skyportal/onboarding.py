@@ -48,7 +48,6 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
         )
         user.roles.append(Role.query.get("Full user"))
         DBSession().add(user)
-        invitation.used = True
         DBSession().commit()
         return {"is_new": True, "user": user}
     elif not cfg["invitations.enabled"] and not cfg["server.auth.debug_login"]:
@@ -98,29 +97,34 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
 
     existing_user = DBSession().query(User).filter(User.oauth_uid == uid).first()
 
-    if existing_user is not None:
-        return
-
     invite_token = strategy.session_get("invite_token")
-
+    if invite_token is None:
+        return
     invitation = Invitation.query.filter(Invitation.token == invite_token).first()
     if invitation is None:
         raise AuthTokenError("Invalid invite token.")
 
+    if invitation.used:
+        raise AuthTokenError("Invite token has already been used.")
+
     group_ids = [g.id for g in invitation.groups]
 
+    existing_user_group_ids = [g.id for g in existing_user.groups]
     # Add user to specified groups
     for group_id, admin in zip(group_ids, invitation.admin_for_groups):
-        DBSession.add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
+        if group_id not in existing_user_group_ids:
+            DBSession.add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
 
-    # Create single-user group
-    DBSession().add(Group(name=user.username, users=[user], single_user_group=True))
+    if DBSession().query(Group).filter(Group.name == user.username).first() is None:
+        # Create single-user group
+        DBSession().add(Group(name=user.username, users=[user], single_user_group=True))
 
     # Add user to sitewide public group
     public_group = Group.query.filter(
         Group.name == cfg["misc"]["public_group_name"]
     ).first()
-    if public_group is not None:
+    if public_group is not None and public_group.id not in existing_user_group_ids:
         DBSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
 
+    invitation.used = True
     DBSession().commit()
