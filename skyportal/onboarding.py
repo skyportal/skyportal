@@ -9,6 +9,7 @@ from .models import (
     Invitation,
     Role,
     Stream,
+    StreamUser,
 )
 from baselayer.app.env import load_env
 
@@ -144,6 +145,7 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
             DBSession.add(
                 GroupStream(group_id=single_user_group.id, stream_id=stream_id)
             )
+            DBSession.add(StreamUser(stream_id=stream_id, user_id=user.id))
 
     # Add user to specified groups
     for group_id, admin in zip(group_ids, invitation.admin_for_groups):
