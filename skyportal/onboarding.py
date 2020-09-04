@@ -134,18 +134,15 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
         for stream in streams:
             stream_ids.add(stream.id)
 
-    if DBSession().query(Group).filter(Group.name == user.username).first() is None:
-        # Create single-user group
-        DBSession().add(Group(name=user.username, users=[user], single_user_group=True))
-        # Add stream access to single user group
-        single_user_group = (
-            DBSession().query(Group).filter(Group.name == user.username).first()
-        )
-        for stream_id in stream_ids:
-            DBSession.add(
-                GroupStream(group_id=single_user_group.id, stream_id=stream_id)
-            )
-            DBSession.add(StreamUser(stream_id=stream_id, user_id=user.id))
+    # Create single-user group
+    DBSession().add(Group(name=user.username, users=[user], single_user_group=True))
+    # Add stream access to single user group
+    single_user_group = (
+        DBSession().query(Group).filter(Group.name == user.username).first()
+    )
+    for stream_id in stream_ids:
+        DBSession.add(GroupStream(group_id=single_user_group.id, stream_id=stream_id))
+        DBSession.add(StreamUser(stream_id=stream_id, user_id=user.id))
 
     # Add user to specified groups
     for group_id, admin in zip(group_ids, invitation.admin_for_groups):
