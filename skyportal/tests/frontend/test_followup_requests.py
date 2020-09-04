@@ -107,11 +107,16 @@ def add_followup_request_using_frontend_and_verify(
         '//form[@class="rjsf"]//button[@type="submit"]'
     )
 
+    driver.save_screenshot(f'screenshot5-{id}.png')
     mode_select = driver.wait_for_xpath('//*[@id="root_observation_type"]')
+    driver.save_screenshot(f'screenshot6-{id}.png')
     driver.scroll_to_element(mode_select)
+    driver.save_screenshot(f'screenshot7-{id}.png')
     ActionChains(driver).move_to_element(mode_select).pause(1).click().perform()
+    driver.save_screenshot(f'screenshot8-{id}.png')
 
     mix_n_match_option = driver.wait_for_xpath('''//li[@data-value="Mix 'n Match"]''')
+    driver.save_screenshot(f'screenshot9-{id}.png')
     driver.scroll_to_element_and_click(mix_n_match_option)
 
     u_band_option = driver.wait_for_xpath('//input[@id="root_observation_choices_0"]')
