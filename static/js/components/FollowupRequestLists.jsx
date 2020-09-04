@@ -1,17 +1,24 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
+import { makeStyles } from "@material-ui/core/styles";
 
 import * as Actions from "../ducks/source";
-import styles from "./FollowupRequestLists.css";
 
 import EditFollowupRequestDialog from "./EditFollowupRequestDialog";
+
+const useStyles = makeStyles(() => ({
+  followupRequestTable: {
+    borderSpacing: "0.7em",
+  },
+}));
 
 const FollowupRequestLists = ({
   followupRequests,
   instrumentList,
   instrumentFormParams,
 }) => {
+  const classes = useStyles();
   const dispatch = useDispatch();
   const deleteRequest = (id) => {
     dispatch(Actions.deleteFollowupRequest(id));
@@ -63,7 +70,7 @@ const FollowupRequestLists = ({
         return (
           <div key={`instrument_${instrument_id}_table_div`}>
             <h3>{instLookUp[instrument_id].name} Requests</h3>
-            <table className={styles.followupRequestTable}>
+            <table className={classes.followupRequestTable}>
               <thead>
                 <td>Requester</td>
                 <td>Allocation</td>

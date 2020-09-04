@@ -47,7 +47,7 @@ const FollowupRequestForm = ({
     return <h3>No robotic instruments available...</h3>;
   }
 
-  if (allGroups.length === 0 || telescopeList.length === 0) {
+  if (!allGroups || allGroups.length === 0 || telescopeList.length === 0) {
     return <h3>Loading...</h3>;
   }
 
