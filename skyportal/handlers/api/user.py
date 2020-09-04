@@ -1,5 +1,5 @@
 from ..base import BaseHandler
-from baselayer.app.access import permissions
+from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from ...models import DBSession, User, Group, GroupUser
 
@@ -47,7 +47,7 @@ def add_user_and_setup_groups(
 
 
 class UserHandler(BaseHandler):
-    @permissions(["Manage users"])
+    @auth_or_token
     def get(self, user_id=None):
         """
         ---
