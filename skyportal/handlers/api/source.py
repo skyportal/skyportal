@@ -378,6 +378,7 @@ class SourceHandler(BaseHandler):
                 "Invalid group_ids field. Please specify at least "
                 "one valid group ID that you belong to."
             )
+        obj.add_linked_thumbnails()
         DBSession().add(obj)
         DBSession().add_all([Source(obj=obj, group=group) for group in groups])
         DBSession().commit()
