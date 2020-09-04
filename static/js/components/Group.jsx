@@ -436,7 +436,9 @@ const Group = () => {
                   (stream) =>
                     // display only streams that are not yet added
                     !groupStreamIds?.includes(stream.id) && (
-                      <MenuItem value={stream.id}>{stream.name}</MenuItem>
+                      <MenuItem value={stream.id} key={stream.id}>
+                        {stream.name}
+                      </MenuItem>
                     )
                 )}
               </Controller>
