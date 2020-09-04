@@ -29,4 +29,4 @@ SkyPortal database.
 
 .. image:: images/erd.png
    :alt: Skyportal Entity Relationship Diagram
-   :target: images/erd.png
+   :target: _images/erd.png
