@@ -66,7 +66,7 @@ def test_add_new_group_user_admin(
     el_input.clear()
     ActionChains(driver).move_to_element(el_input).click().send_keys(
         user_no_groups.username
-    ).pause(5).send_keys(Keys.ENTER).perform()
+    ).pause(2).send_keys(Keys.ENTER).perform()
     driver.click_xpath('//input[@type="checkbox"]')
     driver.click_xpath('//input[@value="Add user"]')
 
@@ -94,7 +94,7 @@ def test_add_new_group_user_nonadmin(
     el_input.clear()
     ActionChains(driver).move_to_element(el_input).click().send_keys(
         user_no_groups.username
-    ).pause(5).send_keys(Keys.ENTER).perform()
+    ).pause(2).send_keys(Keys.ENTER).perform()
     driver.click_xpath('//input[@value="Add user"]')
     driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
     assert (
@@ -119,7 +119,7 @@ def test_add_new_group_user_new_username(driver, super_admin_user, user, public_
     el_input.clear()
     ActionChains(driver).move_to_element(el_input).click().send_keys(
         new_username
-    ).pause(5).send_keys(Keys.ENTER).perform()
+    ).pause(2).send_keys(Keys.ENTER).perform()
     driver.click_xpath('//input[@value="Add user"]')
     driver.click_xpath('//span[text()="Confirm"]')
     if cfg["invitations.enabled"]:  # If invites are disabled, we won't see this notif.
