@@ -30,30 +30,24 @@ const GroupSources = ({ route }) => {
     dispatch(SourcesAction.fetchGroupSources({ group_id: route.id }));
   }, [route.id, dispatch]);
 
-  if (sources === undefined || sources === null) {
+  if (!sources) {
     return "Loading Sources...";
   }
 
   const group_id = parseInt(route.id, 10);
   let group_name = "";
 
-  if (groups !== undefined && groups !== null) {
+  if (groups) {
     const group = groups.find((g) => {
       // find the object for the group
       return g.id === group_id;
     });
-
-    if (group === undefined || group === null) {
-      // couldn't find a group object
-      group_name = "";
-    } else {
-      group_name = group.name;
-    }
+    group_name = group?.name;
   }
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
-    if (sources === undefined) {
+    if (!sources) {
       return "Loading...";
     }
 
@@ -206,15 +200,7 @@ const GroupSources = ({ route }) => {
                 color="textSecondary"
                 align="center"
               >
-                <em>Group Sources:</em>
-              </Typography>
-              <Typography
-                variant="h4"
-                gutterBottom
-                color="textSecondary"
-                align="center"
-              >
-                <b>Sources for {group_name}</b>
+                <b>Sources saved to {group_name}</b>
               </Typography>
             </div>
           </Grid>

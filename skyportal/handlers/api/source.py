@@ -29,6 +29,7 @@ from ...utils import (
     get_finding_chart,
 )
 from .candidate import grab_query_results_page
+import numbers
 
 SOURCES_PER_PAGE = 100
 
@@ -293,7 +294,10 @@ class SourceHandler(BaseHandler):
         if has_tns_name in ['true', True]:
             q = q.filter(Obj.altdata['tns']['name'].isnot(None))
         if group_id:
-            if not all(g.isdigit() for g in group_id):
+            if not all(
+                isinstance(g, numbers.Number) or isinstance(g, str) and g.isdigit()
+                for g in group_id
+            ):
                 return self.error(
                     f"Group id should be a list of numbers, instead got: '{group_id}'"
                 )
