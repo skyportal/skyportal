@@ -2008,9 +2008,18 @@ UserInvitation = join_model("user_invitations", User, Invitation)
 @event.listens_for(Invitation, 'after_insert')
 def send_user_invite_email(mapper, connection, target):
     _, cfg = load_env()
+    ports_to_ignore = {True: 443, False: 80}  # True/False <-> server.ssl=True/False
     app_base_url = (
         f"{'https' if cfg['server.ssl'] else 'http'}:"
-        f"//{cfg['server.host']}:{cfg['ports.app']}"
+        f"//{cfg['server.host']}"
+        + (
+            f":{cfg['server.port']}"
+            if (
+                cfg["server.port"] is not None
+                and cfg["server.port"] != ports_to_ignore[cfg["server.ssl"]]
+            )
+            else ""
+        )
     )
     link_location = f'{app_base_url}/login/google-oauth2/?invite_token={target.token}'
     message = Mail(

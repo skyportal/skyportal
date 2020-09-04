@@ -199,7 +199,8 @@ server:
   #
   # You need to have Google+ API enabled; it takes a few minutes to activate.
   host: localhost
-  ssl: False
+  port: 5000  # This is the public-facing port
+  ssl: False  # Must be either True or False
 
   auth:
     debug_login: True
