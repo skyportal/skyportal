@@ -199,18 +199,18 @@ const Group = () => {
     );
   }
 
-  const isAdmin = (aUser, aGroup) => {
+  const isAdmin = (aUser) => {
     const currentGroupUser = group?.users?.filter(
       (group_user) => group_user.username === aUser.username
     )[0];
     return (
       (currentGroupUser &&
-        aGroup.group_users &&
-        aGroup.group_users.filter(
+        group.group_users &&
+        group.group_users.filter(
           (group_user) => group_user.user_id === currentGroupUser.id
         )[0].admin) ||
-      aUser.permissions.includes("System admin") ||
-      aUser.permissions.includes("Manage groups")
+      aUser.permissions?.includes("System admin") ||
+      aUser.permissions?.includes("Manage groups")
     );
   };
 
@@ -255,7 +255,7 @@ const Group = () => {
                 <Link to={`/user/${user.id}`} className={classes.filterLink}>
                   <ListItemText primary={user.username} />
                 </Link>
-                {isAdmin(user, group) && (
+                {isAdmin(user) && (
                   <div
                     style={{ display: "inline-block" }}
                     id={`${user.id}-admin-chip`}
@@ -264,9 +264,8 @@ const Group = () => {
                     &nbsp;&nbsp;
                   </div>
                 )}
-                {isAdmin(currentUser, group) &&
-                  ((isAdmin(user, group) && numAdmins > 1) ||
-                    !isAdmin(user, group)) && (
+                {isAdmin(currentUser) &&
+                  ((isAdmin(user) && numAdmins > 1) || !isAdmin(user)) && (
                     <ListItemSecondaryAction>
                       <IconButton
                         edge="end"
@@ -290,9 +289,7 @@ const Group = () => {
           <Divider />
           <div className={classes.paper}>
             {/*eslint-disable */}
-            {isAdmin(currentUser, group) && (
-              <NewGroupUserForm group_id={group.id} />
-            )}
+            {isAdmin(currentUser) && <NewGroupUserForm group_id={group.id} />}
             {/* eslint-enable */}
           </div>
         </AccordionDetails>
@@ -334,7 +331,7 @@ const Group = () => {
                             />
                           </Link>
                           {/*eslint-disable */}
-                          {isAdmin(currentUser, group) && (
+                          {isAdmin(currentUser) && (
                             <ListItemSecondaryAction>
                               <IconButton
                                 edge="end"
@@ -386,7 +383,7 @@ const Group = () => {
                   </Button>
                 )}
 
-              {isAdmin(currentUser, group) && group?.streams?.length > 0 && (
+              {isAdmin(currentUser) && group?.streams?.length > 0 && (
                 <Button
                   variant="contained"
                   color="primary"
@@ -402,7 +399,7 @@ const Group = () => {
       )}
       <br />
       {/*eslint-disable */}
-      {isAdmin(currentUser, group) && (
+      {isAdmin(currentUser) && (
         <Button
           variant="contained"
           color="secondary"
