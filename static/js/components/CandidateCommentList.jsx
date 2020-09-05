@@ -37,7 +37,7 @@ const CandidateCommentList = ({ comments }) => {
     ({ id, author, author_info, created_at, text }) => {
       return (
         <span key={id} className={commentStyle}>
-          <Tooltip title={author} arrow placement="top-start">
+          <Tooltip title={author.username} arrow placement="top-start">
             <div className={styles.commentUserAvatar}>
               <UserAvatar
                 size={24}

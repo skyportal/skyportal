@@ -86,7 +86,7 @@ class NewsFeedHandler(BaseHandler):
                     'time': c.created_at,
                     'message': c.text,
                     'source_id': c.obj_id,
-                    'author': c.author,
+                    'author': c.author.username,
                     'author_info': c.author_info,
                 }
                 for c in comments

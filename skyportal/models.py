@@ -1231,10 +1231,14 @@ class Comment(Base):
     )
 
     origin = sa.Column(sa.String, nullable=True, doc='Comment origin.')
-    author = sa.Column(
-        sa.String,
+    author = relationship(
+        "User", back_populates="comments", doc="Comment's author.", uselist=False,
+    )
+    author_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
         nullable=False,
-        doc="User.username or Token.id " "of the Comment's author.",
+        index=True,
+        doc="ID of the Comment author's User instance.",
     )
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
@@ -1252,9 +1256,8 @@ class Comment(Base):
     )
 
     def construct_author_info_dict(self):
-        user = User.query.filter(User.username == self.author).first()
         return {
-            field: getattr(user, field)
+            field: getattr(self.author, field)
             for field in ('username', 'first_name', 'last_name', 'gravatar_url')
         }
 
@@ -1273,6 +1276,8 @@ class Comment(Base):
 
 GroupComment = join_model("group_comments", Group, Comment)
 GroupComment.__doc__ = "Join table mapping Groups to Comments."
+
+User.comments = relationship("Comment", back_populates="author")
 
 
 class Classification(Base):
