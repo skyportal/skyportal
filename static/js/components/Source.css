@@ -2,9 +2,9 @@
 }
 
 .leftColumn {
-  display: inline-block;
+  display: flex;
+  flex-flow: column nowrap;
   vertical-align: top;
-  width: 900px;
   padding-right: 1em;
 }
 

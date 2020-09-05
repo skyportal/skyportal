@@ -10,11 +10,12 @@ import SurveyLinkList from "./SurveyLinkList";
 
 import { ra_to_hours, dec_to_hours } from "../units";
 
-import styles from "./Source.css";
+import { useSourceStyles } from "./Source";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 
 const Candidate = ({ route }) => {
+  const classes = useSourceStyles();
   const dispatch = useDispatch();
   const candidate = useSelector((state) => state.candidate);
   const cachedCandidateId = candidate ? candidate.id : null;
@@ -45,9 +46,9 @@ const Candidate = ({ route }) => {
   }
 
   return (
-    <div className={styles.source}>
-      <div className={styles.leftColumn}>
-        <div className={styles.name}>{candidate.id}</div>
+    <div className={classes.source}>
+      <div className={classes.leftColumn}>
+        <div className={classes.name}>{candidate.id}</div>
         <br />
         <b>Position (J2000):</b>
         &nbsp;
@@ -75,7 +76,7 @@ const Candidate = ({ route }) => {
           mobileProps={{ folded: true }}
         >
           <Plot
-            className={styles.plot}
+            className={classes.plot}
             url={`/api/internal/plot/photometry/${candidate.id}`}
           />
         </Responsive>
@@ -85,7 +86,7 @@ const Candidate = ({ route }) => {
           mobileProps={{ folded: true }}
         >
           <Plot
-            className={styles.plot}
+            className={classes.plot}
             url={`/api/internal/plot/spectroscopy/${candidate.id}`}
           />
         </Responsive>
@@ -103,12 +104,12 @@ const Candidate = ({ route }) => {
         </Responsive>
       </div>
 
-      <div className={styles.rightColumn}>
+      <div className={classes.rightColumn}>
         <Responsive
           element={FoldBox}
           title="Comments"
           mobileProps={{ folded: true }}
-          className={styles.comments}
+          className={classes.comments}
         >
           <CommentList isCandidate />
         </Responsive>
