@@ -1,32 +1,37 @@
 import React from "react";
 import { useSelector } from "react-redux";
 
-import Paper from "@material-ui/core/Paper";
 import { makeStyles } from "@material-ui/core/styles";
 
 import GroupManagement from "./GroupManagement";
 import GroupList from "./GroupList";
 
-const useStyles = makeStyles((theme) => ({
-  paper: {
-    width: "100%",
-    padding: theme.spacing(1),
-    textAlign: "left",
-    color: theme.palette.text.primary,
+const useStyles = makeStyles(() => ({
+  // Hide drag handle icon since this isn't the home page
+  widgetIcon: {
+    display: "none",
+  },
+  widgetPaperDiv: {
+    padding: "1rem",
+    height: "100%",
+  },
+  widgetPaperFillSpace: {
+    height: "100%",
   },
 }));
 
 const Groups = () => {
+  const classes = useStyles();
   const roles = useSelector((state) => state.profile.roles);
   const groups = useSelector((state) => state.groups.user);
 
-  const classes = useStyles();
+  if (groups.length === 0) {
+    return <h3>Loading...</h3>;
+  }
 
   return (
     <div>
-      <Paper className={classes.paper}>
-        <GroupList title="My Groups" groups={groups} />
-      </Paper>
+      <GroupList title="My Groups" groups={groups} classes={classes} />
       <br />
       {roles.includes("Super admin") && <GroupManagement />}
     </div>

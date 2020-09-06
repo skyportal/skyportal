@@ -10,11 +10,6 @@ def test_get_user_info(manage_users_token, user):
     assert data['data']['id'] == user.id
 
 
-def test_get_user_info_access_denied(view_only_token, user):
-    status, data = api('GET', f'user/{user.id}', token=view_only_token)
-    assert status == 400
-
-
 def test_delete_user(manage_users_token, user):
     status, data = api('DELETE', f'user/{user.id}', token=manage_users_token)
     assert status == 200
@@ -101,7 +96,7 @@ def test_add_delete_user_adds_deletes_single_user_group(
     assert data["status"] == "success"
     assert any(
         [
-            group["single_user_group"] == True and group["name"] == username
+            group["single_user_group"] and group["name"] == username
             for group in data["data"]["all_groups"]
         ]
     )
@@ -115,7 +110,7 @@ def test_add_delete_user_adds_deletes_single_user_group(
     assert data["status"] == "success"
     assert not any(
         [
-            group["single_user_group"] == True and group["name"] == username
+            group["single_user_group"] and group["name"] == username
             for group in data["data"]["all_groups"]
         ]
     )

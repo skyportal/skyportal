@@ -171,9 +171,11 @@ const VegaPlot = React.memo((props) => {
   return (
     <div
       ref={(node) => {
-        embed(node, spec(dataUrl), {
-          actions: false,
-        });
+        if (node) {
+          embed(node, spec(dataUrl), {
+            actions: false,
+          });
+        }
       }}
     />
   );

@@ -1,18 +1,35 @@
+import uuid
+import python_http_client.exceptions
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
-from .user import add_user_and_setup_groups
+from baselayer.app.env import load_env
 from ..base import BaseHandler
+from .user import add_user_and_setup_groups
 from ...models import (
     DBSession,
     Filter,
     Group,
     GroupStream,
     GroupUser,
+    Invitation,
     Stream,
     User,
     Token,
 )
+
+_, cfg = load_env()
+
+
+def has_admin_access_for_group(user, group_id):
+    groupuser = (
+        GroupUser.query.filter(GroupUser.group_id == group_id)
+        .filter(GroupUser.user_id == user.id)
+        .first()
+    )
+    return {"System admin", "Manage users", "Manage groups"}.intersection(
+        set(user.permissions)
+    ) or groupuser.admin
 
 
 class GroupHandler(BaseHandler):
@@ -83,6 +100,13 @@ class GroupHandler(BaseHandler):
                                 items:
                                   $ref: '#/components/schemas/Group'
                                 description: List of groups current user is a member of.
+                              user_accessible_groups:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Group'
+                                description: |
+                                  List of groups current user can access, not including
+                                  single user groups.
                               all_groups:
                                 type: array
                                 items:
@@ -97,7 +121,7 @@ class GroupHandler(BaseHandler):
                   schema: Error
         """
         if group_id is not None:
-            if 'Manage groups' in [acl.id for acl in self.current_user.acls]:
+            if has_admin_access_for_group(self.associated_user_object, group_id):
                 group = (
                     Group.query.options(joinedload(Group.users))
                     .options(joinedload(Group.group_users))
@@ -146,7 +170,7 @@ class GroupHandler(BaseHandler):
             if not all(
                 [group in self.current_user.accessible_groups for group in groups]
             ):
-                return self.error("Insufficient permisisons")
+                return self.error("Insufficient permissions")
             return self.success(data=groups)
 
         include_single_user_groups = self.get_query_argument(
@@ -154,6 +178,9 @@ class GroupHandler(BaseHandler):
         )
         info = {}
         info['user_groups'] = list(self.current_user.groups)
+        info['user_accessible_groups'] = [
+            g for g in self.current_user.accessible_groups if not g.single_user_group
+        ]
         all_groups_query = Group.query
         if (not include_single_user_groups) or (
             isinstance(include_single_user_groups, str)
@@ -279,6 +306,8 @@ class GroupHandler(BaseHandler):
                 schema: Success
         """
         g = Group.query.get(group_id)
+        if g.name == cfg["misc"]["public_group_name"]:
+            return self.error("Cannot delete site-wide public group.")
         DBSession().delete(g)
         DBSession().commit()
 
@@ -290,7 +319,7 @@ class GroupHandler(BaseHandler):
 
 
 class GroupUserHandler(BaseHandler):
-    @permissions(['Manage groups'])
+    @auth_or_token
     def post(self, group_id, *ignored_args):
         """
         ---
@@ -336,6 +365,9 @@ class GroupUserHandler(BaseHandler):
                               type: boolean
                               description: Boolean indicating whether user is group admin
         """
+        if not has_admin_access_for_group(self.associated_user_object, group_id):
+            return self.error("Inadequate permissions.")
+
         data = self.get_json()
 
         username = data.pop("username", None)
@@ -349,11 +381,25 @@ class GroupUserHandler(BaseHandler):
             return self.error("Cannot add users to single-user groups.")
         user = User.query.filter(User.username == username.lower()).first()
         if user is None:
-            user_id = add_user_and_setup_groups(
-                username=username,
-                roles=["Full user"],
-                group_ids_and_admin=[[group_id, admin]],
-            )
+            groups = Group.query.filter(Group.id == group_id).all()
+            if cfg["invitations.enabled"]:
+                invite_token = str(uuid.uuid4())
+                DBSession.add(
+                    Invitation(
+                        token=invite_token,
+                        groups=groups,
+                        admin_for_groups=[admin],
+                        user_email=username,
+                        invited_by=self.associated_user_object,
+                    )
+                )
+                user_id = None
+            else:
+                user_id = add_user_and_setup_groups(
+                    username=username,
+                    roles=["Full user"],
+                    group_ids_and_admin=[[group_id, admin]],
+                )
         else:
             user_id = user.id
             # Just add new GroupUser
@@ -370,14 +416,21 @@ class GroupUserHandler(BaseHandler):
                 return self.error(
                     "Specified user is already associated with this group."
                 )
-        DBSession().commit()
+        try:
+            DBSession().commit()
+        except python_http_client.exceptions.UnauthorizedError:
+            return self.error(
+                "Twilio Sendgrid authorization error. Please ensure "
+                "valid Sendgrid API key is set in server environment as "
+                "per their setup docs."
+            )
 
         self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
         return self.success(
             data={'group_id': group_id, 'user_id': user_id, 'admin': admin}
         )
 
-    @permissions(['Manage groups'])
+    @auth_or_token
     def delete(self, group_id, username):
         """
         ---
@@ -399,6 +452,9 @@ class GroupUserHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        if not has_admin_access_for_group(self.associated_user_object, group_id):
+            return self.error("Inadequate permissions.")
+
         group = Group.query.get(group_id)
         if group.single_user_group:
             return self.error("Cannot delete users from single user groups.")

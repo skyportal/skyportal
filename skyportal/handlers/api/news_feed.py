@@ -57,6 +57,7 @@ class NewsFeedHandler(BaseHandler):
                     )
                 )
                 .order_by(desc(model.created_at or model.saved_at))
+                .distinct(model.obj_id, model.created_at)
                 .limit(n_items)
                 .all()
             )
@@ -85,7 +86,7 @@ class NewsFeedHandler(BaseHandler):
                     'time': c.created_at,
                     'message': c.text,
                     'source_id': c.obj_id,
-                    'author': c.author,
+                    'author': c.author.username,
                     'author_info': c.author_info,
                 }
                 for c in comments

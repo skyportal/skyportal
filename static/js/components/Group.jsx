@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useHistory, useParams } from "react-router-dom";
+import { useHistory, useParams, Link } from "react-router-dom";
 import PropTypes from "prop-types";
 
 import { useDispatch, useSelector } from "react-redux";
@@ -72,6 +72,9 @@ const useStyles = makeStyles((theme) => ({
     width: "100%",
     marginTop: theme.spacing(2),
   },
+  filterLink: {
+    width: "100%",
+  },
 }));
 
 const Group = () => {
@@ -125,7 +128,7 @@ const Group = () => {
   };
 
   const { id } = useParams();
-  const loadedId = useSelector((state) => state.group.id);
+  const loadedId = useSelector((state) => state.group?.id);
 
   useEffect(() => {
     const fetchGroup = async () => {
@@ -196,17 +199,20 @@ const Group = () => {
     );
   }
 
-  // currentUser may not have the "Group admin" role, but can still be the group admin?
-  const currentGroupUser = group?.users?.filter(
-    (group_user) => group_user.username === currentUser.username
-  )[0];
-
-  const isAdmin = (aUser, aGroup) =>
-    aUser &&
-    aGroup.group_users &&
-    aGroup.group_users.filter(
-      (group_user) => group_user.user_id === aUser.id
-    )[0].admin;
+  const isAdmin = (aUser) => {
+    const currentGroupUser = group?.users?.filter(
+      (group_user) => group_user.username === aUser.username
+    )[0];
+    return (
+      (currentGroupUser &&
+        group.group_users &&
+        group.group_users.filter(
+          (group_user) => group_user.user_id === currentGroupUser.id
+        )[0].admin) ||
+      aUser.acls?.includes("System admin") ||
+      aUser.acls?.includes("Manage groups")
+    );
+  };
 
   let numAdmins = 0;
   group?.group_users?.forEach((groupUser) => {
@@ -245,16 +251,11 @@ const Group = () => {
             dense
           >
             {group?.users?.map((user) => (
-              <ListItem
-                button
-                component={
-                  currentUser.acls.includes("Manage users") ? "a" : false
-                }
-                key={user.id}
-                href={`/user/${user.id}`}
-              >
-                <ListItemText primary={user.username} />
-                {isAdmin(user, group) && (
+              <ListItem button key={user.id}>
+                <Link to={`/user/${user.id}`} className={classes.filterLink}>
+                  <ListItemText primary={user.username} />
+                </Link>
+                {isAdmin(user) && (
                   <div
                     style={{ display: "inline-block" }}
                     id={`${user.id}-admin-chip`}
@@ -263,32 +264,8 @@ const Group = () => {
                     &nbsp;&nbsp;
                   </div>
                 )}
-                {(currentUser.roles.includes("Super admin") ||
-                  (currentUser.roles.includes("Group admin") &&
-                    isAdmin(currentGroupUser, group))) &&
-                  isAdmin(user, group) &&
-                  numAdmins > 1 && (
-                    <ListItemSecondaryAction>
-                      <IconButton
-                        edge="end"
-                        aria-label="delete"
-                        onClick={() =>
-                          dispatch(
-                            groupsActions.deleteGroupUser({
-                              username: user.username,
-                              group_id: group.id,
-                            })
-                          )
-                        }
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </ListItemSecondaryAction>
-                  )}
-                {(currentUser.roles.includes("Super admin") ||
-                  (currentUser.roles.includes("Group admin") &&
-                    isAdmin(currentGroupUser, group))) &&
-                  !isAdmin(user, group) && (
+                {isAdmin(currentUser) &&
+                  ((isAdmin(user) && numAdmins > 1) || !isAdmin(user)) && (
                     <ListItemSecondaryAction>
                       <IconButton
                         edge="end"
@@ -312,11 +289,7 @@ const Group = () => {
           <Divider />
           <div className={classes.paper}>
             {/*eslint-disable */}
-            {(currentUser.roles.includes("Super admin") ||
-              (currentUser.roles.includes("Group admin") &&
-                isAdmin(currentGroupUser, group))) && (
-              <NewGroupUserForm group_id={group.id} />
-            )}
+            {isAdmin(currentUser) && <NewGroupUserForm group_id={group.id} />}
             {/* eslint-enable */}
           </div>
         </AccordionDetails>
@@ -340,21 +313,25 @@ const Group = () => {
             <List component="nav" className={classes.padding_bottom}>
               {group.streams?.map((stream) => (
                 <div key={stream.name}>
-                  <ListItem>
+                  <ListItem key={stream.name}>
                     <ListItemText primary={stream.name} />
                   </ListItem>
                   <List component="nav" disablePadding>
                     {group.filters?.map((filter) =>
                       filter.stream_id === stream.id ? (
-                        <ListItem button component="a" key={filter.id} href="#">
-                          <ListItemText
-                            className={classes.nested}
-                            primary={filter.name}
-                          />
+                        <ListItem button key={filter.id}>
+                          <Link
+                            to={`/filter/${filter.id}`}
+                            className={classes.filterLink}
+                          >
+                            <ListItemText
+                              key={filter.id}
+                              className={classes.nested}
+                              primary={filter.name}
+                            />
+                          </Link>
                           {/*eslint-disable */}
-                          {(currentUser.roles.includes("Super admin") ||
-                            (currentUser.roles.includes("Group admin") &&
-                              isAdmin(currentGroupUser, group))) && (
+                          {isAdmin(currentUser) && (
                             <ListItemSecondaryAction>
                               <IconButton
                                 edge="end"
@@ -406,28 +383,23 @@ const Group = () => {
                   </Button>
                 )}
 
-              {(currentUser.roles.includes("Super admin") ||
-                (currentUser.roles.includes("Group admin") &&
-                  isAdmin(currentGroupUser, group))) &&
-                group?.streams?.length > 0 && (
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    className={classes.button_add}
-                    onClick={handleClickDialogOpen}
-                  >
-                    Add filter
-                  </Button>
-                )}
+              {isAdmin(currentUser) && group?.streams?.length > 0 && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  className={classes.button_add}
+                  onClick={handleClickDialogOpen}
+                >
+                  Add filter
+                </Button>
+              )}
             </div>
           </AccordionDetails>
         </Accordion>
       )}
       <br />
       {/*eslint-disable */}
-      {(currentUser.roles.includes("Super admin") ||
-        (currentUser.roles.includes("Group admin") &&
-          isAdmin(currentGroupUser, group))) && (
+      {isAdmin(currentUser) && (
         <Button
           variant="contained"
           color="secondary"
@@ -464,7 +436,9 @@ const Group = () => {
                   (stream) =>
                     // display only streams that are not yet added
                     !groupStreamIds?.includes(stream.id) && (
-                      <MenuItem value={stream.id}>{stream.name}</MenuItem>
+                      <MenuItem value={stream.id} key={stream.id}>
+                        {stream.name}
+                      </MenuItem>
                     )
                 )}
               </Controller>

@@ -68,9 +68,9 @@ const CommentList = ({ isCandidate }) => {
         <span
           key={id}
           className={commentStyle}
-          onMouseOver={() => handleMouseHover(id, userProfile, author)}
+          onMouseOver={() => handleMouseHover(id, userProfile, author.username)}
           onMouseOut={() => handleMouseLeave()}
-          onFocus={() => handleMouseHover(id, userProfile, author)}
+          onFocus={() => handleMouseHover(id, userProfile, author.username)}
           onBlur={() => handleMouseLeave()}
         >
           <div className={styles.commentUserAvatar}>
@@ -85,7 +85,9 @@ const CommentList = ({ isCandidate }) => {
           <div className={styles.commentContent}>
             <div className={styles.commentHeader}>
               <span className={styles.commentUser}>
-                <span className={styles.commentUserName}>{author}</span>
+                <span className={styles.commentUserName}>
+                  {author.username}
+                </span>
               </span>
               <span className={styles.commentTime}>
                 {dayjs().to(dayjs.utc(`${created_at}Z`))}
@@ -115,13 +117,17 @@ const CommentList = ({ isCandidate }) => {
                 🗑
               </Button>
             </div>
+            <span>
+              {attachment_name && (
+                <div>
+                  Attachment:&nbsp;
+                  <a href={`/api/comment/${id}/attachment`}>
+                    {attachment_name}
+                  </a>
+                </div>
+              )}
+            </span>
           </div>
-          {attachment_name && (
-            <div>
-              Attachment:&nbsp;
-              <a href={`/api/comment/${id}/attachment`}>{attachment_name}</a>
-            </div>
-          )}
         </span>
       );
     }

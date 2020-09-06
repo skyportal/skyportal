@@ -4,3 +4,4 @@ numpydoc
 sphinx-rtd-theme
 notedown
 jsx-lexer
+eralchemy==1.2.10

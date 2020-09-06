@@ -13,12 +13,17 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
+import sys
 import os
+import eralchemy
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 # sys.path.insert(0, os.path.abspath('.'))
+
+sys.path.insert(0, os.path.abspath('..'))
+from skyportal import models  # noqa
 
 # -- General configuration ------------------------------------------------
 
@@ -34,9 +39,9 @@ extensions = [
     #    'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     #    'sphinx.ext.pngmath',
-    #    'numpydoc',
+    'numpydoc',
     #    'plot2rst',
-    #    'sphinx.ext.intersphinx',
+    'sphinx.ext.intersphinx',
     #    'sphinx.ext.linkcode',
     #    'sphinx_gallery.gen_gallery'
 ]
@@ -57,7 +62,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'skyportal'
-copyright = '2020 The SkyPortal Team'
+copyright = '2020, The SkyPortal Team'
 author = 'The SkyPortal Team'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -136,7 +141,7 @@ if not on_rtd:  # only import and set the theme if we're building docs locally
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-html_theme_options = {'logo_only': True}
+# html_theme_options = {}
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
@@ -150,7 +155,7 @@ html_theme_options = {'logo_only': True}
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = '../static/images/skyportal_logo_docs.png'
+# html_logo = None
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -310,6 +315,10 @@ texinfo_documents = [
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 # texinfo_no_detailmenu = False
+
+# create entity relationship diagram for skyportal
+erd_path = os.path.join(os.path.dirname(__file__), 'images/erd.png')
+eralchemy.render_er(models.Base, erd_path)
 
 
 def setup(app):

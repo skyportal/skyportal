@@ -17,7 +17,7 @@ tqdm>=4.23.2
 matplotlib>=3
 astroquery>=0.4
 sqlalchemy-utils
-apispec>=3.2.0
+apispec>=3.3.1
 marshmallow>=3.4.0
 marshmallow-sqlalchemy>=0.21.0
 marshmallow-enum>=1.5.1
@@ -32,3 +32,6 @@ timezonefinder>=4.4.0
 astroplan>=0.6
 phonenumbers>=8.12.7
 py3-validate-email>=0.2.9
+marshmallow-jsonschema>=0.10.0
+requests_toolbelt>=0.9.1
+sendgrid>=6.4.6
