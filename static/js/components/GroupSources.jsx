@@ -8,11 +8,12 @@ import TableRow from "@material-ui/core/TableRow";
 import Typography from "@material-ui/core/Typography";
 import IconButton from "@material-ui/core/IconButton";
 import Grid from "@material-ui/core/Grid";
-
+import Chip from "@material-ui/core/Chip";
 import Link from "@material-ui/core/Link";
 import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
 
 import MUIDataTable from "mui-datatables";
+import { makeStyles } from "@material-ui/core/styles";
 
 import Tooltip from "@material-ui/core/Tooltip";
 import GroupIcon from "@material-ui/icons/Group";
@@ -28,11 +29,18 @@ import ShowClassification from "./ShowClassification";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 
+const useStyles = makeStyles((theme) => ({
+  chip: {
+    margin: theme.spacing(0.5),
+  },
+}));
+
 const GroupSources = ({ route }) => {
   const dispatch = useDispatch();
   const sources = useSelector((state) => state.sources.groupSources);
   const groups = useSelector((state) => state.groups.user);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
+  const classes = useStyles();
 
   // Color styling
   const userColorTheme = useSelector(
@@ -209,7 +217,18 @@ const GroupSources = ({ route }) => {
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderGroups = (dataIndex) => {
     const source = sources[dataIndex];
-    return <div key={`${source.id}_groups`}>{source.groups}</div>;
+    return (
+      <div key={`${source.id}_groups`}>
+        {source.groups.map((group) => (
+          <Chip
+            label={group.name.substring(0, 15)}
+            key={group.id}
+            size="small"
+            className={classes.chip}
+          />
+        ))}
+      </div>
+    );
   };
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.

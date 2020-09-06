@@ -256,6 +256,7 @@ class SourceHandler(BaseHandler):
             return self.success(data=source_info)
 
         # Fetch multiple sources
+        user_group_ids = [g.id for g in self.current_user.accessible_groups]
         q = (
             DBSession()
             .query(Obj)
@@ -312,7 +313,6 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     f"Group id should be a list of numbers, instead got: '{group_id}'"
                 )
-            user_group_ids = [g.id for g in self.current_user.accessible_groups]
             if not all(int(g) in user_group_ids for g in group_id):
                 return self.error(
                     f"One of the requested groups in '{group_id}' is inaccessible to user."
@@ -346,6 +346,19 @@ class SourceHandler(BaseHandler):
             source_list[-1]["last_detected"] = source.last_detected
             source_list[-1]["gal_lon"] = source.gal_lon_deg
             source_list[-1]["gal_lat"] = source.gal_lat_deg
+            source_list[-1]["groups"] = (
+                Group.query.filter(
+                    Group.id.in_(
+                        DBSession()
+                        .query(Source.group_id)
+                        .filter(Source.obj_id == source_list[-1]["id"])
+                    )
+                )
+                .filter(
+                    Group.id.in_([g.id for g in self.current_user.accessible_groups])
+                )
+                .all()
+            )
         query_results["sources"] = source_list
 
         return self.success(data=query_results)
