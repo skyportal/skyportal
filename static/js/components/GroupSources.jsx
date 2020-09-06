@@ -13,10 +13,18 @@ import Link from "@material-ui/core/Link";
 import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
 
 import MUIDataTable from "mui-datatables";
-import ThumbnailList from "./ThumbnailList";
-import styles from "./RunSummary.css";
-import * as SourcesAction from "../ducks/sources";
+
+import Tooltip from "@material-ui/core/Tooltip";
+import GroupIcon from "@material-ui/icons/Group";
+
+import dayjs from "dayjs";
+
 import { ra_to_hours, dec_to_hours } from "../units";
+import * as SourcesAction from "../ducks/sources";
+import styles from "./GroupSources.css";
+import ThumbnailList from "./ThumbnailList";
+import UserAvatar from "./UserAvatar";
+import ShowClassification from "./ShowClassification";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 
@@ -24,6 +32,14 @@ const GroupSources = ({ route }) => {
   const dispatch = useDispatch();
   const sources = useSelector((state) => state.sources.groupSources);
   const groups = useSelector((state) => state.groups.user);
+  const { taxonomyList } = useSelector((state) => state.taxonomies);
+
+  // Color styling
+  const userColorTheme = useSelector(
+    (state) => state.profile.preferences.theme
+  );
+  const commentStyle =
+    userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
   // Load the group sources
   useEffect(() => {
@@ -54,6 +70,66 @@ const GroupSources = ({ route }) => {
     const colSpan = rowData.length + 1;
     const source = sources[rowMeta.rowIndex];
 
+    const comments = source.comments || [];
+
+    const items = comments.map(
+      ({
+        id,
+        author,
+        author_info,
+        created_at,
+        text,
+        attachment_name,
+        groups: comment_groups,
+      }) => {
+        return (
+          <span key={id} className={commentStyle}>
+            <div className={styles.commentUserAvatar}>
+              <UserAvatar
+                size={24}
+                firstName={author_info.first_name}
+                lastName={author_info.last_name}
+                username={author_info.username}
+                gravatarUrl={author_info.gravatar_url}
+              />
+            </div>
+            <div className={styles.commentContent}>
+              <div className={styles.commentHeader}>
+                <span className={styles.commentUser}>
+                  <span className={styles.commentUserName}>
+                    {author.username}
+                  </span>
+                </span>
+                <span className={styles.commentTime}>
+                  {dayjs().to(dayjs.utc(`${created_at}Z`))}
+                </span>
+                <div className={styles.commentUserGroup}>
+                  <Tooltip
+                    title={comment_groups.map((group) => group.name).join(", ")}
+                  >
+                    <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
+                  </Tooltip>
+                </div>
+              </div>
+              <div className={styles.wrap} name={`commentDiv${id}`}>
+                <div className={styles.commentMessage}>{text}</div>
+              </div>
+              <span>
+                {attachment_name && (
+                  <div>
+                    Attachment:&nbsp;
+                    <a href={`/api/comment/${id}/attachment`}>
+                      {attachment_name}
+                    </a>
+                  </div>
+                )}
+              </span>
+            </div>
+          </span>
+        );
+      }
+    );
+
     return (
       <TableRow>
         <TableCell
@@ -76,6 +152,17 @@ const GroupSources = ({ route }) => {
             <Grid item>
               <Suspense fallback={<div>Loading plot...</div>}>
                 <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
+              </Suspense>
+            </Grid>
+            <Grid item>
+              <div className={styles.commentsList}>{items}</div>
+            </Grid>
+            <Grid item>
+              <Suspense fallback={<div>Loading classifications</div>}>
+                <ShowClassification
+                  classifications={source.classifications}
+                  taxonomyList={taxonomyList}
+                />
               </Suspense>
             </Grid>
           </Grid>
@@ -120,6 +207,12 @@ const GroupSources = ({ route }) => {
   };
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
+  const renderGroups = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div key={`${source.id}_groups`}>{source.groups}</div>;
+  };
+
+  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderFinderButton = (dataIndex) => {
     const source = sources[dataIndex];
     return (
@@ -160,6 +253,13 @@ const GroupSources = ({ route }) => {
       },
     },
     {
+      name: "Groups",
+      options: {
+        filter: false,
+        customBodyRenderLite: renderGroups,
+      },
+    },
+    {
       name: "Finder",
       options: {
         filter: false,
@@ -180,6 +280,9 @@ const GroupSources = ({ route }) => {
     source.ra,
     source.dec,
     source.redshift,
+    source.classifications,
+    source.groups,
+    source.recent_comments,
   ]);
 
   return (
