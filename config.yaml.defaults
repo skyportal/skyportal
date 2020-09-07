@@ -19,6 +19,11 @@ app:
   # this endpoint does not actually do anything -- it is just for testing
   sedm_endpoint: http://pharos.caltech.edu/add_fritz
 
+  lt_username: null
+  lt_password: null
+  lt_host: null
+  lt_port: null
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:

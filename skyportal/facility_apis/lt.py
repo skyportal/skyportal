@@ -11,6 +11,7 @@ from astropy.io import ascii
 
 from . import FollowUpAPI
 from baselayer.app.access import auth_or_token
+from baselayer.app.env import load_env
 import requests
 
 
@@ -27,11 +28,12 @@ LT_SETTINGS = {
     'IOO_BINNING': '2x2',
 }
 
-info = ascii.read('.lt.access', format='csv')
-LT_SETTINGS['USERNAME'] = info['USERNAME'][0]
-LT_SETTINGS['PASSWORD'] = info['PASSWORD'][0]
-LT_SETTINGS['LT_HOST'] = info['LT_HOST'][0]
-LT_SETTINGS['LT_PORT'] = info['LT_PORT'][0]
+env, cfg = load_env()
+
+LT_SETTINGS['USERNAME'] = cfg['app.lt_username']
+LT_SETTINGS['PASSWORD'] = cfg['app.lt_password']
+LT_SETTINGS['LT_HOST'] = cfg['app.lt_host']
+LT_SETTINGS['LT_PORT'] = cfg['app.lt_port']
 print(LT_SETTINGS)
 
 LT_XML_NS = 'http://www.rtml.org/v3.1a'
