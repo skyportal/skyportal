@@ -57,21 +57,25 @@ class AllocationHandler(BaseHandler):
             )
         )
 
-        if allocation_id is not None:
-            try:
-                allocation_id = int(allocation_id)
-            except ValueError:
-                return self.error("Allocation ID must be an integer.")
-            allocations = allocations.filter(Allocation.id == allocation_id).all()
-            if len(allocations) == 0:
-                return self.error("Could not retrieve allocation.")
-            return self.success(data=allocations[0])
+        print(allocations.all())
+
+        #if allocation_id is not None:
+        #    try:
+        #        allocation_id = int(allocation_id)
+        #    except ValueError:
+        #        return self.error("Allocation ID must be an integer.")
+        #    allocations = allocations.filter(Allocation.id == allocation_id).all()
+        #    if len(allocations) == 0:
+        #        return self.error("Could not retrieve allocation.")
+        #    return self.success(data=allocations[0])
 
         instrument_id = self.get_query_argument('instrument_id', None)
         if instrument_id is not None:
             allocations = allocations.filter(Allocation.instrument_id == instrument_id)
 
         allocations = allocations.all()
+        print(allocations)
+
         return self.success(data=allocations)
 
     @permissions(['System admin'])

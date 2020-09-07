@@ -153,22 +153,26 @@
   name: Frodospec
   telescope_id: =LT
   type: spectrograph
+  api_classname: LTAPI
 - band: optical
   name: IOO
   telescope_id: =LT
   type: imager
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
             'bessellb', 'bessellv']
+  api_classname: LTAPI
 - band: optical
   name: RATCam
   telescope_id: =LT
   type: imager
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
             'bessellb', 'bessellv']
+  api_classname: LTAPI
 - band: optical
   name: SPRAT
   telescope_id: =LT
   type: spectrograph
+  api_classname: LTAPI
 - band: optical
   name: DIS
   telescope_id: =APO

@@ -44,6 +44,11 @@ groups:
       - =testadmin
       - =groupadmin
     =id: program_B
+  - name: Program C
+    group_admins:
+      - testadmin@cesium-ml.org
+      - groupadmin@cesium-ml.org
+    =id: program_C
 
 groups/=program_A/users:
   - username: viewonlyuser@cesium-ml.org
@@ -109,6 +114,15 @@ telescope:
     skycam_link: /static/images/kcam_2.jpg
     robotic: false
     =id: Keck1
+  - name: LT Telescope
+    nickname: LT
+    lat: 28.762
+    lon: -17.872
+    elevation: 2363
+    diameter: 2.0
+    skycam_link: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
+    robotic: true
+    =id: LT
 
 instrument:
   - name: P60 Camera
@@ -138,6 +152,20 @@ instrument:
     filters: ["sdssu", "sdssg", "sdssr", "sdssi"]
     api_classname: SEDMAPI
     =id: SEDM
+  - name: IOO
+    type: imaging spectrograph
+    band: V
+    telescope_id: =LT
+    filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+    api_classname: LTAPI
+    =id: IOO
+  - name: SPRAT
+    type: imaging spectrograph
+    band: V
+    telescope_id: =LT
+    filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+    api_classname: LTAPI
+    =id: SPRAT
 
 allocation:
   - pi: Michael Coughlin
@@ -147,6 +175,20 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =SEDM
+  - pi: Michael Coughlin
+    proposal_id: LT-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =IOO
+  - pi: Michael Coughlin
+    proposal_id: LT-002
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =SPRAT
 
 candidates:
   - id: 14gqr_unsaved_copy
@@ -264,6 +306,7 @@ photometry:
     group_ids:
       - =program_A
       - =program_B
+      - =program_C
   - obj_id: 14gqr
     instrument_id: =P60
     assignment_id: 1
@@ -271,6 +314,7 @@ photometry:
     group_ids:
       - =program_A
       - =program_B
+      - =program_C
   - obj_id: 16fil_unsaved_copy
     instrument_id: =P60
     assignment_id: 2
@@ -278,6 +322,7 @@ photometry:
     group_ids:
       - =program_A
       - =program_B
+      - =program_C
   - obj_id: 16fil
     instrument_id: =P60
     assignment_id: 2
@@ -285,6 +330,7 @@ photometry:
     group_ids:
       - =program_A
       - =program_B
+      - =program_C
 
 spectrum:
   - obj_id: 14gqr_unsaved_copy
