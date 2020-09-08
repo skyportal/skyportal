@@ -261,7 +261,6 @@ const Group = () => {
                     id={`${user.id}-admin-chip`}
                   >
                     <Chip label="Admin" size="small" color="secondary" />
-                    &nbsp;&nbsp;
                   </div>
                 )}
                 {isAdmin(currentUser) &&
