@@ -1166,7 +1166,7 @@ class Instrument(Base):
                     DBSession().query(ACL).filter(
                         ACL.id == instrument.listener_acl.id
                     ).delete()
-                DBSession().commit()
+                    DBSession().commit()
 
             @staticmethod
             def clear_tokens_and_acl():
