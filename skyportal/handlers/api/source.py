@@ -35,7 +35,6 @@ from ...utils import (
     get_finding_chart,
 )
 from .candidate import grab_query_results_page
-import numbers
 
 SOURCES_PER_PAGE = 100
 
@@ -189,6 +188,7 @@ class SourceHandler(BaseHandler):
         group_id = self.get_query_argument(
             'group_id', None
         )  # list of strings with group numbers
+        user_group_ids = [g.id for g in self.current_user.accessible_groups]
         simbad_class = self.get_query_argument('simbadClass', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
         total_matches = self.get_query_argument('totalMatches', None)
@@ -238,17 +238,12 @@ class SourceHandler(BaseHandler):
             source_info["last_detected"] = s.last_detected
             source_info["gal_lat"] = s.gal_lat_deg
             source_info["gal_lon"] = s.gal_lon_deg
-
             source_info["groups"] = (
-                Group.query.filter(
-                    Group.id.in_(
-                        DBSession()
-                        .query(Source.group_id)
-                        .filter(Source.obj_id == obj_id)
-                    )
-                )
+                DBSession()
+                .query(Group)
+                .join(Source)
                 .filter(
-                    Group.id.in_([g.id for g in self.current_user.accessible_groups])
+                    Source.obj_id == source_info["id"], Group.id.in_(user_group_ids)
                 )
                 .all()
             )
@@ -256,15 +251,14 @@ class SourceHandler(BaseHandler):
             return self.success(data=source_info)
 
         # Fetch multiple sources
-        user_group_ids = [g.id for g in self.current_user.accessible_groups]
         q = (
             DBSession()
             .query(Obj)
             .join(Source)
             .filter(
-                Source.group_id.in_(  # only give sources the user has access to
-                    [g.id for g in self.current_user.accessible_groups]
-                )
+                Source.group_id.in_(
+                    user_group_ids
+                )  # only give sources the user has access to
             )
             .options(
                 joinedload(Obj.thumbnails)
@@ -306,13 +300,14 @@ class SourceHandler(BaseHandler):
         if has_tns_name in ['true', True]:
             q = q.filter(Obj.altdata['tns']['name'].isnot(None))
         if group_id:
-            if not all(
-                isinstance(g, numbers.Number) or isinstance(g, str) and g.isdigit()
-                for g in group_id
-            ):
-                return self.error(
-                    f"Group id should be a list of numbers, instead got: '{group_id}'"
-                )
+            for id in group_id:
+                try:
+                    int(
+                        id
+                    )  # just check each group_id that it is a string containing an integer (e.g., not letters)
+                except ValueError:
+                    return self.error(f'Invalid group id: {id}')
+
             if not all(int(g) in user_group_ids for g in group_id):
                 return self.error(
                     f"One of the requested groups in '{group_id}' is inaccessible to user."
@@ -347,18 +342,15 @@ class SourceHandler(BaseHandler):
             source_list[-1]["gal_lon"] = source.gal_lon_deg
             source_list[-1]["gal_lat"] = source.gal_lat_deg
             source_list[-1]["groups"] = (
-                Group.query.filter(
-                    Group.id.in_(
-                        DBSession()
-                        .query(Source.group_id)
-                        .filter(Source.obj_id == source_list[-1]["id"])
-                    )
-                )
+                DBSession()
+                .query(Group)
+                .join(Source)
                 .filter(
-                    Group.id.in_([g.id for g in self.current_user.accessible_groups])
+                    Source.obj_id == source_list[-1]["id"], Group.id.in_(user_group_ids)
                 )
                 .all()
             )
+
         query_results["sources"] = source_list
 
         return self.success(data=query_results)

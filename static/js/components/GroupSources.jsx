@@ -163,6 +163,11 @@ const GroupSources = ({ route }) => {
               </Suspense>
             </Grid>
             <Grid item>
+              <Suspense fallback={<div>Loading plot...</div>}>
+                <VegaPlot dataUrl={`/api/sources/${source.id}/spectra`} />
+              </Suspense>
+            </Grid>
+            <Grid item>
               <div className={styles.commentsList}>{items}</div>
             </Grid>
             <Grid item>
