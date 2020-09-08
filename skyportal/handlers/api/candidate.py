@@ -159,8 +159,8 @@ class CandidateHandler(BaseHandler):
             )
             if c is None:
                 return self.error("Invalid ID")
-            c.comments = c.get_comments_owned_by(self.current_user)
             candidate_info = c.to_dict()
+            candidate_info["comments"] = c.get_comments_owned_by(self.current_user)
             candidate_info["last_detected"] = c.last_detected
             candidate_info["gal_lon"] = c.gal_lon_deg
             candidate_info["gal_lat"] = c.gal_lat_deg
