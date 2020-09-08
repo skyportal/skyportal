@@ -65,7 +65,10 @@ const CandidateList = () => {
 
   useEffect(() => {
     if (candidates === null) {
+      setQueryInProgress(true);
       dispatch(candidatesActions.fetchCandidates());
+    } else {
+      setQueryInProgress(false);
     }
   }, [candidates, dispatch]);
 
