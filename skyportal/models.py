@@ -2,6 +2,7 @@ import uuid
 import re
 from datetime import datetime, timezone
 import arrow
+import requests
 from astropy import units as u
 from astropy import time as ap_time
 import astroplan
@@ -33,6 +34,7 @@ from baselayer.app.models import (  # noqa
 )
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
+from baselayer.app.access import permissions
 
 
 from . import schema
@@ -43,6 +45,7 @@ from .enum_types import (
     followup_priorities,
     api_classnames,
     followup_http_request_origins,
+    listener_classnames,
 )
 
 from skyportal import facility_apis
@@ -1003,6 +1006,31 @@ class ArrayOfEnum(ARRAY):
         return process
 
 
+ACL.created_by_instrument_id = sa.Column(
+    sa.ForeignKey('instruments.id', ondelete='CASCADE'),
+    nullable=True,
+    index=True,
+    doc="The ID of the instrument whose message listener created this token.",
+)
+ACL.created_by_instrument = relationship(
+    'Instrument',
+    back_populates='listener_tokens',
+    doc="The instrument whose message listener created this token.",
+)
+
+Token.created_by_instrument_id = sa.Column(
+    sa.ForeignKey('instruments.id', ondelete='CASCADE'),
+    nullable=True,
+    index=True,
+    doc="The ID of the instrument whose message listener created this token.",
+)
+Token.created_by_instrument = relationship(
+    'Instrument',
+    back_populates='listener_tokens',
+    doc="The instrument whose message listener created this token.",
+)
+
+
 class Instrument(Base):
     """An instrument attached to a telescope."""
 
@@ -1064,6 +1092,25 @@ class Instrument(Base):
         api_classnames, nullable=True, doc="Name of the instrument's API class."
     )
 
+    listener_classname = sa.Column(
+        listener_classnames,
+        nullable=True,
+        doc="Name of the instrument's listener class.",
+    )
+
+    listener_tokens = relationship(
+        'Token',
+        back_populates='created_by_instrument',
+        doc="The active tokens associated with the instrument's request handler.",
+    )
+
+    listener_acl = relationship(
+        'ACL',
+        back_populates='created_by_instrument',
+        doc="The ACL that remote facility tokens must possess to POST to this instrument's request handler.",
+        uselist=False,
+    )
+
     @property
     def does_spectroscopy(self):
         """Return a boolean indicating whether the instrument is capable of
@@ -1079,6 +1126,81 @@ class Instrument(Base):
     @property
     def api_class(self):
         return getattr(facility_apis, self.api_classname)
+
+    def has_listener(self):
+        return self.listener_classname is not None
+
+    @property
+    def listener_manager(instrument):
+        if not instrument.has_listener():
+            return None
+
+        class ListenerManager:
+            @staticmethod
+            def clear_tokens():
+                for token in instrument.listener_tokens:
+                    DBSession().query(Token).filter(Token.id == token.id).delete()
+                DBSession().commit()
+
+            @staticmethod
+            def create_or_get_acl():
+                if instrument.listener_acl is None:
+                    acl = ACL(f'Post to {instrument.name}')
+                    DBSession().add(acl)
+                    DBSession().commit()
+                return instrument.listener_acl
+
+            @staticmethod
+            def new_token():
+                token = Token(
+                    created_by_instrument=instrument,
+                    acls=[ListenerManager.create_or_get_acl()],
+                )
+                DBSession().add(token)
+                DBSession().commit()
+                return token
+
+            @staticmethod
+            def clear_acl():
+                if instrument.listener_acl is not None:
+                    DBSession().query(ACL).filter(
+                        ACL.id == instrument.listener_acl.id
+                    ).delete()
+                DBSession().commit()
+
+            @staticmethod
+            def clear_tokens_and_acl():
+                ListenerManager.clear_tokens()
+                ListenerManager.clear_acl()
+
+            @staticmethod
+            def get_listener_class():
+                user_class = getattr(facility_apis, instrument.listener_classname)
+                class_with_auth_installed = ListenerManager.create_listener(user_class)
+                return class_with_auth_installed
+
+            @staticmethod
+            def get_listener_endpoint():
+                return requests.utils.quote(
+                    f'/api/listener/{instrument.name}_{instrument.listener_classname}'
+                )
+
+            @staticmethod
+            def create_listener(user_class):
+                if user_class.enable_token_authentication:
+                    if instrument.listener_tokens is None:
+                        ListenerManager.new_token()
+
+                    class ObservatoryResponseHandler(user_class):
+                        @permissions([instrument.listener_acl])
+                        def post(self):
+                            super().post()
+
+                else:
+                    ObservatoryResponseHandler = user_class
+                return ObservatoryResponseHandler
+
+        return ListenerManager
 
 
 class Allocation(Base):

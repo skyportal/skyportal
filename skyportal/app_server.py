@@ -128,6 +128,17 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         # Refer to Main.jsx for routing info.
     ]
 
+    # add the instrument listeners
+    instruments = models.Instrument.query.all()
+    for instrument in instruments:
+        if instrument.has_listener():
+            handlers.append(
+                (
+                    instrument.listener_manager.get_listener_endpoint(),
+                    instrument.listener_manager.get_listener_class(),
+                )
+            )
+
     settings = baselayer_settings
     if not cfg["server.auth.debug_login"]:
         settings.update(

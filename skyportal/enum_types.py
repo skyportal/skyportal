@@ -46,10 +46,19 @@ api_classnames = sa.Enum(
     *[
         k
         for k, v in facility_apis.__dict__.items()
-        if inspect.isclass(v)
-        if issubclass(v, facility_apis.FollowUpAPI)
+        if inspect.isclass(v) and issubclass(v, facility_apis.FollowUpAPI)
     ],
     name='followup_apis',
+    validate_strings=True,
+)
+
+listener_classnames = sa.Enum(
+    *[
+        k
+        for k, v in facility_apis.__dict__.items()
+        if inspect.isclass(v) and issubclass(v, facility_apis.FacilityResponseHandler)
+    ],
+    name='followup_listeners',
     validate_strings=True,
 )
 

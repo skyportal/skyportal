@@ -1,4 +1,14 @@
 from ._base import _Base
+from baselayer.app.handlers import BaseHandler
+
+
+class FacilityResponseHandler(BaseHandler):
+    """A tornado request handler that facilities can hit to post """
+
+    enable_token_authentication = False
+
+    def post(self):
+        raise NotImplementedError
 
 
 class FollowUpAPI(_Base):
