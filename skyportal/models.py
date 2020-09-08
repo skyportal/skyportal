@@ -1145,7 +1145,9 @@ class Instrument(Base):
             @staticmethod
             def create_or_get_acl():
                 if instrument.listener_acl is None:
-                    acl = ACL(f'Post to {instrument.name}')
+                    acl = ACL(
+                        f'Post to {instrument.name}', created_by_instrument=instrument
+                    )
                     DBSession().add(acl)
                     DBSession().commit()
                 return instrument.listener_acl
