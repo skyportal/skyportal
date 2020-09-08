@@ -160,7 +160,11 @@ class CandidateHandler(BaseHandler):
             if c is None:
                 return self.error("Invalid ID")
             candidate_info = c.to_dict()
-            candidate_info["comments"] = c.get_comments_owned_by(self.current_user)
+            candidate_info["comments"] = sorted(
+                c.get_comments_owned_by(self.current_user),
+                key=lambda x: x.created_at,
+                reverse=True,
+            )
             candidate_info["last_detected"] = c.last_detected
             candidate_info["gal_lon"] = c.gal_lon_deg
             candidate_info["gal_lat"] = c.gal_lat_deg
@@ -290,8 +294,10 @@ class CandidateHandler(BaseHandler):
                 )
             ]
             candidate_list.append(obj.to_dict())
-            candidate_list[-1]["comments"] = obj.get_comments_owned_by(
-                self.current_user
+            candidate_list[-1]["comments"] = sorted(
+                obj.get_comments_owned_by(self.current_user),
+                key=lambda x: x.created_at,
+                reverse=True,
             )
             candidate_list[-1]["last_detected"] = obj.last_detected
             candidate_list[-1]["gal_lat"] = obj.gal_lat_deg

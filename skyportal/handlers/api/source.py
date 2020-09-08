@@ -308,8 +308,10 @@ class SourceHandler(BaseHandler):
         source_list = []
         for source in query_results["sources"]:
             source_list.append(source.to_dict())
-            source_list[-1]["comments"] = source.get_comments_owned_by(
-                self.current_user
+            source_list[-1]["comments"] = sorted(
+                source.get_comments_owned_by(self.current_user),
+                key=lambda x: x.created_at,
+                reverse=True,
             )
             source_list[-1]["last_detected"] = source.last_detected
             source_list[-1]["gal_lon"] = source.gal_lon_deg
