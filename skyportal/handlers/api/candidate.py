@@ -272,12 +272,13 @@ class CandidateHandler(BaseHandler):
         )
         candidate_list = []
         for obj in query_results["candidates"]:
-            obj.comments = obj.get_comments_owned_by(self.current_user)
             obj.is_source = (obj.id,) in matching_source_ids
             obj.passing_group_ids = [
                 f.group_id
                 for f in (
-                    Filter.query.filter(Filter.id.in_(user_accessible_filter_ids))
+                    DBSession()
+                    .query(Filter)
+                    .filter(Filter.id.in_(user_accessible_filter_ids))
                     .filter(
                         Filter.id.in_(
                             DBSession()
@@ -289,6 +290,9 @@ class CandidateHandler(BaseHandler):
                 )
             ]
             candidate_list.append(obj.to_dict())
+            candidate_list[-1]["comments"] = obj.get_comments_owned_by(
+                self.current_user
+            )
             candidate_list[-1]["last_detected"] = obj.last_detected
             candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
             candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
