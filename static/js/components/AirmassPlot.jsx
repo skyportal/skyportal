@@ -46,9 +46,11 @@ const AirmassPlot = React.memo((props) => {
   return (
     <div
       ref={(node) => {
-        embed(node, airmass_spec(dataUrl, ephemeris), {
-          actions: false,
-        });
+        if (node) {
+          embed(node, airmass_spec(dataUrl, ephemeris), {
+            actions: false,
+          });
+        }
       }}
     />
   );

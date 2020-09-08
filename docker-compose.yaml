@@ -6,6 +6,8 @@ services:
     ports:
       - "9000:5000"
       - "9001:5001"
+    volumes:
+      - thumbnails:/skyportal/static/thumbnails
 
   db:
     image: postgres:12.2
@@ -20,3 +22,4 @@ services:
 
 volumes:
   dbdata:
+  thumbnails:

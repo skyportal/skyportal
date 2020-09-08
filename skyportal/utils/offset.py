@@ -7,6 +7,7 @@ import warnings
 
 import pandas as pd
 import requests
+import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
@@ -23,6 +24,7 @@ from astropy.wcs.utils import pixel_to_skycoord
 from astropy.io import fits
 from astropy.visualization import ImageNormalize, ZScaleInterval
 from reproject import reproject_adaptive
+
 
 warnings.simplefilter('ignore', category=AstropyWarning)
 
@@ -52,6 +54,15 @@ irsa = {
     "url_data": "https://irsa.ipac.caltech.edu/ibe/data/ztf/products/",
     "url_search": "https://irsa.ipac.caltech.edu/ibe/search/ztf/products/",
 }
+
+
+def get_url(*args, **kwargs):
+    # Connect and read timeouts
+    kwargs['timeout'] = (3.05, 20)
+    try:
+        return requests.get(*args, **kwargs)
+    except requests.exceptions.RequestException:
+        return None
 
 
 def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
@@ -86,7 +97,11 @@ def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
     url_ref_meta = os.path.join(
         irsa['url_search'], f"ref?POS={ra:f},{dec:f}&SIZE={imsize_deg:f}&ct=csv"
     )
-    s = requests.get(url_ref_meta).content
+    r = get_url(url_ref_meta)
+    if r is None:
+        return ''
+
+    s = r.content
     c = pd.read_csv(io.StringIO(s.decode('utf-8')))
 
     field = f"{c.loc[0, 'field']:06d}"
@@ -441,12 +456,12 @@ def fits_image(
         cachedir.mkdir()
 
     def get_hdu(url):
-        response = requests.get(url, stream=True, allow_redirects=True)
-        if response.status_code == 200:
-            hdu = fits.open(io.BytesIO(response.content))[0]
-            return hdu
-        else:
+        response = get_url(url, stream=True, allow_redirects=True)
+        if response is None or response.status_code != 200:
             return None
+
+        hdu = fits.open(io.BytesIO(response.content))[0]
+        return hdu
 
     if cache:
         m = hashlib.md5()
@@ -553,6 +568,7 @@ def get_finding_chart(
             'name': '',
         }
 
+    matplotlib.use("Agg")
     fig = plt.figure(figsize=(11, 8.5), constrained_layout=False)
     widths = [2.6, 1]
     heights = [2.6, 1]

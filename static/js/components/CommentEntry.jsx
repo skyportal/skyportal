@@ -93,7 +93,11 @@ const CommentEntry = ({ addComment }) => {
         >
           Customize Group Access
         </Button>
-        <Box component="div" display={groupSelectVisible ? "block" : "none"}>
+        <Box
+          component="div"
+          display={groupSelectVisible ? "flex" : "none"}
+          className={styles.customizeGroupsContainer}
+        >
           {userGroups.map((userGroup, idx) => (
             <FormControlLabel
               key={userGroup.id}

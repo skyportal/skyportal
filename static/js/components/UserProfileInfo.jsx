@@ -44,12 +44,6 @@ const UserProfileInfo = () => {
         &nbsp;
         <br />
         <Typography component="div">
-          <Box fontWeight="fontWeightBold" component="span" mr={1}>
-            Username:
-          </Box>
-          {profile.username}
-        </Typography>
-        <Typography component="div">
           <Box pb={1}>
             <Box fontWeight="fontWeightBold" component="span" mr={1}>
               User roles:

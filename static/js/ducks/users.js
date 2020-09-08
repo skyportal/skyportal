@@ -1,3 +1,5 @@
+import messageHandler from "baselayer/MessageHandler";
+
 import * as API from "../API";
 import store from "../store";
 
@@ -14,6 +16,13 @@ export function fetchUser(id) {
 export function fetchUsers() {
   return API.GET("/api/user", FETCH_USERS);
 }
+
+// Websocket message handler
+messageHandler.add((actionType, payload, dispatch) => {
+  if (actionType === FETCH_USERS) {
+    dispatch(fetchUsers());
+  }
+});
 
 const reducer = (state = { allUsers: [] }, action) => {
   switch (action.type) {

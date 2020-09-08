@@ -9,7 +9,7 @@ import GroupIcon from "@material-ui/icons/Group";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-import emoji from 'emoji-dictionary';
+import emoji from "emoji-dictionary";
 
 import * as sourceActions from "../ducks/source";
 import styles from "./CommentList.css";
@@ -56,7 +56,8 @@ const CommentList = ({ isCandidate }) => {
 
   comments = comments || [];
 
-  const emojiSupport = text => text.value.replace(/:\w+:/gi, name => emoji.getUnicode(name));
+  const emojiSupport = (text) =>
+    text.value.replace(/:\w+:/gi, (name) => emoji.getUnicode(name));
 
   const items = comments.map(
     ({
@@ -72,9 +73,9 @@ const CommentList = ({ isCandidate }) => {
         <span
           key={id}
           className={commentStyle}
-          onMouseOver={() => handleMouseHover(id, userProfile, author)}
+          onMouseOver={() => handleMouseHover(id, userProfile, author.username)}
           onMouseOut={() => handleMouseLeave()}
-          onFocus={() => handleMouseHover(id, userProfile, author)}
+          onFocus={() => handleMouseHover(id, userProfile, author.username)}
           onBlur={() => handleMouseLeave()}
         >
           <div className={styles.commentUserAvatar}>
@@ -89,7 +90,9 @@ const CommentList = ({ isCandidate }) => {
           <div className={styles.commentContent}>
             <div className={styles.commentHeader}>
               <span className={styles.commentUser}>
-                <span className={styles.commentUserName}>{author}</span>
+                <span className={styles.commentUserName}>
+                  {author.username}
+                </span>
               </span>
               <span className={styles.commentTime}>
                 {dayjs().to(dayjs.utc(`${created_at}Z`))}
@@ -101,7 +104,11 @@ const CommentList = ({ isCandidate }) => {
               </div>
             </div>
             <div className={styles.wrap} name={`commentDiv${id}`}>
-              <ReactMarkdown source={text} escapeHtml={false} renderers={{ text: emojiSupport }} />
+              <ReactMarkdown
+                source={text}
+                escapeHtml={false}
+                renderers={{ text: emojiSupport }}
+              />
               <Button
                 style={
                   hoverID === id ? { display: "block" } : { display: "none" }
@@ -119,13 +126,17 @@ const CommentList = ({ isCandidate }) => {
                 🗑
               </Button>
             </div>
+            <span>
+              {attachment_name && (
+                <div>
+                  Attachment:&nbsp;
+                  <a href={`/api/comment/${id}/attachment`}>
+                    {attachment_name}
+                  </a>
+                </div>
+              )}
+            </span>
           </div>
-          {attachment_name && (
-            <div>
-              Attachment:&nbsp;
-              <a href={`/api/comment/${id}/attachment`}>{attachment_name}</a>
-            </div>
-          )}
         </span>
       );
     }

@@ -4,18 +4,17 @@ import store from "../store";
 const FETCH_INSTRUMENTS = "skyportal/FETCH_INSTRUMENTS";
 const FETCH_INSTRUMENTS_OK = "skyportal/FETCH_INSTRUMENTS_OK";
 
-const FETCH_INSTRUMENT_OBS_PARAMS = "skyportal/FETCH_INSTRUMENT_OBS_PARAMS";
-const FETCH_INSTRUMENT_OBS_PARAMS_OK =
-  "skyportal/FETCH_INSTRUMENT_OBS_PARAMS_OK";
+const FETCH_INSTRUMENT_FORMS = "skyportal/FETCH_INSTRUMENT_FORMS";
+const FETCH_INSTRUMENT_FORMS_OK = "skyportal/FETCH_INSTRUMENT_FORMS_OK";
 
 export const fetchInstruments = () =>
   API.GET("/api/instrument", FETCH_INSTRUMENTS);
 
-export const fetchInstrumentObsParams = () =>
-  API.GET("/api/internal/instrument_obs_params", FETCH_INSTRUMENT_OBS_PARAMS);
+export const fetchInstrumentForms = () =>
+  API.GET(`/api/internal/instrument_forms`, FETCH_INSTRUMENT_FORMS);
 
 const reducer = (
-  state = { instrumentList: [], instrumentObsParams: {} },
+  state = { instrumentList: [], instrumentFormParams: {} },
   action
 ) => {
   switch (action.type) {
@@ -26,11 +25,11 @@ const reducer = (
         instrumentList: instruments,
       };
     }
-    case FETCH_INSTRUMENT_OBS_PARAMS_OK: {
-      const instrumentObsParams = action.data;
+    case FETCH_INSTRUMENT_FORMS_OK: {
+      const instrumentFormParams = action.data;
       return {
         ...state,
-        instrumentObsParams,
+        instrumentFormParams,
       };
     }
     default:
