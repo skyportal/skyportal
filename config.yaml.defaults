@@ -51,6 +51,8 @@ app:
       component: ShareDataForm
     - path: "/filter/:fid"
       component: Filter
+    - path: "/runs"
+      component: ObservingRunList
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -70,6 +72,10 @@ app:
     - name: Groups
       icon: GroupWork
       url: /groups
+
+    - name: Observing Runs
+      icon: LocalCafe
+      url: /runs
 
     - name: About
       icon: Info

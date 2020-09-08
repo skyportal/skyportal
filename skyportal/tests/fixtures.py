@@ -41,13 +41,42 @@ class TelescopeFactory(factory.alchemy.SQLAlchemyModelFactory):
     robotic = True
 
 
+class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = User
+
+    username = factory.LazyFunction(lambda: f'{uuid.uuid4()}@cesium-ml.org')
+
+    @factory.post_generation
+    def roles(obj, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for role in extracted:
+                obj.roles.append(role)
+                DBSession().add(obj)
+                DBSession().commit()
+
+    @factory.post_generation
+    def groups(obj, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for group in extracted:
+                obj.groups.append(group)
+                DBSession().add(obj)
+                DBSession().commit()
+
+
 class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Comment
 
     text = f'Test comment {str(uuid.uuid4())}'
     ctype = 'text'
-    author = 'test factory'
+    author = factory.SubFactory(UserFactory)
 
 
 class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -168,35 +197,6 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
             DBSession().add(CommentFactory(obj_id=obj.id, groups=passed_groups))
         DBSession().add(SpectrumFactory(obj_id=obj.id, instrument=instruments[0]))
         DBSession().commit()
-
-
-class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
-    class Meta(BaseMeta):
-        model = User
-
-    username = factory.LazyFunction(lambda: f'{uuid.uuid4()}@cesium-ml.org')
-
-    @factory.post_generation
-    def roles(obj, create, extracted, **kwargs):
-        if not create:
-            return
-
-        if extracted:
-            for role in extracted:
-                obj.roles.append(role)
-                DBSession().add(obj)
-                DBSession().commit()
-
-    @factory.post_generation
-    def groups(obj, create, extracted, **kwargs):
-        if not create:
-            return
-
-        if extracted:
-            for group in extracted:
-                obj.groups.append(group)
-                DBSession().add(obj)
-                DBSession().commit()
 
 
 class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):

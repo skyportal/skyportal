@@ -50,8 +50,11 @@ class TaxonomyHandler(BaseHandler):
                 )
 
             return self.success(data=taxonomy[0])
+
         query = Taxonomy.query.filter(
-            Taxonomy.groups.any(Group.id.in_([g.id for g in self.current_user.groups]))
+            Taxonomy.groups.any(
+                Group.id.in_([g.id for g in self.current_user.accessible_groups])
+            )
         )
         return self.success(data=query.all())
 
