@@ -70,7 +70,7 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
 
   const passingGroupNames = userGroups
     .filter((g) => candidate.passing_group_ids.includes(g.id))
-    .map((g) => g.name.substring(0, 10) + (g.name.length > 10 ? "..." : ""))
+    .map((g) => g.name.substring(0, 15) + (g.name.length > 15 ? "..." : ""))
     .join(",");
 
   const options = [`Save to ${passingGroupNames}`, "Select groups & save"];
