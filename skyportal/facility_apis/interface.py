@@ -1,13 +1,20 @@
 from ._base import _Base
-from baselayer.app.handlers import BaseHandler
 
 
-class FacilityResponseHandler(BaseHandler):
-    """A tornado request handler that facilities can hit to post """
+class FacilityResponseHandler:
+    """An interface that User-contributed remote facility message listeners
+    must provide."""
 
-    enable_token_authentication = False
+    # subclasses *must* implement the method below
+    @staticmethod
+    def receive_message(message):
+        """Handle a POSTed message from a remote facility.
 
-    def post(self):
+        Parameters
+        ----------
+        message: skyportal.models.FollowupRequestHTTPRequest
+           The message sent by the remote facility.
+        """
         raise NotImplementedError
 
 

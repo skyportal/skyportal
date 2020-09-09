@@ -2,7 +2,6 @@ import uuid
 import re
 from datetime import datetime, timezone
 import arrow
-import requests
 from astropy import units as u
 from astropy import time as ap_time
 import astroplan
@@ -34,7 +33,6 @@ from baselayer.app.models import (  # noqa
 )
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
-from baselayer.app.access import permissions
 
 
 from . import schema
@@ -1006,18 +1004,6 @@ class ArrayOfEnum(ARRAY):
         return process
 
 
-ACL.created_by_instrument_id = sa.Column(
-    sa.ForeignKey('instruments.id', ondelete='CASCADE'),
-    nullable=True,
-    index=True,
-    doc="The ID of the instrument whose message listener created this token.",
-)
-ACL.created_by_instrument = relationship(
-    'Instrument',
-    back_populates='listener_tokens',
-    doc="The instrument whose message listener created this token.",
-)
-
 Token.created_by_instrument_id = sa.Column(
     sa.ForeignKey('instruments.id', ondelete='CASCADE'),
     nullable=True,
@@ -1127,82 +1113,22 @@ class Instrument(Base):
     def api_class(self):
         return getattr(facility_apis, self.api_classname)
 
-    def has_listener(self):
-        return self.listener_classname is not None
-
     @property
-    def listener_manager(instrument):
-        if not instrument.has_listener():
-            return None
+    def listener_class(self):
+        return getattr(facility_apis, self.listener_classname)
 
-        class ListenerManager:
-            @staticmethod
-            def clear_tokens():
-                for token in instrument.listener_tokens:
-                    DBSession().query(Token).filter(Token.id == token.id).delete()
-                DBSession().commit()
+    def clear_tokens(self):
+        for token in self.listener_tokens:
+            DBSession().query(Token).filter(Token.id == token.id).delete()
 
-            @staticmethod
-            def create_or_get_acl():
-                if instrument.listener_acl is None:
-                    acl = ACL(
-                        f'Post to {instrument.name}', created_by_instrument=instrument
-                    )
-                    DBSession().add(acl)
-                    DBSession().commit()
-                return instrument.listener_acl
+    def new_token(self):
+        token = Token(created_by_instrument=self, acls=[self.create_or_get_acl()],)
+        DBSession().add(token)
+        return token
 
-            @staticmethod
-            def new_token():
-                token = Token(
-                    created_by_instrument=instrument,
-                    acls=[ListenerManager.create_or_get_acl()],
-                )
-                DBSession().add(token)
-                DBSession().commit()
-                return token
-
-            @staticmethod
-            def clear_acl():
-                if instrument.listener_acl is not None:
-                    DBSession().query(ACL).filter(
-                        ACL.id == instrument.listener_acl.id
-                    ).delete()
-                    DBSession().commit()
-
-            @staticmethod
-            def clear_tokens_and_acl():
-                ListenerManager.clear_tokens()
-                ListenerManager.clear_acl()
-
-            @staticmethod
-            def get_listener_class():
-                user_class = getattr(facility_apis, instrument.listener_classname)
-                class_with_auth_installed = ListenerManager.create_listener(user_class)
-                return class_with_auth_installed
-
-            @staticmethod
-            def get_listener_endpoint():
-                return requests.utils.quote(
-                    f'/api/listener/{instrument.name}_{instrument.listener_classname}'
-                )
-
-            @staticmethod
-            def create_listener(user_class):
-                if user_class.enable_token_authentication:
-                    if instrument.listener_tokens is None:
-                        ListenerManager.new_token()
-
-                    class ObservatoryResponseHandler(user_class):
-                        @permissions([instrument.listener_acl])
-                        def post(self):
-                            super().post()
-
-                else:
-                    ObservatoryResponseHandler = user_class
-                return ObservatoryResponseHandler
-
-        return ListenerManager
+    def configure_auth(self):
+        if len(self.listener_tokens) == 0:
+            self.new_token()
 
 
 class Allocation(Base):
@@ -2161,6 +2087,12 @@ def send_user_invite_email(mapper, connection, target):
     )
     sg = SendGridAPIClient(cfg["invitations.sendgrid_api_key"])
     sg.send(message)
+
+
+@event.listens_for(Instrument.listener_classname, 'set')
+def configure_listener_auth(target, value, oldvalue, initiator):
+    target.configure_auth()
+    DBSession().commit()
 
 
 schema.setup_schema()
