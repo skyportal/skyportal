@@ -3,7 +3,7 @@ import tornado.web
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app import model_util as baselayer_model_util
 
-from skyportal.handlers import BecomeUserHandler, LogoutHandler
+from skyportal.handlers import BecomeUserHandler, LogoutHandler, LoginErrorPageHandler
 from skyportal.handlers.api import (
     AllocationHandler,
     AssignmentHandler,
@@ -122,7 +122,8 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/become_user(/.*)?', BecomeUserHandler),
         (r'/logout', LogoutHandler),
         # User-facing pages
-        (r'/.*', MainPageHandler)  # Route all frontend pages, such as
+        (r'/login-error/', LoginErrorPageHandler),
+        (r'/.*', MainPageHandler),  # Route all frontend pages, such as
         # `/source/g647ba`, through the main page.
         #
         # Refer to Main.jsx for routing info.
@@ -162,6 +163,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
                 ),
                 'SOCIAL_AUTH_NEW_USER_REDIRECT_URL': '/profile?newUser=true',
                 'SOCIAL_AUTH_FIELDS_STORED_IN_SESSION': ['invite_token'],
+                'SOCIAL_AUTH_LOGIN_ERROR_URL': '/login-error/',
             }
         )
 
