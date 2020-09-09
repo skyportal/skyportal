@@ -1,5 +1,5 @@
 .stamp {
-  transition: transform 0.1s;
+  transition: all 0.2s ease-in-out;
   width: 20%;
   height: 20%;
   margin: 0 auto;
@@ -7,7 +7,8 @@
 }
 
 .stamp:hover {
-  transform: scale(2);
+  color: rgba(255, 255, 255, 1);
+  box-shadow: 0 5px 15px rgba(51, 52, 92, 0.6);
 }
 
 .topSourceList {
