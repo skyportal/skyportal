@@ -20,7 +20,7 @@ const Container = styled.div`
   @media only screen and (max-width: 768px) {
     position: absolute;
     right: 15px;
-    top: 20px;
+    top: 12px;
     z-index: 200;
   }
 `;
@@ -37,14 +37,7 @@ const ProfileDropdown = () => {
     <Container>
       <Dropdown ref={dropdown}>
         <DropdownTrigger>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              flexDirection: "row",
-              alignItems: "center",
-            }}
-          >
+          <div className={styles.dropdownTriggerDiv}>
             <UserAvatar
               size={32}
               firstName={profile.first_name}
@@ -52,8 +45,10 @@ const ProfileDropdown = () => {
               username={profile.username}
               gravatarUrl={profile.gravatar_url}
             />
-            &nbsp;&nbsp;
-            {profile.username} &nbsp;▾
+            <div className={styles.username}>
+              &nbsp;&nbsp;
+              {profile.username} &nbsp;▾
+            </div>
           </div>
         </DropdownTrigger>
 

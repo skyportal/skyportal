@@ -29,7 +29,7 @@ const UserAvatar = ({ size, firstName, lastName, username, gravatarUrl }) => {
   return (
     <Avatar
       alt={backUpLetters}
-      src={`${gravatarUrl}s=${size}`}
+      src={`${gravatarUrl}&s=${size}`}
       size={size}
       style={{
         width: size,

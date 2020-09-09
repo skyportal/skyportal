@@ -3,6 +3,7 @@
   telescope_id: =P60
   type: imaging spectrograph
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi']
+  api_classname: SEDMAPI
 - band: optical
   name: DBSP
   telescope_id: =P200

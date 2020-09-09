@@ -83,11 +83,11 @@ const SearchBox = ({ sources }) => {
     },
     paper: {
       padding: "1rem",
+      marginTop: "0.625rem",
     },
     root: {
       display: "flex",
       flexWrap: "wrap",
-      width: "35rem",
       "& .MuiTextField-root": {
         margin: theme.spacing(0.2),
         width: "10rem",

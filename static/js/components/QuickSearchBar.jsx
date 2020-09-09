@@ -12,10 +12,20 @@ import CircularProgress from "@material-ui/core/CircularProgress";
 
 import { GET } from "../API";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   root: {
-    background: "#6EB5DC",
-    marginRight: theme.spacing(1),
+    background: "#9394c3",
+    "& label": {
+      color: "black",
+    },
+    "& label.Mui-focused": {
+      color: "white",
+    },
+  },
+  label: {
+    "& label": {
+      color: "white",
+    },
   },
 }));
 
@@ -51,7 +61,7 @@ const QuickSearchBar = () => {
       dispatch(
         GET(
           `/api/sources?sourceID=${val}&pageNumber=1&totalMatches=25`,
-          "skyportal/FETCH_SOURCES"
+          "skyportal/FETCH_AUTOCOMPLETE_SOURCES"
         )
       );
     (async () => {
@@ -91,7 +101,7 @@ const QuickSearchBar = () => {
   return (
     <Autocomplete
       id="quick-search-bar"
-      style={{ width: 200 }}
+      style={{ width: "100%", padding: "0.5rem" }}
       getOptionSelected={(option, val) => option.name === val.name}
       getOptionLabel={(option) => option}
       onInputChange={(e, val) => {
@@ -136,7 +146,8 @@ const QuickSearchBar = () => {
           {...params}
           className={classes.root}
           variant="outlined"
-          label="Source ID Search"
+          placeholder="Source"
+          fullWidth
           InputProps={{
             ...params.InputProps,
             startAdornment: (
