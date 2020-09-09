@@ -107,6 +107,7 @@ const CommentList = ({ isCandidate }) => {
               <ReactMarkdown
                 source={text}
                 escapeHtml={false}
+                className={styles.commentMessage}
                 renderers={{ text: emojiSupport }}
               />
               <Button
