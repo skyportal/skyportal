@@ -1,4 +1,3 @@
-import os
 import datetime
 from .models import (
     DBSession,
@@ -27,9 +26,6 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
     if cfg["invitations.enabled"]:
 
         if existing_user is None and invite_token is None:
-            os.environ[
-                "PSA_ERROR_MSG"
-            ] = "No invite token provided, and no previously-authenticated matching Google OAuth account found."
             return
         elif existing_user is not None:
             return {"is_new": False, "user": existing_user}
@@ -37,23 +33,16 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
         try:
             n_days = int(cfg["invitations.days_until_expiry"])
         except ValueError:
-            os.environ["PSA_ERROR_MSG"] = (
-                "Invalid (non-integer) value provided for "
-                "invitations.days_until_expiry in config file."
-            )
             return
 
         invitation = Invitation.query.filter(Invitation.token == invite_token).first()
         if invitation is None:
-            os.environ["PSA_ERROR_MSG"] = "Invalid invite token."
             return
 
         cutoff_datetime = datetime.datetime.now() - datetime.timedelta(days=n_days)
         if invitation.created_at < cutoff_datetime:
-            os.environ["PSA_ERROR_MSG"] = "Invite token has expired."
             return
         if invitation.used:
-            os.environ["PSA_ERROR_MSG"] = "Invite token has already been used."
             return
 
         user = User(
@@ -115,27 +104,18 @@ def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
 
 def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs):
     if not cfg["invitations.enabled"]:
-        os.environ["PSA_ERROR_MSG"] = ""
         return
 
     existing_user = DBSession().query(User).filter(User.oauth_uid == uid).first()
 
     invite_token = strategy.session_get("invite_token")
     if invite_token is None:
-        if existing_user is None:
-            os.environ[
-                "PSA_ERROR_MSG"
-            ] = "No invite token provided, and no previously-authenticated matching Google OAuth account found."
-        else:
-            os.environ["PSA_ERROR_MSG"] = ""
         return
     invitation = Invitation.query.filter(Invitation.token == invite_token).first()
     if invitation is None:
-        os.environ["PSA_ERROR_MSG"] = "Invalid invite token."
         return
 
     if invitation.used:
-        os.environ["PSA_ERROR_MSG"] = "Invite token has already been used."
         return
 
     group_ids = [g.id for g in invitation.groups]
@@ -180,4 +160,3 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
 
     invitation.used = True
     DBSession().commit()
-    os.environ["PSA_ERROR_MSG"] = ""
