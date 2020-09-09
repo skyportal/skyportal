@@ -90,6 +90,7 @@ const NewsFeedItem = ({ item }) => {
       <div className={styles.entryContent}>
         <ReactMarkdown
           source={item.message}
+          className={styles.entryMessage}
           escapeHtml={false}
           renderers={{ text: emojiSupport }}
         />
