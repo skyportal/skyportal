@@ -1,4 +1,4 @@
-from . import FollowUpAPI
+from . import FollowUpAPI, FacilityResponseHandler
 from baselayer.app.env import load_env
 from datetime import datetime, timedelta
 import json
@@ -6,6 +6,20 @@ import requests
 from requests_toolbelt.utils import dump
 
 env, cfg = load_env()
+
+
+class SEDMListener(FacilityResponseHandler):
+    @staticmethod
+    def receive_message(message):
+        """Receive a POSTed message from SEDM.
+
+        Parameters
+        ----------
+        message: skyportal.models.FacilityMessage
+           The message sent by the remote facility.
+        """
+
+        message.content
 
 
 def convert_request_to_sedm(request, method_value='new'):
@@ -91,7 +105,7 @@ class SEDMAPI(FollowUpAPI):
         request: skyportal.models.FollowupRequest
             The request to submit.
         """
-        from ..models import DBSession, FollowupRequestHTTPRequest
+        from ..models import DBSession, FacilityMessage
 
         payload = convert_request_to_sedm(request, method_value='new')
         content = json.dumps(payload)
@@ -104,7 +118,7 @@ class SEDMAPI(FollowUpAPI):
         else:
             request.status = f'rejected: {r.content}'
 
-        message = FollowupRequestHTTPRequest(
+        message = FacilityMessage(
             content=dump.dump_all(r).decode('utf-8'),
             origin='skyportal',
             request=request,
@@ -146,7 +160,7 @@ class SEDMAPI(FollowUpAPI):
         request: skyportal.models.FollowupRequest
             The updated request.
         """
-        from ..models import DBSession, FollowupRequestHTTPRequest
+        from ..models import DBSession, FacilityMessage
 
         payload = convert_request_to_sedm(request, method_value='edit')
         content = json.dumps(payload)
@@ -159,7 +173,7 @@ class SEDMAPI(FollowUpAPI):
         else:
             request.status = f'rejected: {r.content}'
 
-        message = FollowupRequestHTTPRequest(
+        message = FacilityMessage(
             content=dump.dump_all(r).decode('utf-8'),
             origin='skyportal',
             request=request,

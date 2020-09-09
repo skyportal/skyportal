@@ -12,7 +12,7 @@ class FacilityResponseHandler:
 
         Parameters
         ----------
-        message: skyportal.models.FollowupRequestHTTPRequest
+        message: skyportal.models.FacilityMessage
            The message sent by the remote facility.
         """
         raise NotImplementedError

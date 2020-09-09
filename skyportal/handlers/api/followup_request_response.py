@@ -2,7 +2,7 @@ from baselayer.app.handlers import BaseHandler
 from baselayer.app.access import auth_or_token
 from marshmallow.exceptions import ValidationError
 
-from ...models import Token, FollowupRequestHTTPRequest
+from ...models import Token, FacilityMessage
 
 
 class FollowupRequestResponseHandler(BaseHandler):
@@ -37,7 +37,7 @@ class FollowupRequestResponseHandler(BaseHandler):
         data = self.get_json()
 
         try:
-            response = FollowupRequestHTTPRequest.__schema__().load(data)
+            response = FacilityMessage.__schema__().load(data)
         except ValidationError as e:
             return self.error(
                 f'Error parsing message from facility: {e.normalized_messages()}'

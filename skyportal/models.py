@@ -1693,9 +1693,9 @@ class FollowupRequest(Base):
     allocation = relationship('Allocation', back_populates='requests')
 
     http_requests = relationship(
-        'FollowupRequestHTTPRequest',
+        'FacilityMessage',
         back_populates='request',
-        order_by="FollowupRequestHTTPRequest.created_at.desc()",
+        order_by="FacilityMessage.created_at.desc()",
     )
 
     photometry = relationship('Photometry', back_populates='followup_request')
@@ -1725,14 +1725,14 @@ class FollowupRequest(Base):
         return self.allocation.group_id in user_or_token_group_ids
 
 
-class FollowupRequestHTTPRequest(Base):
+class FacilityMessage(Base):
 
     created_at = sa.Column(
         sa.DateTime,
         nullable=False,
         default=datetime.utcnow,
         index=True,
-        doc="UTC time this FollowupRequestHTTPRequest was created.",
+        doc="UTC time this FacilityMessage was created.",
     )
     content = sa.Column(sa.Text, doc="The content of the request.", nullable=False)
 
