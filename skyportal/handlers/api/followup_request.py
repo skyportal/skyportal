@@ -388,17 +388,21 @@ class FollowupRequestHandler(BaseHandler):
         )
 
         try:
-            instrument.api_class.submit(followup_request)
+            message = instrument.api_class.submit(followup_request)
         except Exception:
             followup_request.status = 'failed to submit'
-            DBSession().add(followup_request)
-            DBSession().commit()
             raise
         finally:
+            DBSession().add(followup_request)
+            DBSession().commit()
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",
                 payload={"obj_id": followup_request.obj_id},
             )
+
+        DBSession().add(message)
+        DBSession().commit()
+
         return self.success(data={"id": followup_request.id})
 
     @auth_or_token
@@ -458,7 +462,11 @@ class FollowupRequestHandler(BaseHandler):
             payload={"obj_id": followup_request.obj_id},
         )
 
-        followup_request.instrument.api_class.update(followup_request)
+        message = followup_request.instrument.api_class.update(followup_request)
+        DBSession().add(followup_request)
+        DBSession().add(message)
+        DBSession().commit()
+
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
             payload={"obj_key": followup_request.obj.internal_key},
@@ -497,11 +505,11 @@ class FollowupRequestHandler(BaseHandler):
         if not api.implements()['delete']:
             return self.error('Cannot delete requests on this instrument.')
 
-        api.delete(followup_request)
-
+        message = api.delete(followup_request)
         obj_key = followup_request.obj.internal_key
 
-        DBSession().delete(followup_request)
+        DBSession().add(message)
+        DBSession().add(followup_request)
         DBSession().commit()
 
         self.push_all(

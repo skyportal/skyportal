@@ -227,6 +227,9 @@ class SourceHandler(BaseHandler):
             source_info["last_detected"] = s.last_detected
             source_info["gal_lat"] = s.gal_lat_deg
             source_info["gal_lon"] = s.gal_lon_deg
+            source_info["followup_requests"] = [
+                f for f in source_info['followup_requests'] if f['status'] != 'deleted'
+            ]
 
             source_info["groups"] = (
                 Group.query.filter(

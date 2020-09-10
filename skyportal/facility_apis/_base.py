@@ -1,3 +1,21 @@
+class _RequestProcessorBase:
+
+    # subclasses should not modify this
+    @classmethod
+    def complete_schema(cls):
+        return {
+            'allOf': [
+                {
+                    'type': 'object',
+                    'properties': {'followup_request_id': {'type': 'integer'}},
+                    'required': ['followup_request_id'],
+                },
+                cls.schema,
+            ],
+            'title': cls.__name__,
+        }
+
+
 class _Base:
 
     # subclasses should not modify this

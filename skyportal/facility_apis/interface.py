@@ -1,9 +1,11 @@
-from ._base import _Base
+from ._base import _Base, _RequestProcessorBase
 
 
-class FacilityResponseHandler:
+class Listener(_RequestProcessorBase):
     """An interface that User-contributed remote facility message listeners
     must provide."""
+
+    schema = {}
 
     # subclasses *must* implement the method below
     @staticmethod
@@ -12,7 +14,7 @@ class FacilityResponseHandler:
 
         Parameters
         ----------
-        message: skyportal.models.FacilityMessage
+        message: skyportal.models.FacilityTransaction
            The message sent by the remote facility.
         """
         raise NotImplementedError

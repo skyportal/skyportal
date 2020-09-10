@@ -42,7 +42,6 @@ from .enum_types import (
     instrument_types,
     followup_priorities,
     api_classnames,
-    followup_http_request_origins,
     listener_classnames,
 )
 
@@ -1004,19 +1003,6 @@ class ArrayOfEnum(ARRAY):
         return process
 
 
-Token.created_by_instrument_id = sa.Column(
-    sa.ForeignKey('instruments.id', ondelete='CASCADE'),
-    nullable=True,
-    index=True,
-    doc="The ID of the instrument whose message listener created this token.",
-)
-Token.created_by_instrument = relationship(
-    'Instrument',
-    back_populates='listener_tokens',
-    doc="The instrument whose message listener created this token.",
-)
-
-
 class Instrument(Base):
     """An instrument attached to a telescope."""
 
@@ -1084,17 +1070,15 @@ class Instrument(Base):
         doc="Name of the instrument's listener class.",
     )
 
-    listener_tokens = relationship(
-        'Token',
-        back_populates='created_by_instrument',
-        doc="The active tokens associated with the instrument's request handler.",
+    listener_acl_id = sa.Column(
+        sa.ForeignKey('acls.id', ondelete='SET NULL'),
+        index=True,
+        nullable=True,
+        doc="The ID of the ACL needed to access this instrument's listener.",
     )
 
     listener_acl = relationship(
-        'ACL',
-        back_populates='created_by_instrument',
-        doc="The ACL that remote facility tokens must possess to POST to this instrument's request handler.",
-        uselist=False,
+        'ACL', doc="The ACL needed to access this instrument's listener."
     )
 
     @property
@@ -1116,19 +1100,6 @@ class Instrument(Base):
     @property
     def listener_class(self):
         return getattr(facility_apis, self.listener_classname)
-
-    def clear_tokens(self):
-        for token in self.listener_tokens:
-            DBSession().query(Token).filter(Token.id == token.id).delete()
-
-    def new_token(self):
-        token = Token(created_by_instrument=self, acls=[self.create_or_get_acl()],)
-        DBSession().add(token)
-        return token
-
-    def configure_auth(self):
-        if len(self.listener_tokens) == 0:
-            self.new_token()
 
 
 class Allocation(Base):
@@ -1685,7 +1656,13 @@ class FollowupRequest(Base):
     payload = sa.Column(
         psql.JSONB, nullable=True, doc="Content of the followup request."
     )
-    status = sa.Column(sa.String(), nullable=False, default="pending submission")
+    status = sa.Column(
+        sa.String(),
+        nullable=False,
+        default="pending submission",
+        index=True,
+        doc="The status of the request.",
+    )
 
     allocation_id = sa.Column(
         sa.ForeignKey('allocations.id', ondelete='CASCADE'), nullable=False, index=True
@@ -1693,9 +1670,9 @@ class FollowupRequest(Base):
     allocation = relationship('Allocation', back_populates='requests')
 
     http_requests = relationship(
-        'FacilityMessage',
+        'FacilityTransaction',
         back_populates='request',
-        order_by="FacilityMessage.created_at.desc()",
+        order_by="FacilityTransaction.created_at.desc()",
     )
 
     photometry = relationship('Photometry', back_populates='followup_request')
@@ -1725,31 +1702,30 @@ class FollowupRequest(Base):
         return self.allocation.group_id in user_or_token_group_ids
 
 
-class FacilityMessage(Base):
+class FacilityTransaction(Base):
 
     created_at = sa.Column(
         sa.DateTime,
         nullable=False,
         default=datetime.utcnow,
         index=True,
-        doc="UTC time this FacilityMessage was created.",
+        doc="UTC time this FacilityTransaction was created.",
     )
-    content = sa.Column(sa.Text, doc="The content of the request.", nullable=False)
 
-    request_id = sa.Column(
+    request = sa.Column(psql.JSONB, doc='Serialized HTTP request.')
+    response = sa.Column(psql.JSONB, doc='Serialized HTTP response.')
+
+    followup_request_id = sa.Column(
         sa.ForeignKey('followuprequests.id', ondelete='CASCADE'),
         index=True,
         nullable=False,
         doc="The ID of the FollowupRequest this message pertains to.",
     )
 
-    request = relationship(
+    followup_request = relationship(
         'FollowupRequest',
         back_populates='http_requests',
         doc="The FollowupRequest this message pertains to.",
-    )
-    origin = sa.Column(
-        followup_http_request_origins, doc='Origin of the HTTP request.', nullable=False
     )
 
 
@@ -2091,8 +2067,12 @@ def send_user_invite_email(mapper, connection, target):
 
 @event.listens_for(Instrument.listener_classname, 'set')
 def configure_listener_auth(target, value, oldvalue, initiator):
-    target.configure_auth()
-    DBSession().commit()
+    acl_id = f'Receive messages from {target.name}'
+    if value is None:
+        DBSession().query(ACL).filter(ACL.id == acl_id).delete()
+    else:
+        acl = ACL.create_or_get(acl_id)
+        target.listener_acl = acl
 
 
 schema.setup_schema()

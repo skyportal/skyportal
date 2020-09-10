@@ -36,12 +36,6 @@ followup_priorities = sa.Enum(
     *FOLLOWUP_PRIORITIES, name='followup_priorities', validate_strings=True
 )
 
-followup_http_request_origins = sa.Enum(
-    *FOLLOWUP_HTTP_REQUEST_ORIGINS,
-    name='followup_http_request_origins',
-    validate_strings=True,
-)
-
 api_classnames = sa.Enum(
     *[
         k
@@ -56,7 +50,7 @@ listener_classnames = sa.Enum(
     *[
         k
         for k, v in facility_apis.__dict__.items()
-        if inspect.isclass(v) and issubclass(v, facility_apis.FacilityResponseHandler)
+        if inspect.isclass(v) and issubclass(v, facility_apis.Listener)
     ],
     name='followup_listeners',
     validate_strings=True,
