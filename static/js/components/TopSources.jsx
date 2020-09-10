@@ -38,7 +38,6 @@ const TopSources = ({ classes }) => {
             onSubmit={profileActions.updateUserPreferences}
           />
         </div>
-        <p>Displaying most-viewed sources</p>
         <div className={styles.topSourceListContainer}>
           <ul className={styles.topSourceList}>
             {sourceViews.map(({ obj_id, views, public_url }) => (
