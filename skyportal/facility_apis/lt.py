@@ -2,18 +2,12 @@ import time
 
 from lxml import etree
 from suds import Client
-from dateutil.parser import parse
-from datetime import datetime
 
 from astropy.coordinates import SkyCoord
 from astropy import units as u
-from astropy.io import ascii
 
 from . import FollowUpAPI
-from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
-import requests
-from requests_toolbelt.utils import dump
 
 
 LT_SETTINGS = {
@@ -41,13 +35,6 @@ LT_SCHEMA_LOCATION = 'http://www.rtml.org/v3.1a http://telescope.livjm.ac.uk/rtm
 
 
 class LTRequest():
-
-    def is_valid(self):
-        super().is_valid()
-        errors = LTFacility.validate_observation(self, self.observation_payload())
-        if errors:
-            self.add_error(None, errors)
-        return not errors
 
     def _build_prolog(self):
         namespaces = {
@@ -93,8 +80,8 @@ class LTRequest():
 
     def _build_target(self, request):
         target = etree.Element('Target', name=request.obj.id)
-        c = SkyCoord(ra=request.obj.ra*u.degree,
-                     dec=request.obj.dec*u.degree)
+        c = SkyCoord(ra=request.obj.ra * u.degree,
+                     dec=request.obj.dec * u.degree)
         coordinates = etree.SubElement(target, 'Coordinates')
         ra = etree.SubElement(coordinates, 'RightAscension')
         etree.SubElement(ra, 'Hours').text = str(int(c.ra.hms.h))
@@ -117,7 +104,7 @@ class LTRequest():
             exp_count = int(exposure_type_split[0])
             exp_time = int(exposure_type_split[1][:-1])
             for filt in request.payload["observation_type"]:
-                payload.append(self._build_IOO_schedule(request, 
+                payload.append(self._build_IOO_schedule(request,
                                                         filt,
                                                         exp_time,
                                                         exp_count))
@@ -208,9 +195,7 @@ class LTAPI(FollowUpAPI):
 
         from ..models import DBSession, FollowupRequest
 
-        req = DBSession().query(FollowupRequest).filter(
-                    FollowupRequest.id == request.id
-              ).one()
+        req = DBSession().query(FollowupRequest).filter(FollowupRequest.id == request.id).one()
         content = req.http_requests[0].content
         response_rtml = etree.fromstring(content)
         uid = response_rtml.get('uid')
@@ -245,10 +230,7 @@ class LTAPI(FollowUpAPI):
 
         client = Client(url=url, headers=headers)
         # Send cancel_payload, and receive response string, removing the encoding tag which causes issue with lxml parsing
-        try:
-            response = client.service.handle_rtml(cancel).replace('encoding="ISO-8859-1"', '')
-        except suds.WebFault:
-            return
+        response = client.service.handle_rtml(cancel).replace('encoding="ISO-8859-1"', '')
         response_rtml = etree.fromstring(response)
         mode = response_rtml.get('mode')
         uid = response_rtml.get('uid')
@@ -262,11 +244,11 @@ class LTAPI(FollowUpAPI):
 
     _instrument_type = 'IOO'
     _observation_types = ['r', 'gr', 'gri', 'griz', 'ugriz']
-    _exposure_types = {'r': ['1x120s', '2x150s'], 
-                       'gr': ['1x120s', '2x150s'], 
+    _exposure_types = {'r': ['1x120s', '2x150s'],
+                       'gr': ['1x120s', '2x150s'],
                        'gri': ['1x120s', '2x150s'],
-                       'griz': ['1x120s', '2x150s'], 
-                       'ugriz': ['1x120s', '2x150s']} 
+                       'griz': ['1x120s', '2x150s'],
+                       'ugriz': ['1x120s', '2x150s']}
     _instrument_configs[_instrument_type] = {}
     _instrument_configs[_instrument_type]["observation"] = _observation_types
     _instrument_configs[_instrument_type]["exposure"] = _exposure_types
@@ -286,9 +268,7 @@ class LTAPI(FollowUpAPI):
     _dependencies["instrument_type"]["oneOf"] = []
     for _instrument_type in _instrument_types:
         oneOf = {"properties": {"instrument_type": {"enum": [_instrument_type]},
-                                "observation_type": {"enum": _instrument_configs[_instrument_type]["observation"]}
-                               }
-                }
+                                "observation_type": {"enum": _instrument_configs[_instrument_type]["observation"]}}}
         _dependencies["instrument_type"]["oneOf"].append(oneOf)
 
     _dependencies["observation_type"] = {}
@@ -296,9 +276,7 @@ class LTAPI(FollowUpAPI):
     for _instrument_type in _instrument_types:
         for _observation_type in _instrument_configs[_instrument_type]["observation"]:
             oneOf = {"properties": {"observation_type": {"enum": [_observation_type]},
-                                    "exposure_type": {"enum": _instrument_configs[_instrument_type]["exposure"][_observation_type]}
-                                   }
-                    }
+                                    "exposure_type": {"enum": _instrument_configs[_instrument_type]["exposure"][_observation_type]}}}
             _dependencies["observation_type"]["oneOf"].append(oneOf)
 
     form_json_schema = {
@@ -319,7 +297,7 @@ class LTAPI(FollowUpAPI):
             "LT_proposalID": {"type": "string"}
         },
         "required": ["instrument_type", "priority", "start_date", "end_date"],
-        "dependencies": _dependencies 
+        "dependencies": _dependencies
     }
 
     ui_json_schema = {}
