@@ -1,17 +1,19 @@
-import React, { useRef } from "react";
+import React from "react";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
-import Dropdown, {
-  DropdownTrigger,
-  DropdownContent,
-} from "react-simple-dropdown";
 import styled from "styled-components";
+// import { makeStyles } from "@material-ui/core/styles";
+
+import IconButton from "@material-ui/core/IconButton";
+import Menu from "@material-ui/core/Menu";
+import MenuItem from "@material-ui/core/MenuItem";
+import MoreVertIcon from "@material-ui/icons/MoreVert";
 
 import styles from "./ProfileDropdown.css";
 import UserAvatar from "./UserAvatar";
 
 const Container = styled.div`
-  padding: 1em;
+  padding: 0.1rem;
   color: white;
   font-weight: normal;
   float: right;
@@ -19,78 +21,68 @@ const Container = styled.div`
 
   @media only screen and (max-width: 768px) {
     position: absolute;
-    right: 15px;
-    top: 12px;
+    right: 1rem;
+    top: 0.75rem;
     z-index: 200;
   }
 `;
 
 const ProfileDropdown = () => {
   const profile = useSelector((state) => state.profile);
-  const dropdown = useRef(null);
 
-  const collapseDropdown = () => {
-    dropdown.current.hide();
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const open = Boolean(anchorEl);
+
+  const handleClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
   };
 
   return (
     <Container>
-      <Dropdown ref={dropdown}>
-        <DropdownTrigger>
-          <div className={styles.dropdownTriggerDiv}>
-            <UserAvatar
-              size={32}
-              firstName={profile.first_name}
-              lastName={profile.last_name}
-              username={profile.username}
-              gravatarUrl={profile.gravatar_url}
-            />
-            <div className={styles.username}>
-              &nbsp;&nbsp;
-              {profile.username} &nbsp;▾
-            </div>
-          </div>
-        </DropdownTrigger>
-
-        <DropdownContent>
-          <Link to="/profile" role="link">
-            <div
-              role="menuitem"
-              tabIndex="0"
-              className={styles.entry}
-              onClick={collapseDropdown}
-            >
+      <div className={styles.dropdownTriggerDiv}>
+        <UserAvatar
+          size={32}
+          firstName={profile.first_name}
+          lastName={profile.last_name}
+          username={profile.username}
+          gravatarUrl={profile.gravatar_url}
+        />
+        <div className={styles.username}>
+          &nbsp;&nbsp;
+          {profile.username}
+          &nbsp;&nbsp;
+        </div>
+        <IconButton
+          aria-label="more"
+          aria-controls="long-menu"
+          aria-haspopup="true"
+          onClick={handleClick}
+        >
+          <MoreVertIcon className={styles.whitish} />
+        </IconButton>
+        <Menu
+          id="long-menu"
+          anchorEl={anchorEl}
+          keepMounted
+          open={open}
+          onClose={handleClose}
+        >
+          <Link to="/profile" role="link" className={styles.nodecor}>
+            <MenuItem key="profile" onClick={handleClose}>
               Profile
-            </div>
+            </MenuItem>
           </Link>
-
-          <div className={styles.rule} />
-
-          <Link to="/groups" role="link">
-            <div
-              role="menuitem"
-              tabIndex="-1"
-              className={styles.entry}
-              onClick={collapseDropdown}
-            >
-              Groups
-            </div>
-          </Link>
-
-          <div className={styles.rule} />
-
-          <a href="/logout">
-            <div
-              role="menuitem"
-              tabIndex="-1"
-              className={styles.entry}
-              onClick={collapseDropdown}
-            >
+          <a href="/logout" className={styles.nodecor}>
+            <MenuItem key="profile" onClick={handleClose}>
               Sign out
-            </div>
+            </MenuItem>
           </a>
-        </DropdownContent>
-      </Dropdown>
+        </Menu>
+      </div>
     </Container>
   );
 };
