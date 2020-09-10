@@ -26,24 +26,26 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
     if cfg["invitations.enabled"]:
 
         if existing_user is None and invite_token is None:
-            return
+            raise Exception("Missing invite token. A valid invite token is required.")
         elif existing_user is not None:
             return {"is_new": False, "user": existing_user}
 
         try:
             n_days = int(cfg["invitations.days_until_expiry"])
         except ValueError:
-            return
+            raise ValueError(
+                "Invalid invitation configuration value: invitations.days_until_expiry cannot be cast to int"
+            )
 
         invitation = Invitation.query.filter(Invitation.token == invite_token).first()
         if invitation is None:
-            return
+            raise Exception("Invalid invite token. A valid invite token is required.")
 
         cutoff_datetime = datetime.datetime.now() - datetime.timedelta(days=n_days)
         if invitation.created_at < cutoff_datetime:
-            return
+            raise Exception("Invite token expired.")
         if invitation.used:
-            return
+            raise Exception("Invite token has already been used.")
 
         user = User(
             username=details["username"],
@@ -83,7 +85,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
 
 def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
     if 'username' not in backend.setting('USER_FIELDS', USER_FIELDS):
-        return
+        raise Exception("PSA configuration error: `username` not properly captured.")
     storage = strategy.storage
 
     existing_user = DBSession().query(User).filter(User.oauth_uid == uid).first()
@@ -110,13 +112,13 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
 
     invite_token = strategy.session_get("invite_token")
     if invite_token is None:
-        return
+        raise Exception("Missing invite token. A valid invite token is required.")
     invitation = Invitation.query.filter(Invitation.token == invite_token).first()
     if invitation is None:
-        return
+        raise Exception("Invalid invite token. A valid invite token is required.")
 
     if invitation.used:
-        return
+        raise Exception("Invitation has already been used.")
 
     group_ids = [g.id for g in invitation.groups]
 
