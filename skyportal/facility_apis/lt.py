@@ -81,6 +81,7 @@ class LTRequest():
         etree.SubElement(coordinates, 'Equinox').text = 'J2000'
         return target
 
+
 class IOORequest(LTRequest):
 
     def _build_inst_schedule(self, payload, request):
@@ -111,6 +112,7 @@ class IOORequest(LTRequest):
         for const in self._build_constraints(request):
             schedule.append(const)
         return schedule
+
 
 class SPRATRequest(LTRequest):
 
@@ -201,6 +203,7 @@ class LTAPI(FollowUpAPI):
                 FollowupRequest.id == request.id
             ).delete()
             DBSession().commit()
+
 
 class IOOAPI(LTAPI):
 
