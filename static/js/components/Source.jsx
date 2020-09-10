@@ -100,7 +100,7 @@ const Source = ({ route }) => {
         {ra_to_hours(source.ra)}, &nbsp;
         {dec_to_hours(source.dec)}) &nbsp; (l,b=
         {source.gal_lon}, &nbsp;
-        {source.gal_lat}
+        {source.gal_lat.toFixed(6)}
         )
         <br />
         <b>Redshift: &nbsp;</b>
