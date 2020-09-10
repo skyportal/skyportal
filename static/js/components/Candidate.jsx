@@ -57,7 +57,7 @@ const Candidate = ({ route }) => {
         {ra_to_hours(candidate.ra)}, &nbsp;
         {dec_to_hours(candidate.dec)}) &nbsp; (l,b=
         {candidate.gal_lon}, &nbsp;
-        {candidate.gal_lat}
+        {candidate.gal_lat.toFixed(6)}
         )
         <br />
         <b>Redshift: &nbsp;</b>
