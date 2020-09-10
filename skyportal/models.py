@@ -1143,7 +1143,8 @@ class Allocation(Base):
         back_populates='allocations',
         doc="The Instrument the allocation is associated with.",
     )
-
+    username = sa.Column(sa.String, doc="The username of the PI's.")
+    password = sa.Column(sa.String, doc="The password of the PI's.")
 
 class Taxonomy(Base):
     """An ontology within which Objs can be classified."""
