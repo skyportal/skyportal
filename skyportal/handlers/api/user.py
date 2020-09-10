@@ -105,11 +105,16 @@ class UserHandler(BaseHandler):
 
             user_info["acls"] = sorted(user.acls, key=lambda a: a.id)
             return self.success(data=user_info)
-        users = [user.to_dict() for user in User.query.all()]
-        for user in users:
-            if user.get("contact_phone"):
-                user["contact_phone"] = user["contact_phone"].e164
-        return self.success(data=users)
+
+        return_values = []
+        for user in User.query.all():
+            return_values.append(user.to_dict())
+            if user.contact_phone:
+                return_values[-1]["contact_phone"] = user.contact_phone.e164
+            # Only Sys admins can see other users' group memberships
+            if "System admin" in self.associated_user_object.permissions:
+                return_values[-1]["groups"] = user.groups
+        return self.success(data=return_values)
 
     @permissions(["Manage users"])
     def post(self):
