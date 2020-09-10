@@ -30,7 +30,8 @@ const useStyles = makeStyles(() => ({
     height: "auto",
     display: "block",
     "&:hover": {
-      transform: "scale(1.25)",
+      color: "rgba(255, 255, 255, 1)",
+      boxShadow: "0 5px 15px rgba(51, 52, 92, 0.6)",
     },
   },
   recentSourceListContainer: {
