@@ -1,16 +1,4 @@
-from .. import api
-
-
-def test_listener_acl_events(sedm):
-    original_classname = sedm.listener_classname
-    acl = sedm.listener_acl
-    assert acl is not None
-    sedm.listener_classname = None
-    new_acl = sedm.listener_acl
-    assert new_acl is None
-    sedm.listener_classname = original_classname
-    final_acl = sedm.listener_acl
-    assert final_acl is acl
+from skyportal.tests import api
 
 
 def test_post_status_update_to_sedm_request(

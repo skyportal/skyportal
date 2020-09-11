@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 import json
 import requests
 
-from ..utils import http
 
 env, cfg = load_env()
 
@@ -27,18 +26,11 @@ class SEDMListener(Listener):
            The message sent by the remote facility.
         """
 
-        from ..models import FollowupRequest, FacilityTransaction
+        from ..models import FollowupRequest
 
         data = handler_instance.get_json()
         request = FollowupRequest.query.get(int(data['followup_request_id']))
         request.status = data['new_status']
-
-        transaction_record = FacilityTransaction(
-            request=http.serialize_tornado_request(handler_instance),
-            followup_request=request,
-        )
-
-        return transaction_record
 
 
 def convert_request_to_sedm(request, method_value='new'):
@@ -124,7 +116,6 @@ class SEDMAPI(FollowUpAPI):
         request: skyportal.models.FollowupRequest
             The request to submit.
         """
-        from ..models import FacilityTransaction
 
         payload = convert_request_to_sedm(request, method_value='new')
         content = json.dumps(payload)
@@ -137,13 +128,7 @@ class SEDMAPI(FollowUpAPI):
         else:
             request.status = f'rejected: {r.content}'
 
-        message = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
-            followup_request=request,
-        )
-
-        return message
+        return r
 
     @staticmethod
     def delete(request):
@@ -154,7 +139,6 @@ class SEDMAPI(FollowUpAPI):
         request: skyportal.models.FollowupRequest
             The request to delete from the queue and the SkyPortal database.
         """
-        from ..models import FacilityTransaction
 
         payload = convert_request_to_sedm(request, method_value='delete')
         content = json.dumps(payload)
@@ -165,13 +149,7 @@ class SEDMAPI(FollowUpAPI):
         r.raise_for_status()
         request.status = "deleted"
 
-        message = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
-            followup_request=request,
-        )
-
-        return message
+        return r
 
     @staticmethod
     def update(request):
@@ -182,7 +160,6 @@ class SEDMAPI(FollowUpAPI):
         request: skyportal.models.FollowupRequest
             The updated request.
         """
-        from ..models import FacilityTransaction
 
         payload = convert_request_to_sedm(request, method_value='edit')
         content = json.dumps(payload)
@@ -195,13 +172,7 @@ class SEDMAPI(FollowUpAPI):
         else:
             request.status = f'rejected: {r.content}'
 
-        message = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
-            followup_request=request,
-        )
-
-        return message
+        return r
 
     _observation_types = [
         '3-shot (gri)',

@@ -1070,17 +1070,6 @@ class Instrument(Base):
         doc="Name of the instrument's listener class.",
     )
 
-    listener_acl_id = sa.Column(
-        sa.ForeignKey('acls.id', ondelete='SET NULL'),
-        index=True,
-        nullable=True,
-        doc="The ID of the ACL needed to access this instrument's listener.",
-    )
-
-    listener_acl = relationship(
-        'ACL', doc="The ACL needed to access this instrument's listener."
-    )
-
     @property
     def does_spectroscopy(self):
         """Return a boolean indicating whether the instrument is capable of
@@ -1669,9 +1658,9 @@ class FollowupRequest(Base):
     )
     allocation = relationship('Allocation', back_populates='requests')
 
-    http_requests = relationship(
+    transactions = relationship(
         'FacilityTransaction',
-        back_populates='request',
+        back_populates='followup_request',
         order_by="FacilityTransaction.created_at.desc()",
     )
 
@@ -1724,8 +1713,20 @@ class FacilityTransaction(Base):
 
     followup_request = relationship(
         'FollowupRequest',
-        back_populates='http_requests',
+        back_populates='transactions',
         doc="The FollowupRequest this message pertains to.",
+    )
+
+    initiator_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='SET NULL'),
+        index=True,
+        nullable=False,
+        doc='The ID of the User who initiated the transaction.',
+    )
+    initiator = relationship(
+        'User',
+        back_populates='transactions',
+        doc='The User who initiated the transaction.',
     )
 
 
@@ -1733,6 +1734,12 @@ User.followup_requests = relationship(
     'FollowupRequest',
     back_populates='requester',
     doc="The follow-up requests this User has made.",
+)
+
+User.transactions = relationship(
+    'FacilityTransaction',
+    back_populates='initiator',
+    doc="The FacilityTransactions initiated by this User.",
 )
 
 
@@ -2063,16 +2070,6 @@ def send_user_invite_email(mapper, connection, target):
     )
     sg = SendGridAPIClient(cfg["invitations.sendgrid_api_key"])
     sg.send(message)
-
-
-@event.listens_for(Instrument.listener_classname, 'set')
-def configure_listener_auth(target, value, oldvalue, initiator):
-    acl_id = f'Receive messages from {target.name}'
-    if value is None:
-        DBSession().query(ACL).filter(ACL.id == acl_id).delete()
-    else:
-        acl = ACL.create_or_get(acl_id)
-        target.listener_acl = acl
 
 
 schema.setup_schema()

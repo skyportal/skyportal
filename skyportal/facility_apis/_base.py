@@ -15,6 +15,10 @@ class _RequestProcessorBase:
             'title': cls.__name__,
         }
 
+    @classmethod
+    def get_acl_id(cls):
+        return f'Post to {cls.__name__}'
+
 
 class _Base:
 

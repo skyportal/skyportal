@@ -18,6 +18,11 @@ THUMBNAIL_TYPES = ('new', 'ref', 'sub', 'sdss', 'dr8', "new_gz", 'ref_gz', 'sub_
 INSTRUMENT_TYPES = ('imager', 'spectrograph', 'imaging spectrograph')
 FOLLOWUP_PRIORITIES = ('1', '2', '3', '4', '5')
 FOLLOWUP_HTTP_REQUEST_ORIGINS = ('remote', 'skyportal')
+LISTENER_CLASSNAMES = [
+    k
+    for k, v in facility_apis.__dict__.items()
+    if inspect.isclass(v) and issubclass(v, facility_apis.Listener)
+]
 
 allowed_magsystems = sa.Enum(
     *ALLOWED_MAGSYSTEMS, name="magsystems", validate_strings=True
@@ -47,13 +52,7 @@ api_classnames = sa.Enum(
 )
 
 listener_classnames = sa.Enum(
-    *[
-        k
-        for k, v in facility_apis.__dict__.items()
-        if inspect.isclass(v) and issubclass(v, facility_apis.Listener)
-    ],
-    name='followup_listeners',
-    validate_strings=True,
+    *LISTENER_CLASSNAMES, name='followup_listeners', validate_strings=True,
 )
 
 py_allowed_magsystems = Enum('magsystems', ALLOWED_MAGSYSTEMS)

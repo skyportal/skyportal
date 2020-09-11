@@ -4,7 +4,7 @@ from .classification import ClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
 from .filter import FilterHandler
 from .followup_request import FollowupRequestHandler, AssignmentHandler
-from .followup_request_response import FollowupRequestResponseHandler
+from .followup_request_response import FacilityMessageHandler
 from .group import GroupHandler, GroupUserHandler, GroupStreamHandler
 from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler

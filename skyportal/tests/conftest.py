@@ -427,7 +427,7 @@ def public_group2_sedm_allocation(sedm, public_group2):
 
 
 @pytest.fixture()
-def public_source_followup_request(public_group_sedm_allocation, public_source):
+def public_source_followup_request(public_group_sedm_allocation, public_source, user):
     fr = FollowupRequest(
         obj=public_source,
         allocation=public_group_sedm_allocation,
@@ -437,6 +437,7 @@ def public_source_followup_request(public_group_sedm_allocation, public_source):
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
         },
+        requester_id=user.id,
     )
 
     DBSession().add(fr)

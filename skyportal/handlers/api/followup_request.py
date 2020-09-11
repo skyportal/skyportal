@@ -12,11 +12,13 @@ from ...models import (
     Obj,
     Group,
     Allocation,
+    FacilityTransaction,
 )
 
 from sqlalchemy.orm import joinedload
 
 from ...schema import AssignmentSchema
+from ...utils import http
 
 
 class AssignmentHandler(BaseHandler):
@@ -388,7 +390,7 @@ class FollowupRequestHandler(BaseHandler):
         )
 
         try:
-            message = instrument.api_class.submit(followup_request)
+            response = instrument.api_class.submit(followup_request)
         except Exception:
             followup_request.status = 'failed to submit'
             raise
@@ -400,7 +402,13 @@ class FollowupRequestHandler(BaseHandler):
                 payload={"obj_id": followup_request.obj_id},
             )
 
-        DBSession().add(message)
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(response.request),
+            response=http.serialize_requests_response(response),
+            followup_request=followup_request,
+            initiator=self.associated_user_object,
+        )
+        DBSession().add(transaction)
         DBSession().commit()
 
         return self.success(data={"id": followup_request.id})
@@ -462,9 +470,17 @@ class FollowupRequestHandler(BaseHandler):
             payload={"obj_id": followup_request.obj_id},
         )
 
-        message = followup_request.instrument.api_class.update(followup_request)
+        response = followup_request.instrument.api_class.update(followup_request)
+
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(response.request),
+            response=http.serialize_requests_response(response),
+            followup_request=followup_request,
+            initiator=self.associated_user_object,
+        )
+
         DBSession().add(followup_request)
-        DBSession().add(message)
+        DBSession().add(transaction)
         DBSession().commit()
 
         self.push_all(
@@ -505,14 +521,21 @@ class FollowupRequestHandler(BaseHandler):
         if not api.implements()['delete']:
             return self.error('Cannot delete requests on this instrument.')
 
-        message = api.delete(followup_request)
-        obj_key = followup_request.obj.internal_key
+        response = api.delete(followup_request)
 
-        DBSession().add(message)
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(response.request),
+            response=http.serialize_requests_response(response),
+            followup_request=followup_request,
+            initiator=self.associated_user_object,
+        )
+
+        DBSession().add(transaction)
         DBSession().add(followup_request)
         DBSession().commit()
 
         self.push_all(
-            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj_key},
+            action="skyportal/REFRESH_SOURCE",
+            payload={"obj_key": followup_request.obj.internal_key},
         )
         return self.success()

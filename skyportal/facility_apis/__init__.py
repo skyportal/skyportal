@@ -1,2 +1,2 @@
 from .interface import FollowUpAPI, Listener
-from .sedm import SEDMAPI
+from .sedm import SEDMAPI, SEDMListener
