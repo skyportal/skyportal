@@ -1,7 +1,7 @@
 def serialize_requests_request(request):
     return {
-        'headers': request.headers,
-        'body': request.body,
+        'headers': dict(request.headers),
+        'body': request.body.decode(),
         'url': request.url,
         'method': request.method,
     }
@@ -9,7 +9,7 @@ def serialize_requests_request(request):
 
 def serialize_requests_response(response):
     return {
-        'headers': response.headers,
+        'headers': dict(response.headers),
         'content': response.text,
         'cookies': response.cookies.get_dict(),
         'elapsed': response.elapsed.total_seconds(),
