@@ -1,19 +1,32 @@
-class _RequestProcessorBase:
+from jsonschema_to_openapi.convert import convert
+from copy import deepcopy
+
+
+class _ListenerBase:
 
     # subclasses should not modify this
     @classmethod
     def complete_schema(cls):
-        return {
-            'allOf': [
-                {
-                    'type': 'object',
-                    'properties': {'followup_request_id': {'type': 'integer'}},
-                    'required': ['followup_request_id'],
-                },
-                cls.schema,
-            ],
-            'title': cls.__name__,
-        }
+        base = deepcopy(cls.schema)
+        if 'type' not in base:
+            base['type'] = 'object'
+        if 'properties' not in base:
+            base['properties'] = {}
+        if 'followup_request_id' not in base['properties']:
+            base['properties']['followup_request_id'] = {'type': 'integer'}
+
+        if 'required' not in base:
+            base['required'] = ['followup_request_id']
+        else:
+            base['required'].append('followup_request_id')
+
+        base['title'] = cls.__name__
+        base['additionalProperties'] = False
+        return base
+
+    @classmethod
+    def openapi_spec(cls):
+        return convert(cls.complete_schema())
 
     @classmethod
     def get_acl_id(cls):

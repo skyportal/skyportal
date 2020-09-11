@@ -37,7 +37,7 @@ class FacilityMessageHandler(BaseHandler):
         if acl_id not in user_acls and acl_id is not None:
             return self.error('Insufficient permissions.')
 
-        jsonschema.validate(data, instrument.listener_class.complete_schema())
+        jsonschema.validate(data, instrument.listener_class.openapi_spec())
         instrument.listener_class.process_message(self)
 
         transaction_record = FacilityTransaction(

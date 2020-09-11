@@ -1,7 +1,7 @@
-from ._base import _Base, _RequestProcessorBase
+from ._base import _Base, _ListenerBase
 
 
-class Listener(_RequestProcessorBase):
+class Listener(_ListenerBase):
     """An interface that User-contributed remote facility message listeners
     must provide."""
 
