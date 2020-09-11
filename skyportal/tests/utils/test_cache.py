@@ -49,6 +49,7 @@ def test_cache_max_items(cache):
 def test_cache_cleanup(cache):
     for i in range(5):
         cache[str(i)] = b'x'
+        time.sleep(0.5)
 
     for key in range(2, 5):
         assert cache[str(key)] is not None
