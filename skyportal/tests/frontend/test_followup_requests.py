@@ -110,7 +110,10 @@ def add_followup_request_using_frontend_and_verify(
     ifu_option = driver.wait_for_xpath('//input[@id="root_observation_choices_4"]')
 
     driver.scroll_to_element_and_click(ifu_option)
+
+    driver.save_screenshot('test_1.png')
     driver.scroll_to_element_and_click(submit_button)
+    driver.save_screenshot('test_2.png')
 
     driver.wait_for_xpath(
         '//table[contains(@class, "followupRequestTable")]//td[contains(., "Mix \'n Match")]'
