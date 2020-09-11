@@ -30,7 +30,7 @@ class _ListenerBase:
 
     @classmethod
     def get_acl_id(cls):
-        return f'Post to {cls.__name__}'
+        return f'Post from {cls.__name__}'
 
 
 class _Base:
