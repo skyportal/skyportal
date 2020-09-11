@@ -15,6 +15,7 @@ LT_XML_NS = 'http://www.rtml.org/v3.1a'
 LT_XSI_NS = 'http://www.w3.org/2001/XMLSchema-instance'
 LT_SCHEMA_LOCATION = 'http://www.rtml.org/v3.1a http://telescope.livjm.ac.uk/rtml/RTML-nightly.xsd'
 
+# DANNY 
 
 class LTRequest():
 
