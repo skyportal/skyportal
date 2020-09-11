@@ -448,6 +448,8 @@ def public_source_followup_request(public_group_sedm_allocation, public_source, 
 @pytest.fixture()
 def sedm_listener_token(sedm, group_admin_user):
     token_id = create_token(
-        ACLs=[sedm.listener_acl.id], user_id=group_admin_user.id, name=str(uuid.uuid4())
+        ACLs=[sedm.listener_class.get_acl_id()],
+        user_id=group_admin_user.id,
+        name=str(uuid.uuid4()),
     )
     return token_id

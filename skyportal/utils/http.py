@@ -20,7 +20,7 @@ def serialize_requests_response(response):
 
 def serialize_tornado_request(handler):
     return {
-        'headers': handler.request.headers,
+        'headers': dict(handler.request.headers),
         'body': handler.request.body.decode(),
         'url': handler.request.uri,
         'method': handler.request.method,

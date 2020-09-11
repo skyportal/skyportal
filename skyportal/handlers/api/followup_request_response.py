@@ -55,6 +55,8 @@ class FacilityMessageHandler(BaseHandler):
             payload={"obj_key": request.obj.internal_key},
         )
 
+        return self.success()
+
     allowed_schemas = [
         iclass.complete_schema()
         for iclass in [

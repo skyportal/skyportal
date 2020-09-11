@@ -34,7 +34,7 @@ def test_post_status_update_to_sedm_request(
             'followup_request_id': public_source_followup_request.id,
             'new_status': 'status that should be rejected due to lack of ACL',
         },
-        token=sedm_listener_token,
+        token=view_only_token,
     )
 
     assert status == 400

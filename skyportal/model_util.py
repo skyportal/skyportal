@@ -1,6 +1,6 @@
 from social_tornado.models import TornadoStorage
 from skyportal.models import DBSession, ACL, Role, User, Group, Token
-from skyportal.enum_types import LISTENER_CLASSNAMES
+from skyportal.enum_types import LISTENER_CLASSES
 from baselayer.app.env import load_env
 
 all_acl_ids = [
@@ -14,7 +14,7 @@ all_acl_ids = [
     'Post taxonomy',
     'Delete taxonomy',
     'Classify',
-] + [c.get_acl_id() for c in LISTENER_CLASSNAMES]
+] + [c.get_acl_id() for c in LISTENER_CLASSES]
 
 
 role_acls = {

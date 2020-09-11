@@ -21,8 +21,12 @@ FOLLOWUP_HTTP_REQUEST_ORIGINS = ('remote', 'skyportal')
 LISTENER_CLASSNAMES = [
     k
     for k, v in facility_apis.__dict__.items()
-    if inspect.isclass(v) and issubclass(v, facility_apis.Listener)
+    if inspect.isclass(v)
+    and issubclass(v, facility_apis.Listener)
+    and v is not facility_apis.Listener
 ]
+
+LISTENER_CLASSES = [getattr(facility_apis, c) for c in LISTENER_CLASSNAMES]
 
 allowed_magsystems = sa.Enum(
     *ALLOWED_MAGSYSTEMS, name="magsystems", validate_strings=True
@@ -45,7 +49,9 @@ api_classnames = sa.Enum(
     *[
         k
         for k, v in facility_apis.__dict__.items()
-        if inspect.isclass(v) and issubclass(v, facility_apis.FollowUpAPI)
+        if inspect.isclass(v)
+        and issubclass(v, facility_apis.FollowUpAPI)
+        and v is not facility_apis.FollowUpAPI
     ],
     name='followup_apis',
     validate_strings=True,
