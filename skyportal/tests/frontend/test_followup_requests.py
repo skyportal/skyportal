@@ -1,4 +1,5 @@
 import uuid
+import time
 import pytest
 import requests
 from selenium.common.exceptions import TimeoutException
@@ -114,6 +115,10 @@ def add_followup_request_using_frontend_and_verify(
     driver.save_screenshot('test_1.png')
     driver.scroll_to_element_and_click(submit_button)
     driver.save_screenshot('test_2.png')
+    time.sleep(1)
+    driver.save_screenshot('test_3.png')
+    time.sleep(1)
+    driver.save_screenshot('test_4.png')
 
     driver.wait_for_xpath(
         '//table[contains(@class, "followupRequestTable")]//td[contains(., "Mix \'n Match")]'
@@ -129,7 +134,6 @@ def add_followup_request_using_frontend_and_verify(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_submit_new_followup_request(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -140,7 +144,6 @@ def test_submit_new_followup_request(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_edit_existing_followup_request(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -175,7 +178,6 @@ def test_edit_existing_followup_request(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason='SEDM server down')
 def test_delete_followup_request(
     driver, super_admin_user, public_source, super_admin_token, public_group
