@@ -43,6 +43,14 @@ export function deleteGroupStream({ group_id, stream_id }) {
   );
 }
 
+export function deleteUserStream({ user_id, stream_id }) {
+  console.log(user_id, stream_id);
+  // return API.DELETE(
+  //   `/api/streams/${group_id}/streams/${stream_id}`,
+  //   DELETE_GROUP_STREAM
+  // );
+}
+
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {
   if (actionType === FETCH_STREAMS) {
