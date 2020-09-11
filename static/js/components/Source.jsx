@@ -2,6 +2,7 @@ import React, { useEffect, useState, Suspense } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
+
 import { makeStyles } from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
@@ -19,7 +20,6 @@ import StarList from "./StarList";
 
 import { ra_to_hours, dec_to_hours } from "../units";
 
-import styles from "./Source.css";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 import FollowupRequestForm from "./FollowupRequestForm";
@@ -34,14 +34,61 @@ const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
 );
 
-const useStyles = makeStyles((theme) => ({
+// Export to allow Candidate.jsx to import and re-use these styles
+export const useSourceStyles = makeStyles((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
+  },
+  source: {
+    padding: "1rem",
+  },
+  leftColumn: {
+    display: "inline-block",
+    width: "900px",
+    verticalAlign: "top",
+    paddingRight: "1em",
+    // Example if you wanted to reference this class for other CSS tags:
+    "&:hover": {
+      // Some styling for when .leftColumn is hovered
+    },
+    "& > div": {
+      // Some styling for divs that are direct children of .leftColumn
+    },
+  },
+  rightColumn: {
+    display: "inline-block",
+    minWidth: "20em",
+    verticalAlign: "top",
+  },
+  name: {
+    fontSize: "200%",
+    fontWeight: "900",
+    color: "darkgray",
+    paddingBottom: "0.25em",
+    display: "inline-block",
+  },
+  plot: {
+    width: "900px",
+    overflow: "auto",
+  },
+  smallPlot: {
+    width: "350px",
+    overflow: "auto",
+  },
+  comments: {},
+  classifications: {},
+  alignRight: {
+    display: "inline-block",
+    verticalAlign: "super",
+  },
+  followupContainer: {
+    display: "flex",
+    flexDirection: "column",
   },
 }));
 
 const Source = ({ route }) => {
-  const classes = useStyles();
+  const classes = useSourceStyles();
   const dispatch = useDispatch();
   const source = useSelector((state) => state.source);
   const cachedSourceId = source ? source.id : null;
@@ -81,12 +128,12 @@ const Source = ({ route }) => {
   }
 
   return (
-    <div className={styles.source}>
-      <div className={styles.leftColumn}>
-        <div className={styles.alignRight}>
+    <div className={classes.source}>
+      <div className={classes.leftColumn}>
+        <div className={classes.alignRight}>
           <SharePage />
         </div>
-        <div className={styles.name}>{source.id}</div>
+        <div className={classes.name}>{source.id}</div>
         <br />
         <ShowClassification
           classifications={source.classifications}
@@ -137,7 +184,7 @@ const Source = ({ route }) => {
           mobileProps={{ folded: true }}
         >
           <Plot
-            className={styles.plot}
+            className={classes.plot}
             url={`/api/internal/plot/photometry/${source.id}`}
           />
           <Link to={`/upload_photometry/${source.id}`} role="link">
@@ -153,7 +200,7 @@ const Source = ({ route }) => {
           mobileProps={{ folded: true }}
         >
           <Plot
-            className={styles.plot}
+            className={classes.plot}
             url={`/api/internal/plot/spectroscopy/${source.id}`}
           />
           <Link to={`/share_data/${source.id}`} role="link">
@@ -191,12 +238,12 @@ const Source = ({ route }) => {
         </Responsive>
       </div>
 
-      <div className={styles.rightColumn}>
+      <div className={classes.rightColumn}>
         <Responsive
           element={FoldBox}
           title="Comments"
           mobileProps={{ folded: true }}
-          className={styles.comments}
+          className={classes.comments}
         >
           <CommentList />
         </Responsive>
@@ -205,7 +252,7 @@ const Source = ({ route }) => {
           element={FoldBox}
           title="Classifications"
           mobileProps={{ folded: true }}
-          className={styles.classifications}
+          className={classes.classifications}
         >
           <ClassificationList />
           <ClassificationForm
@@ -220,7 +267,7 @@ const Source = ({ route }) => {
           mobileProps={{ folded: true }}
         >
           <Suspense fallback={<div>Loading centroid plot...</div>}>
-            <CentroidPlot className={styles.smallPlot} sourceId={source.id} />
+            <CentroidPlot className={classes.smallPlot} sourceId={source.id} />
           </Suspense>
         </Responsive>
       </div>
