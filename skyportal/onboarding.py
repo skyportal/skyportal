@@ -60,7 +60,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
         DBSession().add(Group(name=user.username, users=[user], single_user_group=True))
         DBSession().commit()
         return {"is_new": True, "user": user}
-    elif not cfg["invitations.enabled"] and not cfg["server.auth.debug_login"]:
+    elif not cfg["invitations.enabled"]:
         if existing_user is not None:
             return {"is_new": False, "user": existing_user}
 
