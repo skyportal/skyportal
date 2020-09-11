@@ -60,7 +60,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
         DBSession().add(Group(name=user.username, users=[user], single_user_group=True))
         DBSession().commit()
         return {"is_new": True, "user": user}
-    elif not cfg["invitations.enabled"] and not cfg["server.auth.debug_login"]:
+    elif not cfg["invitations.enabled"]:
         if existing_user is not None:
             return {"is_new": False, "user": existing_user}
 
@@ -111,8 +111,11 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
     existing_user = DBSession().query(User).filter(User.oauth_uid == uid).first()
 
     invite_token = strategy.session_get("invite_token")
-    if invite_token is None:
+    if invite_token is None and existing_user is None:
         raise Exception("Missing invite token. A valid invite token is required.")
+    elif existing_user is not None and invite_token is None:
+        return
+
     invitation = Invitation.query.filter(Invitation.token == invite_token).first()
     if invitation is None:
         raise Exception("Invalid invite token. A valid invite token is required.")
