@@ -1,3 +1,6 @@
+import os
+from os.path import join as pjoin
+
 from . import __version__
 
 from tornado.routing import URLSpec
@@ -6,7 +9,10 @@ from apispec.ext.marshmallow import MarshmallowPlugin
 from . import schema
 
 
-def spec_from_handlers(handlers):
+api_description = pjoin(os.path.dirname(__file__), 'api_description.md')
+
+
+def spec_from_handlers(handlers, exclude_internal=True):
     """Generate an OpenAPI spec from Tornado handlers.
 
     The docstrings of the various http methods of the Tornado handlers
@@ -50,8 +56,16 @@ def spec_from_handlers(handlers):
         title='SkyPortal',
         version=__version__,
         openapi_version='3.0.2',
-        info=dict(description='SkyPortal API'),
-        plugins=[MarshmallowPlugin(),],
+        info={
+            'description': open(api_description, 'r').read(),
+            'x-logo': {
+                'url': 'https://raw.githubusercontent.com/skyportal/skyportal/master/static/images/skyportal_logo.png',
+                'backgroundColor': '#FFFFFF',
+                'altText': 'SkyPortal logo',
+                'href': 'https://skyportal.io/docs',
+            },
+        },
+        plugins=[MarshmallowPlugin()],
     )
 
     token_scheme = {
@@ -73,6 +87,12 @@ def spec_from_handlers(handlers):
         for handler in handlers
         if not isinstance(handler, URLSpec) and len(handler) == 2
     ]
+    if exclude_internal:
+        handlers = [
+            (route, handler_cls)
+            for (route, handler_cls) in handlers
+            if '/internal/' not in route
+        ]
     for (endpoint, handler) in handlers:
         for http_method in HTTP_METHODS:
             method = getattr(handler, http_method)
@@ -80,8 +100,8 @@ def spec_from_handlers(handlers):
                 continue
 
             path_template = endpoint
-            path_template = re.sub('\(.*?\)\??', '/{}', path_template)
-            path_template = re.sub('(/)+', '/', path_template)
+            path_template = re.sub(r'\(.*?\)\??', '/{}', path_template)
+            path_template = re.sub(r'(/)+', '/', path_template)
             path_parameters = path_template.count('{}')
 
             spec = yaml_utils.load_yaml_from_docstring(method.__doc__)

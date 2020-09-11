@@ -5,7 +5,14 @@ import TextField from "@material-ui/core/TextField";
 import Autocomplete, {
   createFilterOptions,
 } from "@material-ui/lab/Autocomplete";
+import Button from "@material-ui/core/Button";
+import Dialog from "@material-ui/core/Dialog";
+import DialogActions from "@material-ui/core/DialogActions";
+import DialogContent from "@material-ui/core/DialogContent";
+import DialogContentText from "@material-ui/core/DialogContentText";
+import DialogTitle from "@material-ui/core/DialogTitle";
 
+import { showNotification } from "baselayer/components/Notifications";
 import * as groupsActions from "../ducks/groups";
 import * as usersActions from "../ducks/users";
 
@@ -17,7 +24,9 @@ const NewGroupUserForm = ({ group_id }) => {
   const [formState, setFormState] = useState({
     newUserEmail: null,
     admin: false,
+    invitingNewUser: false,
   });
+  const [confirmDialogOpen, setConfirmDialogOpen] = React.useState(false);
 
   useEffect(() => {
     if (allUsers.length === 0) {
@@ -25,19 +34,40 @@ const NewGroupUserForm = ({ group_id }) => {
     }
   }, [dispatch, allUsers]);
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    dispatch(
+  const submitAndResetForm = async () => {
+    const result = await dispatch(
       groupsActions.addGroupUser({
         username: formState.newUserEmail,
         admin: formState.admin,
         group_id,
       })
     );
+    if (
+      formState.invitingNewUser &&
+      result.status === "success" &&
+      result.data.user_id === null
+    ) {
+      dispatch(
+        showNotification(
+          `Invitation successfully sent to ${formState.newUserEmail}`
+        )
+      );
+    }
     setFormState({
       newUserEmail: null,
       admin: false,
+      invitingNewUser: false,
     });
+  };
+
+  const handleClickSubmit = (event) => {
+    event.preventDefault();
+    if (formState.invitingNewUser) {
+      // If user clicks confirm, `submitAndResetForm` will be called
+      setConfirmDialogOpen(true);
+    } else {
+      submitAndResetForm();
+    }
   };
 
   const toggleAdmin = (event) => {
@@ -46,24 +76,28 @@ const NewGroupUserForm = ({ group_id }) => {
       admin: event.target.checked,
     });
   };
+  const allUserNames = allUsers.map((user) => user.username);
 
   return (
     <div>
       <Autocomplete
         id="newUserEmail"
-        value={formState.newUserEmail}
+        value={formState.newUserEmail || ""}
         onChange={(event, newValue) => {
           if (typeof newValue === "string") {
+            // The user has entered a username and hit the Enter/Return key
             setFormState({
               newUserEmail: newValue,
+              invitingNewUser: !allUserNames.includes(newValue),
             });
           } else if (newValue && newValue.inputValue) {
-            // Create a new value from the user input
+            // The user has entered a new username and clicked the "Add" option
             setFormState({
               newUserEmail: newValue.inputValue,
+              invitingNewUser: true,
             });
           } else {
-            setFormState({ newUserEmail: newValue.username });
+            setFormState({ newUserEmail: newValue?.username });
           }
         }}
         filterOptions={(options, params) => {
@@ -103,9 +137,57 @@ const NewGroupUserForm = ({ group_id }) => {
           <TextField {...params} label="Enter user email" />
         )}
       />
-      <input type="checkbox" checked={formState.admin} onChange={toggleAdmin} />
+      <input
+        type="checkbox"
+        checked={formState.admin || false}
+        onChange={toggleAdmin}
+      />
       Group Admin &nbsp;&nbsp;
-      <input type="submit" onClick={handleSubmit} value="Add user" />
+      <Button
+        onClick={handleClickSubmit}
+        variant="contained"
+        size="small"
+        disableElevation
+      >
+        Add user
+      </Button>
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={() => {
+          setConfirmDialogOpen(false);
+        }}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          Invite new user to this group?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            Click Confirm to invite specified user and grant them access to this
+            group.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setConfirmDialogOpen(false);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              setConfirmDialogOpen(false);
+              submitAndResetForm();
+            }}
+            color="primary"
+            autoFocus
+          >
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

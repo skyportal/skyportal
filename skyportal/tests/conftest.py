@@ -8,12 +8,12 @@ from datetime import datetime
 
 from baselayer.app import models
 from baselayer.app.config import load_config
-
 from baselayer.app.test_util import (  # noqa: F401
     driver,
     set_server_url,
 )
 
+from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 from skyportal.tests.fixtures import (
     ObjFactory,
     StreamFactory,
@@ -25,7 +25,7 @@ from skyportal.tests.fixtures import (
     TelescopeFactory,
 )
 from skyportal.model_util import create_token
-from skyportal.models import DBSession, Source, Candidate, Role, User
+from skyportal.models import DBSession, Source, Candidate, Role, User, Allocation
 
 import astroplan
 import warnings
@@ -195,6 +195,7 @@ def sedm(p60_telescope):
         telescope=p60_telescope,
         band='Optical',
         filters=['sdssu', 'sdssg', 'sdssr', 'sdssi'],
+        api_classname='SEDMAPI',
     )
 
 
@@ -213,6 +214,11 @@ def user(public_group):
     return UserFactory(
         groups=[public_group], roles=[models.Role.query.get("Full user")]
     )
+
+
+@pytest.fixture()
+def user_no_groups():
+    return UserFactory(roles=[models.Role.query.get("Full user")])
 
 
 @pytest.fixture()
@@ -381,3 +387,31 @@ def comment_token_two_groups(user_two_groups):
         ACLs=["Comment"], user_id=user_two_groups.id, name=str(uuid.uuid4())
     )
     return token_id
+
+
+@pytest.fixture()
+def public_group_sedm_allocation(sedm, public_group):
+    allocation = Allocation(
+        instrument=sedm,
+        group=public_group,
+        pi=str(uuid.uuid4()),
+        proposal_id=str(uuid.uuid4()),
+        hours_allocated=100,
+    )
+    DBSession().add(allocation)
+    DBSession().commit()
+    return allocation
+
+
+@pytest.fixture()
+def public_group2_sedm_allocation(sedm, public_group2):
+    allocation = Allocation(
+        instrument=sedm,
+        group=public_group2,
+        pi=str(uuid.uuid4()),
+        proposal_id=str(uuid.uuid4()),
+        hours_allocated=100,
+    )
+    DBSession().add(allocation)
+    DBSession().commit()
+    return allocation

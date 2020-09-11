@@ -23,7 +23,9 @@ import styles from "./Source.css";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 import FollowupRequestForm from "./FollowupRequestForm";
-import FollowupRequestList from "./FollowupRequestList";
+
+import FollowupRequestLists from "./FollowupRequestLists";
+import SharePage from "./SharePage";
 
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
@@ -58,7 +60,7 @@ const Source = ({ route }) => {
       fetchSource();
     }
   }, [dispatch, isCached, route.id]);
-  const { instrumentList, instrumentObsParams } = useSelector(
+  const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
   );
   const { observingRunList } = useSelector((state) => state.observingRuns);
@@ -81,6 +83,9 @@ const Source = ({ route }) => {
   return (
     <div className={styles.source}>
       <div className={styles.leftColumn}>
+        <div className={styles.alignRight}>
+          <SharePage />
+        </div>
         <div className={styles.name}>{source.id}</div>
         <br />
         <ShowClassification
@@ -94,8 +99,8 @@ const Source = ({ route }) => {
         &nbsp; (&alpha;,&delta;=
         {ra_to_hours(source.ra)}, &nbsp;
         {dec_to_hours(source.dec)}) &nbsp; (l,b=
-        {source.gal_lon.toFixed(1)}, &nbsp;
-        {source.gal_lat.toFixed(1)}
+        {source.gal_lon.toFixed(6)}, &nbsp;
+        {source.gal_lat.toFixed(6)}
         )
         <br />
         <b>Redshift: &nbsp;</b>
@@ -126,15 +131,6 @@ const Source = ({ route }) => {
         />
         <br />
         <br />
-        <Responsive
-          element={FoldBox}
-          title="Centroid Plot"
-          mobileProps={{ folded: true }}
-        >
-          <Suspense fallback={<div>Loading centroid plot...</div>}>
-            <CentroidPlot className={styles.plot} sourceId={source.id} />
-          </Suspense>
-        </Responsive>
         <Responsive
           element={FoldBox}
           title="Photometry"
@@ -179,14 +175,13 @@ const Source = ({ route }) => {
         >
           <FollowupRequestForm
             obj_id={source.id}
-            action="createNew"
             instrumentList={instrumentList}
-            instrumentObsParams={instrumentObsParams}
+            instrumentFormParams={instrumentFormParams}
           />
-          <FollowupRequestList
+          <FollowupRequestLists
             followupRequests={source.followup_requests}
             instrumentList={instrumentList}
-            instrumentObsParams={instrumentObsParams}
+            instrumentFormParams={instrumentFormParams}
           />
           <AssignmentForm
             obj_id={source.id}
@@ -218,6 +213,15 @@ const Source = ({ route }) => {
             action="createNew"
             taxonomyList={taxonomyList}
           />
+        </Responsive>
+        <Responsive
+          element={FoldBox}
+          title="Centroid Plot"
+          mobileProps={{ folded: true }}
+        >
+          <Suspense fallback={<div>Loading centroid plot...</div>}>
+            <CentroidPlot className={styles.smallPlot} sourceId={source.id} />
+          </Suspense>
         </Responsive>
       </div>
     </div>

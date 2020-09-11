@@ -1,6 +1,10 @@
 name: Build and deploy documentation
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
 
 jobs:
   build-and-deploy-docs:
@@ -41,6 +45,9 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
+
+      - name: Setup Graphviz
+        uses: ts-graphviz/setup-graphviz@v1
 
       - name: Write SkyPortal config
         run: |

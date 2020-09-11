@@ -84,6 +84,7 @@ User Guide
    contributing
    adding_features
    styling
+   database
 
 Contributing
 ------------

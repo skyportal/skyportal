@@ -1,8 +1,8 @@
-import React from "react";
-import PropTypes from "prop-types";
-import { useDispatch } from "react-redux";
-import { Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { Link, matchPath } from "react-router-dom";
 
+import Typography from "@material-ui/core/Typography";
 import Drawer from "@material-ui/core/Drawer";
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
@@ -19,6 +19,7 @@ import {{ item.icon }}Icon from "@material-ui/icons/{{ item.icon }}";
 {% endfor %}
 import MenuIcon from "@material-ui/icons/Menu";
 
+import QuickSearchBar from "./QuickSearchBar";
 import HeaderContent from "./HeaderContent";
 import * as Actions from "../ducks/sidebar";
 
@@ -58,7 +59,7 @@ const useStyles = makeStyles((theme) => ({
     flexShrink: 0,
   },
   drawerPaper: {
-    zIndex: 99,
+    zIndex: 140,
     width: drawerWidth,
     paddingLeft: "0.4em",
     background: "#33345C",
@@ -82,16 +83,54 @@ const useStyles = makeStyles((theme) => ({
   link: {
     color: "#B8D2FF",
     textDecoration: "none",
+  },
+  bold: {
+    color: "white",
+    fontWeight: "bold"
   }
 }));
 
-const SidebarAndHeader = ({ open }) => {
+
+const SidebarAndHeader = () => {
+  const open = useSelector((state) => state.sidebar.open);
+
+  const sideBarURLs = [{% for item in app.sidebar -%} "{{ item.url }}", {% endfor %}];
+  const matchedURL = sideBarURLs.filter(url => matchPath(window.location.pathname, {path: url, exact: true}));
+  const [selected, setSelected] = useState(matchedURL[0]);
+
   const dispatch = useDispatch();
   const classes = useStyles();
 
   const handleToggleSidebarOpen = () => {
     dispatch(Actions.toggleSidebar());
   };
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        dispatch(Actions.setSidebar(false));
+      }
+    };
+
+    // For bigger screens, let home page know content window has resized
+    // so that it can adjust widget sizes
+    // A slight delay is used to make sure the sidebar is finished
+    // closing/opening before new content window size is computed
+    if (!window.matchMedia("(max-width: 768px)").matches) {
+      setTimeout(() => {
+        window.dispatchEvent(new Event("resize"));
+      }, 250);
+    }
+
+    if (open) {
+      window.addEventListener("resize", handleResize);
+    }
+
+    const cleanupListener = () => {
+      window.removeEventListener("resize", handleResize);
+    };
+    return cleanupListener;
+  }, [open, dispatch]);
 
   return (
     <>
@@ -123,15 +162,21 @@ const SidebarAndHeader = ({ open }) => {
           {%- for item in app.sidebar -%}
 
           {%- if item.url.startswith('http') %}
-          <a href="{{ item.url }}" className={classes.link}>
+          <a href="{{ item.url }}" className={classes.link} onClick={() => setSelected("{{ item.url }}")}>
           {% else %}
-          <Link to="{{ item.url }}" className={classes.link}>
+          <Link to="{{ item.url }}" className={classes.link} onClick={() => setSelected("{{ item.url }}")}>
           {%- endif %}
             <ListItem button name="sidebar{{ item.name }}Button">
               <ListItemIcon>
                 <{{ item.icon }}Icon style={{ "{{ color: blue[200] }}" }} />
               </ListItemIcon>
-              <ListItemText primary="{{ item.name }}" />
+              <ListItemText
+                primary={
+                  <Typography className={selected === "{{ item.url }}" ? classes.bold : null}>
+                    {{ item.name }}
+                  </Typography>
+                }
+              />
             </ListItem>
           {%- if item.url.startswith('http') %}
           </a>
@@ -141,13 +186,11 @@ const SidebarAndHeader = ({ open }) => {
 
           {%- endfor %}
         </List>
+
+        <QuickSearchBar id="search" />
       </Drawer>
     </>
   );
-};
-
-SidebarAndHeader.propTypes = {
-  open: PropTypes.bool.isRequired
 };
 
 export default SidebarAndHeader;

@@ -3,31 +3,66 @@ import PropTypes from "prop-types";
 
 import dayjs from "dayjs";
 import calendar from "dayjs/plugin/calendar";
-import clsx from "clsx";
 
-import styles from "./ThumbnailList.css";
+import { makeStyles } from "@material-ui/core/styles";
+import Grid from "@material-ui/core/Grid";
+
+import Card from "@material-ui/core/Card";
+import CardContent from "@material-ui/core/CardContent";
+import Typography from "@material-ui/core/Typography";
 
 dayjs.extend(calendar);
 
-const Thumbnail = ({ ra, dec, telescope, mjd, name, url }) => {
+/* const useStyles = makeStyles((theme) => ({
+})); */
+
+const useStyles = makeStyles(() => ({
+  root: (props) => ({
+    width: props.size,
+    margin: "0.5rem auto",
+    maxHeight: "31rem",
+    flexGrow: 1,
+  }),
+  title: {
+    fontSize: 14,
+  },
+  pos: {
+    marginBottom: 0,
+  },
+  mediaDiv: {
+    position: "relative",
+  },
+  media: (props) => ({
+    height: props.size,
+    width: props.size,
+  }),
+  crosshair: (props) => ({
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: props.size,
+    height: props.size,
+    paddingBottom: "0.2em",
+  }),
+}));
+
+const Thumbnail = ({ ra, dec, name, url, size }) => {
   // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
   // unix timestamp epoch (1970-01-01).
 
-  const unixt = (mjd - 40587.0) * 86400000;
-  const observed_at = new Date(unixt); // a new date
-  const observed_at_str = dayjs(observed_at).toString();
+  const classes = useStyles({ size });
 
   let alt = null;
   let link = null;
   switch (name) {
     case "new":
-      alt = `${telescope} discovery image (${observed_at_str})`;
+      alt = `discovery image`;
       break;
     case "ref":
-      alt = `${telescope} pre-discovery (reference) image (${observed_at_str})`;
+      alt = `pre-discovery (reference) image`;
       break;
     case "sub":
-      alt = `${telescope} subtracted image (${observed_at_str})`;
+      alt = `subtracted image`;
       break;
     case "sdss":
       alt = "Link to SDSS Navigate tool";
@@ -42,78 +77,87 @@ const Thumbnail = ({ ra, dec, telescope, mjd, name, url }) => {
       link = "";
   }
 
-  // Always apply Thumbnail style; conditionally apply DR8 style
-  const thumbnailDivClassNames = clsx(styles.Thumbnail, {
-    [styles.dr8]: name === "dr8",
-  });
-
-  const thumbnailClassNames = clsx({
-    [styles.dr8crosshairs]: name === "dr8",
-  });
-
   return (
-    <a href={link}>
-      {name === "dr8" && <br />}
-      <div className={thumbnailDivClassNames}>
-        <b>{name.toUpperCase()}</b>
-        <br />
-        <div className={styles.thumbnailimgdiv}>
+    <Card className={classes.root} variant="outlined">
+      <CardContent>
+        <Typography className={classes.title} color="textSecondary">
+          {name.toUpperCase()}
+        </Typography>
+      </CardContent>
+      <div className={classes.mediaDiv}>
+        <a href={link}>
+          <img src={url} alt={alt} className={classes.media} title={alt} />
+        </a>
+        {name === "dr8" && (
           <img
-            className={thumbnailClassNames}
-            src={url}
-            alt={alt}
-            title={alt}
+            className={classes.crosshair}
+            src="/static/images/crosshairs.png"
+            alt=""
           />
-          {name === "dr8" && (
-            <img
-              className={thumbnailClassNames}
-              src="/static/images/crosshairs.png"
-              alt=""
-            />
-          )}
-        </div>
+        )}
       </div>
-    </a>
+    </Card>
   );
 };
 
 Thumbnail.propTypes = {
   ra: PropTypes.number.isRequired,
   dec: PropTypes.number.isRequired,
-  telescope: PropTypes.string.isRequired,
   name: PropTypes.string.isRequired,
   url: PropTypes.string.isRequired,
-  mjd: PropTypes.number.isRequired,
+  size: PropTypes.string.isRequired,
 };
 
-const ThumbnailList = ({ ra, dec, thumbnails }) => {
+const ThumbnailList = ({
+  ra,
+  dec,
+  thumbnails,
+  useGrid = true,
+  size = "13rem",
+}) => {
   const thumbnail_order = ["new", "ref", "sub", "sdss", "dr8"];
   // Sort thumbnails by order of appearance in `thumbnail_order`
   thumbnails.sort((a, b) =>
     thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1
   );
 
-  return (
-    <div className={styles.ThumbnailList}>
-      {thumbnails.map((t) => (
-        <Thumbnail
-          key={`thumb_${t.type}`}
-          ra={ra}
-          dec={dec}
-          name={t.type}
-          url={t.public_url}
-          telescope={t.photometry.instrument.telescope.nickname}
-          mjd={t.photometry.mjd}
-        />
-      ))}
-    </div>
-  );
+  if (useGrid) {
+    return (
+      <Grid container direction="row" spacing={3}>
+        {thumbnails.map((t) => (
+          <Grid item key={t.id}>
+            <Thumbnail
+              key={`thumb_${t.type}`}
+              ra={ra}
+              dec={dec}
+              name={t.type}
+              url={t.public_url}
+              size={size}
+            />
+          </Grid>
+        ))}
+      </Grid>
+    );
+  }
+  return thumbnails.map((t) => (
+    <Grid item key={t.id}>
+      <Thumbnail
+        key={`thumb_${t.type}`}
+        ra={ra}
+        dec={dec}
+        name={t.type}
+        url={t.public_url}
+        size={size}
+      />
+    </Grid>
+  ));
 };
 
 ThumbnailList.propTypes = {
   ra: PropTypes.number.isRequired,
   dec: PropTypes.number.isRequired,
   thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired,
+  size: PropTypes.string,
 };
 
 export default ThumbnailList;

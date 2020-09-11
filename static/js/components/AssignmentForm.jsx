@@ -31,7 +31,24 @@ export function observingRunTitle(
 
   const group = groups?.filter((g) => g.id === observingRun.group_id)[0];
 
-  return `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname} (PI: ${observingRun?.pi} ${group?.name})`;
+  if (!(observingRun?.calendar_date && instrument?.name && telescope?.name)) {
+    return "Loading ...";
+  }
+
+  let result = `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname}`;
+
+  if (observingRun?.pi || group?.name) {
+    result += " (";
+    if (observingRun?.pi) {
+      result += `PI: ${observingRun.pi}`;
+    }
+    if (group?.name) {
+      result += ` / Group: ${group?.name}`;
+    }
+    result += ")";
+  }
+
+  return result;
 }
 
 const AssignmentForm = ({ obj_id, observingRunList }) => {

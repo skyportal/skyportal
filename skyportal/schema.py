@@ -193,6 +193,12 @@ class PhotBaseFlexible(object):
         required=True,
     )
 
+    assignment_id = fields.Integer(
+        description='ID of the classical assignment which generated the photometry',
+        required=False,
+        missing=None,
+    )
+
     ra = fields.Field(
         description='ICRS Right Ascension of the centroid '
         'of the photometric aperture [deg]. '
@@ -415,6 +421,12 @@ class PhotBase(object):
         required=True,
     )
 
+    assignment_id = fields.Integer(
+        description='ID of the classical assignment which generated the photometry',
+        required=False,
+        missing=None,
+    )
+
     ra = fields.Number(
         description='ICRS Right Ascension of the centroid '
         'of the photometric aperture [deg].',
@@ -546,6 +558,7 @@ class PhotometryFlux(_Schema, PhotBase):
             flux=final_flux,
             fluxerr=photdata.fluxerr[0],
             instrument_id=data['instrument_id'],
+            assignment_id=data['assignment_id'],
             filter=data['filter'],
             ra=data['ra'],
             dec=data['dec'],
@@ -676,6 +689,7 @@ class PhotometryMag(_Schema, PhotBase):
             flux=final_flux,
             fluxerr=photdata.fluxerr[0],
             instrument_id=data['instrument_id'],
+            assignment_id=data['assignment_id'],
             filter=data['filter'],
             ra=data['ra'],
             dec=data['dec'],
@@ -699,6 +713,7 @@ class AssignmentSchema(_Schema):
         required=True,
         description='Priority of the request, ' '(lowest = 1, highest = 5).',
     )
+    status = fields.String(description='The status of the request')
     comment = fields.String(description='An optional comment describing the request.')
 
 
@@ -749,6 +764,7 @@ class ObservingRunGet(ObservingRunPost):
 
 class ObservingRunGetWithAssignments(ObservingRunGet):
     assignments = fields.List(fields.Field())
+    instrument = fields.Field()
 
 
 def register_components(spec):

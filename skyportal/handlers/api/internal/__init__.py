@@ -1,7 +1,13 @@
-from .plot import PlotPhotometryHandler, PlotSpectroscopyHandler
+from .plot import (
+    PlotPhotometryHandler,
+    PlotSpectroscopyHandler,
+    PlotAirmassHandler,
+)
 from .token import TokenHandler
 from .dbinfo import DBInfoHandler
 from .profile import ProfileHandler
 from .source_views import SourceViewsHandler
-from .instrument_observation_params import InstrumentObservationParamsHandler
+from .recent_sources import RecentSourcesHandler
+from .robotic_instruments import RoboticInstrumentsHandler
+from .source_counts import SourceCountHandler
 from .log import LogHandler

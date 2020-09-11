@@ -2,7 +2,10 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
+
 import { Paper, Avatar, Tooltip } from "@material-ui/core";
+import Typography from "@material-ui/core/Typography";
+import DragHandleIcon from "@material-ui/icons/DragHandle";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -17,7 +20,7 @@ dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const defaultPrefs = {
-  numItems: "",
+  numItems: "5",
 };
 
 const NewsFeedItem = ({ item }) => {
@@ -67,7 +70,7 @@ const NewsFeedItem = ({ item }) => {
     <Paper
       key={`newsFeedItem_${item.time}`}
       className={styles.entry}
-      elevation={2}
+      elevation={1}
     >
       <Tooltip
         title={entryTitle}
@@ -97,30 +100,43 @@ const NewsFeedItem = ({ item }) => {
   );
 };
 
-const NewsFeed = () => {
+const NewsFeed = ({ classes }) => {
   const { items } = useSelector((state) => state.newsFeed);
   const newsFeedPrefs =
     useSelector((state) => state.profile.preferences.newsFeed) || defaultPrefs;
 
-  const height = Math.min(250, parseInt(items.length * 60, 10));
+  // Color styling
+  const userColorTheme = useSelector(
+    (state) => state.profile.preferences.theme
+  );
+  const newsFeedStyle =
+    userColorTheme === "dark" ? styles.newsFeedDark : styles.newsFeed;
 
   return (
-    <div style={{ border: "1px solid #DDD", padding: "10px" }}>
-      <h2 style={{ display: "inline-block" }}>News Feed</h2>
-      <div style={{ display: "inline-block", float: "right" }}>
-        <WidgetPrefsDialog
-          formValues={newsFeedPrefs}
-          stateBranchName="newsFeed"
-          title="News Feed Preferences"
-          onSubmit={profileActions.updateUserPreferences}
-        />
+    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
+      <div className={classes.widgetPaperDiv}>
+        <Typography variant="h6" display="inline">
+          News Feed
+        </Typography>
+        <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
+        <div className={classes.widgetIcon}>
+          <WidgetPrefsDialog
+            formValues={newsFeedPrefs}
+            stateBranchName="newsFeed"
+            title="News Feed Preferences"
+            onSubmit={profileActions.updateUserPreferences}
+          />
+        </div>
+        <div className={newsFeedStyle} style={{ height: "85%" }}>
+          {items.map((item) => (
+            <NewsFeedItem
+              key={`${item.author}-${item.source_id}-${item.time}`}
+              item={item}
+            />
+          ))}
+        </div>
       </div>
-      <div className={styles.newsFeed} style={{ height }}>
-        {items.map((item) => (
-          <NewsFeedItem key={item.time} item={item} />
-        ))}
-      </div>
-    </div>
+    </Paper>
   );
 };
 
@@ -137,6 +153,14 @@ NewsFeedItem.propTypes = {
       last_name: PropTypes.string,
       gravatar_url: PropTypes.string.isRequired,
     }),
+  }).isRequired,
+};
+
+NewsFeed.propTypes = {
+  classes: PropTypes.shape({
+    widgetPaperDiv: PropTypes.string.isRequired,
+    widgetIcon: PropTypes.string.isRequired,
+    widgetPaperFillSpace: PropTypes.string.isRequired,
   }).isRequired,
 };
 

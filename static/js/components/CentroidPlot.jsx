@@ -63,10 +63,14 @@ const getMessages = (delRaGroup, delDecGroup) => {
     d3.median(delRaGroup) ** 2 + d3.median(delDecGroup) ** 2
   );
   const C = Math.max(d3.deviation(delRaGroup), d3.deviation(delDecGroup));
+  const maxDelRA = Math.max.apply(null, delRaGroup.map(Math.abs));
+  const maxDelDec = Math.max.apply(null, delDecGroup.map(Math.abs));
+
+  const limit = Math.max(maxDelRA, maxDelDec);
 
   const offsetMessage = {
-    x: 0.6,
-    y: 0.8,
+    x: limit * 0.6,
+    y: limit,
     message: `offset = ${offset.toFixed(2)} \u00B1 ${C.toFixed(2)}`,
   };
 
@@ -76,8 +80,8 @@ const getMessages = (delRaGroup, delDecGroup) => {
 // The Vega-Lite specifications for the centroid plot
 const spec = (inputData) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
-  width: 400,
-  height: 400,
+  width: 300,
+  height: 300,
   background: "transparent",
   layer: [
     // Render nuclear-to-host circle
@@ -144,6 +148,12 @@ const spec = (inputData) => ({
     {
       data: {
         values: inputData.photometryData,
+      },
+      selection: {
+        grid: {
+          type: "interval",
+          bind: "scales",
+        },
       },
       mark: {
         type: "point",
@@ -318,9 +328,11 @@ const CentroidPlot = ({ sourceId }) => {
         <div
           className="centroid-plot-div"
           ref={(node) => {
-            embed(node, spec(plotData), {
-              actions: false,
-            });
+            if (node) {
+              embed(node, spec(plotData), {
+                actions: false,
+              });
+            }
           }}
         />
       );

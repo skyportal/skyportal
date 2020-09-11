@@ -1,5 +1,5 @@
 from ..base import BaseHandler
-from baselayer.app.access import permissions
+from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from ...models import DBSession, User, Group, GroupUser
 
@@ -15,6 +15,7 @@ def add_user_and_setup_groups(
     contact_email=None,
     roles=[],
     group_ids_and_admin=[],
+    oauth_uid=None,
 ):
     # Add user
     user = User(
@@ -24,6 +25,7 @@ def add_user_and_setup_groups(
         last_name=last_name,
         contact_phone=contact_phone,
         contact_email=contact_email,
+        oauth_uid=oauth_uid,
     )
     DBSession().add(user)
     DBSession().flush()
@@ -45,7 +47,7 @@ def add_user_and_setup_groups(
 
 
 class UserHandler(BaseHandler):
-    @permissions(["Manage users"])
+    @auth_or_token
     def get(self, user_id=None):
         """
         ---
@@ -125,6 +127,8 @@ class UserHandler(BaseHandler):
                     type: string
                   contact_email:
                     type: string
+                  oauth_uid:
+                    type: string
                   contact_phone:
                     type: string
                   roles:
@@ -172,6 +176,7 @@ class UserHandler(BaseHandler):
             last_name=data.get("last_name"),
             contact_phone=data.get("contact_phone"),
             contact_email=data.get("contact_email"),
+            oauth_uid=data.get("oauth_uid"),
             roles=roles,
             group_ids_and_admin=group_ids_and_admin,
         )

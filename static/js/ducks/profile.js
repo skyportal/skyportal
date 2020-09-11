@@ -25,14 +25,8 @@ export function updateUserPreferences(preferences) {
   });
 }
 
-export function updateBasicUserInfo(basicinfo) {
-  const { first_name, last_name, contact_email, contact_phone } = basicinfo;
-  return API.PATCH("/api/internal/profile", UPDATE_BASIC_USER_INFO, {
-    first_name,
-    last_name,
-    contact_email,
-    contact_phone,
-  });
+export function updateBasicUserInfo(formData) {
+  return API.PATCH("/api/internal/profile", UPDATE_BASIC_USER_INFO, formData);
 }
 
 export function fetchUserProfile() {
