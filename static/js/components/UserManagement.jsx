@@ -101,6 +101,7 @@ const UserManagement = () => {
                           );
                         }}
                         key={group.id}
+                        id={`deleteGroupUserButton_${user.id}_${group.id}`}
                       />
                     ))}
                 </TableCell>
@@ -112,6 +113,7 @@ const UserManagement = () => {
                         handleClickRemoveUserStreamAccess(user.id, stream.id);
                       }}
                       key={stream.id}
+                      id={`deleteStreamUserButton_${user.id}_${stream.id}`}
                     />
                   ))}
                 </TableCell>
