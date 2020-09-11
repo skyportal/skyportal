@@ -261,10 +261,9 @@ const Group = () => {
                     id={`${user.id}-admin-chip`}
                   >
                     <Chip label="Admin" size="small" color="secondary" />
-                    &nbsp;&nbsp;
                   </div>
                 )}
-                {isAdmin(currentUser) &&
+                {currentUser.acls?.includes("Manage users") &&
                   ((isAdmin(user) && numAdmins > 1) || !isAdmin(user)) && (
                     <ListItemSecondaryAction>
                       <IconButton
@@ -289,7 +288,9 @@ const Group = () => {
           <Divider />
           <div className={classes.paper}>
             {/*eslint-disable */}
-            {isAdmin(currentUser) && <NewGroupUserForm group_id={group.id} />}
+            {currentUser.acls?.includes("Manage users") && (
+              <NewGroupUserForm group_id={group.id} />
+            )}
             {/* eslint-enable */}
           </div>
         </AccordionDetails>

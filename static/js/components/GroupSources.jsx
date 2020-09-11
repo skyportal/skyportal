@@ -46,6 +46,7 @@ const GroupSources = ({ route }) => {
   const userColorTheme = useSelector(
     (state) => state.profile.preferences.theme
   );
+
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
@@ -160,11 +161,6 @@ const GroupSources = ({ route }) => {
             <Grid item>
               <Suspense fallback={<div>Loading plot...</div>}>
                 <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
-              </Suspense>
-            </Grid>
-            <Grid item>
-              <Suspense fallback={<div>Loading plot...</div>}>
-                <VegaPlot dataUrl={`/api/sources/${source.id}/spectra`} />
               </Suspense>
             </Grid>
             <Grid item>

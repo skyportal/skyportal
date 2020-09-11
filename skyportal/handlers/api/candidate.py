@@ -159,8 +159,12 @@ class CandidateHandler(BaseHandler):
             )
             if c is None:
                 return self.error("Invalid ID")
-            c.comments = c.get_comments_owned_by(self.current_user)
             candidate_info = c.to_dict()
+            candidate_info["comments"] = sorted(
+                c.get_comments_owned_by(self.current_user),
+                key=lambda x: x.created_at,
+                reverse=True,
+            )
             candidate_info["last_detected"] = c.last_detected
             candidate_info["gal_lon"] = c.gal_lon_deg
             candidate_info["gal_lat"] = c.gal_lat_deg
@@ -272,12 +276,13 @@ class CandidateHandler(BaseHandler):
         )
         candidate_list = []
         for obj in query_results["candidates"]:
-            obj.comments = obj.get_comments_owned_by(self.current_user)
             obj.is_source = (obj.id,) in matching_source_ids
             obj.passing_group_ids = [
                 f.group_id
                 for f in (
-                    Filter.query.filter(Filter.id.in_(user_accessible_filter_ids))
+                    DBSession()
+                    .query(Filter)
+                    .filter(Filter.id.in_(user_accessible_filter_ids))
                     .filter(
                         Filter.id.in_(
                             DBSession()
@@ -289,6 +294,11 @@ class CandidateHandler(BaseHandler):
                 )
             ]
             candidate_list.append(obj.to_dict())
+            candidate_list[-1]["comments"] = sorted(
+                obj.get_comments_owned_by(self.current_user),
+                key=lambda x: x.created_at,
+                reverse=True,
+            )
             candidate_list[-1]["last_detected"] = obj.last_detected
             candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
             candidate_list[-1]["gal_lon"] = obj.gal_lon_deg

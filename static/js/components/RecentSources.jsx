@@ -30,7 +30,8 @@ const useStyles = makeStyles(() => ({
     height: "auto",
     display: "block",
     "&:hover": {
-      transform: "scale(1.25)",
+      color: "rgba(255, 255, 255, 1)",
+      boxShadow: "0 5px 15px rgba(51, 52, 92, 0.6)",
     },
   },
   recentSourceListContainer: {
@@ -56,6 +57,7 @@ const useStyles = makeStyles(() => ({
     display: "flex",
     flexFlow: "column wrap",
     margin: "1rem 2rem",
+    flex: "0 1 50%",
   },
   recentSourceName: {
     fontSize: "1rem",
@@ -65,6 +67,7 @@ const useStyles = makeStyles(() => ({
   },
   quickViewButton: {
     visibility: "hidden",
+    textAlign: "center",
     display: "none",
   },
   recentSourceItemWithButton: {
@@ -73,7 +76,6 @@ const useStyles = makeStyles(() => ({
     justifyContent: "center",
     marginBottom: "1rem",
     marginLeft: "0.625rem",
-    alignItems: "center",
     transition: "all 0.3s ease",
     "&:hover": {
       backgroundColor: "#ddd",
