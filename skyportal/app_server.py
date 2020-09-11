@@ -124,7 +124,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/become_user(/.*)?', BecomeUserHandler),
         (r'/logout', LogoutHandler),
         # User-facing pages
-        (r'/.*', MainPageHandler)  # Route all frontend pages, such as
+        (r'/.*', MainPageHandler),  # Route all frontend pages, such as
         # `/source/g647ba`, through the main page.
         #
         # Refer to Main.jsx for routing info.
