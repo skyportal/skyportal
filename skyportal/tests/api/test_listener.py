@@ -74,7 +74,7 @@ def test_post_poorly_formatted_sedm_message(
 
 
 def test_post_message_about_unowned_request(
-    public_source_group2_followup_request, sedm_listener_token
+    public_source_group2_followup_request, sedm_listener_token, super_admin_token
 ):
 
     status, data = api(
@@ -82,9 +82,18 @@ def test_post_message_about_unowned_request(
         'facility',
         data={
             'followup_request_id': public_source_group2_followup_request.id,
-            'new_status': 'this should be rejected as the requesting user does not have access to this request',
+            'new_status': 'ok',
         },
         token=sedm_listener_token,
     )
 
-    assert status == 400
+    assert status == 200
+
+    status, data = api(
+        'GET',
+        f'followup_request/{public_source_group2_followup_request.id}',
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['data']['status'] == 'ok'

@@ -17,9 +17,7 @@ class FacilityMessageHandler(BaseHandler):
         if 'followup_request_id' not in data:
             return self.error('Missing required key "followup_request_id".')
 
-        request = FollowupRequest.get_if_owned_by(
-            int(data['followup_request_id']), user
-        )
+        request = FollowupRequest.query.get(int(data['followup_request_id']))
 
         if request is None:
             return self.error('Invalid request ID.')
