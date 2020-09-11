@@ -55,12 +55,13 @@ const UserManagement = () => {
     }
   };
 
-  const handleClickRemoveUserStreamAccess = async (user_id, group_id) => {
+  const handleClickRemoveUserStreamAccess = async (user_id, stream_id) => {
     const result = await dispatch(
-      streamsActions.deleteStreamUser({ user_id, group_id })
+      streamsActions.deleteStreamUser({ user_id, stream_id })
     );
     if (result.status === "success") {
       dispatch(showNotification("Stream access successfully revoked."));
+      dispatch(usersActions.fetchUsers());
     }
   };
 
