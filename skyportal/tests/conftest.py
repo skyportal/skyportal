@@ -446,6 +446,27 @@ def public_source_followup_request(public_group_sedm_allocation, public_source, 
 
 
 @pytest.fixture()
+def public_source_group2_followup_request(
+    public_group2_sedm_allocation, public_source_group2, user_two_groups
+):
+    fr = FollowupRequest(
+        obj=public_source_group2,
+        allocation=public_group2_sedm_allocation,
+        payload={
+            'priority': "5",
+            'start_date': '3020-09-01',
+            'end_date': '3022-09-01',
+            'observation_type': 'IFU',
+        },
+        requester_id=user_two_groups.id,
+    )
+
+    DBSession().add(fr)
+    DBSession().commit()
+    return fr
+
+
+@pytest.fixture()
 def sedm_listener_token(sedm, group_admin_user):
     token_id = create_token(
         ACLs=[sedm.listener_class.get_acl_id()],

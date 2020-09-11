@@ -27,6 +27,11 @@ def test_post_status_update_to_sedm_request(
     assert status == 200
     assert data['data']['status'] == new_status
 
+
+def test_post_status_update_to_request_without_listener_acl(
+    public_source_followup_request, view_only_token
+):
+
     status, data = api(
         'POST',
         'facility',
@@ -46,7 +51,7 @@ def test_post_status_update_to_sedm_request(
     )
 
     assert status == 200
-    assert data['data']['status'] == new_status
+    assert data['data']['status'] == public_source_followup_request.status
 
 
 def test_post_poorly_formatted_sedm_message(
@@ -61,6 +66,23 @@ def test_post_poorly_formatted_sedm_message(
             'followup_request_id': public_source_followup_request.id,
             'new_status': new_status,
             'superfluous_field': 'abcd',
+        },
+        token=sedm_listener_token,
+    )
+
+    assert status == 400
+
+
+def test_post_message_about_unowned_request(
+    public_source_group2_followup_request, sedm_listener_token
+):
+
+    status, data = api(
+        'POST',
+        'facility',
+        data={
+            'followup_request_id': public_source_group2_followup_request.id,
+            'new_status': 'this should be rejected as the requesting user does not have access to this request',
         },
         token=sedm_listener_token,
     )
