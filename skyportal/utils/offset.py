@@ -1,8 +1,6 @@
 import io
 import os
-from pathlib import Path
 import datetime
-import hashlib
 import warnings
 
 import pandas as pd
@@ -24,6 +22,8 @@ from astropy.wcs.utils import pixel_to_skycoord
 from astropy.io import fits
 from astropy.visualization import ImageNormalize, ZScaleInterval
 from reproject import reproject_adaptive
+
+from .cache import Cache
 
 from baselayer.log import make_log
 
@@ -401,70 +401,12 @@ def get_nearby_offset_stars(
     )
 
 
-class Cache:
-    def __init__(self, cache_dir, max_items):
-        cache_dir = Path(cache_dir)
-        if not cache_dir.is_dir():
-            cache_dir.mkdir()
-
-        self._cache_dir = Path(cache_dir)
-        self._max_items = max_items
-
-    def _hash_fn(self, fn):
-        m = hashlib.md5()
-        m.update(fn.encode('utf-8'))
-        return self._cache_dir / f'{m.hexdigest()}'
-
-    def __getitem__(self, name):
-        # Cache is disabled, return nothing
-        if self._max_items == 0:
-            return None
-
-        cache_file = self._hash_fn(name)
-        if not cache_file.exists():
-            return None
-
-        log(f"cache hit [{name}]")
-        cache_file.touch()  # Make newest in cache
-
-        return cache_file
-
-    def __setitem__(self, name, data):
-        # Cache is disabled, do not add entry
-        if self._max_items == 0:
-            return
-
-        fn = self._hash_fn(name)
-        with open(fn, 'wb') as f:
-            f.write(data)
-
-        log(f"cache save [{name}]")
-
-        self.clean_cache()
-
-    def clean_cache(self):
-        # Remove stale cache files
-        cached_files = [
-            (f.stat().st_mtime, f.absolute()) for f in self._cache_dir.glob('*')
-        ]
-        cached_files = sorted(cached_files, key=lambda x: x[0], reverse=True)
-        print('cached_files', cached_files)
-        # fmt: off
-        for t, f in cached_files[self._max_items:]:
-            try:
-                os.remove(f)
-                log(f'cache cleanup [{os.path.basename(f)}]')
-            except FileNotFoundError:
-                pass
-        # fmt: on
-
-
 def fits_image(
     center_ra,
     center_dec,
     imsize=4.0,
     image_source="desi",
-    cache_dir="./skyportal_image_cache/",
+    cache_dir="./cache/finder/",
     cache_max_items=5,
 ):
 
