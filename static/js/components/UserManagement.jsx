@@ -31,24 +31,16 @@ const UserManagement = () => {
     }
   }, [allUsers, dispatch]);
 
-  if (!currentUser.acls?.includes("System admin")) {
-    return <div>Access denied: Insufficient permissions.</div>;
-  }
-
   if (!allUsers?.length || !currentUser?.username?.length) {
-    console.log(
-      "!allUsers?.length:",
-      !allUsers?.length,
-      "!currentUser?.username?.length",
-      !currentUser?.username?.length
-    );
-    console.log("allUsers:", allUsers);
-    console.log("currentUser:", currentUser);
     return (
       <div>
         <CircularProgress />
       </div>
     );
+  }
+
+  if (!currentUser.acls?.includes("System admin")) {
+    return <div>Access denied: Insufficient permissions.</div>;
   }
 
   const handleClickRemoveUserFromGroup = async (username, group_id) => {
@@ -65,7 +57,7 @@ const UserManagement = () => {
 
   const handleClickRemoveUserStreamAccess = async (user_id, group_id) => {
     const result = await dispatch(
-      streamsActions.deleteUserStream({ user_id, group_id })
+      streamsActions.deleteStreamUser({ user_id, group_id })
     );
     if (result.status === "success") {
       dispatch(showNotification("Stream access successfully revoked."));
