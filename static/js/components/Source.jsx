@@ -106,7 +106,10 @@ const Source = ({ route }) => {
         <b>Redshift: &nbsp;</b>
         {source.redshift}
         &nbsp;|&nbsp;
-        <Button href={`/api/sources/${source.id}/finder`}>
+        <Button
+          href={`/api/sources/${source.id}/finder`}
+          download="finder-chart-pdf"
+        >
           PDF Finding Chart
         </Button>
         &nbsp;|&nbsp;
