@@ -40,7 +40,7 @@ const UpdateProfileForm = () => {
       username: profile.username,
       firstName: profile.first_name,
       lastName: profile.last_name,
-      email: profile.contact_email ? profile.contact_email : profile.username,
+      email: profile.contact_email,
       phone: profile.contact_phone,
     });
   }, [reset, profile]);
