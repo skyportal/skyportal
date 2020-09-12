@@ -155,8 +155,8 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
                 # Populate the extra_data field in the social record with the values
                 # specified by settings (and the default ones like access_token, etc).
                 'social_core.pipeline.social_auth.load_extra_data',
-                # Update the user record with any changed info from the auth service.
-                'social_core.pipeline.user.user_details',
+                # Update the user record with info from the auth service only if blank
+                'skyportal.onboarding.user_details',
                 'skyportal.onboarding.setup_invited_user_permissions',
             ),
             'SOCIAL_AUTH_NEW_USER_REDIRECT_URL': '/profile?newUser=true',
