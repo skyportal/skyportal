@@ -116,7 +116,7 @@ def add_followup_request_using_frontend_and_verify(
         f'//table[@id="followupRequestTable_{idata["id"]}"]//td[contains(., "Mix \'n Match")]'
     )
     driver.wait_for_xpath(
-        f'''//table[@id="followupRequestTable_{idata["id"]}")]//td[contains(., "u,IFU")]'''
+        f'''//table[@id="followupRequestTable_{idata["id"]}"]//td[contains(., "u,IFU")]'''
     )
     driver.wait_for_xpath(
         f'''//table[@id="followupRequestTable_{idata["id"]}"]//td[contains(., "1")]'''
@@ -162,13 +162,13 @@ def test_edit_existing_followup_request(
     driver.scroll_to_element_and_click(submit_button)
 
     driver.wait_for_xpath(
-        '//table[contains(@class, "followupRequestTable")]//td[contains(., "IFU")]'
+        '//table[contains(@id, "followupRequestTable")]//td[contains(., "IFU")]'
     )
     driver.wait_for_xpath(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "1")]'''
+        '''//table[contains(@id, "followupRequestTable")]//td[contains(., "1")]'''
     )
     driver.wait_for_xpath(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "submitted")]'''
+        '''//table[contains(@id, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
 
 
@@ -184,11 +184,11 @@ def test_delete_followup_request(
     driver.scroll_to_element_and_click(delete_button)
 
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "u,IFU")]'''
+        '''//table[contains(@id, "followupRequestTable")]//td[contains(., "u,IFU")]'''
     )
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "1")]'''
+        '''//table[contains(@id, "followupRequestTable")]//td[contains(., "1")]'''
     )
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "submitted")]'''
+        '''//table[contains(@id, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
