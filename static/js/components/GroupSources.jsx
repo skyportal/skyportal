@@ -22,7 +22,7 @@ import dayjs from "dayjs";
 
 import { ra_to_hours, dec_to_hours } from "../units";
 import * as SourcesAction from "../ducks/sources";
-import styles from "./GroupSources.css";
+// import styles from "./GroupSources.css";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
@@ -32,6 +32,84 @@ const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const useStyles = makeStyles((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
+  },
+  source: {},
+  commentContent: {
+    display: "flex",
+    flexFlow: "column nowrap",
+    padding: "0.3125rem 0.625rem 0.3125rem 0.875rem",
+    borderRadius: "15px",
+  },
+  comment: {
+    fontSize: "90%",
+    display: "flex",
+    flexDirection: "row",
+    padding: "0.125rem",
+    marginBottom: "0.125rem",
+    marginRight: "0.125rem",
+    borderRadius: "1rem",
+    "& > commentContent": {
+      backgroundColor: "#e0e0e0",
+    },
+    "&:hover": {
+      backgroundColor: "#e0e0e0",
+    },
+  },
+  commentDark: {
+    fontSize: "90%",
+    display: "flex",
+    flexDirection: "row",
+    padding: "0.125rem",
+    marginBottom: "0.125rem",
+    marginRight: "0.125rem",
+    borderRadius: "1rem",
+    "& > commentContent": {
+      backgroundColor: "#3a3a3a",
+    },
+    "&:hover": {
+      backgroundColor: "#3a3a3a",
+    },
+  },
+  commentHeader: {
+    flexGrow: 4,
+    paddingTop: "0.5rem",
+    paddingBottom: "0.5rem",
+    maxWidth: "25rem",
+  },
+  commentUser: {},
+  commentUserName: {
+    fontWeight: "bold",
+    marginRight: "0.5rem",
+  },
+  commentTime: {
+    color: "gray",
+    fontSize: "80%",
+    marginRight: "1rem",
+  },
+  commentUserGroup: {
+    display: "inline-block",
+  },
+  "& > svg": {
+    fontSize: "1rem",
+  },
+  commentMessage: {
+    maxWidth: "20rem",
+  },
+  commentUserAvatar: {
+    display: "block",
+    margin: "0.5rem",
+  },
+  commentsList: {
+    overflowY: "scroll",
+    maxHeight: "350px",
+  },
+  wrap: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    minHeight: "27px",
+    maxWidth: "20rem",
   },
 }));
 
@@ -48,7 +126,7 @@ const GroupSources = ({ route }) => {
   );
 
   const commentStyle =
-    userColorTheme === "dark" ? styles.commentDark : styles.comment;
+    userColorTheme === "dark" ? classes.commentDark : classes.comment;
 
   // Load the group sources
   useEffect(() => {
@@ -93,7 +171,7 @@ const GroupSources = ({ route }) => {
       }) => {
         return (
           <span key={id} className={commentStyle}>
-            <div className={styles.commentUserAvatar}>
+            <div className={classes.commentUserAvatar}>
               <UserAvatar
                 size={24}
                 firstName={author_info.first_name}
@@ -102,17 +180,17 @@ const GroupSources = ({ route }) => {
                 gravatarUrl={author_info.gravatar_url}
               />
             </div>
-            <div className={styles.commentContent}>
-              <div className={styles.commentHeader}>
-                <span className={styles.commentUser}>
-                  <span className={styles.commentUserName}>
+            <div className={classes.commentContent}>
+              <div className={classes.commentHeader}>
+                <span className={classes.commentUser}>
+                  <span className={classes.commentUserName}>
                     {author.username}
                   </span>
                 </span>
-                <span className={styles.commentTime}>
+                <span className={classes.commentTime}>
                   {dayjs().to(dayjs.utc(`${created_at}Z`))}
                 </span>
-                <div className={styles.commentUserGroup}>
+                <div className={classes.commentUserGroup}>
                   <Tooltip
                     title={comment_groups.map((group) => group.name).join(", ")}
                   >
@@ -120,8 +198,8 @@ const GroupSources = ({ route }) => {
                   </Tooltip>
                 </div>
               </div>
-              <div className={styles.wrap} name={`commentDiv${id}`}>
-                <div className={styles.commentMessage}>{text}</div>
+              <div className={classes.wrap} name={`commentDiv${id}`}>
+                <div className={classes.commentMessage}>{text}</div>
               </div>
               <span>
                 {attachment_name && (
@@ -164,7 +242,7 @@ const GroupSources = ({ route }) => {
               </Suspense>
             </Grid>
             <Grid item>
-              <div className={styles.commentsList}>{items}</div>
+              <div className={classes.commentsList}>{items}</div>
             </Grid>
             <Grid item>
               <Suspense fallback={<div>Loading classifications</div>}>
@@ -306,7 +384,7 @@ const GroupSources = ({ route }) => {
   ]);
 
   return (
-    <div className={styles.source}>
+    <div className={classes.source}>
       <div>
         <Grid
           container
