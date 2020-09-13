@@ -113,16 +113,16 @@ def add_followup_request_using_frontend_and_verify(
     driver.scroll_to_element_and_click(submit_button)
 
     driver.wait_for_xpath(
-        f'//table[@id="followupRequestTable_{idata["id"]}"]//td[contains(., "Mix \'n Match")]'
+        f'//table[contains(@id, "followupRequestTable")]//td[contains(., "Mix \'n Match")]'
     )
     driver.wait_for_xpath(
-        f'''//table[@id="followupRequestTable_{idata["id"]}"]//td[contains(., "u,IFU")]'''
+        f'''//table[contains(@id, "followupRequestTable")]//td[contains(., "u,IFU")]'''
     )
     driver.wait_for_xpath(
-        f'''//table[@id="followupRequestTable_{idata["id"]}"]//td[contains(., "1")]'''
+        f'''//table[contains(@id, "followupRequestTable")]//td[contains(., "1")]'''
     )
     driver.wait_for_xpath(
-        f'''//table[@id="followupRequestTable_{idata["id"]}"]//td[contains(., "submitted")]'''
+        f'''//table[contains(@id, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
 
 
