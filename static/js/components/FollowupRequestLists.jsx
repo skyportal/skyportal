@@ -70,7 +70,10 @@ const FollowupRequestLists = ({
         return (
           <div key={`instrument_${instrument_id}_table_div`}>
             <h3>{instLookUp[instrument_id].name} Requests</h3>
-            <table className={classes.followupRequestTable}>
+            <table
+              className={classes.followupRequestTable}
+              id={`followupRequestTable_${instrument_id}`}
+            >
               <thead>
                 <td>Requester</td>
                 <td>Allocation</td>
