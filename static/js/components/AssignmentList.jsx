@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import * as Actions from "../ducks/source";
@@ -15,20 +15,21 @@ const AssignmentList = ({ assignments }) => {
   const { users } = useSelector((state) => state);
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { instrumentList } = useSelector((state) => state.instruments);
+  const [loadingUsers, setLoadingUsers] = useState([]);
 
   // fetch all the requester ids before rendering the component
   const requesterIDs = assignments.map((assignment) => assignment.requester_id);
-  const uniqueRequesterIDs = [...new Set(requesterIDs)];
-  uniqueRequesterIDs.sort((a, b) => a - b);
 
   // use useEffect to only send 1 fetchUser per User
   useEffect(() => {
-    uniqueRequesterIDs.forEach((id) => {
-      if (!users[id]) {
+    requesterIDs.forEach((id) => {
+      if (!users[id] && !loadingUsers.includes(id)) {
         dispatch(UserActions.fetchUser(id));
+        loadingUsers.push(id);
+        setLoadingUsers(loadingUsers);
       }
     });
-  }, [...uniqueRequesterIDs, users, dispatch]);
+  }, [requesterIDs, users, dispatch]);
 
   if (assignments.length === 0) {
     return <b>No assignments to show for this object...</b>;
