@@ -1,11 +1,18 @@
 import messageHandler from "baselayer/MessageHandler";
 
 import * as API from "../API";
+import fetchCandidate from "./candidate";
 import store from "../store";
 
 export const FETCH_CANDIDATES = "skyportal/FETCH_CANDIDATES";
 export const FETCH_CANDIDATES_OK = "skyportal/FETCH_CANDIDATES_OK";
 export const FETCH_CANDIDATES_FAIL = "skyportal/FETCH_CANDIDATES_FAIL";
+
+export const FETCH_CANDIDATE_AND_MERGE = "skyportal/FETCH_CANDIDATE_AND_MERGE";
+export const FETCH_CANDIDATE_AND_MERGE_OK =
+  "skyportal/FETCH_CANDIDATE_AND_MERGE_OK";
+
+export const REFRESH_CANDIDATE = "skyportal/REFRESH_CANDIDATE";
 
 export const fetchCandidates = (filterParams = {}) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
@@ -22,6 +29,8 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     const { candidates } = getState();
     const pageNumber = candidates.pageNumber ? candidates.pageNumber : 1;
     dispatch(fetchCandidates({ pageNumber }));
+  } else if (actionType === REFRESH_CANDIDATE) {
+    dispatch(fetchCandidate(payload.id, FETCH_CANDIDATE_AND_MERGE));
   }
 });
 
@@ -54,6 +63,12 @@ const reducer = (state = initialState, action) => {
         numberingStart,
         numberingEnd,
       };
+    }
+    case FETCH_CANDIDATE_AND_MERGE_OK: {
+      const candidates = state.candidates.map((candidate) =>
+        candidate.id !== action.data.id ? candidate : action.data
+      );
+      return { ...state, candidates };
     }
     default:
       return state;

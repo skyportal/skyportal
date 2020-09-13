@@ -675,6 +675,15 @@ Source.unsaved_by = relationship(
     "User", foreign_keys=[Source.unsaved_by_id], doc="User who unsaved the Source."
 )
 
+Obj.sources = relationship(
+    Source, back_populates='obj', doc="Instances in which a group saved this Obj."
+)
+Obj.candidates = relationship(
+    Candidate,
+    back_populates='obj',
+    doc="Instances in which this Obj passed a group's filter.",
+)
+
 
 def source_is_owned_by(self, user_or_token):
     """Return a boolean indicating whether the Source has been saved to

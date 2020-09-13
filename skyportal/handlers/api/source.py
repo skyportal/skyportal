@@ -394,7 +394,7 @@ class SourceHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(action="skyportal/FETCH_SOURCES")
-        self.push_all(action="skyportal/FETCH_CANDIDATES")
+        self.push_all(action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.id})
         self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
         return self.success(data={"id": obj.id})
 
