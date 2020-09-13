@@ -128,6 +128,9 @@ def add_followup_request_using_frontend_and_verify(
     time.sleep(1)
     driver.save_screenshot('test_8.png')
 
+    with open("test_9.png", "w") as f:
+        f.write(driver.page_source)
+
     driver.wait_for_xpath(
         '//table[contains(@class, "followupRequestTable")]//td[contains(., "Mix \'n Match")]'
     )
