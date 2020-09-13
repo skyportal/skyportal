@@ -72,7 +72,7 @@ const FollowupRequestLists = ({
             <h3>{instLookUp[instrument_id].name} Requests</h3>
             <table
               className={classes.followupRequestTable}
-              id={`followupRequestTable_${instrument_id}`}
+              data-testid={`followupRequestTable_${instrument_id}`}
             >
               <thead>
                 <td>Requester</td>
