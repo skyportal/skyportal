@@ -77,7 +77,7 @@ def test_add_basic_user_info(manage_groups_token, manage_users_token):
         token=manage_users_token,
     )
     assert status == 400
-    assert "did not seem to be a phone number" in data["message"]
+    assert "Could not parse input" in data["message"]
 
 
 def test_add_delete_user_adds_deletes_single_user_group(

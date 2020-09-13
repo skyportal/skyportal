@@ -8,13 +8,13 @@ log = make_log('cache')
 
 
 class Cache:
-    def __init__(self, cache_dir, max_items):
+    def __init__(self, cache_dir, max_items=10):
         """
         Parameters
         ----------
         cache_dir : Path or str
             Path to cache.  Will be created if necessary.
-        max_items : int
+        max_items : int, optional
             Maximum number of items ever held in the cache.
         """
         cache_dir = Path(cache_dir)

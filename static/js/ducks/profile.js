@@ -54,7 +54,7 @@ const initialState = {
   last_name: null,
   contact_email: null,
   contact_phone: null,
-  gravatar_url: "https://www.gravatar.com/avatar/0000000?d=404",
+  gravatar_url: "",
   roles: [],
   acls: [],
   tokens: [],
