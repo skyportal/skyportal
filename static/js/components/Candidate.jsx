@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 
-import * as Actions from "../ducks/candidate";
+import fetchCandidate from "../ducks/candidate";
 import Plot from "./Plot";
 import CommentList from "./CommentList";
 import ThumbnailList from "./ThumbnailList";
@@ -21,12 +21,12 @@ const Candidate = ({ route }) => {
   const isCached = route.id === cachedCandidateId;
 
   useEffect(() => {
-    const fetchCandidate = () => {
-      dispatch(Actions.fetchCandidate(route.id));
+    const retrieveCandidate = () => {
+      dispatch(fetchCandidate(route.id));
     };
 
     if (!isCached) {
-      fetchCandidate();
+      retrieveCandidate();
     }
   }, [dispatch, isCached, route.id]);
 
