@@ -1,14 +1,16 @@
 from skyportal.tests import api
 
 
-def test_bulk_delete_photometry(upload_data_token, public_source, public_group):
+def test_bulk_delete_photometry(
+    upload_data_token, public_source, public_group, ztf_camera
+):
     status, data = api(
         "POST",
         "photometry",
         data={
             "obj_id": str(public_source.id),
             "mjd": [58000.0, 58001.0, 58002.0],
-            "instrument_id": 1,
+            "instrument_id": ztf_camera.id,
             "flux": [12.24, 12.52, 12.70],
             "fluxerr": [0.031, 0.029, 0.030],
             "filter": ["ztfg", "ztfg", "ztfg"],
