@@ -8,6 +8,8 @@ import { makeStyles } from "@material-ui/core/styles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
+import emoji from "emoji-dictionary";
+import ReactMarkdown from "react-markdown";
 
 import styles from "./CommentList.css";
 import UserAvatar from "./UserAvatar";
@@ -33,6 +35,9 @@ const CandidateCommentList = ({ comments }) => {
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
+  const emojiSupport = (text) =>
+    text.value.replace(/:\w+:/gi, (name) => emoji.getUnicode(name));
+
   const items = comments.map(
     ({ id, author, author_info, created_at, text }) => {
       return (
@@ -49,7 +54,12 @@ const CandidateCommentList = ({ comments }) => {
             </div>
           </Tooltip>
           <div className={styles.commentContent}>
-            <span className={styles.commentMessage}>{text}</span>
+            <ReactMarkdown
+              source={text}
+              escapeHtml={false}
+              className={styles.commentMessage}
+              renderers={{ text: emojiSupport }}
+            />
             <span className={styles.commentTime}>
               {dayjs().to(dayjs.utc(`${created_at}Z`))}
             </span>

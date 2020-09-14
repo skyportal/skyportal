@@ -54,6 +54,10 @@
   max-width: 20em;
 }
 
+.commentMessage > p {
+  margin: 0;
+}
+
 .commentUserName {
   font-weight: bold;
   margin-right: 0.5em;

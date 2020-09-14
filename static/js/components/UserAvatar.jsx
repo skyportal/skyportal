@@ -1,10 +1,26 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { createMuiTheme } from "@material-ui/core/styles";
+import { makeStyles } from "@material-ui/core/styles";
 
 import Avatar from "@material-ui/core/Avatar";
 
-const theme = createMuiTheme({});
+const useStyles = makeStyles((theme) => ({
+  avatar: (props) => ({
+    width: props.size,
+    height: props.size,
+    backgroundColor: props.usercolor,
+    "&:after": {
+      content: `"${props.backUpLetters}"`,
+      color: theme.palette.getContrastText(props.usercolor),
+      fontWeight: "bold",
+      fontSize: `${Math.max(parseInt(parseFloat(props.size) / 3, 10), 10)}px`,
+      position: "absolute",
+    },
+  }),
+  avatarImg: {
+    zIndex: 5,
+  },
+}));
 
 const UserAvatar = ({ size, firstName, lastName, username, gravatarUrl }) => {
   // use the hash of the username (which is in the gravatarUrl) to
@@ -26,21 +42,19 @@ const UserAvatar = ({ size, firstName, lastName, username, gravatarUrl }) => {
       ? username.slice(0, 2)
       : `${firstName?.charAt(0)}${lastName?.charAt(0)}`;
 
+  const props = { size, usercolor, backUpLetters };
+  const classes = useStyles(props);
+
   return (
     <Avatar
       alt={backUpLetters}
       src={`${gravatarUrl}&s=${size}`}
       size={size}
-      style={{
-        width: size,
-        height: size,
-        backgroundColor: usercolor,
-        color: theme.palette.getContrastText(usercolor),
-        fontSize: `${Math.max(parseInt(parseFloat(size) / 3, 10), 10)}px`,
+      classes={{
+        root: classes.avatar,
+        img: classes.avatarImg,
       }}
-    >
-      {backUpLetters}
-    </Avatar>
+    />
   );
 };
 
