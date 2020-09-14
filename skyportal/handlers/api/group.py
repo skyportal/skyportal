@@ -21,6 +21,17 @@ from ...models import (
 _, cfg = load_env()
 
 
+def has_admin_access_for_group(user, group_id):
+    groupuser = (
+        GroupUser.query.filter(GroupUser.group_id == group_id)
+        .filter(GroupUser.user_id == user.id)
+        .first()
+    )
+    return {"System admin", "Manage users", "Manage groups"}.intersection(
+        set(user.permissions)
+    ) or groupuser.admin
+
+
 class GroupHandler(BaseHandler):
     @auth_or_token
     def get(self, group_id=None):
@@ -110,7 +121,7 @@ class GroupHandler(BaseHandler):
                   schema: Error
         """
         if group_id is not None:
-            if 'Manage groups' in [acl.id for acl in self.current_user.acls]:
+            if has_admin_access_for_group(self.associated_user_object, group_id):
                 group = (
                     Group.query.options(joinedload(Group.users))
                     .options(joinedload(Group.group_users))
@@ -308,7 +319,7 @@ class GroupHandler(BaseHandler):
 
 
 class GroupUserHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["Manage users"])
     def post(self, group_id, *ignored_args):
         """
         ---
@@ -354,20 +365,7 @@ class GroupUserHandler(BaseHandler):
                               type: boolean
                               description: Boolean indicating whether user is group admin
         """
-        current_groupuser = (
-            GroupUser.query.filter(GroupUser.group_id == group_id)
-            .filter(GroupUser.user_id == self.associated_user_object.id)
-            .first()
-        )
-        if (
-            len(
-                {"System admin", "Manage users", "Manage groups"}.intersection(
-                    set(self.current_user.permissions)
-                )
-            )
-            == 0
-            and not current_groupuser.admin
-        ):
+        if not has_admin_access_for_group(self.associated_user_object, group_id):
             return self.error("Inadequate permissions.")
 
         data = self.get_json()
@@ -432,7 +430,7 @@ class GroupUserHandler(BaseHandler):
             data={'group_id': group_id, 'user_id': user_id, 'admin': admin}
         )
 
-    @auth_or_token
+    @permissions(["Manage users"])
     def delete(self, group_id, username):
         """
         ---
@@ -454,20 +452,7 @@ class GroupUserHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        current_groupuser = (
-            GroupUser.query.filter(GroupUser.group_id == group_id)
-            .filter(GroupUser.user_id == self.associated_user_object.id)
-            .first()
-        )
-        if (
-            len(
-                {"System admin", "Manage users", "Manage groups"}.intersection(
-                    set(self.current_user.permissions)
-                )
-            )
-            == 0
-            and not current_groupuser.admin
-        ):
+        if not has_admin_access_for_group(self.associated_user_object, group_id):
             return self.error("Inadequate permissions.")
 
         group = Group.query.get(group_id)

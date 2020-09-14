@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
 from ...base import BaseHandler
-from ....models import User, DBSession
+from ....models import User, DBSession, Group
 
 
 class ProfileHandler(BaseHandler):
@@ -142,6 +142,8 @@ class ProfileHandler(BaseHandler):
         """
         data = self.get_json()
         user = User.query.get(self.current_user.id)
+        current_username = self.current_user.username
+        username_updated = False
 
         if data.get("username") is not None:
             username = data.pop("username").strip()
@@ -150,6 +152,16 @@ class ProfileHandler(BaseHandler):
             if len(username) < 5:
                 return self.error("Username must be at least five characters long.")
             user.username = username
+            if current_username != username:
+                user_group = (
+                    DBSession()
+                    .query(Group)
+                    .filter(Group.name == current_username)
+                    .first()
+                )
+                if user_group is not None:
+                    user_group.name = username
+                username_updated = True
 
         if data.get("first_name") is not None:
             user.first_name = data.pop("first_name")
@@ -215,5 +227,8 @@ class ProfileHandler(BaseHandler):
             self.push(action="skyportal/FETCH_RECENT_SOURCES")
         if "sourceCounts" in preferences:
             self.push(action="skyportal/FETCH_SOURCE_COUNTS")
+        if username_updated:
+            self.push_all(action="skyportal/FETCH_GROUPS")
+            self.push_all(action="skyportal/FETCH_USERS")
 
         return self.success(action="skyportal/FETCH_USER_PROFILE")

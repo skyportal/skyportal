@@ -1,5 +1,9 @@
+import phonenumbers
+from phonenumbers.phonenumberutil import NumberParseException
+from validate_email import validate_email
+
 from ..base import BaseHandler
-from baselayer.app.access import permissions
+from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from ...models import DBSession, User, Group, GroupUser
 
@@ -47,7 +51,7 @@ def add_user_and_setup_groups(
 
 
 class UserHandler(BaseHandler):
-    @permissions(["Manage users"])
+    @auth_or_token
     def get(self, user_id=None):
         """
         ---
@@ -170,12 +174,37 @@ class UserHandler(BaseHandler):
         roles = data.get("roles", ["Full user"])
         group_ids_and_admin = data.get("groupIDsAndAdmin", [])
 
+        phone = data.get("contact_phone")
+        if phone not in [None, ""]:
+            try:
+                if not phonenumbers.is_possible_number(phonenumbers.parse(phone, "US")):
+                    return self.error("Phone number given is not valid")
+            except NumberParseException:
+                return self.error("Could not parse input as a phone number")
+            contact_phone = phone
+        else:
+            contact_phone = None
+
+        email = data.get("contact_email")
+        if email not in [None, ""]:
+            if not validate_email(
+                email_address=email,
+                check_regex=True,
+                check_mx=False,
+                use_blacklist=True,
+                debug=False,
+            ):
+                return self.error("Email does not appear to be valid")
+            contact_email = email
+        else:
+            contact_email = None
+
         user_id = add_user_and_setup_groups(
             username=data["username"],
             first_name=data.get("first_name"),
             last_name=data.get("last_name"),
-            contact_phone=data.get("contact_phone"),
-            contact_email=data.get("contact_email"),
+            contact_phone=contact_phone,
+            contact_email=contact_email,
             oauth_uid=data.get("oauth_uid"),
             roles=roles,
             group_ids_and_admin=group_ids_and_admin,

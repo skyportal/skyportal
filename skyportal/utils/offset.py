@@ -1,12 +1,11 @@
 import io
 import os
-from pathlib import Path
 import datetime
-import hashlib
 import warnings
 
 import pandas as pd
 import requests
+import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
@@ -23,6 +22,12 @@ from astropy.wcs.utils import pixel_to_skycoord
 from astropy.io import fits
 from astropy.visualization import ImageNormalize, ZScaleInterval
 from reproject import reproject_adaptive
+
+from .cache import Cache
+
+from baselayer.log import make_log
+
+log = make_log('finder-chart')
 
 warnings.simplefilter('ignore', category=AstropyWarning)
 
@@ -52,6 +57,15 @@ irsa = {
     "url_data": "https://irsa.ipac.caltech.edu/ibe/data/ztf/products/",
     "url_search": "https://irsa.ipac.caltech.edu/ibe/search/ztf/products/",
 }
+
+
+def get_url(*args, **kwargs):
+    # Connect and read timeouts
+    kwargs['timeout'] = (6.05, 20)
+    try:
+        return requests.get(*args, **kwargs)
+    except requests.exceptions.RequestException:
+        return None
 
 
 def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
@@ -86,7 +100,11 @@ def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
     url_ref_meta = os.path.join(
         irsa['url_search'], f"ref?POS={ra:f},{dec:f}&SIZE={imsize_deg:f}&ct=csv"
     )
-    s = requests.get(url_ref_meta).content
+    r = get_url(url_ref_meta)
+    if r is None:
+        return ''
+
+    s = r.content
     c = pd.read_csv(io.StringIO(s.decode('utf-8')))
 
     field = f"{c.loc[0, 'field']:06d}"
@@ -318,7 +336,7 @@ def get_nearby_offset_stars(
             basename = source_name
 
     else:
-        print("Warning: Do not recognize this starlist format. Using Keck.")
+        log("Warning: Do not recognize this starlist format. Using Keck.")
 
     basename = basename.strip().replace(" ", "")
     space = " "
@@ -388,9 +406,8 @@ def fits_image(
     center_dec,
     imsize=4.0,
     image_source="desi",
-    cache=True,
-    cachedir="./skyportal_image_cache/",
-    max_cache=5,
+    cache_dir="./cache/finder/",
+    cache_max_items=5,
 ):
 
     """Returns an opened FITS image centered on the source
@@ -406,12 +423,11 @@ def fits_image(
         Requested image size (on a size) in arcmin
     image_source : str, optional
         Survey where the image comes from "desi" or "dss" (more to be added)
-    cache : bool, optional
-        Use a cache version of the image and save to a cache if True
-    cachedir : str, optional
+    cache_dir : str, optional
         Where should the cache live?
-    max_cache : int, optional
-        How many older files in the cache should we keep?
+    cache_max_items : int, optional
+        How many older files in the cache should we keep?  Set to zero
+        to disable cache.
 
     Returns
     -------
@@ -436,51 +452,37 @@ def fits_image(
             ra=center_ra, dec=center_dec, imsize=imsize
         )
 
-    cachedir = Path(cachedir)
-    if not cachedir.is_dir():
-        cachedir.mkdir()
+    cache = Cache(cache_dir=cache_dir, max_items=cache_max_items)
 
     def get_hdu(url):
-        response = requests.get(url, stream=True, allow_redirects=True)
-        if response.status_code == 200:
-            hdu = fits.open(io.BytesIO(response.content))[0]
-            return hdu
-        else:
+        """Try to get HDU from cache, otherwise fetch.
+        """
+        hash_name = f'{center_ra}{center_dec}{imsize}{image_source}'
+        hdu_fn = cache[hash_name]
+
+        # Found entry in cache, return that
+        if hdu_fn is not None:
+            return fits.open(hdu_fn)[0]
+
+        response = get_url(url, stream=True, allow_redirects=True)
+        if response is None or response.status_code != 200:
             return None
 
-    if cache:
-        m = hashlib.md5()
-        m.update(f"{center_ra}{center_dec}{imsize}{image_source}".encode('utf-8'))
-        hash_name = "image" + m.hexdigest()
-        image_file = cachedir / hash_name
-        if image_file.exists():
-            print("Opening cached image")
-            image_file.touch()
-            hdu = fits.open(image_file)[0]
-        else:
-            hdu = get_hdu(url)
-            if np.count_nonzero(hdu.data) > 0:
-                hdu.writeto(image_file)
-            else:
-                hdu = None
+        # Check if HDU is a valid FITS file
+        hdu = fits.open(io.BytesIO(response.content))[0]
 
-        if max_cache > 1:
-            cached_files = []
-            for item in Path(cachedir).glob('*'):
-                if item.is_file():
-                    cached_files.append((item.stat().st_mtime, item.name))
-            if len(cached_files) > max_cache:
-                for t, f in cached_files[-max_cache:]:
-                    try:
-                        os.remove(cachedir / f)
-                    except FileNotFoundError:
-                        pass
-    else:
-        hdu = get_hdu(url)
-        if np.count_nonzero(hdu.data) > 0:
-            hdu = None
+        # Ensure it is not empty
+        if np.count_nonzero(hdu.data) == 0:
+            return None
 
-    return hdu
+        # Save a copy in cache and return
+        buf = io.BytesIO()
+        hdu.writeto(buf)
+        buf.seek(0)
+        cache[hash_name] = buf.read()
+        return hdu
+
+    return get_hdu(url)
 
 
 def get_finding_chart(
@@ -553,6 +555,7 @@ def get_finding_chart(
             'name': '',
         }
 
+    matplotlib.use("Agg")
     fig = plt.figure(figsize=(11, 8.5), constrained_layout=False)
     widths = [2.6, 1]
     heights = [2.6, 1]
@@ -593,7 +596,7 @@ def get_finding_chart(
         im[np.isnan(im)] = np.nanmedian(im)
         if source_image_parameters[image_source].get("reproject", False):
             # project image to the skeleton WCS solution
-            print("Reprojecting image to requested position and orientation")
+            log("Reprojecting image to requested position and orientation")
             im, _ = reproject_adaptive(hdu, wcs, shape_out=(npixels, npixels))
         else:
             wcs = WCS(hdu.header)
@@ -611,7 +614,7 @@ def get_finding_chart(
         # and return the results from that call
         if fallback_image_source is not None:
             if fallback_image_source != image_source:
-                print(f"Falling back on image source {fallback_image_source}")
+                log(f"Falling back on image source {fallback_image_source}")
                 return get_finding_chart(
                     source_ra,
                     source_dec,
