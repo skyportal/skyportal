@@ -319,7 +319,7 @@ class GroupHandler(BaseHandler):
 
 
 class GroupUserHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["Manage users"])
     def post(self, group_id, *ignored_args):
         """
         ---
@@ -430,7 +430,7 @@ class GroupUserHandler(BaseHandler):
             data={'group_id': group_id, 'user_id': user_id, 'admin': admin}
         )
 
-    @auth_or_token
+    @permissions(["Manage users"])
     def delete(self, group_id, username):
         """
         ---

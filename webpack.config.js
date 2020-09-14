@@ -101,7 +101,7 @@ const config = {
         "node_modules/react-resizable/css"
       ),
     },
-    extensions: [".js", ".jsx"],
+    extensions: [".js", ".jsx", ".json"],
   },
   watchOptions: {
     ignored: /node_modules/,

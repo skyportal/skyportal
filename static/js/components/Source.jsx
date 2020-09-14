@@ -99,14 +99,17 @@ const Source = ({ route }) => {
         &nbsp; (&alpha;,&delta;=
         {ra_to_hours(source.ra)}, &nbsp;
         {dec_to_hours(source.dec)}) &nbsp; (l,b=
-        {source.gal_lon.toFixed(1)}, &nbsp;
-        {source.gal_lat.toFixed(1)}
+        {source.gal_lon.toFixed(6)}, &nbsp;
+        {source.gal_lat.toFixed(6)}
         )
         <br />
         <b>Redshift: &nbsp;</b>
         {source.redshift}
         &nbsp;|&nbsp;
-        <Button href={`/api/sources/${source.id}/finder`}>
+        <Button
+          href={`/api/sources/${source.id}/finder`}
+          download="finder-chart-pdf"
+        >
           PDF Finding Chart
         </Button>
         &nbsp;|&nbsp;
