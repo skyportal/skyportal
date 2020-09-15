@@ -8,6 +8,7 @@ from .facility_listener import FacilityMessageHandler
 from .group import GroupHandler, GroupUserHandler, GroupStreamHandler
 from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler
+from .invitations import InvitationHandler
 from .news_feed import NewsFeedHandler
 from .observingrun import ObservingRunHandler
 from .photometry import (
