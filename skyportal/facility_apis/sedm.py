@@ -22,8 +22,8 @@ class SEDMListener(Listener):
 
         Parameters
         ----------
-        message: skyportal.models.FacilityTransaction
-           The message sent by the remote facility.
+        message: skyportal.handlers.FacilityMessageHandler
+           The instance of the handler that received the request.
         """
 
         from ..models import FollowupRequest
