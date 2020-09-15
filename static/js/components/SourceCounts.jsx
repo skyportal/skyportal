@@ -44,7 +44,7 @@ const SourceCounts = ({ classes, sinceDaysAgo }) => {
     if (!userPrefs) {
       dispatch(profileActions.updateUserPreferences(sourceCountPrefs));
     }
-  }, [userPrefs, dispatch]);
+  });
 
   return (
     <Paper
