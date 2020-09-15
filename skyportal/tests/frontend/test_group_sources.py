@@ -32,10 +32,12 @@ def test_add_new_source(driver, super_admin_user, public_group, upload_data_toke
     assert status == 200
     assert data['data']['id'] == f'{obj_id}'
 
-    # driver.get(f"/source/{obj_id}")
-    # time.sleep(10)
+    driver.get(f"/source/{obj_id}")
+    driver.save_screenshot('test_source_page.png')
 
     driver.get(f"/group_sources/{public_group.id}")  # go to the group sources page
+
+    driver.save_screenshot('test_group_page.png')
 
     driver.wait_for_xpath(
         f"//a[contains(@href, '/source/{obj_id}')]"
@@ -45,6 +47,9 @@ def test_add_new_source(driver, super_admin_user, public_group, upload_data_toke
         "//*[@id='expandable-button']"
     )  # little triangle you push to expand the table
     driver.scroll_to_element_and_click(expand_button)
+
+    driver.save_screenshot('test_open_drawer.png')
+
     driver.wait_for_xpath(
         "//*[@class='vega-embed']"
     )  # make sure the table row opens up and show the vega plot
