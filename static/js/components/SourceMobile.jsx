@@ -102,9 +102,11 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "column",
     margin: "auto",
+    maxWidth: "100%",
   },
   centroidPlot: {
     margin: "auto",
+    overflowX: "scroll",
   },
   alignRight: {
     display: "inline-block",

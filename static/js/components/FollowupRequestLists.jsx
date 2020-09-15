@@ -11,6 +11,9 @@ const useStyles = makeStyles(() => ({
   followupRequestTable: {
     borderSpacing: "0.7em",
   },
+  container: {
+    overflowX: "scroll",
+  },
 }));
 
 const FollowupRequestLists = ({
@@ -68,7 +71,10 @@ const FollowupRequestLists = ({
         const modifiable = implementsEdit || implementsDelete;
 
         return (
-          <div key={`instrument_${instrument_id}_table_div`}>
+          <div
+            key={`instrument_${instrument_id}_table_div`}
+            className={classes.container}
+          >
             <h3>{instLookUp[instrument_id].name} Requests</h3>
             <table
               className={classes.followupRequestTable}
