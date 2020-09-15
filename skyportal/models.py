@@ -42,7 +42,7 @@ from .enum_types import (
     instrument_types,
     followup_priorities,
     api_classnames,
-    followup_http_request_origins,
+    listener_classnames,
 )
 
 from skyportal import facility_apis
@@ -1066,6 +1066,12 @@ class Instrument(Base):
         api_classnames, nullable=True, doc="Name of the instrument's API class."
     )
 
+    listener_classname = sa.Column(
+        listener_classnames,
+        nullable=True,
+        doc="Name of the instrument's listener class.",
+    )
+
     @property
     def does_spectroscopy(self):
         """Return a boolean indicating whether the instrument is capable of
@@ -1081,6 +1087,10 @@ class Instrument(Base):
     @property
     def api_class(self):
         return getattr(facility_apis, self.api_classname)
+
+    @property
+    def listener_class(self):
+        return getattr(facility_apis, self.listener_classname)
 
 
 class Allocation(Base):
@@ -1637,17 +1647,23 @@ class FollowupRequest(Base):
     payload = sa.Column(
         psql.JSONB, nullable=True, doc="Content of the followup request."
     )
-    status = sa.Column(sa.String(), nullable=False, default="pending submission")
+    status = sa.Column(
+        sa.String(),
+        nullable=False,
+        default="pending submission",
+        index=True,
+        doc="The status of the request.",
+    )
 
     allocation_id = sa.Column(
         sa.ForeignKey('allocations.id', ondelete='CASCADE'), nullable=False, index=True
     )
     allocation = relationship('Allocation', back_populates='requests')
 
-    http_requests = relationship(
-        'FollowupRequestHTTPRequest',
-        back_populates='request',
-        order_by="FollowupRequestHTTPRequest.created_at.desc()",
+    transactions = relationship(
+        'FacilityTransaction',
+        back_populates='followup_request',
+        order_by="FacilityTransaction.created_at.desc()",
     )
 
     photometry = relationship('Photometry', back_populates='followup_request')
@@ -1677,31 +1693,42 @@ class FollowupRequest(Base):
         return self.allocation.group_id in user_or_token_group_ids
 
 
-class FollowupRequestHTTPRequest(Base):
+class FacilityTransaction(Base):
 
     created_at = sa.Column(
         sa.DateTime,
         nullable=False,
         default=datetime.utcnow,
         index=True,
-        doc="UTC time this FollowupRequestHTTPRequest was created.",
+        doc="UTC time this FacilityTransaction was created.",
     )
-    content = sa.Column(sa.Text, doc="The content of the request.", nullable=False)
 
-    request_id = sa.Column(
+    request = sa.Column(psql.JSONB, doc='Serialized HTTP request.')
+    response = sa.Column(psql.JSONB, doc='Serialized HTTP response.')
+
+    followup_request_id = sa.Column(
         sa.ForeignKey('followuprequests.id', ondelete='CASCADE'),
         index=True,
         nullable=False,
         doc="The ID of the FollowupRequest this message pertains to.",
     )
 
-    request = relationship(
+    followup_request = relationship(
         'FollowupRequest',
-        back_populates='http_requests',
+        back_populates='transactions',
         doc="The FollowupRequest this message pertains to.",
     )
-    origin = sa.Column(
-        followup_http_request_origins, doc='Origin of the HTTP request.', nullable=False
+
+    initiator_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='SET NULL'),
+        index=True,
+        nullable=False,
+        doc='The ID of the User who initiated the transaction.',
+    )
+    initiator = relationship(
+        'User',
+        back_populates='transactions',
+        doc='The User who initiated the transaction.',
     )
 
 
@@ -1709,6 +1736,12 @@ User.followup_requests = relationship(
     'FollowupRequest',
     back_populates='requester',
     doc="The follow-up requests this User has made.",
+)
+
+User.transactions = relationship(
+    'FacilityTransaction',
+    back_populates='initiator',
+    doc="The FacilityTransactions initiated by this User.",
 )
 
 
