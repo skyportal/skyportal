@@ -33,14 +33,14 @@ def test_recent_sources(driver, user, public_group, upload_data_token):
     driver.get('/')
 
     # Wait for just added source to show up in added sources
-    recent_source_class = "makeStyles-recentSourceItemWithButton"
+    recent_source_dataid = "recentSourceItem"
     recent_source_item = driver.wait_for_xpath(
-        f'//div[starts-with(@class, "{recent_source_class}")][.//span[text()="a few seconds ago"]][.//a[contains(text(), "{obj_id}")]]'
+        f'//div[starts-with(@data-testid, "{recent_source_dataid}")][.//span[text()="a few seconds ago"]][.//a[contains(text(), "{obj_id}")]]'
     )
 
     # Hover over item to see quick view button and click it
     ActionChains(driver).move_to_element(recent_source_item).perform()
-    driver.click_xpath("//div[contains(@class, 'quickViewButton')]")
+    driver.click_xpath("//div[contains(@data-testid, 'quickViewButton')]")
 
     driver.wait_for_xpath_to_appear("//*[@id='source-quick-view-dialog-content']")
 
