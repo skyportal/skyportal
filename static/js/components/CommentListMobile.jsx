@@ -214,7 +214,7 @@ const CommentListMobile = ({ isCandidate }) => {
           onClick={handleClickOpen}
           startIcon={<ChatBubbleOutlineIcon />}
         >
-          Add \u0026 see more comments
+          Add & see more comments
         </Button>
       </div>
       <Dialog

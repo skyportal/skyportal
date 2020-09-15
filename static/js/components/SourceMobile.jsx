@@ -113,6 +113,7 @@ export const useSourceStyles = makeStyles((theme) => ({
   followupContainer: {
     display: "flex",
     flexDirection: "column",
+    minWidth: 0,
   },
 }));
 
