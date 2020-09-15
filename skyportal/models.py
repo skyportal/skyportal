@@ -94,7 +94,9 @@ class Group(Base):
     must have access to all of the `Group`'s data `Stream`s.
     """
 
-    name = sa.Column(sa.String, unique=True, nullable=False, doc='Name of the group.')
+    name = sa.Column(
+        sa.String, unique=True, nullable=False, index=True, doc='Name of the group.'
+    )
 
     streams = relationship(
         'Stream',
