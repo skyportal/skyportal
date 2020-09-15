@@ -5,6 +5,7 @@ class Listener(_ListenerBase):
     """An interface that User-contributed remote facility message listeners
     must provide."""
 
+    #
     schema = {}
 
     # subclasses *must* implement the method below

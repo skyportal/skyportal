@@ -463,13 +463,6 @@ class FollowupRequestHandler(BaseHandler):
         for k in data:
             setattr(followup_request, k, data[k])
 
-        DBSession().add(followup_request)
-        DBSession().commit()
-        self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_id": followup_request.obj_id},
-        )
-
         response = followup_request.instrument.api_class.update(followup_request)
 
         transaction = FacilityTransaction(
@@ -479,7 +472,6 @@ class FollowupRequestHandler(BaseHandler):
             initiator=self.associated_user_object,
         )
 
-        DBSession().add(followup_request)
         DBSession().add(transaction)
         DBSession().commit()
 
@@ -531,7 +523,6 @@ class FollowupRequestHandler(BaseHandler):
         )
 
         DBSession().add(transaction)
-        DBSession().add(followup_request)
         DBSession().commit()
 
         self.push_all(

@@ -7,6 +7,9 @@ class _ListenerBase:
     # subclasses should not modify this
     @classmethod
     def complete_schema(cls):
+        """Ensures that the all the necessary fields required by the
+        frontend, (e.g., followup_request_id) are included in the Listener's
+        JSONSchema. If the fields are missing, this function adds them."""
         base = deepcopy(cls.schema)
         if 'type' not in base:
             base['type'] = 'object'
@@ -26,10 +29,13 @@ class _ListenerBase:
 
     @classmethod
     def openapi_spec(cls):
+        """OpenAPI representation of the user-contributed JSONSchema."""
         return convert(cls.complete_schema())
 
     @classmethod
     def get_acl_id(cls):
+        """Return the ID of the ACL that a User must have in order to use
+        this API. """
         return f'Post from {cls.__name__}'
 
 
