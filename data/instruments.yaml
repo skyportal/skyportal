@@ -162,6 +162,12 @@
             'bessellb', 'bessellv']
   api_classname: IOOAPI
 - band: optical
+  name: IOI
+  telescope_id: =LT
+  type: imager
+  filters: ['csphs']
+  api_classname: IOIAPI
+- band: optical
   name: RATCam
   telescope_id: =LT
   type: imager

@@ -1,4 +1,5 @@
 import time
+from datetime import datetime, timedelta
 
 from lxml import etree
 from suds import Client
@@ -19,13 +20,24 @@ LT_SCHEMA_LOCATION = (
 
 
 class LTRequest:
+
+    """An XML structure for LT requests."""
+
     def _build_prolog(self):
+        """Payload for all LT queue requests.
+
+        Returns
+        ----------
+        payload:
+            payload for LT requests.
+        """
+
         namespaces = {
             'xsi': LT_XSI_NS,
         }
         schemaLocation = etree.QName(LT_XSI_NS, 'schemaLocation')
         uid = format(str(int(time.time())))
-        prolog = etree.Element(
+        payload = etree.Element(
             'RTML',
             {schemaLocation: LT_SCHEMA_LOCATION},
             xmlns=LT_XML_NS,
@@ -34,9 +46,26 @@ class LTRequest:
             version='3.1a',
             nsmap=namespaces,
         )
-        return prolog
+        return payload
 
     def _build_project(self, payload, request):
+        """Payload header for all LT queue requests.
+
+        Parameters
+        ----------
+
+        payload:
+            payload for LT requests.
+
+        request: skyportal.models.FollowupRequest
+            The request to delete from the queue and the SkyPortal database.
+
+        Returns
+        ----------
+        payload:
+            payload for LT requests.
+        """
+
         project = etree.Element('Project', ProjectID=request.payload["LT_proposalID"])
         contact = etree.SubElement(project, 'Contact')
         etree.SubElement(contact, 'Username').text = request.allocation.username
@@ -44,6 +73,20 @@ class LTRequest:
         payload.append(project)
 
     def _build_constraints(self, request):
+        """Payload constraints for all LT queue requests.
+
+        Parameters
+        ----------
+
+        request: skyportal.models.FollowupRequest
+            The request to delete from the queue and the SkyPortal database.
+
+        Returns
+        ----------
+        constraints:
+            constraints list for LT requests.
+        """
+
         airmass_const = etree.Element(
             'AirmassConstraint', maximum=str(request.payload["maximum_airmass"])
         )
@@ -75,6 +118,20 @@ class LTRequest:
         return [airmass_const, sky_const, seeing_const, photom_const, date_const]
 
     def _build_target(self, request):
+        """Payload target for all LT queue requests.
+
+        Parameters
+        ----------
+
+        request: skyportal.models.FollowupRequest
+            The request to delete from the queue and the SkyPortal database.
+
+        Returns
+        ----------
+        target:
+            target for LT requests.
+        """
+
         target = etree.Element('Target', name=request.obj.id)
         c = SkyCoord(ra=request.obj.ra * u.degree, dec=request.obj.dec * u.degree)
         coordinates = etree.SubElement(target, 'Coordinates')
@@ -93,7 +150,26 @@ class LTRequest:
 
 
 class IOORequest(LTRequest):
+
+    """An XML structure for LT IOO requests."""
+
     def _build_inst_schedule(self, payload, request):
+        """Payload header for LT IOO queue requests.
+
+        Parameters
+        ----------
+
+        payload:
+            payload for LT requests.
+
+        request: skyportal.models.FollowupRequest
+            The request to delete from the queue and the SkyPortal database.
+
+        Returns
+        ----------
+        payload:
+            payload for LT requests.
+        """
 
         exposure_type = request.payload["exposure_type"]
         exposure_type_split = exposure_type.split("x")
@@ -103,6 +179,32 @@ class IOORequest(LTRequest):
             payload.append(self._build_IOO_schedule(request, filt, exp_time, exp_count))
 
     def _build_IOO_schedule(self, request, filt, exp_time, exp_count):
+        """Payload schedule for LT IOO queue requests.
+
+        Parameters
+        ----------
+
+        payload:
+            payload for LT requests.
+
+        request: skyportal.models.FollowupRequest
+            The request to delete from the queue and the SkyPortal database.
+
+        filt:
+            Exposure filter
+
+        exp_time:
+            Exposure time
+
+        exp_count:
+            Number of exposures
+
+        Returns
+        ----------
+        schedule:
+            payload schedule for LT requests.
+        """
+
         schedule = etree.Element('Schedule')
         device = etree.SubElement(schedule, 'Device', name="IO:O", type="camera")
         etree.SubElement(device, 'SpectralRegion').text = 'optical'
@@ -124,11 +226,124 @@ class IOORequest(LTRequest):
         return schedule
 
 
-class SPRATRequest(LTRequest):
+class IOIRequest(LTRequest):
+
+    """An XML structure for LT IOI requests."""
+
     def _build_inst_schedule(self, payload, request):
+        """Payload header for LT IOO queue requests.
+
+        Parameters
+        ----------
+
+        payload:
+            payload for LT requests.
+
+        request: skyportal.models.FollowupRequest
+            The request to delete from the queue and the SkyPortal database.
+
+        Returns
+        ----------
+        payload:
+            payload for LT requests.
+        """
+
+        exposure_type = request.payload["exposure_type"]
+        exposure_type_split = exposure_type.split("x")
+        exp_count = int(exposure_type_split[0])
+        exp_time = int(exposure_type_split[1][:-1])
+        for filt in request.payload["observation_type"]:
+            payload.append(self._build_IOO_schedule(request, filt, exp_time, exp_count))
+
+    def _build_IOI_schedule(self, request, filt, exp_time, exp_count):
+        """Payload schedule for LT IOI queue requests.
+
+        Parameters
+        ----------
+
+        payload:
+            payload for LT requests.
+
+        request: skyportal.models.FollowupRequest
+            The request to delete from the queue and the SkyPortal database.
+
+        filt:
+            Exposure filter
+
+        exp_time:
+            Exposure time
+
+        exp_count:
+            Number of exposures
+
+        Returns
+        ----------
+        schedule:
+            payload schedule for LT requests.
+        """
+
+        schedule = etree.Element('Schedule')
+        device = etree.SubElement(schedule, 'Device', name="IO:I", type="camera")
+        etree.SubElement(device, 'SpectralRegion').text = 'optical'
+        setup = etree.SubElement(device, 'Setup')
+        etree.SubElement(setup, 'Filter', type=filt.upper())
+        detector = etree.SubElement(setup, 'Detector')
+        binning = etree.SubElement(detector, 'Binning')
+        etree.SubElement(binning, 'X', units='pixels').text = request.payload[
+            "binning"
+        ].split('x')[0]
+        etree.SubElement(binning, 'Y', units='pixels').text = request.payload[
+            "binning"
+        ].split('x')[1]
+        exposure = etree.SubElement(schedule, 'Exposure', count=str(exp_count))
+        etree.SubElement(exposure, 'Value', units='seconds').text = str(exp_time)
+        schedule.append(self._build_target(request))
+        for const in self._build_constraints(request):
+            schedule.append(const)
+        return schedule
+
+
+class SPRATRequest(LTRequest):
+
+    """An XML structure for LT SPRAT requests."""
+
+    def _build_inst_schedule(self, payload, request):
+        """Payload header for LT SPRAT queue requests.
+
+        Parameters
+        ----------
+
+        payload:
+            payload for LT requests.
+
+        request: skyportal.models.FollowupRequest
+            The request to delete from the queue and the SkyPortal database.
+
+        Returns
+        ----------
+        payload:
+            payload for LT requests.
+        """
+
         self._build_SPRAT_schedule(payload, request)
 
     def _build_SPRAT_schedule(self, payload, request):
+        """Payload schedule for LT SPRAT queue requests.
+
+        Parameters
+        ----------
+
+        payload:
+            payload for LT requests.
+
+        request: skyportal.models.FollowupRequest
+            The request to delete from the queue and the SkyPortal database.
+
+        Returns
+        ----------
+        schedule:
+            payload schedule for LT requests.
+        """
 
         grating = request.payload["observation_type"]
         exposure_type = request.payload["exposure_type"]
@@ -154,6 +369,9 @@ class SPRATRequest(LTRequest):
 
 
 class LTAPI(FollowUpAPI):
+
+    """An interface to LT operations."""
+
     @staticmethod
     def delete(request):
 
@@ -173,6 +391,14 @@ class LTAPI(FollowUpAPI):
             .filter(FollowupRequest.id == request.id)
             .one()
         )
+        # this happens for failed submissions
+        # just go ahead and delete
+        if len(req.http_requests) == 0:
+            DBSession().query(FollowupRequest).filter(
+                FollowupRequest.id == request.id
+            ).delete()
+            DBSession().commit()
+
         content = req.http_requests[0].content
         response_rtml = etree.fromstring(content)
         uid = response_rtml.get('uid')
@@ -223,7 +449,7 @@ class LTAPI(FollowUpAPI):
 
 class IOOAPI(LTAPI):
 
-    """An interface that User-contributed remote facility APIs must provide."""
+    """An interface to LT IOO operations."""
 
     # subclasses *must* implement the method below
     @staticmethod
@@ -325,8 +551,166 @@ class IOOAPI(LTAPI):
                 "default": "IOO",
             },
             "priority": {"type": "string", "enum": ["1", "5"], "default": "1"},
-            "start_date": {"type": "string", "format": "date"},
-            "end_date": {"type": "string", "format": "date"},
+            "start_date": {
+                "type": "string",
+                "format": "date",
+                "default": datetime.utcnow().date().isoformat(),
+                "title": "Start Date (UT)",
+            },
+            "end_date": {
+                "type": "string",
+                "format": "date",
+                "title": "End Date (UT)",
+                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+            },
+            "LT_proposalID": {"type": "string"},
+            "maximum_airmass": {
+                "title": "Maximum Airmass (1-3)",
+                "type": "number",
+                "default": 2.0,
+            },
+            "maximum_seeing": {
+                "title": "Maximum Seeing [arcsec] (0-5)",
+                "type": "number",
+                "default": 1.2,
+            },
+            "sky_brightness": {
+                "title": "Maximum allowable Sky Brightness, Dark + X magnitudes [arcsec] (0-5)",
+                "type": "number",
+                "default": 2.0,
+            },
+            "photometric": {
+                "title": "Does this observation require photometric conditions?",
+                "type": "boolean",
+            },
+            "binning": {"type": "string", "enum": ["1x1", "2x2"], "default": "1x1"},
+        },
+        "required": [
+            "instrument_type",
+            "priority",
+            "start_date",
+            "end_date",
+            "maximum_airmass",
+            "maximum_seeing",
+            "photometric",
+            "binning",
+        ],
+        "dependencies": _dependencies,
+    }
+
+    ui_json_schema = {}
+
+
+class IOIAPI(LTAPI):
+
+    """An interface to LT IOI operations."""
+
+    # subclasses *must* implement the method below
+    @staticmethod
+    def submit(request):
+
+        """Submit a follow-up request to LT's IOI.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to submit.
+        """
+
+        from ..models import DBSession, FollowupRequestHTTPRequest
+
+        ltreq = IOIRequest()
+        observation_payload = ltreq._build_prolog()
+        ltreq._build_project(observation_payload, request)
+        ltreq._build_inst_schedule(observation_payload, request)
+
+        headers = {
+            'Username': request.allocation.username,
+            'Password': request.allocation.password,
+        }
+        url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
+            'http', cfg['app.lt_host'], cfg['app.lt_port']
+        )
+        client = Client(url=url, headers=headers)
+        full_payload = etree.tostring(
+            observation_payload, encoding="unicode", pretty_print=True
+        )
+        # Send payload, and receive response string, removing the encoding tag which causes issue with lxml parsing
+        response = client.service.handle_rtml(full_payload).replace(
+            'encoding="ISO-8859-1"', ''
+        )
+        response_rtml = etree.fromstring(response)
+        mode = response_rtml.get('mode')
+        if mode == 'confirm':
+            message = FollowupRequestHTTPRequest(
+                content=response, origin='skyportal', request=request,
+            )
+            DBSession().add(message)
+            DBSession().add(request)
+            DBSession().commit()
+
+    _instrument_configs = {}
+
+    _instrument_type = 'IOI'
+    _observation_types = ['H']
+    _exposure_types = {'H': ['1x120s', '2x150s']}
+    _instrument_configs[_instrument_type] = {}
+    _instrument_configs[_instrument_type]["observation"] = _observation_types
+    _instrument_configs[_instrument_type]["exposure"] = _exposure_types
+
+    _instrument_types = list(_instrument_configs.keys())
+
+    _dependencies = {}
+    _dependencies["instrument_type"] = {}
+    _dependencies["instrument_type"]["oneOf"] = []
+    for _instrument_type in _instrument_types:
+        oneOf = {
+            "properties": {
+                "instrument_type": {"enum": [_instrument_type]},
+                "observation_type": {
+                    "enum": _instrument_configs[_instrument_type]["observation"]
+                },
+            }
+        }
+        _dependencies["instrument_type"]["oneOf"].append(oneOf)
+
+    _dependencies["observation_type"] = {}
+    _dependencies["observation_type"]["oneOf"] = []
+    for _instrument_type in _instrument_types:
+        for _observation_type in _instrument_configs[_instrument_type]["observation"]:
+            oneOf = {
+                "properties": {
+                    "observation_type": {"enum": [_observation_type]},
+                    "exposure_type": {
+                        "enum": _instrument_configs[_instrument_type]["exposure"][
+                            _observation_type
+                        ]
+                    },
+                }
+            }
+            _dependencies["observation_type"]["oneOf"].append(oneOf)
+
+    form_json_schema = {
+        "type": "object",
+        "properties": {
+            "instrument_type": {
+                "type": "string",
+                "enum": _instrument_types,
+                "default": "IOO",
+            },
+            "priority": {"type": "string", "enum": ["1", "5"], "default": "1"},
+            "start_date": {
+                "type": "string",
+                "format": "date",
+                "default": datetime.utcnow().date().isoformat(),
+                "title": "Start Date (UT)",
+            },
+            "end_date": {
+                "type": "string",
+                "format": "date",
+                "title": "End Date (UT)",
+                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+            },
             "LT_proposalID": {"type": "string"},
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -367,7 +751,7 @@ class IOOAPI(LTAPI):
 
 class SPRATAPI(LTAPI):
 
-    """An interface that User-contributed remote facility APIs must provide."""
+    """An interface to LT SPRAT operations."""
 
     # subclasses *must* implement the method below
     @staticmethod
@@ -466,8 +850,18 @@ class SPRATAPI(LTAPI):
                 "default": "IOO",
             },
             "priority": {"type": "string", "enum": ["1", "5"], "default": "1"},
-            "start_date": {"type": "string", "format": "date"},
-            "end_date": {"type": "string", "format": "date"},
+            "start_date": {
+                "type": "string",
+                "format": "date",
+                "default": datetime.utcnow().date().isoformat(),
+                "title": "Start Date (UT)",
+            },
+            "end_date": {
+                "type": "string",
+                "format": "date",
+                "title": "End Date (UT)",
+                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+            },
             "LT_proposalID": {"type": "string"},
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
