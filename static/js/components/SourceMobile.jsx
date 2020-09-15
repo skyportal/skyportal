@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 
 import { makeStyles } from "@material-ui/core/styles";
+import useMediaQuery from "@material-ui/core/useMediaQuery";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
 import Accordion from "@material-ui/core/Accordion";
@@ -106,7 +107,6 @@ export const useSourceStyles = makeStyles((theme) => ({
   },
   centroidPlot: {
     margin: "auto",
-    overflowX: "scroll",
   },
   alignRight: {
     display: "inline-block",
@@ -120,6 +120,9 @@ export const useSourceStyles = makeStyles((theme) => ({
 }));
 
 const SourceMobile = ({ source }) => {
+  const matches = useMediaQuery("(min-width: 475px)");
+  const centroidPlotSize = matches ? "21.875rem" : "17rem";
+
   const classes = useSourceStyles();
 
   const [showStarList, setShowStarList] = useState(false);
@@ -334,6 +337,7 @@ const SourceMobile = ({ source }) => {
                 <CentroidPlot
                   className={classes.smallPlot}
                   sourceId={source.id}
+                  size={centroidPlotSize}
                 />
               </Suspense>
             </div>
