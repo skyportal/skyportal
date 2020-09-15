@@ -348,7 +348,7 @@ SourceDesktop.propTypes = {
     id: PropTypes.string.isRequired,
     ra: PropTypes.number,
     dec: PropTypes.number,
-    loadError: PropTypes.string,
+    loadError: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
     thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
     redshift: PropTypes.number,
     groups: PropTypes.arrayOf(PropTypes.shape({})),
