@@ -5,7 +5,7 @@ from validate_email import validate_email
 from ..base import BaseHandler
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
-from ...models import DBSession, User, Group, GroupUser
+from ...models import DBSession, User, Group, GroupUser, StreamUser
 
 
 env, cfg = load_env()
@@ -34,9 +34,13 @@ def add_user_and_setup_groups(
     DBSession().add(user)
     DBSession().flush()
 
-    # Add user to specified groups
+    # Add user to specified groups & associated streams
     for group_id, admin in group_ids_and_admin:
-        DBSession.add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
+        DBSession().add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
+        group = Group.query.get(group_id)
+        if group.streams:
+            for stream in group.streams:
+                DBSession().add(StreamUser(user_id=user.id, stream_id=stream.id))
 
     # Create single-user group
     DBSession().add(Group(name=user.username, users=[user], single_user_group=True))
