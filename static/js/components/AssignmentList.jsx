@@ -114,7 +114,7 @@ const AssignmentList = ({ assignments }) => {
                 <td>
                   <span>
                     <IconButton
-                      aria-label="delete"
+                      aria-label="delete-assignment"
                       onClick={() => {
                         deleteAssignment(assignment.id);
                       }}
