@@ -349,7 +349,7 @@ SourceMobile.propTypes = {
     id: PropTypes.string.isRequired,
     ra: PropTypes.number,
     dec: PropTypes.number,
-    loadError: PropTypes.bool,
+    loadError: PropTypes.string,
     thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
     redshift: PropTypes.number,
     groups: PropTypes.arrayOf(PropTypes.shape({})),
