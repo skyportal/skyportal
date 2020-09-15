@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 
-import { useTheme } from "@material-ui/core";
+import { useTheme } from "@material-ui/core/styles";
 import Paper from "@material-ui/core/Paper";
 
 import * as Action from "../ducks/source";

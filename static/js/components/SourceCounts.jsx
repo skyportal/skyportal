@@ -42,9 +42,9 @@ const SourceCounts = ({ classes, sinceDaysAgo }) => {
   useEffect(() => {
     // If user prefs is blank, update to app default
     if (!userPrefs) {
-      dispatch(profileActions.updateUserPreferences(sourceCountPrefs));
+      dispatch(profileActions.updateUserPreferences(defaultPrefs));
     }
-  });
+  }, [userPrefs, dispatch]);
 
   return (
     <Paper
