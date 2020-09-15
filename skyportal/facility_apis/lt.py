@@ -68,8 +68,11 @@ class LTRequest:
 
         project = etree.Element('Project', ProjectID=request.payload["LT_proposalID"])
         contact = etree.SubElement(project, 'Contact')
-        etree.SubElement(contact, 'Username').text = request.allocation.username
-        etree.SubElement(contact, 'Name').text = request.allocation.username
+
+        etree.SubElement(contact, 'Username').text = request.allocation.altdata[
+            "username"
+        ]
+        etree.SubElement(contact, 'Name').text = request.allocation.altdata["username"]
         payload.append(project)
 
     def _build_constraints(self, request):
@@ -253,7 +256,7 @@ class IOIRequest(LTRequest):
         exp_count = int(exposure_type_split[0])
         exp_time = int(exposure_type_split[1][:-1])
         for filt in request.payload["observation_type"]:
-            payload.append(self._build_IOO_schedule(request, filt, exp_time, exp_count))
+            payload.append(self._build_IOI_schedule(request, filt, exp_time, exp_count))
 
     def _build_IOI_schedule(self, request, filt, exp_time, exp_count):
         """Payload schedule for LT IOI queue requests.
@@ -398,14 +401,15 @@ class LTAPI(FollowUpAPI):
                 FollowupRequest.id == request.id
             ).delete()
             DBSession().commit()
+            return
 
         content = req.http_requests[0].content
         response_rtml = etree.fromstring(content)
         uid = response_rtml.get('uid')
 
         headers = {
-            'Username': request.allocation.username,
-            'Password': request.allocation.password,
+            'Username': request.allocation.altdata["username"],
+            'Password': request.allocation.altdata["password"],
         }
         url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
             'http', cfg['app.lt_host'], cfg['app.lt_port']
@@ -427,8 +431,10 @@ class LTAPI(FollowUpAPI):
             cancel_payload, 'Project', ProjectID=request.payload["LT_proposalID"]
         )
         contact = etree.SubElement(project, 'Contact')
-        etree.SubElement(contact, 'Username').text = request.allocation.username
-        etree.SubElement(contact, 'Name').text = request.allocation.username
+        etree.SubElement(contact, 'Username').text = request.allocation.altdata[
+            "username"
+        ]
+        etree.SubElement(contact, 'Name').text = request.allocation.altdata["username"]
         etree.SubElement(contact, 'Communication')
         cancel = etree.tostring(cancel_payload, encoding='unicode', pretty_print=True)
 
@@ -471,8 +477,8 @@ class IOOAPI(LTAPI):
         ltreq._build_inst_schedule(observation_payload, request)
 
         headers = {
-            'Username': request.allocation.username,
-            'Password': request.allocation.password,
+            'Username': request.allocation.altdata["username"],
+            'Password': request.allocation.altdata["password"],
         }
         url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
             'http', cfg['app.lt_host'], cfg['app.lt_port']
@@ -625,8 +631,8 @@ class IOIAPI(LTAPI):
         ltreq._build_inst_schedule(observation_payload, request)
 
         headers = {
-            'Username': request.allocation.username,
-            'Password': request.allocation.password,
+            'Username': request.allocation.altdata["username"],
+            'Password': request.allocation.altdata["password"],
         }
         url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
             'http', cfg['app.lt_host'], cfg['app.lt_port']
@@ -773,8 +779,8 @@ class SPRATAPI(LTAPI):
         ltreq._build_inst_schedule(observation_payload, request)
 
         headers = {
-            'Username': request.allocation.username,
-            'Password': request.allocation.password,
+            'Username': request.allocation.altdata["username"],
+            'Password': request.allocation.altdata["password"],
         }
         url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
             'http', cfg['app.lt_host'], cfg['app.lt_port']
