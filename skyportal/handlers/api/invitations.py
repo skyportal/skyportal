@@ -63,7 +63,6 @@ class InvitationHandler(BaseHandler):
         if not cfg["invitations.enabled"]:
             return self.error("Invitations are not enabled in current deployment.")
         data = self.get_json()
-        print("\n\ndata:", data, "\n\n")
 
         if data.get("userEmail") is None or data.get("userEmail") in [
             "",
