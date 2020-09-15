@@ -26,7 +26,7 @@ export const useStyles = makeStyles(() => ({
     justifyContent: "center",
   },
   comments: {
-    marginLeft: "3rem",
+    marginLeft: "1rem",
     padding: "1rem",
   },
   accordionItem: {
