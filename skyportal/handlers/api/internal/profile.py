@@ -83,6 +83,8 @@ class ProfileHandler(BaseHandler):
         user_info["roles"] = user_roles
         user_info["acls"] = user_acls
         user_info["tokens"] = user_tokens
+        user_info["gravatar_url"] = user.gravatar_url or None
+        user_info["preferences"] = user.preferences or {}
         return self.success(data=user_info)
 
     @auth_or_token
