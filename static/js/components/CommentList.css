@@ -1,4 +1,5 @@
 .commentsList {
+  margin-top: 1rem;
   overflow-y: scroll;
   max-height: 350px;
 }

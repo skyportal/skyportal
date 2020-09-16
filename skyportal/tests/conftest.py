@@ -80,6 +80,13 @@ def public_stream():
 
 
 @pytest.fixture()
+def stream_with_users(super_admin_user, group_admin_user, user, view_only_user):
+    return StreamFactory(
+        users=[super_admin_user, group_admin_user, user, view_only_user]
+    )
+
+
+@pytest.fixture()
 def public_group():
     return GroupFactory()
 
@@ -90,9 +97,22 @@ def public_group2():
 
 
 @pytest.fixture()
-def group_with_stream(super_admin_user, group_admin_user, public_stream):
+def group_with_stream(
+    super_admin_user, group_admin_user, user, view_only_user, public_stream
+):
     return GroupFactory(
-        users=[super_admin_user, group_admin_user], streams=[public_stream]
+        users=[super_admin_user, group_admin_user, user, view_only_user],
+        streams=[public_stream],
+    )
+
+
+@pytest.fixture()
+def group_with_stream_with_users(
+    super_admin_user, group_admin_user, user, view_only_user, stream_with_users
+):
+    return GroupFactory(
+        users=[super_admin_user, group_admin_user, user, view_only_user],
+        streams=[stream_with_users],
     )
 
 

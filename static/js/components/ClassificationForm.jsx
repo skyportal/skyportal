@@ -7,8 +7,18 @@ import TextField from "@material-ui/core/TextField";
 import Button from "@material-ui/core/Button";
 import MenuItem from "@material-ui/core/MenuItem";
 import Autocomplete from "@material-ui/lab/Autocomplete";
+import { makeStyles } from "@material-ui/core/styles";
 import { showNotification } from "baselayer/components/Notifications";
 import * as Actions from "../ducks/source";
+
+const useStyles = makeStyles(() => ({
+  taxonomySelect: {
+    maxWidth: "100%",
+    fullWidth: "true",
+    display: "flex",
+    wrap: "nowrap",
+  },
+}));
 
 // For each node in the hierarchy tree, add its full path from root
 // to the node_paths list
@@ -45,6 +55,7 @@ const allowed_classes = (hierarchy) => {
 };
 
 const ClassificationForm = ({ obj_id, taxonomyList }) => {
+  const classes = useStyles();
   const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
 
   function reducer(state, action) {
@@ -143,7 +154,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
             id="tax-select"
             defaultValue=""
             onChange={handleTaxonomyChange}
-            style={{ fullWidth: "true", display: "flex", wrap: "nowrap" }}
+            className={classes.taxonomySelect}
           >
             {latestTaxonomyList.map((taxonomy, index) => (
               <MenuItem value={index} key={index.toString()}>

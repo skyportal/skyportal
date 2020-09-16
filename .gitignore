@@ -2,6 +2,7 @@
 log/
 .log
 .cache
+cache/
 static/build
 doc/_build
 doc/openapi.html

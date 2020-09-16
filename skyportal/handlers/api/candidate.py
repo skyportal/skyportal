@@ -271,6 +271,7 @@ class CandidateHandler(BaseHandler):
         matching_source_ids = (
             DBSession()
             .query(Source.obj_id)
+            .filter(Source.group_id.in_(user_accessible_group_ids))
             .filter(Source.obj_id.in_([obj.id for obj in query_results["candidates"]]))
             .all()
         )

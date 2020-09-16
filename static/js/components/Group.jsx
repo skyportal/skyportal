@@ -288,9 +288,7 @@ const Group = () => {
           <Divider />
           <div className={classes.paper}>
             {/*eslint-disable */}
-            {currentUser.acls?.includes("Manage users") && (
-              <NewGroupUserForm group_id={group.id} />
-            )}
+            {isAdmin(currentUser) && <NewGroupUserForm group_id={group.id} />}
             {/* eslint-enable */}
           </div>
         </AccordionDetails>
