@@ -379,7 +379,7 @@ def test_centroid_plot(
         driver.wait_for_xpath_to_disappear(f'//div[text()="{loading_text}"]')
 
     finally:
-        component_class_xpath = "//div[contains(concat(' ', normalize-space(@class), ' '), ' centroid-plot-div ')]"
+        component_class_xpath = "//div[contains(@data-testid, 'centroid-plot-div')]"
         vegaplot_div = driver.wait_for_xpath(component_class_xpath)
         assert vegaplot_div.is_displayed()
 

@@ -13,9 +13,6 @@ import Typography from "@material-ui/core/Typography";
 
 dayjs.extend(calendar);
 
-/* const useStyles = makeStyles((theme) => ({
-})); */
-
 const useStyles = makeStyles(() => ({
   root: (props) => ({
     width: props.size,

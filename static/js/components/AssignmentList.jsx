@@ -1,11 +1,31 @@
 import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
+import { makeStyles } from "@material-ui/core/styles";
+import IconButton from "@material-ui/core/IconButton";
+import DeleteIcon from "@material-ui/icons/Delete";
 import * as Actions from "../ducks/source";
 import * as UserActions from "../ducks/users";
-import styles from "./AssignmentList.css";
+
+const useStyles = makeStyles(() => ({
+  container: {
+    overflowX: "scroll",
+    width: "100%",
+  },
+  assignmentTable: {
+    borderSpacing: "0.7em",
+  },
+  verticalCenter: {
+    margin: 0,
+    position: "absolute",
+    top: "50%",
+    msTransform: "translateY(-50%)",
+    transform: "translateY(-50%)",
+  },
+}));
 
 const AssignmentList = ({ assignments }) => {
+  const styles = useStyles();
   const dispatch = useDispatch();
 
   const deleteAssignment = (id) => {
@@ -50,7 +70,7 @@ const AssignmentList = ({ assignments }) => {
   );
 
   return (
-    <div>
+    <div className={styles.container}>
       <table className={styles.assignmentTable}>
         <thead>
           <tr>
@@ -93,14 +113,14 @@ const AssignmentList = ({ assignments }) => {
                 <td>{assignment.comment}</td>
                 <td>
                   <span>
-                    <button
-                      type="button"
+                    <IconButton
+                      aria-label="delete-assignment"
                       onClick={() => {
                         deleteAssignment(assignment.id);
                       }}
                     >
-                      Delete
-                    </button>
+                      <DeleteIcon />
+                    </IconButton>
                   </span>
                 </td>
               </tr>
