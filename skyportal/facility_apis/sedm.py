@@ -99,6 +99,8 @@ def convert_request_to_sedm(request, method_value='new'):
         'sourcename': request.obj_id,
         'status': method_value,
         'username': request.requester.username,
+        'ra': request.obj.ra,
+        'dec': request.obj.dec,
     }
 
     return payload
