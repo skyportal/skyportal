@@ -1,78 +1,146 @@
-import React, { useState } from "react";
-import { useDispatch } from "react-redux";
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 
 import Box from "@material-ui/core/Box";
 import Button from "@material-ui/core/Button";
-import * as Action from "../ducks/groups";
+import Select from "@material-ui/core/Select";
+import Chip from "@material-ui/core/Chip";
+import MenuItem from "@material-ui/core/MenuItem";
+import Input from "@material-ui/core/Input";
+import FormControl from "@material-ui/core/FormControl";
+import InputLabel from "@material-ui/core/InputLabel";
+import TextField from "@material-ui/core/TextField";
+import { makeStyles, useTheme } from "@material-ui/core/styles";
+
+import * as groupsActions from "../ducks/groups";
+import * as usersActions from "../ducks/users";
 import styles from "./NewGroupForm.css";
+
+const getStyles = (userID, userIDs = [], theme) => ({
+  fontWeight:
+    userIDs.indexOf(userID) === -1
+      ? theme.typography.fontWeightRegular
+      : theme.typography.fontWeightMedium,
+});
 
 const NewGroupForm = () => {
   const dispatch = useDispatch();
+  const { allUsers } = useSelector((state) => state.users);
+
   const [formState, setState] = useState({
     name: "",
     group_admins: [],
   });
 
-  const handleSubmit = (event) => {
+  useEffect(() => {
+    if (allUsers.length === 0) {
+      dispatch(usersActions.fetchUsers());
+    }
+  }, [dispatch, allUsers]);
+
+  const userIDToName = {};
+  allUsers.forEach((u) => {
+    userIDToName[u.id] = u.username;
+  });
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    dispatch(Action.addNewGroup(formState));
-    setState({
-      name: "",
-      group_admins: [],
-    });
+    const result = await dispatch(groupsActions.addNewGroup(formState));
+    if (result.status === "success") {
+      setState({
+        name: "",
+        group_admins: [],
+      });
+    }
   };
 
   const handleChange = (event) => {
     const newState = {};
-    newState[event.target.name] =
-      event.target.name === "groupAdmins"
-        ? event.target.value.split(",")
-        : event.target.value;
+    newState[event.target.name] = event.target.value;
     setState({
       ...formState,
       ...newState,
     });
   };
 
+  const useStyles = makeStyles((theme) => ({
+    formControl: {
+      margin: theme.spacing(1),
+      minWidth: 130,
+    },
+    chips: {
+      display: "flex",
+      flexWrap: "wrap",
+    },
+    chip: {
+      margin: 2,
+    },
+  }));
+  const classes = useStyles();
+  const theme = useTheme();
+  const ITEM_HEIGHT = 48;
+  const MenuProps = {
+    PaperProps: {
+      style: {
+        maxHeight: ITEM_HEIGHT * 4.5,
+        width: 250,
+      },
+    },
+  };
+
   return (
-    <Box p={1}>
+    <Box p={2}>
       <h3>Create New Group</h3>
       <form className={styles.newGroupForm} onSubmit={handleSubmit}>
-        <table>
-          <tbody>
-            <tr>
-              <td>Group Name:&nbsp;&nbsp;</td>
-              <td>
-                <input
-                  type="text"
-                  name="name"
-                  value={formState.name}
-                  onChange={handleChange}
-                />
-              </td>
-            </tr>
-            <tr>
-              <td>
-                Group Admins (comma-separated email addresses):&nbsp;&nbsp;
-              </td>
-              <td>
-                <input
-                  type="text"
-                  name="groupAdmins"
-                  value={formState.group_admins}
-                  onChange={handleChange}
-                />
-              </td>
-            </tr>
-            <tr>
-              <td colSpan="2">
-                <Button type="submit" variant="contained" size="small">
-                  Create Group
-                </Button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <Box>
+          <TextField
+            label="Group Name"
+            name="name"
+            value={formState.name}
+            onChange={handleChange}
+          />
+        </Box>
+        <Box>
+          <FormControl className={classes.formControl}>
+            <InputLabel id="select-admins-label">Group Admins</InputLabel>
+            <Select
+              labelId="select-admins-label"
+              id="groupAdminsSelect"
+              name="group_admins"
+              multiple
+              onChange={handleChange}
+              input={<Input id="selectAdminsChip" />}
+              renderValue={(selected) => (
+                <div className={classes.chips}>
+                  {selected.map((value) => (
+                    <Chip
+                      key={value}
+                      label={userIDToName[value]}
+                      className={classes.chip}
+                    />
+                  ))}
+                </div>
+              )}
+              MenuProps={MenuProps}
+              defaultValue={[]}
+            >
+              {allUsers.map((user) => (
+                <MenuItem
+                  key={user.id}
+                  value={user.id}
+                  style={getStyles(user.id, formState.group_admins, theme)}
+                >
+                  {user.username}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+        <Box>
+          <Button type="submit" variant="contained" size="small">
+            Create Group
+          </Button>
+        </Box>
       </form>
     </Box>
   );

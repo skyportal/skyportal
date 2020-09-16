@@ -206,9 +206,9 @@ class GroupHandler(BaseHandler):
                       group_admins:
                         type: array
                         items:
-                          type: string
+                          type: integer
                         description: |
-                          List of emails of users to be group admins. Current user will
+                          List of IDs of users to be group admins. Current user will
                           automatically be added as a group admin.
         responses:
           200:
@@ -228,10 +228,13 @@ class GroupHandler(BaseHandler):
         """
         data = self.get_json()
 
-        group_admin_emails = [
-            e.strip() for e in data.get('group_admins', []) if e.strip()
-        ]
-        group_admins = list(User.query.filter(User.username.in_(group_admin_emails)))
+        try:
+            group_admin_ids = [int(e) for e in data.get('group_admins', [])]
+        except ValueError:
+            return self.error(
+                "Invalid group_admins field; unable to parse all items to int"
+            )
+        group_admins = User.query.filter(User.id.in_(group_admin_ids)).all()
         if self.current_user not in group_admins and not isinstance(
             self.current_user, Token
         ):
