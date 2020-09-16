@@ -11,6 +11,7 @@ import Grid from "@material-ui/core/Grid";
 import Chip from "@material-ui/core/Chip";
 import Link from "@material-ui/core/Link";
 import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import MUIDataTable from "mui-datatables";
 import { makeStyles } from "@material-ui/core/styles";
@@ -53,95 +54,29 @@ const GroupSources = ({ route }) => {
 
   // Load the group sources
   useEffect(() => {
-    dispatch(SourcesAction.fetchGroupSources({ group_id: route.id }));
+    dispatch(SourcesAction.fetchGroupSources({ group_id: [route.id] }));
   }, [route.id, dispatch]);
 
   if (!sources) {
-    return "Loading Sources...";
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   }
   if (sources.length === 0) {
     return "No sources have been saved to this group yet. ";
   }
 
   const group_id = parseInt(route.id, 10);
-  let group_name = "";
 
-  if (groups) {
-    const group = groups.find((g) => {
-      // find the object for the group
-      return g.id === group_id;
-    });
-    group_name = group?.name;
-  }
-
+  const groupName = groups.filter((g) => g.id === group_id)[0]?.name || "";
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
-    if (!sources) {
-      return "Loading...";
-    }
-
     const colSpan = rowData.length + 1;
     const source = sources[rowMeta.rowIndex];
 
     const comments = source.comments || [];
-
-    //     const items = comments.map(
-    //       ({
-    //         id,
-    //         author,
-    //         author_info,
-    //         created_at,
-    //         text,
-    //         attachment_name,
-    //         groups: comment_groups,
-    //       }) => {
-    //         return (
-    //           <span key={id} className={commentStyle}>
-    //             <div className={styles.commentUserAvatar}>
-    //               <UserAvatar
-    //                 size={24}
-    //                 firstName={author_info.first_name}
-    //                 lastName={author_info.last_name}
-    //                 username={author_info.username}
-    //                 gravatarUrl={author_info.gravatar_url}
-    //               />
-    //             </div>
-    //             <div className={styles.commentContent}>
-    //               <div className={styles.commentHeader}>
-    //                 <span className={styles.commentUser}>
-    //                   <span className={styles.commentUserName}>
-    //                     {author.username}
-    //                   </span>
-    //                 </span>
-    //                 <span className={styles.commentTime}>
-    //                   {dayjs().to(dayjs.utc(`${created_at}Z`))}
-    //                 </span>
-    //                 <div className={styles.commentUserGroup}>
-    //                   <Tooltip
-    //                     title={comment_groups.map((group) => group.name).join(", ")}
-    //                   >
-    //                     <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
-    //                   </Tooltip>
-    //                 </div>
-    //               </div>
-    //               <div className={styles.wrap} name={`commentDiv${id}`}>
-    //                 <div className={styles.commentMessage}>{text}</div>
-    //               </div>
-    //               <span>
-    //                 {attachment_name && (
-    //                   <div>
-    //                     Attachment:&nbsp;
-    //                     <a href={`/api/comment/${id}/attachment`}>
-    //                       {attachment_name}
-    //                     </a>
-    //                   </div>
-    //                 )}
-    //               </span>
-    //             </div>
-    //           </span>
-    //         );
-    //       }
-    //     );
 
     return (
       <TableRow>
@@ -168,58 +103,63 @@ const GroupSources = ({ route }) => {
               </Suspense>
             </Grid>
             <Grid item>
-              <div className={styles.commentsList}>
-                <span key={comments.id} className={commentStyle}>
-                  <div className={styles.commentUserAvatar}>
-                    <UserAvatar
-                      size={24}
-                      firstName={comments.author_info.first_name}
-                      lastName={comments.author_info.last_name}
-                      username={comments.author_info.username}
-                      gravatarUrl={comments.author_info.gravatar_url}
-                    />
-                  </div>
-                  <div className={styles.commentContent}>
-                    <div className={styles.commentHeader}>
-                      <span className={styles.commentUser}>
-                        <span className={styles.commentUserName}>
-                          {comments.author.username}
+              {comments.map(
+                ({
+                  id,
+                  author,
+                  author_info,
+                  created_at,
+                  text,
+                  attachment_name,
+                  groups: comment_groups,
+                }) => (
+                  <span key={id} className={commentStyle}>
+                    <div className={styles.commentUserAvatar}>
+                      <UserAvatar
+                        size={24}
+                        firstName={author_info.first_name}
+                        lastName={author_info.last_name}
+                        username={author_info.username}
+                        gravatarUrl={author_info.gravatar_url}
+                      />
+                    </div>
+                    <div className={styles.commentContent}>
+                      <div className={styles.commentHeader}>
+                        <span className={styles.commentUser}>
+                          <span className={styles.commentUserName}>
+                            {author.username}
+                          </span>
                         </span>
-                      </span>
-                      <span className={styles.commentTime}>
-                        {dayjs().to(dayjs.utc(`${comments.created_at}Z`))}
-                      </span>
-                      <div className={styles.commentUserGroup}>
-                        <Tooltip
-                          title={comments.groups
-                            .map((group) => group.name)
-                            .join(", ")}
-                        >
-                          <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
-                        </Tooltip>
-                      </div>
-                    </div>
-                    <div
-                      className={styles.wrap}
-                      name={`commentDiv${comments.id}`}
-                    >
-                      <div className={styles.commentMessage}>
-                        {comments.text}
-                      </div>
-                    </div>
-                    <span>
-                      {comments.attachment_name && (
-                        <div>
-                          Attachment:&nbsp;
-                          <a href={`/api/comment/${comments.id}/attachment`}>
-                            {comments.attachment_name}
-                          </a>
+                        <span className={styles.commentTime}>
+                          {dayjs().to(dayjs.utc(`${created_at}Z`))}
+                        </span>
+                        <div className={styles.commentUserGroup}>
+                          <Tooltip
+                            title={comment_groups
+                              .map((group) => group.name)
+                              .join(", ")}
+                          >
+                            <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
+                          </Tooltip>
                         </div>
-                      )}
-                    </span>
-                  </div>
-                </span>
-              </div>
+                      </div>
+                      <div className={styles.wrap} name={`commentDiv${id}`}>
+                        <div className={styles.commentMessage}>{text}</div>
+                      </div>
+                      <span>
+                        {attachment_name && (
+                          <div>
+                            Attachment:&nbsp;
+                            <a href={`/api/comment/${id}/attachment`}>
+                              {attachment_name}
+                            </a>
+                          </div>
+                        )}
+                      </span>
+                    </div>
+                  </span>
+                )
+              )}
             </Grid>
             <Grid item>
               <Suspense fallback={<div>Loading classifications</div>}>
@@ -378,7 +318,7 @@ const GroupSources = ({ route }) => {
                 color="textSecondary"
                 align="center"
               >
-                <b>Sources saved to {group_name}</b>
+                <b>Sources saved to {groupName}</b>
               </Typography>
             </div>
           </Grid>

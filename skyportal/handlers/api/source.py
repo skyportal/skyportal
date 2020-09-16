@@ -243,10 +243,12 @@ class SourceHandler(BaseHandler):
             if s is None:
                 return self.error("Invalid source ID.")
             comments = s.get_comments_owned_by(self.current_user)
-            s.classifications = s.get_classifications_owned_by(self.current_user)
             source_info = s.to_dict()
             source_info["comments"] = sorted(
                 comments, key=lambda x: x.created_at, reverse=True
+            )
+            source_info["classifications"] = s.get_classifications_owned_by(
+                self.current_user
             )
             source_info["last_detected"] = s.last_detected
             source_info["gal_lat"] = s.gal_lat_deg
@@ -347,7 +349,7 @@ class SourceHandler(BaseHandler):
                 key=lambda x: x.created_at,
                 reverse=True,
             )
-            source_list[-1]["classification"] = source.get_classifications_owned_by(
+            source_list[-1]["classifications"] = source.get_classifications_owned_by(
                 self.current_user
             )
             source_list[-1]["last_detected"] = source.last_detected
