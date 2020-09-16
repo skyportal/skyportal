@@ -278,7 +278,7 @@ def test_delete_followup_request_SEDM(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 def test_delete_followup_request_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
