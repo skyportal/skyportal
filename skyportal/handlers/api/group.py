@@ -387,7 +387,7 @@ class GroupUserHandler(BaseHandler):
         else:
             user_id = user.id
             # Ensure user has sufficient stream access to be added to group
-            if group.streams:
+            if group.streams and "System admin" not in user.permissions:
                 user_stream_ids = [
                     su.stream_id
                     for su in DBSession()

@@ -43,6 +43,7 @@ const NewGroupUserForm = ({ group_id }) => {
         inviteUsersActions.inviteUser({
           userEmail: formState.newUserEmail,
           groupIDs: [group_id],
+          groupAdmin: [formState.admin],
           streamIDs: null,
         })
       );

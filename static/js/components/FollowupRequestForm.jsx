@@ -5,15 +5,23 @@ import Select from "@material-ui/core/Select";
 import InputLabel from "@material-ui/core/InputLabel";
 import MenuItem from "@material-ui/core/MenuItem";
 import Form from "@rjsf/material-ui";
+import { makeStyles } from "@material-ui/core/styles";
 import * as Actions from "../ducks/source";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
+
+const useStyles = makeStyles(() => ({
+  allocationSelect: {
+    maxWidth: "100%",
+  },
+}));
 
 const FollowupRequestForm = ({
   obj_id,
   instrumentList,
   instrumentFormParams,
 }) => {
+  const classes = useStyles();
   const dispatch = useDispatch();
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationList } = useSelector((state) => state.allocations);
@@ -78,6 +86,7 @@ const FollowupRequestForm = ({
         value={selectedAllocationId}
         onChange={handleSelectedAllocationChange}
         name="followupRequestAllocationSelect"
+        className={classes.allocationSelect}
       >
         {allocationList.map((allocation) => (
           <MenuItem value={allocation.id} key={allocation.id}>
