@@ -32,6 +32,9 @@ def test_add_new_source(driver, super_admin_user, public_group, upload_data_toke
     # go to the group sources page
     driver.get(f"/group_sources/{public_group.id}")
 
+    # make sure the group name appears
+    driver.wait_for_xpath(f"//*[text()[contains(., '{public_group.name}')]]")
+
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
 

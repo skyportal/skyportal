@@ -40,7 +40,7 @@ const useStyles = makeStyles((theme) => ({
 const GroupSources = ({ route }) => {
   const dispatch = useDispatch();
   const sources = useSelector((state) => state.sources.groupSources);
-  const groups = useSelector((state) => state.groups.user);
+  const groups = useSelector((state) => state.groups.userAccessible);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const classes = useStyles();
 
@@ -71,6 +71,7 @@ const GroupSources = ({ route }) => {
   const group_id = parseInt(route.id, 10);
 
   const groupName = groups.filter((g) => g.id === group_id)[0]?.name || "";
+
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
     const colSpan = rowData.length + 1;
