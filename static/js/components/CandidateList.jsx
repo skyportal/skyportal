@@ -2,6 +2,8 @@ import React, { useEffect, Suspense, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
+import dayjs from "dayjs";
+
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
 import { makeStyles } from "@material-ui/core/styles";
@@ -41,7 +43,28 @@ const useStyles = makeStyles(() => ({
   spinnerDiv: {
     paddingTop: "2rem",
   },
+  lastDetected: {
+    display: "flex",
+    "& > div": {
+      paddingLeft: "0.25rem",
+    },
+  },
+  saveCandidateButton: {
+    margin: "0.5rem 0",
+  },
 }));
+
+const sortThumbnails = (a, b) => {
+  const aDate = dayjs(a.created_at);
+  const bDate = dayjs(b.created_at);
+  if (aDate.isAfter(bDate)) {
+    return -1;
+  }
+  if (aDate.isBefore(bDate)) {
+    return 1;
+  }
+  return 0;
+};
 
 const CandidateList = () => {
   const [queryInProgress, setQueryInProgress] = useState(false);
@@ -115,7 +138,6 @@ const CandidateList = () => {
           <Table className={classes.table}>
             <TableHead>
               <TableRow>
-                <TableCell>Last detected</TableCell>
                 <TableCell>Images</TableCell>
                 <TableCell>Info</TableCell>
                 <TableCell>Photometry</TableCell>
@@ -125,31 +147,12 @@ const CandidateList = () => {
             <TableBody>
               {!!candidates &&
                 candidates.map((candidateObj) => {
-                  const thumbnails = candidateObj.thumbnails.filter(
-                    (t) => t.type !== "dr8"
-                  );
+                  const thumbnails = candidateObj.thumbnails
+                    .filter((t) => t.type !== "dr8")
+                    .sort(sortThumbnails)
+                    .slice(0, 3); // Take the latest 3 thumbnails
                   return (
                     <TableRow key={candidateObj.id}>
-                      <TableCell>
-                        {candidateObj.last_detected && (
-                          <div>
-                            <div>
-                              {
-                                String(candidateObj.last_detected)
-                                  .split(".")[0]
-                                  .split("T")[1]
-                              }
-                            </div>
-                            <div>
-                              {
-                                String(candidateObj.last_detected)
-                                  .split(".")[0]
-                                  .split("T")[0]
-                              }
-                            </div>
-                          </div>
-                        )}
-                      </TableCell>
                       <TableCell>
                         <ThumbnailList
                           ra={candidateObj.ra}
@@ -159,7 +162,7 @@ const CandidateList = () => {
                         />
                       </TableCell>
                       <TableCell>
-                        ID:&nbsp;
+                        <b>ID:</b>&nbsp;
                         <Link to={`/candidate/${candidateObj.id}`}>
                           {candidateObj.id}
                         </Link>
@@ -180,10 +183,31 @@ const CandidateList = () => {
                           <div>
                             NOT SAVED
                             <br />
-                            <SaveCandidateButton
-                              candidate={candidateObj}
-                              userGroups={userAccessibleGroups}
-                            />
+                            <div className={classes.saveCandidateButton}>
+                              <SaveCandidateButton
+                                candidate={candidateObj}
+                                userGroups={userAccessibleGroups}
+                              />
+                            </div>
+                          </div>
+                        )}
+                        {candidateObj.last_detected && (
+                          <div className={classes.lastDetected}>
+                            <b>Last detected: </b>
+                            <div>
+                              {
+                                String(candidateObj.last_detected)
+                                  .split(".")[0]
+                                  .split("T")[1]
+                              }
+                            </div>
+                            <div>
+                              {
+                                String(candidateObj.last_detected)
+                                  .split(".")[0]
+                                  .split("T")[0]
+                              }
+                            </div>
                           </div>
                         )}
                         <b>Coordinates</b>
