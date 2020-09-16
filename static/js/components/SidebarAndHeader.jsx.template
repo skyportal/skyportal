@@ -187,7 +187,7 @@ const SidebarAndHeader = () => {
           {%- endif -%}
 
           {%- endfor %}
-          {currentUser.acls?.includes("System admin") && (
+          {(currentUser.acls?.includes("System admin") || currentUser.acls?.includes("Manage users")) && (
             <Link to="/user_management" className={classes.link} onClick={() => setSelected("/user_management")}>
               <ListItem button name="userManagementButton">
                 <ListItemIcon>

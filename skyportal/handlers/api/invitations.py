@@ -72,7 +72,7 @@ class InvitationHandler(BaseHandler):
             return self.error("Missing required parameter `userEmail`")
         user_email = data["userEmail"].strip()
 
-        if not data.get("groupIDs") is not None:
+        if data.get("groupIDs") is None:
             return self.error("Missing required parameter `groupIDs`")
         try:
             group_ids = [int(gid) for gid in data["groupIDs"]]

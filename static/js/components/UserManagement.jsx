@@ -49,7 +49,12 @@ const UserManagement = () => {
     );
   }
 
-  if (!currentUser.acls?.includes("System admin")) {
+  if (
+    !(
+      currentUser.acls?.includes("System admin") ||
+      currentUser.acls?.includes("Manage users")
+    )
+  ) {
     return <div>Access denied: Insufficient permissions.</div>;
   }
 
