@@ -185,10 +185,22 @@ class SourceHandler(BaseHandler):
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
-        group_id = self.get_query_argument(
-            'group_id', None
-        )  # list of strings with group numbers
+
+        # parse the group ids:
+        group_id = self.get_query_argument('group_id', None)  # string, maybe array
+        if group_id:
+            for id in group_id:
+                try:
+                    int(
+                        id
+                    )  # just check each group_id that it is a string containing an integer (e.g., not letters)
+                except ValueError:
+                    return self.error(f'Invalid group id: {id}')
+
+            group_id = [int(g) for g in group_id.split(',')]
+
         user_group_ids = [g.id for g in self.current_user.accessible_groups]
+
         simbad_class = self.get_query_argument('simbadClass', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
         total_matches = self.get_query_argument('totalMatches', None)
@@ -302,19 +314,11 @@ class SourceHandler(BaseHandler):
         if has_tns_name in ['true', True]:
             q = q.filter(Obj.altdata['tns']['name'].isnot(None))
         if group_id:
-            for id in group_id:
-                try:
-                    int(
-                        id
-                    )  # just check each group_id that it is a string containing an integer (e.g., not letters)
-                except ValueError:
-                    return self.error(f'Invalid group id: {id}')
-
-            if not all(int(g) in user_group_ids for g in group_id):
+            if not all(g in user_group_ids for g in group_id):
                 return self.error(
                     f"One of the requested groups in '{group_id}' is inaccessible to user."
                 )
-            q = q.filter(Source.group_id.in_([int(g) for g in group_id]))
+            q = q.filter(Source.group_id.in_([g for g in group_id]))
 
         if page_number:
             try:

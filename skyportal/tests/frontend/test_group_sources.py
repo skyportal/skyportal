@@ -4,7 +4,7 @@ import uuid
 # from ...models import DBSession
 from .. import api
 
-# import time
+import time
 
 
 def test_add_new_source(driver, super_admin_user, public_group, upload_data_token):
@@ -33,11 +33,12 @@ def test_add_new_source(driver, super_admin_user, public_group, upload_data_toke
     assert data['data']['id'] == f'{obj_id}'
 
     driver.get(f"/source/{obj_id}")
-    driver.save_screenshot('test_source_page.png')
+    time.sleep(10)
+    # driver.save_screenshot('test_source_page.png')
 
     driver.get(f"/group_sources/{public_group.id}")  # go to the group sources page
 
-    driver.save_screenshot('test_group_page.png')
+    # driver.save_screenshot('test_group_page.png')
 
     driver.wait_for_xpath(
         f"//a[contains(@href, '/source/{obj_id}')]"
