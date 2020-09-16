@@ -2,7 +2,7 @@ import base64
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, Comment, Group
+from ...models import DBSession, Source, Comment, Group, Candidate, Filter
 
 
 class CommentHandler(BaseHandler):
@@ -87,15 +87,52 @@ class CommentHandler(BaseHandler):
         obj_id = data['obj_id']
         # Ensure user/token has access to parent source
         _ = Source.get_obj_if_owned_by(obj_id, self.current_user)
-        user_group_ids = [g.id for g in self.current_user.groups]
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
-        group_ids = data.pop("group_ids", user_group_ids)
-        group_ids = [gid for gid in group_ids if gid in user_accessible_group_ids]
+        user_accessible_filter_ids = [
+            filtr.id
+            for g in self.current_user.accessible_groups
+            for filtr in g.filters
+            if g.filters is not None
+        ]
+        group_ids = [int(id) for id in data.pop("group_ids", user_accessible_group_ids)]
+        group_ids = set(group_ids).intersection(user_accessible_group_ids)
         if not group_ids:
             return self.error(
                 f"Invalid group IDs field ({group_ids}): "
                 "You must provide one or more valid group IDs."
             )
+
+        # Only post to groups source/candidate is actually associated with
+        if DBSession().query(Candidate).filter(Candidate.obj_id == obj_id).all():
+            candidate_group_ids = [
+                f.group_id
+                for f in (
+                    DBSession()
+                    .query(Filter)
+                    .filter(Filter.id.in_(user_accessible_filter_ids))
+                    .filter(
+                        Filter.id.in_(
+                            DBSession()
+                            .query(Candidate.filter_id)
+                            .filter(Candidate.obj_id == obj_id)
+                        )
+                    )
+                    .all()
+                )
+            ]
+        else:
+            candidate_group_ids = []
+        matching_sources = (
+            DBSession().query(Source).filter(Source.obj_id == obj_id).all()
+        )
+        if matching_sources:
+            source_group_ids = [source.group_id for source in matching_sources]
+        else:
+            source_group_ids = []
+        group_ids = set(group_ids).intersection(candidate_group_ids + source_group_ids)
+        if not group_ids:
+            return self.error("Obj is not associated with any of the specified groups.")
+
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
         if 'attachment' in data and 'body' in data['attachment']:
             attachment_bytes = str.encode(
