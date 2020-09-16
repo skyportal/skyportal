@@ -94,10 +94,8 @@ class CommentHandler(BaseHandler):
             for filtr in g.filters
             if g.filters is not None
         ]
-        group_ids = data.pop("group_ids", user_accessible_group_ids)
-        group_ids = [
-            int(gid) for gid in group_ids if int(gid) in user_accessible_group_ids
-        ]
+        group_ids = [int(id) for id in data.pop("group_ids", user_accessible_group_ids)]
+        group_ids = set(group_ids).intersection(user_accessible_group_ids)
         if not group_ids:
             return self.error(
                 f"Invalid group IDs field ({group_ids}): "
@@ -131,9 +129,7 @@ class CommentHandler(BaseHandler):
             source_group_ids = [source.group_id for source in matching_sources]
         else:
             source_group_ids = []
-        group_ids = [
-            gid for gid in group_ids if gid in candidate_group_ids + source_group_ids
-        ]
+        group_ids = set(group_ids).intersection(candidate_group_ids + source_group_ids)
         if not group_ids:
             return self.error("Obj is not associated with any of the specified groups.")
 
