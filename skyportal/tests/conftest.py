@@ -25,7 +25,15 @@ from skyportal.tests.fixtures import (
     TelescopeFactory,
 )
 from skyportal.model_util import create_token
-from skyportal.models import DBSession, Source, Candidate, Role, User, Allocation
+from skyportal.models import (
+    DBSession,
+    Source,
+    Candidate,
+    Role,
+    User,
+    Allocation,
+    FollowupRequest,
+)
 
 import astroplan
 import warnings
@@ -72,6 +80,13 @@ def public_stream():
 
 
 @pytest.fixture()
+def stream_with_users(super_admin_user, group_admin_user, user, view_only_user):
+    return StreamFactory(
+        users=[super_admin_user, group_admin_user, user, view_only_user]
+    )
+
+
+@pytest.fixture()
 def public_group():
     return GroupFactory()
 
@@ -82,9 +97,22 @@ def public_group2():
 
 
 @pytest.fixture()
-def group_with_stream(super_admin_user, group_admin_user, public_stream):
+def group_with_stream(
+    super_admin_user, group_admin_user, user, view_only_user, public_stream
+):
     return GroupFactory(
-        users=[super_admin_user, group_admin_user], streams=[public_stream]
+        users=[super_admin_user, group_admin_user, user, view_only_user],
+        streams=[public_stream],
+    )
+
+
+@pytest.fixture()
+def group_with_stream_with_users(
+    super_admin_user, group_admin_user, user, view_only_user, stream_with_users
+):
+    return GroupFactory(
+        users=[super_admin_user, group_admin_user, user, view_only_user],
+        streams=[stream_with_users],
     )
 
 
@@ -196,6 +224,7 @@ def sedm(p60_telescope):
         band='Optical',
         filters=['sdssu', 'sdssg', 'sdssr', 'sdssi'],
         api_classname='SEDMAPI',
+        listener_classname='SEDMListener',
     )
 
 
@@ -415,3 +444,53 @@ def public_group2_sedm_allocation(sedm, public_group2):
     DBSession().add(allocation)
     DBSession().commit()
     return allocation
+
+
+@pytest.fixture()
+def public_source_followup_request(public_group_sedm_allocation, public_source, user):
+    fr = FollowupRequest(
+        obj=public_source,
+        allocation=public_group_sedm_allocation,
+        payload={
+            'priority': "5",
+            'start_date': '3020-09-01',
+            'end_date': '3022-09-01',
+            'observation_type': 'IFU',
+        },
+        requester_id=user.id,
+    )
+
+    DBSession().add(fr)
+    DBSession().commit()
+    return fr
+
+
+@pytest.fixture()
+def public_source_group2_followup_request(
+    public_group2_sedm_allocation, public_source_group2, user_two_groups
+):
+    fr = FollowupRequest(
+        obj=public_source_group2,
+        allocation=public_group2_sedm_allocation,
+        payload={
+            'priority': "5",
+            'start_date': '3020-09-01',
+            'end_date': '3022-09-01',
+            'observation_type': 'IFU',
+        },
+        requester_id=user_two_groups.id,
+    )
+
+    DBSession().add(fr)
+    DBSession().commit()
+    return fr
+
+
+@pytest.fixture()
+def sedm_listener_token(sedm, group_admin_user):
+    token_id = create_token(
+        ACLs=[sedm.listener_class.get_acl_id()],
+        user_id=group_admin_user.id,
+        name=str(uuid.uuid4()),
+    )
+    return token_id

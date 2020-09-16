@@ -26,9 +26,12 @@
 }
 
 .entryMessage {
-  font-style: italic;
   max-width: 350px;
   margin-bottom: 0.2em;
+}
+
+.entryMessage > p {
+  margin: 0;
 }
 
 .entryContent {

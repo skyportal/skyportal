@@ -119,7 +119,10 @@ const RecentSourcesList = ({ sources, styles }) => {
 
           return (
             <li key={`recentSources_${source.obj_id}`}>
-              <div className={styles.recentSourceItemWithButton}>
+              <div
+                data-testid={`recentSourceItem_${source.obj_id}`}
+                className={styles.recentSourceItemWithButton}
+              >
                 <div className={styles.recentSourceItem}>
                   <Link
                     to={`/source/${source.obj_id}`}

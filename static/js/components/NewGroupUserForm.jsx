@@ -15,11 +15,13 @@ import DialogTitle from "@material-ui/core/DialogTitle";
 import { showNotification } from "baselayer/components/Notifications";
 import * as groupsActions from "../ducks/groups";
 import * as usersActions from "../ducks/users";
+import * as inviteUsersActions from "../ducks/inviteUsers";
 
 const filter = createFilterOptions();
 
 const NewGroupUserForm = ({ group_id }) => {
   const dispatch = useDispatch();
+  const { invitationsEnabled } = useSelector((state) => state.sysInfo);
   const { allUsers } = useSelector((state) => state.users);
   const [formState, setFormState] = useState({
     newUserEmail: null,
@@ -35,34 +37,49 @@ const NewGroupUserForm = ({ group_id }) => {
   }, [dispatch, allUsers]);
 
   const submitAndResetForm = async () => {
-    const result = await dispatch(
-      groupsActions.addGroupUser({
-        username: formState.newUserEmail,
-        admin: formState.admin,
-        group_id,
-      })
-    );
-    if (
-      formState.invitingNewUser &&
-      result.status === "success" &&
-      result.data.user_id === null
-    ) {
-      dispatch(
-        showNotification(
-          `Invitation successfully sent to ${formState.newUserEmail}`
-        )
+    let result = null;
+    if (formState.invitingNewUser && invitationsEnabled) {
+      result = await dispatch(
+        inviteUsersActions.inviteUser({
+          userEmail: formState.newUserEmail,
+          groupIDs: [group_id],
+          groupAdmin: [formState.admin],
+          streamIDs: null,
+        })
       );
+      if (result.status === "success") {
+        dispatch(
+          showNotification(
+            `Invitation successfully sent to ${formState.newUserEmail}`
+          )
+        );
+        setFormState({
+          newUserEmail: null,
+          admin: false,
+          invitingNewUser: false,
+        });
+      }
+    } else {
+      result = await dispatch(
+        groupsActions.addGroupUser({
+          username: formState.newUserEmail,
+          admin: formState.admin,
+          group_id,
+        })
+      );
+      if (result.status === "success") {
+        setFormState({
+          newUserEmail: null,
+          admin: false,
+          invitingNewUser: false,
+        });
+      }
     }
-    setFormState({
-      newUserEmail: null,
-      admin: false,
-      invitingNewUser: false,
-    });
   };
 
   const handleClickSubmit = (event) => {
     event.preventDefault();
-    if (formState.invitingNewUser) {
+    if (invitationsEnabled && formState.invitingNewUser) {
       // If user clicks confirm, `submitAndResetForm` will be called
       setConfirmDialogOpen(true);
     } else {

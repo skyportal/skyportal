@@ -5,6 +5,7 @@ from ..base import BaseHandler
 from ...models import (
     DBSession,
     Stream,
+    StreamUser,
 )
 
 
@@ -159,4 +160,99 @@ class StreamHandler(BaseHandler):
         DBSession().delete(Stream.query.get(stream_id))
         DBSession().commit()
 
+        return self.success()
+
+
+class StreamUserHandler(BaseHandler):
+    @permissions(["Manage users"])
+    def post(self, stream_id, *ignored_args):
+        """
+        ---
+        description: Grant stream access to a user
+        parameters:
+          - in: path
+            name: stream_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: integer
+                required:
+                  - user_id
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            stream_id:
+                              type: integer
+                              description: Stream ID
+                            user_id:
+                              type: integer
+                              description: User ID
+        """
+        data = self.get_json()
+
+        user_id = data.pop("user_id", None)
+        if user_id is None:
+            return self.error("User ID must be specified")
+
+        stream_id = int(stream_id)
+        su = (
+            StreamUser.query.filter(StreamUser.stream_id == stream_id)
+            .filter(StreamUser.user_id == user_id)
+            .first()
+        )
+        if su is None:
+            DBSession.add(StreamUser(stream_id=stream_id, user_id=user_id))
+        else:
+            return self.error("Specified user already has access to this stream.")
+        DBSession().commit()
+
+        return self.success(data={'stream_id': stream_id, 'user_id': user_id})
+
+    @permissions(["Manage users"])
+    def delete(self, stream_id, user_id):
+        """
+        ---
+        description: Delete a stream user (revoke stream access for user)
+        parameters:
+          - in: path
+            name: stream_id
+            required: true
+            schema:
+              type: integer
+          - in: path
+            name: user_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        su = (
+            StreamUser.query.filter(StreamUser.stream_id == stream_id)
+            .filter(StreamUser.user_id == user_id)
+            .first()
+        )
+        if su is None:
+            return self.error("Stream user does not exist.")
+        DBSession().delete(su)
+        DBSession().commit()
         return self.success()

@@ -162,7 +162,10 @@ const SourceQuickView = ({ sourceId, className }) => {
   // Only load more detailed source info once dialog is opened
   if (open) {
     return (
-      <div className={className}>
+      <div
+        className={className}
+        data-testid={`quickViewButton_${source.obj_id}`}
+      >
         <Button
           color="primary"
           variant="outlined"
@@ -211,7 +214,7 @@ const SourceQuickView = ({ sourceId, className }) => {
   }
 
   return (
-    <div className={className}>
+    <div className={className} data-testid={`quickViewButton_${source.obj_id}`}>
       <Button
         color="primary"
         variant="outlined"

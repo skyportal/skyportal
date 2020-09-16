@@ -1,4 +1,5 @@
 .commentsList {
+  margin-top: 1rem;
   overflow-y: scroll;
   max-height: 350px;
 }
@@ -52,6 +53,10 @@
 
 .commentMessage {
   max-width: 20em;
+}
+
+.commentMessage > p {
+  margin: 0;
 }
 
 .commentUserName {

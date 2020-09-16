@@ -16,7 +16,6 @@ fastavro==0.21.7
 tqdm>=4.23.2
 matplotlib>=3
 astroquery>=0.4
-sqlalchemy-utils
 apispec>=3.3.1
 marshmallow>=3.4.0
 marshmallow-sqlalchemy>=0.21.0
@@ -35,3 +34,4 @@ py3-validate-email>=0.2.9
 marshmallow-jsonschema>=0.10.0
 requests_toolbelt>=0.9.1
 sendgrid>=6.4.6
+jsonschema-to-openapi>=0.2.1

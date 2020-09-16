@@ -1,4 +1,26 @@
-from ._base import _Base
+from ._base import _Base, _ListenerBase
+
+
+class Listener(_ListenerBase):
+    """An interface that User-contributed remote facility message listeners
+    must provide. User-contributed classes must subclass this."""
+
+    # JSON schema of the incoming messages. All user-contributed fields
+    # should go here (followup-request ID is added automatically in the base
+    # class and does not need to be added here).
+    schema = {}
+
+    # subclasses *must* implement the method below
+    @staticmethod
+    def receive_message(handler_instance):
+        """Handle a POSTed message from a remote facility.
+
+        Parameters
+        ----------
+        handler_instance: skyportal.handlers.FacilityMessageHandler
+           The instance of the handler that received the request.
+        """
+        raise NotImplementedError
 
 
 class FollowUpAPI(_Base):

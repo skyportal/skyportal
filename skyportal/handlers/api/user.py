@@ -5,7 +5,7 @@ from validate_email import validate_email
 from ..base import BaseHandler
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
-from ...models import DBSession, User, Group, GroupUser
+from ...models import DBSession, User, Group, GroupUser, StreamUser
 
 
 env, cfg = load_env()
@@ -34,9 +34,13 @@ def add_user_and_setup_groups(
     DBSession().add(user)
     DBSession().flush()
 
-    # Add user to specified groups
+    # Add user to specified groups & associated streams
     for group_id, admin in group_ids_and_admin:
-        DBSession.add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
+        DBSession().add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
+        group = Group.query.get(group_id)
+        if group.streams:
+            for stream in group.streams:
+                DBSession().add(StreamUser(user_id=user.id, stream_id=stream.id))
 
     # Create single-user group
     DBSession().add(Group(name=user.username, users=[user], single_user_group=True))
@@ -105,11 +109,18 @@ class UserHandler(BaseHandler):
 
             user_info["acls"] = sorted(user.acls, key=lambda a: a.id)
             return self.success(data=user_info)
-        users = [user.to_dict() for user in User.query.all()]
-        for user in users:
-            if user.get("contact_phone"):
-                user["contact_phone"] = user["contact_phone"].e164
-        return self.success(data=users)
+
+        return_values = []
+        for user in User.query.all():
+            return_values.append(user.to_dict())
+            if user.contact_phone:
+                return_values[-1]["contact_phone"] = user.contact_phone.e164
+            return_values[-1]["contact_email"] = user.contact_email
+            # Only Sys admins can see other users' group memberships
+            if "System admin" in self.associated_user_object.permissions:
+                return_values[-1]["groups"] = user.groups
+                return_values[-1]["streams"] = user.streams
+        return self.success(data=return_values)
 
     @permissions(["Manage users"])
     def post(self):
