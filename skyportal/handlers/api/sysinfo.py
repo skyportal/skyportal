@@ -1,5 +1,9 @@
+from baselayer.app.env import load_env
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
+
+
+_, cfg = load_env()
 
 
 class SysInfoHandler(BaseHandler):
@@ -7,7 +11,7 @@ class SysInfoHandler(BaseHandler):
     def get(self):
         """
         ---
-        description: Retrieve system info
+        description: Retrieve system/deployment info
         responses:
           200:
             content:
@@ -19,5 +23,11 @@ class SysInfoHandler(BaseHandler):
                       properties:
                         data:
                           type: object
+                        properties:
+                          invitationsEnabled:
+                            type: boolean
+                          description: |
+                            Boolean indicating whether new user invitation pipeline
+                            is enabled in current deployment.
         """
-        return self.success(data={})
+        return self.success(data={"invitationsEnabled": cfg["invitations.enabled"]})

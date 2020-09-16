@@ -55,6 +55,8 @@ app:
       component: ObservingRunList
     - path: "/group_sources/:id"
       component: GroupSources
+    - path: "/user_management"
+      component: UserManagement
 
   sidebar:
     # See https://material-ui.com/components/material-icons/

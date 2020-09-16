@@ -120,8 +120,8 @@ def test_add_new_group_user_new_username(driver, super_admin_user, user, public_
         new_username
     ).pause(5).send_keys(Keys.ENTER).perform()
     driver.click_xpath('//button[contains(.,"Add user")]')
-    driver.click_xpath('//span[text()="Confirm"]')
-    if cfg["invitations.enabled"]:  # If invites are disabled, we won't see this notif.
+    if cfg["invitations.enabled"]:  # If invites are disabled, we won't see these
+        driver.click_xpath('//span[text()="Confirm"]')
         driver.wait_for_xpath('//*[contains(., "Invitation successfully sent to")]')
     else:
         # If invitations are disabled, the user will be added and will appear
