@@ -1,10 +1,7 @@
 import uuid
 
-# import pytest
-# from ...models import DBSession
 from .. import api
-
-import time
+from selenium.common.exceptions import TimeoutException
 
 
 def test_add_new_source(driver, super_admin_user, public_group, upload_data_token):
@@ -32,25 +29,29 @@ def test_add_new_source(driver, super_admin_user, public_group, upload_data_toke
     assert status == 200
     assert data['data']['id'] == f'{obj_id}'
 
-    driver.get(f"/source/{obj_id}")
-    time.sleep(10)
-    # driver.save_screenshot('test_source_page.png')
+    # go to the group sources page
+    driver.get(f"/group_sources/{public_group.id}")
 
-    driver.get(f"/group_sources/{public_group.id}")  # go to the group sources page
+    # find the name of the newly added source
+    driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
 
-    # driver.save_screenshot('test_group_page.png')
-
-    driver.wait_for_xpath(
-        f"//a[contains(@href, '/source/{obj_id}')]"
-    )  # find the name of the newly added source
-
-    expand_button = driver.wait_for_xpath(
-        "//*[@id='expandable-button']"
-    )  # little triangle you push to expand the table
+    # little triangle you push to expand the table
+    expand_button = driver.wait_for_xpath("//*[@id='expandable-button']")
     driver.scroll_to_element_and_click(expand_button)
 
-    driver.save_screenshot('test_open_drawer.png')
+    # make sure the div containing the individual source appears
+    driver.wait_for_xpath("//div[@class='MuiGrid-root MuiGrid-item']")
 
-    driver.wait_for_xpath(
-        "//*[@class='vega-embed']"
-    )  # make sure the table row opens up and show the vega plot
+    try:  # the vega plot may take some time to appear, and in the meanwhile the MUI drawer gets closed for some reason.
+        driver.wait_for_xpath(
+            "//*[@class='vega-embed']"
+        )  # make sure the table row opens up and show the vega plot
+    except TimeoutException:
+        # try again to click this triangle thingy to open the drawer
+        expand_button = driver.wait_for_xpath("//*[@id='expandable-button']")
+        driver.scroll_to_element_and_click(expand_button)
+
+        # with the drawer opened again, it should now work...
+        driver.wait_for_xpath(
+            "//*[@class='vega-embed']"
+        )  # make sure the table row opens up and show the vega plot
