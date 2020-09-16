@@ -30,7 +30,14 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     const pageNumber = candidates.pageNumber ? candidates.pageNumber : 1;
     dispatch(fetchCandidates({ pageNumber }));
   } else if (actionType === REFRESH_CANDIDATE) {
-    dispatch(fetchCandidate(payload.id, FETCH_CANDIDATE_AND_MERGE));
+    const { candidates } = getState();
+    let done = false;
+    candidates.candidates.forEach((candidate) => {
+      if (candidate.internal_key === payload.id && !done) {
+        dispatch(fetchCandidate(candidate.id, FETCH_CANDIDATE_AND_MERGE));
+        done = true;
+      }
+    });
   }
 });
 
