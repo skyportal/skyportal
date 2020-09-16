@@ -18,6 +18,12 @@ export const ADD_GROUP_STREAM_OK = "skyportal/ADD_GROUP_STREAM_OK";
 export const DELETE_GROUP_STREAM = "skyportal/DELETE_GROUP_STREAM";
 export const DELETE_GROUP_STREAM_OK = "skyportal/DELETE_GROUP_STREAM_OK";
 
+export const ADD_STREAM_USER = "skyportal/ADD_STREAM_USER";
+export const ADD_STREAM_USER_OK = "skyportal/ADD_STREAM_USER_OK";
+
+export const DELETE_STREAM_USER = "skyportal/DELETE_STREAM_USER";
+export const DELETE_STREAM_USER_OK = "skyportal/DELETE_STREAM_USER_OK";
+
 export function fetchStreams() {
   return API.GET("/api/streams", FETCH_STREAMS);
 }
@@ -40,6 +46,19 @@ export function deleteGroupStream({ group_id, stream_id }) {
   return API.DELETE(
     `/api/groups/${group_id}/streams/${stream_id}`,
     DELETE_GROUP_STREAM
+  );
+}
+
+export function addStreamUser({ user_id, stream_id }) {
+  return API.POST(`/api/streams/${stream_id}/users`, ADD_STREAM_USER, {
+    user_id,
+  });
+}
+
+export function deleteStreamUser({ user_id, stream_id }) {
+  return API.DELETE(
+    `/api/streams/${stream_id}/users/${user_id}`,
+    DELETE_STREAM_USER
   );
 }
 

@@ -2028,6 +2028,12 @@ class Invitation(Base):
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
     )
+    streams = relationship(
+        "Stream",
+        secondary="stream_invitations",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
     admin_for_groups = sa.Column(psql.ARRAY(sa.Boolean), nullable=False)
     user_email = sa.Column(EmailType(), nullable=True)
     invited_by = relationship(
@@ -2041,6 +2047,7 @@ class Invitation(Base):
 
 
 GroupInvitation = join_model('group_invitations', Group, Invitation)
+StreamInvitation = join_model('stream_invitations', Stream, Invitation)
 UserInvitation = join_model("user_invitations", User, Invitation)
 
 

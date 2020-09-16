@@ -125,33 +125,21 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
 
     group_ids = [g.id for g in invitation.groups]
 
-    existing_user_group_ids = [g.id for g in existing_user.groups]
-
-    # grab stream_ids
-    stream_ids = set()
-    for group_id in group_ids:
-        streams = (
-            DBSession()
-            .query(Stream)
-            .join(GroupStream)
-            .filter(GroupStream.group_id == group_id)
-            .all()
-        )
-        for stream in streams:
-            stream_ids.add(stream.id)
-
-    # Add stream access to single user group
-    single_user_group = (
-        DBSession().query(Group).filter(Group.name == user.username).first()
+    streams = (
+        DBSession()
+        .query(Stream)
+        .join(GroupStream)
+        .filter(GroupStream.group_id.in_(group_ids))
+        .all()
     )
+    stream_ids = [stream.id for stream in streams]
+
     for stream_id in stream_ids:
-        DBSession.add(GroupStream(group_id=single_user_group.id, stream_id=stream_id))
         DBSession.add(StreamUser(stream_id=stream_id, user_id=user.id))
 
     # Add user to specified groups
     for group_id, admin in zip(group_ids, invitation.admin_for_groups):
-        if group_id not in existing_user_group_ids:
-            DBSession.add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
+        DBSession.add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
 
     # Add user to sitewide public group
     public_group = (
@@ -160,7 +148,7 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
         .filter(Group.name == cfg["misc"]["public_group_name"])
         .first()
     )
-    if public_group is not None and public_group.id not in existing_user_group_ids:
+    if public_group is not None:
         DBSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
 
     invitation.used = True
