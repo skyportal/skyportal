@@ -84,9 +84,12 @@ class CommentHandler(BaseHandler):
                               description: New comment ID
         """
         data = self.get_json()
-        obj_id = data['obj_id']
+        obj_id = data.get("obj_id")
+        if obj_id is None:
+            return self.error("Missing required field `obj_id`")
+        comment_text = data.get("text")
         # Ensure user/token has access to parent source
-        _ = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        obj = Source.get_obj_if_owned_by(obj_id, self.current_user)
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
             filtr.id
@@ -144,7 +147,7 @@ class CommentHandler(BaseHandler):
 
         author = self.associated_user_object
         comment = Comment(
-            text=data['text'],
+            text=comment_text,
             obj_id=obj_id,
             attachment_bytes=attachment_bytes,
             attachment_name=attachment_name,
@@ -153,6 +156,14 @@ class CommentHandler(BaseHandler):
         )
 
         DBSession().add(comment)
+        if comment_text.startswith("z="):
+            try:
+                redshift = float(comment_text.strip().split("z=")[1])
+            except ValueError:
+                return self.error(
+                    "Invalid redshift value provided; unable to cast to float"
+                )
+            obj.redshift = redshift
         DBSession().commit()
 
         self.push_all(
