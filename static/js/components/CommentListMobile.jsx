@@ -119,94 +119,101 @@ const CommentListMobile = ({ isCandidate }) => {
   const emojiSupport = (text) =>
     text.value.replace(/:\w+:/gi, (name) => emoji.getUnicode(name));
 
-  const recentComments = comments.slice(0, 3);
-
-  const items = recentComments.map(
-    ({
-      id,
-      author,
-      author_info,
-      created_at,
-      text,
-      attachment_name,
-      groups,
-    }) => {
-      return (
-        <span
-          key={id}
-          className={commentStyle}
-          onMouseOver={() => handleMouseHover(id, userProfile, author.username)}
-          onMouseOut={() => handleMouseLeave()}
-          onFocus={() => handleMouseHover(id, userProfile, author.username)}
-          onBlur={() => handleMouseLeave()}
-        >
-          <div className={styles.commentUserAvatar}>
-            <UserAvatar
-              size={24}
-              firstName={author_info.first_name}
-              lastName={author_info.last_name}
-              username={author_info.username}
-              gravatarUrl={author_info.gravatar_url}
-            />
-          </div>
-          <div className={styles.commentContent}>
-            <div className={styles.commentHeader}>
-              <span className={styles.commentUser}>
-                <span className={styles.commentUserName}>
-                  {author.username}
-                </span>
-              </span>
-              <span className={styles.commentTime}>
-                {dayjs().to(dayjs.utc(`${created_at}Z`))}
-              </span>
-              <div className={styles.commentUserGroup}>
-                <Tooltip title={groups.map((group) => group.name).join(", ")}>
-                  <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
-                </Tooltip>
-              </div>
-            </div>
-            <div className={styles.wrap} name={`commentDiv${id}`}>
-              <ReactMarkdown
-                source={text}
-                escapeHtml={false}
-                className={styles.commentMessage}
-                renderers={{ text: emojiSupport }}
-              />
-              <Button
-                style={
-                  hoverID === id ? { display: "block" } : { display: "none" }
-                }
-                size="small"
-                variant="outlined"
-                color="primary"
-                type="button"
-                name={`deleteCommentButton${id}`}
-                onClick={() => {
-                  dispatch(sourceActions.deleteComment(id));
-                }}
-                className={styles.commentDelete}
-              >
-                🗑
-              </Button>
-            </div>
-            <span>
-              {attachment_name && (
-                <div>
-                  Attachment:&nbsp;
-                  <a href={`/api/comment/${id}/attachment`}>
-                    {attachment_name}
-                  </a>
-                </div>
-              )}
-            </span>
-          </div>
-        </span>
-      );
-    }
-  );
   return (
     <div className={classes.container}>
-      <div className={classes.commentsList}>{items}</div>
+      <div className={classes.commentsList}>
+        {comments
+          .slice(0, 3)
+          .map(
+            ({
+              id,
+              author,
+              author_info,
+              created_at,
+              text,
+              attachment_name,
+              groups,
+            }) => (
+              <span
+                key={id}
+                className={commentStyle}
+                onMouseOver={() =>
+                  handleMouseHover(id, userProfile, author.username)
+                }
+                onMouseOut={() => handleMouseLeave()}
+                onFocus={() =>
+                  handleMouseHover(id, userProfile, author.username)
+                }
+                onBlur={() => handleMouseLeave()}
+              >
+                <div className={styles.commentUserAvatar}>
+                  <UserAvatar
+                    size={24}
+                    firstName={author_info.first_name}
+                    lastName={author_info.last_name}
+                    username={author_info.username}
+                    gravatarUrl={author_info.gravatar_url}
+                  />
+                </div>
+                <div className={styles.commentContent}>
+                  <div className={styles.commentHeader}>
+                    <span className={styles.commentUser}>
+                      <span className={styles.commentUserName}>
+                        {author.username}
+                      </span>
+                    </span>
+                    <span className={styles.commentTime}>
+                      {dayjs().to(dayjs.utc(`${created_at}Z`))}
+                    </span>
+                    <div className={styles.commentUserGroup}>
+                      <Tooltip
+                        title={groups.map((group) => group.name).join(", ")}
+                      >
+                        <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
+                      </Tooltip>
+                    </div>
+                  </div>
+                  <div className={styles.wrap} name={`commentDiv${id}`}>
+                    <ReactMarkdown
+                      source={text}
+                      escapeHtml={false}
+                      className={styles.commentMessage}
+                      renderers={{ text: emojiSupport }}
+                    />
+                    <Button
+                      style={
+                        hoverID === id
+                          ? { display: "block" }
+                          : { display: "none" }
+                      }
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      type="button"
+                      name={`deleteCommentButton${id}`}
+                      onClick={() => {
+                        dispatch(sourceActions.deleteComment(id));
+                      }}
+                      className={styles.commentDelete}
+                    >
+                      🗑
+                    </Button>
+                  </div>
+                  <span>
+                    {attachment_name && (
+                      <div>
+                        Attachment:&nbsp;
+                        <a href={`/api/comment/${id}/attachment`}>
+                          {attachment_name}
+                        </a>
+                      </div>
+                    )}
+                  </span>
+                </div>
+              </span>
+            )
+          )}
+      </div>
       <div className={classes.dialogButton}>
         <Button
           color="primary"

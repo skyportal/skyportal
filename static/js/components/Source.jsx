@@ -58,17 +58,13 @@ const Source = ({ route }) => {
     return <div>Source not found</div>;
   }
 
-  if (width <= 1200) {
-    return (
-      <Paper ref={ref} elevation={1}>
-        <SourceMobile source={source} />
-      </Paper>
-    );
-  }
-
   return (
     <Paper ref={ref} elevation={1}>
-      <SourceDesktop source={source} />
+      {width <= 1200 ? (
+        <SourceMobile source={source} />
+      ) : (
+        <SourceDesktop source={source} />
+      )}
     </Paper>
   );
 };
