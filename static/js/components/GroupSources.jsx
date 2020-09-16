@@ -59,6 +59,9 @@ const GroupSources = ({ route }) => {
   if (!sources) {
     return "Loading Sources...";
   }
+  if (sources.length === 0) {
+    return "No sources have been saved to this group yet. ";
+  }
 
   const group_id = parseInt(route.id, 10);
   let group_name = "";
@@ -82,63 +85,63 @@ const GroupSources = ({ route }) => {
 
     const comments = source.comments || [];
 
-    const items = comments.map(
-      ({
-        id,
-        author,
-        author_info,
-        created_at,
-        text,
-        attachment_name,
-        groups: comment_groups,
-      }) => {
-        return (
-          <span key={id} className={commentStyle}>
-            <div className={styles.commentUserAvatar}>
-              <UserAvatar
-                size={24}
-                firstName={author_info.first_name}
-                lastName={author_info.last_name}
-                username={author_info.username}
-                gravatarUrl={author_info.gravatar_url}
-              />
-            </div>
-            <div className={styles.commentContent}>
-              <div className={styles.commentHeader}>
-                <span className={styles.commentUser}>
-                  <span className={styles.commentUserName}>
-                    {author.username}
-                  </span>
-                </span>
-                <span className={styles.commentTime}>
-                  {dayjs().to(dayjs.utc(`${created_at}Z`))}
-                </span>
-                <div className={styles.commentUserGroup}>
-                  <Tooltip
-                    title={comment_groups.map((group) => group.name).join(", ")}
-                  >
-                    <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
-                  </Tooltip>
-                </div>
-              </div>
-              <div className={styles.wrap} name={`commentDiv${id}`}>
-                <div className={styles.commentMessage}>{text}</div>
-              </div>
-              <span>
-                {attachment_name && (
-                  <div>
-                    Attachment:&nbsp;
-                    <a href={`/api/comment/${id}/attachment`}>
-                      {attachment_name}
-                    </a>
-                  </div>
-                )}
-              </span>
-            </div>
-          </span>
-        );
-      }
-    );
+    //     const items = comments.map(
+    //       ({
+    //         id,
+    //         author,
+    //         author_info,
+    //         created_at,
+    //         text,
+    //         attachment_name,
+    //         groups: comment_groups,
+    //       }) => {
+    //         return (
+    //           <span key={id} className={commentStyle}>
+    //             <div className={styles.commentUserAvatar}>
+    //               <UserAvatar
+    //                 size={24}
+    //                 firstName={author_info.first_name}
+    //                 lastName={author_info.last_name}
+    //                 username={author_info.username}
+    //                 gravatarUrl={author_info.gravatar_url}
+    //               />
+    //             </div>
+    //             <div className={styles.commentContent}>
+    //               <div className={styles.commentHeader}>
+    //                 <span className={styles.commentUser}>
+    //                   <span className={styles.commentUserName}>
+    //                     {author.username}
+    //                   </span>
+    //                 </span>
+    //                 <span className={styles.commentTime}>
+    //                   {dayjs().to(dayjs.utc(`${created_at}Z`))}
+    //                 </span>
+    //                 <div className={styles.commentUserGroup}>
+    //                   <Tooltip
+    //                     title={comment_groups.map((group) => group.name).join(", ")}
+    //                   >
+    //                     <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
+    //                   </Tooltip>
+    //                 </div>
+    //               </div>
+    //               <div className={styles.wrap} name={`commentDiv${id}`}>
+    //                 <div className={styles.commentMessage}>{text}</div>
+    //               </div>
+    //               <span>
+    //                 {attachment_name && (
+    //                   <div>
+    //                     Attachment:&nbsp;
+    //                     <a href={`/api/comment/${id}/attachment`}>
+    //                       {attachment_name}
+    //                     </a>
+    //                   </div>
+    //                 )}
+    //               </span>
+    //             </div>
+    //           </span>
+    //         );
+    //       }
+    //     );
 
     return (
       <TableRow>
@@ -165,7 +168,58 @@ const GroupSources = ({ route }) => {
               </Suspense>
             </Grid>
             <Grid item>
-              <div className={styles.commentsList}>{items}</div>
+              <div className={styles.commentsList}>
+                <span key={comments.id} className={commentStyle}>
+                  <div className={styles.commentUserAvatar}>
+                    <UserAvatar
+                      size={24}
+                      firstName={comments.author_info.first_name}
+                      lastName={comments.author_info.last_name}
+                      username={comments.author_info.username}
+                      gravatarUrl={comments.author_info.gravatar_url}
+                    />
+                  </div>
+                  <div className={styles.commentContent}>
+                    <div className={styles.commentHeader}>
+                      <span className={styles.commentUser}>
+                        <span className={styles.commentUserName}>
+                          {comments.author.username}
+                        </span>
+                      </span>
+                      <span className={styles.commentTime}>
+                        {dayjs().to(dayjs.utc(`${comments.created_at}Z`))}
+                      </span>
+                      <div className={styles.commentUserGroup}>
+                        <Tooltip
+                          title={comments.groups
+                            .map((group) => group.name)
+                            .join(", ")}
+                        >
+                          <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
+                        </Tooltip>
+                      </div>
+                    </div>
+                    <div
+                      className={styles.wrap}
+                      name={`commentDiv${comments.id}`}
+                    >
+                      <div className={styles.commentMessage}>
+                        {comments.text}
+                      </div>
+                    </div>
+                    <span>
+                      {comments.attachment_name && (
+                        <div>
+                          Attachment:&nbsp;
+                          <a href={`/api/comment/${comments.id}/attachment`}>
+                            {comments.attachment_name}
+                          </a>
+                        </div>
+                      )}
+                    </span>
+                  </div>
+                </span>
+              </div>
             </Grid>
             <Grid item>
               <Suspense fallback={<div>Loading classifications</div>}>

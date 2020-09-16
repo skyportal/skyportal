@@ -138,10 +138,12 @@ class SourceHandler(BaseHandler):
               Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
               last_detected <= endDate
           - in: query
-            name: group_id
+            name: group_ids
             nullable: true
             schema:
               type: list
+              items:
+                type: integer
             description: |
                If provided, filter only sources saved to one of these group IDs.
           responses:
@@ -187,19 +189,16 @@ class SourceHandler(BaseHandler):
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
 
         # parse the group ids:
-        group_id = self.get_query_argument('group_id', None)  # string, maybe array
-        if group_id:
-            for id in group_id:
-                try:
-                    int(
-                        id
-                    )  # just check each group_id that it is a string containing an integer (e.g., not letters)
-                except ValueError:
-                    return self.error(f'Invalid group id: {id}')
+        group_ids = self.get_query_argument('group_id', None)
+        if group_ids is not None:
+            try:
+                group_ids = [int(gid) for gid in group_ids.split(',')]
+            except ValueError:
+                return self.error(
+                    f'Invalid group ids field ({group_ids}; Could not parse all elements to integers'
+                )
 
-            group_id = [int(g) for g in group_id.split(',')]
-
-        user_group_ids = [g.id for g in self.current_user.accessible_groups]
+        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
 
         simbad_class = self.get_query_argument('simbadClass', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
@@ -260,7 +259,8 @@ class SourceHandler(BaseHandler):
                 .query(Group)
                 .join(Source)
                 .filter(
-                    Source.obj_id == source_info["id"], Group.id.in_(user_group_ids)
+                    Source.obj_id == source_info["id"],
+                    Group.id.in_(user_accessible_group_ids),
                 )
                 .all()
             )
@@ -274,7 +274,7 @@ class SourceHandler(BaseHandler):
             .join(Source)
             .filter(
                 Source.group_id.in_(
-                    user_group_ids
+                    user_accessible_group_ids
                 )  # only give sources the user has access to
             )
             .options(
@@ -316,12 +316,12 @@ class SourceHandler(BaseHandler):
             )
         if has_tns_name in ['true', True]:
             q = q.filter(Obj.altdata['tns']['name'].isnot(None))
-        if group_id:
-            if not all(g in user_group_ids for g in group_id):
+        if group_ids is not None:
+            if not all(gid in user_accessible_group_ids for gid in group_ids):
                 return self.error(
-                    f"One of the requested groups in '{group_id}' is inaccessible to user."
+                    f"One of the requested groups in '{group_ids}' is inaccessible to user."
                 )
-            q = q.filter(Source.group_id.in_([g for g in group_id]))
+            q = q.filter(Source.group_id.in_(group_ids))
 
         if page_number:
             try:
@@ -341,16 +341,14 @@ class SourceHandler(BaseHandler):
 
         source_list = []
         for source in query_results["sources"]:
-            comments = source.get_comments_owned_by(self.current_user)
-            source.comments = sorted(comments, key=lambda x: x.created_at, reverse=True)
-            source.classifications = source.get_classifications_owned_by(
-                self.current_user
-            )
             source_list.append(source.to_dict())
             source_list[-1]["comments"] = sorted(
                 source.get_comments_owned_by(self.current_user),
                 key=lambda x: x.created_at,
                 reverse=True,
+            )
+            source_list[-1]["classification"] = source.get_classifications_owned_by(
+                self.current_user
             )
             source_list[-1]["last_detected"] = source.last_detected
             source_list[-1]["gal_lon"] = source.gal_lon_deg
@@ -360,7 +358,8 @@ class SourceHandler(BaseHandler):
                 .query(Group)
                 .join(Source)
                 .filter(
-                    Source.obj_id == source_list[-1]["id"], Group.id.in_(user_group_ids)
+                    Source.obj_id == source_list[-1]["id"],
+                    Group.id.in_(user_accessible_group_ids),
                 )
                 .all()
             )
