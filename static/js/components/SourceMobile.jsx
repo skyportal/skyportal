@@ -105,6 +105,11 @@ export const useSourceStyles = makeStyles((theme) => ({
     margin: "auto",
     maxWidth: "100%",
   },
+  thumbnails: {
+    "& > div": {
+      justifyContent: "center",
+    },
+  },
   centroidPlot: {
     margin: "auto",
   },
@@ -181,12 +186,14 @@ const SourceMobile = ({ source }) => {
                 />
               ))}
             </div>
-            <ThumbnailList
-              ra={source.ra}
-              dec={source.dec}
-              thumbnails={source.thumbnails}
-              size="10rem"
-            />
+            <div className={classes.thumbnails}>
+              <ThumbnailList
+                ra={source.ra}
+                dec={source.dec}
+                thumbnails={source.thumbnails}
+                size="10rem"
+              />
+            </div>
           </div>
           <Paper className={classes.comments} variant="outlined">
             <Typography className={classes.accordionHeading}>
