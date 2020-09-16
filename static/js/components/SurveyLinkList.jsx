@@ -46,6 +46,10 @@ const SurveyLinkList = ({ ra, dec, id }) => {
         url={`http://simbad.u-strasbg.fr/simbad/sim-coo?protocol=html&NbIdent=us=30&Radius.unit=arcsec&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&Coord=${ra}d+${dec}d`}
       />
       <SurveyLink
+        name="SDSS"
+        url={`http://skyserver.sdss.org/dr14/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.25`}
+      />
+      <SurveyLink
         name="VizieR"
         url={`http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=&-out.add=_r&-out.add=2C_DEJ&-sort=_r&-to=&-out.max=20&-meta.ucd=2&-meta.foot=1&-c=${ra_hrs}+${dec_hrs}&-c.rs=10`}
       />
