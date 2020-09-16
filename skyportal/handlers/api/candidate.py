@@ -397,7 +397,6 @@ class CandidateHandler(BaseHandler):
         )
         DBSession().commit()
 
-        self.push_all(action="skyportal/FETCH_CANDIDATES")
         return self.success(data={"id": obj.id})
 
     @permissions(["Manage sources"])
