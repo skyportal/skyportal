@@ -79,22 +79,11 @@ class ProfileHandler(BaseHandler):
             }
             for token in user.tokens
         ]
-        return self.success(
-            data={
-                "username": self.current_user.username,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "contact_email": user.contact_email,
-                "contact_phone": (
-                    None if user.contact_phone is None else user.contact_phone.e164
-                ),
-                "gravatar_url": user.gravatar_url,
-                "roles": user_roles,
-                "acls": user_acls,
-                "tokens": user_tokens,
-                "preferences": self.current_user.preferences or {},
-            }
-        )
+        user_info = user.to_dict()
+        user_info["roles"] = user_roles
+        user_info["acls"] = user_acls
+        user_info["tokens"] = user_tokens
+        return self.success(data=user_info)
 
     @auth_or_token
     def patch(self):
