@@ -87,6 +87,9 @@ const Group = () => {
 
   const [groupLoadError, setGroupLoadError] = useState("");
 
+  const [panelSourcesExpanded, setPanelSourcesExpanded] = React.useState(
+    "panel-sources"
+  );
   const [panelMembersExpanded, setPanelMembersExpanded] = React.useState(
     "panel-members"
   );
@@ -120,6 +123,9 @@ const Group = () => {
     setAddStreamOpen(false);
   };
 
+  const handlePanelSourcesChange = (panel) => (event, isExpanded) => {
+    setPanelSourcesExpanded(isExpanded ? panel : false);
+  };
   const handlePanelMembersChange = (panel) => (event, isExpanded) => {
     setPanelMembersExpanded(isExpanded ? panel : false);
   };
@@ -231,6 +237,26 @@ const Group = () => {
       <Typography variant="h5" style={{ paddingBottom: 10 }}>
         Group:&nbsp;&nbsp;{group.name}
       </Typography>
+
+      <Accordion
+        expanded={panelSourcesExpanded === "panel-sources"}
+        onChange={handlePanelSourcesChange("panel-sources")}
+      >
+        <AccordionSummary
+          expandIcon={<ExpandMoreIcon />}
+          aria-controls="panel-sources-content"
+          id="panel-sources-header"
+          style={{ borderBottom: "1px solid rgba(0, 0, 0, .125)" }}
+        >
+          <Typography className={classes.heading}>Sources</Typography>
+        </AccordionSummary>
+        <AccordionDetails className={classes.accordion_details}>
+          <Link to={`/group_sources/${group.id}`} key={group.id}>
+            <Button variant="contained">Group sources</Button>
+          </Link>
+        </AccordionDetails>
+      </Accordion>
+
       <Accordion
         expanded={panelMembersExpanded === "panel-members"}
         onChange={handlePanelMembersChange("panel-members")}
