@@ -167,10 +167,6 @@ def add_followup_request_using_frontend_and_verify_IOO(
     photometric_option = driver.wait_for_xpath('//input[@id="root_photometric"]')
     driver.scroll_to_element_and_click(photometric_option)
 
-    import pdb
-
-    pdb.set_trace()
-
     mode_select = driver.wait_for_xpath('//div[@id="root_observation_type"]')
     ActionChains(driver).move_to_element(mode_select).pause(1).click().perform()
 
@@ -289,10 +285,6 @@ def test_delete_followup_request_IOO(
     add_followup_request_using_frontend_and_verify_IOO(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
-
-    import pdb
-
-    pdb.set_trace()
 
     delete_button = driver.wait_for_xpath(f'//button[contains(@name, "deleteRequest")]')
     driver.scroll_to_element_and_click(delete_button)
