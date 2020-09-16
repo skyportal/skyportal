@@ -64,11 +64,7 @@ class InvitationHandler(BaseHandler):
             return self.error("Invitations are not enabled in current deployment.")
         data = self.get_json()
 
-        if data.get("userEmail") is None or data.get("userEmail") in [
-            "",
-            "None",
-            "null",
-        ]:
+        if data.get("userEmail") in [None, "", "None", "null"]:
             return self.error("Missing required parameter `userEmail`")
         user_email = data["userEmail"].strip()
 
@@ -83,11 +79,7 @@ class InvitationHandler(BaseHandler):
             )
         groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
 
-        if data.get("streamIDs") is not None and data.get("streamIDs") not in [
-            "",
-            "null",
-            "None",
-        ]:
+        if data.get("streamIDs") not in [None, "", "null", "None"]:
             try:
                 stream_ids = [int(sid) for sid in data["streamIDs"]]
             except ValueError:
