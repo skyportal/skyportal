@@ -11,6 +11,9 @@ const useStyles = makeStyles(() => ({
   followupRequestTable: {
     borderSpacing: "0.7em",
   },
+  container: {
+    overflowX: "scroll",
+  },
 }));
 
 const FollowupRequestLists = ({
@@ -28,7 +31,7 @@ const FollowupRequestLists = ({
     instrumentList.length === 0 ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <p>Loading...</p>;
+    return <p>No robotic followup requests for this source...</p>;
   }
 
   const instLookUp = instrumentList.reduce((r, a) => {
@@ -68,9 +71,15 @@ const FollowupRequestLists = ({
         const modifiable = implementsEdit || implementsDelete;
 
         return (
-          <div key={`instrument_${instrument_id}_table_div`}>
+          <div
+            key={`instrument_${instrument_id}_table_div`}
+            className={classes.container}
+          >
             <h3>{instLookUp[instrument_id].name} Requests</h3>
-            <table className={classes.followupRequestTable}>
+            <table
+              className={classes.followupRequestTable}
+              data-testid={`followupRequestTable_${instrument_id}`}
+            >
               <thead>
                 <td>Requester</td>
                 <td>Allocation</td>

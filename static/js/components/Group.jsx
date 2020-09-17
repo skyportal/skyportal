@@ -263,7 +263,7 @@ const Group = () => {
                     <Chip label="Admin" size="small" color="secondary" />
                   </div>
                 )}
-                {isAdmin(currentUser) &&
+                {currentUser.acls?.includes("Manage users") &&
                   ((isAdmin(user) && numAdmins > 1) || !isAdmin(user)) && (
                     <ListItemSecondaryAction>
                       <IconButton

@@ -11,7 +11,7 @@ def test_token_user_create_new_group(manage_groups_token, super_admin_user):
     status, data = api(
         "POST",
         "groups",
-        data={"name": group_name, "group_admins": [super_admin_user.username]},
+        data={"name": group_name, "group_admins": [super_admin_user.id]},
         token=manage_groups_token,
     )
     assert status == 200
@@ -28,7 +28,7 @@ def test_fetch_group_by_name(manage_groups_token, super_admin_user):
     status, data = api(
         "POST",
         "groups",
-        data={"name": group_name, "group_admins": [super_admin_user.username]},
+        data={"name": group_name, "group_admins": [super_admin_user.id]},
         token=manage_groups_token,
     )
     assert status == 200
@@ -47,7 +47,7 @@ def test_token_user_request_all_groups(manage_groups_token, super_admin_user):
     status, data = api(
         "POST",
         "groups",
-        data={"name": group_name, "group_admins": [super_admin_user.username]},
+        data={"name": group_name, "group_admins": [super_admin_user.id]},
         token=manage_groups_token,
     )
     assert status == 200
@@ -112,7 +112,7 @@ def test_manage_groups_token_get_unowned_group(
     status, data = api(
         "POST",
         "groups",
-        data={"name": group_name, "group_admins": [user.username]},
+        data={"name": group_name, "group_admins": [user.id]},
         token=manage_groups_token,
     )
     assert status == 200

@@ -1,5 +1,3 @@
-import uuid
-import python_http_client.exceptions
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
@@ -12,10 +10,10 @@ from ...models import (
     Group,
     GroupStream,
     GroupUser,
-    Invitation,
     Stream,
     User,
     Token,
+    StreamUser,
 )
 
 _, cfg = load_env()
@@ -208,9 +206,9 @@ class GroupHandler(BaseHandler):
                       group_admins:
                         type: array
                         items:
-                          type: string
+                          type: integer
                         description: |
-                          List of emails of users to be group admins. Current user will
+                          List of IDs of users to be group admins. Current user will
                           automatically be added as a group admin.
         responses:
           200:
@@ -230,10 +228,13 @@ class GroupHandler(BaseHandler):
         """
         data = self.get_json()
 
-        group_admin_emails = [
-            e.strip() for e in data.get('group_admins', []) if e.strip()
-        ]
-        group_admins = list(User.query.filter(User.username.in_(group_admin_emails)))
+        try:
+            group_admin_ids = [int(e) for e in data.get('group_admins', [])]
+        except ValueError:
+            return self.error(
+                "Invalid group_admins field; unable to parse all items to int"
+            )
+        group_admins = User.query.filter(User.id.in_(group_admin_ids)).all()
         if self.current_user not in group_admins and not isinstance(
             self.current_user, Token
         ):
@@ -381,56 +382,44 @@ class GroupUserHandler(BaseHandler):
             return self.error("Cannot add users to single-user groups.")
         user = User.query.filter(User.username == username.lower()).first()
         if user is None:
-            groups = Group.query.filter(Group.id == group_id).all()
-            if cfg["invitations.enabled"]:
-                invite_token = str(uuid.uuid4())
-                DBSession.add(
-                    Invitation(
-                        token=invite_token,
-                        groups=groups,
-                        admin_for_groups=[admin],
-                        user_email=username,
-                        invited_by=self.associated_user_object,
-                    )
-                )
-                user_id = None
-            else:
-                user_id = add_user_and_setup_groups(
-                    username=username,
-                    roles=["Full user"],
-                    group_ids_and_admin=[[group_id, admin]],
-                )
+            user_id = add_user_and_setup_groups(
+                username=username,
+                roles=["Full user"],
+                group_ids_and_admin=[[group_id, admin]],
+            )
         else:
             user_id = user.id
-            # Just add new GroupUser
+            # Ensure user has sufficient stream access to be added to group
+            if group.streams and "System admin" not in user.permissions:
+                user_stream_ids = [
+                    su.stream_id
+                    for su in DBSession()
+                    .query(StreamUser)
+                    .filter(StreamUser.user_id == user.id)
+                    .all()
+                ]
+                if not all([stream.id in user_stream_ids for stream in group.streams]):
+                    return self.error(
+                        "User does not have sufficient stream access "
+                        "to be added to this group."
+                    )
+            # Add user to group
             gu = (
                 GroupUser.query.filter(GroupUser.group_id == group_id)
                 .filter(GroupUser.user_id == user_id)
                 .first()
             )
-            if gu is None:
-                DBSession.add(
-                    GroupUser(group_id=group_id, user_id=user_id, admin=admin)
-                )
-            else:
-                return self.error(
-                    "Specified user is already associated with this group."
-                )
-        try:
-            DBSession().commit()
-        except python_http_client.exceptions.UnauthorizedError:
-            return self.error(
-                "Twilio Sendgrid authorization error. Please ensure "
-                "valid Sendgrid API key is set in server environment as "
-                "per their setup docs."
-            )
+            if gu is not None:
+                return self.error("Specified user is already a member of this group.")
+            DBSession.add(GroupUser(group_id=group_id, user_id=user_id, admin=admin))
+        DBSession().commit()
 
         self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
         return self.success(
             data={'group_id': group_id, 'user_id': user_id, 'admin': admin}
         )
 
-    @auth_or_token
+    @permissions(["Manage users"])
     def delete(self, group_id, username):
         """
         ---

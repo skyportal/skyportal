@@ -53,6 +53,8 @@ app:
       component: Filter
     - path: "/runs"
       component: ObservingRunList
+    - path: "/user_management"
+      component: UserManagement
 
   sidebar:
     # See https://material-ui.com/components/material-icons/

@@ -68,6 +68,11 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
       margin: theme.spacing(1),
       minWidth: 120,
     },
+    formContainer: {
+      display: "flex",
+      flexFlow: "row wrap",
+      alignItems: "center",
+    },
   }));
   const classes = useStyles();
 
@@ -96,7 +101,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
     <div>
       <form onSubmit={handleSubmit(onSubmit)}>
         <h3>Assign Target to Observing Run</h3>
-        <div>
+        <div className={classes.formContainer}>
           <FormControl className={classes.formControl}>
             <InputLabel id="assignmentSelectLabel">Choose Run</InputLabel>
             <Controller
@@ -146,6 +151,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
             multiline
             defaultValue=""
             name="comment"
+            size="small"
             inputRef={register}
           />
           <Button

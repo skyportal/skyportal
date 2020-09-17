@@ -1,9 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useDispatch } from "react-redux";
-import { useHistory } from "react-router-dom";
+import { Link, useHistory } from "react-router-dom";
 import { makeStyles } from "@material-ui/core/styles";
 
-import Link from "@material-ui/core/Link";
 import TextField from "@material-ui/core/TextField";
 import Autocomplete from "@material-ui/lab/Autocomplete";
 import SearchIcon from "@material-ui/icons/Search";
@@ -105,9 +104,7 @@ const QuickSearchBar = () => {
       getOptionSelected={(option, val) => option.name === val.name}
       getOptionLabel={(option) => option}
       onInputChange={(e, val) => {
-        if (e.constructor.name === "SyntheticEvent") {
-          setInputValue(val);
-        }
+        setInputValue(val);
       }}
       onChange={(event, newValue, reason) => {
         setValue(newValue);
@@ -135,7 +132,7 @@ const QuickSearchBar = () => {
       renderOption={(option) => {
         const v = `/source/${option}`;
         return (
-          <Link href={v} id={`quickSearchLinkTo${option}`} color="inherit">
+          <Link to={v} id={`quickSearchLinkTo${option}`} color="inherit">
             {option}
           </Link>
         );

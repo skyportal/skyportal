@@ -13,12 +13,14 @@ from skyportal.handlers.api import (
     CommentAttachmentHandler,
     FilterHandler,
     FollowupRequestHandler,
+    FacilityMessageHandler,
     GroupHandler,
     GroupUserHandler,
     PublicGroupHandler,
     GroupStreamHandler,
     InstrumentHandler,
     InvalidEndpointHandler,
+    InvitationHandler,
     NewsFeedHandler,
     ObservingRunHandler,
     PhotometryHandler,
@@ -31,6 +33,7 @@ from skyportal.handlers.api import (
     SpectrumHandler,
     ObjSpectraHandler,
     StreamHandler,
+    StreamUserHandler,
     SysInfoHandler,
     TaxonomyHandler,
     TelescopeHandler,
@@ -83,6 +86,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/classification(/[0-9]+)?', ClassificationHandler),
         (r'/api/comment(/[0-9]+)?', CommentHandler),
         (r'/api/comment(/[0-9]+)/attachment', CommentAttachmentHandler),
+        (r'/api/facility', FacilityMessageHandler),
         (r'/api/filters(/.*)?', FilterHandler),
         (r'/api/followup_request(/.*)?', FollowupRequestHandler),
         (r'/api/groups/public', PublicGroupHandler),
@@ -90,6 +94,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/groups(/[0-9]+)/users(/.*)?', GroupUserHandler),
         (r'/api/groups(/[0-9]+)?', GroupHandler),
         (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
+        (r'/api/invitations(/.*)?', InvitationHandler),
         (r'/api/newsfeed', NewsFeedHandler),
         (r'/api/observing_run(/[0-9]+)?', ObservingRunHandler),
         (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
@@ -101,6 +106,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/sources(/[0-9A-Za-z-_]+)/finder', SourceFinderHandler),
         (r'/api/sources(/.*)?', SourceHandler),
         (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
+        (r'/api/streams(/[0-9]+)/users(/.*)?', StreamUserHandler),
         (r'/api/streams(/[0-9]+)?', StreamHandler),
         (r'/api/sysinfo', SysInfoHandler),
         (r'/api/taxonomy(/.*)?', TaxonomyHandler),
@@ -122,48 +128,47 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/become_user(/.*)?', BecomeUserHandler),
         (r'/logout', LogoutHandler),
         # User-facing pages
-        (r'/.*', MainPageHandler)  # Route all frontend pages, such as
+        (r'/.*', MainPageHandler),  # Route all frontend pages, such as
         # `/source/g647ba`, through the main page.
         #
         # Refer to Main.jsx for routing info.
     ]
 
     settings = baselayer_settings
-    if not cfg["server.auth.debug_login"]:
-        settings.update(
-            {
-                'SOCIAL_AUTH_PIPELINE': (
-                    # Get the information we can about the user and return it in a simple
-                    # format to create the user instance later. In some cases the details are
-                    # already part of the auth response from the provider, but sometimes this
-                    # could hit a provider API.
-                    'social_core.pipeline.social_auth.social_details',
-                    # Get the social uid from whichever service we're authing thru. The uid is
-                    # the unique identifier of the given user in the provider.
-                    'social_core.pipeline.social_auth.social_uid',
-                    # Verify that the current auth process is valid within the current
-                    # project, this is where emails and domains whitelists are applied (if
-                    # defined).
-                    'social_core.pipeline.social_auth.auth_allowed',
-                    # Checks if the current social-account is already associated in the site.
-                    'social_core.pipeline.social_auth.social_user',
-                    'skyportal.onboarding.get_username',
-                    'skyportal.onboarding.create_user',
-                    # Create a user account if we haven't found one yet.
-                    # 'social_core.pipeline.user.create_user',
-                    # Create the record that associates the social account with the user.
-                    'social_core.pipeline.social_auth.associate_user',
-                    # Populate the extra_data field in the social record with the values
-                    # specified by settings (and the default ones like access_token, etc).
-                    'social_core.pipeline.social_auth.load_extra_data',
-                    # Update the user record with any changed info from the auth service.
-                    'social_core.pipeline.user.user_details',
-                    'skyportal.onboarding.setup_invited_user_permissions',
-                ),
-                'SOCIAL_AUTH_NEW_USER_REDIRECT_URL': '/profile?newUser=true',
-                'SOCIAL_AUTH_FIELDS_STORED_IN_SESSION': ['invite_token'],
-            }
-        )
+    settings.update(
+        {
+            'SOCIAL_AUTH_PIPELINE': (
+                # Get the information we can about the user and return it in a simple
+                # format to create the user instance later. In some cases the details are
+                # already part of the auth response from the provider, but sometimes this
+                # could hit a provider API.
+                'social_core.pipeline.social_auth.social_details',
+                # Get the social uid from whichever service we're authing thru. The uid is
+                # the unique identifier of the given user in the provider.
+                'social_core.pipeline.social_auth.social_uid',
+                # Verify that the current auth process is valid within the current
+                # project, this is where emails and domains whitelists are applied (if
+                # defined).
+                'social_core.pipeline.social_auth.auth_allowed',
+                # Checks if the current social-account is already associated in the site.
+                'social_core.pipeline.social_auth.social_user',
+                'skyportal.onboarding.get_username',
+                'skyportal.onboarding.create_user',
+                # Create a user account if we haven't found one yet.
+                # 'social_core.pipeline.user.create_user',
+                # Create the record that associates the social account with the user.
+                'social_core.pipeline.social_auth.associate_user',
+                # Populate the extra_data field in the social record with the values
+                # specified by settings (and the default ones like access_token, etc).
+                'social_core.pipeline.social_auth.load_extra_data',
+                # Update the user record with info from the auth service only if blank
+                'skyportal.onboarding.user_details',
+                'skyportal.onboarding.setup_invited_user_permissions',
+            ),
+            'SOCIAL_AUTH_NEW_USER_REDIRECT_URL': '/profile?newUser=true',
+            'SOCIAL_AUTH_FIELDS_STORED_IN_SESSION': ['invite_token'],
+        }
+    )
 
     app = tornado.web.Application(handlers, **settings)
     models.init_db(**cfg['database'])

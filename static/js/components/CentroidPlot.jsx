@@ -1,9 +1,18 @@
 import React, { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
+import { makeStyles, useTheme } from "@material-ui/core/styles";
 import embed from "vega-embed";
 import * as d3 from "d3";
+import convertLength from "convert-css-length";
 import * as photometryActions from "../ducks/photometry";
+
+const useStyles = makeStyles(() => ({
+  centroidPlotDiv: (props) => ({
+    width: props.width,
+    height: props.height,
+  }),
+}));
 
 // Helper functions for computing plot points (taken from GROWTH marshall)
 const gcirc = (ra1, dec1, ra2, dec2) => {
@@ -80,8 +89,8 @@ const getMessages = (delRaGroup, delDecGroup) => {
 // The Vega-Lite specifications for the centroid plot
 const spec = (inputData) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
-  width: 300,
-  height: 300,
+  width: "container",
+  height: "container",
   background: "transparent",
   layer: [
     // Render nuclear-to-host circle
@@ -196,6 +205,7 @@ const spec = (inputData) => ({
             titleLimit: 240,
             lableLimit: 240,
             rowPadding: 4,
+            orient: "bottom",
           },
         },
         shape: {
@@ -310,7 +320,14 @@ const processData = (photometry) => {
   };
 };
 
-const CentroidPlot = ({ sourceId }) => {
+const CentroidPlot = ({ sourceId, size }) => {
+  // Add some extra height for the legend
+  const theme = useTheme();
+  const rootFont = theme.typography.htmlFontSize;
+  const convert = convertLength(rootFont);
+  const newHeight = parseFloat(convert(size, "px")) + rootFont * 2;
+  const classes = useStyles({ width: size, height: `${newHeight}px` });
+
   const dispatch = useDispatch();
   const photometry = useSelector((state) => state.photometry[sourceId]);
 
@@ -326,7 +343,8 @@ const CentroidPlot = ({ sourceId }) => {
     if (plotData.photometryData.length > 0) {
       return (
         <div
-          className="centroid-plot-div"
+          className={classes.centroidPlotDiv}
+          data-testid="centroid-plot-div"
           ref={(node) => {
             if (node) {
               embed(node, spec(plotData), {
@@ -346,6 +364,11 @@ const CentroidPlot = ({ sourceId }) => {
 
 CentroidPlot.propTypes = {
   sourceId: PropTypes.string.isRequired,
+  size: PropTypes.string,
+};
+
+CentroidPlot.defaultProps = {
+  size: "300px",
 };
 
 export default CentroidPlot;
