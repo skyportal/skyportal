@@ -1,37 +1,45 @@
 import React from "react";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
-import styled from "styled-components";
-// import { makeStyles } from "@material-ui/core/styles";
+
+import MenuItem from "@material-ui/core/MenuItem";
+import MenuList from "@material-ui/core/MenuList";
+
+import { makeStyles } from "@material-ui/core/styles";
+import Box from "@material-ui/core/Box";
+import Popover from "@material-ui/core/Popover";
+import Typography from "@material-ui/core/Typography";
+import Button from "@material-ui/core/Button";
 
 import IconButton from "@material-ui/core/IconButton";
-import Menu from "@material-ui/core/Menu";
-import MenuItem from "@material-ui/core/MenuItem";
-import MoreVertIcon from "@material-ui/icons/MoreVert";
-
-import styles from "./ProfileDropdown.css";
+import Divider from "@material-ui/core/Divider";
 import UserAvatar from "./UserAvatar";
 
-const Container = styled.div`
-  padding: 0.1rem;
-  color: white;
-  font-weight: normal;
-  float: right;
-  vertical-align: middle;
-
-  @media only screen and (max-width: 768px) {
-    position: absolute;
-    right: 1rem;
-    top: 0.75rem;
-    z-index: 200;
-  }
-`;
+const useStyles = makeStyles((theme) => ({
+  avatar: {
+    padding: `${theme.spacing(2)}px 0 ${theme.spacing(1)}px 0`,
+  },
+  nodecor: {
+    textDecoration: "none",
+    textAlign: "center",
+    color: theme.palette.text.primary,
+  },
+  centerContent: {
+    justifyContent: "center",
+  },
+  signOutMargin: {
+    margin: `0 0 ${theme.spacing(2)}px 0`,
+  },
+  typography: {
+    padding: theme.spacing(1),
+  },
+}));
 
 const ProfileDropdown = () => {
   const profile = useSelector((state) => state.profile);
 
+  const classes = useStyles();
   const [anchorEl, setAnchorEl] = React.useState(null);
-  const open = Boolean(anchorEl);
 
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -41,49 +49,87 @@ const ProfileDropdown = () => {
     setAnchorEl(null);
   };
 
+  const open = Boolean(anchorEl);
+  const id = open ? "simple-popover" : undefined;
+
   return (
-    <Container>
-      <div className={styles.dropdownTriggerDiv}>
+    <div>
+      <IconButton
+        color="primary"
+        aria-label="profile"
+        component="span"
+        onClick={handleClick}
+      >
         <UserAvatar
-          size={32}
+          size={50}
           firstName={profile.first_name}
           lastName={profile.last_name}
           username={profile.username}
           gravatarUrl={profile.gravatar_url}
         />
-        <div className={styles.username}>
-          &nbsp;&nbsp;
-          {profile.username}
-          &nbsp;&nbsp;
-        </div>
-        <IconButton
-          aria-label="more"
-          aria-controls="long-menu"
-          aria-haspopup="true"
-          onClick={handleClick}
+      </IconButton>
+
+      <Popover
+        id={id}
+        open={open}
+        anchorEl={anchorEl}
+        onClose={handleClose}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "right",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "right",
+        }}
+      >
+        <Box
+          display="flex"
+          justifyContent="center"
+          className={classes.avatar}
+          bgcolor="background.paper"
         >
-          <MoreVertIcon className={styles.whitish} />
-        </IconButton>
-        <Menu
-          id="long-menu"
-          anchorEl={anchorEl}
-          keepMounted
-          open={open}
-          onClose={handleClose}
-        >
-          <Link to="/profile" role="link" className={styles.nodecor}>
-            <MenuItem key="profile" onClick={handleClose}>
-              Profile
-            </MenuItem>
+          <UserAvatar
+            size={60}
+            firstName={profile.first_name}
+            lastName={profile.last_name}
+            username={profile.username}
+            gravatarUrl={profile.gravatar_url}
+          />
+        </Box>
+        <Box display="flex" justifyContent="center" bgcolor="background.paper">
+          {(profile?.first_name?.length > 0 ||
+            profile?.last_name?.length > 0) && (
+            <Typography className={classes.typography}>
+              {profile.first_name} {profile.last_name}
+            </Typography>
+          )}
+        </Box>
+        <Box display="flex" justifyContent="center" bgcolor="background.paper">
+          <Typography className={classes.typography}>
+            {profile.username}
+          </Typography>
+        </Box>
+        <Divider />
+
+        <MenuList>
+          <Link to="/profile" role="link" className={classes.nodecor}>
+            <MenuItem className={classes.centerContent}>Profile</MenuItem>
           </Link>
-          <a href="/logout" className={styles.nodecor}>
-            <MenuItem key="profile" onClick={handleClose}>
-              Sign out
-            </MenuItem>
+        </MenuList>
+
+        <Box
+          display="flex"
+          justifyContent="center"
+          bgcolor="background.paper"
+          className={classes.signOutMargin}
+        >
+          <a href="/logout" className={classes.nodecor}>
+            <Button>Sign out</Button>
           </a>
-        </Menu>
-      </div>
-    </Container>
+        </Box>
+      </Popover>
+    </div>
   );
 };
 
