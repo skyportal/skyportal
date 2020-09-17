@@ -1649,7 +1649,7 @@ class FollowupRequest(Base):
     )
 
     last_modified_by_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='SET_NULL'),
+        sa.ForeignKey('users.id', ondelete='SET NULL'),
         nullable=False,
         doc="The ID of the User who last modified the request.",
     )
@@ -1760,6 +1760,7 @@ User.followup_requests = relationship(
     'FollowupRequest',
     back_populates='requester',
     doc="The follow-up requests this User has made.",
+    foreign_keys=[FollowupRequest.requester_id],
 )
 
 User.transactions = relationship(
