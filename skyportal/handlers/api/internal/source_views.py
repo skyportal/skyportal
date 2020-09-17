@@ -11,15 +11,14 @@ default_prefs = {'maxNumSources': 10, 'sinceDaysAgo': 7}
 
 
 class SourceViewsHandler(BaseHandler):
-    @auth_or_token
-    def get(self):
-        user_prefs = getattr(self.current_user, 'preferences', None) or {}
+    @classmethod
+    def get_top_source_views_and_ids(self, current_user):
+        user_prefs = getattr(current_user, 'preferences', None) or {}
         top_sources_prefs = user_prefs.get('topSources', {})
         top_sources_prefs = {**default_prefs, **top_sources_prefs}
 
         max_num_sources = int(top_sources_prefs['maxNumSources'])
         since_days_ago = int(top_sources_prefs['sinceDaysAgo'])
-
         cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
         q = (
             DBSession.query(
@@ -30,7 +29,7 @@ class SourceViewsHandler(BaseHandler):
                 SourceView.obj_id.in_(
                     DBSession.query(Source.obj_id).filter(
                         Source.group_id.in_(
-                            [g.id for g in self.current_user.accessible_groups]
+                            [g.id for g in current_user.accessible_groups]
                         )
                     )
                 )
@@ -40,8 +39,15 @@ class SourceViewsHandler(BaseHandler):
             .limit(max_num_sources)
         )
 
+        return q.all()
+
+    @auth_or_token
+    def get(self):
+        query_results = SourceViewsHandler.get_top_source_views_and_ids(
+            self.current_user
+        )
         sources = []
-        for view, obj_id in q.all():
+        for view, obj_id in query_results:
             s = Source.get_obj_if_owned_by(  # Returns Source.obj
                 obj_id,
                 self.current_user,
