@@ -46,6 +46,8 @@ def convert_request_to_sedm(request, method_value='new'):
         The desired SEDM queue action.
     """
 
+    from ..models import DBSession, UserInvitation, Invitation
+
     photometry = sorted(request.obj.photometry, key=lambda p: p.mjd, reverse=True)
     photometry_payload = {}
 
@@ -85,10 +87,26 @@ def convert_request_to_sedm(request, method_value='new'):
     else:
         raise ValueError('Cannot coerce payload into SEDM format.')
 
+    # default to user invitation email if preferred contact email has not been set
+    email = request.requester.contact_email
+    if email is None:
+        invitation = (
+            DBSession()
+            .query(Invitation)
+            .join(UserInvitation)
+            .filter(
+                UserInvitation.user_id == request.requester_id,
+                Invitation.used.is_(True),
+            )
+            .first()
+        )
+
+        email = invitation.user_email
+
     payload = {
         'Filters': filters,
         'Followup': followup,
-        'email': request.requester.contact_email or '',
+        'email': email,
         'enddate': request.payload['end_date'],
         'startdate': request.payload['start_date'],
         'prior_photometry': photometry_payload,
