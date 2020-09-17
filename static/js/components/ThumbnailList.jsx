@@ -133,6 +133,12 @@ const ThumbnailList = ({
     .map((type) => thumbnails.find((thumbnail) => thumbnail.type === type))
     .filter((thumbnail) => thumbnail !== undefined);
 
+  const thumbnail_order = ["new", "ref", "sub", "sdss", "dr8"];
+  // Sort thumbnails by order of appearance in `thumbnail_order`
+  latestThumbnails.sort((a, b) =>
+    thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1
+  );
+
   if (useGrid) {
     return (
       <Grid container direction="row" spacing={3}>
