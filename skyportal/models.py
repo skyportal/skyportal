@@ -1205,7 +1205,7 @@ GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
 def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
     """Query the database and return the requested Taxonomy if it is accessible
     to the requesting User or Token owner. If the Taxonomy is not accessible or
-    if it does not exist, return `None`.
+    if it does not exist, return an empty list.
 
     Parameters
     ----------
