@@ -112,7 +112,7 @@ class ClassificationHandler(BaseHandler):
         # check the taxonomy
         taxonomy_id = data["taxonomy_id"]
         taxonomy = Taxonomy.get_taxonomy_usable_by_user(taxonomy_id, self.current_user)
-        if taxonomy is None:
+        if len(taxonomy) == 0:
             return self.error(
                 'That taxonomy does not exist or is not available to user.'
             )
