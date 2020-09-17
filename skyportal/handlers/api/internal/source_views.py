@@ -48,14 +48,23 @@ class SourceViewsHandler(BaseHandler):
                 options=[joinedload(Source.obj).joinedload(Obj.thumbnails)],
             )
             public_url = first_public_url(s.thumbnails)
-            sources.append({'views': view, 'obj_id': obj_id, 'public_url': public_url})
+            sources.append(
+                {
+                    'obj_id': s.id,
+                    'views': view,
+                    'ra': s.ra,
+                    'dec': s.dec,
+                    'public_url': public_url,
+                    'classifications': s.classifications,
+                }
+            )
 
         return self.success(data=sources)
 
     @tornado.web.authenticated
     def post(self, obj_id):
         # Ensure user has access to source
-        s = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        Source.get_obj_if_owned_by(obj_id, self.current_user)
         # This endpoint will only be hit by front-end, so this will never be a token
         register_source_view(
             obj_id=obj_id,
