@@ -9,8 +9,6 @@ import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 import { makeStyles } from "@material-ui/core/styles";
-
-import * as Actions from "../ducks/candidate";
 import Plot from "./Plot";
 import CommentList from "./CommentList";
 import ThumbnailList from "./ThumbnailList";
@@ -18,6 +16,8 @@ import SurveyLinkList from "./SurveyLinkList";
 import SharePage from "./SharePage";
 import { useSourceStyles } from "./SourceMobile";
 import { ra_to_hours, dec_to_hours } from "../units";
+
+import fetchCandidate from "../ducks/candidate";
 
 export const useStyles = makeStyles(() => ({
   topRow: {
@@ -45,12 +45,12 @@ const Candidate = ({ route }) => {
   const isCached = route.id === cachedCandidateId;
 
   useEffect(() => {
-    const fetchCandidate = () => {
-      dispatch(Actions.fetchCandidate(route.id));
+    const retrieveCandidate = () => {
+      dispatch(fetchCandidate(route.id));
     };
 
     if (!isCached) {
-      fetchCandidate();
+      retrieveCandidate();
     }
   }, [dispatch, isCached, route.id]);
 

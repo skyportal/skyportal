@@ -165,6 +165,7 @@ class CandidateHandler(BaseHandler):
                 key=lambda x: x.created_at,
                 reverse=True,
             )
+            candidate_info["is_source"] = len(c.sources) > 0
             candidate_info["last_detected"] = c.last_detected
             candidate_info["gal_lon"] = c.gal_lon_deg
             candidate_info["gal_lat"] = c.gal_lat_deg
