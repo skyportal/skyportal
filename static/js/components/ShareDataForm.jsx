@@ -173,6 +173,13 @@ const ShareDataForm = ({ route }) => {
             {route.id}
           </Link>
         </Typography>
+        <p>
+          This page allows you to share data for {`${route.id}`} with other
+          users or groups. Select the photometry or spectra you would like to
+          share from the list below, then select the users or groups you would
+          like to share the data with. When you click submit, the access
+          permissions on the data will be updated.
+        </p>
       </div>
       <br />
       <div>
