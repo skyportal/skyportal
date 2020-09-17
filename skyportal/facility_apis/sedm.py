@@ -101,11 +101,11 @@ def convert_request_to_sedm(request, method_value='new'):
             .first()
         )
 
-        email = invitation.user_email
-
-    # this should only be true in the CI test suite
-    if email is None:
-        email = 'test_suite@skyportal.com'
+        if invitation is not None:
+            email = invitation.user_email
+        else:
+            # this should only be true in the CI test suite
+            email = 'test_suite@skyportal.com'
 
     payload = {
         'Filters': filters,
