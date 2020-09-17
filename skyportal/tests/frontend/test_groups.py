@@ -32,9 +32,9 @@ def test_add_new_group(driver, super_admin_user, user):
     driver.refresh()
     driver.get('/groups')
     driver.wait_for_xpath('//input[@name="name"]').send_keys(test_proj_name)
-    driver.wait_for_xpath('//input[@name="groupAdmins"]').send_keys(user.username)
-    driver.save_screenshot('/tmp/screenshot1.png')
-    driver.click_xpath('//button[contains(.,"Create Group")]')
+    driver.wait_for_xpath('//div[@id="groupAdminsSelect"]').click()
+    driver.wait_for_xpath(f'//li[contains(text(),"{user.username}")]').click()
+    driver.click_xpath('//button[contains(.,"Create Group")]', wait_clickable=False)
     driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
 
@@ -46,10 +46,9 @@ def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
     driver.refresh()
     driver.get('/groups')
     driver.wait_for_xpath('//input[@name="name"]').send_keys(test_proj_name)
-    driver.wait_for_xpath('//input[@name="groupAdmins"]').send_keys(
-        super_admin_user.username
-    )
-    driver.click_xpath('//button[contains(.,"Create Group")]')
+    driver.wait_for_xpath('//div[@id="groupAdminsSelect"]').click()
+    driver.wait_for_xpath(f'//li[contains(text(),"{user.username}")]').click()
+    driver.click_xpath('//button[contains(.,"Create Group")]', wait_clickable=False)
     driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
 

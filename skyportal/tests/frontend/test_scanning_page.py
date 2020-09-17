@@ -44,7 +44,7 @@ def test_candidate_group_filtering(
     status, data = api(
         "POST",
         "groups",
-        data={"name": str(uuid.uuid4()), "group_admins": [user.username]},
+        data={"name": str(uuid.uuid4()), "group_admins": [user.id]},
         token=manage_groups_token,
     )
     assert status == 200

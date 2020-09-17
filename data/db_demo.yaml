@@ -36,13 +36,13 @@ streams:
 groups:
   - name: Program A
     group_admins:
-      - testadmin@cesium-ml.org
-      - groupadmin@cesium-ml.org
+      - =testadmin
+      - =groupadmin
     =id: program_A
   - name: Program B
     group_admins:
-      - testadmin@cesium-ml.org
-      - groupadmin@cesium-ml.org
+      - =testadmin
+      - =groupadmin
     =id: program_B
 
 groups/=program_A/users:
