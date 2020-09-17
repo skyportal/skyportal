@@ -54,7 +54,7 @@ const GroupSources = ({ route }) => {
 
   // Load the group sources
   useEffect(() => {
-    dispatch(SourcesAction.fetchGroupSources({ group_id: [route.id] }));
+    dispatch(SourcesAction.fetchGroupSources({ group_ids: [route.id] }));
   }, [route.id, dispatch]);
 
   if (!sources) {

@@ -189,7 +189,7 @@ class SourceHandler(BaseHandler):
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
 
         # parse the group ids:
-        group_ids = self.get_query_argument('group_id', None)
+        group_ids = self.get_query_argument('group_ids', None)
         if group_ids is not None:
             try:
                 group_ids = [int(gid) for gid in group_ids.split(',')]

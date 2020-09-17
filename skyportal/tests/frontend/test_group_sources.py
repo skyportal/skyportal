@@ -4,7 +4,9 @@ from .. import api
 from selenium.common.exceptions import TimeoutException
 
 
-def test_add_new_source(driver, super_admin_user, public_group, upload_data_token):
+def test_add_new_source_renders_on_group_sources_page(
+    driver, super_admin_user, public_group, upload_data_token
+):
 
     obj_id = str(uuid.uuid4())
 

@@ -62,6 +62,9 @@ const useStyles = makeStyles((theme) => ({
     fontSize: "1.0625rem",
     fontWeight: 500,
   },
+  accordion_summary: {
+    borderBottom: "1px solid rgba(0, 0, 0, .125)",
+  },
   accordion_details: {
     flexDirection: "column",
   },
@@ -265,7 +268,7 @@ const Group = () => {
           expandIcon={<ExpandMoreIcon />}
           aria-controls="panel-members-content"
           id="panel-members-header"
-          style={{ borderBottom: "1px solid rgba(0, 0, 0, .125)" }}
+          className={classes.accordion_summary}
         >
           <Typography className={classes.heading}>Members</Typography>
         </AccordionSummary>
