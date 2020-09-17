@@ -88,15 +88,15 @@ def convert_request_to_sedm(request, method_value='new'):
     payload = {
         'Filters': filters,
         'Followup': followup,
-        'email': request.requester.contact_email,
+        'email': request.requester.contact_email or '',
         'enddate': request.payload['end_date'],
         'startdate': request.payload['start_date'],
         'prior_photometry': photometry_payload,
         'priority': request.payload['priority'],
         'programname': request.allocation.group.name,
         'requestid': request.id,
-        'sourceid': request.obj_id,
-        'sourcename': request.obj_id,
+        'sourceid': request.obj_id[:26],  # 26 characters is the max allowed by sedm
+        'sourcename': request.obj_id[:26],
         'status': method_value,
         'username': request.requester.username,
         'ra': request.obj.ra,
