@@ -105,23 +105,38 @@ Thumbnail.propTypes = {
   size: PropTypes.string.isRequired,
 };
 
+const sortThumbnailsByDate = (a, b) => {
+  const aDate = dayjs(a.created_at);
+  const bDate = dayjs(b.created_at);
+  if (aDate.isAfter(bDate)) {
+    return -1;
+  }
+  if (aDate.isBefore(bDate)) {
+    return 1;
+  }
+  return 0;
+};
+
 const ThumbnailList = ({
   ra,
   dec,
   thumbnails,
   useGrid = true,
   size = "13rem",
+  displayTypes = ["new", "ref", "sub"],
 }) => {
-  const thumbnail_order = ["new", "ref", "sub", "sdss", "dr8"];
-  // Sort thumbnails by order of appearance in `thumbnail_order`
-  thumbnails.sort((a, b) =>
-    thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1
-  );
+  thumbnails
+    .filter((thumbnail) => displayTypes.includes(thumbnail.type))
+    .sort(sortThumbnailsByDate);
+
+  const latestThumbnails = displayTypes
+    .map((type) => thumbnails.find((thumbnail) => thumbnail.type === type))
+    .filter((thumbnail) => thumbnail !== undefined);
 
   if (useGrid) {
     return (
       <Grid container direction="row" spacing={3}>
-        {thumbnails.map((t) => (
+        {latestThumbnails.map((t) => (
           <Grid item key={t.id}>
             <Thumbnail
               key={`thumb_${t.type}`}
@@ -136,7 +151,7 @@ const ThumbnailList = ({
       </Grid>
     );
   }
-  return thumbnails.map((t) => (
+  return latestThumbnails.map((t) => (
     <Grid item key={t.id}>
       <Thumbnail
         key={`thumb_${t.type}`}
@@ -155,6 +170,7 @@ ThumbnailList.propTypes = {
   dec: PropTypes.number.isRequired,
   thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired,
   size: PropTypes.string,
+  displayTypes: PropTypes.arrayOf(PropTypes.string),
 };
 
 export default ThumbnailList;

@@ -2,19 +2,19 @@ import React, { useEffect, Suspense, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
-import dayjs from "dayjs";
-
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
-import { makeStyles } from "@material-ui/core/styles";
-import Table from "@material-ui/core/Table";
-import TableBody from "@material-ui/core/TableBody";
-import TableCell from "@material-ui/core/TableCell";
-import TableHead from "@material-ui/core/TableHead";
-import TableRow from "@material-ui/core/TableRow";
+import {
+  makeStyles,
+  createMuiTheme,
+  MuiThemeProvider,
+  useTheme,
+} from "@material-ui/core/styles";
+import useMediaQuery from "@material-ui/core/useMediaQuery";
 import Button from "@material-ui/core/Button";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import Box from "@material-ui/core/Box";
+import MUIDataTable from "mui-datatables";
 
 import * as candidatesActions from "../ducks/candidates";
 import ThumbnailList from "./ThumbnailList";
@@ -30,6 +30,9 @@ const useStyles = makeStyles(() => ({
   candidateListContainer: {
     padding: "1rem",
   },
+  table: {
+    marginTop: "1rem",
+  },
   title: {
     marginBottom: "0.625rem",
   },
@@ -43,34 +46,55 @@ const useStyles = makeStyles(() => ({
   spinnerDiv: {
     paddingTop: "2rem",
   },
-  lastDetected: {
+  infoItem: {
     display: "flex",
     "& > div": {
       paddingLeft: "0.25rem",
     },
+    flexFlow: "row wrap",
   },
   saveCandidateButton: {
     margin: "0.5rem 0",
   },
+  thumbnails: (props) => ({
+    minWidth: props.thumbnailsMinWidth,
+  }),
+  info: {
+    minWidth: 0,
+  },
 }));
 
-const sortThumbnails = (a, b) => {
-  const aDate = dayjs(a.created_at);
-  const bDate = dayjs(b.created_at);
-  if (aDate.isAfter(bDate)) {
-    return -1;
-  }
-  if (aDate.isBefore(bDate)) {
-    return 1;
-  }
-  return 0;
-};
+// Hide built-in pagination and tweak responsive column widths
+const getMuiTheme = (theme) =>
+  createMuiTheme({
+    overrides: {
+      MUIDataTableFooter: {
+        root: {
+          display: "none",
+        },
+      },
+      MUIDataTableBodyCell: {
+        stackedHeader: {
+          verticalAlign: "top",
+        },
+        stackedCommon: {
+          [theme.breakpoints.down("sm")]: { width: "calc(75%)" },
+          "&$stackedHeader": {
+            width: "calc(25%)",
+            overflowWrap: "break-word",
+          },
+        },
+      },
+    },
+  });
 
 const CandidateList = () => {
   const [queryInProgress, setQueryInProgress] = useState(false);
-
-  const classes = useStyles();
-
+  // Maintain the three thumbnails in a row for larger screens
+  const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("md"));
+  const thumbnailsMinWidth = largeScreen ? "27rem" : 0;
+  const classes = useStyles({ thumbnailsMinWidth });
+  const theme = useTheme();
   const {
     candidates,
     pageNumber,
@@ -111,6 +135,128 @@ const CandidateList = () => {
     setQueryInProgress(false);
   };
 
+  const renderThumbnails = (dataIndex) => {
+    const candidateObj = candidates[dataIndex];
+    return (
+      <div className={classes.thumbnails}>
+        <ThumbnailList
+          ra={candidateObj.ra}
+          dec={candidateObj.dec}
+          thumbnails={candidateObj.thumbnails}
+          size="8rem"
+        />
+      </div>
+    );
+  };
+
+  const renderInfo = (dataIndex) => {
+    const candidateObj = candidates[dataIndex];
+    return (
+      <div className={classes.info}>
+        <b>ID:</b>&nbsp;
+        <Link to={`/candidate/${candidateObj.id}`}>{candidateObj.id}</Link>
+        <br />
+        {candidateObj.is_source ? (
+          <div>
+            <Link
+              to={`/source/${candidateObj.id}`}
+              style={{
+                color: "red",
+                texTableCellecoration: "underline",
+              }}
+            >
+              Previously Saved
+            </Link>
+          </div>
+        ) : (
+          <div>
+            NOT SAVED
+            <br />
+            <div className={classes.saveCandidateButton}>
+              <SaveCandidateButton
+                candidate={candidateObj}
+                userGroups={userAccessibleGroups}
+              />
+            </div>
+          </div>
+        )}
+        {candidateObj.last_detected && (
+          <div className={classes.infoItem}>
+            <b>Last detected: </b>
+            <div>
+              {String(candidateObj.last_detected).split(".")[0].split("T")[1]}
+            </div>
+            <div>
+              {String(candidateObj.last_detected).split(".")[0].split("T")[0]}
+            </div>
+          </div>
+        )}
+        <div className={classes.infoItem}>
+          <b>Coordinates: </b>
+          <div>{candidateObj.ra}</div>
+          <div>{candidateObj.dec}</div>
+        </div>
+        <div className={classes.infoItem}>
+          <b>Gal. Coords (l,b): </b>
+          <div>{candidateObj.gal_lon.toFixed(3)}, </div>
+          <div>{candidateObj.gal_lat.toFixed(3)}</div>
+        </div>
+        <br />
+      </div>
+    );
+  };
+
+  const renderPhotometry = (dataIndex) => {
+    const candidateObj = candidates[dataIndex];
+    return (
+      <Suspense fallback={<div>Loading plot...</div>}>
+        <VegaPlot dataUrl={`/api/sources/${candidateObj.id}/photometry`} />
+      </Suspense>
+    );
+  };
+
+  const renderAutoannotations = (dataIndex) => {
+    const candidateObj = candidates[dataIndex];
+    return (
+      <div>
+        {candidateObj.comments && (
+          <CandidateCommentList comments={candidateObj.comments} />
+        )}
+      </div>
+    );
+  };
+
+  const columns = [
+    {
+      name: "Images",
+      label: "Images",
+      options: {
+        customBodyRenderLite: renderThumbnails,
+      },
+    },
+    {
+      name: "Info",
+      label: "Info",
+      options: {
+        customBodyRenderLite: renderInfo,
+      },
+    },
+    {
+      name: "Photometry",
+      label: "Photometry",
+      options: {
+        customBodyRenderLite: renderPhotometry,
+      },
+    },
+    {
+      name: "Autoannotations",
+      label: "Autoannotations",
+      options: {
+        customBodyRenderLite: renderAutoannotations,
+      },
+    },
+  ];
+
   return (
     <Paper elevation={1}>
       <div className={classes.candidateListContainer}>
@@ -135,111 +281,23 @@ const CandidateList = () => {
           <CircularProgress />
         </Box>
         <Box display={queryInProgress ? "none" : "block"}>
-          <Table className={classes.table}>
-            <TableHead>
-              <TableRow>
-                <TableCell>Images</TableCell>
-                <TableCell>Info</TableCell>
-                <TableCell>Photometry</TableCell>
-                <TableCell>Autoannotations</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {!!candidates &&
-                candidates.map((candidateObj) => {
-                  const thumbnails = candidateObj.thumbnails
-                    .filter((t) => t.type !== "dr8")
-                    .sort(sortThumbnails)
-                    .slice(0, 3); // Take the latest 3 thumbnails
-                  return (
-                    <TableRow key={candidateObj.id}>
-                      <TableCell>
-                        <ThumbnailList
-                          ra={candidateObj.ra}
-                          dec={candidateObj.dec}
-                          thumbnails={thumbnails}
-                          size="8rem"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <b>ID:</b>&nbsp;
-                        <Link to={`/candidate/${candidateObj.id}`}>
-                          {candidateObj.id}
-                        </Link>
-                        <br />
-                        {candidateObj.is_source ? (
-                          <div>
-                            <Link
-                              to={`/source/${candidateObj.id}`}
-                              style={{
-                                color: "red",
-                                texTableCellecoration: "underline",
-                              }}
-                            >
-                              Previously Saved
-                            </Link>
-                          </div>
-                        ) : (
-                          <div>
-                            NOT SAVED
-                            <br />
-                            <div className={classes.saveCandidateButton}>
-                              <SaveCandidateButton
-                                candidate={candidateObj}
-                                userGroups={userAccessibleGroups}
-                              />
-                            </div>
-                          </div>
-                        )}
-                        {candidateObj.last_detected && (
-                          <div className={classes.lastDetected}>
-                            <b>Last detected: </b>
-                            <div>
-                              {
-                                String(candidateObj.last_detected)
-                                  .split(".")[0]
-                                  .split("T")[1]
-                              }
-                            </div>
-                            <div>
-                              {
-                                String(candidateObj.last_detected)
-                                  .split(".")[0]
-                                  .split("T")[0]
-                              }
-                            </div>
-                          </div>
-                        )}
-                        <b>Coordinates</b>
-                        :&nbsp;
-                        {candidateObj.ra}
-                        &nbsp;
-                        {candidateObj.dec}
-                        <br />
-                        Gal. Coords (l,b):&nbsp;
-                        {candidateObj.gal_lon.toFixed(1)}, &nbsp;
-                        {candidateObj.gal_lat.toFixed(1)}
-                        <br />
-                      </TableCell>
-                      <TableCell>
-                        <Suspense fallback={<div>Loading plot...</div>}>
-                          <VegaPlot
-                            dataUrl={`/api/sources/${candidateObj.id}/photometry`}
-                          />
-                        </Suspense>
-                      </TableCell>
-                      <TableCell>
-                        {candidateObj.comments && (
-                          <CandidateCommentList
-                            comments={candidateObj.comments}
-                          />
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-            </TableBody>
-          </Table>
+          <MuiThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              columns={columns}
+              data={candidates !== null ? candidates : []}
+              className={classes.table}
+              options={{
+                responsive: "vertical",
+                filter: false,
+                search: false,
+                sort: false,
+                print: false,
+                download: false,
+                selectableRows: "none",
+                enableNestedDataAccess: ".",
+              }}
+            />
+          </MuiThemeProvider>
         </Box>
       </div>
       <div className={classes.pages}>
