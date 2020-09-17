@@ -360,6 +360,7 @@ class FollowupRequestHandler(BaseHandler):
         data = self.get_json()
         _ = Source.get_obj_if_owned_by(data["obj_id"], self.current_user)
         data["requester_id"] = self.associated_user_object.id
+        data["last_modified_by_id"] = self.associated_user_object.id
         data['allocation_id'] = int(data['allocation_id'])
 
         allocation = Allocation.query.get(data['allocation_id'])
@@ -445,7 +446,7 @@ class FollowupRequestHandler(BaseHandler):
 
         data = self.get_json()
         data['id'] = request_id
-        data["requester_id"] = self.associated_user_object.id
+        data["last_modified_by_id"] = self.associated_user_object.id
 
         api = followup_request.instrument.api_class
 
@@ -513,6 +514,7 @@ class FollowupRequestHandler(BaseHandler):
         if not api.implements()['delete']:
             return self.error('Cannot delete requests on this instrument.')
 
+        followup_request.last_modified_by_id = self.associated_user_object.id
         response = api.delete(followup_request)
 
         transaction = FacilityTransaction(
