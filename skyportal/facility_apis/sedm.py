@@ -103,6 +103,10 @@ def convert_request_to_sedm(request, method_value='new'):
 
         email = invitation.user_email
 
+    # this should only be true in the CI test suite
+    if email is None:
+        email = 'test_suite@skyportal.com'
+
     payload = {
         'Filters': filters,
         'Followup': followup,
