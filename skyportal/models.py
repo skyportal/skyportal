@@ -1680,8 +1680,9 @@ class FollowupRequest(Base):
     )
 
     payload = sa.Column(
-        psql.JSONB, nullable=True, doc="Content of the followup request."
+        psql.JSONB, nullable=False, doc="Content of the followup request."
     )
+
     status = sa.Column(
         sa.String(),
         nullable=False,
