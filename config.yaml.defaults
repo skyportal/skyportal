@@ -53,6 +53,8 @@ app:
       component: Filter
     - path: "/runs"
       component: ObservingRunList
+    - path: "/group_sources/:id"
+      component: GroupSources
     - path: "/user_management"
       component: UserManagement
 

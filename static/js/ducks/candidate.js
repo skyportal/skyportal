@@ -6,8 +6,8 @@ export const FETCH_CANDIDATE_OK = "skyportal/FETCH_CANDIDATE_OK";
 export const FETCH_CANDIDATE_FAIL = "skyportal/FETCH_CANDIDATE_FAIL";
 export const FETCH_CANDIDATE_ERROR = "skyportal/FETCH_CANDIDATE_ERROR";
 
-export const fetchCandidate = (id) =>
-  API.GET(`/api/candidates/${id}`, FETCH_CANDIDATE);
+const fetchCandidate = (id, how = FETCH_CANDIDATE) =>
+  API.GET(`/api/candidates/${id}`, how);
 
 const initialState = {
   candidate: null,
@@ -39,4 +39,5 @@ const reducer = (state = initialState, action) => {
   }
 };
 
+export default fetchCandidate;
 store.injectReducer("candidate", reducer);
