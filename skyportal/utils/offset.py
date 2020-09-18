@@ -2,6 +2,7 @@ import io
 import os
 import datetime
 import warnings
+import json
 
 import pandas as pd
 import requests
@@ -154,6 +155,60 @@ source_image_parameters = {
         'str': 'ZTF Ref',
     },
 }
+
+
+def calculate_best_position(
+    photometry, fallback=(None, None), how="snr", max_offset=0.5, sigma_clip=4.0
+):
+
+    if not isinstance(photometry, list):
+        return fallback
+
+    # convert the photometry into a dataframe
+    phot_s = "[" + ",".join([str(x) for x in photometry]) + "]"
+    df = pd.DataFrame(json.loads(phot_s))
+
+    # remove limit data (non-detections)
+    df = df[(df["flux"].notnull()) & (df["fluxerr"].notnull())]
+
+    # remove observations with distances more than max_offset away
+    # from the median
+    med_ra, med_dec = np.median(df["ra"]), np.median(df["dec"])
+
+    # check to make sure that the median isn't too far away from the
+    # discovery position
+    if fallback != (None, None):
+        c1 = SkyCoord(med_ra * u.deg, med_dec * u.deg, frame='icrs')
+        c2 = SkyCoord(fallback[0] * u.deg, fallback[1] * u.deg, frame='icrs')
+        sep = c1.separation(c2)
+        if np.abs(sep) > max_offset * u.arcsec:
+            return fallback
+
+    df["ra_offset"] = np.cos(np.radians(df["dec"])) * (df["ra"] - med_ra) * 3600.0
+    df["dec_offset"] = (df["dec"] - med_dec) * 3600.0
+    df["offset_arcsec"] = np.sqrt(df["ra_offset"] ** 2 + df["dec_offset"] ** 2)
+    df = df[df["offset_arcsec"] <= max_offset]
+
+    # remove outliers
+    if len(df) > 4 and sigma_clip is not None:
+        df = df[df["offset_arcsec"] < sigma_clip * np.std(df["offset_arcsec"])]
+
+    # TODO: add the ability to use only use observations from some filters
+    if how == "snr":
+        df["snr"] = df["flux"] / df["fluxerr"]
+        diff_ra = np.average(df["ra_offset"], weights=df["snr"])
+        diff_dec = np.average(df["dec_offset"], weights=df["snr"])
+    elif how == "err":
+        diff_ra = np.average(df["ra_offset"], weights=1 / df["ra_unc"])
+        diff_dec = np.average(df["dec_offset"], weights=1 / df["dec_unc"])
+    else:
+        return (med_ra, med_dec)
+
+    position = (
+        med_ra + diff_ra / (np.cos(np.radians(med_dec)) * 3600.0),
+        med_dec + diff_dec / 3600.0,
+    )
+    return position
 
 
 def get_nearby_offset_stars(
