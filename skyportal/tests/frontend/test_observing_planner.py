@@ -160,6 +160,9 @@ def test_add_run_to_observing_run_page(
         f"Group: {red_transients_run.group.name})"
     )
 
+    # long timeout as it can take a long time for the telescopelist,
+    # observingrun list, and instrumentlist to fully load on
+    # when these lists are long and the webserver is strained
     driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]', timeout=15)
 
     pi_element = driver.wait_for_xpath('//input[@id="root_pi"]')
@@ -198,6 +201,9 @@ def test_add_run_to_observing_run_page(
     submit_button = driver.wait_for_xpath('//button[@type="submit"]')
     ActionChains(driver).click(submit_button).pause(1).perform()
 
+    # long timeout as it can take a long time for the telescopelist,
+    # observingrun list, and instrumentlist to fully load on
+    # when these lists are long and the webserver is strained
     driver.wait_for_xpath(
         f'''//*[text()='2021-02-02 {lris.name}/{lris.telescope.nickname} (PI: {pi_name} / Group: {public_group.name})']''',
         timeout=15,
