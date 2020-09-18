@@ -188,7 +188,14 @@ def calculate_best_position(
 
     # remove observations with distances more than max_offset away
     # from the median
-    med_ra, med_dec = np.median(df["ra"]), np.median(df["dec"])
+    try:
+        med_ra, med_dec = np.median(df["ra"]), np.median(df["dec"])
+    except TypeError:
+        log(
+            "Warning: could not find the median of the positions"
+            " from the photometry data associated with this source "
+        )
+        return fallback
 
     # check to make sure that the median isn't too far away from the
     # discovery position
@@ -197,6 +204,10 @@ def calculate_best_position(
         c2 = SkyCoord(fallback[0] * u.deg, fallback[1] * u.deg, frame='icrs')
         sep = c1.separation(c2)
         if np.abs(sep) > max_offset * u.arcsec:
+            log(
+                "Warning: calculated source position is too far from the"
+                " fiducial. Falling back to the fiducial "
+            )
             return fallback
 
     df["ra_offset"] = np.cos(np.radians(df["dec"])) * (df["ra"] - med_ra) * 3600.0
@@ -217,6 +228,7 @@ def calculate_best_position(
         diff_ra = np.average(df["ra_offset"], weights=1 / df["ra_unc"])
         diff_dec = np.average(df["dec_offset"], weights=1 / df["dec_unc"])
     else:
+        log(f"Warning: do not recognize {how} as a valid way to weight astrometry")
         return (med_ra, med_dec)
 
     position = (
