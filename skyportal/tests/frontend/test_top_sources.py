@@ -1,4 +1,5 @@
 import uuid
+import pytest
 import datetime
 from skyportal.models import DBSession, SourceView
 from skyportal.tests import api
@@ -42,6 +43,7 @@ def test_top_sources(driver, user, public_source, public_group, upload_data_toke
     driver.wait_for_xpath("//*[contains(.,'2 view(s)')]")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_top_source_prefs(driver, user, public_source, public_group, upload_data_token):
     # Add an old source and give it an old view
     obj_id = str(uuid.uuid4())
