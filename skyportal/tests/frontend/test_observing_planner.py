@@ -3,6 +3,9 @@ import pytest
 from ...models import DBSession, ObservingRun
 from .. import api
 
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
+
 
 def post_assignment(obj, run, priority, comment, token):
     return api(
@@ -139,3 +142,63 @@ def test_observing_run_page(driver, view_only_user, red_transients_run):
         )
 
         driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]')
+
+
+@pytest.mark.flaky(reruns=2)
+def test_add_run_to_observing_run_page(
+    driver, user, lris, public_group, red_transients_run
+):
+    driver.get(f'/become_user/{user.id}')
+    driver.get(f'/runs')
+
+    driver.wait_for_xpath('//form')
+    observingrun_title = (
+        f"{red_transients_run.calendar_date} "
+        f"{red_transients_run.instrument.name}/"
+        f"{red_transients_run.instrument.telescope.nickname} "
+        f"(PI: {red_transients_run.pi} / "
+        f"Group: {red_transients_run.group.name})"
+    )
+
+    driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]', timeout=15)
+
+    pi_element = driver.wait_for_xpath('//input[@id="root_pi"]')
+
+    calendar_keys = '02022021'
+    observer = uuid.uuid4().hex
+    pi_name = uuid.uuid4().hex
+
+    ActionChains(driver).click(pi_element).pause(1).send_keys(pi_name).pause(
+        1
+    ).send_keys(Keys.TAB).send_keys(calendar_keys).pause(1).send_keys(Keys.TAB).pause(
+        1
+    ).send_keys(
+        observer
+    ).pause(
+        1
+    ).perform()
+
+    instruments_element = driver.wait_for_xpath('//*[@id="root_instrument_id"]')
+
+    ActionChains(driver).click(instruments_element).pause(1).perform()
+
+    lris_element = driver.wait_for_xpath(f'//li[@data-value="{lris.id}"]')
+    driver.scroll_to_element(lris_element)
+    ActionChains(driver).click(lris_element).pause(1).perform()
+
+    groups_element = driver.wait_for_xpath('//*[@id="root_group_id"]')
+
+    ActionChains(driver).click(groups_element).pause(1).perform()
+
+    public_group_element = driver.wait_for_xpath(
+        f'//li[@data-value="{public_group.id}"]'
+    )
+    ActionChains(driver).click(public_group_element).pause(1).perform()
+
+    submit_button = driver.wait_for_xpath('//button[@type="submit"]')
+    ActionChains(driver).click(submit_button).pause(1).perform()
+
+    driver.wait_for_xpath(
+        f'''//*[text()='2021-02-02 {lris.name}/{lris.telescope.nickname} (PI: {pi_name} / Group: {public_group.name})']''',
+        timeout=15,
+    )
