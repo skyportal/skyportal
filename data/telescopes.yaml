@@ -165,11 +165,20 @@
   elevation: 2070.0
   lat: 30.68
   lon: -104.0151
-  nickname: LCOGT 1m Network
-  name: LCOGT1m
+  nickname: LCO 1m Network
+  name: LCO1m
   skycam_link: null
   robotic: true
-  =id: LCOGT1m
+  =id: LCO1m
+- diameter: 2.0
+  elevation: 3052.0
+  lat: 20.7083
+  lon: -156.2571
+  nickname: LCO 2m Network
+  name: LCO2m
+  skycam_link: null
+  robotic: true
+  =id: LCO2m
 - diameter: 2.5
   elevation: 2282.0
   lat: -29.0033
