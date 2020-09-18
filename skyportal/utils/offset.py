@@ -160,9 +160,24 @@ source_image_parameters = {
 def calculate_best_position(
     photometry, fallback=(None, None), how="snr", max_offset=0.5, sigma_clip=4.0
 ):
+    """Calculates the best position for a source from its photometric
+       points
 
-    if not isinstance(photometry, list):
-        return fallback
+    Parameters
+    ----------
+    photometry : list
+        List of Photometry objects
+    fallback : tuple, optional
+        The position to use if something goes wrong here
+    how : str
+        how to weight positional data:
+          snr = use the signal to noise
+          err = use the photometric uncertainty
+    max_offset : float, optional
+        How many arcseconds away should we ignore discrepant points?
+    sigma_clip : float, optional
+        Remove positions that are this number of std away from the median
+    """
 
     # convert the photometry into a dataframe
     phot_s = "[" + ",".join([str(x) for x in photometry]) + "]"
@@ -661,9 +676,11 @@ def get_finding_chart(
                 hdu.data, source_image_parameters[image_source]["smooth"] / pixscale
             )
 
-        norm = ImageNormalize(im, interval=ZScaleInterval())
+        percents = np.nanpercentile(im.flatten(), [10, 99.0])
+        vmin = percents[0]
+        vmax = percents[1]
+        norm = ImageNormalize(im, vmin=vmin, vmax=vmax, interval=ZScaleInterval())
         watermark = source_image_parameters[image_source]["str"]
-
     else:
         # if we got back a blank image, try to fallback on another survey
         # and return the results from that call
@@ -688,6 +705,8 @@ def get_finding_chart(
         im = np.zeros((npixels, npixels))
         norm = None
         watermark = None
+        vmin = 0
+        vmax = 0
 
     # add the images in the top left corner
     ax = fig.add_subplot(spec[0, 0], projection=wcs)
@@ -696,7 +715,7 @@ def get_finding_chart(
     ax_starlist = fig.add_subplot(spec[1, 0:])
     ax_starlist.axis('off')
 
-    ax.imshow(im, origin='lower', norm=norm, cmap='gray_r')
+    ax.imshow(im, origin='lower', norm=norm, cmap='gray_r', vmin=vmin, vmax=vmax)
     ax.set_autoscale_on(False)
     ax.grid(color='white', ls='dotted')
     ax.set_xlabel(r'$\alpha$ (J2000)', fontsize='large')
