@@ -89,7 +89,13 @@ const FollowupRequestForm = ({
         className={classes.allocationSelect}
       >
         {allocationList.map((allocation) => (
-          <MenuItem value={allocation.id} key={allocation.id}>
+          <MenuItem
+            value={allocation.id}
+            key={allocation.id}
+            data-testid={`${
+              telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
+            }`}
+          >
             {`${
               telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
             } / ${instLookUp[allocation.instrument_id].name} - ${

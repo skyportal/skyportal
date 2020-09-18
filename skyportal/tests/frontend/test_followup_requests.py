@@ -113,16 +113,16 @@ def add_followup_request_using_frontend_and_verify_SEDM(
     driver.scroll_to_element_and_click(submit_button)
 
     driver.wait_for_xpath(
-        '//table[contains(@class, "followupRequestTable")]//td[contains(., "Mix \'n Match")]'
+        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "Mix \'n Match")]'
     )
     driver.wait_for_xpath(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "u,IFU")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "u,IFU")]'''
     )
     driver.wait_for_xpath(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "1")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "1")]'''
     )
     driver.wait_for_xpath(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "submitted")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
 
 
@@ -156,10 +156,10 @@ def add_followup_request_using_frontend_and_verify_IOO(
         "mui-component-select-followupRequestAllocationSelect"
     )
     select_box.click()
-    select_box = driver.find_element_by_id("menu-followupRequestAllocationSelect")
 
-    allocations = select_box.find_elements_by_name("MuiButtonBase-root")
-    for allocation in allocations:
+    mode_select = driver.wait_for_xpath('//li[@data-value="1"]')
+    for ii in range(1, 10):
+        allocation = driver.wait_for_xpath('//li[@data-value="%d"]' % ii)
         if "IOO" in allocation.text:
             allocation.click()
             break
@@ -185,24 +185,19 @@ def add_followup_request_using_frontend_and_verify_IOO(
     mode_select = driver.wait_for_xpath('//div[@id="root_instrument_type"]')
     driver.scroll_to_element(mode_select)
 
-    start_date_option = driver.wait_for_xpath('//input[@id="root_start_date"]')
-    ActionChains(driver).move_to_element(start_date_option).click().send_keys(
-        '01012021'
-    ).click().perform()
-
     driver.scroll_to_element_and_click(submit_button)
 
     driver.wait_for_xpath(
-        '//table[contains(@class, "followupRequestTable")]//td[contains(., "gri")]'
+        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "gri")]'
     )
     driver.wait_for_xpath(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "2x150s")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "2x150s")]'''
     )
     driver.wait_for_xpath(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "GrowthTest")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "GrowthTest")]'''
     )
     driver.wait_for_xpath(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "submit")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submission")]'''
     )
 
 
@@ -278,7 +273,7 @@ def test_delete_followup_request_SEDM(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_delete_followup_request_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -291,11 +286,11 @@ def test_delete_followup_request_IOO(
     driver.refresh()
 
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "2x150s")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "2x150s")]'''
     )
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "gri")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "gri")]'''
     )
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "submit")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submission")]'''
     )

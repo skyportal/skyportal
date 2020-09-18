@@ -1153,7 +1153,10 @@ class Allocation(Base):
     )
 
     def load_altdata(self):
-        return json.loads(self.altdata)
+        if self.altdata is None:
+            return {}
+        else:
+            return json.loads(self.altdata)
 
 
 class Taxonomy(Base):

@@ -68,15 +68,13 @@ class LTRequest:
             payload for LT requests.
         """
 
+        altdata = request.allocation.load_altdata()
+
         project = etree.Element('Project', ProjectID=request.payload["LT_proposalID"])
         contact = etree.SubElement(project, 'Contact')
 
-        etree.SubElement(contact, 'Username').text = request.allocation.load_altdata()[
-            "username"
-        ]
-        etree.SubElement(contact, 'Name').text = request.allocation.load_altdata()[
-            "username"
-        ]
+        etree.SubElement(contact, 'Username').text = altdata["username"]
+        etree.SubElement(contact, 'Name').text = altdata["username"]
         payload.append(project)
 
     def _build_constraints(self, request):
@@ -408,13 +406,17 @@ class LTAPI(FollowUpAPI):
             DBSession().commit()
             return
 
+        altdata = request.allocation.load_altdata()
+        if not altdata:
+            return
+
         content = req.transactions[0].response["response"]
         response_rtml = etree.fromstring(content)
         uid = response_rtml.get('uid')
 
         headers = {
-            'Username': request.allocation.load_altdata()["username"],
-            'Password': request.allocation.load_altdata()["password"],
+            'Username': altdata["username"],
+            'Password': altdata["password"],
         }
         url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
             'http', cfg['app.lt_host'], cfg['app.lt_port']
@@ -436,12 +438,8 @@ class LTAPI(FollowUpAPI):
             cancel_payload, 'Project', ProjectID=request.payload["LT_proposalID"]
         )
         contact = etree.SubElement(project, 'Contact')
-        etree.SubElement(contact, 'Username').text = request.allocation.load_altdata()[
-            "username"
-        ]
-        etree.SubElement(contact, 'Name').text = request.allocation.load_altdata()[
-            "username"
-        ]
+        etree.SubElement(contact, 'Username').text = altdata["username"]
+        etree.SubElement(contact, 'Name').text = altdata["username"]
         etree.SubElement(contact, 'Communication')
         cancel = etree.tostring(cancel_payload, encoding='unicode', pretty_print=True)
 
@@ -478,14 +476,18 @@ class IOOAPI(LTAPI):
 
         from ..models import DBSession, FacilityTransaction
 
+        altdata = request.allocation.load_altdata()
+        if not altdata:
+            return
+
         ltreq = IOORequest()
         observation_payload = ltreq._build_prolog()
         ltreq._build_project(observation_payload, request)
         ltreq._build_inst_schedule(observation_payload, request)
 
         headers = {
-            'Username': request.allocation.load_altdata()["username"],
-            'Password': request.allocation.load_altdata()["password"],
+            'Username': altdata["username"],
+            'Password': altdata["password"],
         }
         url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
             'http', cfg['app.lt_host'], cfg['app.lt_port']
@@ -635,14 +637,18 @@ class IOIAPI(LTAPI):
 
         from ..models import DBSession, FacilityTransaction
 
+        altdata = request.allocation.load_altdata()
+        if not altdata:
+            return
+
         ltreq = IOIRequest()
         observation_payload = ltreq._build_prolog()
         ltreq._build_project(observation_payload, request)
         ltreq._build_inst_schedule(observation_payload, request)
 
         headers = {
-            'Username': request.allocation.load_altdata()["username"],
-            'Password': request.allocation.load_altdata()["password"],
+            'Username': altdata["username"],
+            'Password': altdata["password"],
         }
         url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
             'http', cfg['app.lt_host'], cfg['app.lt_port']
@@ -786,14 +792,18 @@ class SPRATAPI(LTAPI):
 
         from ..models import DBSession, FacilityTransaction
 
+        altdata = request.allocation.load_altdata()
+        if not altdata:
+            return
+
         ltreq = SPRATRequest()
         observation_payload = ltreq._build_prolog()
         ltreq._build_project(observation_payload, request)
         ltreq._build_inst_schedule(observation_payload, request)
 
         headers = {
-            'Username': request.allocation.load_altdata()["username"],
-            'Password': request.allocation.load_altdata()["password"],
+            'Username': altdata["username"],
+            'Password': altdata["password"],
         }
         url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
             'http', cfg['app.lt_host'], cfg['app.lt_port']
