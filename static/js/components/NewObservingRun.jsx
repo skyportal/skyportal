@@ -10,6 +10,9 @@ const NewObservingRun = () => {
   const dispatch = useDispatch();
 
   const handleSubmit = ({ formData }) => {
+    if (formData.group_id === -1) {
+      delete formData.group_id;
+    }
     dispatch(submitObservingRun(formData));
   };
 
@@ -44,10 +47,10 @@ const NewObservingRun = () => {
       },
       group_id: {
         type: "integer",
-        oneOf: [{ enum: [null], title: "No group" }].concat(
+        oneOf: [{ enum: [-1], title: "No group" }].concat(
           groups.map((group) => ({ enum: [group.id], title: group.name }))
         ),
-        default: { enum: [null], title: "No group" },
+        default: -1,
         title: "Group",
       },
     },
