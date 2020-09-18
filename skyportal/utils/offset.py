@@ -179,12 +179,26 @@ def calculate_best_position(
         Remove positions that are this number of std away from the median
     """
 
+    if not isinstance(photometry, list):
+        log(
+            "Warning: No photometry given. Falling back to "
+            " original source position."
+        )
+        return fallback
+
     # convert the photometry into a dataframe
     phot_s = "[" + ",".join([str(x) for x in photometry]) + "]"
     df = pd.DataFrame(json.loads(phot_s))
 
     # remove limit data (non-detections)
-    df = df[(df["flux"].notnull()) & (df["fluxerr"].notnull())]
+    try:
+        df = df[(df["flux"].notnull()) & (df["fluxerr"].notnull())]
+    except KeyError:
+        log(
+            "Photometry does not include fluxes. Falling back to "
+            " original source position."
+        )
+        return fallback
 
     # remove observations with distances more than max_offset away
     # from the median
@@ -222,11 +236,11 @@ def calculate_best_position(
     # TODO: add the ability to use only use observations from some filters
     if how == "snr":
         df["snr"] = df["flux"] / df["fluxerr"]
-        diff_ra = np.average(df["ra_offset"], weights=df["snr"])
-        diff_dec = np.average(df["dec_offset"], weights=df["snr"])
+        diff_ra = np.average(df["ra_offset"], weights=df["snr"] ** 2)
+        diff_dec = np.average(df["dec_offset"], weights=df["snr"] ** 2)
     elif how == "err":
-        diff_ra = np.average(df["ra_offset"], weights=1 / df["ra_unc"])
-        diff_dec = np.average(df["dec_offset"], weights=1 / df["dec_unc"])
+        diff_ra = np.average(df["ra_offset"], weights=1 / df["ra_unc"] ** 2)
+        diff_dec = np.average(df["dec_offset"], weights=1 / df["dec_unc"] ** 2)
     else:
         log(f"Warning: do not recognize {how} as a valid way to weight astrometry")
         return (med_ra, med_dec)

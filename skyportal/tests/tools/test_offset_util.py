@@ -1,10 +1,110 @@
+import uuid
+
 import pytest
+import numpy as np
+import numpy.testing as npt
 import requests
 from requests.exceptions import HTTPError, Timeout, ConnectionError
 
-from skyportal.utils import get_nearby_offset_stars, get_finding_chart, get_ztfref_url
-
+from skyportal.tests import api
+from skyportal.utils import (
+    get_nearby_offset_stars,
+    get_finding_chart,
+    get_ztfref_url,
+    calculate_best_position,
+)
 from skyportal.utils.offset import irsa
+from skyportal.models import Photometry
+
+
+def test_calculate_best_position_no_photometry():
+
+    ra, dec = calculate_best_position(
+        [], fallback=(10.0, -20.0), how="snr", max_offset=0.5, sigma_clip=4.0
+    )
+    npt.assert_almost_equal(ra, 10)
+    npt.assert_almost_equal(dec, -20)
+
+
+def test_calculate_best_position_with_photometry(
+    upload_data_token, view_only_token, ztf_camera, public_group
+):
+    ra, dec = 10.5, -20.8
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'sources',
+        data={'id': obj_id, 'ra': ra, 'dec': dec, 'group_ids': [public_group.id]},
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['data']['id'] == obj_id
+
+    n_phot = 10
+    mjd = 58000.0 + np.arange(n_phot)
+    flux = float(n_phot) + np.random.random(n_phot) * 100
+    fluxerr = 1e-6 + np.random.random(n_phot)
+    filters = ['ztfg'] * n_phot
+    ras = ra + np.cos(np.radians(dec)) * np.random.randn(n_phot) / (10 * 3600)
+    decs = dec + np.random.randn(n_phot) / (10 * 3600)
+
+    # valid request
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': list(mjd),
+            'instrument_id': ztf_camera.id,
+            'flux': list(flux),
+            'fluxerr': list(fluxerr),
+            'filter': list(filters),
+            'ra': list(ras),
+            'dec': list(decs),
+            'magsys': 'ab',
+            'zp': 25.0,
+            'dec_unc': 0.2,
+            'ra_unc': 0.2,
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']['ids']) == n_phot
+
+    removed_kwargs = ["instrument_name", "groups", "magsys", "zp"]
+    phot_list = []
+    for photometry_id in data['data']['ids']:
+        status, data = api(
+            'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+        for key in removed_kwargs:
+            data['data'].pop(key)
+
+        phot_list.append(Photometry(**data['data']))
+
+    ra_calc_snr, dec_calc_snr = calculate_best_position(
+        phot_list, fallback=(ra, dec), how="snr", max_offset=0.5, sigma_clip=4.0
+    )
+    # make sure we get back a slightly different position than the true center
+    with pytest.raises(AssertionError):
+        npt.assert_almost_equal(ra_calc_snr, ra, decimal=10)
+    with pytest.raises(AssertionError):
+        npt.assert_almost_equal(dec_calc_snr, dec, decimal=10)
+
+    ra_calc_err, dec_calc_err = calculate_best_position(
+        phot_list, fallback=(ra, dec), how="err", max_offset=0.5, sigma_clip=4.0
+    )
+    # make sure we get back a slightly different position for two different
+    # methods
+    with pytest.raises(AssertionError):
+        npt.assert_almost_equal(ra_calc_snr, ra_calc_err, decimal=10)
+
+    with pytest.raises(AssertionError):
+        npt.assert_almost_equal(dec_calc_snr, dec_calc_err, decimal=10)
 
 
 ztfref_url = irsa['url_search']
