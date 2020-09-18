@@ -44,11 +44,6 @@ groups:
       - =testadmin
       - =groupadmin
     =id: program_B
-  - name: Program C
-    group_admins:
-      - testadmin@cesium-ml.org
-      - groupadmin@cesium-ml.org
-    =id: program_C
 
 groups/=program_A/users:
   - username: viewonlyuser@cesium-ml.org
@@ -321,7 +316,6 @@ photometry:
     group_ids:
       - =program_A
       - =program_B
-      - =program_C
   - obj_id: 14gqr
     instrument_id: =P60
     assignment_id: 1
@@ -329,7 +323,6 @@ photometry:
     group_ids:
       - =program_A
       - =program_B
-      - =program_C
   - obj_id: 16fil_unsaved_copy
     instrument_id: =P60
     assignment_id: 2
@@ -337,7 +330,6 @@ photometry:
     group_ids:
       - =program_A
       - =program_B
-      - =program_C
   - obj_id: 16fil
     instrument_id: =P60
     assignment_id: 2
@@ -345,7 +337,6 @@ photometry:
     group_ids:
       - =program_A
       - =program_B
-      - =program_C
 
 spectrum:
   - obj_id: 14gqr_unsaved_copy
