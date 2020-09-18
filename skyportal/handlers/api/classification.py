@@ -170,7 +170,7 @@ class ClassificationHandler(BaseHandler):
             SourceViewsHandler.get_top_source_views_and_ids(self.current_user),
         ):
             self.push_all(action='skyportal/FETCH_TOP_SOURCES')
-        print(classification)
+
         return self.success(data={'classification_id': classification.id})
 
     @permissions(['Classify'])
