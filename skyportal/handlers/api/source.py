@@ -822,7 +822,7 @@ class SourceFinderHandler(BaseHandler):
             best_ra, best_dec = initial_pos[0], initial_pos[1]
 
         facility = self.get_query_argument('facility', 'Keck')
-        image_source = self.get_query_argument('image_source', 'desi')
+        image_source = self.get_query_argument('image_source', 'ztfref')
 
         how_many = 3
         obstime = self.get_query_argument(

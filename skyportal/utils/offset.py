@@ -475,7 +475,7 @@ def fits_image(
     center_ra,
     center_dec,
     imsize=4.0,
-    image_source="desi",
+    image_source="ztfref",
     cache_dir="./cache/finder/",
     cache_max_items=5,
 ):
@@ -559,7 +559,7 @@ def get_finding_chart(
     source_ra,
     source_dec,
     source_name,
-    image_source='desi',
+    image_source='ztfref',
     output_format='pdf',
     imsize=3.0,
     tick_offset=0.02,
