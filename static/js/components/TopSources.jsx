@@ -27,6 +27,12 @@ const useStyles = makeStyles(() => ({
       color: "gray",
     },
   },
+  sourceListContainer: {
+    height: "calc(100% - 5rem)",
+    overflowY: "scroll",
+    marginTop: "0.625rem",
+    paddingTop: "0.625rem",
+  },
 }));
 
 const getStyles = (timespan, currentTimespan, theme) => ({
@@ -48,6 +54,7 @@ const defaultPrefs = {
 };
 
 const TopSourcesList = ({ sources, styles }) => {
+  const topSourceSpecificStyles = useStyles();
   if (sources === undefined) {
     return <div>Loading top sources...</div>;
   }
@@ -57,7 +64,7 @@ const TopSourcesList = ({ sources, styles }) => {
   }
 
   return (
-    <div className={styles.sourceListContainer}>
+    <div className={topSourceSpecificStyles.sourceListContainer}>
       <ul className={styles.sourceList}>
         {sources.map((source) => {
           let topsourceName = `${source.obj_id}`;
@@ -189,7 +196,8 @@ const TopSources = ({ classes }) => {
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
           <div className={classes.widgetIcon}>
             <WidgetPrefsDialog
-              formValues={topSourcesPrefs}
+              // Only expose num sources
+              formValues={{ maxNumSources: topSourcesPrefs.maxNumSources }}
               stateBranchName="topSources"
               title="Top Sources Preferences"
               onSubmit={profileActions.updateUserPreferences}
@@ -207,6 +215,7 @@ const TopSources = ({ classes }) => {
                 key={timespan.label}
                 onClick={switchTimespan}
                 style={getStyles(timespan, currentTimespan, theme)}
+                data-testid={`topSources_${timespan.sinceDaysAgo}days`}
               >
                 {timespan.label}
               </Button>
