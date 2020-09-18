@@ -1634,17 +1634,32 @@ class FollowupRequest(Base):
     """A request for follow-up data (spectroscopy, photometry, or both) using a
     robotic instrument."""
 
-    requester = relationship(
-        User,
-        back_populates='followup_requests',
-        doc="The User who requested the follow-up.",
-    )
     requester_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
         doc="ID of the User who requested the follow-up.",
     )
+
+    requester = relationship(
+        User,
+        back_populates='followup_requests',
+        doc="The User who requested the follow-up.",
+        foreign_keys=[requester_id],
+    )
+
+    last_modified_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='SET NULL'),
+        nullable=False,
+        doc="The ID of the User who last modified the request.",
+    )
+
+    last_modified_by = relationship(
+        User,
+        doc="The user who last modified the request.",
+        foreign_keys=[last_modified_by_id],
+    )
+
     obj = relationship('Obj', back_populates='followup_requests', doc="The target Obj.")
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
@@ -1654,8 +1669,9 @@ class FollowupRequest(Base):
     )
 
     payload = sa.Column(
-        psql.JSONB, nullable=True, doc="Content of the followup request."
+        psql.JSONB, nullable=False, doc="Content of the followup request."
     )
+
     status = sa.Column(
         sa.String(),
         nullable=False,
@@ -1745,6 +1761,7 @@ User.followup_requests = relationship(
     'FollowupRequest',
     back_populates='requester',
     doc="The follow-up requests this User has made.",
+    foreign_keys=[FollowupRequest.requester_id],
 )
 
 User.transactions = relationship(
