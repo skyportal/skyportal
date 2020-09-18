@@ -1,11 +1,14 @@
-import React from "react";
-import { useSelector } from "react-redux";
+import React, { useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
+import ButtonGroup from "@material-ui/core/ButtonGroup";
+import Button from "@material-ui/core/Button";
+import { makeStyles, useTheme } from "@material-ui/core/styles";
 
 import { ra_to_hours, dec_to_hours } from "../units";
 import * as profileActions from "../ducks/profile";
@@ -13,9 +16,35 @@ import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import { useSourceListStyles } from "./RecentSources";
 import SourceQuickView from "./SourceQuickView";
 
+const useStyles = makeStyles(() => ({
+  header: {},
+  timespanSelect: {
+    display: "flex",
+    width: "100%",
+    justifyContent: "center",
+    marginBottom: "0.5rem",
+    "& .MuiButton-label": {
+      color: "gray",
+    },
+  },
+}));
+
+const getStyles = (timespan, currentTimespan, theme) => ({
+  fontWeight:
+    timespan.label === currentTimespan.label
+      ? theme.typography.fontWeightBold
+      : theme.typography.fontWeightMedium,
+});
+
+const timespans = [
+  { label: "PAST 24 HRS", sinceDaysAgo: "1" },
+  { label: "PAST 7 DAYS", sinceDaysAgo: "7" },
+  { label: "PAST 30 DAYS", sinceDaysAgo: "30" },
+];
+
 const defaultPrefs = {
   maxNumSources: "",
-  sinceDaysAgo: "",
+  sinceDaysAgo: "7",
 };
 
 const TopSourcesList = ({ sources, styles }) => {
@@ -123,26 +152,66 @@ TopSourcesList.defaultProps = {
 };
 
 const TopSources = ({ classes }) => {
+  const styles = useStyles();
   const sourceListStyles = useSourceListStyles();
   const { sourceViews } = useSelector((state) => state.topSources);
   const topSourcesPrefs =
     useSelector((state) => state.profile.preferences.topSources) ||
     defaultPrefs;
 
+  const [currentTimespan, setCurrentTimespan] = useState(
+    timespans.find(
+      (timespan) => timespan.sinceDaysAgo === topSourcesPrefs.sinceDaysAgo
+    )
+  );
+  const theme = useTheme();
+  const dispatch = useDispatch();
+
+  const switchTimespan = (event) => {
+    const newTimespan = timespans.find(
+      (timespan) => timespan.label === event.target.innerText
+    );
+    setCurrentTimespan(newTimespan);
+    topSourcesPrefs.sinceDaysAgo = newTimespan.sinceDaysAgo;
+
+    dispatch(
+      profileActions.updateUserPreferences({ topSources: topSourcesPrefs })
+    );
+  };
+
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
-        <Typography variant="h6" display="inline">
-          Top Sources
-        </Typography>
-        <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
-        <div className={classes.widgetIcon}>
-          <WidgetPrefsDialog
-            formValues={topSourcesPrefs}
-            stateBranchName="topSources"
-            title="Top Sources Preferences"
-            onSubmit={profileActions.updateUserPreferences}
-          />
+        <div className={styles.header}>
+          <Typography variant="h6" display="inline">
+            Top Sources
+          </Typography>
+          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
+          <div className={classes.widgetIcon}>
+            <WidgetPrefsDialog
+              formValues={topSourcesPrefs}
+              stateBranchName="topSources"
+              title="Top Sources Preferences"
+              onSubmit={profileActions.updateUserPreferences}
+            />
+          </div>
+        </div>
+        <div className={styles.timespanSelect}>
+          <ButtonGroup
+            size="small"
+            variant="text"
+            aria-label="topSourcesTimespanSelect"
+          >
+            {timespans.map((timespan) => (
+              <Button
+                key={timespan.label}
+                onClick={switchTimespan}
+                style={getStyles(timespan, currentTimespan, theme)}
+              >
+                {timespan.label}
+              </Button>
+            ))}
+          </ButtonGroup>
         </div>
         <TopSourcesList sources={sourceViews} styles={sourceListStyles} />
       </div>
