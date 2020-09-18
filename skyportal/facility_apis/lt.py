@@ -10,6 +10,8 @@ from astropy import units as u
 from . import FollowUpAPI
 from baselayer.app.env import load_env
 
+from ..utils import http
+
 env, cfg = load_env()
 
 LT_XML_NS = 'http://www.rtml.org/v3.1a'
@@ -396,16 +398,17 @@ class LTAPI(FollowUpAPI):
             .filter(FollowupRequest.id == request.id)
             .one()
         )
+
         # this happens for failed submissions
         # just go ahead and delete
-        if len(req.http_requests) == 0:
+        if len(req.transactions) == 0:
             DBSession().query(FollowupRequest).filter(
                 FollowupRequest.id == request.id
             ).delete()
             DBSession().commit()
             return
 
-        content = req.http_requests[0].content
+        content = req.transactions[0].response["response"]
         response_rtml = etree.fromstring(content)
         uid = response_rtml.get('uid')
 
@@ -473,6 +476,8 @@ class IOOAPI(LTAPI):
             The request to submit.
         """
 
+        from ..models import DBSession, FacilityTransaction
+
         ltreq = IOORequest()
         observation_payload = ltreq._build_prolog()
         ltreq._build_project(observation_payload, request)
@@ -497,13 +502,15 @@ class IOOAPI(LTAPI):
         mode = response_rtml.get('mode')
 
         if mode == 'confirm':
-            return response
-            # message = FollowupRequestHTTPRequest(
-            #    content=response, origin='skyportal', request=request,
-            # )
-            # DBSession().add(message)
-            # DBSession().add(request)
-            # DBSession().commit()
+
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request_xml(full_payload),
+                response=http.serialize_requests_response_xml(response),
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+
+            DBSession().add(transaction)
 
     _instrument_configs = {}
 
@@ -626,6 +633,8 @@ class IOIAPI(LTAPI):
             The request to submit.
         """
 
+        from ..models import DBSession, FacilityTransaction
+
         ltreq = IOIRequest()
         observation_payload = ltreq._build_prolog()
         ltreq._build_project(observation_payload, request)
@@ -648,8 +657,17 @@ class IOIAPI(LTAPI):
         )
         response_rtml = etree.fromstring(response)
         mode = response_rtml.get('mode')
+
         if mode == 'confirm':
-            return response
+
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request_xml(full_payload),
+                response=http.serialize_requests_response_xml(response),
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+
+            DBSession().add(transaction)
 
     _instrument_configs = {}
 
@@ -766,6 +784,8 @@ class SPRATAPI(LTAPI):
             The request to submit.
         """
 
+        from ..models import DBSession, FacilityTransaction
+
         ltreq = SPRATRequest()
         observation_payload = ltreq._build_prolog()
         ltreq._build_project(observation_payload, request)
@@ -788,14 +808,17 @@ class SPRATAPI(LTAPI):
         )
         response_rtml = etree.fromstring(response)
         mode = response_rtml.get('mode')
+
         if mode == 'confirm':
-            return response
-            # message = FollowupRequestHTTPRequest(
-            #    content=response, origin='skyportal', request=request,
-            # )
-            # DBSession().add(message)
-            # DBSession().add(request)
-            # DBSession().commit()
+
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request_xml(full_payload),
+                response=http.serialize_requests_response_xml(response),
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+
+            DBSession().add(transaction)
 
     _instrument_configs = {}
 
@@ -847,7 +870,7 @@ class SPRATAPI(LTAPI):
             "instrument_type": {
                 "type": "string",
                 "enum": _instrument_types,
-                "default": "IOO",
+                "default": "SPRAT",
             },
             "priority": {"type": "string", "enum": ["1", "5"], "default": "1"},
             "start_date": {
