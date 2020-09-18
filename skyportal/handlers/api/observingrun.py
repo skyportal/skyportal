@@ -58,6 +58,7 @@ class ObservingRunHandler(BaseHandler):
         DBSession().add(run)
         DBSession().commit()
 
+        self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
         return self.success(data={"id": run.id})
 
     @auth_or_token
@@ -198,6 +199,8 @@ class ObservingRunHandler(BaseHandler):
 
         DBSession().add(orun)
         DBSession().commit()
+
+        self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
         return self.success()
 
     @permissions(["Upload data"])
@@ -234,4 +237,5 @@ class ObservingRunHandler(BaseHandler):
         DBSession().query(ObservingRun).filter(ObservingRun.id == run_id).delete()
         DBSession().commit()
 
+        self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
         return self.success()
