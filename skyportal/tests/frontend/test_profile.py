@@ -83,6 +83,7 @@ def test_insufficient_name_entry_in_profile(driver, user):
     assert helper.text == "Required"
 
 
+@pytest.mark.flaky(reruns=2)
 def test_profile_dropdown(driver, user):
     test_add_data_to_user_profile(driver, user)
 

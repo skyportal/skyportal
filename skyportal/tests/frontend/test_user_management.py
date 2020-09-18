@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_delete_group_user(driver, super_admin_user, user, public_group):
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/user_management')
@@ -12,6 +15,7 @@ def test_delete_group_user(driver, super_admin_user, user, public_group):
     )
 
 
+@pytest.mark.flaky(reruns=2)
 def test_delete_stream_user(driver, super_admin_user, user, stream_with_users):
     stream = stream_with_users
     driver.get(f'/become_user/{super_admin_user.id}')
