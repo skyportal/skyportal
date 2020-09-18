@@ -69,10 +69,12 @@ class LTRequest:
         project = etree.Element('Project', ProjectID=request.payload["LT_proposalID"])
         contact = etree.SubElement(project, 'Contact')
 
-        etree.SubElement(contact, 'Username').text = request.allocation.altdata[
+        etree.SubElement(contact, 'Username').text = request.allocation.load_altdata()[
             "username"
         ]
-        etree.SubElement(contact, 'Name').text = request.allocation.altdata["username"]
+        etree.SubElement(contact, 'Name').text = request.allocation.load_altdata()[
+            "username"
+        ]
         payload.append(project)
 
     def _build_constraints(self, request):
@@ -408,8 +410,8 @@ class LTAPI(FollowUpAPI):
         uid = response_rtml.get('uid')
 
         headers = {
-            'Username': request.allocation.altdata["username"],
-            'Password': request.allocation.altdata["password"],
+            'Username': request.allocation.load_altdata()["username"],
+            'Password': request.allocation.load_altdata()["password"],
         }
         url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
             'http', cfg['app.lt_host'], cfg['app.lt_port']
@@ -431,10 +433,12 @@ class LTAPI(FollowUpAPI):
             cancel_payload, 'Project', ProjectID=request.payload["LT_proposalID"]
         )
         contact = etree.SubElement(project, 'Contact')
-        etree.SubElement(contact, 'Username').text = request.allocation.altdata[
+        etree.SubElement(contact, 'Username').text = request.allocation.load_altdata()[
             "username"
         ]
-        etree.SubElement(contact, 'Name').text = request.allocation.altdata["username"]
+        etree.SubElement(contact, 'Name').text = request.allocation.load_altdata()[
+            "username"
+        ]
         etree.SubElement(contact, 'Communication')
         cancel = etree.tostring(cancel_payload, encoding='unicode', pretty_print=True)
 
@@ -469,16 +473,14 @@ class IOOAPI(LTAPI):
             The request to submit.
         """
 
-        from ..models import DBSession, FollowupRequestHTTPRequest
-
         ltreq = IOORequest()
         observation_payload = ltreq._build_prolog()
         ltreq._build_project(observation_payload, request)
         ltreq._build_inst_schedule(observation_payload, request)
 
         headers = {
-            'Username': request.allocation.altdata["username"],
-            'Password': request.allocation.altdata["password"],
+            'Username': request.allocation.load_altdata()["username"],
+            'Password': request.allocation.load_altdata()["password"],
         }
         url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
             'http', cfg['app.lt_host'], cfg['app.lt_port']
@@ -493,13 +495,15 @@ class IOOAPI(LTAPI):
         )
         response_rtml = etree.fromstring(response)
         mode = response_rtml.get('mode')
+
         if mode == 'confirm':
-            message = FollowupRequestHTTPRequest(
-                content=response, origin='skyportal', request=request,
-            )
-            DBSession().add(message)
-            DBSession().add(request)
-            DBSession().commit()
+            return response
+            # message = FollowupRequestHTTPRequest(
+            #    content=response, origin='skyportal', request=request,
+            # )
+            # DBSession().add(message)
+            # DBSession().add(request)
+            # DBSession().commit()
 
     _instrument_configs = {}
 
@@ -598,7 +602,6 @@ class IOOAPI(LTAPI):
             "end_date",
             "maximum_airmass",
             "maximum_seeing",
-            "photometric",
             "binning",
         ],
         "dependencies": _dependencies,
@@ -623,16 +626,14 @@ class IOIAPI(LTAPI):
             The request to submit.
         """
 
-        from ..models import DBSession, FollowupRequestHTTPRequest
-
         ltreq = IOIRequest()
         observation_payload = ltreq._build_prolog()
         ltreq._build_project(observation_payload, request)
         ltreq._build_inst_schedule(observation_payload, request)
 
         headers = {
-            'Username': request.allocation.altdata["username"],
-            'Password': request.allocation.altdata["password"],
+            'Username': request.allocation.load_altdata()["username"],
+            'Password': request.allocation.load_altdata()["password"],
         }
         url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
             'http', cfg['app.lt_host'], cfg['app.lt_port']
@@ -648,12 +649,7 @@ class IOIAPI(LTAPI):
         response_rtml = etree.fromstring(response)
         mode = response_rtml.get('mode')
         if mode == 'confirm':
-            message = FollowupRequestHTTPRequest(
-                content=response, origin='skyportal', request=request,
-            )
-            DBSession().add(message)
-            DBSession().add(request)
-            DBSession().commit()
+            return response
 
     _instrument_configs = {}
 
@@ -746,7 +742,6 @@ class IOIAPI(LTAPI):
             "end_date",
             "maximum_airmass",
             "maximum_seeing",
-            "photometric",
             "binning",
         ],
         "dependencies": _dependencies,
@@ -771,16 +766,14 @@ class SPRATAPI(LTAPI):
             The request to submit.
         """
 
-        from ..models import DBSession, FollowupRequestHTTPRequest
-
         ltreq = SPRATRequest()
         observation_payload = ltreq._build_prolog()
         ltreq._build_project(observation_payload, request)
         ltreq._build_inst_schedule(observation_payload, request)
 
         headers = {
-            'Username': request.allocation.altdata["username"],
-            'Password': request.allocation.altdata["password"],
+            'Username': request.allocation.load_altdata()["username"],
+            'Password': request.allocation.load_altdata()["password"],
         }
         url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
             'http', cfg['app.lt_host'], cfg['app.lt_port']
@@ -796,12 +789,13 @@ class SPRATAPI(LTAPI):
         response_rtml = etree.fromstring(response)
         mode = response_rtml.get('mode')
         if mode == 'confirm':
-            message = FollowupRequestHTTPRequest(
-                content=response, origin='skyportal', request=request,
-            )
-            DBSession().add(message)
-            DBSession().add(request)
-            DBSession().commit()
+            return response
+            # message = FollowupRequestHTTPRequest(
+            #    content=response, origin='skyportal', request=request,
+            # )
+            # DBSession().add(message)
+            # DBSession().add(request)
+            # DBSession().commit()
 
     _instrument_configs = {}
 
@@ -889,7 +883,14 @@ class SPRATAPI(LTAPI):
                 "type": "boolean",
             },
         },
-        "required": ["instrument_type", "priority", "start_date", "end_date"],
+        "required": [
+            "instrument_type",
+            "priority",
+            "start_date",
+            "end_date",
+            "maximum_airmass",
+            "maximum_seeing",
+        ],
         "dependencies": _dependencies,
     }
 
