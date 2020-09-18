@@ -33,6 +33,9 @@ const useStyles = makeStyles((theme) => ({
   typography: {
     padding: theme.spacing(1),
   },
+  invisible: {
+    display: "none",
+  },
 }));
 
 const ProfileDropdown = () => {
@@ -59,6 +62,7 @@ const ProfileDropdown = () => {
         aria-label="profile"
         component="span"
         onClick={handleClick}
+        data-testid="avatar"
       >
         <UserAvatar
           size={50}
@@ -68,6 +72,9 @@ const ProfileDropdown = () => {
           gravatarUrl={profile.gravatar_url}
         />
       </IconButton>
+
+      {/* this is to make baselayer.app.test_util.login happy */}
+      <span className={classes.invisible}>{profile.username}</span>
 
       <Popover
         id={id}
@@ -100,13 +107,16 @@ const ProfileDropdown = () => {
         <Box display="flex" justifyContent="center" bgcolor="background.paper">
           {(profile?.first_name?.length > 0 ||
             profile?.last_name?.length > 0) && (
-            <Typography className={classes.typography}>
+            <Typography
+              className={classes.typography}
+              data-testid="firstLastName"
+            >
               {profile.first_name} {profile.last_name}
             </Typography>
           )}
         </Box>
         <Box display="flex" justifyContent="center" bgcolor="background.paper">
-          <Typography className={classes.typography}>
+          <Typography className={classes.typography} data-testid="username">
             {profile.username}
           </Typography>
         </Box>
@@ -124,7 +134,11 @@ const ProfileDropdown = () => {
           bgcolor="background.paper"
           className={classes.signOutMargin}
         >
-          <a href="/logout" className={classes.nodecor}>
+          <a
+            href="/logout"
+            className={classes.nodecor}
+            data-testid="signOutButton"
+          >
             <Button>Sign out</Button>
           </a>
         </Box>
