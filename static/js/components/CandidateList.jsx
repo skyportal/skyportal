@@ -94,7 +94,7 @@ const getMuiTheme = (theme) =>
           verticalAlign: "top",
         },
         stackedCommon: {
-          [theme.breakpoints.up("sm")]: { width: "calc(100%)" },
+          [theme.breakpoints.up("xs")]: { width: "calc(100%)" },
           "&$stackedHeader": {
             display: "none",
             overflowWrap: "break-word",
