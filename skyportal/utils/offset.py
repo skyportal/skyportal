@@ -160,7 +160,7 @@ source_image_parameters = {
 }
 
 
-def get_ztfcatalog(ra, dec, cache_dir="./cache/finder_cat/", cache_max_items=5):
+def get_ztfcatalog(ra, dec, cache_dir="./cache/finder_cat/", cache_max_items=25):
     """Finds the ZTF public catalog data around this position
 
     Parameters
