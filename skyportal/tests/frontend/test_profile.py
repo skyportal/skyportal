@@ -62,7 +62,6 @@ def test_add_data_to_user_profile(driver, user):
     driver.scroll_to_element_and_click(
         driver.find_element_by_xpath('//*[@id="updateProfileButton"]')
     )
-    # driver.click_xpath('//*[@id="updateProfileButton"]')
 
 
 def test_insufficient_name_entry_in_profile(driver, user):
