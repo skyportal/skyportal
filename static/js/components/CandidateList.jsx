@@ -1,6 +1,6 @@
 import React, { useEffect, Suspense, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { Link } from "react-router-dom";
+import { useHistory } from "react-router-dom";
 
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
@@ -13,6 +13,8 @@ import {
 import useMediaQuery from "@material-ui/core/useMediaQuery";
 import Button from "@material-ui/core/Button";
 import CircularProgress from "@material-ui/core/CircularProgress";
+import OpenInNewIcon from "@material-ui/icons/OpenInNew";
+import Chip from "@material-ui/core/Chip";
 import Box from "@material-ui/core/Box";
 import MUIDataTable from "mui-datatables";
 
@@ -46,10 +48,14 @@ const useStyles = makeStyles(() => ({
   spinnerDiv: {
     paddingTop: "2rem",
   },
+  itemPaddingBottom: {
+    paddingBottom: "0.1rem",
+  },
   infoItem: {
     display: "flex",
-    "& > div": {
+    "& > span": {
       paddingLeft: "0.25rem",
+      paddingBottom: "0.1rem",
     },
     flexFlow: "row wrap",
   },
@@ -59,9 +65,14 @@ const useStyles = makeStyles(() => ({
   thumbnails: (props) => ({
     minWidth: props.thumbnailsMinWidth,
   }),
-  info: {
-    minWidth: 0,
-  },
+  info: (props) => ({
+    fontSize: "0.875rem",
+    minWidth: props.infoMinWidth,
+    maxWidth: props.infoMaxWidth,
+  }),
+  annotations: (props) => ({
+    minWidth: props.annotationsMinWidth,
+  }),
 }));
 
 // Hide built-in pagination and tweak responsive column widths
@@ -74,13 +85,18 @@ const getMuiTheme = (theme) =>
         },
       },
       MUIDataTableBodyCell: {
+        root: {
+          padding: `${theme.spacing(1)}px ${theme.spacing(
+            0.5
+          )}px ${theme.spacing(1)}px ${theme.spacing(1)}px`,
+        },
         stackedHeader: {
           verticalAlign: "top",
         },
         stackedCommon: {
-          [theme.breakpoints.down("sm")]: { width: "calc(75%)" },
+          [theme.breakpoints.up("sm")]: { width: "calc(100%)" },
           "&$stackedHeader": {
-            width: "calc(25%)",
+            display: "none",
             overflowWrap: "break-word",
           },
         },
@@ -89,11 +105,20 @@ const getMuiTheme = (theme) =>
   });
 
 const CandidateList = () => {
+  const history = useHistory();
   const [queryInProgress, setQueryInProgress] = useState(false);
   // Maintain the three thumbnails in a row for larger screens
   const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("md"));
-  const thumbnailsMinWidth = largeScreen ? "27rem" : 0;
-  const classes = useStyles({ thumbnailsMinWidth });
+  const thumbnailsMinWidth = largeScreen ? "30rem" : 0;
+  const infoMinWidth = largeScreen ? "7rem" : 0;
+  const infoMaxWidth = "14rem";
+  const annotationsMinWidth = largeScreen ? "10rem" : 0;
+  const classes = useStyles({
+    thumbnailsMinWidth,
+    infoMinWidth,
+    infoMaxWidth,
+    annotationsMinWidth,
+  });
   const theme = useTheme();
   const {
     candidates,
@@ -143,7 +168,7 @@ const CandidateList = () => {
           ra={candidateObj.ra}
           dec={candidateObj.dec}
           thumbnails={candidateObj.thumbnails}
-          size="8rem"
+          size="9rem"
         />
       </div>
     );
@@ -153,24 +178,39 @@ const CandidateList = () => {
     const candidateObj = candidates[dataIndex];
     return (
       <div className={classes.info}>
-        <b>ID:</b>&nbsp;
-        <Link to={`/candidate/${candidateObj.id}`}>{candidateObj.id}</Link>
+        <span className={classes.itemPaddingBottom}>
+          <b>ID:</b>&nbsp;
+          <a
+            href={`/candidate/${candidateObj.id}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {candidateObj.id}&nbsp;
+            <OpenInNewIcon fontSize="inherit" />
+          </a>
+        </span>
         <br />
         {candidateObj.is_source ? (
-          <div>
-            <Link
-              to={`/source/${candidateObj.id}`}
-              style={{
-                color: "red",
-                texTableCellecoration: "underline",
-              }}
-            >
-              Previously Saved
-            </Link>
+          <div className={classes.itemPaddingBottom}>
+            <Chip
+              size="small"
+              label="Previously Saved"
+              clickable
+              onClick={() => history.push(`/source/${candidateObj.id}`)}
+              onDelete={() =>
+                window.open(`/source/${candidateObj.id}`, "_blank")
+              }
+              deleteIcon={<OpenInNewIcon />}
+              color="primary"
+            />
           </div>
         ) : (
           <div>
-            NOT SAVED
+            <Chip
+              size="small"
+              label="NOT SAVED"
+              className={classes.itemPaddingBottom}
+            />
             <br />
             <div className={classes.saveCandidateButton}>
               <SaveCandidateButton
@@ -183,23 +223,25 @@ const CandidateList = () => {
         {candidateObj.last_detected && (
           <div className={classes.infoItem}>
             <b>Last detected: </b>
-            <div>
+            <span>
               {String(candidateObj.last_detected).split(".")[0].split("T")[1]}
-            </div>
-            <div>
+              &nbsp;&nbsp;
               {String(candidateObj.last_detected).split(".")[0].split("T")[0]}
-            </div>
+            </span>
           </div>
         )}
         <div className={classes.infoItem}>
           <b>Coordinates: </b>
-          <div>{candidateObj.ra}</div>
-          <div>{candidateObj.dec}</div>
+          <span>
+            {candidateObj.ra}&nbsp;&nbsp;{candidateObj.dec}
+          </span>
         </div>
         <div className={classes.infoItem}>
           <b>Gal. Coords (l,b): </b>
-          <div>{candidateObj.gal_lon.toFixed(3)}, </div>
-          <div>{candidateObj.gal_lat.toFixed(3)}</div>
+          <span>
+            {candidateObj.gal_lon.toFixed(3)}&nbsp;&nbsp;
+            {candidateObj.gal_lat.toFixed(3)}
+          </span>
         </div>
         <br />
       </div>
@@ -209,7 +251,7 @@ const CandidateList = () => {
   const renderPhotometry = (dataIndex) => {
     const candidateObj = candidates[dataIndex];
     return (
-      <Suspense fallback={<div>Loading plot...</div>}>
+      <Suspense fallback={<CircularProgress />}>
         <VegaPlot dataUrl={`/api/sources/${candidateObj.id}/photometry`} />
       </Suspense>
     );
@@ -218,7 +260,7 @@ const CandidateList = () => {
   const renderAutoannotations = (dataIndex) => {
     const candidateObj = candidates[dataIndex];
     return (
-      <div>
+      <div className={classes.annotations}>
         {candidateObj.comments && (
           <CandidateCommentList comments={candidateObj.comments} />
         )}

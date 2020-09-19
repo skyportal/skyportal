@@ -13,15 +13,20 @@ import Typography from "@material-ui/core/Typography";
 
 dayjs.extend(calendar);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   root: (props) => ({
     width: props.size,
     margin: "0.5rem auto",
     maxHeight: "31rem",
     flexGrow: 1,
   }),
+  cardTitle: {
+    padding: `${theme.spacing(0.75)}px ${theme.spacing(1)}px ${theme.spacing(
+      0.75
+    )}px ${theme.spacing(1)}px`,
+  },
   title: {
-    fontSize: 14,
+    fontSize: "0.875rem",
   },
   pos: {
     marginBottom: 0,
@@ -76,7 +81,7 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
 
   return (
     <Card className={classes.root} variant="outlined">
-      <CardContent>
+      <CardContent className={classes.cardTitle}>
         <Typography className={classes.title} color="textSecondary">
           {name.toUpperCase()}
         </Typography>
