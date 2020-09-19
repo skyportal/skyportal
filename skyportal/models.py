@@ -6,6 +6,7 @@ from astropy import units as u
 from astropy import time as ap_time
 import astroplan
 import numpy as np
+import json
 import sqlalchemy as sa
 from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -14,6 +15,8 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import URLType, EmailType
+from sqlalchemy_utils.types import JSONType
+from sqlalchemy_utils.types.encrypted.encrypted_type import EncryptedType, AesEngine
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
@@ -46,6 +49,8 @@ from .enum_types import (
 )
 
 from skyportal import facility_apis
+
+env, cfg = load_env()
 
 # In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
 # All DB fluxes are stored in microJy (AB).
@@ -1143,6 +1148,15 @@ class Allocation(Base):
         back_populates='allocations',
         doc="The Instrument the allocation is associated with.",
     )
+    altdata = sa.Column(
+        EncryptedType(JSONType, cfg['app.secret_key'], AesEngine, 'pkcs5')
+    )
+
+    def load_altdata(self):
+        if self.altdata is None:
+            return {}
+        else:
+            return json.loads(self.altdata)
 
 
 class Taxonomy(Base):

@@ -1,15 +1,15 @@
 import time
 import json
+import requests
 from datetime import datetime, timedelta
 
 from lxml import etree
 from suds import Client
 
-from astropy.coordinates import SkyCoord
-from astropy import units as u
-
 from . import FollowUpAPI
 from baselayer.app.env import load_env
+
+from ..utils import http
 
 env, cfg = load_env()
 
@@ -48,6 +48,11 @@ class SinstroRequest:
             'epoch': 2000
         }
 
+        exposure_type = request.payload["exposure_type"]
+        exposure_type_split = exposure_type.split("x")
+        exp_count = int(exposure_type_split[0])
+        exp_time = int(exposure_type_split[1][:-1])
+
         # The configurations for this request. In this example we are taking 2 exposures with different filters.
         configurations = []
         for filt in request.payload["observation_type"]:
@@ -59,8 +64,8 @@ class SinstroRequest:
                                   'guiding_config': {},
                                   'instrument_configs': [
                                       {
-                                          'exposure_time': exposure_time,
-                                          'exposure_count': 1,
+                                          'exposure_time': exp_time,
+                                          'exposure_count': exp_count,
                                           'optical_elements':
                                               {
                                                   'filter': '%sp' % filt
@@ -68,6 +73,10 @@ class SinstroRequest:
                                        }
                                   ]
                               })
+
+        tstart = request.payload["start_date"] + ' 00:00:00'
+        tend = request.payload["end_date"] + ' 00:00:00'
+
         windows = [{
             'start': tstart,
             'end': tend
@@ -77,11 +86,13 @@ class SinstroRequest:
         location = {
             'telescope_class': '1m0'
         }
-    
+   
+        altdata = request.allocation.load_altdata()
+ 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-                'name': '%s' % (objname),  # The title
-                'proposal': PROPOSAL_ID,
+                'name': '%s' % (request.obj.id),  # The title
+                'proposal': altdata["PROPOSAL_ID"],
                 'ipp_value': 1.05,
                 'operator': 'SINGLE',
                 'observation_type': 'NORMAL',
@@ -130,6 +141,11 @@ class SpectralRequest:
             'epoch': 2000
         }
 
+        exposure_type = request.payload["exposure_type"]
+        exposure_type_split = exposure_type.split("x")
+        exp_count = int(exposure_type_split[0])
+        exp_time = int(exposure_type_split[1][:-1])
+
         configurations = []
         for filt in request.payload["observation_type"]:
             configurations.append({'type': 'EXPOSE',
@@ -140,8 +156,8 @@ class SpectralRequest:
                                   'guiding_config': {},
                                   'instrument_configs': [
                                       {
-                                          'exposure_time': exposure_time,
-                                          'exposure_count': 1,
+                                          'exposure_time': exp_time,
+                                          'exposure_count': exp_count,
                                           'optical_elements':
                                               {
                                                   'filter': '%sp' % filt
@@ -149,6 +165,10 @@ class SpectralRequest:
                                        }
                                   ]
                               })
+
+        tstart = request.payload["start_date"] + ' 00:00:00'
+        tend = request.payload["end_date"] + ' 00:00:00'
+
         windows = [{
             'start': tstart,
             'end': tend
@@ -158,11 +178,13 @@ class SpectralRequest:
         location = {
             'telescope_class': '2m0'
         }
-    
+   
+        altdata = request.allocation.load_altdata()
+ 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-                'name': '%s' % (objname),  # The title
-                'proposal': PROPOSAL_ID,
+                'name': '%s' % (request.obj.id),  # The title
+                'proposal': altdata["PROPOSAL_ID"],
                 'ipp_value': 1.05,
                 'operator': 'SINGLE',
                 'observation_type': 'NORMAL',
@@ -175,181 +197,191 @@ class SpectralRequest:
     
         return requestgroup
 
-    class FloydsRequest:
-    
-        """An XML structure for LCO 2m Floyds requests."""
-    
-        def _build_payload(self, request):
-            """Payload header for LCO 2m Floyds queue requests.
-    
-            Parameters
-            ----------
-    
-            request: skyportal.models.FollowupRequest
-                The request to add to the queue and the SkyPortal database.
-    
-            Returns
-            ----------
-            payload:
-                payload for Floyds requests.
-            """
-    
-    
-            # Constraints used for scheduling this observation
-            constraints = {
-                'max_airmass': request.payload["maximum_airmass"],
-                'min_lunar_distance': request.payload["minimum_lunar_distance"]
-            }
-    
-            # The target of the observation
-            target = {
-                'name': request.obj.id,
-                'type': 'ICRS',
-                'ra': request.obj.ra,
-                'dec': request.obj.dec,
-                'epoch': 2000
-            }
-    
-            # The telescope class that should be used for this observation
-            location = {
-                'telescope_class': '2m0'
-            }
-    
-            configurations = [
-            {   
-                'type': 'LAMP_FLAT',
-                'instrument_type': '2M0-FLOYDS-SCICAM',
-                'constraints': constraints,
-                'target': target,
-                'acquisition_config': {},
-                'guiding_config': {
-                    'mode': 'OFF',
-                    'optional': False},
-                'instrument_configs': [
-                    {
-                        'exposure_time': 50,
-                        'exposure_count': 1,
-                        'rotator_mode': 'VFLOAT',
-                        'optical_elements': {
-                            'slit': 'slit_1.6as'
-                        }
+class FloydsRequest:
+
+    """An XML structure for LCO 2m Floyds requests."""
+
+    def _build_payload(self, request):
+        """Payload header for LCO 2m Floyds queue requests.
+
+        Parameters
+        ----------
+
+        request: skyportal.models.FollowupRequest
+            The request to add to the queue and the SkyPortal database.
+
+        Returns
+        ----------
+        payload:
+            payload for Floyds requests.
+        """
+
+
+        # Constraints used for scheduling this observation
+        constraints = {
+            'max_airmass': request.payload["maximum_airmass"],
+            'min_lunar_distance': request.payload["minimum_lunar_distance"]
+        }
+
+        # The target of the observation
+        target = {
+            'name': request.obj.id,
+            'type': 'ICRS',
+            'ra': request.obj.ra,
+            'dec': request.obj.dec,
+            'epoch': 2000
+        }
+
+        # The telescope class that should be used for this observation
+        location = {
+            'telescope_class': '2m0'
+        }
+
+        exposure_type = request.payload["exposure_type"]
+        exposure_type_split = exposure_type.split("x")
+        exp_count = int(exposure_type_split[0])
+        exp_time = int(exposure_type_split[1][:-1])
+
+        configurations = [
+        {   
+            'type': 'LAMP_FLAT',
+            'instrument_type': '2M0-FLOYDS-SCICAM',
+            'constraints': constraints,
+            'target': target,
+            'acquisition_config': {},
+            'guiding_config': {
+                'mode': 'OFF',
+                'optional': False},
+            'instrument_configs': [
+                {
+                    'exposure_time': 50,
+                    'exposure_count': 1,
+                    'rotator_mode': 'VFLOAT',
+                    'optical_elements': {
+                        'slit': 'slit_1.6as'
                     }
-                ]
+                }
+            ]
+        },
+        {  
+            'type': 'ARC',
+            'instrument_type': '2M0-FLOYDS-SCICAM',
+            'constraints': constraints,
+            'target': target,
+            'acquisition_config': {},
+            'guiding_config': {
+                'mode': 'OFF',
+                'optional': False},
+            'instrument_configs': [
+                {
+                    'exposure_time': 60,
+                    'exposure_count': 1,
+                    'rotator_mode': 'VFLOAT',
+                    'optical_elements': {
+                        'slit': 'slit_1.6as'
+                    }
+                }
+            ]
+        },
+        {
+            'type': 'SPECTRUM',
+            'instrument_type': '2M0-FLOYDS-SCICAM',
+            'constraints': constraints,
+            'target': target,
+            'acquisition_config': {
+                'mode': 'WCS'
             },
-            {  
-                'type': 'ARC',
-                'instrument_type': '2M0-FLOYDS-SCICAM',
-                'constraints': constraints,
-                'target': target,
-                'acquisition_config': {},
-                'guiding_config': {
-                    'mode': 'OFF',
-                    'optional': False},
-                'instrument_configs': [
-                    {
-                        'exposure_time': 60,
-                        'exposure_count': 1,
-                        'rotator_mode': 'VFLOAT',
-                        'optical_elements': {
-                            'slit': 'slit_1.6as'
-                        }
-                    }
-                ]
+            'guiding_config': {
+                'mode': 'ON',
+                'optional': False
             },
-            {
-                'type': 'SPECTRUM',
-                'instrument_type': '2M0-FLOYDS-SCICAM',
-                'constraints': constraints,
-                'target': target,
-                'acquisition_config': {
-                    'mode': 'WCS'
-                },
-                'guiding_config': {
-                    'mode': 'ON',
-                    'optional': False
-                },
-                'instrument_configs': [
-                    {
-                        'exposure_time': exposure_time,
-                        'exposure_count': 1,
-                        'rotator_mode': 'VFLOAT',
-                        'optical_elements': {
-                            'slit': 'slit_1.6as'
-                        }
+            'instrument_configs': [
+                {
+                    'exposure_time': exp_time,
+                    'exposure_count': exp_count,
+                    'rotator_mode': 'VFLOAT',
+                    'optical_elements': {
+                        'slit': 'slit_1.6as'
                     }
-                ]
-            },
-            {
-                'type': 'ARC',
-                'instrument_type': '2M0-FLOYDS-SCICAM',
-                'constraints': constraints,
-                'target': target,
-                'acquisition_config': {},
-                'guiding_config': {
-                    'mode': 'OFF',
-                    'optional': False},
-                'instrument_configs': [
-                    {
-                        'exposure_time': 60,
-                        'exposure_count': 1,
-                        'rotator_mode': 'VFLOAT',
-                        'optical_elements': {
-                            'slit': 'slit_1.6as'
-                        }
+                }
+            ]
+        },
+        {
+            'type': 'ARC',
+            'instrument_type': '2M0-FLOYDS-SCICAM',
+            'constraints': constraints,
+            'target': target,
+            'acquisition_config': {},
+            'guiding_config': {
+                'mode': 'OFF',
+                'optional': False},
+            'instrument_configs': [
+                {
+                    'exposure_time': 60,
+                    'exposure_count': 1,
+                    'rotator_mode': 'VFLOAT',
+                    'optical_elements': {
+                        'slit': 'slit_1.6as'
                     }
-                ]
-            },
-            {
-                'type': 'LAMP_FLAT',
-                'instrument_type': '2M0-FLOYDS-SCICAM',
-                'constraints': constraints,
-                'target': target,
-                'acquisition_config': {},
-                'guiding_config': {
-                    'mode': 'OFF',
-                    'optional': False},
-                'instrument_configs': [
-                    {
-                        'exposure_time': 50,
-                        'exposure_count': 1,
-                        'rotator_mode': 'VFLOAT',
-                        'optical_elements': {
-                            'slit': 'slit_1.6as'
-                        }
+                }
+            ]
+        },
+        {
+            'type': 'LAMP_FLAT',
+            'instrument_type': '2M0-FLOYDS-SCICAM',
+            'constraints': constraints,
+            'target': target,
+            'acquisition_config': {},
+            'guiding_config': {
+                'mode': 'OFF',
+                'optional': False},
+            'instrument_configs': [
+                {
+                    'exposure_time': 50,
+                    'exposure_count': 1,
+                    'rotator_mode': 'VFLOAT',
+                    'optical_elements': {
+                        'slit': 'slit_1.6as'
                     }
-                ]
+                }
+            ]
+        }]
+    
+        tstart = request.payload["start_date"] + ' 00:00:00'
+        tend = request.payload["end_date"] + ' 00:00:00'
+
+        windows = [{
+            'start': tstart,
+            'end': tend
+        }]   
+
+        altdata = request.allocation.load_altdata()
+
+        # The full RequestGroup, with additional meta-data
+        requestgroup = {
+            'name': '%s' % (request.obj.id),  # The title
+            'proposal': altdata["PROPOSAL_ID"], 
+            'ipp_value': 1.05,
+            'operator': 'SINGLE',
+            'observation_type': 'NORMAL',
+            'requests': [{
+                'configurations': configurations,
+                'windows': windows,
+                'location': location,
             }]
-        
-            windows = [{
-                'start': tstart,
-                'end': tend
-            }]
-        
-            # The full RequestGroup, with additional meta-data
-            requestgroup = {
-                'name': objname,
-                'proposal': PROPOSAL_ID,
-                'ipp_value': 1.05,
-                'operator': 'SINGLE',
-                'observation_type': 'NORMAL',
-                'requests': [{
-                    'configurations': configurations,
-                    'windows': windows,
-                    'location': location,
-                }]
-            }
-        
-            return requestgroup
+        }
+    
+        return requestgroup
 
 
 class LCOAPI(FollowUpAPI):
 
-    """An interface to LT operations."""
+    """An interface to LCO operations."""
 
     @staticmethod
     def delete(request):
 
-        """Delete a follow-up request from LT queue (all instruments).
+        """Delete a follow-up request from LCO queue (all instruments).
 
         Parameters
         ----------
@@ -357,7 +389,7 @@ class LCOAPI(FollowUpAPI):
             The request to delete from the queue and the SkyPortal database.
         """
 
-        from ..models import DBSession, FollowupRequest
+        from ..models import DBSession, FollowupRequest, FacilityTransaction
 
         req = (
             DBSession()
@@ -365,122 +397,148 @@ class LCOAPI(FollowUpAPI):
             .filter(FollowupRequest.id == request.id)
             .one()
         )
+
         # this happens for failed submissions
         # just go ahead and delete
-        if len(req.http_requests) == 0:
+        if len(req.transactions) == 0:
             DBSession().query(FollowupRequest).filter(
                 FollowupRequest.id == request.id
             ).delete()
             DBSession().commit()
             return
 
-        content = req.http_requests[0].content
-        response_rtml = etree.fromstring(content)
-        uid = response_rtml.get('uid')
+        altdata = request.allocation.load_altdata()
+        if not altdata:
+            return
 
-        headers = {
-            'Username': request.allocation.load_altdata()["username"],
-            'Password': request.allocation.load_altdata()["password"],
-        }
-        url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
-            'http', cfg['app.lt_host'], cfg['app.lt_port']
+        contnt = req.transactions[0].response["content"]
+        content = json.loads(content)
+        uid = content["id"]
+
+        r = requests.post(
+            'https://observe.lco.global/api/requestgroups/{}/cancel/'.format(uid),
+            headers={'Authorization': 'Token {}'.format(altdata["API_TOKEN"])}
         )
 
-        namespaces = {
-            'xsi': LT_XSI_NS,
-        }
-        schemaLocation = etree.QName(LT_XSI_NS, 'schemaLocation')
-        cancel_payload = etree.Element(
-            'RTML',
-            {schemaLocation: LT_SCHEMA_LOCATION},
-            mode='abort',
-            uid=format(str(uid)),
-            version='3.1a',
-            nsmap=namespaces,
-        )
-        project = etree.SubElement(
-            cancel_payload, 'Project', ProjectID=request.payload["LT_proposalID"]
-        )
-        contact = etree.SubElement(project, 'Contact')
-        etree.SubElement(contact, 'Username').text = request.allocation.load_altdata()["username"]
-        etree.SubElement(contact, 'Name').text = request.allocation.load_altdata()["username"]
-        etree.SubElement(contact, 'Communication')
-        cancel = etree.tostring(cancel_payload, encoding='unicode', pretty_print=True)
+        r.raise_for_status()
+        request.status = "deleted"
 
-        client = Client(url=url, headers=headers)
-        # Send cancel_payload, and receive response string, removing the encoding tag which causes issue with lxml parsing
-        response = client.service.handle_rtml(cancel).replace(
-            'encoding="ISO-8859-1"', ''
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(r.request),
+            response=http.serialize_requests_response(r),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
         )
-        response_rtml = etree.fromstring(response)
-        mode = response_rtml.get('mode')
-        uid = response_rtml.get('uid')
-        if mode == 'confirm':
+
+        DBSession().add(transaction)
+
+
+    @staticmethod
+    def update(request):
+
+        """Update a follow-up request from LCO queue (all instruments).
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to update from the queue and the SkyPortal database.
+        """
+
+        from ..models import DBSession, FollowupRequest, FacilityTransaction
+
+        req = (
+            DBSession()
+            .query(FollowupRequest)
+            .filter(FollowupRequest.id == request.id)
+            .one()
+        )
+
+        # this happens for failed submissions
+        # just go ahead and delete
+        if len(req.transactions) == 0:
             DBSession().query(FollowupRequest).filter(
                 FollowupRequest.id == request.id
             ).delete()
             DBSession().commit()
+            return
+
+        altdata = request.allocation.load_altdata()
+        if not altdata:
+            return
+
+        content = req.transactions[0].response["content"]
+        content = json.loads(content)
+        uid = content["id"]
+
+        r = requests.get(
+            'https://observe.lco.global/api/requestgroups/{}/'.format(uid),
+            headers={'Authorization': 'Token {}'.format(altdata["API_TOKEN"])}
+        )
+
+        r.raise_for_status()
+
+        content = req.transactions[0].response["content"]
+        content = json.loads(content)
+       
+        if content["state"] == "COMPLETED":
+            request.status = "complete"
+
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(r.request),
+            response=http.serialize_requests_response(r),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
+
+        DBSession().add(transaction)
 
 
-class SinstroAPI(LCOAPI):
+class SinistroAPI(LCOAPI):
 
-    """An interface to LT IOO operations."""
+    """An interface to LCO Sinistro operations."""
 
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request):
 
-        """Submit a follow-up request to LT's IOO.
+        """Submit a follow-up request to LCO's Sinistro.
 
         Parameters
         ----------
         request: skyportal.models.FollowupRequest
-            The request to submit.
+            The request to add to the queue and the SkyPortal database.
         """
 
-        from ..models import DBSession
+        from ..models import FacilityTransaction, DBSession
+
+        altdata = request.allocation.load_altdata()
+        if not altdata:
+            return
 
         ltreq = SinstroRequest()
-        observation_payload = ltreq._build_prolog()
-        ltreq._build_project(observation_payload, request)
-        ltreq._build_inst_schedule(observation_payload, request)
+        requestgroup = ltreq._build_payload(request)
 
-        f = open("created.rtml", "w")
-        f.write(etree.tostring(observation_payload, encoding="unicode", pretty_print=True))
-        f.close()
+        r = requests.post(
+            'https://observe.lco.global/api/requestgroups/',
+            headers={'Authorization': 'Token {}'.format(altdata["API_TOKEN"])},
+            json=requestgroup  # Make sure you use json!
+        )
 
-        print(request.allocation.load_altdata()["username"],
-              request.allocation.load_altdata()["password"])
+        r.raise_for_status()
 
-        headers = {
-            'Username': request.allocation.load_altdata()["username"],
-            'Password': request.allocation.load_altdata()["password"],
-        }
-        print(headers)
-        url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
-            'http', cfg['app.lt_host'], cfg['app.lt_port']
+        if r.status_code == 201:
+            request.status = 'submitted'
+        else:
+            request.status = f'rejected: {r.content}'
+
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(r.request),
+            response=http.serialize_requests_response(r),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
         )
-        client = Client(url=url, headers=headers)
-        full_payload = etree.tostring(
-            observation_payload, encoding="unicode", pretty_print=True
-        )
-        # Send payload, and receive response string, removing the encoding tag which causes issue with lxml parsing
-        response = client.service.handle_rtml(full_payload).replace(
-            'encoding="ISO-8859-1"', ''
-        )
-        response_rtml = etree.fromstring(response)
-        mode = response_rtml.get('mode')
- 
-        print(full_payload, response)
-        print(stop)
-        if mode == 'confirm':
-            return response
-            #message = FollowupRequestHTTPRequest(
-            #    content=response, origin='skyportal', request=request,
-            #)
-            #DBSession().add(message)
-            #DBSession().add(request)
-            #DBSession().commit()
+
+        DBSession().add(transaction)
 
     _instrument_configs = {}
 
@@ -488,10 +546,10 @@ class SinstroAPI(LCOAPI):
     _observation_types = ['r', 'gr', 'gri', 'griz', 'grizy']
     _exposure_types = {
         'r': ['1x180s', '1x300s', '3x300s'],
-        'gr': ['1x180s', '3x300s', '3x300s'],
-        'gri': ['1x180s', '2x150s', '3x300s'],
-        'griz': ['1x180s', '2x150s', '3x300s'],
-        'grizy': ['1x180s', '2x150s', '3x300s'],
+        'gr': ['1x180s', '1x300s', '3x300s'],
+        'gri': ['1x180s', '1x300s', '3x300s'],
+        'griz': ['1x180s', '1x300s', '3x300s'],
+        'grizy': ['1x180s', '1x300s', '3x300s'],
     }
     _instrument_configs[_instrument_type] = {}
     _instrument_configs[_instrument_type]["observation"] = _observation_types
@@ -549,7 +607,6 @@ class SinstroAPI(LCOAPI):
                 "title": "End Date (UT)",
                 "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
             },
-            "LT_proposalID": {"type": "string"},
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
                 "type": "number",
@@ -563,7 +620,6 @@ class SinstroAPI(LCOAPI):
         },
         "required": [
             "instrument_type",
-            "priority",
             "start_date",
             "end_date",
             "maximum_airmass",
@@ -577,46 +633,50 @@ class SinstroAPI(LCOAPI):
 
 class SpectralAPI(LCOAPI):
 
-    """An interface to LT IOI operations."""
+    """An interface to LCO Spectral operations."""
 
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request):
 
-        """Submit a follow-up request to LT's IOI.
+        """Submit a follow-up request to LCO's Spectral.
 
         Parameters
         ----------
         request: skyportal.models.FollowupRequest
-            The request to submit.
+            The request to add to the queue and the SkyPortal database.
         """
 
-        from ..models import DBSession
+        from ..models import FacilityTransaction, DBSession
 
-        ltreq = IOIRequest()
-        observation_payload = ltreq._build_prolog()
-        ltreq._build_project(observation_payload, request)
-        ltreq._build_inst_schedule(observation_payload, request)
+        altdata = request.allocation.load_altdata()
+        if not altdata:
+            return
 
-        headers = {
-            'Username': request.allocation.load_altdata()["username"],
-            'Password': request.allocation.load_altdata()["password"],
-        }
-        url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
-            'http', cfg['app.lt_host'], cfg['app.lt_port']
+        ltreq = SpectralRequest()
+        requestgroup = ltreq._build_payload(request)
+
+        r = requests.post(
+            'https://observe.lco.global/api/requestgroups/',
+            headers={'Authorization': 'Token {}'.format(altdata["API_TOKEN"])},
+            json=requestgroup  # Make sure you use json!
         )
-        client = Client(url=url, headers=headers)
-        full_payload = etree.tostring(
-            observation_payload, encoding="unicode", pretty_print=True
+
+        r.raise_for_status()
+
+        if r.status_code == 201:
+            request.status = 'submitted'
+        else:
+            request.status = f'rejected: {r.content}'
+
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(r.request),
+            response=http.serialize_requests_response(r),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
         )
-        # Send payload, and receive response string, removing the encoding tag which causes issue with lxml parsing
-        response = client.service.handle_rtml(full_payload).replace(
-            'encoding="ISO-8859-1"', ''
-        )
-        response_rtml = etree.fromstring(response)
-        mode = response_rtml.get('mode')
-        if mode == 'confirm':
-            return response
+
+        DBSession().add(transaction)
 
     _instrument_configs = {}
 
@@ -624,10 +684,10 @@ class SpectralAPI(LCOAPI):
     _observation_types = ['r', 'gr', 'gri', 'griz', 'grizy']
     _exposure_types = {
         'r': ['1x180s', '1x300s', '3x300s'],
-        'gr': ['1x180s', '3x300s', '3x300s'],
-        'gri': ['1x180s', '2x150s', '3x300s'],
-        'griz': ['1x180s', '2x150s', '3x300s'],
-        'grizy': ['1x180s', '2x150s', '3x300s'],
+        'gr': ['1x180s', '1x300s', '3x300s'],
+        'gri': ['1x180s', '1x300s', '3x300s'],
+        'griz': ['1x180s', '1x300s', '3x300s'],
+        'grizy': ['1x180s', '1x300s', '3x300s'],
     }
     _instrument_configs[_instrument_type] = {}
     _instrument_configs[_instrument_type]["observation"] = _observation_types
@@ -698,7 +758,6 @@ class SpectralAPI(LCOAPI):
         },
         "required": [
             "instrument_type",
-            "priority",
             "start_date",
             "end_date",
             "maximum_airmass",
@@ -710,54 +769,52 @@ class SpectralAPI(LCOAPI):
     ui_json_schema = {}
 
 
-class FloydsAPI(LTAPI):
+class FloydsAPI(LCOAPI):
 
-    """An interface to LT SPRAT operations."""
+    """An interface to LCO Floyds operations."""
 
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request):
 
-        """Submit a follow-up request to LT's SPRAT.
+        """Submit a follow-up request to LCO's Floyds.
 
         Parameters
         ----------
         request: skyportal.models.FollowupRequest
-            The request to submit.
+            The request to add to the queue and the SkyPortal database.
         """
 
-        from ..models import DBSession
+        from ..models import FacilityTransaction, DBSession
 
-        ltreq = SPRATRequest()
-        observation_payload = ltreq._build_prolog()
-        ltreq._build_project(observation_payload, request)
-        ltreq._build_inst_schedule(observation_payload, request)
+        altdata = request.allocation.load_altdata()
+        if not altdata:
+            return
 
-        headers = {
-            'Username': request.allocation.load_altdata()["username"],
-            'Password': request.allocation.load_altdata()["password"],
-        }
-        url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
-            'http', cfg['app.lt_host'], cfg['app.lt_port']
+        ltreq = FloydsRequest()
+        requestgroup = ltreq._build_payload(request)
+
+        r = requests.post(
+            'https://observe.lco.global/api/requestgroups/',
+            headers={'Authorization': 'Token {}'.format(altdata["API_TOKEN"])},
+            json=requestgroup  # Make sure you use json!
         )
-        client = Client(url=url, headers=headers)
-        full_payload = etree.tostring(
-            observation_payload, encoding="unicode", pretty_print=True
+
+        r.raise_for_status()
+
+        if r.status_code == 201:
+            request.status = 'submitted'
+        else:
+            request.status = f'rejected: {r.content}'
+
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(r.request),
+            response=http.serialize_requests_response(r),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
         )
-        # Send payload, and receive response string, removing the encoding tag which causes issue with lxml parsing
-        response = client.service.handle_rtml(full_payload).replace(
-            'encoding="ISO-8859-1"', ''
-        )
-        response_rtml = etree.fromstring(response)
-        mode = response_rtml.get('mode')
-        if mode == 'confirm':
-            return response
-            #message = FollowupRequestHTTPRequest(
-            #    content=response, origin='skyportal', request=request,
-            #)
-            #DBSession().add(message)
-            #DBSession().add(request)
-            #DBSession().commit()
+
+        DBSession().add(transaction)
 
     _instrument_configs = {}
 
@@ -822,7 +879,6 @@ class FloydsAPI(LTAPI):
                 "title": "End Date (UT)",
                 "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
             },
-            "LT_proposalID": {"type": "string"},
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
                 "type": "number",
@@ -836,7 +892,6 @@ class FloydsAPI(LTAPI):
         },
         "required": [
             "instrument_type",
-            "priority",
             "start_date",
             "end_date",
             "maximum_airmass",
