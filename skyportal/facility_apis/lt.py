@@ -60,7 +60,7 @@ class LTRequest:
             payload for LT requests.
 
         request: skyportal.models.FollowupRequest
-            The request to delete from the queue and the SkyPortal database.
+            The request to add to the queue and the SkyPortal database.
 
         Returns
         ----------
@@ -84,7 +84,7 @@ class LTRequest:
         ----------
 
         request: skyportal.models.FollowupRequest
-            The request to delete from the queue and the SkyPortal database.
+            The request to add to the queue and the SkyPortal database.
 
         Returns
         ----------
@@ -109,7 +109,7 @@ class LTRequest:
         )
 
         photom_const = etree.Element('ExtinctionConstraint')
-        if request.payload["photometric"]:
+        if "photometric" in request.payload and request.payload["photometric"]:
             etree.SubElement(photom_const, 'Clouds').text = 'clear'
         else:
             etree.SubElement(photom_const, 'Clouds').text = 'light'
@@ -129,7 +129,7 @@ class LTRequest:
         ----------
 
         request: skyportal.models.FollowupRequest
-            The request to delete from the queue and the SkyPortal database.
+            The request to add to the queue and the SkyPortal database.
 
         Returns
         ----------
@@ -168,7 +168,7 @@ class IOORequest(LTRequest):
             payload for LT requests.
 
         request: skyportal.models.FollowupRequest
-            The request to delete from the queue and the SkyPortal database.
+            The request to add to the queue and the SkyPortal database.
 
         Returns
         ----------
@@ -193,7 +193,7 @@ class IOORequest(LTRequest):
             payload for LT requests.
 
         request: skyportal.models.FollowupRequest
-            The request to delete from the queue and the SkyPortal database.
+            The request to add to the queue and the SkyPortal database.
 
         filt:
             Exposure filter
@@ -245,7 +245,7 @@ class IOIRequest(LTRequest):
             payload for LT requests.
 
         request: skyportal.models.FollowupRequest
-            The request to delete from the queue and the SkyPortal database.
+            The request to add to the queue and the SkyPortal database.
 
         Returns
         ----------
@@ -270,7 +270,7 @@ class IOIRequest(LTRequest):
             payload for LT requests.
 
         request: skyportal.models.FollowupRequest
-            The request to delete from the queue and the SkyPortal database.
+            The request to add to the queue and the SkyPortal database.
 
         filt:
             Exposure filter
@@ -322,7 +322,7 @@ class SPRATRequest(LTRequest):
             payload for LT requests.
 
         request: skyportal.models.FollowupRequest
-            The request to delete from the queue and the SkyPortal database.
+            The request to add to the queue and the SkyPortal database.
 
         Returns
         ----------
@@ -342,7 +342,7 @@ class SPRATRequest(LTRequest):
             payload for LT requests.
 
         request: skyportal.models.FollowupRequest
-            The request to delete from the queue and the SkyPortal database.
+            The request to add to the queue and the SkyPortal database.
 
         Returns
         ----------
@@ -388,7 +388,7 @@ class LTAPI(FollowUpAPI):
             The request to delete from the queue and the SkyPortal database.
         """
 
-        from ..models import DBSession, FollowupRequest
+        from ..models import DBSession, FollowupRequest, FacilityTransaction
 
         req = (
             DBSession()
@@ -452,10 +452,16 @@ class LTAPI(FollowUpAPI):
         mode = response_rtml.get('mode')
         uid = response_rtml.get('uid')
         if mode == 'confirm':
-            DBSession().query(FollowupRequest).filter(
-                FollowupRequest.id == request.id
-            ).delete()
-            DBSession().commit()
+
+            request.status = "deleted"
+
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request_xml(cancel),
+                response=http.serialize_requests_response_xml(response),
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+            DBSession().add(transaction)
 
 
 class IOOAPI(LTAPI):
@@ -471,7 +477,7 @@ class IOOAPI(LTAPI):
         Parameters
         ----------
         request: skyportal.models.FollowupRequest
-            The request to submit.
+            The request to add to the queue and the SkyPortal database.
         """
 
         from ..models import DBSession, FacilityTransaction
@@ -632,7 +638,7 @@ class IOIAPI(LTAPI):
         Parameters
         ----------
         request: skyportal.models.FollowupRequest
-            The request to submit.
+            The request to add to the queue and the SkyPortal database.
         """
 
         from ..models import DBSession, FacilityTransaction
@@ -787,7 +793,7 @@ class SPRATAPI(LTAPI):
         Parameters
         ----------
         request: skyportal.models.FollowupRequest
-            The request to submit.
+            The request to add to the queue and the SkyPortal database.
         """
 
         from ..models import DBSession, FacilityTransaction
