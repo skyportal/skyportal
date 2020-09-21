@@ -1633,36 +1633,47 @@ class Spectrum(Base):
         # NAXIS1: 433
         # NAXIS2: 1
 
-        for line in table.meta['comments']:
-            try:
-                result = yaml.load(line, Loader=yaml.FullLoader)
-            except yaml.YAMLError:
-                continue
-            if result is not None:
-                header.update(result)
-
-        # otherwise read it like a fits header
-        with warnings.catch_warnings():
-            warnings.simplefilter('error', AstropyWarning)
+        if 'comments' in table.meta:
             for line in table.meta['comments']:
-                # this line does not raise a warning
-                card = fits.Card.fromstring(line)
                 try:
-                    # this line warns (exception in this context)
-                    card.verify()
-                except AstropyWarning:
+                    result = yaml.load(line, Loader=yaml.FullLoader)
+                except yaml.YAMLError:
                     continue
-                key, value, comment = card
-                if len(comment) == 0:
-                    header[key] = value
+                if isinstance(result, dict):
+                    header.update(result)
+
+            # otherwise read it like a fits header
+            cards = []
+            with warnings.catch_warnings():
+                warnings.simplefilter('error', AstropyWarning)
+                for line in table.meta['comments']:
+                    # this line does not raise a warning
+                    card = fits.Card.fromstring(line)
+                    try:
+                        # this line warns (exception in this context)
+                        card.verify()
+                    except AstropyWarning:
+                        continue
+                    cards.append(card)
+
+            # this ensure lines like COMMENT and HISTORY are properly dealt with
+            fits_header = fits.Header(cards=cards)
+            serialized = dict(fits_header)
+
+            for key in serialized:
+                if len(fits_header.comments[key]) > 0:
+                    header[key] = {
+                        'value': serialized[key],
+                        'comment': fits_header.comments[key],
+                    }
                 else:
-                    header[key] = {'value': value, 'comment': comment}
+                    header[key] = serialized[key]
 
         if len(header) == 0:
             header = None
 
         tabledata = np.asarray(table)
-        colnames = table.column_names
+        colnames = table.colnames
 
         if len(colnames) < 2:
             raise ValueError(
