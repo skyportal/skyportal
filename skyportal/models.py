@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 import arrow
 from astropy import units as u
 from astropy import time as ap_time
-from astropy import cosmology
 
 import astroplan
 import numpy as np
@@ -22,6 +21,7 @@ from sendgrid.helpers.mail import Mail
 from astropy import coordinates as ap_coord
 import healpix_alchemy as ha
 import timezonefinder
+from .utils.cosmology import establish_cosmology
 
 from baselayer.app.models import (  # noqa
     init_db,
@@ -35,7 +35,6 @@ from baselayer.app.models import (  # noqa
 )
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
-
 
 from . import schema
 from .enum_types import (
@@ -54,8 +53,8 @@ from skyportal import facility_apis
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
 
-# TODO: make this configurable
-cosmo = cosmology.WMAP9
+_, cfg = load_env()
+cosmo = establish_cosmology(cfg)
 
 
 def is_owned_by(self, user_or_token):
@@ -482,8 +481,9 @@ class Obj(Base, ha.Point):
                     (10 ** (float(self.altdata.get("dm")) / 5.0)) * 1e-5 * u.Mpc
                 ).value
             if self.altdata.get("parallax") is not None:
-                # assume parallax in arcsec
-                return (1e-6 * u.Mpc / float(self.altdata.get("parallax"))).value
+                if float(self.altdata.get("parallax")) > 0:
+                    # assume parallax in arcsec
+                    return (1e-6 * u.Mpc / float(self.altdata.get("parallax"))).value
 
             if self.altdata.get("dist_kpc") is not None:
                 return (float(self.altdata.get("dist_kpc")) * 1e-3 * u.Mpc).value
