@@ -1577,8 +1577,20 @@ class Spectrum(Base):
     assignment_id = sa.Column(sa.ForeignKey('classicalassignments.id'), nullable=True)
     assignment = relationship('ClassicalAssignment', back_populates='spectra')
 
+    altdata = sa.Column(
+        psql.JSONB, doc="Miscellaneous alternative metadata.", nullable=True
+    )
+
+    original_file_bytes = sa.Column(
+        sa.types.LargeBinary,
+        doc="Content of original file that user passed to upload the spectrum.",
+    )
+    original_file_filename = sa.Column(
+        sa.String, doc="Name of original file that user passed to upload the spectrum."
+    )
+
     @classmethod
-    def from_ascii(cls, filename, obj_id, instrument_id, observed_at):
+    def from_ascii(cls, filename, obj_id=None, instrument_id=None, observed_at=None):
         """Generate a `Spectrum` from an ascii file.
 
         Parameters
@@ -1586,12 +1598,12 @@ class Spectrum(Base):
 
         filename : str
            The name of the ASCII file containing the spectrum.
-        obj_id : str
-           The name of the Spectrum's Obj.
-        instrument_id : int
-           ID of the Instrument with which this Spectrum was acquired.
-        observed_at : string or datetime
-           Median UTC ISO time stamp of the exposure or exposures in which the Spectrum was acquired."
+        obj_id : str, optional
+           The id of the Obj that this Spectrum is of, if not present in the ASCII header.
+        instrument_id : int, optional
+           ID of the Instrument with which this Spectrum was acquired, if not present in the ASCII header.
+        observed_at : string or datetime, optional
+           Median UTC ISO time stamp of the exposure or exposures in which the Spectrum was acquired, if not present in the ASCII header."
 
         Returns
         -------
@@ -1601,12 +1613,13 @@ class Spectrum(Base):
 
         """
         data = np.loadtxt(filename)
-        if data.shape[1] != 2:  # TODO support other formats
-            raise ValueError(f"Expected 2 columns, got {data.shape[1]}")
+        if data.shape[1] != 3:  # TODO support other formats
+            raise ValueError(f"Expected 3 columns, got {data.shape[1]}")
 
         return cls(
             wavelengths=data[:, 0],
             fluxes=data[:, 1],
+            errors=data[:, 2],
             obj_id=obj_id,
             instrument_id=instrument_id,
             observed_at=observed_at,
