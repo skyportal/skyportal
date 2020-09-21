@@ -72,8 +72,8 @@ def test_top_source_prefs(driver, user, public_source, public_group, upload_data
         is_token=True,
         created_at=twenty_days_ago,
     )
-    DBSession.add(sv)
-    DBSession.commit()
+    DBSession().add(sv)
+    DBSession().commit()
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
