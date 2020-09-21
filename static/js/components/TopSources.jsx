@@ -8,6 +8,7 @@ import Typography from "@material-ui/core/Typography";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
 import ButtonGroup from "@material-ui/core/ButtonGroup";
 import Button from "@material-ui/core/Button";
+import Tooltip from "@material-ui/core/Tooltip";
 import { makeStyles, useTheme } from "@material-ui/core/styles";
 
 import { ra_to_hours, dec_to_hours } from "../units";
@@ -43,9 +44,11 @@ const getStyles = (timespan, currentTimespan, theme) => ({
 });
 
 const timespans = [
-  { label: "PAST 24 HRS", sinceDaysAgo: "1" },
-  { label: "PAST 7 DAYS", sinceDaysAgo: "7" },
-  { label: "PAST 30 DAYS", sinceDaysAgo: "30" },
+  { label: "DAY", sinceDaysAgo: "1", tooltip: "Past 24 hours" },
+  { label: "WEEK", sinceDaysAgo: "7", tooltip: "Past 7 days" },
+  { label: "MONTH", sinceDaysAgo: "30", tooltip: "Past 30 days" },
+  { label: "6 MONTHS", sinceDaysAgo: "180", tooltip: "Past 180 days" },
+  { label: "YEAR", sinceDaysAgo: "365", tooltip: "Past 365 days" },
 ];
 
 const defaultPrefs = {
@@ -211,14 +214,15 @@ const TopSources = ({ classes }) => {
             aria-label="topSourcesTimespanSelect"
           >
             {timespans.map((timespan) => (
-              <Button
-                key={timespan.label}
-                onClick={switchTimespan}
-                style={getStyles(timespan, currentTimespan, theme)}
-                data-testid={`topSources_${timespan.sinceDaysAgo}days`}
-              >
-                {timespan.label}
-              </Button>
+              <Tooltip key={timespan.label} title={timespan.tooltip}>
+                <Button
+                  onClick={switchTimespan}
+                  style={getStyles(timespan, currentTimespan, theme)}
+                  data-testid={`topSources_${timespan.sinceDaysAgo}days`}
+                >
+                  {timespan.label}
+                </Button>
+              </Tooltip>
             ))}
           </ButtonGroup>
         </div>
