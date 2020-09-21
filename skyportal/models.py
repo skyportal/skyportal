@@ -1666,10 +1666,11 @@ class Spectrum(Base):
 
         if len(colnames) < 2:
             raise ValueError(
-                'Input data must have at least 2 columns (wavelength, flux, and optionally flux error).'
+                'Input data must have at least 2 columns (wavelength, '
+                'flux, and optionally flux error).'
             )
 
-        spec = cls(
+        return cls(
             wavelengths=tabledata[colnames[0]],
             fluxes=tabledata[colnames[1]],
             errors=tabledata[colnames[2]] if len(colnames) > 2 else None,
@@ -1680,8 +1681,6 @@ class Spectrum(Base):
             original_file_bytes=bytes,
             altdata=header,
         )
-
-        return spec
 
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
