@@ -123,7 +123,12 @@ const ProfileDropdown = () => {
         <Divider />
 
         <MenuList>
-          <Link to="/profile" role="link" className={classes.nodecor}>
+          <Link
+            to="/profile"
+            role="link"
+            className={classes.nodecor}
+            onClick={handleClose}
+          >
             <MenuItem className={classes.centerContent}>Profile</MenuItem>
           </Link>
         </MenuList>
