@@ -10,15 +10,12 @@ def establish_cosmology(cfg={}, fallback_cosmology=cosmology.Planck18_arXiv_v2):
     def _get_cosmology():
         if cfg.get('misc'):
             if cfg["misc"].get('cosmology'):
-                log("here1")
                 if cfg["misc"]["cosmology"] in cosmology.parameters.available:
                     cosmo = cosmology.default_cosmology.get_cosmology_from_string(
                         cfg["misc"]["cosmology"]
                     )
                 elif isinstance(cfg["misc"]["cosmology"], dict):
-                    log("here")
                     par = cfg["misc"]["cosmology"]
-                    log(par)
                     try:
                         if par.get('flat'):
                             cosmo = cosmology.FlatLambdaCDM(

@@ -467,7 +467,11 @@ class Obj(Base, ha.Point):
     def luminosity_distance(self):
         """
         The luminosity distance in Mpc, using either DM or distance data
-        in the altdata fields or using the cosmology/redshift
+        in the altdata fields or using the cosmology/redshift. Specifically
+        the user can add `dm` (mag), `parallax` (arcsec), `dist_kpc`,
+        `dist_Mpc`, `dist_pc` or `dist_cm` to `altdata` and
+        those will be picked up (in that order) as the distance
+        rather than the redshift.
 
         Return None if the redshift puts the source not within the Hubble flow
         """
@@ -498,8 +502,11 @@ class Obj(Base, ha.Point):
             if self.redshift * 2.99e5 * u.km / u.s < 350 * u.km / u.s:
                 # stubbornly refuse to give a distance if the source
                 # is not in the Hubble flow
+                # cf. https://www.aanda.org/articles/aa/full/2003/05/aa3077/aa3077.html
+                # within ~5 Mpc (cz ~ 350 km/s) a given galaxy velocty
+                # can be between between ~0-500 km/s
                 return None
-            return (cosmo.luminosity_distance(self.redshift)).value
+            return (cosmo.luminosity_distance(self.redshift)).to(u.Mpc).value
         return None
 
     @property
@@ -518,8 +525,7 @@ class Obj(Base, ha.Point):
                 # see eq (20) of https://ned.ipac.caltech.edu/level5/Hogg/Hogg7.html
                 return dl / (1 + self.redshift) ** 2
             return dl
-        else:
-            return None
+        return None
 
     def airmass(self, telescope, time, below_horizon=np.inf):
         """Return the airmass of the object at a given time. Uses the Pickering
