@@ -93,7 +93,26 @@ const Candidate = ({ route }) => {
                 )
                 <br />
                 <b>Redshift: &nbsp;</b>
-                {candidate.redshift}
+                {candidate.redshift.toFixed(4)}
+                {candidate.dm && (
+                  <>
+                    &nbsp;|&nbsp;
+                    <b>DM: &nbsp;</b>
+                    {candidate.dm.toFixed(3)}
+                    &nbsp; mag
+                  </>
+                )}
+                {candidate.luminosity_distance && (
+                  <>
+                    &nbsp;|&nbsp;
+                    <b>
+                      <i>D</i>
+                      <sub>L</sub>: &nbsp;
+                    </b>
+                    {candidate.luminosity_distance.toFixed(2)}
+                    &nbsp; Mpc
+                  </>
+                )}
               </div>
               <ThumbnailList
                 ra={candidate.ra}
