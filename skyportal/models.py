@@ -18,8 +18,14 @@ from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
 from astropy import coordinates as ap_coord
+from astropy.io import fits, ascii
 import healpix_alchemy as ha
 import timezonefinder
+
+from pathlib import Path
+import yaml
+import warnings
+from astropy.utils.exceptions import AstropyWarning
 
 from baselayer.app.models import (  # noqa
     init_db,
@@ -1612,18 +1618,69 @@ class Spectrum(Base):
            The Spectrum generated from the ASCII file.
 
         """
-        data = np.loadtxt(filename)
-        if data.shape[1] != 3:  # TODO support other formats
-            raise ValueError(f"Expected 3 columns, got {data.shape[1]}")
 
-        return cls(
-            wavelengths=data[:, 0],
-            fluxes=data[:, 1],
-            errors=data[:, 2],
+        filename = Path(filename)
+        table = ascii.read(filename)
+        bytes = open(filename).read().encode('ascii')
+
+        header = {}
+
+        # matches lines like:
+        # XTENSION: IMAGE
+        # BITPIX: -32
+        # NAXIS: 2
+        # NAXIS1: 433
+        # NAXIS2: 1
+
+        for line in table.meta['comments']:
+            try:
+                result = yaml.load(line, Loader=yaml.FullLoader)
+            except yaml.YAMLError:
+                continue
+            if result is not None:
+                header.update(result)
+
+        # otherwise read it like a fits header
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', AstropyWarning)
+            for line in table.meta['comments']:
+                # this line does not raise a warning
+                card = fits.Card.fromstring(line)
+                try:
+                    # this line warns (exception in this context)
+                    card.verify()
+                except AstropyWarning:
+                    continue
+                key, value, comment = card
+                if len(comment) == 0:
+                    header[key] = value
+                else:
+                    header[key] = {'value': value, 'comment': comment}
+
+        if len(header) == 0:
+            header = None
+
+        tabledata = np.asarray(table)
+        colnames = table.column_names
+
+        if len(colnames) < 2:
+            raise ValueError(
+                'Input data must have at least 2 columns (wavelength, flux, and optionally flux error).'
+            )
+
+        spec = cls(
+            wavelengths=tabledata[colnames[0]],
+            fluxes=tabledata[colnames[1]],
+            errors=tabledata[colnames[2]] if len(colnames) > 2 else None,
             obj_id=obj_id,
             instrument_id=instrument_id,
             observed_at=observed_at,
+            original_file_filename=filename.name,
+            original_file_bytes=bytes,
+            altdata=header,
         )
+
+        return spec
 
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
