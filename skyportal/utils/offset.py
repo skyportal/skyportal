@@ -171,8 +171,8 @@ def calculate_best_position(
         The position to use if something goes wrong here
     how : str
         how to weight positional data:
-          snr = use the signal to noise
-          err = use the photometric uncertainty
+          snr2 = use the signal to noise squared
+          invvar = use the inverse photometric variance
     max_offset : float, optional
         How many arcseconds away should we ignore discrepant points?
     sigma_clip : float, optional
@@ -187,8 +187,8 @@ def calculate_best_position(
         return fallback
 
     # convert the photometry into a dataframe
-    phot_s = "[" + ",".join([str(x) for x in photometry]) + "]"
-    df = pd.DataFrame(json.loads(phot_s))
+    phot = [x.to_dict() for x in photometry]
+    df = pd.DataFrame(phot)
 
     # remove limit data (non-detections)
     try:
@@ -234,11 +234,11 @@ def calculate_best_position(
         df = df[df["offset_arcsec"] < sigma_clip * np.std(df["offset_arcsec"])]
 
     # TODO: add the ability to use only use observations from some filters
-    if how == "snr":
+    if how == "snr2":
         df["snr"] = df["flux"] / df["fluxerr"]
         diff_ra = np.average(df["ra_offset"], weights=df["snr"] ** 2)
         diff_dec = np.average(df["dec_offset"], weights=df["snr"] ** 2)
-    elif how == "err":
+    elif how == "invvar":
         diff_ra = np.average(df["ra_offset"], weights=1 / df["ra_unc"] ** 2)
         diff_dec = np.average(df["dec_offset"], weights=1 / df["dec_unc"] ** 2)
     else:
