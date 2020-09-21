@@ -1601,19 +1601,20 @@ class Spectrum(Base):
 
         Parameters
         ----------
-
         filename : str
            The name of the ASCII file containing the spectrum.
         obj_id : str, optional
-           The id of the Obj that this Spectrum is of, if not present in the ASCII header.
+           The id of the Obj that this Spectrum is of, if not present
+           in the ASCII header.
         instrument_id : int, optional
-           ID of the Instrument with which this Spectrum was acquired, if not present in the ASCII header.
+           ID of the Instrument with which this Spectrum was acquired,
+           if not present in the ASCII header.
         observed_at : string or datetime, optional
-           Median UTC ISO time stamp of the exposure or exposures in which the Spectrum was acquired, if not present in the ASCII header."
+           Median UTC ISO time stamp of the exposure or exposures in which
+           the Spectrum was acquired, if not present in the ASCII header."
 
         Returns
         -------
-
         spec : `skyportal.models.Spectrum`
            The Spectrum generated from the ASCII file.
 
