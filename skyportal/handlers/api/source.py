@@ -1,4 +1,5 @@
 import datetime
+from json.decoder import JSONDecodeError
 
 import tornado
 from tornado.ioloop import IOLoop
@@ -33,6 +34,7 @@ from ...utils import (
     facility_parameters,
     source_image_parameters,
     get_finding_chart,
+    _calculate_best_position_for_offset_stars,
 )
 from .candidate import grab_query_results_page
 
@@ -439,6 +441,7 @@ class SourceHandler(BaseHandler):
                 "Invalid group_ids field. Please specify at least "
                 "one valid group ID that you belong to."
             )
+
         DBSession().add(obj)
         DBSession().add_all([Source(obj=obj, group=group) for group in groups])
         DBSession().commit()
@@ -650,9 +653,28 @@ class SourceOffsetsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(
+            obj_id,
+            self.current_user,
+            options=[joinedload(Source.obj).joinedload(Obj.photometry)],
+        )
         if source is None:
             return self.error('Invalid source ID.')
+
+        initial_pos = (source.ra, source.dec)
+
+        try:
+            best_ra, best_dec = _calculate_best_position_for_offset_stars(
+                source.photometry,
+                fallback=(initial_pos[0], initial_pos[1]),
+                how="snr2",
+            )
+        except JSONDecodeError:
+            self.push_notification(
+                'Source position using photometry points failed.'
+                ' Reverting to discovery position.'
+            )
+            best_ra, best_dec = initial_pos[0], initial_pos[1]
 
         facility = self.get_query_argument('facility', 'Keck')
         how_many = self.get_query_argument('how_many', '3')
@@ -687,8 +709,8 @@ class SourceOffsetsHandler(BaseHandler):
                 queries_issued,
                 noffsets,
             ) = get_nearby_offset_stars(
-                source.ra,
-                source.dec,
+                best_ra,
+                best_dec,
                 obj_id,
                 how_many=how_many,
                 radius_degrees=radius_degrees,
@@ -780,7 +802,11 @@ class SourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(
+            obj_id,
+            self.current_user,
+            options=[joinedload(Source.obj).joinedload(Obj.photometry)],
+        )
         if source is None:
             return self.error('Invalid source ID.')
 
@@ -794,8 +820,22 @@ class SourceFinderHandler(BaseHandler):
         if imsize < 2.0 or imsize > 15.0:
             return self.error('The value for `imsize` is outside the allowed range')
 
+        initial_pos = (source.ra, source.dec)
+        try:
+            best_ra, best_dec = _calculate_best_position_for_offset_stars(
+                source.photometry,
+                fallback=(initial_pos[0], initial_pos[1]),
+                how="snr2",
+            )
+        except JSONDecodeError:
+            self.push_notification(
+                'Source position using photometry points failed.'
+                ' Reverting to discovery position.'
+            )
+            best_ra, best_dec = initial_pos[0], initial_pos[1]
+
         facility = self.get_query_argument('facility', 'Keck')
-        image_source = self.get_query_argument('image_source', 'desi')
+        image_source = self.get_query_argument('image_source', 'ztfref')
         use_ztfref = self.get_query_argument('use_ztfref', True)
         if isinstance(use_ztfref, str):
             use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
@@ -820,8 +860,8 @@ class SourceFinderHandler(BaseHandler):
 
         finder = functools.partial(
             get_finding_chart,
-            source.ra,
-            source.dec,
+            best_ra,
+            best_dec,
             obj_id,
             image_source=image_source,
             output_format='pdf',
