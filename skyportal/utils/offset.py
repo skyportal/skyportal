@@ -2,7 +2,6 @@ import io
 import os
 import datetime
 import warnings
-import json
 
 import pandas as pd
 import requests
@@ -157,11 +156,12 @@ source_image_parameters = {
 }
 
 
-def calculate_best_position(
-    photometry, fallback=(None, None), how="snr", max_offset=0.5, sigma_clip=4.0
+def _calculate_best_position_for_offset_stars(
+    photometry, fallback=(None, None), how="snr2", max_offset=0.5, sigma_clip=4.0
 ):
     """Calculates the best position for a source from its photometric
-       points
+       points. Only small adjustments from the fallback position are
+       expected.
 
     Parameters
     ----------

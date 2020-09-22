@@ -11,7 +11,7 @@ from skyportal.utils import (
     get_nearby_offset_stars,
     get_finding_chart,
     get_ztfref_url,
-    calculate_best_position,
+    _calculate_best_position_for_offset_stars,
 )
 from skyportal.utils.offset import irsa
 from skyportal.models import Photometry
@@ -19,13 +19,14 @@ from skyportal.models import Photometry
 
 def test_calculate_best_position_no_photometry():
 
-    ra, dec = calculate_best_position(
-        [], fallback=(10.0, -20.0), how="snr", max_offset=0.5, sigma_clip=4.0
+    ra, dec = _calculate_best_position_for_offset_stars(
+        [], fallback=(10.0, -20.0), how="snr2", max_offset=0.5, sigma_clip=4.0
     )
     npt.assert_almost_equal(ra, 10)
     npt.assert_almost_equal(dec, -20)
 
 
+@pytest.mark.flaky(reruns=2)
 def test_calculate_best_position_with_photometry(
     upload_data_token, view_only_token, ztf_camera, public_group
 ):
@@ -86,8 +87,8 @@ def test_calculate_best_position_with_photometry(
 
         phot_list.append(Photometry(**data['data']))
 
-    ra_calc_snr, dec_calc_snr = calculate_best_position(
-        phot_list, fallback=(ra, dec), how="snr", max_offset=0.5, sigma_clip=4.0
+    ra_calc_snr, dec_calc_snr = _calculate_best_position_for_offset_stars(
+        phot_list, fallback=(ra, dec), how="snr2", max_offset=0.5, sigma_clip=4.0
     )
     # make sure we get back a slightly different position than the true center
     with pytest.raises(AssertionError):
@@ -95,8 +96,8 @@ def test_calculate_best_position_with_photometry(
     with pytest.raises(AssertionError):
         npt.assert_almost_equal(dec_calc_snr, dec, decimal=10)
 
-    ra_calc_err, dec_calc_err = calculate_best_position(
-        phot_list, fallback=(ra, dec), how="err", max_offset=0.5, sigma_clip=4.0
+    ra_calc_err, dec_calc_err = _calculate_best_position_for_offset_stars(
+        phot_list, fallback=(ra, dec), how="invvar", max_offset=0.5, sigma_clip=4.0
     )
     # make sure we get back a slightly different position for two different
     # methods

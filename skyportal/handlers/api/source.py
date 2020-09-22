@@ -34,7 +34,7 @@ from ...utils import (
     facility_parameters,
     source_image_parameters,
     get_finding_chart,
-    calculate_best_position,
+    _calculate_best_position_for_offset_stars,
 )
 from .candidate import grab_query_results_page
 
@@ -442,10 +442,6 @@ class SourceHandler(BaseHandler):
                 "one valid group ID that you belong to."
             )
 
-        # use ra, dec as the discovery position unless it's already specified
-        obj.ra_dis = obj.ra if obj.ra_dis is None else obj.ra_dis
-        obj.dec_dis = obj.dec if obj.dec_dis is None else obj.dec_dis
-
         DBSession().add(obj)
         DBSession().add_all([Source(obj=obj, group=group) for group in groups])
         DBSession().commit()
@@ -658,14 +654,13 @@ class SourceOffsetsHandler(BaseHandler):
         if source is None:
             return self.error('Invalid source ID.')
 
-        initial_pos = (
-            source.ra_dis if source.ra_dis is not None else source.ra,
-            source.dec_dis if source.dec_dis is not None else source.dec,
-        )
+        initial_pos = (source.ra, source.dec)
 
         try:
-            best_ra, best_dec = calculate_best_position(
-                source.photometry, fallback=(initial_pos[0], initial_pos[1]), how="snr",
+            best_ra, best_dec = _calculate_best_position_for_offset_stars(
+                source.photometry,
+                fallback=(initial_pos[0], initial_pos[1]),
+                how="snr2",
             )
         except JSONDecodeError:
             self.push_notification(
@@ -806,13 +801,12 @@ class SourceFinderHandler(BaseHandler):
         if imsize < 2.0 or imsize > 15.0:
             return self.error('The value for `imsize` is outside the allowed range')
 
-        initial_pos = (
-            source.ra_dis if source.ra_dis is not None else source.ra,
-            source.dec_dis if source.dec_dis is not None else source.dec,
-        )
+        initial_pos = (source.ra, source.dec)
         try:
-            best_ra, best_dec = calculate_best_position(
-                source.photometry, fallback=(initial_pos[0], initial_pos[1]), how="snr",
+            best_ra, best_dec = _calculate_best_position_for_offset_stars(
+                source.photometry,
+                fallback=(initial_pos[0], initial_pos[1]),
+                how="snr2",
             )
         except JSONDecodeError:
             self.push_notification(

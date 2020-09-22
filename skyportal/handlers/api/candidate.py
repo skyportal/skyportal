@@ -385,10 +385,6 @@ class CandidateHandler(BaseHandler):
         if not filters:
             return self.error("At least one valid filter ID must be provided.")
 
-        # use ra, dec as the discovery position unless it's already specified
-        obj.ra_dis = obj.ra if obj.ra_dis is None else obj.ra_dis
-        obj.dec_dis = obj.dec if obj.dec_dis is None else obj.dec_dis
-
         DBSession().add(obj)
         DBSession().add_all(
             [
