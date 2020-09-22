@@ -92,8 +92,12 @@ const Candidate = ({ route }) => {
                 {candidate.gal_lat.toFixed(6)}
                 )
                 <br />
-                <b>Redshift: &nbsp;</b>
-                {candidate.redshift.toFixed(4)}
+                {candidate.redshift != null && (
+                  <>
+                    <b>Redshift: &nbsp;</b>
+                    {candidate.redshift?.toFixed(4)}
+                  </>
+                )}
                 {candidate.dm && (
                   <>
                     &nbsp;|&nbsp;

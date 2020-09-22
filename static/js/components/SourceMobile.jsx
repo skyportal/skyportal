@@ -165,8 +165,12 @@ const SourceMobile = ({ source }) => {
               {source.gal_lat.toFixed(1)}
               )
               <br />
-              <b>Redshift: &nbsp;</b>
-              {source.redshift.toFixed(4)}
+              {source.redshift != null && (
+                <>
+                  <b>Redshift: &nbsp;</b>
+                  {source.redshift?.toFixed(4)}
+                </>
+              )}
               {source.dm && (
                 <>
                   &nbsp;|&nbsp;
@@ -186,7 +190,7 @@ const SourceMobile = ({ source }) => {
                   &nbsp; Mpc
                 </>
               )}
-              &nbsp;|&nbsp;
+              {source.redshift != null && <>&nbsp;|&nbsp;</>}
               <Button href={`/api/sources/${source.id}/finder`}>
                 PDF Finding Chart
               </Button>
