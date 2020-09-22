@@ -183,18 +183,19 @@ def get_ztfcatalog(ra, dec, cache_dir="./cache/finder_cat/", cache_max_items=25)
     hdu_fn = cache[catname]
 
     if hdu_fn is not None:
-        data = fits.open(hdu_fn)[1].data
+        with fits.open(hdu_fn) as hdu:
+            data = hdu[1].data
     else:
         response = get_url(caturl, stream=True, allow_redirects=True)
         if response is None or response.status_code != 200:
             return None
         else:
-            hdu = fits.open(io.BytesIO(response.content))
-            buf = io.BytesIO()
-            hdu.writeto(buf)
-            buf.seek(0)
-            cache[catname] = buf.read()
-            data = hdu[1].data
+            with fits.open(io.BytesIO(response.content)) as hdu:
+                buf = io.BytesIO()
+                hdu.writeto(buf)
+                buf.seek(0)
+                cache[catname] = buf.read()
+                data = hdu[1].data
 
     ztftable = Table(data)
     ztftable["ra"].unit = u.deg
