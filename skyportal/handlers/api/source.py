@@ -571,7 +571,7 @@ class SourceOffsetsHandler(BaseHandler):
           schema:
             type: boolean
           description: |
-            Use ZTFref catalog for offset star positions, otherwise DR2
+            Use ZTFref catalog for offset star positions, otherwise Gaia DR2
         responses:
           200:
             content:
@@ -680,7 +680,7 @@ class SourceOffsetsHandler(BaseHandler):
             # could not handle inputs
             return self.error('Invalid argument for `how_many`')
 
-        if 1:
+        try:
             (
                 starlist_info,
                 query_string,
@@ -701,8 +701,7 @@ class SourceOffsetsHandler(BaseHandler):
                 use_ztfref=use_ztfref,
             )
 
-        # except ValueError:
-        else:
+        except ValueError:
             return self.error('Error while querying for nearby offset stars')
 
         starlist_str = "\n".join(
