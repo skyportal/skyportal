@@ -156,6 +156,102 @@ source_image_parameters = {
 }
 
 
+def _calculate_best_position_for_offset_stars(
+    photometry, fallback=(None, None), how="snr2", max_offset=0.5, sigma_clip=4.0
+):
+    """Calculates the best position for a source from its photometric
+       points. Only small adjustments from the fallback position are
+       expected.
+
+    Parameters
+    ----------
+    photometry : list
+        List of Photometry objects
+    fallback : tuple, optional
+        The position to use if something goes wrong here
+    how : str
+        how to weight positional data:
+          snr2 = use the signal to noise squared
+          invvar = use the inverse photometric variance
+    max_offset : float, optional
+        How many arcseconds away should we ignore discrepant points?
+    sigma_clip : float, optional
+        Remove positions that are this number of std away from the median
+    """
+
+    if not isinstance(photometry, list):
+        log(
+            "Warning: No photometry given. Falling back to "
+            " original source position."
+        )
+        return fallback
+
+    # convert the photometry into a dataframe
+    phot = [x.to_dict() for x in photometry]
+    df = pd.DataFrame(phot)
+
+    # remove limit data (non-detections)
+    try:
+        df = df[(df["flux"].notnull()) & (df["fluxerr"].notnull())]
+    except KeyError:
+        log(
+            "Photometry does not include fluxes. Falling back to "
+            " original source position."
+        )
+        return fallback
+
+    # remove observations with distances more than max_offset away
+    # from the median
+    try:
+        med_ra, med_dec = np.median(df["ra"]), np.median(df["dec"])
+    except TypeError:
+        log(
+            "Warning: could not find the median of the positions"
+            " from the photometry data associated with this source "
+        )
+        return fallback
+
+    # check to make sure that the median isn't too far away from the
+    # discovery position
+    if fallback != (None, None):
+        c1 = SkyCoord(med_ra * u.deg, med_dec * u.deg, frame='icrs')
+        c2 = SkyCoord(fallback[0] * u.deg, fallback[1] * u.deg, frame='icrs')
+        sep = c1.separation(c2)
+        if np.abs(sep) > max_offset * u.arcsec:
+            log(
+                "Warning: calculated source position is too far from the"
+                " fiducial. Falling back to the fiducial "
+            )
+            return fallback
+
+    df["ra_offset"] = np.cos(np.radians(df["dec"])) * (df["ra"] - med_ra) * 3600.0
+    df["dec_offset"] = (df["dec"] - med_dec) * 3600.0
+    df["offset_arcsec"] = np.sqrt(df["ra_offset"] ** 2 + df["dec_offset"] ** 2)
+    df = df[df["offset_arcsec"] <= max_offset]
+
+    # remove outliers
+    if len(df) > 4 and sigma_clip is not None:
+        df = df[df["offset_arcsec"] < sigma_clip * np.std(df["offset_arcsec"])]
+
+    # TODO: add the ability to use only use observations from some filters
+    if how == "snr2":
+        df["snr"] = df["flux"] / df["fluxerr"]
+        diff_ra = np.average(df["ra_offset"], weights=df["snr"] ** 2)
+        diff_dec = np.average(df["dec_offset"], weights=df["snr"] ** 2)
+    elif how == "invvar":
+        diff_ra = np.average(df["ra_offset"], weights=1 / df["ra_unc"] ** 2)
+        diff_dec = np.average(df["dec_offset"], weights=1 / df["dec_unc"] ** 2)
+    else:
+        log(f"Warning: do not recognize {how} as a valid way to weight astrometry")
+        return (med_ra, med_dec)
+
+    position = (
+        med_ra + diff_ra / (np.cos(np.radians(med_dec)) * 3600.0),
+        med_dec + diff_dec / 3600.0,
+    )
+    return position
+
+
 def get_nearby_offset_stars(
     source_ra,
     source_dec,
@@ -405,7 +501,7 @@ def fits_image(
     center_ra,
     center_dec,
     imsize=4.0,
-    image_source="desi",
+    image_source="ztfref",
     cache_dir="./cache/finder/",
     cache_max_items=5,
 ):
@@ -489,7 +585,7 @@ def get_finding_chart(
     source_ra,
     source_dec,
     source_name,
-    image_source='desi',
+    image_source='ztfref',
     output_format='pdf',
     imsize=3.0,
     tick_offset=0.02,
@@ -606,9 +702,11 @@ def get_finding_chart(
                 hdu.data, source_image_parameters[image_source]["smooth"] / pixscale
             )
 
-        norm = ImageNormalize(im, interval=ZScaleInterval())
+        percents = np.nanpercentile(im.flatten(), [10, 99.0])
+        vmin = percents[0]
+        vmax = percents[1]
+        norm = ImageNormalize(im, vmin=vmin, vmax=vmax, interval=ZScaleInterval())
         watermark = source_image_parameters[image_source]["str"]
-
     else:
         # if we got back a blank image, try to fallback on another survey
         # and return the results from that call
@@ -633,6 +731,8 @@ def get_finding_chart(
         im = np.zeros((npixels, npixels))
         norm = None
         watermark = None
+        vmin = 0
+        vmax = 0
 
     # add the images in the top left corner
     ax = fig.add_subplot(spec[0, 0], projection=wcs)
@@ -641,7 +741,7 @@ def get_finding_chart(
     ax_starlist = fig.add_subplot(spec[1, 0:])
     ax_starlist.axis('off')
 
-    ax.imshow(im, origin='lower', norm=norm, cmap='gray_r')
+    ax.imshow(im, origin='lower', norm=norm, cmap='gray_r', vmin=vmin, vmax=vmax)
     ax.set_autoscale_on(False)
     ax.grid(color='white', ls='dotted')
     ax.set_xlabel(r'$\alpha$ (J2000)', fontsize='large')
