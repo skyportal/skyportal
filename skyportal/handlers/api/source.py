@@ -255,6 +255,10 @@ class SourceHandler(BaseHandler):
             source_info["last_detected"] = s.last_detected
             source_info["gal_lat"] = s.gal_lat_deg
             source_info["gal_lon"] = s.gal_lon_deg
+            source_info["luminosity_distance"] = s.luminosity_distance
+            source_info["dm"] = s.dm
+            source_info["angular_diameter_distance"] = s.angular_diameter_distance
+
             source_info["followup_requests"] = [
                 f for f in source_info['followup_requests'] if f.status != 'deleted'
             ]
@@ -268,7 +272,6 @@ class SourceHandler(BaseHandler):
                 )
                 .all()
             )
-
             return self.success(data=source_info)
 
         # Fetch multiple sources
@@ -357,6 +360,12 @@ class SourceHandler(BaseHandler):
             source_list[-1]["last_detected"] = source.last_detected
             source_list[-1]["gal_lon"] = source.gal_lon_deg
             source_list[-1]["gal_lat"] = source.gal_lat_deg
+            source_list[-1]["luminosity_distance"] = source.luminosity_distance
+            source_list[-1]["dm"] = source.dm
+            source_list[-1][
+                "angular_diameter_distance"
+            ] = source.angular_diameter_distance
+
             source_list[-1]["groups"] = (
                 DBSession()
                 .query(Group)

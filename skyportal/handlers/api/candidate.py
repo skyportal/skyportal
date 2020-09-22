@@ -169,6 +169,10 @@ class CandidateHandler(BaseHandler):
             candidate_info["last_detected"] = c.last_detected
             candidate_info["gal_lon"] = c.gal_lon_deg
             candidate_info["gal_lat"] = c.gal_lat_deg
+            candidate_info["luminosity_distance"] = c.luminosity_distance
+            candidate_info["dm"] = c.dm
+            candidate_info["angular_diameter_distance"] = c.angular_diameter_distance
+
             return self.success(data=candidate_info)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
@@ -304,6 +308,11 @@ class CandidateHandler(BaseHandler):
             candidate_list[-1]["last_detected"] = obj.last_detected
             candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
             candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
+            candidate_list[-1]["luminosity_distance"] = obj.luminosity_distance
+            candidate_list[-1]["dm"] = obj.dm
+            candidate_list[-1][
+                "angular_diameter_distance"
+            ] = obj.angular_diameter_distance
 
         query_results["candidates"] = candidate_list
         return self.success(data=query_results)

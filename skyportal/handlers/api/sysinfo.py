@@ -1,7 +1,7 @@
 from baselayer.app.env import load_env
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
-
+from skyportal.models import cosmo
 
 _, cfg = load_env()
 
@@ -30,4 +30,10 @@ class SysInfoHandler(BaseHandler):
                             Boolean indicating whether new user invitation pipeline
                             is enabled in current deployment.
         """
-        return self.success(data={"invitationsEnabled": cfg["invitations.enabled"]})
+        return self.success(
+            data={
+                "invitationsEnabled": cfg["invitations.enabled"],
+                "cosmology": str(cosmo),
+                "cosmoref": cosmo.__doc__,
+            }
+        )
