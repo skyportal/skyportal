@@ -190,7 +190,7 @@ app:
     GroupList:
       props:
         title: My Groups
-      resizeable: true
+      resizeable: false
       layouts:
         xlg: [14, 1, 2, 2]
         lg: [10, 1, 2, 2]
