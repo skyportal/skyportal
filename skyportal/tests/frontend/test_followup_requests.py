@@ -107,18 +107,16 @@ def add_followup_request_using_frontend_and_verify(
 
     time.sleep(1)
     driver.save_screenshot('test_05.png')
-    time.sleep(1)
-    driver.save_screenshot('test_06.png')
-    time.sleep(1)
-    driver.save_screenshot('test_07.png')
-    time.sleep(1)
-    driver.save_screenshot('test_08.png')
 
     with open("test_09.png", "w") as f:
         f.write(driver.page_source)
 
     mix_n_match_option = driver.wait_for_xpath('''//li[@data-value="Mix 'n Match"]''')
+    driver.save_screenshot('test_06.png')
     driver.scroll_to_element_and_click(mix_n_match_option)
+    driver.save_screenshot('test_07.png')
+    time.sleep(1)
+    driver.save_screenshot('test_08.png')
 
     u_band_option = driver.wait_for_xpath('//input[@id="root_observation_choices_0"]')
 
