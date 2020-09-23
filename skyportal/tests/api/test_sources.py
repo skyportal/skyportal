@@ -191,7 +191,7 @@ def test_starlist(manage_sources_token, public_source):
     status, data = api(
         'PUT',
         f'sources/{public_source.id}',
-        data={'ra': 234.22, 'dec': -22.33},
+        data={'ra': 234.22, 'dec': 22.33},
         token=manage_sources_token,
     )
     assert status == 200
@@ -211,7 +211,7 @@ def test_starlist(manage_sources_token, public_source):
     assert isinstance(data['data']["starlist_info"][0]["ra"], float)
 
     status, data = api(
-        'GET', f'sources/{public_source.id}/offsets', token=manage_sources_token
+        'GET', f'sources/{public_source.id}/offsets', token=manage_sources_token,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -219,6 +219,21 @@ def test_starlist(manage_sources_token, public_source):
     assert data['data']["facility"] == 'Keck'
     assert 'starlist_str' in data['data']
     assert isinstance(data['data']["starlist_info"][2]["dec"], float)
+
+    ztf_star_position = data['data']["starlist_info"][2]["dec"]
+
+    # use DR2 for offsets ... it should not be identical position as DR2
+    status, data = api(
+        'GET',
+        f'sources/{public_source.id}/offsets?use_ztfref=false',
+        token=manage_sources_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert isinstance(data['data']["starlist_info"][2]["dec"], float)
+    gaiadr2_star_position = data['data']["starlist_info"][2]["dec"]
+    with pytest.raises(AssertionError):
+        npt.assert_almost_equal(gaiadr2_star_position, ztf_star_position, decimal=10)
 
 
 @pytest.mark.xfail(strict=False)

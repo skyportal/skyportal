@@ -577,6 +577,13 @@ class SourceOffsetsHandler(BaseHandler):
             type: string
           description: |
             datetime of observation in isoformat (e.g. 2020-12-30T12:34:10)
+        - in: query
+          name: use_ztfref
+          required: false
+          schema:
+            type: boolean
+          description: |
+            Use ZTFref catalog for offset star positions, otherwise Gaia DR2
         responses:
           200:
             content:
@@ -680,6 +687,10 @@ class SourceOffsetsHandler(BaseHandler):
 
         facility = self.get_query_argument('facility', 'Keck')
         how_many = self.get_query_argument('how_many', '3')
+        use_ztfref = self.get_query_argument('use_ztfref', True)
+        if isinstance(use_ztfref, str):
+            use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
+
         obstime = self.get_query_argument(
             'obstime', datetime.datetime.utcnow().isoformat()
         )
@@ -718,6 +729,7 @@ class SourceOffsetsHandler(BaseHandler):
                 mag_min=mag_min,
                 obstime=obstime,
                 allowed_queries=2,
+                use_ztfref=use_ztfref,
             )
 
         except ValueError:
@@ -773,6 +785,13 @@ class SourceFinderHandler(BaseHandler):
             enum: [desi, dss, ztfref]
           description: Source of the image used in the finding chart
         - in: query
+          name: use_ztfref
+          required: false
+          schema:
+            type: boolean
+          description: |
+            Use ZTFref catalog for offset star positions, otherwise DR2
+        - in: query
           name: obstime
           nullable: True
           schema:
@@ -826,6 +845,9 @@ class SourceFinderHandler(BaseHandler):
 
         facility = self.get_query_argument('facility', 'Keck')
         image_source = self.get_query_argument('image_source', 'ztfref')
+        use_ztfref = self.get_query_argument('use_ztfref', True)
+        if isinstance(use_ztfref, str):
+            use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
 
         how_many = 3
         obstime = self.get_query_argument(
@@ -863,6 +885,7 @@ class SourceFinderHandler(BaseHandler):
             use_source_pos_in_starlist=True,
             allowed_queries=2,
             queries_issued=0,
+            use_ztfref=use_ztfref,
         )
 
         self.push_notification(
