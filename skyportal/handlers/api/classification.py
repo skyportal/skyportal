@@ -3,6 +3,7 @@ from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Source, Group, Classification, Taxonomy
 from .internal.recent_sources import RecentSourcesHandler
+from .internal.source_views import SourceViewsHandler
 
 
 class ClassificationHandler(BaseHandler):
@@ -163,6 +164,13 @@ class ClassificationHandler(BaseHandler):
             self.current_user
         ):
             self.push_all(action='skyportal/FETCH_RECENT_SOURCES')
+
+        if classification.obj_id in map(
+            lambda view_obj_tuple: view_obj_tuple[1],
+            SourceViewsHandler.get_top_source_views_and_ids(self.current_user),
+        ):
+            self.push_all(action='skyportal/FETCH_TOP_SOURCES')
+
         return self.success(data={'classification_id': classification.id})
 
     @permissions(['Classify'])

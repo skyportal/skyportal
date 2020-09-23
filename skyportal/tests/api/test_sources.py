@@ -1,7 +1,9 @@
 import pytest
 import numpy.testing as npt
+import numpy as np
 import uuid
 from skyportal.tests import api
+from skyportal.models import cosmo
 
 
 def test_source_list(view_only_token):
@@ -14,7 +16,9 @@ def test_token_user_retrieving_source(view_only_token, public_source):
     status, data = api('GET', f'sources/{public_source.id}', token=view_only_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert all(k in data['data'] for k in ['ra', 'dec', 'redshift', 'created_at', 'id'])
+    assert all(
+        k in data['data'] for k in ['ra', 'dec', 'redshift', 'dm', 'created_at', 'id']
+    )
 
 
 def test_token_user_update_source(manage_sources_token, public_source):
@@ -38,6 +42,85 @@ def test_token_user_update_source(manage_sources_token, public_source):
     assert data['status'] == 'success'
     npt.assert_almost_equal(data['data']['ra'], 234.22)
     npt.assert_almost_equal(data['data']['redshift'], 3.0)
+    npt.assert_almost_equal(
+        cosmo.luminosity_distance(3.0).value, data['data']['luminosity_distance']
+    )
+
+
+def test_distance_modulus(manage_sources_token, public_source):
+    status, data = api(
+        'PUT',
+        f'sources/{public_source.id}',
+        data={
+            'ra': 234.22,
+            'dec': -22.33,
+            'altdata': {"dm": 28.5},
+            'transient': False,
+            'ra_dis': 2.3,
+        },
+        token=manage_sources_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api('GET', f'sources/{public_source.id}', token=manage_sources_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    npt.assert_almost_equal(10 ** ((28.5 / 5) - 5), data['data']['luminosity_distance'])
+    npt.assert_almost_equal(28.5, data['data']['dm'])
+    npt.assert_almost_equal(
+        10 ** ((28.5 / 5) - 5), data['data']['angular_diameter_distance']
+    )
+
+
+def test_parallax(manage_sources_token, public_source):
+    parallax = 0.001  # in arcsec = 1 kpc
+    d_pc = 1 / parallax
+    dm = 5.0 * np.log10(d_pc / (10.0))
+
+    status, data = api(
+        'PUT',
+        f'sources/{public_source.id}',
+        data={
+            'ra': 234.22,
+            'dec': -22.33,
+            'altdata': {"parallax": parallax},
+            'transient': False,
+            'ra_dis': 2.3,
+        },
+        token=manage_sources_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api('GET', f'sources/{public_source.id}', token=manage_sources_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    npt.assert_almost_equal(dm, data['data']['dm'])
+
+
+def test_low_redshift(manage_sources_token, public_source):
+    status, data = api(
+        'PUT',
+        f'sources/{public_source.id}',
+        data={
+            'ra': 234.22,
+            'dec': -22.33,
+            'transient': False,
+            'ra_dis': 2.3,
+            'redshift': 0.00001,
+        },
+        token=manage_sources_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api('GET', f'sources/{public_source.id}', token=manage_sources_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    assert data['data']['dm'] is None
 
 
 def test_cannot_update_source_without_permission(view_only_token, public_source):
@@ -108,7 +191,7 @@ def test_starlist(manage_sources_token, public_source):
     status, data = api(
         'PUT',
         f'sources/{public_source.id}',
-        data={'ra': 234.22, 'dec': -22.33},
+        data={'ra': 234.22, 'dec': 22.33},
         token=manage_sources_token,
     )
     assert status == 200
@@ -128,7 +211,7 @@ def test_starlist(manage_sources_token, public_source):
     assert isinstance(data['data']["starlist_info"][0]["ra"], float)
 
     status, data = api(
-        'GET', f'sources/{public_source.id}/offsets', token=manage_sources_token
+        'GET', f'sources/{public_source.id}/offsets', token=manage_sources_token,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -136,6 +219,21 @@ def test_starlist(manage_sources_token, public_source):
     assert data['data']["facility"] == 'Keck'
     assert 'starlist_str' in data['data']
     assert isinstance(data['data']["starlist_info"][2]["dec"], float)
+
+    ztf_star_position = data['data']["starlist_info"][2]["dec"]
+
+    # use DR2 for offsets ... it should not be identical position as DR2
+    status, data = api(
+        'GET',
+        f'sources/{public_source.id}/offsets?use_ztfref=false',
+        token=manage_sources_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert isinstance(data['data']["starlist_info"][2]["dec"], float)
+    gaiadr2_star_position = data['data']["starlist_info"][2]["dec"]
+    with pytest.raises(AssertionError):
+        npt.assert_almost_equal(gaiadr2_star_position, ztf_star_position, decimal=10)
 
 
 @pytest.mark.xfail(strict=False)

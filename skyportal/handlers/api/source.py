@@ -1,4 +1,5 @@
 import datetime
+from json.decoder import JSONDecodeError
 
 import tornado
 from tornado.ioloop import IOLoop
@@ -33,6 +34,7 @@ from ...utils import (
     facility_parameters,
     source_image_parameters,
     get_finding_chart,
+    _calculate_best_position_for_offset_stars,
 )
 from .candidate import grab_query_results_page
 
@@ -253,6 +255,10 @@ class SourceHandler(BaseHandler):
             source_info["last_detected"] = s.last_detected
             source_info["gal_lat"] = s.gal_lat_deg
             source_info["gal_lon"] = s.gal_lon_deg
+            source_info["luminosity_distance"] = s.luminosity_distance
+            source_info["dm"] = s.dm
+            source_info["angular_diameter_distance"] = s.angular_diameter_distance
+
             source_info["followup_requests"] = [
                 f for f in source_info['followup_requests'] if f.status != 'deleted'
             ]
@@ -266,7 +272,6 @@ class SourceHandler(BaseHandler):
                 )
                 .all()
             )
-
             return self.success(data=source_info)
 
         # Fetch multiple sources
@@ -355,6 +360,12 @@ class SourceHandler(BaseHandler):
             source_list[-1]["last_detected"] = source.last_detected
             source_list[-1]["gal_lon"] = source.gal_lon_deg
             source_list[-1]["gal_lat"] = source.gal_lat_deg
+            source_list[-1]["luminosity_distance"] = source.luminosity_distance
+            source_list[-1]["dm"] = source.dm
+            source_list[-1][
+                "angular_diameter_distance"
+            ] = source.angular_diameter_distance
+
             source_list[-1]["groups"] = (
                 DBSession()
                 .query(Group)
@@ -439,6 +450,7 @@ class SourceHandler(BaseHandler):
                 "Invalid group_ids field. Please specify at least "
                 "one valid group ID that you belong to."
             )
+
         DBSession().add(obj)
         DBSession().add_all([Source(obj=obj, group=group) for group in groups])
         DBSession().commit()
@@ -565,6 +577,13 @@ class SourceOffsetsHandler(BaseHandler):
             type: string
           description: |
             datetime of observation in isoformat (e.g. 2020-12-30T12:34:10)
+        - in: query
+          name: use_ztfref
+          required: false
+          schema:
+            type: boolean
+          description: |
+            Use ZTFref catalog for offset star positions, otherwise Gaia DR2
         responses:
           200:
             content:
@@ -643,12 +662,35 @@ class SourceOffsetsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(
+            obj_id,
+            self.current_user,
+            options=[joinedload(Source.obj).joinedload(Obj.photometry)],
+        )
         if source is None:
             return self.error('Invalid source ID.')
 
+        initial_pos = (source.ra, source.dec)
+
+        try:
+            best_ra, best_dec = _calculate_best_position_for_offset_stars(
+                source.photometry,
+                fallback=(initial_pos[0], initial_pos[1]),
+                how="snr2",
+            )
+        except JSONDecodeError:
+            self.push_notification(
+                'Source position using photometry points failed.'
+                ' Reverting to discovery position.'
+            )
+            best_ra, best_dec = initial_pos[0], initial_pos[1]
+
         facility = self.get_query_argument('facility', 'Keck')
         how_many = self.get_query_argument('how_many', '3')
+        use_ztfref = self.get_query_argument('use_ztfref', True)
+        if isinstance(use_ztfref, str):
+            use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
+
         obstime = self.get_query_argument(
             'obstime', datetime.datetime.utcnow().isoformat()
         )
@@ -676,8 +718,8 @@ class SourceOffsetsHandler(BaseHandler):
                 queries_issued,
                 noffsets,
             ) = get_nearby_offset_stars(
-                source.ra,
-                source.dec,
+                best_ra,
+                best_dec,
                 obj_id,
                 how_many=how_many,
                 radius_degrees=radius_degrees,
@@ -687,6 +729,7 @@ class SourceOffsetsHandler(BaseHandler):
                 mag_min=mag_min,
                 obstime=obstime,
                 allowed_queries=2,
+                use_ztfref=use_ztfref,
             )
 
         except ValueError:
@@ -742,6 +785,13 @@ class SourceFinderHandler(BaseHandler):
             enum: [desi, dss, ztfref]
           description: Source of the image used in the finding chart
         - in: query
+          name: use_ztfref
+          required: false
+          schema:
+            type: boolean
+          description: |
+            Use ZTFref catalog for offset star positions, otherwise DR2
+        - in: query
           name: obstime
           nullable: True
           schema:
@@ -761,7 +811,11 @@ class SourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(
+            obj_id,
+            self.current_user,
+            options=[joinedload(Source.obj).joinedload(Obj.photometry)],
+        )
         if source is None:
             return self.error('Invalid source ID.')
 
@@ -775,8 +829,25 @@ class SourceFinderHandler(BaseHandler):
         if imsize < 2.0 or imsize > 15.0:
             return self.error('The value for `imsize` is outside the allowed range')
 
+        initial_pos = (source.ra, source.dec)
+        try:
+            best_ra, best_dec = _calculate_best_position_for_offset_stars(
+                source.photometry,
+                fallback=(initial_pos[0], initial_pos[1]),
+                how="snr2",
+            )
+        except JSONDecodeError:
+            self.push_notification(
+                'Source position using photometry points failed.'
+                ' Reverting to discovery position.'
+            )
+            best_ra, best_dec = initial_pos[0], initial_pos[1]
+
         facility = self.get_query_argument('facility', 'Keck')
-        image_source = self.get_query_argument('image_source', 'desi')
+        image_source = self.get_query_argument('image_source', 'ztfref')
+        use_ztfref = self.get_query_argument('use_ztfref', True)
+        if isinstance(use_ztfref, str):
+            use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
 
         how_many = 3
         obstime = self.get_query_argument(
@@ -798,8 +869,8 @@ class SourceFinderHandler(BaseHandler):
 
         finder = functools.partial(
             get_finding_chart,
-            source.ra,
-            source.dec,
+            best_ra,
+            best_dec,
             obj_id,
             image_source=image_source,
             output_format='pdf',
@@ -814,6 +885,7 @@ class SourceFinderHandler(BaseHandler):
             use_source_pos_in_starlist=True,
             allowed_queries=2,
             queries_issued=0,
+            use_ztfref=use_ztfref,
         )
 
         self.push_notification(

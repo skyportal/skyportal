@@ -1,6 +1,5 @@
-import uuid
-
 import pytest
+import uuid
 
 
 def test_token_acls_options_rendering1(driver, user):
@@ -53,6 +52,7 @@ def test_add_data_to_user_profile(driver, user):
 
     email_entry = driver.wait_for_xpath('//input[@name="email"]')
     email = f"{str(uuid.uuid4())[:5]}@hotmail.com"
+    email_entry.clear()
     email_entry.send_keys(email)
 
     phone_entry = driver.wait_for_xpath('//input[@name="phone"]')
@@ -80,3 +80,16 @@ def test_insufficient_name_entry_in_profile(driver, user):
 
     helper = driver.wait_for_xpath('//p[@id="firstName_id-helper-text"]')
     assert helper.text == "Required"
+
+
+@pytest.mark.flaky(reruns=2)
+def test_profile_dropdown(driver, user):
+    test_add_data_to_user_profile(driver, user)
+
+    # click on profile dropdown
+    driver.click_xpath("//span[contains(@data-testid, 'avatar')]")
+
+    # check dropdown contents
+    driver.wait_for_xpath("//p[contains(@data-testid, 'firstLastName')]")
+    driver.wait_for_xpath("//p[contains(@data-testid, 'username')]")
+    driver.wait_for_xpath("//a[contains(@data-testid, 'signOutButton')]")

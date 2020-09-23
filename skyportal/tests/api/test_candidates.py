@@ -15,14 +15,14 @@ def test_token_user_retrieving_candidate(view_only_token, public_candidate):
     )
     assert status == 200
     assert data["status"] == "success"
-    assert all(k in data["data"] for k in ["ra", "dec", "redshift"])
+    assert all(k in data["data"] for k in ["ra", "dec", "redshift", "dm"])
 
 
 def test_token_user_update_candidate(manage_sources_token, public_candidate):
     status, data = api(
         "PATCH",
         f"candidates/{public_candidate.id}",
-        data={"ra": 234.22, "redshift": 3, "transient": False, "ra_dis": 2.3,},
+        data={"ra": 234.22, "redshift": 3, "transient": False, "ra_dis": 2.3},
         token=manage_sources_token,
     )
     assert status == 200
