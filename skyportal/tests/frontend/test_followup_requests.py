@@ -203,13 +203,19 @@ def add_followup_request_using_frontend_and_verify_IOO(
 
 @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
-def test_submit_new_followup_request(
+def test_submit_new_followup_request_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
 
     add_followup_request_using_frontend_and_verify_SEDM(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
+
+
+@pytest.mark.flaky(reruns=2)
+def test_submit_new_followup_request_IOO(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
 
     add_followup_request_using_frontend_and_verify_IOO(
         driver, super_admin_user, public_source, super_admin_token, public_group
@@ -273,7 +279,7 @@ def test_delete_followup_request_SEDM(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 def test_delete_followup_request_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
