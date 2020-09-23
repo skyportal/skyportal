@@ -200,6 +200,9 @@ def add_followup_request_using_frontend_and_verify_IOO(
         '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submission")]'''
     )
 
+    # import pdb
+    # pdb.set_trace()
+
 
 @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
@@ -247,13 +250,13 @@ def test_edit_existing_followup_request(
     driver.scroll_to_element_and_click(submit_button)
 
     driver.wait_for_xpath(
-        '//table[contains(@class, "followupRequestTable")]//td[contains(., "IFU")]'
+        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "IFU")]'
     )
     driver.wait_for_xpath(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "1")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "1")]'''
     )
     driver.wait_for_xpath(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "submitted")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
 
 
@@ -269,13 +272,13 @@ def test_delete_followup_request_SEDM(
     driver.scroll_to_element_and_click(delete_button)
 
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "u,IFU")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "u,IFU")]'''
     )
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "1")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "1")]'''
     )
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@class, "followupRequestTable")]//td[contains(., "submitted")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
 
 

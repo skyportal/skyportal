@@ -400,10 +400,6 @@ class LTAPI(FollowUpAPI):
         # this happens for failed submissions
         # just go ahead and delete
         if len(req.transactions) == 0:
-            DBSession().query(FollowupRequest).filter(
-                FollowupRequest.id == request.id
-            ).delete()
-            DBSession().commit()
             return
 
         altdata = request.allocation.load_altdata()
