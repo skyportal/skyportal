@@ -2,15 +2,19 @@ user:
   - username: testadmin@cesium-ml.org
     roles:
       - Super admin
+    =id: testadmin
   - username: groupadmin@cesium-ml.org
     roles:
       - Group admin
+    =id: groupadmin
   - username: fulluser@cesium-ml.org
     roles:
       - Full user
+    =id: fulluser
   - username: viewonlyuser@cesium-ml.org
     roles:
       - View only
+    =id: viewonlyuser
 
 streams:
   - name: ZTF Public
@@ -32,13 +36,13 @@ streams:
 groups:
   - name: Program A
     group_admins:
-      - testadmin@cesium-ml.org
-      - groupadmin@cesium-ml.org
+      - =testadmin
+      - =groupadmin
     =id: program_A
   - name: Program B
     group_admins:
-      - testadmin@cesium-ml.org
-      - groupadmin@cesium-ml.org
+      - =testadmin
+      - =groupadmin
     =id: program_B
 
 groups/=program_A/users:
@@ -46,6 +50,18 @@ groups/=program_A/users:
     admin: false
   - username: fulluser@cesium-ml.org
     admin: false
+
+streams/=ztf_public/users:
+  - user_id: =viewonlyuser
+  - user_id: =fulluser
+  - user_id: =groupadmin
+  - user_id: =testadmin
+
+streams/=ztf_caltech/users:
+  - user_id: =viewonlyuser
+  - user_id: =fulluser
+  - user_id: =groupadmin
+  - user_id: =testadmin
 
 groups/=program_A/streams:
   - stream_id: =ztf_partnership

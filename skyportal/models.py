@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import arrow
 from astropy import units as u
 from astropy import time as ap_time
+
 import astroplan
 import numpy as np
 import sqlalchemy as sa
@@ -20,6 +21,7 @@ from sendgrid.helpers.mail import Mail
 from astropy import coordinates as ap_coord
 import healpix_alchemy as ha
 import timezonefinder
+from .utils.cosmology import establish_cosmology
 
 from baselayer.app.models import (  # noqa
     init_db,
@@ -34,7 +36,6 @@ from baselayer.app.models import (  # noqa
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
 
-
 from . import schema
 from .enum_types import (
     allowed_bandpasses,
@@ -42,7 +43,7 @@ from .enum_types import (
     instrument_types,
     followup_priorities,
     api_classnames,
-    followup_http_request_origins,
+    listener_classnames,
 )
 
 from skyportal import facility_apis
@@ -51,6 +52,9 @@ from skyportal import facility_apis
 # All DB fluxes are stored in microJy (AB).
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
+
+_, cfg = load_env()
+cosmo = establish_cosmology(cfg)
 
 
 def is_owned_by(self, user_or_token):
@@ -94,7 +98,9 @@ class Group(Base):
     must have access to all of the `Group`'s data `Stream`s.
     """
 
-    name = sa.Column(sa.String, unique=True, nullable=False, doc='Name of the group.')
+    name = sa.Column(
+        sa.String, unique=True, nullable=False, index=True, doc='Name of the group.'
+    )
 
     streams = relationship(
         'Stream',
@@ -457,6 +463,70 @@ class Obj(Base, ha.Point):
         coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
         return coord.galactic.l.deg
 
+    @property
+    def luminosity_distance(self):
+        """
+        The luminosity distance in Mpc, using either DM or distance data
+        in the altdata fields or using the cosmology/redshift. Specifically
+        the user can add `dm` (mag), `parallax` (arcsec), `dist_kpc`,
+        `dist_Mpc`, `dist_pc` or `dist_cm` to `altdata` and
+        those will be picked up (in that order) as the distance
+        rather than the redshift.
+
+        Return None if the redshift puts the source not within the Hubble flow
+        """
+
+        # there may be a non-redshift based measurement of distance
+        # for nearby sources
+        if self.altdata:
+            if self.altdata.get("dm") is not None:
+                # see eq (24) of https://ned.ipac.caltech.edu/level5/Hogg/Hogg7.html
+                return (
+                    (10 ** (float(self.altdata.get("dm")) / 5.0)) * 1e-5 * u.Mpc
+                ).value
+            if self.altdata.get("parallax") is not None:
+                if float(self.altdata.get("parallax")) > 0:
+                    # assume parallax in arcsec
+                    return (1e-6 * u.Mpc / float(self.altdata.get("parallax"))).value
+
+            if self.altdata.get("dist_kpc") is not None:
+                return (float(self.altdata.get("dist_kpc")) * 1e-3 * u.Mpc).value
+            if self.altdata.get("dist_Mpc") is not None:
+                return (float(self.altdata.get("dist_Mpc")) * u.Mpc).value
+            if self.altdata.get("dist_pc") is not None:
+                return (float(self.altdata.get("dist_pc")) * 1e-6 * u.Mpc).value
+            if self.altdata.get("dist_cm") is not None:
+                return (float(self.altdata.get("dist_cm")) * u.Mpc / 3.085e18).value
+
+        if self.redshift:
+            if self.redshift * 2.99e5 * u.km / u.s < 350 * u.km / u.s:
+                # stubbornly refuse to give a distance if the source
+                # is not in the Hubble flow
+                # cf. https://www.aanda.org/articles/aa/full/2003/05/aa3077/aa3077.html
+                # within ~5 Mpc (cz ~ 350 km/s) a given galaxy velocty
+                # can be between between ~0-500 km/s
+                return None
+            return (cosmo.luminosity_distance(self.redshift)).to(u.Mpc).value
+        return None
+
+    @property
+    def dm(self):
+        """Distance modulus to the object"""
+        dl = self.luminosity_distance
+        if dl:
+            return 5.0 * np.log10((dl * u.Mpc) / (10 * u.pc)).value
+        return None
+
+    @property
+    def angular_diameter_distance(self):
+        dl = self.luminosity_distance
+        if dl:
+            if self.redshift and self.redshift * 2.99e5 * u.km / u.s > 350 * u.km / u.s:
+                # see eq (20) of https://ned.ipac.caltech.edu/level5/Hogg/Hogg7.html
+                return dl / (1 + self.redshift) ** 2
+            return dl
+        return None
+
     def airmass(self, telescope, time, below_horizon=np.inf):
         """Return the airmass of the object at a given time. Uses the Pickering
         (2002) interpolation of the Rayleigh (molecular atmosphere) airmass.
@@ -673,6 +743,15 @@ Source.unsaved_by_id = sa.Column(
 )
 Source.unsaved_by = relationship(
     "User", foreign_keys=[Source.unsaved_by_id], doc="User who unsaved the Source."
+)
+
+Obj.sources = relationship(
+    Source, back_populates='obj', doc="Instances in which a group saved this Obj."
+)
+Obj.candidates = relationship(
+    Candidate,
+    back_populates='obj',
+    doc="Instances in which this Obj passed a group's filter.",
 )
 
 
@@ -1064,6 +1143,12 @@ class Instrument(Base):
         api_classnames, nullable=True, doc="Name of the instrument's API class."
     )
 
+    listener_classname = sa.Column(
+        listener_classnames,
+        nullable=True,
+        doc="Name of the instrument's listener class.",
+    )
+
     @property
     def does_spectroscopy(self):
         """Return a boolean indicating whether the instrument is capable of
@@ -1079,6 +1164,10 @@ class Instrument(Base):
     @property
     def api_class(self):
         return getattr(facility_apis, self.api_classname)
+
+    @property
+    def listener_class(self):
+        return getattr(facility_apis, self.listener_classname)
 
 
 class Allocation(Base):
@@ -1184,7 +1273,7 @@ GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
 def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
     """Query the database and return the requested Taxonomy if it is accessible
     to the requesting User or Token owner. If the Taxonomy is not accessible or
-    if it does not exist, return `None`.
+    if it does not exist, return an empty list.
 
     Parameters
     ----------
@@ -1635,17 +1724,23 @@ class FollowupRequest(Base):
     payload = sa.Column(
         psql.JSONB, nullable=True, doc="Content of the followup request."
     )
-    status = sa.Column(sa.String(), nullable=False, default="pending submission")
+    status = sa.Column(
+        sa.String(),
+        nullable=False,
+        default="pending submission",
+        index=True,
+        doc="The status of the request.",
+    )
 
     allocation_id = sa.Column(
         sa.ForeignKey('allocations.id', ondelete='CASCADE'), nullable=False, index=True
     )
     allocation = relationship('Allocation', back_populates='requests')
 
-    http_requests = relationship(
-        'FollowupRequestHTTPRequest',
-        back_populates='request',
-        order_by="FollowupRequestHTTPRequest.created_at.desc()",
+    transactions = relationship(
+        'FacilityTransaction',
+        back_populates='followup_request',
+        order_by="FacilityTransaction.created_at.desc()",
     )
 
     photometry = relationship('Photometry', back_populates='followup_request')
@@ -1675,31 +1770,42 @@ class FollowupRequest(Base):
         return self.allocation.group_id in user_or_token_group_ids
 
 
-class FollowupRequestHTTPRequest(Base):
+class FacilityTransaction(Base):
 
     created_at = sa.Column(
         sa.DateTime,
         nullable=False,
         default=datetime.utcnow,
         index=True,
-        doc="UTC time this FollowupRequestHTTPRequest was created.",
+        doc="UTC time this FacilityTransaction was created.",
     )
-    content = sa.Column(sa.Text, doc="The content of the request.", nullable=False)
 
-    request_id = sa.Column(
+    request = sa.Column(psql.JSONB, doc='Serialized HTTP request.')
+    response = sa.Column(psql.JSONB, doc='Serialized HTTP response.')
+
+    followup_request_id = sa.Column(
         sa.ForeignKey('followuprequests.id', ondelete='CASCADE'),
         index=True,
         nullable=False,
         doc="The ID of the FollowupRequest this message pertains to.",
     )
 
-    request = relationship(
+    followup_request = relationship(
         'FollowupRequest',
-        back_populates='http_requests',
+        back_populates='transactions',
         doc="The FollowupRequest this message pertains to.",
     )
-    origin = sa.Column(
-        followup_http_request_origins, doc='Origin of the HTTP request.', nullable=False
+
+    initiator_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='SET NULL'),
+        index=True,
+        nullable=False,
+        doc='The ID of the User who initiated the transaction.',
+    )
+    initiator = relationship(
+        'User',
+        back_populates='transactions',
+        doc='The User who initiated the transaction.',
     )
 
 
@@ -1707,6 +1813,12 @@ User.followup_requests = relationship(
     'FollowupRequest',
     back_populates='requester',
     doc="The follow-up requests this User has made.",
+)
+
+User.transactions = relationship(
+    'FacilityTransaction',
+    back_populates='initiator',
+    doc="The FacilityTransactions initiated by this User.",
 )
 
 
@@ -1993,6 +2105,12 @@ class Invitation(Base):
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
     )
+    streams = relationship(
+        "Stream",
+        secondary="stream_invitations",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
     admin_for_groups = sa.Column(psql.ARRAY(sa.Boolean), nullable=False)
     user_email = sa.Column(EmailType(), nullable=True)
     invited_by = relationship(
@@ -2006,6 +2124,7 @@ class Invitation(Base):
 
 
 GroupInvitation = join_model('group_invitations', Group, Invitation)
+StreamInvitation = join_model('stream_invitations', Stream, Invitation)
 UserInvitation = join_model("user_invitations", User, Invitation)
 
 

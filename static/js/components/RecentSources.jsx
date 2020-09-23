@@ -20,7 +20,7 @@ import SourceQuickView from "./SourceQuickView";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+export const useSourceListStyles = makeStyles(() => ({
   stampContainer: {
     display: "contents",
   },
@@ -34,35 +34,35 @@ const useStyles = makeStyles(() => ({
       boxShadow: "0 5px 15px rgba(51, 52, 92, 0.6)",
     },
   },
-  recentSourceListContainer: {
+  sourceListContainer: {
     height: "calc(100% - 3rem)",
     overflowY: "scroll",
     marginTop: "0.625rem",
     paddingTop: "0.625rem",
   },
-  recentSourceList: {
+  sourceList: {
     display: "block",
     alignItems: "center",
     listStyleType: "none",
     paddingLeft: 0,
     marginTop: 0,
   },
-  recentSourceItem: {
+  sourceItem: {
     display: "flex",
     flexFlow: "row nowrap",
     alignItems: "center",
     padding: "0 0.625rem",
   },
-  recentSourceInfo: {
+  sourceInfo: {
     display: "flex",
     flexFlow: "column wrap",
     margin: "1rem 2rem",
     flex: "0 1 50%",
   },
-  recentSourceName: {
+  sourceName: {
     fontSize: "1rem",
   },
-  recentSourceTime: {
+  sourceTime: {
     color: "gray",
   },
   quickViewButton: {
@@ -70,7 +70,7 @@ const useStyles = makeStyles(() => ({
     textAlign: "center",
     display: "none",
   },
-  recentSourceItemWithButton: {
+  sourceItemWithButton: {
     display: "flex",
     flexFlow: "column nowrap",
     justifyContent: "center",
@@ -101,8 +101,8 @@ const RecentSourcesList = ({ sources, styles }) => {
   }
 
   return (
-    <div className={styles.recentSourceListContainer}>
-      <ul className={styles.recentSourceList}>
+    <div className={styles.sourceListContainer}>
+      <ul className={styles.sourceList}>
         {sources.map((source) => {
           let recentSourceName = `${source.obj_id}`;
           if (source.classifications.length > 0) {
@@ -119,8 +119,11 @@ const RecentSourcesList = ({ sources, styles }) => {
 
           return (
             <li key={`recentSources_${source.obj_id}`}>
-              <div className={styles.recentSourceItemWithButton}>
-                <div className={styles.recentSourceItem}>
+              <div
+                data-testid={`recentSourceItem_${source.obj_id}`}
+                className={styles.sourceItemWithButton}
+              >
+                <div className={styles.sourceItem}>
                   <Link
                     to={`/source/${source.obj_id}`}
                     className={styles.stampContainer}
@@ -131,8 +134,8 @@ const RecentSourcesList = ({ sources, styles }) => {
                       alt={source.obj_id}
                     />
                   </Link>
-                  <div className={styles.recentSourceInfo}>
-                    <span className={styles.recentSourceName}>
+                  <div className={styles.sourceInfo}>
+                    <span className={styles.sourceName}>
                       <Link to={`/source/${source.obj_id}`}>
                         {`${recentSourceName}`}
                       </Link>
@@ -143,7 +146,7 @@ const RecentSourcesList = ({ sources, styles }) => {
                       )} ${dec_to_hours(source.dec)}`}
                     </span>
                   </div>
-                  <div className={styles.recentSourceTime}>
+                  <div className={styles.sourceTime}>
                     <span>
                       {dayjs().to(dayjs.utc(`${source.created_at}Z`))}
                     </span>
@@ -193,7 +196,7 @@ RecentSourcesList.defaultProps = {
 };
 
 const RecentSources = ({ classes }) => {
-  const styles = useStyles();
+  const styles = useSourceListStyles();
 
   const { recentSources } = useSelector((state) => state.recentSources);
   const recentSourcesPrefs =

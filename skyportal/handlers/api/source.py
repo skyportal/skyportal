@@ -1,4 +1,5 @@
 import datetime
+from json.decoder import JSONDecodeError
 
 import tornado
 from tornado.ioloop import IOLoop
@@ -33,6 +34,7 @@ from ...utils import (
     facility_parameters,
     source_image_parameters,
     get_finding_chart,
+    _calculate_best_position_for_offset_stars,
 )
 from .candidate import grab_query_results_page
 
@@ -137,6 +139,15 @@ class SourceHandler(BaseHandler):
             description: |
               Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
               last_detected <= endDate
+          - in: query
+            name: group_ids
+            nullable: true
+            schema:
+              type: list
+              items:
+                type: integer
+            description: |
+               If provided, filter only sources saved to one of these group IDs.
           responses:
             200:
               content:
@@ -178,6 +189,19 @@ class SourceHandler(BaseHandler):
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
+
+        # parse the group ids:
+        group_ids = self.get_query_argument('group_ids', None)
+        if group_ids is not None:
+            try:
+                group_ids = [int(gid) for gid in group_ids.split(',')]
+            except ValueError:
+                return self.error(
+                    f'Invalid group ids field ({group_ids}; Could not parse all elements to integers'
+                )
+
+        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
+
         simbad_class = self.get_query_argument('simbadClass', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
         total_matches = self.get_query_argument('totalMatches', None)
@@ -221,41 +245,53 @@ class SourceHandler(BaseHandler):
             if s is None:
                 return self.error("Invalid source ID.")
             comments = s.get_comments_owned_by(self.current_user)
-            s.classifications = s.get_classifications_owned_by(self.current_user)
             source_info = s.to_dict()
             source_info["comments"] = sorted(
                 comments, key=lambda x: x.created_at, reverse=True
             )
+            source_info["classifications"] = s.get_classifications_owned_by(
+                self.current_user
+            )
             source_info["last_detected"] = s.last_detected
             source_info["gal_lat"] = s.gal_lat_deg
             source_info["gal_lon"] = s.gal_lon_deg
+            source_info["luminosity_distance"] = s.luminosity_distance
+            source_info["dm"] = s.dm
+            source_info["angular_diameter_distance"] = s.angular_diameter_distance
 
+            source_info["followup_requests"] = [
+                f for f in source_info['followup_requests'] if f.status != 'deleted'
+            ]
             source_info["groups"] = (
-                Group.query.filter(
-                    Group.id.in_(
-                        DBSession()
-                        .query(Source.group_id)
-                        .filter(Source.obj_id == obj_id)
-                    )
-                )
+                DBSession()
+                .query(Group)
+                .join(Source)
                 .filter(
-                    Group.id.in_([g.id for g in self.current_user.accessible_groups])
+                    Source.obj_id == source_info["id"],
+                    Group.id.in_(user_accessible_group_ids),
                 )
                 .all()
             )
-
             return self.success(data=source_info)
-        q = Obj.query.filter(
-            Obj.id.in_(
-                DBSession()
-                .query(Source.obj_id)
-                .filter(
-                    Source.group_id.in_(
-                        [g.id for g in self.current_user.accessible_groups]
-                    )
-                )
+
+        # Fetch multiple sources
+        q = (
+            DBSession()
+            .query(Obj)
+            .join(Source)
+            .filter(
+                Source.group_id.in_(
+                    user_accessible_group_ids
+                )  # only give sources the user has access to
+            )
+            .options(
+                joinedload(Obj.thumbnails)
+                .joinedload(Thumbnail.photometry)
+                .joinedload(Photometry.instrument)
+                .joinedload(Instrument.telescope)
             )
         )
+
         if sourceID:
             q = q.filter(Obj.id.contains(sourceID.strip()))
         if any([ra, dec, radius]):
@@ -287,13 +323,18 @@ class SourceHandler(BaseHandler):
             )
         if has_tns_name in ['true', True]:
             q = q.filter(Obj.altdata['tns']['name'].isnot(None))
+        if group_ids is not None:
+            if not all(gid in user_accessible_group_ids for gid in group_ids):
+                return self.error(
+                    f"One of the requested groups in '{group_ids}' is inaccessible to user."
+                )
+            q = q.filter(Source.group_id.in_(group_ids))
 
         if page_number:
             try:
                 page = int(page_number)
             except ValueError:
                 return self.error("Invalid page number value.")
-
             try:
                 query_results = grab_query_results_page(
                     q, total_matches, page, num_per_page, "sources"
@@ -313,9 +354,29 @@ class SourceHandler(BaseHandler):
                 key=lambda x: x.created_at,
                 reverse=True,
             )
+            source_list[-1]["classifications"] = source.get_classifications_owned_by(
+                self.current_user
+            )
             source_list[-1]["last_detected"] = source.last_detected
             source_list[-1]["gal_lon"] = source.gal_lon_deg
             source_list[-1]["gal_lat"] = source.gal_lat_deg
+            source_list[-1]["luminosity_distance"] = source.luminosity_distance
+            source_list[-1]["dm"] = source.dm
+            source_list[-1][
+                "angular_diameter_distance"
+            ] = source.angular_diameter_distance
+
+            source_list[-1]["groups"] = (
+                DBSession()
+                .query(Group)
+                .join(Source)
+                .filter(
+                    Source.obj_id == source_list[-1]["id"],
+                    Group.id.in_(user_accessible_group_ids),
+                )
+                .all()
+            )
+
         query_results["sources"] = source_list
 
         return self.success(data=query_results)
@@ -389,12 +450,15 @@ class SourceHandler(BaseHandler):
                 "Invalid group_ids field. Please specify at least "
                 "one valid group ID that you belong to."
             )
+
         DBSession().add(obj)
         DBSession().add_all([Source(obj=obj, group=group) for group in groups])
         DBSession().commit()
 
         self.push_all(action="skyportal/FETCH_SOURCES")
-        self.push_all(action="skyportal/FETCH_CANDIDATES")
+        self.push_all(
+            action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+        )
         self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
         return self.success(data={"id": obj.id})
 
@@ -513,6 +577,13 @@ class SourceOffsetsHandler(BaseHandler):
             type: string
           description: |
             datetime of observation in isoformat (e.g. 2020-12-30T12:34:10)
+        - in: query
+          name: use_ztfref
+          required: false
+          schema:
+            type: boolean
+          description: |
+            Use ZTFref catalog for offset star positions, otherwise Gaia DR2
         responses:
           200:
             content:
@@ -591,12 +662,35 @@ class SourceOffsetsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(
+            obj_id,
+            self.current_user,
+            options=[joinedload(Source.obj).joinedload(Obj.photometry)],
+        )
         if source is None:
             return self.error('Invalid source ID.')
 
+        initial_pos = (source.ra, source.dec)
+
+        try:
+            best_ra, best_dec = _calculate_best_position_for_offset_stars(
+                source.photometry,
+                fallback=(initial_pos[0], initial_pos[1]),
+                how="snr2",
+            )
+        except JSONDecodeError:
+            self.push_notification(
+                'Source position using photometry points failed.'
+                ' Reverting to discovery position.'
+            )
+            best_ra, best_dec = initial_pos[0], initial_pos[1]
+
         facility = self.get_query_argument('facility', 'Keck')
         how_many = self.get_query_argument('how_many', '3')
+        use_ztfref = self.get_query_argument('use_ztfref', True)
+        if isinstance(use_ztfref, str):
+            use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
+
         obstime = self.get_query_argument(
             'obstime', datetime.datetime.utcnow().isoformat()
         )
@@ -624,8 +718,8 @@ class SourceOffsetsHandler(BaseHandler):
                 queries_issued,
                 noffsets,
             ) = get_nearby_offset_stars(
-                source.ra,
-                source.dec,
+                best_ra,
+                best_dec,
                 obj_id,
                 how_many=how_many,
                 radius_degrees=radius_degrees,
@@ -635,6 +729,7 @@ class SourceOffsetsHandler(BaseHandler):
                 mag_min=mag_min,
                 obstime=obstime,
                 allowed_queries=2,
+                use_ztfref=use_ztfref,
             )
 
         except ValueError:
@@ -690,6 +785,13 @@ class SourceFinderHandler(BaseHandler):
             enum: [desi, dss, ztfref]
           description: Source of the image used in the finding chart
         - in: query
+          name: use_ztfref
+          required: false
+          schema:
+            type: boolean
+          description: |
+            Use ZTFref catalog for offset star positions, otherwise DR2
+        - in: query
           name: obstime
           nullable: True
           schema:
@@ -709,7 +811,11 @@ class SourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(
+            obj_id,
+            self.current_user,
+            options=[joinedload(Source.obj).joinedload(Obj.photometry)],
+        )
         if source is None:
             return self.error('Invalid source ID.')
 
@@ -723,8 +829,25 @@ class SourceFinderHandler(BaseHandler):
         if imsize < 2.0 or imsize > 15.0:
             return self.error('The value for `imsize` is outside the allowed range')
 
+        initial_pos = (source.ra, source.dec)
+        try:
+            best_ra, best_dec = _calculate_best_position_for_offset_stars(
+                source.photometry,
+                fallback=(initial_pos[0], initial_pos[1]),
+                how="snr2",
+            )
+        except JSONDecodeError:
+            self.push_notification(
+                'Source position using photometry points failed.'
+                ' Reverting to discovery position.'
+            )
+            best_ra, best_dec = initial_pos[0], initial_pos[1]
+
         facility = self.get_query_argument('facility', 'Keck')
-        image_source = self.get_query_argument('image_source', 'desi')
+        image_source = self.get_query_argument('image_source', 'ztfref')
+        use_ztfref = self.get_query_argument('use_ztfref', True)
+        if isinstance(use_ztfref, str):
+            use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
 
         how_many = 3
         obstime = self.get_query_argument(
@@ -746,8 +869,8 @@ class SourceFinderHandler(BaseHandler):
 
         finder = functools.partial(
             get_finding_chart,
-            source.ra,
-            source.dec,
+            best_ra,
+            best_dec,
             obj_id,
             image_source=image_source,
             output_format='pdf',
@@ -762,6 +885,7 @@ class SourceFinderHandler(BaseHandler):
             use_source_pos_in_starlist=True,
             allowed_queries=2,
             queries_issued=0,
+            use_ztfref=use_ztfref,
         )
 
         self.push_notification(

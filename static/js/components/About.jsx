@@ -66,6 +66,9 @@ BibLink.propTypes = {
 const About = () => {
   const classes = useStyles();
   const version = useSelector((state) => state.sysInfo.version);
+  const cosmology = useSelector((state) => state.sysInfo.cosmology);
+  const cosmoref = useSelector((state) => state.sysInfo.cosmoref);
+
   return (
     <Box className={classes.root}>
       <h2>
@@ -117,6 +120,20 @@ const About = () => {
           .
         </BibLink>
       </div>
+      <h2>Cosmology</h2>
+      <p>
+        The cosmology currently used here is an instance of{" "}
+        <code>astropy.cosmology</code> with the parameters (see{" "}
+        <a href="https://github.com/astropy/astropy/blob/master/astropy/cosmology/parameters.py">
+          this link
+        </a>{" "}
+        for parameters definitions): <br />
+        <blockquote>{cosmology}</blockquote>
+        <b>Reference</b>: {cosmoref}
+        <br />
+        If you&apos;d like to change the cosmology, please do so in the{" "}
+        <code>config.yaml</code> under <code>misc.cosmology</code>.
+      </p>
     </Box>
   );
 };

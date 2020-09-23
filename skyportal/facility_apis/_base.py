@@ -1,3 +1,44 @@
+from jsonschema_to_openapi.convert import convert
+from copy import deepcopy
+
+
+class _ListenerBase:
+
+    # subclasses should not modify this
+    @classmethod
+    def complete_schema(cls):
+        """Ensures that the all the necessary fields required by the
+        frontend, (e.g., followup_request_id) are included in the Listener's
+        JSONSchema. If the fields are missing, this function adds them."""
+        base = deepcopy(cls.schema)
+        if 'type' not in base:
+            base['type'] = 'object'
+        if 'properties' not in base:
+            base['properties'] = {}
+        if 'followup_request_id' not in base['properties']:
+            base['properties']['followup_request_id'] = {'type': 'integer'}
+
+        if 'required' not in base:
+            base['required'] = ['followup_request_id']
+        else:
+            base['required'].append('followup_request_id')
+
+        base['title'] = cls.__name__
+        base['additionalProperties'] = False
+        return base
+
+    @classmethod
+    def openapi_spec(cls):
+        """OpenAPI representation of the user-contributed JSONSchema."""
+        return convert(cls.complete_schema())
+
+    @classmethod
+    def get_acl_id(cls):
+        """Return the ID of the ACL that a User must have in order to use
+        this API. """
+        return f'Post from {cls.__name__}'
+
+
 class _Base:
 
     # subclasses should not modify this

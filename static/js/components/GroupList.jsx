@@ -12,6 +12,8 @@ import { makeStyles } from "@material-ui/core/styles";
 const useStyles = makeStyles(() => ({
   listContainer: {
     overflowX: "hidden",
+    overflowY: "scroll",
+    height: "85%",
   },
 }));
 

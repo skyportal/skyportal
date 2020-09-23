@@ -1,11 +1,36 @@
-from . import FollowUpAPI
+from . import FollowUpAPI, Listener
 from baselayer.app.env import load_env
 from datetime import datetime, timedelta
 import json
 import requests
-from requests_toolbelt.utils import dump
+
 
 env, cfg = load_env()
+
+
+class SEDMListener(Listener):
+
+    schema = {
+        'type': 'object',
+        'properties': {'new_status': {'type': 'string',},},  # noqa: E231
+        'required': ['new_status'],
+    }
+
+    @staticmethod
+    def process_message(handler_instance):
+        """Receive a POSTed message from SEDM.
+
+        Parameters
+        ----------
+        message: skyportal.handlers.FacilityMessageHandler
+           The instance of the handler that received the request.
+        """
+
+        from ..models import FollowupRequest
+
+        data = handler_instance.get_json()
+        request = FollowupRequest.query.get(int(data['followup_request_id']))
+        request.status = data['new_status']
 
 
 def convert_request_to_sedm(request, method_value='new'):
@@ -20,6 +45,8 @@ def convert_request_to_sedm(request, method_value='new'):
     method_value: 'new', 'edit', 'delete'
         The desired SEDM queue action.
     """
+
+    from ..models import DBSession, UserInvitation, Invitation
 
     photometry = sorted(request.obj.photometry, key=lambda p: p.mjd, reverse=True)
     photometry_payload = {}
@@ -60,20 +87,42 @@ def convert_request_to_sedm(request, method_value='new'):
     else:
         raise ValueError('Cannot coerce payload into SEDM format.')
 
+    # default to user invitation email if preferred contact email has not been set
+    email = request.requester.contact_email
+    if email is None:
+        invitation = (
+            DBSession()
+            .query(Invitation)
+            .join(UserInvitation)
+            .filter(
+                UserInvitation.user_id == request.requester_id,
+                Invitation.used.is_(True),
+            )
+            .first()
+        )
+
+        if invitation is not None:
+            email = invitation.user_email
+        else:
+            # this should only be true in the CI test suite
+            email = 'test_suite@skyportal.com'
+
     payload = {
         'Filters': filters,
         'Followup': followup,
-        'email': request.requester.contact_email,
+        'email': email,
         'enddate': request.payload['end_date'],
         'startdate': request.payload['start_date'],
         'prior_photometry': photometry_payload,
         'priority': request.payload['priority'],
         'programname': request.allocation.group.name,
         'requestid': request.id,
-        'sourceid': request.obj_id,
-        'sourcename': request.obj_id,
+        'sourceid': request.obj_id[:26],  # 26 characters is the max allowed by sedm
+        'sourcename': request.obj_id[:26],
         'status': method_value,
         'username': request.requester.username,
+        'ra': request.obj.ra,
+        'dec': request.obj.dec,
     }
 
     return payload
@@ -91,7 +140,6 @@ class SEDMAPI(FollowUpAPI):
         request: skyportal.models.FollowupRequest
             The request to submit.
         """
-        from ..models import DBSession, FollowupRequestHTTPRequest
 
         payload = convert_request_to_sedm(request, method_value='new')
         content = json.dumps(payload)
@@ -104,14 +152,7 @@ class SEDMAPI(FollowUpAPI):
         else:
             request.status = f'rejected: {r.content}'
 
-        message = FollowupRequestHTTPRequest(
-            content=dump.dump_all(r).decode('utf-8'),
-            origin='skyportal',
-            request=request,
-        )
-        DBSession().add(message)
-        DBSession().add(request)
-        DBSession().commit()
+        return r
 
     @staticmethod
     def delete(request):
@@ -122,7 +163,6 @@ class SEDMAPI(FollowUpAPI):
         request: skyportal.models.FollowupRequest
             The request to delete from the queue and the SkyPortal database.
         """
-        from ..models import DBSession, FollowupRequest
 
         payload = convert_request_to_sedm(request, method_value='delete')
         content = json.dumps(payload)
@@ -131,11 +171,9 @@ class SEDMAPI(FollowUpAPI):
         )
 
         r.raise_for_status()
+        request.status = "deleted"
 
-        DBSession().query(FollowupRequest).filter(
-            FollowupRequest.id == request.id
-        ).delete()
-        DBSession().commit()
+        return r
 
     @staticmethod
     def update(request):
@@ -146,7 +184,6 @@ class SEDMAPI(FollowUpAPI):
         request: skyportal.models.FollowupRequest
             The updated request.
         """
-        from ..models import DBSession, FollowupRequestHTTPRequest
 
         payload = convert_request_to_sedm(request, method_value='edit')
         content = json.dumps(payload)
@@ -159,14 +196,7 @@ class SEDMAPI(FollowUpAPI):
         else:
             request.status = f'rejected: {r.content}'
 
-        message = FollowupRequestHTTPRequest(
-            content=dump.dump_all(r).decode('utf-8'),
-            origin='skyportal',
-            request=request,
-        )
-        DBSession().add(message)
-        DBSession().add(request)
-        DBSession().commit()
+        return r
 
     _observation_types = [
         '3-shot (gri)',

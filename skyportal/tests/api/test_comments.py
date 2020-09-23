@@ -1,3 +1,4 @@
+import numpy.testing as npt
 from skyportal.tests import api
 
 
@@ -171,3 +172,21 @@ def test_delete_comment(comment_token, public_source):
 
     status, data = api('GET', f'comment/{comment_id}', token=comment_token)
     assert status == 400
+
+
+def test_add_redshift_comment(super_admin_token, public_source, public_group):
+    status, data = api(
+        'POST',
+        'comment',
+        data={
+            'obj_id': public_source.id,
+            'text': 'z=0.221',
+            'group_ids': [public_group.id],
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    status, data = api('GET', f'sources/{public_source.id}', token=super_admin_token)
+    assert status == 200
+    npt.assert_almost_equal(data['data']['redshift'], 0.221)

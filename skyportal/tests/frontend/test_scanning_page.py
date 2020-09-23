@@ -44,7 +44,7 @@ def test_candidate_group_filtering(
     status, data = api(
         "POST",
         "groups",
-        data={"name": str(uuid.uuid4()), "group_admins": [user.username]},
+        data={"name": str(uuid.uuid4()), "group_admins": [user.id]},
         token=manage_groups_token,
     )
     assert status == 200
@@ -212,13 +212,13 @@ def test_save_candidate_quick_save(
         driver.wait_for_xpath_to_disappear(
             f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
         )
-        driver.wait_for_xpath('//a[text()="Previously Saved"]')
+        driver.wait_for_xpath('//span[text()="Previously Saved"]')
     except TimeoutException:
         driver.refresh()
         driver.wait_for_xpath_to_disappear(
             f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
         )
-        driver.wait_for_xpath('//a[text()="Previously Saved"]')
+        driver.wait_for_xpath('//span[text()="Previously Saved"]')
 
 
 @pytest.mark.flaky(reruns=2)
@@ -252,13 +252,13 @@ def test_save_candidate_select_groups(
         driver.wait_for_xpath_to_disappear(
             f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
         )
-        driver.wait_for_xpath('//a[text()="Previously Saved"]')
+        driver.wait_for_xpath('//span[text()="Previously Saved"]')
     except TimeoutException:
         driver.refresh()
         driver.wait_for_xpath_to_disappear(
             f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
         )
-        driver.wait_for_xpath('//a[text()="Previously Saved"]')
+        driver.wait_for_xpath('//span[text()="Previously Saved"]')
 
 
 @pytest.mark.flaky(reruns=2)

@@ -13,18 +13,20 @@ import Typography from "@material-ui/core/Typography";
 
 dayjs.extend(calendar);
 
-/* const useStyles = makeStyles((theme) => ({
-})); */
-
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   root: (props) => ({
     width: props.size,
     margin: "0.5rem auto",
     maxHeight: "31rem",
     flexGrow: 1,
   }),
+  cardTitle: {
+    padding: `${theme.spacing(0.75)}px ${theme.spacing(1)}px ${theme.spacing(
+      0.75
+    )}px ${theme.spacing(1)}px`,
+  },
   title: {
-    fontSize: 14,
+    fontSize: "0.875rem",
   },
   pos: {
     marginBottom: 0,
@@ -79,7 +81,7 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
 
   return (
     <Card className={classes.root} variant="outlined">
-      <CardContent>
+      <CardContent className={classes.cardTitle}>
         <Typography className={classes.title} color="textSecondary">
           {name.toUpperCase()}
         </Typography>
@@ -108,23 +110,44 @@ Thumbnail.propTypes = {
   size: PropTypes.string.isRequired,
 };
 
+const sortThumbnailsByDate = (a, b) => {
+  const aDate = dayjs(a.created_at);
+  const bDate = dayjs(b.created_at);
+  if (aDate.isAfter(bDate)) {
+    return -1;
+  }
+  if (aDate.isBefore(bDate)) {
+    return 1;
+  }
+  return 0;
+};
+
 const ThumbnailList = ({
   ra,
   dec,
   thumbnails,
   useGrid = true,
   size = "13rem",
+  displayTypes = ["new", "ref", "sub"],
 }) => {
+  thumbnails
+    .filter((thumbnail) => displayTypes.includes(thumbnail.type))
+    .sort(sortThumbnailsByDate);
+
+  const latestThumbnails = displayTypes
+    .map((type) => thumbnails.find((thumbnail) => thumbnail.type === type))
+    .filter((thumbnail) => thumbnail !== undefined);
+
   const thumbnail_order = ["new", "ref", "sub", "sdss", "dr8"];
   // Sort thumbnails by order of appearance in `thumbnail_order`
-  thumbnails.sort((a, b) =>
+  latestThumbnails.sort((a, b) =>
     thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1
   );
 
   if (useGrid) {
     return (
       <Grid container direction="row" spacing={3}>
-        {thumbnails.map((t) => (
+        {latestThumbnails.map((t) => (
           <Grid item key={t.id}>
             <Thumbnail
               key={`thumb_${t.type}`}
@@ -139,7 +162,7 @@ const ThumbnailList = ({
       </Grid>
     );
   }
-  return thumbnails.map((t) => (
+  return latestThumbnails.map((t) => (
     <Grid item key={t.id}>
       <Thumbnail
         key={`thumb_${t.type}`}
@@ -158,6 +181,7 @@ ThumbnailList.propTypes = {
   dec: PropTypes.number.isRequired,
   thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired,
   size: PropTypes.string,
+  displayTypes: PropTypes.arrayOf(PropTypes.string),
 };
 
 export default ThumbnailList;

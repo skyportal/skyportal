@@ -751,14 +751,16 @@ def spectroscopy_plot(obj_id, spec_id=None):
 
     z_title = Div(text="Redshift (<i>z</i>): ")
     z_slider = Slider(
-        value=obj.redshift,
+        value=obj.redshift if obj.redshift is not None else 0.0,
         start=0.0,
         end=1.0,
         step=0.001,
         show_value=False,
         format="0[.]000",
     )
-    z_textinput = TextInput(value=str(obj.redshift))
+    z_textinput = TextInput(
+        value=str(obj.redshift if obj.redshift is not None else 0.0)
+    )
     z_slider.callback = CustomJS(
         args={'slider': z_slider, 'textinput': z_textinput},
         code="""
@@ -782,7 +784,8 @@ def spectroscopy_plot(obj_id, spec_id=None):
 
     for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
         el_data = pd.DataFrame({'wavelength': wavelengths})
-        el_data['x'] = el_data['wavelength'] * (1 + obj.redshift)
+        obj_redshift = 0 if obj.redshift is None else obj.redshift
+        el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
         model_dict[f'el{i}'] = plot.segment(
             x0='x',
             x1='x',
