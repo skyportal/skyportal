@@ -1,6 +1,9 @@
 import datetime
 
 from skyportal.tests import api
+from glob import glob
+import yaml
+import numpy as np
 
 
 def test_token_user_post_get_spectrum_data(
@@ -122,3 +125,83 @@ def test_delete_spectrum_data(
 
     status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
     assert status == 400
+
+
+def test_jsonify_spectrum_header(
+    upload_data_token, manage_sources_token, public_source, public_group
+):
+    for filename in glob('../data/ZTF*.ascii.head'):
+        with open(filename[:-5], 'r') as f:
+            status, data = api(
+                'POST',
+                'spectrum_file',
+                data={
+                    'obj_id': str(public_source.id),
+                    'observed_at': str(datetime.datetime.now()),
+                    'instrument_id': 1,
+                    'group_ids': [public_group.id],
+                    'fluxerr_colindex': 3
+                    if 'ZTF20abpuxna_20200915_Keck1_v1.ascii' in filename
+                    else 2,
+                },
+                token=upload_data_token,
+                files=f,
+            )
+        assert status == 200
+        assert data['status'] == 'success'
+
+        answer = yaml.load(open(filename, 'r'), Loader=yaml.FullLoader)
+
+        # check the header serialization
+        for key in answer:
+            # special keys
+            if key not in ['COMMENT', 'END', 'HISTORY']:
+                if isinstance(data['data']['altdata'][key], dict):
+                    value = data['data']['altdata'][key]['value']
+                else:
+                    value = data['data']['altdata'][key]
+                if isinstance(answer[key], (str, int)):
+                    assert value == answer[key]
+                else:
+                    np.testing.assert_allclose(value, answer[key])
+
+
+def test_jsonify_spectrum_data(
+    upload_data_token, manage_sources_token, public_source, public_group
+):
+    for filename in glob('../data/ZTF*.ascii'):
+        with open(filename, 'r') as f:
+            status, data = api(
+                'POST',
+                'spectrum_file',
+                data={
+                    'obj_id': str(public_source.id),
+                    'observed_at': str(datetime.datetime.now()),
+                    'instrument_id': 1,
+                    'group_ids': [public_group.id],
+                    'fluxerr_colindex': 3
+                    if 'ZTF20abpuxna_20200915_Keck1_v1.ascii' in filename
+                    else 2,
+                },
+                token=upload_data_token,
+                files=f,
+            )
+        assert status == 200
+        assert data['status'] == 'success'
+
+        answer = np.genfromtxt(filename, dtype=None, encoding='ascii')
+
+        if answer.shape[-1] == 2:
+            np.assert_allclose(data['data']['wavelengths'], answer[:, 0])
+            np.assert_allclose(data['data']['fluxes'], answer[:, 1])
+
+        elif answer.shape[-1] == 3:
+            np.assert_allclose(data['data']['wavelengths'], answer[:, 0])
+            np.assert_allclose(data['data']['fluxes'], answer[:, 1])
+            np.assert_allclose(data['data']['errors'], answer[:, 2])
+
+        else:
+            # this is the long one from Keck
+            np.assert_allclose(data['data']['wavelengths'], answer[:, 0])
+            np.assert_allclose(data['data']['fluxes'], answer[:, 1])
+            np.assert_allclose(data['data']['errors'], answer[:, 3])
