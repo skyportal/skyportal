@@ -1660,7 +1660,7 @@ class Spectrum(Base):
             table = ascii.read(filename)
             bytes = open(filename).read().encode('ascii')
         else:
-            file_obj = io.BytesIO(data)
+            file_obj = io.BytesIO(data.encode('ascii'))
             table = ascii.read(file_obj)
             bytes = data
 
@@ -1700,6 +1700,9 @@ class Spectrum(Base):
             serialized = dict(fits_header)
 
             for key in serialized:
+                if isinstance(serialized[key], fits.header._CardAccessor):
+                    # serialize as a string
+                    serialized[key] = str(serialized[key])
                 if len(fits_header.comments[key]) > 0:
                     header[key] = {
                         'value': serialized[key],
