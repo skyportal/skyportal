@@ -105,9 +105,6 @@ def add_followup_request_using_frontend_and_verify(
     ActionChains(driver).move_to_element(mode_select).pause(1).click().perform()
     driver.save_screenshot('test_04.png')
 
-    time.sleep(1)
-    driver.save_screenshot('test_05.png')
-
     with open("test_09.png", "w") as f:
         f.write(driver.page_source)
 
