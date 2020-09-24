@@ -18,7 +18,12 @@ from .photometry import (
 )
 from .public_group import PublicGroupHandler
 from .sharing import SharingHandler
-from .source import SourceHandler, SourceOffsetsHandler, SourceFinderHandler
+from .source import (
+    SourceHandler,
+    SourceOffsetsHandler,
+    SourceFinderHandler,
+    SourceAlertHandler,
+)
 from .spectrum import SpectrumHandler, ObjSpectraHandler
 from .stream import StreamHandler, StreamUserHandler
 from .sysinfo import SysInfoHandler

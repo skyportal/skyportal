@@ -54,6 +54,9 @@ export const UPLOAD_PHOTOMETRY_OK = "skyportal/UPLOAD_PHOTOMETRY_OK";
 export const SHARE_DATA = "skyportal/SHARE_DATA";
 export const SHARE_DATA_OK = "skyportal/SHARE_DATA_OK";
 
+export const SEND_ALERT = "skyportal/SEND_ALERT";
+export const SEND_ALERT_OK = "skyportal/SEND_ALERT_OK";
+
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
 
 export const uploadPhotometry = (data) =>
@@ -134,6 +137,9 @@ export const editAssignment = (params, assignmentID) =>
 
 export const deleteAssignment = (id) =>
   API.DELETE(`/api/assignment/${id}`, DELETE_ASSIGNMENT);
+
+export const sendAlert = (params) =>
+  API.POST(`/api/source_alerts`, SEND_ALERT, params);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {

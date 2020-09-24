@@ -1,5 +1,6 @@
 import datetime
 from json.decoder import JSONDecodeError
+import python_http_client.exceptions
 
 import tornado
 from tornado.ioloop import IOLoop
@@ -13,6 +14,7 @@ from marshmallow.exceptions import ValidationError
 import functools
 import healpix_alchemy as ha
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -27,6 +29,7 @@ from ...models import (
     FollowupRequest,
     ClassicalAssignment,
     ObservingRun,
+    SourceAlert,
 )
 from .internal.source_views import register_source_view
 from ...utils import (
@@ -39,6 +42,8 @@ from ...utils import (
 from .candidate import grab_query_results_page
 
 SOURCES_PER_PAGE = 100
+
+_, cfg = load_env()
 
 
 class SourceHandler(BaseHandler):
@@ -934,3 +939,98 @@ class SourceFinderHandler(BaseHandler):
 
                 # pause the coroutine so other handlers can run
                 await tornado.gen.sleep(1e-9)  # 1 ns
+
+
+class SourceAlertHandler(BaseHandler):
+    @permissions(["Manage users"])
+    def post(self):
+        """
+        ---
+        description: Send out a new source alert
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  additionalNotes:
+                    type: string
+                    description: |
+                      Notes to append to the message sent out
+                  groupIds:
+                    type: array
+                    items:
+                      type: integer
+                    description: |
+                      List of IDs of groups whose members should get the alert (if they've opted in)
+                  sourceId:
+                    type: string
+                    description: |
+                      The ID of the Source the alert is being sent about
+                  level:
+                    type: string
+                    description: |
+                      Either 'soft' or 'hard', determines whether to send an email or email+SMS alert
+                required:
+                  - groupIds
+                  - sourceId
+                  - level
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        if not cfg["alerts.enabled"]:
+            return self.error("Alerts are not enabled in current deployment.")
+        data = self.get_json()
+
+        additional_notes = data["additionalNotes"].strip()
+
+        if data.get("groupIds") is None:
+            return self.error("Missing required parameter `groupIds`")
+        try:
+            group_ids = [int(gid) for gid in data["groupIds"]]
+        except ValueError:
+            return self.error(
+                "Invalid value provided for `groupIDs`; unable to parse "
+                "all list items to integers."
+            )
+
+        groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
+
+        if data.get("sourceId") is None:
+            return self.error("Missing required parameter `sourceId`")
+
+        source = Source.get_obj_if_owned_by(data["sourceId"], self.current_user)
+        if source is None:
+            return self.error('Invalid source ID.')
+
+        source_id = data["sourceId"]
+
+        if data.get("level") is None:
+            return self.error("Missing required parameter `level`")
+        if data["level"] not in ["soft", "hard"]:
+            return self.error(
+                "Invalid value provided for `level`: should be either 'soft' or 'hard'"
+            )
+        level = data["level"]
+
+        DBSession().add(
+            SourceAlert(
+                source_id=source_id,
+                groups=groups,
+                additional_notes=additional_notes,
+                sent_by=self.associated_user_object,
+                level=level,
+            )
+        )
+        try:
+            DBSession().commit()
+        except python_http_client.exceptions.UnauthorizedError:
+            return self.error(
+                "Twilio Sendgrid authorization error. Please ensure "
+                "valid Sendgrid API key is set in server environment as "
+                "per their setup docs."
+            )
+        return self.success()

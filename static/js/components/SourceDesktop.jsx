@@ -26,6 +26,7 @@ import FollowupRequestLists from "./FollowupRequestLists";
 import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
+import SourceAlert from "./SourceAlert";
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -359,6 +360,22 @@ const SourceDesktop = ({ source }) => {
                   size="21.875rem"
                 />
               </Suspense>
+            </AccordionDetails>
+          </Accordion>
+        </div>
+        <div className={classes.columnItem}>
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="alert-content"
+              id="alert-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Source Alert
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <SourceAlert sourceId={source.id} />
             </AccordionDetails>
           </Accordion>
         </div>

@@ -17,6 +17,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import URLType, EmailType
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
+from twilio.rest import Client
 
 from astropy import coordinates as ap_coord
 import healpix_alchemy as ha
@@ -396,6 +397,12 @@ class Obj(Base, ha.Point):
         'ClassicalAssignment',
         back_populates='obj',
         doc="Assignments of the object to classical observing runs.",
+    )
+
+    source_alerts = relationship(
+        "SourceAlert",
+        back_populates="source",
+        doc="Alerts regarding the object sent out by users",
     )
 
     @hybrid_property
@@ -1017,8 +1024,7 @@ class SourceView(Base):
 
 
 class Telescope(Base):
-    """A ground or space-based observational facility that can host Instruments.
-    """
+    """A ground or space-based observational facility that can host Instruments."""
 
     name = sa.Column(
         sa.String,
@@ -2146,7 +2152,7 @@ def send_user_invite_email(mapper, connection, target):
     )
     link_location = f'{app_base_url}/login/google-oauth2/?invite_token={target.token}'
     message = Mail(
-        from_email=cfg["invitations.from_email"],
+        from_email=cfg["twilio.from_email"],
         to_emails=target.user_email,
         subject=cfg["invitations.email_subject"],
         html_content=(
@@ -2154,8 +2160,114 @@ def send_user_invite_email(mapper, connection, target):
             f'Please click <a href="{link_location}">here</a> to join.'
         ),
     )
-    sg = SendGridAPIClient(cfg["invitations.sendgrid_api_key"])
+    sg = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
     sg.send(message)
+
+
+class SourceAlert(Base):
+    groups = relationship(
+        "Group",
+        secondary="group_alerts",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
+    sent_by = relationship(
+        "User",
+        secondary="user_alerts",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        uselist=False,
+    )
+    source_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the target Obj.",
+    )
+    source = relationship('Obj', back_populates='source_alerts', doc='The target Obj.')
+
+    additional_notes = sa.Column(sa.String(), nullable=True)
+    level = sa.Column(sa.String(), nullable=False)
+
+
+GroupSourceAlert = join_model('group_alerts', Group, SourceAlert)
+UserSourceAlert = join_model("user_alerts", User, SourceAlert)
+
+
+@event.listens_for(SourceAlert, 'after_insert')
+def send_source_alert(mapper, connection, target):
+    _, cfg = load_env()
+    ports_to_ignore = {True: 443, False: 80}  # True/False <-> server.ssl=True/False
+    app_base_url = (
+        f"{'https' if cfg['server.ssl'] else 'http'}:"
+        f"//{cfg['server.host']}"
+        + (
+            f":{cfg['server.port']}"
+            if (
+                cfg["server.port"] is not None
+                and cfg["server.port"] != ports_to_ignore[cfg["server.ssl"]]
+            )
+            else ""
+        )
+    )
+
+    link_location = f'{app_base_url}/source/{target.source_id}'
+    if target.sent_by.first_name is not None and target.sent_by.last_name is not None:
+        sent_by_name = f'{target.sent_by.first_name} {target.sent_by.last_name}'
+    else:
+        sent_by_name = target.sent_by.username
+
+    group_ids = map(lambda group: group.id, target.groups)
+    groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
+
+    target_users = set()
+    for group in groups:
+        # Use a set to get unique iterable of users
+        target_users.update(group.users)
+
+    source = DBSession().query(Obj).filter(Obj.id == target.source_id).one()
+    source_info = ""
+    if source.ra is not None:
+        source_info += f'RA={source.ra} '
+    if source.dec is not None:
+        source_info += f'Dec={source.dec}'
+    source_info = source_info.strip()
+
+    # Send SMS messages to opted-in users if desired
+    if target.level == "hard":
+        message_text = (
+            f'{cfg["app.title"]}: {sent_by_name} would like to call your immediate'
+            + f' attention to a source at {link_location} ({source_info}).'
+        )
+        if target.additional_notes != "":
+            message_text += f' Addtional notes: {target.additional_notes}'
+
+        account_sid = cfg["twilio.sms_account_sid"]
+        auth_token = cfg["twilio.sms_auth_token"]
+        from_number = cfg["twilio.from_number"]
+        client = Client(account_sid, auth_token)
+        for user in target_users:
+            if user.contact_phone is not None:
+                client.messages.create(
+                    body=message_text, from_=from_number, to=user.contact_phone.e164
+                )
+
+    # Send email alerts
+    for user in target_users:
+        descriptor = "immediate" if target.level == "hard" else ""
+        if user.contact_email is not None:
+            message = Mail(
+                from_email=cfg["twilio.from_email"],
+                to_emails=user.contact_email,
+                subject=f'{cfg["app.title"]}: Source Alert',
+                html_content=(
+                    f'{sent_by_name} would like to call your {descriptor} attention to'
+                    f' <a href="{link_location}">{target.source_id}</a> ({source_info})'
+                    f'<br /><br />Additional notes: {target.additional_notes}'
+                ),
+            )
+            sg = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
+            sg.send(message)
 
 
 schema.setup_schema()
