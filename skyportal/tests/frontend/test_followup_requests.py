@@ -80,6 +80,7 @@ def add_followup_request_using_frontend_and_verify(
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
+    loaded = False
     for _ in range(2):
         try:
             driver.get(f"/source/{public_source.id}")
@@ -90,7 +91,11 @@ def add_followup_request_using_frontend_and_verify(
         except TimeoutException:
             continue
         else:
+            loaded = True
             break
+
+    if not loaded:
+        raise TimeoutException('Timed out waiting to load source page plots.')
 
     submit_button = driver.wait_for_xpath(
         '//form[@class="rjsf"]//button[@type="submit"]'
