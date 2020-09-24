@@ -98,9 +98,25 @@ def add_followup_request_using_frontend_and_verify(
 
     mode_select = driver.wait_for_xpath('//*[@id="root_observation_type"]')
     driver.scroll_to_element(mode_select)
+
+    tid = uuid.uuid4().hex
+
+    driver.save_screenshot(f'test01_{tid}.png')
     ActionChains(driver).move_to_element(mode_select).pause(1).click().perform()
 
-    mix_n_match_option = driver.wait_for_xpath('''//li[@data-value="Mix 'n Match"]''')
+    driver.save_screenshot(f'test02_{tid}.png')
+    with open(f'test02_{tid}_html.png', 'w') as f:
+        f.write(driver.page_source)
+
+    try:
+        mix_n_match_option = driver.wait_for_xpath(
+            '''//li[@data-value="Mix 'n Match"]'''
+        )
+    finally:
+        driver.save_screenshot(f'test03_{tid}.png')
+        with open(f'test04_{tid}_html.png', 'w') as f:
+            f.write(driver.page_source)
+
     driver.scroll_to_element_and_click(mix_n_match_option)
 
     u_band_option = driver.wait_for_xpath('//input[@id="root_observation_choices_0"]')
