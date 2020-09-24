@@ -205,12 +205,6 @@ class SpectrumASCIIFileHandler(BaseHandler):
         """
 
         json = self.get_json()
-        files = list(self.request.files.values())
-
-        if len(files) != 1:
-            return self.error('Need exactly 1 ASCII file to process.')
-
-        httpfile = files[0]
 
         # validate the JSON
         try:
@@ -234,7 +228,9 @@ class SpectrumASCIIFileHandler(BaseHandler):
             if group_id not in user_group_ids:
                 return self.error('Insufficient permissions.')
 
-        spec = Spectrum.from_ascii(httpfile.filename, data=httpfile.body, **json)
+        filename = json.pop('filename')
+        ascii = json.pop('ascii')
+        spec = Spectrum.from_ascii(filename, data=ascii, **json)
         return self.success(data=spec)
 
 

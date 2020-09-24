@@ -146,9 +146,10 @@ def test_jsonify_spectrum_header(
                     'fluxerr_colindex': 3
                     if 'ZTF20abpuxna_20200915_Keck1_v1.ascii' in filename
                     else 2,
+                    'ascii': f.read(),
+                    'filename': filename,
                 },
                 token=upload_data_token,
-                files={f.name: f},
             )
         assert status == 200
         assert data['status'] == 'success'
@@ -185,9 +186,10 @@ def test_jsonify_spectrum_data(
                     'fluxerr_colindex': 3
                     if 'ZTF20abpuxna_20200915_Keck1_v1.ascii' in filename
                     else 2,
+                    'ascii': f.read(),
+                    'filename': filename,
                 },
                 token=upload_data_token,
-                files={f.name: f},
             )
         assert status == 200
         assert data['status'] == 'success'

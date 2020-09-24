@@ -800,6 +800,15 @@ class SpectrumAsciiFilePostJSON(_Schema):
         "flux error values, set this parameter to None.",
     )
 
+    ascii = fields.String(
+        description="The content of the ascii file to be parsed.", required=True
+    )
+
+    filename = fields.String(
+        description="The original name of the file (for bookkeeping purposes).",
+        required=True,
+    )
+
 
 def register_components(spec):
     print('Registering schemas with APISpec')
