@@ -1,11 +1,9 @@
-import datetime
 import os
 from skyportal.tests import api
 from glob import glob
 import yaml
 import numpy as np
-
-import pdb
+import datetime
 
 
 def test_token_user_post_get_spectrum_data(
@@ -132,7 +130,6 @@ def test_delete_spectrum_data(
 def test_jsonify_spectrum_header(
     upload_data_token, manage_sources_token, public_source, public_group
 ):
-    pdb.set_trace()
     for filename in glob(f'{os.path.dirname(__file__)}/../data/ZTF*.ascii.head'):
         with open(filename[:-5], 'r') as f:
             status, data = api(
@@ -165,7 +162,13 @@ def test_jsonify_spectrum_header(
                 else:
                     value = data['data']['altdata'][key]
                 if isinstance(answer[key], (str, int)):
-                    assert value == answer[key]
+                    assert str(value) == str(answer[key])
+                elif isinstance(answer[key], datetime.datetime):
+                    assert datetime.datetime.fromisoformat(value) == answer[key]
+                elif isinstance(answer[key], datetime.date):
+                    assert datetime.datetime.fromisoformat(value).date() == answer[key]
+                elif answer[key] is None:
+                    assert value is None
                 else:
                     np.testing.assert_allclose(value, answer[key])
 

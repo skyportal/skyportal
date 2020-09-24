@@ -170,7 +170,6 @@ EDGECUTL: 3
 CALSRC: fluxcal_auto_robot_lstep1__crr_b_ifu20200902_03_15_51_STD-BD+33d2642.fits
 FLUXCAL: True
 SOURCE: e3d_crr_b_ifu20200902_07_29_46_ZTF20abwdwoa.fits
-PYSEDMT: Force 3DPSF extraction: Spectral Model
 EXTRTYPE: auto_robot
 HISTORY: SEDMr.Debias run on Wed Sep  2 01:08:58 2020
 SNIDMATCHTYPE: Ia

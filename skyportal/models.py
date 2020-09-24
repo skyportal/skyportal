@@ -1657,11 +1657,11 @@ class Spectrum(Base):
         filename = Path(filename)
 
         if data is None:
-            table = ascii.read(filename)
+            table = ascii.read(filename, comment='#', header_start=None)
             bytes = open(filename).read().encode('ascii')
         else:
             file_obj = io.BytesIO(data.encode('ascii'))
-            table = ascii.read(file_obj)
+            table = ascii.read(file_obj, comment='#', header_start=None)
             bytes = data
 
         # matches lines like:
