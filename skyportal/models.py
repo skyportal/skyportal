@@ -1596,7 +1596,16 @@ class Spectrum(Base):
     )
 
     @classmethod
-    def from_ascii(cls, filename, obj_id=None, instrument_id=None, observed_at=None):
+    def from_ascii(
+        cls,
+        filename,
+        obj_id=None,
+        instrument_id=None,
+        observed_at=None,
+        wave_colindex=0,
+        flux_colindex=1,
+        fluxerr_colindex=2,
+    ):
         """Generate a `Spectrum` from an ascii file.
 
         Parameters
@@ -1612,6 +1621,18 @@ class Spectrum(Base):
         observed_at : string or datetime, optional
            Median UTC ISO time stamp of the exposure or exposures in which
            the Spectrum was acquired, if not present in the ASCII header."
+        wave_colindex: integer, optional
+           The 0-based index of the ASCII column corresponding to the wavelength
+           values of the spectrum (default 0).
+        flux_colindex: integer, optional
+           The 0-based index of the ASCII column corresponding to the flux
+           values of the spectrum (default 1).
+        fluxerr_colindex: integer or None, optional
+           The 0-based index of the ASCII column corresponding to the flux error
+           values of the spectrum (default 2). If there are only 2 columns
+           in the input file this value will be ignored. If there are more than
+           2 columns in the input file, but none of them correspond to flux error
+           values, set this parameter to None.
 
         Returns
         -------
@@ -1682,9 +1703,11 @@ class Spectrum(Base):
             )
 
         return cls(
-            wavelengths=tabledata[colnames[0]],
-            fluxes=tabledata[colnames[1]],
-            errors=tabledata[colnames[2]] if len(colnames) > 2 else None,
+            wavelengths=tabledata[colnames[wave_colindex]],
+            fluxes=tabledata[colnames[flux_colindex]],
+            errors=tabledata[colnames[fluxerr_colindex]]
+            if len(colnames) > 2 and fluxerr_colindex is not None
+            else None,
             obj_id=obj_id,
             instrument_id=instrument_id,
             observed_at=observed_at,
