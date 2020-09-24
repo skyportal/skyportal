@@ -1,7 +1,7 @@
 import uuid
 import re
 import io
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 import arrow
 from astropy import units as u
 from astropy import time as ap_time
@@ -1588,8 +1588,8 @@ class Spectrum(Base):
         psql.JSONB, doc="Miscellaneous alternative metadata.", nullable=True
     )
 
-    original_file_bytes = sa.Column(
-        sa.types.LargeBinary,
+    original_file_string = sa.Column(
+        sa.String,
         doc="Content of original file that user passed to upload the spectrum.",
     )
     original_file_filename = sa.Column(
@@ -1664,6 +1664,15 @@ class Spectrum(Base):
             table = ascii.read(file_obj, comment='#', header_start=None)
             bytes = data
 
+        tabledata = np.asarray(table)
+        colnames = table.colnames
+
+        if len(colnames) < 2:
+            raise ValueError(
+                'Input data must have at least 2 columns (wavelength, '
+                'flux, and optionally flux error).'
+            )
+
         # matches lines like:
         # XTENSION: IMAGE
         # BITPIX: -32
@@ -1710,17 +1719,13 @@ class Spectrum(Base):
                     }
                 else:
                     header[key] = serialized[key]
+
+            # coerce things to serializable JSON
+            for k in header:
+                if isinstance(header[k], (datetime, date)):
+                    header[k] = header[k].isoformat()
         else:
             header = None
-
-        tabledata = np.asarray(table)
-        colnames = table.colnames
-
-        if len(colnames) < 2:
-            raise ValueError(
-                'Input data must have at least 2 columns (wavelength, '
-                'flux, and optionally flux error).'
-            )
 
         return cls(
             wavelengths=tabledata[colnames[wave_colindex]],
@@ -1732,7 +1737,7 @@ class Spectrum(Base):
             instrument_id=instrument_id,
             observed_at=observed_at,
             original_file_filename=filename.name,
-            original_file_bytes=bytes,
+            original_file_string=bytes,
             altdata=header,
         )
 

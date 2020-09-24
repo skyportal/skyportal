@@ -177,7 +177,39 @@ class SpectrumHandler(BaseHandler):
         return self.success()
 
 
-class SpectrumASCIIFileHandler(BaseHandler):
+class ASCIIHandler(object):
+    def spec_from_ascii_request(self):
+        """Helper method to read in Spectrum objects from ASCII POST."""
+        json = self.get_json()
+
+        try:
+            json = SpectrumAsciiFilePostJSON.load(json)
+        except ValidationError as e:
+            raise ValidationError(
+                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+            )
+
+        obj = Source.get_obj_if_owned_by(json['obj_id'], self.current_user)
+        if obj is None:
+            raise ValidationError('Invalid Obj id.')
+
+        instrument = Instrument.query.get(json['instrument_id'])
+        if instrument is None:
+            raise ValidationError('Invalid instrument id.')
+
+        group_ids = json.pop('group_ids')
+        user_group_ids = [g.id for g in self.current_user.accessible_groups]
+        for group_id in group_ids:
+            if group_id not in user_group_ids:
+                raise PermissionError('Insufficient permissions.')
+
+        filename = json.pop('filename')
+        ascii = json.pop('ascii')
+        spec = Spectrum.from_ascii(filename, data=ascii, **json)
+        return spec
+
+
+class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
     @permissions(['Upload data'])
     def post(self):
         """
@@ -187,12 +219,43 @@ class SpectrumASCIIFileHandler(BaseHandler):
           content:
             application/json:
               schema: SpectrumAsciiFilePostJSON
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
-                title: Spectrum ASCII File
-                required: true
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New spectrum ID
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        spec = self.spec_from_ascii_request()
+        DBSession().add(spec)
+        DBSession().commit()
+        return self.success(data={'id': spec.id})
+
+
+class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
+    @permissions(['Upload data'])
+    def post(self):
+        """
+        ---
+        description: Parse spectrum from ASCII file
+        requestBody:
+          content:
+            application/json:
+              schema: SpectrumAsciiFilePostJSON
         responses:
           200:
             content:
@@ -204,33 +267,7 @@ class SpectrumASCIIFileHandler(BaseHandler):
                 schema: Error
         """
 
-        json = self.get_json()
-
-        # validate the JSON
-        try:
-            json = SpectrumAsciiFilePostJSON.load(json)
-        except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
-
-        obj = Source.get_obj_if_owned_by(json['obj_id'], self.current_user)
-        if obj is None:
-            return self.error('Invalid Obj id.')
-
-        instrument = Instrument.query.get(json['instrument_id'])
-        if instrument is None:
-            return self.error('Invalid instrument id.')
-
-        group_ids = json.pop('group_ids')
-        user_group_ids = [g.id for g in self.current_user.accessible_groups]
-        for group_id in group_ids:
-            if group_id not in user_group_ids:
-                return self.error('Insufficient permissions.')
-
-        filename = json.pop('filename')
-        ascii = json.pop('ascii')
-        spec = Spectrum.from_ascii(filename, data=ascii, **json)
+        spec = self.spec_from_ascii_request()
         return self.success(data=spec)
 
 

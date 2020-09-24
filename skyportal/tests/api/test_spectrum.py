@@ -134,7 +134,7 @@ def test_jsonify_spectrum_header(
         with open(filename[:-5], 'r') as f:
             status, data = api(
                 'POST',
-                'spectrum/ascii',
+                'spectrum/parse/ascii',
                 data={
                     'obj_id': str(public_source.id),
                     'observed_at': str(datetime.datetime.now()),
@@ -180,7 +180,7 @@ def test_jsonify_spectrum_data(
         with open(filename, 'r') as f:
             status, data = api(
                 'POST',
-                'spectrum/ascii',
+                'spectrum/parse/ascii',
                 data={
                     'obj_id': str(public_source.id),
                     'observed_at': str(datetime.datetime.now()),
@@ -229,3 +229,60 @@ def test_jsonify_spectrum_data(
             np.testing.assert_allclose(
                 np.asarray(data['data']['errors'], dtype=float), answer[:, 3]
             )
+
+
+def test_upload_spectrum_from_ascii_file(
+    upload_data_token, manage_sources_token, public_source, public_group
+):
+    for filename in glob(f'{os.path.dirname(__file__)}/../data/ZTF*.ascii'):
+        with open(filename, 'r') as f:
+
+            content = f.read()
+            observed_at = str(datetime.datetime.now())
+
+            status, data = api(
+                'POST',
+                'spectrum/ascii',
+                data={
+                    'obj_id': str(public_source.id),
+                    'observed_at': observed_at,
+                    'instrument_id': 1,
+                    'group_ids': [public_group.id],
+                    'fluxerr_colindex': 3
+                    if 'ZTF20abpuxna_20200915_Keck1_v1.ascii' in filename
+                    else 2,
+                    'ascii': content,
+                    'filename': filename,
+                },
+                token=upload_data_token,
+            )
+
+            assert status == 200
+            assert data['status'] == 'success'
+
+            status2, data2 = api(
+                'POST',
+                'spectrum/parse/ascii',
+                data={
+                    'obj_id': str(public_source.id),
+                    'observed_at': observed_at,
+                    'instrument_id': 1,
+                    'group_ids': [public_group.id],
+                    'fluxerr_colindex': 3
+                    if 'ZTF20abpuxna_20200915_Keck1_v1.ascii' in filename
+                    else 2,
+                    'ascii': content,
+                    'filename': filename,
+                },
+                token=upload_data_token,
+            )
+
+            assert status2 == 200
+            assert data2['status'] == 'success'
+
+        status3, data3 = api(
+            'GET', f'spectrum/{data["data"]["id"]}', token=upload_data_token,
+        )
+
+        for key in data2['data']:
+            assert data3['data'][key] == data2['data'][key]
