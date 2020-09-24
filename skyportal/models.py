@@ -1,5 +1,6 @@
 import uuid
 import re
+import io
 from datetime import datetime, timezone
 import arrow
 from astropy import units as u
@@ -1599,6 +1600,7 @@ class Spectrum(Base):
     def from_ascii(
         cls,
         filename,
+        data=None,
         obj_id=None,
         instrument_id=None,
         observed_at=None,
@@ -1611,7 +1613,18 @@ class Spectrum(Base):
         Parameters
         ----------
         filename : str
-           The name of the ASCII file containing the spectrum.
+           The original name of the ASCII file containing the spectrum,
+           or the name of the file on disk to read. If `data` is not provided,
+           `from_ascii` tries to read this file and parse its contents. If `data`
+           is provided, the filename is used only for bookkeeping purposes; no
+           attempt is made to actually read the file.
+        data: bytes, optional
+           The content of the ASCII file as a bytestring. If this argument is
+           supplied, then no attempt is made to read the file `filename` from
+           disk. This permits this method to be used on raw, in-memory data
+           (e.g., the kind supplied in an HTTP request) in addition to
+           file-like objects, saving the need for any interaction with the
+           filesystem.
         obj_id : str, optional
            The id of the Obj that this Spectrum is of, if not present
            in the ASCII header.
@@ -1642,10 +1655,14 @@ class Spectrum(Base):
         """
 
         filename = Path(filename)
-        table = ascii.read(filename)
-        bytes = open(filename).read().encode('ascii')
 
-        header = {}
+        if data is None:
+            table = ascii.read(filename)
+            bytes = open(filename).read().encode('ascii')
+        else:
+            file_obj = io.BytesIO(data)
+            table = ascii.read(file_obj)
+            bytes = data
 
         # matches lines like:
         # XTENSION: IMAGE
@@ -1655,6 +1672,7 @@ class Spectrum(Base):
         # NAXIS2: 1
 
         if 'comments' in table.meta:
+            header = {}
             for line in table.meta['comments']:
                 try:
                     result = yaml.load(line, Loader=yaml.FullLoader)
@@ -1689,8 +1707,7 @@ class Spectrum(Base):
                     }
                 else:
                     header[key] = serialized[key]
-
-        if len(header) == 0:
+        else:
             header = None
 
         tabledata = np.asarray(table)

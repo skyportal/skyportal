@@ -2,6 +2,7 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Group, Instrument, Obj, Source, Spectrum
+from ...schema import SpectrumAsciiFilePostJSON
 
 
 class SpectrumHandler(BaseHandler):
@@ -176,6 +177,67 @@ class SpectrumHandler(BaseHandler):
         return self.success()
 
 
+class SpectrumASCIIFileHandler(BaseHandler):
+    @permissions(['Upload data'])
+    def post(self):
+        """
+        ---
+        description: Upload spectrum from ASCII file
+        requestBody:
+          content:
+            application/json:
+              schema: SpectrumAsciiFilePostJSON
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+                title: Spectrum ASCII File
+                required: true
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SpectrumNoID
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        json = self.get_json()
+        files = list(self.request.files.values())
+
+        if len(files) != 1:
+            return self.error('Need exactly 1 ASCII file to process.')
+
+        httpfile = files[0]
+
+        # validate the JSON
+        try:
+            json = SpectrumAsciiFilePostJSON.load(json)
+        except ValidationError as e:
+            return self.error(
+                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+            )
+
+        obj = Source.get_obj_if_owned_by(json['obj_id'], self.current_user)
+        if obj is None:
+            return self.error('Invalid Obj id.')
+
+        instrument = Instrument.query.get(json['instrument_id'])
+        if instrument is None:
+            return self.error('Invalid instrument id.')
+
+        group_ids = json.pop('group_ids')
+        user_group_ids = [g.id for g in self.current_user.accessible_groups]
+        for group_id in group_ids:
+            if group_id not in user_group_ids:
+                return self.error('Insufficient permissions.')
+
+        spec = Spectrum.from_ascii(httpfile.filename, data=httpfile.body, **json)
+        return self.success(data=spec)
+
+
 class ObjSpectraHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
@@ -199,6 +261,7 @@ class ObjSpectraHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
         obj = Obj.query.get(obj_id)
         if obj is None:
             return self.error('Invalid object ID.')

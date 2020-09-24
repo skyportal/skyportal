@@ -767,6 +767,40 @@ class ObservingRunGetWithAssignments(ObservingRunGet):
     instrument = fields.Field()
 
 
+class SpectrumAsciiFilePostJSON(_Schema):
+    obj_id = fields.String(
+        description='The ID of the object that the spectrum is of.', required=True
+    )
+    instrument_id = fields.Integer(
+        description='The ID of the instrument that took the spectrum.', required=True
+    )
+    observed_at = fields.DateTime(
+        description='The ISO UTC time the spectrum was taken.', required=True
+    )
+    group_ids = fields.List(
+        fields.Integer, description="The IDs of the groups to share this spectrum with."
+    )
+
+    wave_colindex = fields.Integer(
+        default=0,
+        description="The 0-based index of the ASCII column corresponding "
+        "to the wavelength values of the spectrum (default 0).",
+    )
+    flux_colindex = fields.Integer(
+        default=1,
+        description="The 0-based index of the ASCII column corresponding to "
+        "the flux values of the spectrum (default 1).",
+    )
+    fluxerr_colindex = fields.Integer(
+        default=2,
+        description="The 0-based index of the ASCII column corresponding to the flux "
+        "error values of the spectrum (default 2). If there are only 2 "
+        "columns in the input file this value will be ignored. If there are "
+        "more than 2 columns in the input file, but none of them correspond to "
+        "flux error values, set this parameter to None.",
+    )
+
+
 def register_components(spec):
     print('Registering schemas with APISpec')
 
@@ -798,3 +832,4 @@ ObservingRunPost = ObservingRunPost()
 ObservingRunGet = ObservingRunGet()
 AssignmentSchema = AssignmentSchema()
 ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
+SpectrumAsciiFilePostJSON = SpectrumAsciiFilePostJSON()
