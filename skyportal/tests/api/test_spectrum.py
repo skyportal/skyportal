@@ -1,9 +1,11 @@
 import datetime
-
+import os
 from skyportal.tests import api
 from glob import glob
 import yaml
 import numpy as np
+
+import pdb
 
 
 def test_token_user_post_get_spectrum_data(
@@ -130,11 +132,12 @@ def test_delete_spectrum_data(
 def test_jsonify_spectrum_header(
     upload_data_token, manage_sources_token, public_source, public_group
 ):
-    for filename in glob('../data/ZTF*.ascii.head'):
-        with open(filename[:-5], 'r') as f:
+    pdb.set_trace()
+    for filename in glob(f'{os.path.dirname(__file__)}/../data/ZTF*.ascii.head'):
+        with open(filename[:-5], 'rb') as f:
             status, data = api(
                 'POST',
-                'spectrum_file',
+                'spectrum/ascii',
                 data={
                     'obj_id': str(public_source.id),
                     'observed_at': str(datetime.datetime.now()),
@@ -145,7 +148,7 @@ def test_jsonify_spectrum_header(
                     else 2,
                 },
                 token=upload_data_token,
-                files=f,
+                files={f.name: f},
             )
         assert status == 200
         assert data['status'] == 'success'
@@ -169,11 +172,11 @@ def test_jsonify_spectrum_header(
 def test_jsonify_spectrum_data(
     upload_data_token, manage_sources_token, public_source, public_group
 ):
-    for filename in glob('../data/ZTF*.ascii'):
-        with open(filename, 'r') as f:
+    for filename in glob(f'{os.path.dirname(__file__)}/../data/ZTF*.ascii'):
+        with open(filename, 'rb') as f:
             status, data = api(
                 'POST',
-                'spectrum_file',
+                'spectrum/ascii',
                 data={
                     'obj_id': str(public_source.id),
                     'observed_at': str(datetime.datetime.now()),
@@ -184,7 +187,7 @@ def test_jsonify_spectrum_data(
                     else 2,
                 },
                 token=upload_data_token,
-                files=f,
+                files={f.name: f},
             )
         assert status == 200
         assert data['status'] == 'success'
