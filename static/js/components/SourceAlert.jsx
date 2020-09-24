@@ -1,9 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import { useForm, Controller } from "react-hook-form";
 
-import { makeStyles } from "@material-ui/core/styles";
+import { makeStyles, useTheme } from "@material-ui/core/styles";
 import FormControl from "@material-ui/core/FormControl";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import FormLabel from "@material-ui/core/FormLabel";
@@ -33,9 +33,18 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+const getFontStyles = (groupId, groupIds = [], theme) => ({
+  fontWeight:
+    groupIds.indexOf(groupId) === -1
+      ? theme.typography.fontWeightRegular
+      : theme.typography.fontWeightMedium,
+});
+
 const SourceAlert = ({ sourceId }) => {
   const classes = useStyles();
   const groups = useSelector((state) => state.groups.userAccessible);
+  const theme = useTheme();
+  const [selectedGroups, setSelectedGroups] = useState([]);
   const { handleSubmit, getValues, reset, register, control } = useForm();
   const dispatch = useDispatch();
   const initialFormState = {
@@ -75,11 +84,19 @@ const SourceAlert = ({ sourceId }) => {
                 required: true,
               }}
               defaultValue={[]}
+              onChange={([event]) => {
+                setSelectedGroups(event.target.value);
+                return event.target.value;
+              }}
               multiple
             >
               {groups.length > 0 &&
                 groups.map((group) => (
-                  <MenuItem value={group.id} key={group.id.toString()}>
+                  <MenuItem
+                    value={group.id}
+                    key={group.id.toString()}
+                    style={getFontStyles(group.id, selectedGroups, theme)}
+                  >
                     {group.name}
                   </MenuItem>
                 ))}
@@ -107,7 +124,7 @@ const SourceAlert = ({ sourceId }) => {
             </Controller>
           </FormControl>
           <TextField
-            id="standard-textarea"
+            id="sourcealert-textarea"
             label="Additional Notes"
             variant="outlined"
             multiline
