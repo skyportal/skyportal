@@ -134,7 +134,7 @@ def test_jsonify_spectrum_header(
 ):
     pdb.set_trace()
     for filename in glob(f'{os.path.dirname(__file__)}/../data/ZTF*.ascii.head'):
-        with open(filename[:-5], 'rb') as f:
+        with open(filename[:-5], 'r') as f:
             status, data = api(
                 'POST',
                 'spectrum/ascii',
@@ -174,7 +174,7 @@ def test_jsonify_spectrum_data(
     upload_data_token, manage_sources_token, public_source, public_group
 ):
     for filename in glob(f'{os.path.dirname(__file__)}/../data/ZTF*.ascii'):
-        with open(filename, 'rb') as f:
+        with open(filename, 'r') as f:
             status, data = api(
                 'POST',
                 'spectrum/ascii',
@@ -194,19 +194,35 @@ def test_jsonify_spectrum_data(
         assert status == 200
         assert data['status'] == 'success'
 
-        answer = np.genfromtxt(filename, dtype=None, encoding='ascii')
+        answer = np.genfromtxt(filename, dtype=float, encoding='ascii')
 
         if answer.shape[-1] == 2:
-            np.assert_allclose(data['data']['wavelengths'], answer[:, 0])
-            np.assert_allclose(data['data']['fluxes'], answer[:, 1])
+            np.testing.assert_allclose(
+                np.asarray(data['data']['wavelengths'], dtype=float), answer[:, 0]
+            )
+            np.testing.assert_allclose(
+                np.asarray(data['data']['fluxes'], dtype=float), answer[:, 1]
+            )
 
         elif answer.shape[-1] == 3:
-            np.assert_allclose(data['data']['wavelengths'], answer[:, 0])
-            np.assert_allclose(data['data']['fluxes'], answer[:, 1])
-            np.assert_allclose(data['data']['errors'], answer[:, 2])
+            np.testing.assert_allclose(
+                np.asarray(data['data']['wavelengths'], dtype=float), answer[:, 0]
+            )
+            np.testing.assert_allclose(
+                np.asarray(data['data']['fluxes'], dtype=float), answer[:, 1]
+            )
+            np.testing.assert_allclose(
+                np.asarray(data['data']['errors'], dtype=float), answer[:, 2]
+            )
 
         else:
             # this is the long one from Keck
-            np.assert_allclose(data['data']['wavelengths'], answer[:, 0])
-            np.assert_allclose(data['data']['fluxes'], answer[:, 1])
-            np.assert_allclose(data['data']['errors'], answer[:, 3])
+            np.testing.assert_allclose(
+                np.asarray(data['data']['wavelengths'], dtype=float), answer[:, 0]
+            )
+            np.testing.assert_allclose(
+                np.asarray(data['data']['fluxes'], dtype=float), answer[:, 1]
+            )
+            np.testing.assert_allclose(
+                np.asarray(data['data']['errors'], dtype=float), answer[:, 3]
+            )
