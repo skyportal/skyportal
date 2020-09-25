@@ -420,3 +420,24 @@ def test_dropdown_facility_change(driver, user, public_source):
     element = driver.wait_for_xpath(xpath)
     ActionChains(driver).move_to_element(element).click_and_hold().perform()
     driver.wait_for_xpath("//code/div[text()[contains(., 'dist')]]", timeout=20)
+
+
+def test_source_alert(driver, user, public_group, public_source):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    # Choose a group and click outside of the multi-select popup to close
+    group_select = driver.wait_for_xpath(
+        "//div[@data-testid='sourceAlert_groupSelect']"
+    )
+    driver.scroll_to_element_and_click(group_select)
+    group_option = driver.wait_for_xpath(
+        f'//li[@data-testid="alertGroupSelect_{public_group.id}"]'
+    )
+    ActionChains(driver).click(group_option).perform()
+    textbox = driver.wait_for_xpath("//*[@id='sourcealert-textarea']")
+    driver.scroll_to_element_and_click(textbox)
+    driver.click_xpath("//button[@data-testid='sendAlertButton']")
+    # Since no test users have contact info, alerts will be 'queued sucessfully'
+    # with no alerts sent out
+    driver.wait_for_xpath("//*[text()='Alert queued up sucessfully']")

@@ -66,8 +66,8 @@ const SourceAlert = ({ sourceId }) => {
     } else {
       const result = await dispatch(Actions.sendAlert(formData));
       if (result.status === "success") {
+        dispatch(showNotification("Alert queued up sucessfully", "info"));
         reset(initialFormState);
-        showNotification("Alert queued up sucessfully", "info");
       }
     }
   };
@@ -77,7 +77,10 @@ const SourceAlert = ({ sourceId }) => {
       <Typography variant="h6">Send an Alert</Typography>
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className={classes.formContainer}>
-          <FormControl className={classes.formControl}>
+          <FormControl
+            className={classes.formControl}
+            data-testid="sourceAlert_groupSelect"
+          >
             <InputLabel id="alertGroupSelectLabel">Choose Group</InputLabel>
             <Controller
               as={Select}
@@ -98,6 +101,7 @@ const SourceAlert = ({ sourceId }) => {
                   <MenuItem
                     value={group.id}
                     key={group.id.toString()}
+                    data-testid={`alertGroupSelect_${group.id}`}
                     style={getFontStyles(group.id, selectedGroups, theme)}
                   >
                     {group.name}
@@ -136,7 +140,12 @@ const SourceAlert = ({ sourceId }) => {
             size="small"
             inputRef={register}
           />
-          <Button type="submit" name="alertSubmitButton" variant="contained">
+          <Button
+            type="submit"
+            name="alertSubmitButton"
+            variant="contained"
+            data-testid="sendAlertButton"
+          >
             Send Alert
           </Button>
         </div>

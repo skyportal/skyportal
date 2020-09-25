@@ -942,7 +942,6 @@ class SourceFinderHandler(BaseHandler):
 
 
 class SourceAlertHandler(BaseHandler):
-    @permissions(["Manage users"])
     def post(self):
         """
         ---
