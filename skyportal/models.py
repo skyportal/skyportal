@@ -1343,6 +1343,12 @@ class Comment(Base):
         passive_deletes=True,
         doc="Groups that can see the comment.",
     )
+    is_auto = sa.Column(
+        sa.Boolean,
+        default=False,
+        doc="True for comments made by robots, False for human authors",
+    )
+    altdata = sa.Column(JSONB, default=None, doc="searchable data in JSON format")
 
     def construct_author_info_dict(self):
         return {
