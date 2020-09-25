@@ -1,7 +1,10 @@
+import base64
+
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Group, Instrument, Obj, Source, Spectrum
+from ...schema import SpectrumFITSFilePostJSON
 
 
 class SpectrumHandler(BaseHandler):
@@ -176,6 +179,100 @@ class SpectrumHandler(BaseHandler):
         return self.success()
 
 
+class FITSHandler:
+    def spec_from_ascii_request(self):
+        """Helper method to read in Spectrum objects from ASCII POST."""
+        json = self.get_json()
+
+        try:
+            json = SpectrumFITSFilePostJSON.load(json)
+        except ValidationError as e:
+            raise ValidationError(
+                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+            )
+
+        obj = Source.get_obj_if_owned_by(json['obj_id'], self.current_user)
+        if obj is None:
+            raise ValidationError('Invalid Obj id.')
+
+        instrument = Instrument.query.get(json['instrument_id'])
+        if instrument is None:
+            raise ValidationError('Invalid instrument id.')
+
+        group_ids = json.pop('group_ids')
+        user_group_ids = [g.id for g in self.current_user.accessible_groups]
+        for group_id in group_ids:
+            if group_id not in user_group_ids:
+                raise PermissionError('Insufficient permissions.')
+
+        filename = json.pop('filename')
+        bytestring = base64.b64decode(json.pop('bytestring'))
+        spec = Spectrum.from_fits(filename, bytestring, **json)
+        return spec
+
+
+class SpectrumFITSFileHandler(BaseHandler, FITSHandler):
+    @permissions(['Upload data'])
+    def post(self):
+        """
+        ---
+        description: Upload spectrum from ASCII file
+        requestBody:
+          content:
+            application/json:
+              schema: SpectrumFITSFilePostJSON
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New spectrum ID
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        spec = self.spec_from_ascii_request()
+        DBSession().add(spec)
+        DBSession().commit()
+        return self.success(data={'id': spec.id})
+
+
+class SpectrumFITSFileParser(BaseHandler, FITSHandler):
+    @permissions(['Upload data'])
+    def post(self):
+        """
+        ---
+        description: Parse spectrum from ASCII file
+        requestBody:
+          content:
+            application/json:
+              schema: SpectrumFITSFilePostJSON
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SpectrumNoID
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        spec = self.spec_from_ascii_request()
+        return self.success(data=spec)
+
+
 class ObjSpectraHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
@@ -199,6 +296,7 @@ class ObjSpectraHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
         obj = Obj.query.get(obj_id)
         if obj is None:
             return self.error('Invalid object ID.')

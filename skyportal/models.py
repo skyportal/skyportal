@@ -1,6 +1,7 @@
 import uuid
 import re
-from datetime import datetime, timezone
+import io
+from datetime import datetime, timezone, date
 import arrow
 from astropy import units as u
 from astropy import time as ap_time
@@ -19,9 +20,12 @@ from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
 from astropy import coordinates as ap_coord
+from astropy.io import fits
 import healpix_alchemy as ha
 import timezonefinder
 from .utils.cosmology import establish_cosmology
+
+from pathlib import Path
 
 from baselayer.app.models import (  # noqa
     init_db,
@@ -1645,39 +1649,167 @@ class Spectrum(Base):
     assignment_id = sa.Column(sa.ForeignKey('classicalassignments.id'), nullable=True)
     assignment = relationship('ClassicalAssignment', back_populates='spectra')
 
+    altdata = sa.Column(
+        psql.JSONB, doc="Miscellaneous alternative metadata.", nullable=True
+    )
+
+    original_file_string = sa.Column(
+        sa.String,
+        doc="Content of original file that user passed to upload the spectrum.",
+    )
+    original_file_filename = sa.Column(
+        sa.String, doc="Name of original file that user passed to upload the spectrum."
+    )
+
     @classmethod
-    def from_ascii(cls, filename, obj_id, instrument_id, observed_at):
-        """Generate a `Spectrum` from an ascii file.
+    def from_fits(
+        cls,
+        filename,
+        bytestring=None,
+        obj_id=None,
+        instrument_id=None,
+        observed_at=None,
+        wave_colindex=0,
+        flux_colindex=1,
+        fluxerr_colindex=2,
+        data_hdu_index=None,
+        header_hdu_index=None,
+    ):
+        """Generate a `Spectrum` from a FITS file.
 
         Parameters
         ----------
-
         filename : str
-           The name of the ASCII file containing the spectrum.
-        obj_id : str
-           The name of the Spectrum's Obj.
-        instrument_id : int
-           ID of the Instrument with which this Spectrum was acquired.
-        observed_at : string or datetime
-           Median UTC ISO time stamp of the exposure or exposures in which the Spectrum was acquired."
+           The original name of the FITS file containing the spectrum,
+           or the name of the file on disk to read. If `data` is not provided,
+           `from_fits` tries to read this file and parse its contents. If `data`
+           is provided, the filename is used only for bookkeeping purposes; no
+           attempt is made to actually read the file.
+        bytestring: bytes, optional
+           The content of the FITS file as a bytestring. If this argument is
+           supplied, then no attempt is made to read the file `filename` from
+           disk. This permits this method to be used on raw, in-memory data
+           (e.g., the kind supplied in an HTTP request) in addition to
+           file-like objects, saving the need for any interaction with the
+           filesystem.
+        obj_id : str, optional
+           The id of the Obj that this Spectrum is of, if not present
+           in the FITS header.
+        instrument_id : int, optional
+           ID of the Instrument with which this Spectrum was acquired,
+           if not present in the FITS header.
+        observed_at : string or datetime, optional
+           Median UTC ISO time stamp of the exposure or exposures in which
+           the Spectrum was acquired, if not present in the FITS header."
+        wave_colindex: integer, optional
+           The 0-based index of the FITS column corresponding to the wavelength
+           values of the spectrum (default 0).
+        flux_colindex: integer, optional
+           The 0-based index of the FITS column corresponding to the flux
+           values of the spectrum (default 1).
+        fluxerr_colindex: integer or None, optional
+           The 0-based index of the FITS column corresponding to the flux error
+           values of the spectrum (default 2). If there are only 2 columns
+           in the input file this value will be ignored. If there are more than
+           2 columns in the input file, but none of them correspond to flux error
+           values, set this parameter to None.
 
         Returns
         -------
-
         spec : `skyportal.models.Spectrum`
-           The Spectrum generated from the ASCII file.
+           The Spectrum generated from the FITS file.
 
         """
-        data = np.loadtxt(filename)
-        if data.shape[1] != 2:  # TODO support other formats
-            raise ValueError(f"Expected 2 columns, got {data.shape[1]}")
+
+        filename = Path(filename)
+
+        def find_header_data(hdul):
+            table = None
+            header = None
+            if data_hdu_index is not None:
+                table = hdul[data_hdu_index].data
+            else:
+                for hdu in hdul:
+                    if hdu.data is not None:
+                        table = hdu.data
+                        if header_hdu_index is None:
+                            header = hdu.header
+            if header_hdu_index is not None:
+                header = hdul[header_hdu_index].header
+            if table is None:
+                raise ValueError('Could not find data.')
+            if header is None:
+                raise ValueError('Could not find header.')
+            return table, header
+
+        if bytestring is None:
+            with fits.open(filename) as hdul:
+                table, header = find_header_data(hdul)
+            bytes = open(filename, 'rb').read()
+        else:
+            file_obj = io.BytesIO(bytestring)
+            with fits.open(file_obj) as hdul:
+                table, header = find_header_data(hdul)
+            bytes = bytestring
+
+        serialized = dict(header)
+        colnames = table.dtype.names
+
+        if colnames is None:
+            if len(table.shape) != 2:
+                raise ValueError('Spectrum data must be two-dimensional')
+            elif table.shape[1] < 2:
+                raise ValueError(
+                    'Input data must have at least 2 columns (wavelength, '
+                    'flux, and optionally flux error).'
+                )
+        elif len(colnames) < 2:
+            raise ValueError(
+                'Input data must have at least 2 columns (wavelength, '
+                'flux, and optionally flux error).'
+            )
+
+        altdata = {}
+        for key in serialized:
+            if key == '':
+                # ignore blank lines
+                continue
+            if isinstance(serialized[key], fits.header._CardAccessor):
+                # serialize as a string
+                serialized[key] = str(serialized[key])
+            if len(header.comments[key]) > 0:
+                altdata[key] = {
+                    'value': serialized[key],
+                    'comment': header.comments[key],
+                }
+            else:
+                altdata[key] = serialized[key]
+
+        # coerce things to serializable JSON
+        for k in altdata:
+            if isinstance(altdata[k], (datetime, date)):
+                altdata[k] = altdata[k].isoformat()
 
         return cls(
-            wavelengths=data[:, 0],
-            fluxes=data[:, 1],
+            wavelengths=table[colnames[wave_colindex]]
+            if colnames is not None
+            else table[:, wave_colindex],
+            fluxes=table[colnames[flux_colindex]]
+            if colnames is not None
+            else table[:, flux_colindex],
+            errors=(
+                table[colnames[fluxerr_colindex]]
+                if colnames is not None
+                else table[:, fluxerr_colindex]
+            )
+            if fluxerr_colindex is not None
+            else None,
             obj_id=obj_id,
             instrument_id=instrument_id,
             observed_at=observed_at,
+            original_file_filename=filename.name,
+            original_file_string=bytes,
+            altdata=altdata,
         )
 
 
