@@ -1029,8 +1029,9 @@ class SourceAlertHandler(BaseHandler):
             DBSession().commit()
         except python_http_client.exceptions.UnauthorizedError:
             return self.error(
-                "Twilio Sendgrid authorization error. Please ensure "
-                "valid Sendgrid API key is set in server environment as "
-                "per their setup docs."
+                "Twilio authorization error. Please ensure valid credentials are"
+                "set in the server configs for Twilio Sendgrid API and/or Twilio"
+                " Communication API for SMS"
             )
+
         return self.success()

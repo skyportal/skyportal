@@ -54,7 +54,7 @@ const SourceAlert = ({ sourceId }) => {
     sourceId,
   };
 
-  const onSubmit = () => {
+  const onSubmit = async () => {
     const formData = {
       ...initialFormState,
       ...getValues(),
@@ -64,8 +64,11 @@ const SourceAlert = ({ sourceId }) => {
         showNotification("No target group(s) selected for alert", "error")
       );
     } else {
-      dispatch(Actions.sendAlert(formData));
-      reset(initialFormState);
+      const result = await dispatch(Actions.sendAlert(formData));
+      if (result.status === "success") {
+        reset(initialFormState);
+        showNotification("Alert queued up sucessfully", "info");
+      }
     }
   };
 
