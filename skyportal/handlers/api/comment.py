@@ -155,6 +155,8 @@ class CommentHandler(BaseHandler):
             attachment_name=attachment_name,
             author=author,
             groups=groups,
+            is_auto=is_auto,
+            altdata=altdata,
         )
 
         DBSession().add(comment)
@@ -176,6 +178,50 @@ class CommentHandler(BaseHandler):
             payload={'obj_key': comment.obj.internal_key},
         )
         return self.success(data={'comment_id': comment.id})
+
+    def parse_text(self, text, altdata):
+        """
+        look for familiar patterns in the comment text and parse it into altdata.
+        Example: "z=0.5" would add an altdata field {z: 0.5}.
+        If the specific altdata field already exists we do not update it (assume it is more precise).
+        """
+
+        if "=" not in text:  # not formatted like keyword-value pair(s)
+            return altdata
+
+        # specifiy the keywords that we want to parse, in lower-case
+        # put the altdata keyword to save to, and the data type (string, float, int)
+        common_data_types = {"z": ("z", "float"), "redshift": ("z", "float")}
+
+        pairs = text.split(",")  # assume multiple data in a comment is comma-separated
+
+        for p in pairs:
+            if "=" in p:
+                key_val = p.split("=")
+                if (
+                    len(key_val) == 2
+                    and key_val[0].strip().lower() in common_data_types
+                ):
+                    instruction = common_data_types[key_val[0].strip().lower()]
+                    try:  # attempt to parse the value as float, int or string
+                        if instruction[1] == "float":
+                            value = float(key_val[1].strip())
+                        elif instruction[1] == "int" or instruction[1] == "integer":
+                            value = int(key_val[1].strip())
+                        elif instruction[1] == "string":
+                            value = key_val[1].strip()
+                        else:
+                            value = None
+                    except ValueError:
+                        continue  # bad input, skip to next pair
+
+                    if value:
+                        if altdata is None:
+                            altdata = {}
+                        if instruction[0] not in altdata:
+                            altdata[instruction[0]] = value
+
+        return altdata
 
     @permissions(['Comment'])
     def put(self, comment_id):
