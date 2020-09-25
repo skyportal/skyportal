@@ -417,8 +417,24 @@ def photometry_plot(obj_id, user, width=600, height=300):
     p1 = Panel(child=layout, title='Flux')
 
     # now make the mag light curve
-    ymax = np.nanmax(data['mag']) + 0.1
-    ymin = np.nanmin(data['mag']) - 0.1
+    ymax = (
+        np.nanmax(
+            (
+                np.nanmax(data.loc[obsind, 'mag']),
+                np.nanmax(data.loc[~obsind, 'lim_mag']),
+            )
+        )
+        + 0.1
+    )
+    ymin = (
+        np.nanmin(
+            (
+                np.nanmin(data.loc[obsind, 'mag']),
+                np.nanmin(data.loc[~obsind, 'lim_mag']),
+            )
+        )
+        - 0.1
+    )
 
     plot = figure(
         plot_width=width,
