@@ -5,7 +5,7 @@ from bokeh.core.json_encoder import serialize_json
 from bokeh.core.properties import List, String
 from bokeh.document import Document
 from bokeh.layouts import row, column
-from bokeh.models import CustomJS, HoverTool, Range1d, Slider, Button
+from bokeh.models import CustomJS, HoverTool, Range1d, Slider, Button, LinearAxis
 from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
 from bokeh.palettes import viridis
 from bokeh.plotting import figure, ColumnDataSource
@@ -599,6 +599,15 @@ def photometry_plot(obj_id, user, width=600, height=300):
     plot.xaxis.axis_label = 'MJD'
     plot.yaxis.axis_label = 'AB mag'
     plot.toolbar.logo = None
+
+    obj = DBSession().query(Obj).get(obj_id)
+    if obj.dm is not None:
+        plot.extra_y_ranges = {
+            "Absolute Mag": Range1d(start=ymax - obj.dm, end=ymin - obj.dm)
+        }
+        plot.add_layout(
+            LinearAxis(y_range_name="Absolute Mag", axis_label="Absolute Mag"), 'right'
+        )
 
     toggle = CheckboxWithLegendGroup(
         labels=list(data.label.unique()),
