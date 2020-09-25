@@ -129,17 +129,11 @@ def add_followup_request_using_frontend_and_verify_IOO(
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
-    for _ in range(2):
-        try:
-            driver.get(f"/source/{public_source.id}")
-            # wait for the plots to load
-            driver.wait_for_xpath('//div[@="bk-root"]//span[text()="Flux"]')
-            # this waits for the spectroscopy plot by looking for the element Mg
-            driver.wait_for_xpath('//div[@="bk-root"]//label[text()="Mg"]')
-        except TimeoutException:
-            continue
-        else:
-            break
+    driver.get(f"/source/{public_source.id}")
+    # wait for the plots to load
+    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
+    # this waits for the spectroscopy plot by looking for the element Mg
+    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
 
     submit_button = driver.wait_for_xpath(
         '//form[@class="rjsf"]//button[@type="submit"]'
@@ -150,7 +144,7 @@ def add_followup_request_using_frontend_and_verify_IOO(
     )
     select_box.click()
 
-    mode_select = driver.wait_for_xpath('//li[@data-value="1"]')
+    driver.wait_for_xpath('//li[@data-value="1"]')
     for ii in range(1, 10):
         allocation = driver.wait_for_xpath('//li[@data-value="%d"]' % ii)
         if "IOO" in allocation.text:
@@ -192,9 +186,6 @@ def add_followup_request_using_frontend_and_verify_IOO(
     driver.wait_for_xpath(
         '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submission")]'''
     )
-
-    # import pdb
-    # pdb.set_trace()
 
 
 @pytest.mark.flaky(reruns=2)
