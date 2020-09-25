@@ -1,7 +1,6 @@
 import uuid
 import pytest
 import requests
-from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
 from baselayer.app.env import load_env
 from skyportal.tests import api
@@ -80,17 +79,11 @@ def add_followup_request_using_frontend_and_verify_SEDM(
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
-    for _ in range(2):
-        try:
-            driver.get(f"/source/{public_source.id}")
-            # wait for the plots to load
-            driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]')
-            # this waits for the spectroscopy plot by looking for the element Mg
-            driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]')
-        except TimeoutException:
-            continue
-        else:
-            break
+    driver.get(f"/source/{public_source.id}")
+    # wait for the plots to load
+    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
+    # this waits for the spectroscopy plot by looking for the element Mg
+    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
 
     submit_button = driver.wait_for_xpath(
         '//form[@class="rjsf"]//button[@type="submit"]'
