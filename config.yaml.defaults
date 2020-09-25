@@ -190,7 +190,7 @@ app:
     GroupList:
       props:
         title: My Groups
-      resizeable: true
+      resizeable: false
       layouts:
         xlg: [14, 1, 2, 2]
         lg: [10, 1, 2, 2]
@@ -228,6 +228,13 @@ services:
 misc:
   days_to_keep_unsaved_candidates: 7
   public_group_name: "Sitewide Group"
+  # Use a named cosmology from `astropy.cosmology.parameters.available` cosmologies
+  # or supply the arguments for an `astropy.cosmology.FLRW` cosmological instance.
+  # If {"flat": True} then use a subclass of the FLRW, called `FlatLambdaCMD`
+  # otherwise use `LambdaCDM`. See `utils.cosmology.py` for the way in which
+  # the user-supplied cosmology parameter set constructs the site-wide cosmology.
+  cosmology: Planck18_arXiv_v2
+  #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
 
 cron:
   - interval: 1440

@@ -5,6 +5,7 @@ from datetime import datetime, timezone, date
 import arrow
 from astropy import units as u
 from astropy import time as ap_time
+
 import astroplan
 import numpy as np
 import sqlalchemy as sa
@@ -22,6 +23,7 @@ from astropy import coordinates as ap_coord
 from astropy.io import fits, ascii
 import healpix_alchemy as ha
 import timezonefinder
+from .utils.cosmology import establish_cosmology
 
 from pathlib import Path
 import yaml
@@ -41,7 +43,6 @@ from baselayer.app.models import (  # noqa
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
 
-
 from . import schema
 from .enum_types import (
     allowed_bandpasses,
@@ -58,6 +59,9 @@ from skyportal import facility_apis
 # All DB fluxes are stored in microJy (AB).
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
+
+_, cfg = load_env()
+cosmo = establish_cosmology(cfg)
 
 
 def is_owned_by(self, user_or_token):
@@ -465,6 +469,70 @@ class Obj(Base, ha.Point):
         """Get the galactic longitude of this object"""
         coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
         return coord.galactic.l.deg
+
+    @property
+    def luminosity_distance(self):
+        """
+        The luminosity distance in Mpc, using either DM or distance data
+        in the altdata fields or using the cosmology/redshift. Specifically
+        the user can add `dm` (mag), `parallax` (arcsec), `dist_kpc`,
+        `dist_Mpc`, `dist_pc` or `dist_cm` to `altdata` and
+        those will be picked up (in that order) as the distance
+        rather than the redshift.
+
+        Return None if the redshift puts the source not within the Hubble flow
+        """
+
+        # there may be a non-redshift based measurement of distance
+        # for nearby sources
+        if self.altdata:
+            if self.altdata.get("dm") is not None:
+                # see eq (24) of https://ned.ipac.caltech.edu/level5/Hogg/Hogg7.html
+                return (
+                    (10 ** (float(self.altdata.get("dm")) / 5.0)) * 1e-5 * u.Mpc
+                ).value
+            if self.altdata.get("parallax") is not None:
+                if float(self.altdata.get("parallax")) > 0:
+                    # assume parallax in arcsec
+                    return (1e-6 * u.Mpc / float(self.altdata.get("parallax"))).value
+
+            if self.altdata.get("dist_kpc") is not None:
+                return (float(self.altdata.get("dist_kpc")) * 1e-3 * u.Mpc).value
+            if self.altdata.get("dist_Mpc") is not None:
+                return (float(self.altdata.get("dist_Mpc")) * u.Mpc).value
+            if self.altdata.get("dist_pc") is not None:
+                return (float(self.altdata.get("dist_pc")) * 1e-6 * u.Mpc).value
+            if self.altdata.get("dist_cm") is not None:
+                return (float(self.altdata.get("dist_cm")) * u.Mpc / 3.085e18).value
+
+        if self.redshift:
+            if self.redshift * 2.99e5 * u.km / u.s < 350 * u.km / u.s:
+                # stubbornly refuse to give a distance if the source
+                # is not in the Hubble flow
+                # cf. https://www.aanda.org/articles/aa/full/2003/05/aa3077/aa3077.html
+                # within ~5 Mpc (cz ~ 350 km/s) a given galaxy velocty
+                # can be between between ~0-500 km/s
+                return None
+            return (cosmo.luminosity_distance(self.redshift)).to(u.Mpc).value
+        return None
+
+    @property
+    def dm(self):
+        """Distance modulus to the object"""
+        dl = self.luminosity_distance
+        if dl:
+            return 5.0 * np.log10((dl * u.Mpc) / (10 * u.pc)).value
+        return None
+
+    @property
+    def angular_diameter_distance(self):
+        dl = self.luminosity_distance
+        if dl:
+            if self.redshift and self.redshift * 2.99e5 * u.km / u.s > 350 * u.km / u.s:
+                # see eq (20) of https://ned.ipac.caltech.edu/level5/Hogg/Hogg7.html
+                return dl / (1 + self.redshift) ** 2
+            return dl
+        return None
 
     def airmass(self, telescope, time, below_horizon=np.inf):
         """Return the airmass of the object at a given time. Uses the Pickering
@@ -1212,7 +1280,7 @@ GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
 def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
     """Query the database and return the requested Taxonomy if it is accessible
     to the requesting User or Token owner. If the Taxonomy is not accessible or
-    if it does not exist, return `None`.
+    if it does not exist, return an empty list.
 
     Parameters
     ----------

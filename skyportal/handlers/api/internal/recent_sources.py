@@ -17,8 +17,10 @@ class RecentSourcesHandler(BaseHandler):
 
         max_num_sources = int(recent_sources_prefs['maxNumSources'])
         query_results = (
-            Obj.query.filter(
-                Obj.id.in_(
+            DBSession()
+            .query(Source)
+            .filter(
+                Source.obj_id.in_(
                     DBSession()
                     .query(Source.obj_id)
                     .filter(
@@ -29,16 +31,16 @@ class RecentSourcesHandler(BaseHandler):
                 )
             )
             .order_by(desc('created_at'))
+            .distinct(Source.obj_id, Source.created_at)
             .limit(max_num_sources)
             .all()
         )
-        ids = map(lambda obj: obj.id, query_results)
+        ids = map(lambda src: src.obj_id, query_results)
         return ids
 
     @auth_or_token
     def get(self):
         query_results = RecentSourcesHandler.get_recent_source_ids(self.current_user)
-
         sources = []
         for obj_id in query_results:
             s = Source.get_obj_if_owned_by(  # Returns Source.obj

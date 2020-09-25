@@ -83,7 +83,7 @@ const MainContent = ({ root }) => {
   }, []);
 
   return (
-    <Theme>
+    <Theme {% if testing %} disableTransitions {% endif %}>
 
       <div className={styles.websocket}>
         <WebSocket

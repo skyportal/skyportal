@@ -21,3 +21,5 @@ invitations:
     Some other text here.
   from_email: # This needs to be set to a valid, Sendgrid-registered address in config.yaml
   sendgrid_api_key: # This needs to be obtained via Sendgrid setup on their site
+
+testing: true

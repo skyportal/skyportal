@@ -142,9 +142,32 @@ const SourceDesktop = ({ source }) => {
           {source.gal_lat.toFixed(6)}
           )
           <br />
-          <b>Redshift: &nbsp;</b>
-          {source.redshift}
-          &nbsp;|&nbsp;
+          {source.redshift != null && (
+            <>
+              <b>Redshift: &nbsp;</b>
+              {source.redshift?.toFixed(4)}
+            </>
+          )}
+          {source.dm && (
+            <>
+              &nbsp;|&nbsp;
+              <b>DM: &nbsp;</b>
+              {source.dm.toFixed(3)}
+              &nbsp; mag
+            </>
+          )}
+          {source.luminosity_distance && (
+            <>
+              &nbsp;|&nbsp;
+              <b>
+                <i>D</i>
+                <sub>L</sub>: &nbsp;
+              </b>
+              {source.luminosity_distance.toFixed(2)}
+              &nbsp; Mpc
+            </>
+          )}
+          {source.redshift != null && <>&nbsp;|&nbsp;</>}
           <Button href={`/api/sources/${source.id}/finder`}>
             PDF Finding Chart
           </Button>
@@ -355,6 +378,8 @@ SourceDesktop.propTypes = {
     groups: PropTypes.arrayOf(PropTypes.shape({})),
     gal_lon: PropTypes.number,
     gal_lat: PropTypes.number,
+    dm: PropTypes.number,
+    luminosity_distance: PropTypes.number,
     classifications: PropTypes.arrayOf(
       PropTypes.shape({
         author_name: PropTypes.string,
