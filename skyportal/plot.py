@@ -624,6 +624,15 @@ def photometry_plot(obj_id, user, width=600, height=300):
     plot.yaxis.axis_label = 'AB mag'
     plot.toolbar.logo = None
 
+    obj = DBSession().query(Obj).get(obj_id)
+    if obj.dm is not None:
+        plot.extra_y_ranges = {
+            "Absolute Mag": Range1d(start=ymax - obj.dm, end=ymin - obj.dm)
+        }
+        plot.add_layout(
+            LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
+        )
+
     now = Time.now().mjd
     plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
     plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
