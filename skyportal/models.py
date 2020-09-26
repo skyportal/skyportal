@@ -1658,10 +1658,10 @@ class Spectrum(Base):
 
     original_file_string = sa.Column(
         sa.String,
-        doc="Content of original file that user passed to upload the spectrum.",
+        doc="Content of original file that was passed to upload the spectrum.",
     )
     original_file_filename = sa.Column(
-        sa.String, doc="Name of original file that user passed to upload the spectrum."
+        sa.String, doc="Original file name that was passed to upload the spectrum."
     )
 
     @classmethod
@@ -1686,8 +1686,8 @@ class Spectrum(Base):
            `from_ascii` tries to read this file and parse its contents. If `data`
            is provided, the filename is used only for bookkeeping purposes; no
            attempt is made to actually read the file.
-        data: bytes, optional
-           The content of the ASCII file as a bytestring. If this argument is
+        data: str, optional
+           The content of the ASCII file. If this argument is
            supplied, then no attempt is made to read the file `filename` from
            disk. This permits this method to be used on raw, in-memory data
            (e.g., the kind supplied in an HTTP request) in addition to
@@ -1725,11 +1725,19 @@ class Spectrum(Base):
         filename = Path(filename)
 
         if data is None:
-            table = ascii.read(filename, comment='#', header_start=None)
+            try:
+                table = ascii.read(filename, comment='#', header_start=None)
+            except Exception as e:
+                e.message = f'Error parsing ASCII file: {e.message}'
+                raise
             bytes = open(filename).read().encode('ascii')
         else:
             file_obj = io.BytesIO(data.encode('ascii'))
-            table = ascii.read(file_obj, comment='#', header_start=None)
+            try:
+                table = ascii.read(file_obj, comment='#', header_start=None)
+            except Exception as e:
+                e.message = f'Error parsing ASCII file: {e.message}'
+                raise
             bytes = data
 
         tabledata = np.asarray(table)
@@ -1741,14 +1749,15 @@ class Spectrum(Base):
                 'flux, and optionally flux error).'
             )
 
-        # matches lines like:
-        # XTENSION: IMAGE
-        # BITPIX: -32
-        # NAXIS: 2
-        # NAXIS1: 433
-        # NAXIS2: 1
-
         if 'comments' in table.meta:
+
+            # this section matches lines like:
+            # XTENSION: IMAGE
+            # BITPIX: -32
+            # NAXIS: 2
+            # NAXIS1: 433
+            # NAXIS2: 1
+
             header = {}
             for line in table.meta['comments']:
                 try:
@@ -1772,7 +1781,7 @@ class Spectrum(Base):
                         continue
                     cards.append(card)
 
-            # this ensure lines like COMMENT and HISTORY are properly dealt with
+            # this ensures lines like COMMENT and HISTORY are properly dealt with
             fits_header = fits.Header(cards=cards)
             serialized = dict(fits_header)
 

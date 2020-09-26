@@ -177,7 +177,7 @@ class SpectrumHandler(BaseHandler):
         return self.success()
 
 
-class ASCIIHandler(object):
+class ASCIIHandler:
     def spec_from_ascii_request(self):
         """Helper method to read in Spectrum objects from ASCII POST."""
         json = self.get_json()
@@ -205,6 +205,11 @@ class ASCIIHandler(object):
 
         filename = json.pop('filename')
         ascii = json.pop('ascii')
+
+        # maximum size 200MB - above this don't parse. Assuming ~1 byte / char
+        if len(ascii) > 2e8:
+            raise ValueError('File must be smaller than 200,000,000 characters.')
+
         spec = Spectrum.from_ascii(filename, data=ascii, **json)
         return spec
 
