@@ -27,25 +27,46 @@ class WeatherHandler(BaseHandler):
             required: true
             schema:
               type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            weather:
+                              type: object
+                              description: Open Weather Data
+                            weather_retrieved_at:
+                              type: string
+                              description: |
+                                 Datetime (UTC) when the weather was fetched
+                            weather_link:
+                              type: string
+                              description: URL for more weather info
+                            name:
+                              type: string
+                              description: Name of the telescope
+                            nickname:
+                              type: string
+                              description: Short name of the telescope
         """
         t = Telescope.query.get(int(telescope_id))
         if t is None:
             return self.error(f"Could not load telescope with ID {telescope_id}")
 
-        print(t.weather is None, t.weather_retrieved_at, weather_refresh)
-
         # Should we call the API again?
         refresh = weather_refresh is not None
-        print("refresh", refresh)
         if refresh and t.weather_retrieved_at is not None:
-            print("here")
-
             if (
                 t.weather_retrieved_at + datetime.timedelta(seconds=weather_refresh)
                 >= datetime.datetime.utcnow()
             ):
-                print("here1")
-
                 # it is too soon to refresh
                 refresh = False
 
