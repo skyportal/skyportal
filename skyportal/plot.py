@@ -606,7 +606,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
             "Absolute Mag": Range1d(start=ymax - obj.dm, end=ymin - obj.dm)
         }
         plot.add_layout(
-            LinearAxis(y_range_name="Absolute Mag", axis_label="m - μ"), 'right'
+            LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
         )
 
     toggle = CheckboxWithLegendGroup(
