@@ -942,6 +942,7 @@ class SourceFinderHandler(BaseHandler):
 
 
 class SourceAlertHandler(BaseHandler):
+    @auth_or_token
     def post(self):
         """
         ---
@@ -965,7 +966,7 @@ class SourceAlertHandler(BaseHandler):
                   sourceId:
                     type: string
                     description: |
-                      The ID of the Source the alert is being sent about
+                      The ID of the Source's Obj the alert is being sent about
                   level:
                     type: string
                     description: |

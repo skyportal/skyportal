@@ -275,3 +275,22 @@ def test_finder(manage_sources_token, public_source):
         token=manage_sources_token,
     )
     assert status == 400
+
+
+def test_source_alert_unauthorized(
+    user_with_contact_info_token, public_source, public_group, capsys
+):
+    status, data = api(
+        "POST",
+        "source_alerts",
+        data={
+            "groupIds": [public_group.id],
+            "sourceId": public_source.id,
+            "level": "hard",
+            "additionalNotes": "",
+        },
+        token=user_with_contact_info_token,
+    )
+    assert status == 400
+    # Test server should have no valid Twilio API credentials
+    assert data["message"].startswith("Twilio authorization error.")

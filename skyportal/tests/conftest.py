@@ -494,3 +494,27 @@ def sedm_listener_token(sedm, group_admin_user):
         name=str(uuid.uuid4()),
     )
     return token_id
+
+
+@pytest.fixture()
+def user_with_contact_info(public_group):
+    uid = str(uuid.uuid4())
+    username = f"{uid}@cesium.ml.org"
+    user = User(
+        username=username,
+        contact_email=username,
+        contact_phone="+12345678910",
+        groups=[public_group],
+        roles=[models.Role.query.get("Full user")],
+    )
+    DBSession().add(user)
+    DBSession().commit()
+    return user
+
+
+@pytest.fixture()
+def user_with_contact_info_token(user_with_contact_info):
+    token_id = create_token(
+        ACLs=[], user_id=user_with_contact_info.id, name=str(uuid.uuid4()),
+    )
+    return token_id
