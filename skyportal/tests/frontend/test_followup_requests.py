@@ -42,8 +42,8 @@ def add_telescope_and_instrument(instrument_name, token):
             "type": "imager",
             "band": "Optical",
             "telescope_id": telescope_id,
-            "filters": ["ztfg"],
-            "api_classname": "%sAPI" % instrument_name,
+            "filters": ["sdssu", "sdssg", 'sdssr', 'sdssi', 'sdssz'],
+            "api_classname": f"{instrument_name.upper()}API",
         },
         token=token,
     )

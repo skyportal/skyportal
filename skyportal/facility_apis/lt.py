@@ -516,60 +516,21 @@ class IOOAPI(LTAPI):
 
             DBSession().add(transaction)
 
-    _instrument_configs = {}
-
-    _instrument_type = 'IOO'
     _observation_types = ['r', 'gr', 'gri', 'griz', 'ugriz']
-    _exposure_types = {
-        'r': ['1x120s', '2x150s'],
-        'gr': ['1x120s', '2x150s'],
-        'gri': ['1x120s', '2x150s'],
-        'griz': ['1x120s', '2x150s'],
-        'ugriz': ['1x120s', '2x150s'],
-    }
-    _instrument_configs[_instrument_type] = {}
-    _instrument_configs[_instrument_type]["observation"] = _observation_types
-    _instrument_configs[_instrument_type]["exposure"] = _exposure_types
-
-    _instrument_types = list(_instrument_configs.keys())
-
-    _dependencies = {}
-    _dependencies["instrument_type"] = {}
-    _dependencies["instrument_type"]["oneOf"] = []
-    for _instrument_type in _instrument_types:
-        oneOf = {
-            "properties": {
-                "instrument_type": {"enum": [_instrument_type]},
-                "observation_type": {
-                    "enum": _instrument_configs[_instrument_type]["observation"]
-                },
-            }
-        }
-        _dependencies["instrument_type"]["oneOf"].append(oneOf)
-
-    _dependencies["observation_type"] = {}
-    _dependencies["observation_type"]["oneOf"] = []
-    for _instrument_type in _instrument_types:
-        for _observation_type in _instrument_configs[_instrument_type]["observation"]:
-            oneOf = {
-                "properties": {
-                    "observation_type": {"enum": [_observation_type]},
-                    "exposure_type": {
-                        "enum": _instrument_configs[_instrument_type]["exposure"][
-                            _observation_type
-                        ]
-                    },
-                }
-            }
-            _dependencies["observation_type"]["oneOf"].append(oneOf)
+    _exposure_types = ['1x120s', '2x150s']
 
     form_json_schema = {
         "type": "object",
         "properties": {
-            "instrument_type": {
+            "observation_type": {
                 "type": "string",
-                "enum": _instrument_types,
-                "default": "IOO",
+                "enum": _observation_types,
+                "default": "r",
+            },
+            "exposure_type": {
+                "type": "string",
+                "enum": _exposure_types,
+                "default": '1x120s',
             },
             "priority": {"type": "string", "enum": ["1", "5"], "default": "1"},
             "start_date": {
@@ -584,7 +545,6 @@ class IOOAPI(LTAPI):
                 "title": "End Date (UT)",
                 "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
             },
-            "LT_proposalID": {"type": "string"},
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
                 "type": "number",
@@ -607,7 +567,8 @@ class IOOAPI(LTAPI):
             "binning": {"type": "string", "enum": ["1x1", "2x2"], "default": "1x1"},
         },
         "required": [
-            "instrument_type",
+            "observation_type",
+            "exposure_type",
             "priority",
             "start_date",
             "end_date",
@@ -615,7 +576,6 @@ class IOOAPI(LTAPI):
             "maximum_seeing",
             "binning",
         ],
-        "dependencies": _dependencies,
     }
 
     ui_json_schema = {}
@@ -678,53 +638,21 @@ class IOIAPI(LTAPI):
             DBSession().add(transaction)
 
     _instrument_configs = {}
-
-    _instrument_type = 'IOI'
     _observation_types = ['H']
-    _exposure_types = {'H': ['1x120s', '2x150s']}
-    _instrument_configs[_instrument_type] = {}
-    _instrument_configs[_instrument_type]["observation"] = _observation_types
-    _instrument_configs[_instrument_type]["exposure"] = _exposure_types
-
-    _instrument_types = list(_instrument_configs.keys())
-
-    _dependencies = {}
-    _dependencies["instrument_type"] = {}
-    _dependencies["instrument_type"]["oneOf"] = []
-    for _instrument_type in _instrument_types:
-        oneOf = {
-            "properties": {
-                "instrument_type": {"enum": [_instrument_type]},
-                "observation_type": {
-                    "enum": _instrument_configs[_instrument_type]["observation"]
-                },
-            }
-        }
-        _dependencies["instrument_type"]["oneOf"].append(oneOf)
-
-    _dependencies["observation_type"] = {}
-    _dependencies["observation_type"]["oneOf"] = []
-    for _instrument_type in _instrument_types:
-        for _observation_type in _instrument_configs[_instrument_type]["observation"]:
-            oneOf = {
-                "properties": {
-                    "observation_type": {"enum": [_observation_type]},
-                    "exposure_type": {
-                        "enum": _instrument_configs[_instrument_type]["exposure"][
-                            _observation_type
-                        ]
-                    },
-                }
-            }
-            _dependencies["observation_type"]["oneOf"].append(oneOf)
+    _exposure_types = ['1x120s', '2x150s']
 
     form_json_schema = {
         "type": "object",
         "properties": {
-            "instrument_type": {
+            "observation_type": {
                 "type": "string",
-                "enum": _instrument_types,
-                "default": "IOO",
+                "enum": _observation_types,
+                "default": "H",
+            },
+            "exposure_type": {
+                "type": "string",
+                "enum": _exposure_types,
+                "default": '1x120s',
             },
             "priority": {"type": "string", "enum": ["1", "5"], "default": "1"},
             "start_date": {
@@ -739,7 +667,6 @@ class IOIAPI(LTAPI):
                 "title": "End Date (UT)",
                 "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
             },
-            "LT_proposalID": {"type": "string"},
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
                 "type": "number",
@@ -762,7 +689,8 @@ class IOIAPI(LTAPI):
             "binning": {"type": "string", "enum": ["1x1", "2x2"], "default": "1x1"},
         },
         "required": [
-            "instrument_type",
+            "observation_type",
+            "exposure_type",
             "priority",
             "start_date",
             "end_date",
@@ -770,7 +698,6 @@ class IOIAPI(LTAPI):
             "maximum_seeing",
             "binning",
         ],
-        "dependencies": _dependencies,
     }
 
     ui_json_schema = {}
@@ -834,55 +761,39 @@ class SPRATAPI(LTAPI):
 
     _instrument_configs = {}
 
-    _instrument_type = 'SPRAT'
     _observation_types = ['blue', 'red']
     _exposure_types = {
         'blue': ['1x300s', '2x300s', '1x600s', '2x600s'],
         'red': ['1x300s', '2x300s'],
     }
-    _instrument_configs[_instrument_type] = {}
-    _instrument_configs[_instrument_type]["observation"] = _observation_types
-    _instrument_configs[_instrument_type]["exposure"] = _exposure_types
 
-    _instrument_types = list(_instrument_configs.keys())
+    _instrument_configs["observation"] = _observation_types
+    _instrument_configs["exposure"] = _exposure_types
 
     _dependencies = {}
-    _dependencies["instrument_type"] = {}
-    _dependencies["instrument_type"]["oneOf"] = []
-    for _instrument_type in _instrument_types:
-        oneOf = {
-            "properties": {
-                "instrument_type": {"enum": [_instrument_type]},
-                "observation_type": {
-                    "enum": _instrument_configs[_instrument_type]["observation"]
-                },
-            }
-        }
-        _dependencies["instrument_type"]["oneOf"].append(oneOf)
 
     _dependencies["observation_type"] = {}
     _dependencies["observation_type"]["oneOf"] = []
-    for _instrument_type in _instrument_types:
-        for _observation_type in _instrument_configs[_instrument_type]["observation"]:
-            oneOf = {
-                "properties": {
-                    "observation_type": {"enum": [_observation_type]},
-                    "exposure_type": {
-                        "enum": _instrument_configs[_instrument_type]["exposure"][
-                            _observation_type
-                        ]
-                    },
-                }
-            }
-            _dependencies["observation_type"]["oneOf"].append(oneOf)
+
+    for _observation_type in _instrument_configs["observation"]:
+        oneOf = {
+            "properties": {
+                "observation_type": {"enum": [_observation_type]},
+                "exposure_type": {
+                    "enum": _instrument_configs["exposure"][_observation_type]
+                },
+            },
+            "required": ["exposure_type"],
+        }
+        _dependencies["observation_type"]["oneOf"].append(oneOf)
 
     form_json_schema = {
         "type": "object",
         "properties": {
-            "instrument_type": {
+            "observation_type": {
                 "type": "string",
-                "enum": _instrument_types,
-                "default": "SPRAT",
+                "enum": _observation_types,
+                "default": "blue",
             },
             "priority": {"type": "string", "enum": ["1", "5"], "default": "1"},
             "start_date": {
@@ -919,7 +830,7 @@ class SPRATAPI(LTAPI):
             },
         },
         "required": [
-            "instrument_type",
+            "observation_type",
             "priority",
             "start_date",
             "end_date",
