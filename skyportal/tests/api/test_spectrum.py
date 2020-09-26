@@ -231,10 +231,10 @@ def test_jsonify_spectrum_data(
             )
 
 
-def test_upload_spectrum_from_ascii_file(
+def test_upload_bad_spectrum_from_ascii_file(
     upload_data_token, manage_sources_token, public_source, public_group
 ):
-    for filename in glob(f'{os.path.dirname(__file__)}/../data/ZTF*.ascii'):
+    for filename in glob(f'{os.path.dirname(__file__)}/../data/ZTF*.ascii.bad'):
         with open(filename, 'r') as f:
 
             content = f.read()
@@ -257,32 +257,5 @@ def test_upload_spectrum_from_ascii_file(
                 token=upload_data_token,
             )
 
-            assert status == 200
-            assert data['status'] == 'success'
-
-            status2, data2 = api(
-                'POST',
-                'spectrum/parse/ascii',
-                data={
-                    'obj_id': str(public_source.id),
-                    'observed_at': observed_at,
-                    'instrument_id': 1,
-                    'group_ids': [public_group.id],
-                    'fluxerr_colindex': 3
-                    if 'ZTF20abpuxna_20200915_Keck1_v1.ascii' in filename
-                    else 2,
-                    'ascii': content,
-                    'filename': filename,
-                },
-                token=upload_data_token,
-            )
-
-            assert status2 == 200
-            assert data2['status'] == 'success'
-
-        status3, data3 = api(
-            'GET', f'spectrum/{data["data"]["id"]}', token=upload_data_token,
-        )
-
-        for key in data2['data']:
-            assert data3['data'][key] == data2['data'][key]
+            assert status == 400
+            assert data['status'] == 'error'

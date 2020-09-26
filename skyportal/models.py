@@ -1728,7 +1728,7 @@ class Spectrum(Base):
             try:
                 table = ascii.read(filename, comment='#', header_start=None)
             except Exception as e:
-                e.message = f'Error parsing ASCII file: {e.message}'
+                e.args = (f'Error parsing ASCII file: {e.args[0]}',)
                 raise
             bytes = open(filename).read().encode('ascii')
         else:
@@ -1736,7 +1736,7 @@ class Spectrum(Base):
             try:
                 table = ascii.read(file_obj, comment='#', header_start=None)
             except Exception as e:
-                e.message = f'Error parsing ASCII file: {e.message}'
+                e.args = (f'Error parsing ASCII file: {e.args[0]}',)
                 raise
             bytes = data
 
