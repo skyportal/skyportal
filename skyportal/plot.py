@@ -12,6 +12,8 @@ from bokeh.plotting import figure, ColumnDataSource
 from bokeh.util.compiler import bundle_all_models
 from bokeh.util.serialization import make_id
 
+from astropy.time import Time
+
 from matplotlib import cm
 from matplotlib.colors import rgb2hex
 
@@ -417,16 +419,38 @@ def photometry_plot(obj_id, user, width=600, height=300):
     p1 = Panel(child=layout, title='Flux')
 
     # now make the mag light curve
-    ymax = np.nanmax(data['mag']) + 0.1
-    ymin = np.nanmin(data['mag']) - 0.1
+    ymax = (
+        np.nanmax(
+            (
+                np.nanmax(data.loc[obsind, 'mag']),
+                np.nanmax(data.loc[~obsind, 'lim_mag']),
+            )
+        )
+        + 0.1
+    )
+    ymin = (
+        np.nanmin(
+            (
+                np.nanmin(data.loc[obsind, 'mag']),
+                np.nanmin(data.loc[~obsind, 'lim_mag']),
+            )
+        )
+        - 0.1
+    )
+
+    xmin = data['mjd'].min() - 2
+    xmax = data['mjd'].max() + 2
 
     plot = figure(
         plot_width=width,
-        plot_height=height,
+        plot_height=height + 100,
         active_drag='box_zoom',
         tools='box_zoom,wheel_zoom,pan,reset,save',
         y_range=(ymax, ymin),
+        x_range=(xmin, xmax),
         toolbar_location='above',
+        toolbar_sticky=False,
+        x_axis_location='above',
     )
 
     # Mark the first and last detections again
@@ -608,6 +632,10 @@ def photometry_plot(obj_id, user, width=600, height=300):
         plot.add_layout(
             LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
         )
+
+    now = Time.now().mjd
+    plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
+    plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
 
     toggle = CheckboxWithLegendGroup(
         labels=list(data.label.unique()),
