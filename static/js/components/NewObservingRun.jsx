@@ -1,6 +1,7 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Form from "@rjsf/material-ui";
+import { showNotification } from "baselayer/components/Notifications";
 import { submitObservingRun } from "../ducks/observingRun";
 
 const NewObservingRun = () => {
@@ -9,11 +10,14 @@ const NewObservingRun = () => {
   const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
 
-  const handleSubmit = ({ formData }) => {
+  const handleSubmit = async ({ formData }) => {
     if (formData.group_id === -1) {
       delete formData.group_id;
     }
-    dispatch(submitObservingRun(formData));
+    const result = await dispatch(submitObservingRun(formData));
+    if (result.status === "success") {
+      dispatch(showNotification("Observing run saved"));
+    }
   };
 
   const observingRunFormSchema = {
