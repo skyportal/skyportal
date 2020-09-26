@@ -35,3 +35,5 @@ invitations:
 
 alerts:
   enabled: True
+
+testing: true

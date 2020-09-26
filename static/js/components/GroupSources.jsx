@@ -35,6 +35,11 @@ const useStyles = makeStyles((theme) => ({
     margin: theme.spacing(0.5),
   },
   source: {},
+  commentListContainer: {
+    height: "15rem",
+    overflowY: "scroll",
+    padding: "0.5rem 0",
+  },
 }));
 
 const GroupSources = ({ route }) => {
@@ -104,7 +109,7 @@ const GroupSources = ({ route }) => {
               </Suspense>
             </Grid>
             <Grid item>
-              <div className={styles.commentsList}>
+              <div className={classes.commentListContainer}>
                 {comments.map(
                   ({
                     id,
