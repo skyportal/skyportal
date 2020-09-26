@@ -805,14 +805,17 @@ class SpectrumAsciiFilePostJSON(_Schema):
 
 The file can optionally contain a header which will be parsed and stored.
 
-The lines that make up the ASCII header must appear at the beginning of the file and all be formatted the same way within a single file. They can be formatted in one of two ways.
+The lines that make up the ASCII header must appear at the beginning of the \
+file and all be formatted the same way within a single file. They can be \
+formatted in one of two ways.
 
 ```
 1) # KEY: VALUE
 2) # KEY = VALUE / COMMENT
 ```
 
-`astropy.io.ascii.read` is used to load the table into Python memory. An attempt is made to parse the header first using method 1, then method 2.
+`astropy.io.ascii.read` is used to load the table into Python memory. An \
+attempt is made to parse the header first using method 1, then method 2.
 
 Example of format 1:
 
@@ -851,7 +854,11 @@ Example of format 2:
 # DATE    = '2020-09-15T09:47:10' / UT end of last exposure
 ```
 
-The data must be at least 2 column ascii (wavelength, flux). If three columns are given, they are interpreted as (wavelength, flux, fluxerr). If more than 3 columns are given, by default the first three are interpreted as (wavelength, flux, fluxerr). The column indices of each of these arguments can be controlled by passing the integer column index to the POST JSON.
+The data must be at least 2 column ascii (wavelength, flux). If three columns \
+are given, they are interpreted as (wavelength, flux, fluxerr). If more than 3 \
+columns are given, by default the first three are interpreted as (wavelength, \
+flux, fluxerr). The column indices of each of these arguments can be controlled \
+by passing the integer column index to the POST JSON.
 
 Examples of valid data sections:
 
