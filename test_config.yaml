@@ -21,8 +21,8 @@ twilio:
   # Twilio SMS API configs
   # These values must be valid ones from the Twitter API console
   from_number:
-  sms_account_sid: fsadfwe
-  sms_auth_token: asdfsf
+  sms_account_sid:
+  sms_auth_token:
 
 invitations:
   enabled: False

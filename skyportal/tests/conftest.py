@@ -497,7 +497,7 @@ def sedm_listener_token(sedm, group_admin_user):
 
 
 @pytest.fixture()
-def user_with_contact_info(public_group):
+def source_alert_user(public_group):
     uid = str(uuid.uuid4())
     username = f"{uid}@cesium.ml.org"
     user = User(
@@ -506,6 +506,7 @@ def user_with_contact_info(public_group):
         contact_phone="+12345678910",
         groups=[public_group],
         roles=[models.Role.query.get("Full user")],
+        preferences={"allowEmailAlerts": True, "allowSMSAlerts": True},
     )
     DBSession().add(user)
     DBSession().commit()
@@ -513,8 +514,8 @@ def user_with_contact_info(public_group):
 
 
 @pytest.fixture()
-def user_with_contact_info_token(user_with_contact_info):
+def source_alert_user_token(source_alert_user):
     token_id = create_token(
-        ACLs=[], user_id=user_with_contact_info.id, name=str(uuid.uuid4()),
+        ACLs=[], user_id=source_alert_user.id, name=str(uuid.uuid4()),
     )
     return token_id

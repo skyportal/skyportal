@@ -7,6 +7,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
 from PIL import Image, ImageChops
+import responses
 
 from baselayer.app.config import load_config
 from skyportal.tests import api, IS_CI_BUILD
@@ -422,7 +423,16 @@ def test_dropdown_facility_change(driver, user, public_source):
     driver.wait_for_xpath("//code/div[text()[contains(., 'dist')]]", timeout=20)
 
 
+@responses.activate
 def test_source_alert(driver, user, public_group, public_source):
+    # Just test the front-end form and mock out the SkyPortal API call
+    responses.add(
+        responses.GET,
+        "http://localhost:5000/api/source_alerts",
+        json={"status": "success"},
+        status=200,
+    )
+
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
@@ -438,6 +448,4 @@ def test_source_alert(driver, user, public_group, public_source):
     textbox = driver.wait_for_xpath("//*[@id='sourcealert-textarea']")
     driver.scroll_to_element_and_click(textbox)
     driver.click_xpath("//button[@data-testid='sendAlertButton']")
-    # Since no test users have contact info, alerts will be 'queued sucessfully'
-    # with no alerts sent out
     driver.wait_for_xpath("//*[text()='Alert queued up sucessfully']")
