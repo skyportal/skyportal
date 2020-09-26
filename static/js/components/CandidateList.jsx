@@ -337,6 +337,7 @@ const CandidateList = () => {
                 download: false,
                 selectableRows: "none",
                 enableNestedDataAccess: ".",
+                rowsPerPage: 25,
               }}
             />
           </MuiThemeProvider>
