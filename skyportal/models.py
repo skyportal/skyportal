@@ -2247,7 +2247,12 @@ def send_source_alert(mapper, connection, target):
         from_number = cfg["twilio.from_number"]
         client = Client(account_sid, auth_token)
         for user in target_users:
-            if user.contact_phone is not None:
+            # If user has a phone number registered and opted into SMS alerts
+            if (
+                user.contact_phone is not None
+                and "allowSMSAlerts" in user.preferences
+                and user.preferences["allowSMSAlerts"]
+            ):
                 client.messages.create(
                     body=message_text, from_=from_number, to=user.contact_phone.e164
                 )
@@ -2255,7 +2260,12 @@ def send_source_alert(mapper, connection, target):
     # Send email alerts
     for user in target_users:
         descriptor = "immediate" if target.level == "hard" else ""
-        if user.contact_email is not None:
+        # If user has a contact email registered and opted into email alerts
+        if (
+            user.contact_email is not None
+            and "allowEmailAlerts" in user.preferences
+            and user.preferences["allowEmailAlerts"]
+        ):
             message = Mail(
                 from_email=cfg["twilio.from_email"],
                 to_emails=user.contact_email,
