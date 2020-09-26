@@ -1,7 +1,79 @@
+import datetime
+
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.env import load_env
+from ...utils.offset import get_url
+
 from ..base import BaseHandler
 from ...models import DBSession, Telescope
+
+_, cfg = load_env()
+weather_refresh = cfg["weather"].get("refresh_time") if cfg.get("weather") else None
+openweather_api_key = (
+    cfg["weather"].get("openweather_api_key") if cfg.get("weather") else None
+)
+
+
+class WeatherHandler(BaseHandler):
+    @auth_or_token
+    def get(self, telescope_id):
+        """
+        ---
+        description: Retrieve weather at a telescope site
+        parameters:
+          - in: path
+            name: telescope_id
+            required: true
+            schema:
+              type: integer
+        """
+        t = Telescope.query.get(int(telescope_id))
+        if t is None:
+            return self.error(f"Could not load telescope with ID {telescope_id}")
+
+        print(t.weather is None, t.weather_retrieved_at, weather_refresh)
+
+        # Should we call the API again?
+        refresh = weather_refresh is not None
+        print("refresh", refresh)
+        if refresh and t.weather_retrieved_at is not None:
+            print("here")
+
+            if (
+                t.weather_retrieved_at + datetime.timedelta(seconds=weather_refresh)
+                >= datetime.datetime.utcnow()
+            ):
+                print("here1")
+
+                # it is too soon to refresh
+                refresh = False
+
+        message = ""
+        if refresh:
+            response = get_url(
+                "https://api.openweathermap.org/data/2.5/onecall?"
+                f"lat={t.lat}&lon={t.lon}&appid={openweather_api_key}"
+            )
+            if response is not None:
+                if response.status_code == 200:
+                    weather = response.json()
+                    t.weather = weather
+                    t.weather_retrieved_at = datetime.datetime.utcnow()
+                    DBSession().commit()
+                else:
+                    message = response.text
+
+        return self.success(
+            data={
+                "weather": t.weather,
+                "weather_retrieved_at": t.weather_retrieved_at,
+                "weather_link": t.weather_link,
+                "name": t.name,
+                "nickname": t.nickname,
+                "message": message,
+            }
+        )
 
 
 class TelescopeHandler(BaseHandler):

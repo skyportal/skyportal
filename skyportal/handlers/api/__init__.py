@@ -23,6 +23,6 @@ from .spectrum import SpectrumHandler, ObjSpectraHandler
 from .stream import StreamHandler, StreamUserHandler
 from .sysinfo import SysInfoHandler
 from .taxonomy import TaxonomyHandler
-from .telescope import TelescopeHandler
+from .telescope import TelescopeHandler, WeatherHandler
 from .thumbnail import ThumbnailHandler
 from .user import UserHandler

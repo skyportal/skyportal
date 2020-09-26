@@ -1040,6 +1040,14 @@ class Telescope(Base):
         sa.Boolean, default=False, nullable=False, doc="Is this telescope robotic?"
     )
 
+    weather = sa.Column(JSONB, nullable=True, doc='Latest weather information')
+    weather_retrieved_at = sa.Column(
+        sa.DateTime, nullable=True, doc="When was the weather last retrieved?"
+    )
+    weather_link = sa.Column(
+        URLType, nullable=True, doc="Link to the preferred weather site."
+    )
+
     instruments = relationship(
         'Instrument',
         back_populates='telescope',

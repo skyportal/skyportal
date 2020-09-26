@@ -81,6 +81,7 @@ telescope:
     diameter: 1.5
     robotic: true
     skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+    weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
     =id: P60
   - name: Nordic Optical Telescope
     nickname: NOT
