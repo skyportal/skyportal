@@ -1062,7 +1062,7 @@ def test_token_user_get_recent_photometry(
 
     status, data = api(
         'GET',
-        f'photometry/recent',
+        f'photometry/recent?format=flux&magsys=vega',
         token=upload_data_token,
         data={'instrument_ids': [ztf_camera.id], 'max_date': '2019-02-01T00:00:00'},
     )
