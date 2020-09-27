@@ -68,7 +68,10 @@ const UploadPhotometryForm = () => {
   } = useForm();
   let formState = getValues();
 
-  const sortedInstrumentList = [...instrumentList];
+  // only show instruments that have an imaging mode
+  const sortedInstrumentList = [...instrumentList].filter((instrument) =>
+    instrument.type.includes("imag")
+  );
   sortedInstrumentList.sort((i1, i2) => {
     if (i1.name > i2.name) {
       return 1;
@@ -252,7 +255,7 @@ const UploadPhotometryForm = () => {
     },
   };
 
-  if (!instrumentList || !userGroups) {
+  if (!sortedInstrumentList || !userGroups) {
     return <div>Loading...</div>;
   }
 
