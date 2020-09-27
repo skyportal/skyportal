@@ -733,7 +733,7 @@ class ObservingRunPost(_Schema):
     )
 
     modified = fields.DateTime(
-        description="The UT datetime at which the " "observingrun was last modified."
+        description="The UT datetime at which the observingrun was last modified."
     )
 
 
@@ -767,6 +767,35 @@ class ObservingRunGetWithAssignments(ObservingRunGet):
     instrument = fields.Field()
 
 
+class RecentPhotometryQuery(_Schema):
+    instrument_ids = fields.List(
+        fields.Integer,
+        description="IDs of the instruments to query "
+        "for photometry from. If `None`, "
+        "queries all instruments.",
+        required=False,
+        default=None,
+    )
+
+    date_range = fields.Tuple(
+        (fields.DateTime(), fields.DateTime()),
+        default=(None, None),
+        description='Query for photometry taken between '
+        'these UT `DateTime`s. For an '
+        'open-ended interval use `None`.',
+    )
+    format = ApispecEnumField(
+        Enum('format', ['mag', 'flux']),
+        default='mag',
+        description="Return the photometry in flux or " "magnitude space?",
+    )
+    magsys = ApispecEnumField(
+        py_allowed_magsystems,
+        default='ab',
+        description="The magnitude or zeropoint " "system of the output.",
+    )
+
+
 def register_components(spec):
     print('Registering schemas with APISpec')
 
@@ -798,3 +827,4 @@ ObservingRunPost = ObservingRunPost()
 ObservingRunGet = ObservingRunGet()
 AssignmentSchema = AssignmentSchema()
 ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
+RecentPhotometryQuery = RecentPhotometryQuery()

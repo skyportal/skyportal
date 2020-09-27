@@ -17,8 +17,16 @@ from ...models import (
     GroupPhotometry,
 )
 
+from astropy.time import Time
 
-from ...schema import PhotometryMag, PhotometryFlux, PhotFluxFlexible, PhotMagFlexible
+
+from ...schema import (
+    PhotometryMag,
+    PhotometryFlux,
+    PhotFluxFlexible,
+    PhotMagFlexible,
+    RecentPhotometryQuery,
+)
 from ...enum_types import ALLOWED_MAGSYSTEMS
 
 
@@ -571,6 +579,64 @@ class BulkDeletePhotometryHandler(BaseHandler):
         DBSession().commit()
 
         return self.success(f"Deleted {n_deleted} photometry points.")
+
+
+class RecentPhotometryHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Get photometry taken by specific instruments over a date range
+        requestBody:
+          content:
+            application/json:
+              schema:
+                RecentPhotometryQuery
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  oneOf:
+                    - $ref: "#/components/schemas/ArrayOfPhotometryFluxs"
+                    - $ref: "#/components/schemas/ArrayOfPhotometryMags"
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        json = self.get_json()
+        try:
+            standardized = RecentPhotometryQuery.load(json)
+        except ValidationError as e:
+            return self.error(f'Invalid request body: {e.normalized_messages()}')
+
+        magsys = standardized['magsys']
+        format = standardized['format']
+        instrument_ids = standardized['instrument_ids']
+        date_range = standardized['date_range']
+
+        gids = [g.id for g in self.current_user.accessible_groups]
+
+        query = (
+            DBSession()
+            .query(Photometry)
+            .join(GroupPhotometry)
+            .filter(GroupPhotometry.group_id.in_(gids))
+        )
+
+        if instrument_ids is not None:
+            query = query.filter(Photometry.instrument_id.in_(instrument_ids))
+        if date_range[0] is not None:
+            mjd = Time(date_range[0], format='isot').mjd
+            query = query.filter(Photometry.mjd >= mjd)
+        if date_range[1] is not None:
+            mjd = Time(date_range[1], format='isot').mjd
+            query = query.filter(Photometry.mjd <= mjd)
+
+        output = [serialize(p, magsys, format) for p in query]
+        return self.success(data=output)
 
 
 PhotometryHandler.get.__doc__ = f"""
