@@ -423,6 +423,7 @@ def test_dropdown_facility_change(driver, user, public_source):
     driver.wait_for_xpath("//code/div[text()[contains(., 'dist')]]", timeout=20)
 
 
+@pytest.mark.flaky(reruns=2)
 @responses.activate
 def test_source_alert(driver, user, public_group, public_source):
     # Just test the front-end form and mock out the SkyPortal API call

@@ -36,3 +36,4 @@ requests_toolbelt>=0.9.1
 sendgrid>=6.4.6
 twilio>=6.45.3
 jsonschema-to-openapi>=0.2.1
+responses>=0.12.0
