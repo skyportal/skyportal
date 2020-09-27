@@ -14,19 +14,15 @@ openweather_api_key = (
     cfg["weather"].get("openweather_api_key") if cfg.get("weather") else None
 )
 
+default_prefs = {'telescopeID': 1}
+
 
 class WeatherHandler(BaseHandler):
     @auth_or_token
-    def get(self, telescope_id):
+    def get(self):
         """
         ---
-        description: Retrieve weather at a telescope site
-        parameters:
-          - in: path
-            name: telescope_id
-            required: true
-            schema:
-              type: integer
+        description: Retrieve weather at a telescope site for the user
         responses:
           200:
             content:
@@ -56,9 +52,15 @@ class WeatherHandler(BaseHandler):
                               type: string
                               description: Short name of the telescope
         """
-        t = Telescope.query.get(int(telescope_id))
+        user_prefs = getattr(self.current_user, 'preferences', None) or {}
+        weather_prefs = user_prefs.get('weather', {})
+        weather_prefs = {**default_prefs, **weather_prefs}
+
+        t = Telescope.query.get(int(weather_prefs["telescopeID"]))
         if t is None:
-            return self.error(f"Could not load telescope with ID {telescope_id}")
+            return self.error(
+                f"Could not load telescope with ID {weather_prefs['telescopeID']}"
+            )
 
         # Should we call the API again?
         refresh = weather_refresh is not None

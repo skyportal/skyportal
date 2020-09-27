@@ -114,7 +114,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/telescope(/[0-9]+)?', TelescopeHandler),
         (r'/api/thumbnail(/[0-9]+)?', ThumbnailHandler),
         (r'/api/user(/.*)?', UserHandler),
-        (r'/api/weather(/[0-9]+)?', WeatherHandler),
+        (r'/api/weather(/.*)?', WeatherHandler),
         (r'/api/internal/tokens(/.*)?', TokenHandler),
         (r'/api/internal/profile', ProfileHandler),
         (r'/api/internal/dbinfo', DBInfoHandler),
