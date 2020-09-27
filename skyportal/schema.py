@@ -774,25 +774,26 @@ class RecentPhotometryQuery(_Schema):
         "for photometry from. If `None`, "
         "queries all instruments.",
         required=False,
+        missing=None,
         default=None,
     )
 
-    date_range = fields.Tuple(
-        (fields.DateTime(), fields.DateTime()),
-        default=(None, None),
-        description='Query for photometry taken between '
-        'these UT `DateTime`s. For an '
+    min_date = fields.DateTime(
+        required=False,
+        description='Query for photometry taken after '
+        'this UT `DateTime`. For an '
         'open-ended interval use `None`.',
+        missing=None,
+        default=None,
     )
-    format = ApispecEnumField(
-        Enum('format', ['mag', 'flux']),
-        default='mag',
-        description="Return the photometry in flux or " "magnitude space?",
-    )
-    magsys = ApispecEnumField(
-        py_allowed_magsystems,
-        default='ab',
-        description="The magnitude or zeropoint " "system of the output.",
+
+    max_date = fields.DateTime(
+        required=False,
+        description='Query for photometry taken before '
+        'this UT `DateTime`. For an '
+        'open-ended interval use `None`.',
+        missing=None,
+        default=None,
     )
 
 

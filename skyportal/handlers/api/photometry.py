@@ -584,38 +584,20 @@ class BulkDeletePhotometryHandler(BaseHandler):
 class RecentPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self):
-        """
-        ---
-        description: Get photometry taken by specific instruments over a date range
-        requestBody:
-          content:
-            application/json:
-              schema:
-                RecentPhotometryQuery
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  oneOf:
-                    - $ref: "#/components/schemas/ArrayOfPhotometryFluxs"
-                    - $ref: "#/components/schemas/ArrayOfPhotometryMags"
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
+        """Docstring appears below as an f-string."""
 
         json = self.get_json()
+
         try:
             standardized = RecentPhotometryQuery.load(json)
         except ValidationError as e:
             return self.error(f'Invalid request body: {e.normalized_messages()}')
 
-        magsys = standardized['magsys']
-        format = standardized['format']
+        magsys = self.get_query_argument('magsys', default='ab')
+        format = self.get_query_argument('format', default='mag')
         instrument_ids = standardized['instrument_ids']
-        date_range = standardized['date_range']
+        min_date = standardized['min_date']
+        max_date = standardized['max_date']
 
         gids = [g.id for g in self.current_user.accessible_groups]
 
@@ -628,11 +610,11 @@ class RecentPhotometryHandler(BaseHandler):
 
         if instrument_ids is not None:
             query = query.filter(Photometry.instrument_id.in_(instrument_ids))
-        if date_range[0] is not None:
-            mjd = Time(date_range[0], format='isot').mjd
+        if min_date is not None:
+            mjd = Time(min_date, format='datetime').mjd
             query = query.filter(Photometry.mjd >= mjd)
-        if date_range[1] is not None:
-            mjd = Time(date_range[1], format='isot').mjd
+        if max_date is not None:
+            mjd = Time(max_date, format='datetime').mjd
             query = query.filter(Photometry.mjd <= mjd)
 
         output = [serialize(p, magsys, format) for p in query]
@@ -714,6 +696,49 @@ ObjPhotometryHandler.get.__doc__ = f"""
               type: string
               enum: {list(ALLOWED_MAGSYSTEMS)}
 
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  oneOf:
+                    - $ref: "#/components/schemas/ArrayOfPhotometryFluxs"
+                    - $ref: "#/components/schemas/ArrayOfPhotometryMags"
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+RecentPhotometryHandler.get.__doc__ = f"""
+        ---
+        description: Get photometry taken by specific instruments over a date range
+        parameters:
+          - in: query
+            name: format
+            required: false
+            description: >-
+              Return the photometry in flux or magnitude space?
+              If a value for this query parameter is not provided, the
+              result will be returned in magnitude space.
+            schema:
+              type: string
+              enum:
+                - mag
+                - flux
+          - in: query
+            name: magsys
+            required: false
+            description: >-
+              The magnitude or zeropoint system of the output. (Default AB)
+            schema:
+              type: string
+              enum: {list(ALLOWED_MAGSYSTEMS)}
+        requestBody:
+          content:
+            application/json:
+              schema:
+                RecentPhotometryQuery
         responses:
           200:
             content:
