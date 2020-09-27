@@ -594,7 +594,14 @@ class RecentPhotometryHandler(BaseHandler):
             return self.error(f'Invalid request body: {e.normalized_messages()}')
 
         magsys = self.get_query_argument('magsys', default='ab')
+
+        if magsys not in ALLOWED_MAGSYSTEMS:
+            return self.error('Invalid mag system.')
+
         format = self.get_query_argument('format', default='mag')
+        if format not in ['mag', 'flux']:
+            return self.error('Invalid output format.')
+
         instrument_ids = standardized['instrument_ids']
         min_date = standardized['min_date']
         max_date = standardized['max_date']
