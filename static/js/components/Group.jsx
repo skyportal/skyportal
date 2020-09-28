@@ -239,6 +239,7 @@ const Group = () => {
     <div>
       <Typography variant="h5" style={{ paddingBottom: 10 }}>
         Group:&nbsp;&nbsp;{group.name}
+        {group.nickname && ` (${group.nickname})`}
       </Typography>
 
       <Accordion
