@@ -27,7 +27,7 @@ def has_admin_access_for_group(user, group_id):
     )
     return {"System admin", "Manage users", "Manage groups"}.intersection(
         set(user.permissions)
-    ) or groupuser.admin
+    ) or (groupuser is not None and groupuser.admin)
 
 
 class GroupHandler(BaseHandler):
@@ -190,7 +190,7 @@ class GroupHandler(BaseHandler):
         info["all_groups"] = all_groups_query.all()
         return self.success(data=info)
 
-    @permissions(['Manage groups'])
+    @auth_or_token
     def post(self):
         """
         ---
@@ -251,7 +251,7 @@ class GroupHandler(BaseHandler):
         self.push_all(action='skyportal/FETCH_GROUPS')
         return self.success(data={"id": g.id})
 
-    @permissions(['Manage groups'])
+    @auth_or_token
     def put(self, group_id):
         """
         ---
@@ -275,6 +275,21 @@ class GroupHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        groupuser = (
+            DBSession()
+            .query(GroupUser)
+            .filter(GroupUser.group_id == group_id)
+            .filter(GroupUser.user_id == self.associated_user_object.id)
+            .first()
+        )
+        if (
+            "Manage groups" not in self.associated_user_object.permissions
+            and not groupuser.admin
+        ):
+            return self.error(
+                "Insufficient permissions. You must either be a group admin or have higher site-wide permissions."
+            )
+
         data = self.get_json()
         data['id'] = group_id
 
@@ -289,7 +304,7 @@ class GroupHandler(BaseHandler):
 
         return self.success(action='skyportal/FETCH_GROUPS')
 
-    @permissions(['Manage groups'])
+    @auth_or_token
     def delete(self, group_id):
         """
         ---
@@ -309,6 +324,20 @@ class GroupHandler(BaseHandler):
         g = Group.query.get(group_id)
         if g.name == cfg["misc"]["public_group_name"]:
             return self.error("Cannot delete site-wide public group.")
+        groupuser = (
+            DBSession()
+            .query(GroupUser)
+            .filter(GroupUser.group_id == group_id)
+            .filter(GroupUser.user_id == self.associated_user_object.id)
+            .first()
+        )
+        if (
+            "Manage groups" not in self.associated_user_object.permissions
+            and not groupuser.admin
+        ):
+            return self.error(
+                "Insufficient permissions. You must either be a group admin or have higher site-wide permissions."
+            )
         DBSession().delete(g)
         DBSession().commit()
 
