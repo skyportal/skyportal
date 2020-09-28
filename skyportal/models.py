@@ -343,6 +343,14 @@ class Obj(Base, ha.Point):
         order_by="Comment.created_at",
         doc="Comments posted about the object.",
     )
+    annotations = relationship(
+        'Annotation',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        order_by="Annotation.created_at",
+        doc="Auto-annotations posted about the object.",
+    )
 
     classifications = relationship(
         'Classification',
@@ -888,6 +896,36 @@ def get_obj_comments_owned_by(self, user_or_token):
 Obj.get_comments_owned_by = get_obj_comments_owned_by
 
 
+def get_obj_annotations_owned_by(self, user_or_token):
+    """Query the database and return the Annotations on this Obj that are accessible
+    to any of the User or Token owner's accessible Groups.
+
+    Parameters
+    ----------
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    annotation_list : list of `skyportal.models.Annotation`
+       The accessible annotations attached to this Obj.
+    """
+    owned_annotations = [
+        annotation
+        for annotation in self.annotations
+        if annotation.is_owned_by(user_or_token)
+    ]
+
+    # Grab basic author info for the annotations
+    for annotation in owned_annotations:
+        annotation.author_info = annotation.construct_author_info_dict()
+
+    return owned_annotations
+
+
+Obj.get_annotations_owned_by = get_obj_annotations_owned_by
+
+
 def get_obj_classifications_owned_by(self, user_or_token):
     """Query the database and return the Classifications on this Obj that are accessible
     to any of the User or Token owner's accessible Groups.
@@ -1343,12 +1381,6 @@ class Comment(Base):
         passive_deletes=True,
         doc="Groups that can see the comment.",
     )
-    is_auto = sa.Column(
-        sa.Boolean,
-        default=False,
-        doc="True for comments made by robots, False for human authors",
-    )
-    altdata = sa.Column(JSONB, default=None, doc="searchable data in JSON format")
 
     def construct_author_info_dict(self):
         return {
@@ -1373,6 +1405,59 @@ GroupComment = join_model("group_comments", Group, Comment)
 GroupComment.__doc__ = "Join table mapping Groups to Comments."
 
 User.comments = relationship("Comment", back_populates="author")
+
+
+class Annotation(Base):
+
+    data = sa.Column(JSONB, default=None, doc="searchable data in JSON format")
+    origin = sa.Column(sa.String, nullable=True, doc='Annotation origin.')
+    author = relationship(
+        "User", back_populates="annotations", doc="Annotation's author.", uselist=False,
+    )
+    author_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Annotation author's User instance.",
+    )
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Annotation's Obj.",
+    )
+    obj = relationship('Obj', back_populates='annotations', doc="The Annotation's Obj.")
+    groups = relationship(
+        "Group",
+        secondary="group_annotations",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="Groups that can see the annotation.",
+    )
+
+    def construct_author_info_dict(self):
+        return {
+            field: getattr(self.author, field)
+            for field in ('username', 'first_name', 'last_name', 'gravatar_url')
+        }
+
+    @classmethod
+    def get_if_owned_by(cls, ident, user, options=[]):
+        annotation = cls.query.options(options).get(ident)
+
+        if annotation is not None and not annotation.is_owned_by(user):
+            raise AccessError('Insufficient permissions.')
+
+        # Grab basic author info for the annotation
+        annotation.author_info = annotation.construct_author_info_dict()
+
+        return annotation
+
+
+GroupAnnotation = join_model("group_annotations", Group, Annotation)
+GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
+
+User.annotations = relationship("Annotation", back_populates="author")
 
 
 class Classification(Base):
