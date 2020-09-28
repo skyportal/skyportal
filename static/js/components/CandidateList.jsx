@@ -14,6 +14,7 @@ import useMediaQuery from "@material-ui/core/useMediaQuery";
 import Button from "@material-ui/core/Button";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import OpenInNewIcon from "@material-ui/icons/OpenInNew";
+import ArrowUpward from "@material-ui/icons/ArrowUpward";
 import Chip from "@material-ui/core/Chip";
 import Box from "@material-ui/core/Box";
 import MUIDataTable from "mui-datatables";
@@ -143,22 +144,6 @@ const CandidateList = () => {
       setQueryInProgress(false);
     }
   }, [candidates, dispatch]);
-
-  const handleClickNextPage = async () => {
-    setQueryInProgress(true);
-    await dispatch(
-      candidatesActions.fetchCandidates({ pageNumber: pageNumber + 1 })
-    );
-    setQueryInProgress(false);
-  };
-
-  const handleClickPreviousPage = async () => {
-    setQueryInProgress(true);
-    await dispatch(
-      candidatesActions.fetchCandidates({ pageNumber: pageNumber - 1 })
-    );
-    setQueryInProgress(false);
-  };
 
   const renderThumbnails = (dataIndex) => {
     const candidateObj = candidates[dataIndex];
@@ -307,8 +292,6 @@ const CandidateList = () => {
         </Typography>
         <FilterCandidateList
           userAccessibleGroups={userAccessibleGroups}
-          handleClickNextPage={handleClickNextPage}
-          handleClickPreviousPage={handleClickPreviousPage}
           pageNumber={pageNumber}
           numberingStart={numberingStart}
           numberingEnd={numberingEnd}
@@ -347,30 +330,12 @@ const CandidateList = () => {
         <div>
           <Button
             variant="contained"
-            onClick={handleClickPreviousPage}
-            disabled={pageNumber === 1}
+            onClick={() => {
+              window.scrollTo({ top: 0 });
+            }}
             size="small"
           >
-            Previous Page
-          </Button>
-        </div>
-        <div>
-          <i>
-            Displaying&nbsp;
-            {numberingStart}-{numberingEnd}
-            &nbsp; of&nbsp;
-            {totalMatches}
-            &nbsp; candidates.
-          </i>
-        </div>
-        <div>
-          <Button
-            variant="contained"
-            onClick={handleClickNextPage}
-            disabled={lastPage}
-            size="small"
-          >
-            Next Page
+            Back to top <ArrowUpward />
           </Button>
         </div>
       </div>
