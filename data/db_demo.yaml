@@ -182,6 +182,7 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =IOO
+    altdata: '{"username": "fritz_bot", "password": "pmB5G5BeQM"}'
   - pi: Michael Coughlin
     proposal_id: LT-002
     start_date: "3020-02-12T00:00:00"
@@ -189,6 +190,7 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =SPRAT
+    altdata: '{"username": "fritz_bot", "password": "pmB5G5BeQM"}'
   - pi: Michael Coughlin
     proposal_id: LT-003
     start_date: "3020-02-12T00:00:00"
@@ -196,6 +198,7 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =IOI
+    altdata: '{"username": "fritz_bot", "password": "pmB5G5BeQM"}'
 
 candidates:
   - id: 14gqr_unsaved_copy

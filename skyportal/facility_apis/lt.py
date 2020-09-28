@@ -533,6 +533,7 @@ class IOOAPI(LTAPI):
                 "default": '1x120s',
             },
             "priority": {"type": "string", "enum": ["1", "5"], "default": "1"},
+            "LT_proposalID": {"type": "string"},
             "start_date": {
                 "type": "string",
                 "format": "date",
@@ -655,6 +656,7 @@ class IOIAPI(LTAPI):
                 "default": '1x120s',
             },
             "priority": {"type": "string", "enum": ["1", "5"], "default": "1"},
+            "LT_proposalID": {"type": "string"},
             "start_date": {
                 "type": "string",
                 "format": "date",
@@ -796,6 +798,7 @@ class SPRATAPI(LTAPI):
                 "default": "blue",
             },
             "priority": {"type": "string", "enum": ["1", "5"], "default": "1"},
+            "LT_proposalID": {"type": "string"},
             "start_date": {
                 "type": "string",
                 "format": "date",
@@ -808,7 +811,6 @@ class SPRATAPI(LTAPI):
                 "title": "End Date (UT)",
                 "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
             },
-            "LT_proposalID": {"type": "string"},
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
                 "type": "number",

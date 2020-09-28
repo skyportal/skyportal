@@ -154,13 +154,18 @@ def add_followup_request_using_frontend_and_verify_IOO(
     photometric_option = driver.wait_for_xpath('//input[@id="root_photometric"]')
     driver.scroll_to_element_and_click(photometric_option)
 
+    mode_select = driver.wait_for_xpath('//div[@id="root_exposure_type"]')
+    driver.scroll_to_element(mode_select)
+
     mode_select = driver.wait_for_xpath('//div[@id="root_observation_type"]')
+    driver.scroll_to_element(mode_select)
     ActionChains(driver).move_to_element(mode_select).pause(1).click().perform()
 
     gri_option = driver.wait_for_xpath('''//li[@data-value="gri"]''')
     driver.scroll_to_element_and_click(gri_option)
 
     mode_select = driver.wait_for_xpath('//div[@id="root_exposure_type"]')
+    driver.scroll_to_element(mode_select)
     ActionChains(driver).move_to_element(mode_select).pause(1).click().perform()
 
     exp_option = driver.wait_for_xpath('''//li[@data-value="2x150s"]''')
@@ -168,9 +173,6 @@ def add_followup_request_using_frontend_and_verify_IOO(
 
     proposal_option = driver.wait_for_xpath('//input[@id="root_LT_proposalID"]')
     proposal_option.send_keys('GrowthTest')
-
-    mode_select = driver.wait_for_xpath('//div[@id="root_instrument_type"]')
-    driver.scroll_to_element(mode_select)
 
     driver.scroll_to_element_and_click(submit_button)
 
@@ -199,7 +201,7 @@ def test_submit_new_followup_request_SEDM(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_submit_new_followup_request_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
