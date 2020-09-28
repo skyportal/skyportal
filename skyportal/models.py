@@ -17,7 +17,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import URLType, EmailType
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
-from twilio.rest import Client
+from twilio.rest import Client as TwilioClient
 
 from astropy import coordinates as ap_coord
 import healpix_alchemy as ha
@@ -56,6 +56,18 @@ PHOT_SYS = 'ab'
 
 _, cfg = load_env()
 cosmo = establish_cosmology(cfg)
+
+
+def get_app_base_url():
+    ports_to_ignore = {True: 443, False: 80}  # True/False <-> server.ssl=True/False
+    return f"{'https' if cfg['server.ssl'] else 'http'}:" f"//{cfg['server.host']}" + (
+        f":{cfg['server.port']}"
+        if (
+            cfg["server.port"] is not None
+            and cfg["server.port"] != ports_to_ignore[cfg["server.ssl"]]
+        )
+        else ""
+    )
 
 
 def is_owned_by(self, user_or_token):
@@ -2136,20 +2148,7 @@ UserInvitation = join_model("user_invitations", User, Invitation)
 
 @event.listens_for(Invitation, 'after_insert')
 def send_user_invite_email(mapper, connection, target):
-    _, cfg = load_env()
-    ports_to_ignore = {True: 443, False: 80}  # True/False <-> server.ssl=True/False
-    app_base_url = (
-        f"{'https' if cfg['server.ssl'] else 'http'}:"
-        f"//{cfg['server.host']}"
-        + (
-            f":{cfg['server.port']}"
-            if (
-                cfg["server.port"] is not None
-                and cfg["server.port"] != ports_to_ignore[cfg["server.ssl"]]
-            )
-            else ""
-        )
-    )
+    app_base_url = get_app_base_url()
     link_location = f'{app_base_url}/login/google-oauth2/?invite_token={target.token}'
     message = Mail(
         from_email=cfg["twilio.from_email"],
@@ -2196,20 +2195,7 @@ UserSourceAlert = join_model("user_alerts", User, SourceAlert)
 
 @event.listens_for(SourceAlert, 'after_insert')
 def send_source_alert(mapper, connection, target):
-    _, cfg = load_env()
-    ports_to_ignore = {True: 443, False: 80}  # True/False <-> server.ssl=True/False
-    app_base_url = (
-        f"{'https' if cfg['server.ssl'] else 'http'}:"
-        f"//{cfg['server.host']}"
-        + (
-            f":{cfg['server.port']}"
-            if (
-                cfg["server.port"] is not None
-                and cfg["server.port"] != ports_to_ignore[cfg["server.ssl"]]
-            )
-            else ""
-        )
-    )
+    app_base_url = get_app_base_url()
 
     link_location = f'{app_base_url}/source/{target.source_id}'
     if target.sent_by.first_name is not None and target.sent_by.last_name is not None:
@@ -2225,7 +2211,7 @@ def send_source_alert(mapper, connection, target):
         # Use a set to get unique iterable of users
         target_users.update(group.users)
 
-    source = DBSession().query(Obj).filter(Obj.id == target.source_id).one()
+    source = DBSession().query(Obj).get(target.source_id)
     source_info = ""
     if source.ra is not None:
         source_info += f'RA={source.ra} '
@@ -2237,7 +2223,7 @@ def send_source_alert(mapper, connection, target):
     if target.level == "hard":
         message_text = (
             f'{cfg["app.title"]}: {sent_by_name} would like to call your immediate'
-            + f' attention to a source at {link_location} ({source_info}).'
+            f' attention to a source at {link_location} ({source_info}).'
         )
         if target.additional_notes != "":
             message_text += f' Addtional notes: {target.additional_notes}'
@@ -2245,13 +2231,13 @@ def send_source_alert(mapper, connection, target):
         account_sid = cfg["twilio.sms_account_sid"]
         auth_token = cfg["twilio.sms_auth_token"]
         from_number = cfg["twilio.from_number"]
-        client = Client(account_sid, auth_token)
+        client = TwilioClient(account_sid, auth_token)
         for user in target_users:
             # If user has a phone number registered and opted into SMS alerts
             if (
                 user.contact_phone is not None
                 and "allowSMSAlerts" in user.preferences
-                and user.preferences["allowSMSAlerts"]
+                and user.preferences.get("allowSMSAlerts")
             ):
                 client.messages.create(
                     body=message_text, from_=from_number, to=user.contact_phone.e164
@@ -2264,7 +2250,7 @@ def send_source_alert(mapper, connection, target):
         if (
             user.contact_email is not None
             and "allowEmailAlerts" in user.preferences
-            and user.preferences["allowEmailAlerts"]
+            and user.preferences.get("allowEmailAlerts")
         ):
             message = Mail(
                 from_email=cfg["twilio.from_email"],

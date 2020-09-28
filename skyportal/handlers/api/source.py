@@ -985,7 +985,8 @@ class SourceAlertHandler(BaseHandler):
             return self.error("Alerts are not enabled in current deployment.")
         data = self.get_json()
 
-        additional_notes = data["additionalNotes"].strip()
+        if isinstance(data.get("additionalNotes"), str):
+            additional_notes = data["additionalNotes"].strip()
 
         if data.get("groupIds") is None:
             return self.error("Missing required parameter `groupIds`")

@@ -47,6 +47,20 @@ const SourceAlert = ({ sourceId }) => {
   const [selectedGroups, setSelectedGroups] = useState([]);
   const { handleSubmit, getValues, reset, register, control } = useForm();
   const dispatch = useDispatch();
+
+  const validateGroups = () => {
+    const formState = getValues({ nest: true });
+    console.log(formState);
+    if (formState.groupIds.length === 0) {
+      dispatch(
+        showNotification("No target group(s) selected for alert", "error")
+      );
+      return false;
+    }
+
+    return true;
+  };
+
   const initialFormState = {
     additionalNotes: "",
     groupIds: [],
@@ -59,16 +73,11 @@ const SourceAlert = ({ sourceId }) => {
       ...initialFormState,
       ...getValues(),
     };
-    if (formData.groupIds.length === 0) {
-      dispatch(
-        showNotification("No target group(s) selected for alert", "error")
-      );
-    } else {
-      const result = await dispatch(Actions.sendAlert(formData));
-      if (result.status === "success") {
-        dispatch(showNotification("Alert queued up sucessfully", "info"));
-        reset(initialFormState);
-      }
+
+    const result = await dispatch(Actions.sendAlert(formData));
+    if (result.status === "success") {
+      dispatch(showNotification("Alert queued up sucessfully", "info"));
+      reset(initialFormState);
     }
   };
 
@@ -88,6 +97,7 @@ const SourceAlert = ({ sourceId }) => {
               control={control}
               rules={{
                 required: true,
+                validate: validateGroups,
               }}
               defaultValue={[]}
               onChange={([event]) => {
