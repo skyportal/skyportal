@@ -70,6 +70,8 @@ def test_assignment_posts_to_observing_run(
 
     driver.get(f"/run/{red_transients_run.id}")
     driver.wait_for_xpath(f'//*[text()="{public_source.id}"]')
+    for group in [s.group for s in public_source.sources]:
+        driver.wait_for_xpath(f'//*[text()="{group.name[:15]}"]')
 
 
 @pytest.mark.flaky(reruns=2)
