@@ -1426,6 +1426,19 @@ class Annotation(Base):
         index=True,
         doc="ID of the Annotation's Obj.",
     )
+
+    attachment_name = sa.Column(
+        sa.String, nullable=True, doc="Filename of the attachment."
+    )
+    attachment_type = sa.Column(
+        sa.String, nullable=True, doc="Attachment extension, (e.g., pdf, png)."
+    )
+    attachment_bytes = sa.Column(
+        sa.types.LargeBinary,
+        nullable=True,
+        doc="Binary representation of the attachment.",
+    )
+
     obj = relationship('Obj', back_populates='annotations', doc="The Annotation's Obj.")
     groups = relationship(
         "Group",
