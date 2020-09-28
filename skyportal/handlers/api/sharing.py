@@ -54,11 +54,6 @@ class SharingHandler(BaseHandler):
                 "One of either `photometryIDs` or `spectrumIDs` " "must be provided."
             )
         groups = Group.query.filter(Group.id.in_(group_ids))
-        if not all([group in self.current_user.accessible_groups for group in groups]):
-            return self.error(
-                "Insufficient permissions: you must have access to each "
-                "target group you wish to share data with."
-            )
         obj_id = None
         if phot_ids:
             query = Photometry.query.filter(Photometry.id.in_(phot_ids))
