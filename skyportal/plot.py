@@ -454,7 +454,13 @@ def photometry_plot(obj_id, user, width=600, height=300):
     )
 
     # Mark the first and last detections again
+    data['hasmag'] = ~data['mag'].isna()
+    detection_dates = data[data['hasmag']]['mjd']
     if len(detection_dates) > 0:
+        first = round(detection_dates.min(), 6)
+        last = round(detection_dates.max(), 6)
+        first_x = np.full(5000, first)
+        last_x = np.full(5000, last)
         midpoint = (ymax + ymin) / 2
         line_top = 5 * ymax - 4 * midpoint
         line_bottom = 5 * ymin - 4 * midpoint
