@@ -338,6 +338,7 @@ const CandidateList = () => {
                 selectableRows: "none",
                 enableNestedDataAccess: ".",
                 rowsPerPage: 25,
+                rowsPerPageOptions: [10, 25, 100],
               }}
             />
           </MuiThemeProvider>
