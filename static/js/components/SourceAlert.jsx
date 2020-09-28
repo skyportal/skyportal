@@ -50,7 +50,7 @@ const SourceAlert = ({ sourceId }) => {
 
   const validateGroups = () => {
     const formState = getValues({ nest: true });
-    console.log(formState);
+
     if (formState.groupIds.length === 0) {
       dispatch(
         showNotification("No target group(s) selected for alert", "error")
