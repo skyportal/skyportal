@@ -101,6 +101,9 @@ class Group(Base):
     name = sa.Column(
         sa.String, unique=True, nullable=False, index=True, doc='Name of the group.'
     )
+    nickname = sa.Column(
+        sa.String, unique=True, nullable=True, index=True, doc='Short group nickname.'
+    )
 
     streams = relationship(
         'Stream',
