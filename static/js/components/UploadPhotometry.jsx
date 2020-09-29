@@ -68,6 +68,20 @@ const UploadPhotometryForm = () => {
   } = useForm();
   let formState = getValues();
 
+  // only show instruments that have an imaging mode
+  const sortedInstrumentList = [...instrumentList].filter((instrument) =>
+    instrument.type.includes("imag")
+  );
+  sortedInstrumentList.sort((i1, i2) => {
+    if (i1.name > i2.name) {
+      return 1;
+    }
+    if (i2.name > i1.name) {
+      return -1;
+    }
+    return 0;
+  });
+
   const parseOptions = {
     skipEmptyLines: "greedy",
     delimitersToGuess: [
@@ -241,7 +255,7 @@ const UploadPhotometryForm = () => {
     },
   };
 
-  if (!instrumentList || !userGroups) {
+  if (!sortedInstrumentList || !userGroups) {
     return <div>Loading...</div>;
   }
 
@@ -317,7 +331,7 @@ const UploadPhotometryForm = () => {
                           <MenuItem value="multiple" key={0}>
                             Multiple (requires instrument_id column below)
                           </MenuItem>
-                          {instrumentList.map((instrument) => (
+                          {sortedInstrumentList.map((instrument) => (
                             <MenuItem value={instrument.id} key={instrument.id}>
                               <Tooltip
                                 title={`Filters: ${instrument.filters.join(
