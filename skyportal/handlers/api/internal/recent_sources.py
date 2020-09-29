@@ -42,19 +42,36 @@ class RecentSourcesHandler(BaseHandler):
     def get(self):
         query_results = RecentSourcesHandler.get_recent_source_ids(self.current_user)
         sources = []
+        sources_seen = {}
         for obj_id in query_results:
+            recency_index = 0
+            if obj_id in sources_seen:
+                recency_index = sources_seen[obj_id]
+                sources_seen[obj_id] += 1
+            else:
+                sources_seen[obj_id] = 1
+
             s = Source.get_obj_if_owned_by(  # Returns Source.obj
                 obj_id,
                 self.current_user,
                 options=[joinedload(Source.obj).joinedload(Obj.thumbnails)],
             )
+
+            # Get the entry in the Source table to get the accurate saved_at time
+            source_entry = (
+                Source.query.filter(Source.obj_id == obj_id)
+                .order_by(desc('created_at'))
+                .offset(recency_index)
+                .first()
+            )
+
             public_url = first_thumbnail_public_url(s.thumbnails)
             sources.append(
                 {
                     'obj_id': s.id,
                     'ra': s.ra,
                     'dec': s.dec,
-                    'created_at': s.created_at,
+                    'created_at': source_entry.created_at,
                     'public_url': public_url,
                     'classifications': s.classifications,
                 }

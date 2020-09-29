@@ -15,6 +15,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import URLType, EmailType
+from sqlalchemy import func
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
@@ -52,6 +53,8 @@ from skyportal import facility_apis
 # All DB fluxes are stored in microJy (AB).
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
+
+utcnow = func.timezone('UTC', func.current_timestamp())
 
 _, cfg = load_env()
 cosmo = establish_cosmology(cfg)
@@ -721,7 +724,10 @@ Source.saved_by = relationship(
     doc="User that saved the Obj to its Group.",
 )
 Source.saved_at = sa.Column(
-    sa.DateTime, nullable=True, doc="ISO UTC time when the Obj was saved to its Group."
+    sa.DateTime,
+    nullable=False,
+    default=utcnow,
+    doc="ISO UTC time when the Obj was saved to its Group.",
 )
 Source.active = sa.Column(
     sa.Boolean,

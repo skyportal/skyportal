@@ -207,7 +207,7 @@ const RecentSources = ({ classes }) => {
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <Typography variant="h6" display="inline">
-          Recently Added Sources
+          Recently Saved Sources
         </Typography>
         <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
         <div className={classes.widgetIcon}>
