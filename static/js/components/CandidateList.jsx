@@ -23,12 +23,13 @@ import ThumbnailList from "./ThumbnailList";
 import CandidateCommentList from "./CandidateCommentList";
 import SaveCandidateButton from "./SaveCandidateButton";
 import FilterCandidateList from "./FilterCandidateList";
+import AddSourceGroup from "./AddSourceGroup";
 
 const VegaPlot = React.lazy(() =>
   import(/* webpackChunkName: "VegaPlot" */ "./VegaPlot")
 );
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   candidateListContainer: {
     padding: "1rem",
   },
@@ -73,6 +74,9 @@ const useStyles = makeStyles(() => ({
   annotations: (props) => ({
     minWidth: props.annotationsMinWidth,
   }),
+  chip: {
+    margin: theme.spacing(0.5),
+  },
 }));
 
 // Hide built-in pagination and tweak responsive column widths
@@ -191,18 +195,46 @@ const CandidateList = () => {
         </span>
         <br />
         {candidateObj.is_source ? (
-          <div className={classes.itemPaddingBottom}>
-            <Chip
-              size="small"
-              label="Previously Saved"
-              clickable
-              onClick={() => history.push(`/source/${candidateObj.id}`)}
-              onDelete={() =>
-                window.open(`/source/${candidateObj.id}`, "_blank")
-              }
-              deleteIcon={<OpenInNewIcon />}
-              color="primary"
-            />
+          <div>
+            <div className={classes.itemPaddingBottom}>
+              <Chip
+                size="small"
+                label="Previously Saved"
+                clickable
+                onClick={() => history.push(`/source/${candidateObj.id}`)}
+                onDelete={() =>
+                  window.open(`/source/${candidateObj.id}`, "_blank")
+                }
+                deleteIcon={<OpenInNewIcon />}
+                color="primary"
+              />
+            </div>
+            <div className={classes.saveCandidateButton}>
+              <AddSourceGroup
+                source={{
+                  id: candidateObj.id,
+                  currentGroupIds: candidateObj.saved_groups.map((g) => g.id),
+                }}
+                userGroups={userAccessibleGroups}
+              />
+            </div>
+            <div className={classes.infoItem}>
+              <b>Saved groups: </b>
+              <span>
+                {candidateObj.saved_groups.map((group) => (
+                  <Chip
+                    label={
+                      group.nickname
+                        ? group.nickname.substring(0, 15)
+                        : group.name.substring(0, 15)
+                    }
+                    key={group.id}
+                    size="small"
+                    className={classes.chip}
+                  />
+                ))}
+              </span>
+            </div>
           </div>
         ) : (
           <div>

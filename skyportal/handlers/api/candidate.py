@@ -14,6 +14,7 @@ from ...models import (
     Instrument,
     Source,
     Filter,
+    Group,
 )
 
 
@@ -283,6 +284,17 @@ class CandidateHandler(BaseHandler):
         candidate_list = []
         for obj in query_results["candidates"]:
             obj.is_source = (obj.id,) in matching_source_ids
+            if obj.is_source:
+                obj.saved_groups = [
+                    g
+                    for g in (
+                        DBSession()
+                        .query(Group)
+                        .join(Source)
+                        .filter(Source.obj_id == obj.id)
+                        .filter(Group.id.in_(user_accessible_group_ids),)
+                    )
+                ]
             obj.passing_group_ids = [
                 f.group_id
                 for f in (

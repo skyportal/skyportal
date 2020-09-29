@@ -99,7 +99,7 @@ const AddSourceGroup = ({ source, userGroups, icon }) => {
           onClick={openDialog}
           disabled={isSubmitting || unsavedGroups.length === 0}
         >
-          Add a group
+          Save to a new group
         </Button>
       )}
 
