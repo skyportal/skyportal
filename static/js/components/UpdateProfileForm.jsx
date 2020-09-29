@@ -70,7 +70,9 @@ const UpdateProfileForm = () => {
         <CardContent>
           <h2>Username</h2>
           <form onSubmit={handleSubmit(onSubmit)}>
-            <InputLabel htmlFor="usernameInput">Username</InputLabel>
+            <InputLabel htmlFor="usernameInput">
+              Username (normalized upon save)
+            </InputLabel>
             <TextField
               inputRef={register({ required: true })}
               name="username"

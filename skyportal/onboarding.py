@@ -1,4 +1,6 @@
 import datetime
+from slugify import slugify
+
 from .models import (
     DBSession,
     User,
@@ -57,7 +59,9 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
         user.roles.append(Role.query.get("Full user"))
         DBSession().add(user)
         # Add single-user group
-        DBSession().add(Group(name=user.username, users=[user], single_user_group=True))
+        DBSession().add(
+            Group(name=slugify(user.username), users=[user], single_user_group=True)
+        )
         DBSession().commit()
         return {"is_new": True, "user": user}
     elif not cfg["invitations.enabled"]:
