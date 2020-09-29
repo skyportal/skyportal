@@ -22,7 +22,9 @@ class SpectrumHandler(BaseHandler):
                         type: array
                         items:
                           type: integer
-                        description: Group IDs that spectrum will be associated with
+                        description: |
+                          Group IDs that spectrum will be associated with. If 'all',
+                          will be shared with all groups associated source is visible to.
                     required:
                       - group_ids
         responses:
@@ -56,7 +58,25 @@ class SpectrumHandler(BaseHandler):
             group_ids = data.pop("group_ids")
         except KeyError:
             return self.error("Missing required field: group_ids")
-        groups = Group.query.filter(Group.id.in_(group_ids)).all()
+        if isinstance(group_ids, (list, tuple)):
+            groups = Group.query.filter(Group.id.in_(group_ids)).all()
+        elif group_ids == "all":
+            groups = Group.query.filter(
+                Group.id.in_(
+                    [
+                        s.group_id
+                        for s in DBSession()
+                        .query(Source)
+                        .filter(Source.obj_id == data["obj_id"])
+                        .all()
+                    ]
+                )
+            ).all()
+        else:
+            return self.error(
+                "Invalid group_ids parameter value. Must be a list of IDs "
+                "(integers) or the string 'all'."
+            )
 
         instrument = Instrument.query.get(instrument_id)
 

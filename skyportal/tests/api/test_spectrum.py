@@ -30,6 +30,33 @@ def test_token_user_post_get_spectrum_data(
     assert data['data']['obj_id'] == public_source.id
 
 
+def test_token_user_post_spectrum_all_groups(
+    upload_data_token, public_source_two_groups,
+):
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source_two_groups.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': 1,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': "all",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    spectrum_id = data['data']['id']
+    status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['fluxes'][0] == 234.2
+    assert data['data']['obj_id'] == public_source_two_groups.id
+
+
 def test_token_user_post_spectrum_no_access(
     view_only_token, public_source, public_group
 ):
