@@ -242,7 +242,7 @@ class GroupHandler(BaseHandler):
         ):
             group_admins.append(self.current_user)
 
-        g = Group(name=data["name"], nickname=data.get("nickname"))
+        g = Group(name=data["name"], nickname=data.get("nickname") or None)
         DBSession().add(g)
         DBSession().flush()
         DBSession().add_all(
