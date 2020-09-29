@@ -82,6 +82,55 @@ def test_post_photometry_multiple_groups(
     assert data['data']['ra_unc'] is None
     assert data['data']['dec_unc'] is None
 
+    assert len(data['data']['groups']) == 2
+
+    np.testing.assert_allclose(
+        data['data']['flux'], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
+    )
+
+
+def test_post_photometry_all_groups(
+    upload_data_token_two_groups,
+    public_source_two_groups,
+    public_group,
+    public_group2,
+    ztf_camera,
+):
+    upload_data_token = upload_data_token_two_groups
+    public_source = public_source_two_groups
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58000.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': "all",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    photometry_id = data['data']['ids'][0]
+    status, data = api(
+        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    assert data['data']['ra'] is None
+    assert data['data']['dec'] is None
+    assert data['data']['ra_unc'] is None
+    assert data['data']['dec_unc'] is None
+
+    assert len(data['data']['groups']) == 2
+
     np.testing.assert_allclose(
         data['data']['flux'], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
     )
@@ -558,7 +607,7 @@ def test_token_user_post_photometry_limits(
     assert status == 200
     assert data['status'] == 'success'
 
-    assert data['data']['flux'] == None
+    assert data['data']['flux'] is None
     np.testing.assert_allclose(
         data['data']['fluxerr'], 10 ** (-0.4 * (22.3 - 23.9)) / 5
     )
@@ -589,7 +638,7 @@ def test_token_user_post_photometry_limits(
     assert status == 200
     assert data['status'] == 'success'
 
-    assert data['data']['flux'] == None
+    assert data['data']['flux'] is None
     np.testing.assert_allclose(
         data['data']['fluxerr'], 0.031 * 10 ** (-0.4 * (25.0 - 23.9))
     )
