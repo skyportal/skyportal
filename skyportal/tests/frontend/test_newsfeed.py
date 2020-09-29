@@ -41,7 +41,7 @@ def test_news_feed(
     for i in range(2):
         # Source added item
         driver.wait_for_xpath(
-            f'//div[contains(@class, "NewsFeed__entryContent")][.//p[text()="New source added"]][.//a[@href="/source/{obj_id_base}_{i}"]]'
+            f'//div[contains(@class, "NewsFeed__entryContent")][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_{i}"]]'
         )
 
         # Comment item
@@ -85,7 +85,7 @@ def test_news_feed_prefs_widget(
     for i in range(2):
         # Source added item
         driver.wait_for_xpath(
-            f'//div[contains(@class, "NewsFeed__entryContent")][.//p[text()="New source added"]][.//a[@href="/source/{obj_id_base}_{i}"]]'
+            f'//div[contains(@class, "NewsFeed__entryContent")][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_{i}"]]'
         )
 
         # Comment item
@@ -96,7 +96,7 @@ def test_news_feed_prefs_widget(
     n_items_input.clear()
     ActionChains(driver).click(n_items_input).send_keys("2").perform()
     driver.click_xpath('//button[contains(., "Save")]')
-    source_added_item_xpath = f'//div[contains(@class, "NewsFeed__entryContent")][.//p[text()="New source added"]][.//a[@href="/source/{obj_id_base}_0"]]'
+    source_added_item_xpath = f'//div[contains(@class, "NewsFeed__entryContent")][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_0"]]'
     driver.wait_for_xpath_to_disappear(source_added_item_xpath)
     driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]').click()
     n_items_input = driver.wait_for_xpath('//input[@id="numItems"]')
