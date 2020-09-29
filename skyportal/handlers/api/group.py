@@ -227,6 +227,8 @@ class GroupHandler(BaseHandler):
                               description: New group ID
         """
         data = self.get_json()
+        if data.get("name") is None:
+            return self.error("Missing required parameter: `name`")
 
         try:
             group_admin_ids = [int(e) for e in data.get('group_admins', [])]
@@ -240,7 +242,7 @@ class GroupHandler(BaseHandler):
         ):
             group_admins.append(self.current_user)
 
-        g = Group(name=data['name'])
+        g = Group(name=data["name"], nickname=data.get("nickname") or None)
         DBSession().add(g)
         DBSession().flush()
         DBSession().add_all(
