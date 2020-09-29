@@ -74,8 +74,19 @@ class RecentSourcesHandler(BaseHandler):
                     'created_at': source_entry.created_at,
                     'public_url': public_url,
                     'classifications': s.classifications,
+                    'recency_index': recency_index,
                 }
             )
+
+        for source in sources:
+            num_times_seen = sources_seen[source["obj_id"]]
+            # If this source was saved multiple times recently, and this is not the oldest instance
+            if num_times_seen > 1 and source["recency_index"] != num_times_seen - 1:
+                source["resaved"] = True
+            else:
+                source["resaved"] = False
+            # Delete bookkeeping key
+            del source["recency_index"]
 
         return self.success(data=sources)
 
