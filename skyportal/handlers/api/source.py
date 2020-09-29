@@ -459,10 +459,15 @@ class SourceHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(action="skyportal/FETCH_SOURCES")
-        if previouslySaved is None:
+        # If we're updating a source
+        if previouslySaved is not None:
             self.push_all(
-                action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+                action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
             )
+
+        self.push_all(
+            action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+        )
         self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
         return self.success(data={"id": obj.id})
 

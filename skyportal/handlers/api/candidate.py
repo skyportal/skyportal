@@ -146,6 +146,8 @@ class CandidateHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
+
         if obj_id is not None:
             c = Candidate.get_obj_if_owned_by(
                 obj_id,
@@ -167,6 +169,17 @@ class CandidateHandler(BaseHandler):
                 reverse=True,
             )
             candidate_info["is_source"] = len(c.sources) > 0
+            if candidate_info["is_source"]:
+                candidate_info["saved_groups"] = [
+                    g
+                    for g in (
+                        DBSession()
+                        .query(Group)
+                        .join(Source)
+                        .filter(Source.obj_id == obj_id)
+                        .filter(Group.id.in_(user_accessible_group_ids),)
+                    )
+                ]
             candidate_info["last_detected"] = c.last_detected
             candidate_info["gal_lon"] = c.gal_lon_deg
             candidate_info["gal_lat"] = c.gal_lat_deg
@@ -184,7 +197,6 @@ class CandidateHandler(BaseHandler):
         end_date = self.get_query_argument("endDate", None)
         group_ids = self.get_query_argument("groupIDs", None)
         filter_ids = self.get_query_argument("filterIDs", None)
-        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
             filtr.id
             for g in self.current_user.accessible_groups
