@@ -82,6 +82,7 @@ const AddSourceGroup = ({ source, userGroups, icon }) => {
           <span>
             <IconButton
               aria-label="add-group"
+              data-testid={`addGroup_${source.id}`}
               onClick={openDialog}
               size="small"
               disabled={isSubmitting || unsavedGroups.length === 0}
@@ -95,6 +96,7 @@ const AddSourceGroup = ({ source, userGroups, icon }) => {
         <Button
           variant="contained"
           aria-label="add-group"
+          data-testid={`addGroup_${source.id}`}
           size="small"
           onClick={openDialog}
           disabled={isSubmitting || unsavedGroups.length === 0}
@@ -123,6 +125,7 @@ const AddSourceGroup = ({ source, userGroups, icon }) => {
                     name={`group_ids[${idx}]`}
                     control={control}
                     rules={{ validate: validateGroups }}
+                    data-testid={`addGroupSelect_${userGroup.id}`}
                   />
                 }
                 label={userGroup.name}

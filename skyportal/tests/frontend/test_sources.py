@@ -420,3 +420,13 @@ def test_dropdown_facility_change(driver, user, public_source):
     element = driver.wait_for_xpath(xpath)
     ActionChains(driver).move_to_element(element).click_and_hold().perform()
     driver.wait_for_xpath("//code/div[text()[contains(., 'dist')]]", timeout=20)
+
+
+def test_add_group(driver, user_two_groups, public_source, public_group2):
+    driver.get(f"/become_user/{user_two_groups.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.click_xpath(f'//button[@data-testid="addGroup_{public_source.id}"]')
+    driver.click_xpath(f'//span[@data-testid="addGroupSelect_{public_group2.id}"]')
+    driver.click_xpath(f'//button[@name="addSourceGroupButton_{public_source.id}"]')
+    driver.wait_for_xpath(f'//div[@data-testid="groupChip_{public_group2.id}"]')

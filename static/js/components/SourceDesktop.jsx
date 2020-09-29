@@ -191,6 +191,7 @@ const SourceDesktop = ({ source }) => {
               key={group.id}
               size="small"
               className={classes.chip}
+              data-testid={`groupChip_${group.id}`}
             />
           ))}
           <AddSourceGroup
