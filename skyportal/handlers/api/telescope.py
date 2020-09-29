@@ -95,6 +95,7 @@ class WeatherHandler(BaseHandler):
                 "name": t.name,
                 "nickname": t.nickname,
                 "message": message,
+                "skycam_link": t.skycam_link,
             }
         )
 
