@@ -17,6 +17,7 @@ import MenuItem from "@material-ui/core/MenuItem";
 import Typography from "@material-ui/core/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
+import FormValidationError from "./FormValidationError";
 import * as Actions from "../ducks/source";
 
 const useStyles = makeStyles((theme) => ({
@@ -45,20 +46,19 @@ const SourceAlert = ({ sourceId }) => {
   const groups = useSelector((state) => state.groups.userAccessible);
   const theme = useTheme();
   const [selectedGroups, setSelectedGroups] = useState([]);
-  const { handleSubmit, getValues, reset, register, control } = useForm();
+  const {
+    handleSubmit,
+    getValues,
+    reset,
+    register,
+    control,
+    errors,
+  } = useForm();
   const dispatch = useDispatch();
 
   const validateGroups = () => {
     const formState = getValues({ nest: true });
-
-    if (formState.groupIds.length === 0) {
-      dispatch(
-        showNotification("No target group(s) selected for alert", "error")
-      );
-      return false;
-    }
-
-    return true;
+    return formState.groupIds.length !== 0;
   };
 
   const initialFormState = {
@@ -85,6 +85,9 @@ const SourceAlert = ({ sourceId }) => {
     <div>
       <Typography variant="h6">Send an Alert</Typography>
       <form onSubmit={handleSubmit(onSubmit)}>
+        {errors.groupIds && (
+          <FormValidationError message="No target group(s) selected for alert" />
+        )}
         <div className={classes.formContainer}>
           <FormControl
             className={classes.formControl}
