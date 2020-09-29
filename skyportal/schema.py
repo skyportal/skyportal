@@ -246,7 +246,8 @@ class PhotBaseFlexible(object):
 
     group_ids = fields.List(
         fields.Integer(),
-        description="List of group IDs to which photometry " "points will be visible.",
+        description="List of group IDs to which photometry points will be visible. "
+        "If 'all', will be shared with all groups the associated source is visible to.",
         required=True,
     )
 

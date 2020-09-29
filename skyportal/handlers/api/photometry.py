@@ -15,6 +15,7 @@ from ...models import (
     Obj,
     PHOT_ZP,
     GroupPhotometry,
+    Source,
 )
 
 
@@ -181,14 +182,22 @@ class PhotometryHandler(BaseHandler):
             group_ids = data.pop("group_ids")
         except KeyError:
             return self.error("Missing required field: group_ids")
-        groups = Group.query.filter(Group.id.in_(group_ids)).all()
-        if not groups:
+        if isinstance(group_ids, (list, tuple)):
+            groups = Group.query.filter(Group.id.in_(group_ids)).all()
+            if not groups:
+                return self.error(
+                    "Invalid group_ids field. Specify at least one valid group ID."
+                )
+            if not all(
+                [group in self.current_user.accessible_groups for group in groups]
+            ):
+                return self.error(
+                    "Cannot upload photometry to groups that you are not a member of."
+                )
+        elif group_ids != "all":
             return self.error(
-                "Invalid group_ids field. " "Specify at least one valid group ID."
-            )
-        if not all([group in self.current_user.accessible_groups for group in groups]):
-            return self.error(
-                "Cannot upload photometry to groups that you " "are not a member of."
+                "Invalid group_ids parameter value. Must be a list of IDs "
+                "(integers) or the string 'all'."
             )
         if "alert_id" in data:
             phot = (
@@ -401,6 +410,14 @@ class PhotometryHandler(BaseHandler):
 
         groupquery = GroupPhotometry.__table__.insert()
         params = []
+        if group_ids == "all":
+            group_ids = [
+                s.group_id
+                for s in DBSession()
+                .query(Source)
+                .filter(Source.obj_id == packet["obj_id"])
+                .all()
+            ]
         for id in ids:
             for group_id in group_ids:
                 params.append({'photometr_id': id, 'group_id': group_id})
