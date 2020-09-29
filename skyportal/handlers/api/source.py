@@ -987,6 +987,8 @@ class SourceAlertHandler(BaseHandler):
 
         if isinstance(data.get("additionalNotes"), str):
             additional_notes = data["additionalNotes"].strip()
+        else:
+            additional_notes = None
 
         if data.get("groupIds") is None:
             return self.error("Missing required parameter `groupIds`")

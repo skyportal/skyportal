@@ -2225,7 +2225,7 @@ def send_source_alert(mapper, connection, target):
             f'{cfg["app.title"]}: {sent_by_name} would like to call your immediate'
             f' attention to a source at {link_location} ({source_info}).'
         )
-        if target.additional_notes != "":
+        if target.additional_notes != "" and target.additional_notes is not None:
             message_text += f' Addtional notes: {target.additional_notes}'
 
         account_sid = cfg["twilio.sms_account_sid"]
@@ -2252,15 +2252,20 @@ def send_source_alert(mapper, connection, target):
             and "allowEmailAlerts" in user.preferences
             and user.preferences.get("allowEmailAlerts")
         ):
+            html_content = (
+                f'{sent_by_name} would like to call your {descriptor} attention to'
+                f' <a href="{link_location}">{target.source_id}</a> ({source_info})'
+            )
+            if target.additional_notes != "" and target.additional_notes is not None:
+                html_content += (
+                    f'<br /><br />Additional notes: {target.additional_notes}'
+                )
+
             message = Mail(
                 from_email=cfg["twilio.from_email"],
                 to_emails=user.contact_email,
                 subject=f'{cfg["app.title"]}: Source Alert',
-                html_content=(
-                    f'{sent_by_name} would like to call your {descriptor} attention to'
-                    f' <a href="{link_location}">{target.source_id}</a> ({source_info})'
-                    f'<br /><br />Additional notes: {target.additional_notes}'
-                ),
+                html_content=html_content,
             )
             sg = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
             sg.send(message)
