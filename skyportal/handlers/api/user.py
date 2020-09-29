@@ -135,7 +135,6 @@ class UserHandler(BaseHandler):
                 properties:
                   username:
                     type: string
-                    description: User's email address
                   first_name:
                     type: string
                   last_name:
