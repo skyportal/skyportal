@@ -24,6 +24,10 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
+const displayStyle = (isDisplayed) => ({
+  display: isDisplayed ? "inline-block" : "none",
+});
+
 const AddSourceGroup = ({ source, userGroups, icon }) => {
   const classes = useStyles();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,33 +81,35 @@ const AddSourceGroup = ({ source, userGroups, icon }) => {
 
   return (
     <>
-      {icon ? (
-        <Tooltip title="Add a group to this source">
-          <span>
-            <IconButton
-              aria-label="add-group"
-              data-testid={`addGroup_${source.id}`}
-              onClick={openDialog}
-              size="small"
-              disabled={isSubmitting || unsavedGroups.length === 0}
-              className={classes.iconButton}
-            >
-              <AddCircleIcon />
-            </IconButton>
-          </span>
-        </Tooltip>
-      ) : (
-        <Button
-          variant="contained"
-          aria-label="add-group"
-          data-testid={`addGroup_${source.id}`}
-          size="small"
-          onClick={openDialog}
-          disabled={isSubmitting || unsavedGroups.length === 0}
-        >
-          Save to a new group
-        </Button>
-      )}
+      <div style={displayStyle(unsavedGroups.length !== 0)}>
+        {icon ? (
+          <Tooltip title="Add a group to this source">
+            <span>
+              <IconButton
+                aria-label="add-group"
+                data-testid={`addGroup_${source.id}`}
+                onClick={openDialog}
+                size="small"
+                disabled={isSubmitting}
+                className={classes.iconButton}
+              >
+                <AddCircleIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
+        ) : (
+          <Button
+            variant="contained"
+            aria-label="add-group"
+            data-testid={`addGroup_${source.id}`}
+            size="small"
+            onClick={openDialog}
+            disabled={isSubmitting}
+          >
+            Save to a new group
+          </Button>
+        )}
+      </div>
 
       <Dialog
         open={dialogOpen}
