@@ -123,7 +123,7 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin }) => {
         disabled={isAdmin(user) && numAdmins === 1}
       >
         <span style={{ whiteSpace: "nowrap" }}>
-          {isAdmin(user) ? "Remove admin" : "Make admin"}
+          {isAdmin(user) ? "Revoke admin status" : "Grant admin status"}
         </span>
       </Button>
       <IconButton
