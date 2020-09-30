@@ -46,8 +46,6 @@ const useStyles = makeStyles(() => ({
 
 const FilterCandidateList = ({
   userAccessibleGroups,
-  handleClickNextPage,
-  handleClickPreviousPage,
   pageNumber,
   numberingStart,
   numberingEnd,
@@ -102,16 +100,23 @@ const FilterCandidateList = ({
     setQueryInProgress(false);
   };
 
+  const handleClickNextPage = async () => {
+    const formData = getValues({ nest: true });
+    onSubmit({ ...formData, pageNumber: pageNumber + 1 });
+  };
+
+  const handleClickPreviousPage = async () => {
+    const formData = getValues({ nest: true });
+    onSubmit({ ...formData, pageNumber: pageNumber - 1 });
+  };
+
   const handleJumpToPageInputChange = (e) => {
     setJumpToPageInputValue(e.target.value);
   };
 
   const handleClickJumpToPage = async () => {
-    setQueryInProgress(true);
-    await dispatch(
-      candidatesActions.fetchCandidates({ pageNumber: jumpToPageInputValue })
-    );
-    setQueryInProgress(false);
+    const formData = getValues({ nest: true });
+    onSubmit({ ...formData, pageNumber: jumpToPageInputValue });
   };
 
   return (
@@ -253,8 +258,6 @@ const FilterCandidateList = ({
 };
 FilterCandidateList.propTypes = {
   userAccessibleGroups: PropTypes.arrayOf(PropTypes.object).isRequired,
-  handleClickNextPage: PropTypes.func.isRequired,
-  handleClickPreviousPage: PropTypes.func.isRequired,
   pageNumber: PropTypes.number.isRequired,
   numberingStart: PropTypes.number.isRequired,
   numberingEnd: PropTypes.number.isRequired,
