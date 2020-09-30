@@ -6,6 +6,7 @@ from marshmallow.exceptions import ValidationError
 import sncosmo
 from sncosmo.photdata import PhotometricData
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -15,12 +16,14 @@ from ...models import (
     Obj,
     PHOT_ZP,
     GroupPhotometry,
-    Source,
 )
 
 
 from ...schema import PhotometryMag, PhotometryFlux, PhotFluxFlexible, PhotMagFlexible
 from ...enum_types import ALLOWED_MAGSYSTEMS
+
+
+_, cfg = load_env()
 
 
 def nan_to_none(value):
@@ -187,12 +190,6 @@ class PhotometryHandler(BaseHandler):
             if not groups:
                 return self.error(
                     "Invalid group_ids field. Specify at least one valid group ID."
-                )
-            if not all(
-                [group in self.current_user.accessible_groups for group in groups]
-            ):
-                return self.error(
-                    "Cannot upload photometry to groups that you are not a member of."
                 )
         elif group_ids != "all":
             return self.error(
@@ -411,13 +408,13 @@ class PhotometryHandler(BaseHandler):
         groupquery = GroupPhotometry.__table__.insert()
         params = []
         if group_ids == "all":
-            group_ids = [
-                s.group_id
-                for s in DBSession()
-                .query(Source)
-                .filter(Source.obj_id == packet["obj_id"])
-                .all()
-            ]
+            public_group = (
+                DBSession()
+                .query(Group)
+                .filter(Group.name == cfg["misc"]["public_group_name"])
+                .first()
+            )
+            group_ids = [public_group.id]
         for id in ids:
             for group_id in group_ids:
                 params.append({'photometr_id': id, 'group_id': group_id})

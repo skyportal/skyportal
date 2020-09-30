@@ -1,7 +1,11 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import DBSession, Group, Instrument, Obj, Source, Spectrum
+
+
+_, cfg = load_env()
 
 
 class SpectrumHandler(BaseHandler):
@@ -24,7 +28,7 @@ class SpectrumHandler(BaseHandler):
                           type: integer
                         description: |
                           Group IDs that spectrum will be associated with. If 'all',
-                          will be shared with all groups associated source is visible to.
+                          will be shared with site-wide public group.
                     required:
                       - group_ids
         responses:
@@ -61,17 +65,12 @@ class SpectrumHandler(BaseHandler):
         if isinstance(group_ids, (list, tuple)):
             groups = Group.query.filter(Group.id.in_(group_ids)).all()
         elif group_ids == "all":
-            groups = Group.query.filter(
-                Group.id.in_(
-                    [
-                        s.group_id
-                        for s in DBSession()
-                        .query(Source)
-                        .filter(Source.obj_id == data["obj_id"])
-                        .all()
-                    ]
-                )
-            ).all()
+            groups = (
+                DBSession()
+                .query(Group)
+                .filter(Group.name == cfg["misc"]["public_group_name"])
+                .all()
+            )
         else:
             return self.error(
                 "Invalid group_ids parameter value. Must be a list of IDs "
