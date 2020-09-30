@@ -1510,6 +1510,8 @@ class Annotation(Base):
 
         return annotation
 
+    __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
+
 
 GroupAnnotation = join_model("group_annotations", Group, Annotation)
 GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
