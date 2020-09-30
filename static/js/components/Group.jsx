@@ -87,9 +87,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const ManageUserButtons = ({ loadedId, user, isAdmin }) => {
-  const group = useSelector((state) => state.group);
-
+const ManageUserButtons = ({ group, loadedId, user, isAdmin }) => {
   const dispatch = useDispatch();
 
   let numAdmins = 0;
@@ -153,6 +151,7 @@ ManageUserButtons.propTypes = {
     username: PropTypes.string,
   }).isRequired,
   isAdmin: PropTypes.func.isRequired,
+  group: PropTypes.shape(PropTypes.object).isRequired,
 };
 
 const Group = () => {
@@ -410,6 +409,7 @@ const Group = () => {
                               loadedId={loadedId}
                               user={user}
                               isAdmin={isAdmin}
+                              group={group}
                             />
                           </div>
                         </Popover>
@@ -419,6 +419,7 @@ const Group = () => {
                         loadedId={loadedId}
                         user={user}
                         isAdmin={isAdmin}
+                        group={group}
                       />
                     )}
                   </ListItemSecondaryAction>
