@@ -4,10 +4,8 @@ from .models import (
     User,
     Group,
     GroupUser,
-    GroupStream,
     Invitation,
     Role,
-    Stream,
     StreamUser,
 )
 from baselayer.app.env import load_env
@@ -124,16 +122,21 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
         raise Exception("Invitation has already been used.")
 
     group_ids = [g.id for g in invitation.groups]
+    stream_ids = [stream.id for stream in invitation.streams]
 
-    streams = (
-        DBSession()
-        .query(Stream)
-        .join(GroupStream)
-        .filter(GroupStream.group_id.in_(group_ids))
-        .all()
-    )
-    stream_ids = [stream.id for stream in streams]
+    if not all(
+        [
+            stream in invitation.streams
+            for group in invitation.groups
+            for stream in group.streams
+        ]
+    ):
+        raise Exception(
+            "User has not been granted sufficient stream access to be added "
+            "to specified groups."
+        )
 
+    # Add user to specified streams
     for stream_id in stream_ids:
         DBSession.add(StreamUser(stream_id=stream_id, user_id=user.id))
 
