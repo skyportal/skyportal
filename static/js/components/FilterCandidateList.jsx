@@ -7,7 +7,7 @@ import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Checkbox from "@material-ui/core/Checkbox";
 import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
-import { KeyboardDatePicker } from "@material-ui/pickers";
+import { KeyboardDateTimePicker } from "@material-ui/pickers";
 import Paper from "@material-ui/core/Paper";
 import SearchIcon from "@material-ui/icons/Search";
 import { makeStyles } from "@material-ui/core/styles";
@@ -129,28 +129,32 @@ const FilterCandidateList = ({
             )}
             <Controller
               as={
-                <KeyboardDatePicker
-                  format="YYYY-MM-DD"
+                <KeyboardDateTimePicker
                   value={formState.startDate}
-                  emptyLabel="Start Date"
+                  label="Start (browser local time)"
+                  format="YYYY/MM/DD HH:mm"
+                  ampm={false}
+                  showTodayButton
                 />
               }
               rules={{ validate: validateDates }}
               name="startDate"
               control={control}
             />
+            &nbsp;
             <Controller
               as={
-                <KeyboardDatePicker
-                  format="YYYY-MM-DD"
+                <KeyboardDateTimePicker
                   value={formState.endDate}
-                  emptyLabel="End Date"
+                  label="End (browser local time)"
+                  format="YYYY/MM/DD HH:mm"
+                  ampm={false}
+                  showTodayButton
                 />
               }
               rules={{ validate: validateDates }}
               name="endDate"
               control={control}
-              onChange={([selected]) => selected}
             />
           </div>
           <div>
