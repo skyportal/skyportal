@@ -5,6 +5,7 @@ import { makeStyles } from "@material-ui/core/styles";
 
 import GroupManagement from "./GroupManagement";
 import GroupList from "./GroupList";
+import NewGroupForm from "./NewGroupForm";
 
 const useStyles = makeStyles(() => ({
   // Hide drag handle icon since this isn't the home page
@@ -32,7 +33,7 @@ const Groups = () => {
   return (
     <div>
       <GroupList title="My Groups" groups={groups} classes={classes} />
-      <br />
+      <NewGroupForm />
       {roles.includes("Super admin") && <GroupManagement />}
     </div>
   );
