@@ -2,7 +2,7 @@ from .allocation import AllocationHandler
 from .candidate import CandidateHandler
 from .classification import ClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
-from .annotation import AnnotationHandler, AnnotationAttachmentHandler
+from .annotation import AnnotationHandler
 from .filter import FilterHandler
 from .followup_request import FollowupRequestHandler, AssignmentHandler
 from .facility_listener import FacilityMessageHandler

@@ -12,6 +12,7 @@ from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
+from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import URLType, EmailType
@@ -1408,9 +1409,9 @@ User.comments = relationship("Comment", back_populates="author")
 
 
 class Annotation(Base):
+    """A sortable/searchable Annotation made by a filter or other robot, with a set of data as JSON """
 
-    data = sa.Column(JSONB, default=None, doc="searchable data in JSON format")
-    origin = sa.Column(sa.String, nullable=True, doc='Annotation origin.')
+    data = sa.Column(JSONB, default=None, doc="Searchable data in JSON format")
     author = relationship(
         "User", back_populates="annotations", doc="Annotation's author.", uselist=False,
     )
@@ -1420,23 +1421,13 @@ class Annotation(Base):
         index=True,
         doc="ID of the Annotation author's User instance.",
     )
+
+    origin = sa.Column(sa.String, doc='Annotation origin.')
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
         doc="ID of the Annotation's Obj.",
-    )
-
-    attachment_name = sa.Column(
-        sa.String, nullable=True, doc="Filename of the attachment."
-    )
-    attachment_type = sa.Column(
-        sa.String, nullable=True, doc="Attachment extension, (e.g., pdf, png)."
-    )
-    attachment_bytes = sa.Column(
-        sa.types.LargeBinary,
-        nullable=True,
-        doc="Binary representation of the attachment.",
     )
 
     obj = relationship('Obj', back_populates='annotations', doc="The Annotation's Obj.")
@@ -1465,6 +1456,8 @@ class Annotation(Base):
         annotation.author_info = annotation.construct_author_info_dict()
 
         return annotation
+
+    __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
 
 GroupAnnotation = join_model("group_annotations", Group, Annotation)
