@@ -221,7 +221,6 @@ class ProfileHandler(BaseHandler):
         if "weather" in preferences:
             self.push(action="skyportal/FETCH_WEATHER")
 
-        print(preferences)
         if username_updated:
             self.push_all(action="skyportal/FETCH_GROUPS")
             self.push_all(action="skyportal/FETCH_USERS")

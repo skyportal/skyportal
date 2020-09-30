@@ -8,10 +8,16 @@ import Typography from "@material-ui/core/Typography";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
 import CardActions from "@material-ui/core/CardActions";
 import Button from "@material-ui/core/Button";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import relativeTime from "dayjs/plugin/relativeTime";
 
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import * as profileActions from "../ducks/profile";
 import * as fetchWeather from "../ducks/weather";
+
+dayjs.extend(relativeTime);
+dayjs.extend(utc);
 
 const defaultPrefs = {
   telescopeID: "1",
@@ -47,6 +53,13 @@ const WeatherView = ({ weather }) => {
 
   const url = `https://openweathermap.org/img/wn/${weather?.weather?.current.weather[0].icon}.png`;
 
+  let sunrise = dayjs.unix(weather?.weather?.current.sunrise);
+  let sunset = dayjs.unix(weather?.weather?.current.sunset);
+
+  const now = dayjs();
+  sunrise = now.diff(sunrise, "hour") >= 12 ? sunrise.add("1", "day") : sunrise;
+  sunset = now.diff(sunset, "hour") >= 12 ? sunset.add("1", "day") : sunset;
+
   return (
     <>
       <div className={styles.weatherBar}>
@@ -59,13 +72,16 @@ const WeatherView = ({ weather }) => {
             />
           </div>
           <div>
-            <Typography variant="body2" color="textSecondary" component="p">
-              Currently&nbsp;
-              {(weather?.weather?.current.temp - 273.15).toFixed(1)}&deg;C
-              with&nbsp;
-              {weather?.weather?.current.humidity}% humidty and&nbsp;
-              {weather?.weather?.current.weather[0].description}.
-            </Typography>
+            {weather.weather && (
+              <Typography variant="body2" color="textSecondary" component="p">
+                Currently&nbsp;
+                {(weather?.weather.current.temp - 273.15).toFixed(1)}&deg;C
+                with&nbsp;
+                {weather?.weather.current.humidity}% humidity and&nbsp;
+                {weather?.weather.current.weather[0].description}. Sunrise:{" "}
+                {dayjs().to(sunrise)}, Sunset: {dayjs().to(sunset)}
+              </Typography>
+            )}
           </div>
         </div>
         <CardActions className={styles.weatherLinks}>
@@ -141,6 +157,11 @@ WeatherView.propTypes = {
     skycam_link: PropTypes.string,
     weather_link: PropTypes.string,
     weather: PropTypes.shape({}),
-  }).isRequired,
+  }),
 };
+
+WeatherView.defaultProps = {
+  weather: {},
+};
+
 export default WeatherWidget;
