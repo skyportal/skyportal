@@ -411,10 +411,10 @@ class Obj(Base, ha.Point):
         doc="Assignments of the object to classical observing runs.",
     )
 
-    source_notifications = relationship(
+    obj_notifications = relationship(
         "SourceNotification",
         back_populates="source",
-        doc="Alerts regarding the object sent out by users",
+        doc="Notifications regarding the object sent out by users",
     )
 
     @hybrid_property
@@ -1339,10 +1339,7 @@ class Comment(Base):
 
     origin = sa.Column(sa.String, nullable=True, doc='Comment origin.')
     author = relationship(
-        "User",
-        back_populates="comments",
-        doc="Comment's author.",
-        uselist=False,
+        "User", back_populates="comments", doc="Comment's author.", uselist=False,
     )
     author_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
@@ -2173,21 +2170,21 @@ class SourceNotification(Base):
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
     )
+    sent_by_id = sa.Column(sa.ForeignKey("User.id"))
     sent_by = relationship(
         "User",
-        secondary="user_alerts",
-        cascade="save-update, merge, refresh-expire, expunge",
-        passive_deletes=True,
-        uselist=False,
+        back_populates="source_notifications",
+        foreign_keys=[sent_by_id],
+        doc="The User who sent this notification.",
     )
     source_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="ID of the target Obj.",
     )
     source = relationship(
-        'Obj', back_populates='source_notifications', doc='The target Obj.'
+        'Obj', back_populates='obj_notifications', doc='The target Obj.'
     )
 
     additional_notes = sa.Column(sa.String(), nullable=True)
@@ -2195,7 +2192,12 @@ class SourceNotification(Base):
 
 
 GroupSourceNotification = join_model('group_alerts', Group, SourceNotification)
-UserSourceNotification = join_model("user_alerts", User, SourceNotification)
+User.source_notifications = relationship(
+    'SourceNotification',
+    back_populates='sent_by',
+    doc="Source notifications the User has sent out.",
+    foreign_keys="SourceNotification.sent_by_id",
+)
 
 
 @event.listens_for(SourceNotification, 'after_insert')

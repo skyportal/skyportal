@@ -946,7 +946,7 @@ class SourceNotificationHandler(BaseHandler):
     def post(self):
         """
         ---
-        description: Send out a new source alert
+        description: Send out a new source notification
         requestBody:
           content:
             application/json:
@@ -962,15 +962,15 @@ class SourceNotificationHandler(BaseHandler):
                     items:
                       type: integer
                     description: |
-                      List of IDs of groups whose members should get the alert (if they've opted in)
+                      List of IDs of groups whose members should get the notification (if they've opted in)
                   sourceId:
                     type: string
                     description: |
-                      The ID of the Source's Obj the alert is being sent about
+                      The ID of the Source's Obj the notification is being sent about
                   level:
                     type: string
                     description: |
-                      Either 'soft' or 'hard', determines whether to send an email or email+SMS alert
+                      Either 'soft' or 'hard', determines whether to send an email or email+SMS notification
                 required:
                   - groupIds
                   - sourceId
@@ -979,10 +979,20 @@ class SourceNotificationHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: New SourceNotification ID
         """
-        if not cfg["alerts.enabled"]:
-            return self.error("Alerts are not enabled in current deployment.")
+        if not cfg["notifications.enabled"]:
+            return self.error("Notifications are not enabled in current deployment.")
         data = self.get_json()
 
         if isinstance(data.get("additionalNotes"), str):
@@ -1019,15 +1029,14 @@ class SourceNotificationHandler(BaseHandler):
             )
         level = data["level"]
 
-        DBSession().add(
-            SourceNotification(
-                source_id=source_id,
-                groups=groups,
-                additional_notes=additional_notes,
-                sent_by=self.associated_user_object,
-                level=level,
-            )
+        new_notification = SourceNotification(
+            source_id=source_id,
+            groups=groups,
+            additional_notes=additional_notes,
+            sent_by=self.associated_user_object,
+            level=level,
         )
+        DBSession().add(new_notification)
         try:
             DBSession().commit()
         except python_http_client.exceptions.UnauthorizedError:
@@ -1043,4 +1052,4 @@ class SourceNotificationHandler(BaseHandler):
                 "per their setup docs."
             )
 
-        return self.success()
+        return self.success(data={'id': new_notification.id})
