@@ -309,9 +309,7 @@ def view_only_token_two_groups(user_two_groups):
 @pytest.fixture()
 def manage_sources_token(group_admin_user):
     token_id = create_token(
-        ACLs=["Manage sources"],
-        user_id=group_admin_user.id,
-        name=str(uuid.uuid4()),
+        ACLs=["Manage sources"], user_id=group_admin_user.id, name=str(uuid.uuid4()),
     )
     return token_id
 
@@ -337,9 +335,7 @@ def upload_data_token(user):
 @pytest.fixture()
 def upload_data_token_two_groups(user_two_groups):
     token_id = create_token(
-        ACLs=["Upload data"],
-        user_id=user_two_groups.id,
-        name=str(uuid.uuid4()),
+        ACLs=["Upload data"], user_id=user_two_groups.id, name=str(uuid.uuid4()),
     )
     return token_id
 
@@ -347,9 +343,7 @@ def upload_data_token_two_groups(user_two_groups):
 @pytest.fixture()
 def manage_groups_token(super_admin_user):
     token_id = create_token(
-        ACLs=["Manage groups"],
-        user_id=super_admin_user.id,
-        name=str(uuid.uuid4()),
+        ACLs=["Manage groups"], user_id=super_admin_user.id, name=str(uuid.uuid4()),
     )
     return token_id
 
@@ -357,9 +351,7 @@ def manage_groups_token(super_admin_user):
 @pytest.fixture()
 def manage_users_token(super_admin_user):
     token_id = create_token(
-        ACLs=["Manage users"],
-        user_id=super_admin_user.id,
-        name=str(uuid.uuid4()),
+        ACLs=["Manage users"], user_id=super_admin_user.id, name=str(uuid.uuid4()),
     )
     return token_id
 
@@ -524,8 +516,6 @@ def source_notification_user(public_group):
 @pytest.fixture()
 def source_notification_user_token(source_notification_user):
     token_id = create_token(
-        ACLs=[],
-        user_id=source_notification_user.id,
-        name=str(uuid.uuid4()),
+        ACLs=[], user_id=source_notification_user.id, name=str(uuid.uuid4()),
     )
     return token_id

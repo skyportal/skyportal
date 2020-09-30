@@ -211,9 +211,7 @@ def test_starlist(manage_sources_token, public_source):
     assert isinstance(data['data']["starlist_info"][0]["ra"], float)
 
     status, data = api(
-        'GET',
-        f'sources/{public_source.id}/offsets',
-        token=manage_sources_token,
+        'GET', f'sources/{public_source.id}/offsets', token=manage_sources_token,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -295,7 +293,6 @@ def test_source_alert_unauthorized(
     )
     assert status == 400
     # Test server should have no valid Twilio API credentials
-    print(data)
     assert data["message"].startswith(
         "Twilio Communication SMS API authorization error"
     )
