@@ -1,6 +1,10 @@
+from baselayer.app.env import load_env
 from skyportal.tests import api
 import numpy as np
 import sncosmo
+
+
+_, cfg = load_env()
 
 
 def test_token_user_post_get_photometry_data(
@@ -91,6 +95,7 @@ def test_post_photometry_multiple_groups(
 
 def test_post_photometry_all_groups(
     upload_data_token_two_groups,
+    super_admin_token,
     public_source_two_groups,
     public_group,
     public_group2,
@@ -119,7 +124,7 @@ def test_post_photometry_all_groups(
 
     photometry_id = data['data']['ids'][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        'GET', f'photometry/{photometry_id}?format=flux', token=super_admin_token,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -129,7 +134,8 @@ def test_post_photometry_all_groups(
     assert data['data']['ra_unc'] is None
     assert data['data']['dec_unc'] is None
 
-    assert len(data['data']['groups']) == 2
+    assert len(data['data']['groups']) == 1
+    assert data['data']['groups'][0]['name'] == cfg['misc']['public_group_name']
 
     np.testing.assert_allclose(
         data['data']['flux'], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
