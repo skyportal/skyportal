@@ -230,6 +230,23 @@ const Group = () => {
     }
   });
 
+  const toggleUserAdmin = async (user) => {
+    const result = await dispatch(
+      groupsActions.updateGroupUser(loadedId, {
+        userID: user.id,
+        admin: !isAdmin(user),
+      })
+    );
+    if (result.status === "success") {
+      dispatch(
+        showNotification(
+          "User admin status for this group successfully updated."
+        )
+      );
+      dispatch(groupActions.fetchGroup(loadedId));
+    }
+  };
+
   const groupStreamIds = group?.streams?.map((stream) => stream.id);
 
   const isStreamIdInStreams = (sid) =>
@@ -293,25 +310,39 @@ const Group = () => {
                     <Chip label="Admin" size="small" color="secondary" />
                   </div>
                 )}
-                {currentUser.acls?.includes("Manage users") &&
-                  ((isAdmin(user) && numAdmins > 1) || !isAdmin(user)) && (
-                    <ListItemSecondaryAction>
-                      <IconButton
-                        edge="end"
-                        aria-label="delete"
-                        onClick={() =>
-                          dispatch(
-                            groupsActions.deleteGroupUser({
-                              username: user.username,
-                              group_id: group.id,
-                            })
-                          )
-                        }
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </ListItemSecondaryAction>
-                  )}
+                &nbsp;
+                {currentUser.acls?.includes("Manage users") && (
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      toggleUserAdmin(user);
+                    }}
+                  >
+                    <span style={{ whiteSpace: "nowrap" }}>
+                      {isAdmin(user) ? "Remove admin" : "Make admin"}
+                    </span>
+                  </Button>
+                )}
+                &nbsp;
+                {currentUser.acls?.includes("Manage users") && (
+                  <ListItemSecondaryAction>
+                    <IconButton
+                      edge="end"
+                      aria-label="delete"
+                      onClick={() =>
+                        dispatch(
+                          groupsActions.deleteGroupUser({
+                            username: user.username,
+                            group_id: group.id,
+                          })
+                        )
+                      }
+                      disabled={isAdmin(user) && numAdmins === 1}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                )}
               </ListItem>
             ))}
           </List>

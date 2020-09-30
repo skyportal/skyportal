@@ -136,7 +136,7 @@ def test_delete_group_user(driver, super_admin_user, user, public_group):
     driver.execute_script("arguments[0].click();", el)
     username_link = driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
     delete_button = username_link.find_elements_by_xpath("../../*/button")
-    delete_button[0].click()
+    delete_button[-1].click()
     driver.wait_for_xpath_to_disappear(f'//a[contains(.,"{user.username}")]')
 
 
