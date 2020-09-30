@@ -240,6 +240,7 @@ const FilterCandidateList = ({
             type="number"
             onChange={handleJumpToPageInputChange}
             value={jumpToPageInputValue}
+            inputProps={{ min: "1" }}
             name="jumpToPageInputField"
           />
           <Button
