@@ -32,12 +32,16 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   } else if (actionType === REFRESH_CANDIDATE) {
     const { candidates } = getState();
     let done = false;
-    candidates.candidates.forEach((candidate) => {
-      if (candidate.internal_key === payload.id && !done) {
-        dispatch(fetchCandidate(candidate.id, FETCH_CANDIDATE_AND_MERGE));
-        done = true;
-      }
-    });
+    if (candidates.candidates) {
+      candidates.candidates.forEach((candidate) => {
+        if (candidate.internal_key === payload.id && !done) {
+          dispatch(fetchCandidate(candidate.id, FETCH_CANDIDATE_AND_MERGE));
+          done = true;
+        }
+      });
+    } else {
+      done = true;
+    }
   }
 });
 
