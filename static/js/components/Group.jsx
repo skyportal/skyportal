@@ -120,6 +120,7 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin }) => {
         onClick={() => {
           toggleUserAdmin(user);
         }}
+        disabled={isAdmin(user) && numAdmins === 1}
       >
         <span style={{ whiteSpace: "nowrap" }}>
           {isAdmin(user) ? "Remove admin" : "Make admin"}
