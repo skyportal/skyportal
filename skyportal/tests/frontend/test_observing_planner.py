@@ -2,6 +2,7 @@ import uuid
 import pytest
 from ...models import DBSession, ObservingRun
 from .. import api
+import time
 
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
@@ -188,6 +189,8 @@ def test_add_run_to_observing_run_page(
     lris_element = driver.wait_for_xpath(f'//li[@data-value="{lris.id}"]')
     driver.scroll_to_element_and_click(lris_element)
 
+    time.sleep(1)
+
     groups_element = driver.wait_for_xpath('//*[@id="root_group_id"]')
     driver.scroll_to_element_and_click(groups_element)
 
@@ -195,7 +198,6 @@ def test_add_run_to_observing_run_page(
         f'//li[@data-value="{public_group.id}"]'
     )
     driver.scroll_to_element_and_click(public_group_element)
-
     submit_button = driver.wait_for_xpath('//button[@type="submit"]')
     driver.scroll_to_element_and_click(submit_button)
 
