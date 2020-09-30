@@ -5,6 +5,7 @@ import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { makeStyles, useTheme } from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
+import MoreVertIcon from "@material-ui/icons/MoreVert";
 import DeleteIcon from "@material-ui/icons/Delete";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
@@ -12,6 +13,7 @@ import ListItemSecondaryAction from "@material-ui/core/ListItemSecondaryAction";
 import ListItemText from "@material-ui/core/ListItemText";
 import IconButton from "@material-ui/core/IconButton";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
+import Popover from "@material-ui/core/Popover";
 
 import Accordion from "@material-ui/core/Accordion";
 import AccordionSummary from "@material-ui/core/AccordionSummary";
@@ -76,9 +78,82 @@ const useStyles = makeStyles((theme) => ({
     marginTop: theme.spacing(2),
   },
   filterLink: {
-    width: "100%",
+    marginRight: theme.spacing(1),
+  },
+  manageUserPopover: {
+    display: "flex",
+    flexDirection: "column",
+    padding: theme.spacing(1),
   },
 }));
+
+const ManageUserButtons = ({ loadedId, user, isAdmin }) => {
+  const group = useSelector((state) => state.group);
+
+  const dispatch = useDispatch();
+
+  let numAdmins = 0;
+  group?.group_users?.forEach((groupUser) => {
+    if (groupUser?.admin) {
+      numAdmins += 1;
+    }
+  });
+
+  const toggleUserAdmin = async (usr) => {
+    const result = await dispatch(
+      groupsActions.updateGroupUser(loadedId, {
+        userID: usr.id,
+        admin: !isAdmin(usr),
+      })
+    );
+    if (result.status === "success") {
+      dispatch(
+        showNotification(
+          "User admin status for this group successfully updated."
+        )
+      );
+      dispatch(groupActions.fetchGroup(loadedId));
+    }
+  };
+  return (
+    <div>
+      <Button
+        size="small"
+        onClick={() => {
+          toggleUserAdmin(user);
+        }}
+      >
+        <span style={{ whiteSpace: "nowrap" }}>
+          {isAdmin(user) ? "Remove admin" : "Make admin"}
+        </span>
+      </Button>
+      <IconButton
+        edge="end"
+        aria-label="delete"
+        onClick={() =>
+          dispatch(
+            groupsActions.deleteGroupUser({
+              username: user.username,
+              group_id: group.id,
+            })
+          )
+        }
+        disabled={isAdmin(user) && numAdmins === 1}
+      >
+        <DeleteIcon />
+      </IconButton>
+    </div>
+  );
+};
+
+ManageUserButtons.propTypes = {
+  loadedId: PropTypes.number.isRequired,
+  user: PropTypes.shape({
+    id: PropTypes.number,
+    username: PropTypes.string,
+  }).isRequired,
+  isAdmin: PropTypes.func.isRequired,
+};
 
 const Group = () => {
   const classes = useStyles();
@@ -101,6 +176,24 @@ const Group = () => {
   );
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const fullScreen = !useMediaQuery(theme.breakpoints.up("md"));
+
+  // Mobile manage user popover
+  const mobile = !useMediaQuery(theme.breakpoints.up("sm"));
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const [openedPopoverId, setOpenedPopoverId] = React.useState(null);
+
+  const handlePopoverOpen = (event, popoverId) => {
+    setOpenedPopoverId(popoverId);
+    setAnchorEl(event.target);
+  };
+
+  const handlePopoverClose = () => {
+    setOpenedPopoverId(null);
+    setAnchorEl(null);
+  };
+
+  const openManageUserPopover = Boolean(anchorEl);
+  const popoverId = openManageUserPopover ? "manage-user-popover" : undefined;
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
@@ -223,30 +316,6 @@ const Group = () => {
     );
   };
 
-  let numAdmins = 0;
-  group?.group_users?.forEach((groupUser) => {
-    if (groupUser?.admin) {
-      numAdmins += 1;
-    }
-  });
-
-  const toggleUserAdmin = async (user) => {
-    const result = await dispatch(
-      groupsActions.updateGroupUser(loadedId, {
-        userID: user.id,
-        admin: !isAdmin(user),
-      })
-    );
-    if (result.status === "success") {
-      dispatch(
-        showNotification(
-          "User admin status for this group successfully updated."
-        )
-      );
-      dispatch(groupActions.fetchGroup(loadedId));
-    }
-  };
-
   const groupStreamIds = group?.streams?.map((stream) => stream.id);
 
   const isStreamIdInStreams = (sid) =>
@@ -312,35 +381,46 @@ const Group = () => {
                 )}
                 &nbsp;
                 {currentUser.acls?.includes("Manage users") && (
-                  <Button
-                    size="small"
-                    onClick={() => {
-                      toggleUserAdmin(user);
-                    }}
-                  >
-                    <span style={{ whiteSpace: "nowrap" }}>
-                      {isAdmin(user) ? "Remove admin" : "Make admin"}
-                    </span>
-                  </Button>
-                )}
-                &nbsp;
-                {currentUser.acls?.includes("Manage users") && (
                   <ListItemSecondaryAction>
-                    <IconButton
-                      edge="end"
-                      aria-label="delete"
-                      onClick={() =>
-                        dispatch(
-                          groupsActions.deleteGroupUser({
-                            username: user.username,
-                            group_id: group.id,
-                          })
-                        )
-                      }
-                      disabled={isAdmin(user) && numAdmins === 1}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
+                    {mobile ? (
+                      <div>
+                        <IconButton
+                          edge="end"
+                          aria-label="open-manage-user-popover"
+                          onClick={(e) => handlePopoverOpen(e, user.id)}
+                        >
+                          <MoreVertIcon />
+                        </IconButton>
+                        <Popover
+                          id={popoverId}
+                          open={openedPopoverId === user.id}
+                          anchorEl={anchorEl}
+                          onClose={handlePopoverClose}
+                          anchorOrigin={{
+                            vertical: "bottom",
+                            horizontal: "center",
+                          }}
+                          transformOrigin={{
+                            vertical: "top",
+                            horizontal: "center",
+                          }}
+                        >
+                          <div className={classes.manageUserPopover}>
+                            <ManageUserButtons
+                              loadedId={loadedId}
+                              user={user}
+                              isAdmin={isAdmin}
+                            />
+                          </div>
+                        </Popover>
+                      </div>
+                    ) : (
+                      <ManageUserButtons
+                        loadedId={loadedId}
+                        user={user}
+                        isAdmin={isAdmin}
+                      />
+                    )}
                   </ListItemSecondaryAction>
                 )}
               </ListItem>
