@@ -52,7 +52,6 @@ const WeatherView = ({ weather }) => {
   const styles = useStyles();
 
   const url = `https://openweathermap.org/img/wn/${weather?.weather?.current.weather[0].icon}.png`;
-  console.log(weather);
   let sunrise = dayjs.unix(weather?.weather?.current.sunrise);
   let sunset = dayjs.unix(weather?.weather?.current.sunset);
 
