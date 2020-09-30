@@ -995,10 +995,14 @@ class SourceNotificationHandler(BaseHandler):
             return self.error("Notifications are not enabled in current deployment.")
         data = self.get_json()
 
-        if isinstance(data.get("additionalNotes"), str):
+        additional_notes = data.get("additionalNotes")
+        if isinstance(additional_notes, str):
             additional_notes = data["additionalNotes"].strip()
         else:
-            additional_notes = None
+            if additional_notes is not None:
+                return self.error(
+                    "Invalid parameter `additionalNotes`: should be a string"
+                )
 
         if data.get("groupIds") is None:
             return self.error("Missing required parameter `groupIds`")
