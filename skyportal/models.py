@@ -2170,7 +2170,12 @@ class SourceNotification(Base):
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
     )
-    sent_by_id = sa.Column(sa.ForeignKey("User.id"))
+    sent_by_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who sent this notification.",
+    )
     sent_by = relationship(
         "User",
         back_populates="source_notifications",
@@ -2201,7 +2206,7 @@ User.source_notifications = relationship(
 
 
 @event.listens_for(SourceNotification, 'after_insert')
-def send_source_alert(mapper, connection, target):
+def send_source_notification(mapper, connection, target):
     app_base_url = get_app_base_url()
 
     link_location = f'{app_base_url}/source/{target.source_id}'

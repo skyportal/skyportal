@@ -1017,9 +1017,22 @@ class SourceNotificationHandler(BaseHandler):
 
         source = Source.get_obj_if_owned_by(data["sourceId"], self.current_user)
         if source is None:
-            return self.error('Invalid source ID.')
+            return self.error("Invalid source ID.")
 
         source_id = data["sourceId"]
+
+        source_group_ids = [
+            row[0]
+            for row in DBSession()
+            .query(Source.group_id)
+            .filter(Source.obj_id == source_id)
+            .all()
+        ]
+
+        if bool(set(group_ids).difference(set(source_group_ids))):
+            return self.error(
+                "One or more receiving groups for the notification do not have access to this source."
+            )
 
         if data.get("level") is None:
             return self.error("Missing required parameter `level`")
