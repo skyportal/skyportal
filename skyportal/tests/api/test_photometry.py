@@ -221,30 +221,6 @@ def test_retrieve_photometry_error_group_membership_posted_by_other(
     assert "Insufficient permissions" in data['message']
 
 
-def test_post_photometry_unaccessed_group(
-    upload_data_token, public_source, public_group, public_group2, ztf_camera
-):
-    status, data = api(
-        'POST',
-        'photometry',
-        data={
-            'obj_id': str(public_source.id),
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id, public_group2.id],
-        },
-        token=upload_data_token,
-    )
-    assert status == 400
-    assert data['status'] == 'error'
-    assert "Cannot upload photometry to groups" in data["message"]
-
-
 def test_cannot_post_photometry_no_groups(
     upload_data_token, public_source, public_group, ztf_camera
 ):
