@@ -1030,8 +1030,10 @@ class SourceNotificationHandler(BaseHandler):
         ]
 
         if bool(set(group_ids).difference(set(source_group_ids))):
+            forbidden_groups = list(set(group_ids) - set(source_group_ids))
             return self.error(
-                "One or more receiving groups for the notification do not have access to this source."
+                "Insufficient recipient group access permissions. Not a member of "
+                f"group IDs: {forbidden_groups}."
             )
 
         if data.get("level") is None:
