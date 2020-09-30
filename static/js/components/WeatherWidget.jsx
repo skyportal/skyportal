@@ -52,7 +52,7 @@ const WeatherView = ({ weather }) => {
   const styles = useStyles();
 
   const url = `https://openweathermap.org/img/wn/${weather?.weather?.current.weather[0].icon}.png`;
-
+  console.log(weather);
   let sunrise = dayjs.unix(weather?.weather?.current.sunrise);
   let sunset = dayjs.unix(weather?.weather?.current.sunset);
 
@@ -64,25 +64,28 @@ const WeatherView = ({ weather }) => {
     <>
       <div className={styles.weatherBar}>
         <div className={styles.weatherInfo}>
-          <div>
-            <img
-              src={url}
-              className={styles.media}
-              alt={weather?.weather?.current.weather[0].description}
-            />
-          </div>
-          <div>
-            {weather.weather && (
-              <Typography variant="body2" color="textSecondary" component="p">
-                Currently&nbsp;
-                {(weather?.weather.current.temp - 273.15).toFixed(1)}&deg;C
-                with&nbsp;
-                {weather?.weather.current.humidity}% humidity and&nbsp;
-                {weather?.weather.current.weather[0].description}. Sunrise:{" "}
-                {dayjs().to(sunrise)}, Sunset: {dayjs().to(sunset)}
-              </Typography>
-            )}
-          </div>
+          {weather.weather && (
+            <>
+              <div>
+                <img
+                  src={url}
+                  className={styles.media}
+                  alt={weather?.weather?.current.weather[0].description}
+                />
+              </div>
+              <div>
+                <Typography variant="body2" color="textSecondary" component="p">
+                  Currently&nbsp;
+                  {(weather?.weather.current.temp - 273.15).toFixed(1)}&deg;C
+                  with&nbsp;
+                  {weather?.weather.current.humidity}% humidity and&nbsp;
+                  {weather?.weather.current.weather[0].description}. Sunrise:{" "}
+                  {dayjs().to(sunrise)}, Sunset: {dayjs().to(sunset)}
+                </Typography>
+              </div>
+            </>
+          )}
+          {!weather.weather && <p>No weather information available</p>}
         </div>
         <CardActions className={styles.weatherLinks}>
           {weather?.weather_link && (

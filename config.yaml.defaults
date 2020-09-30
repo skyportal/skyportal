@@ -244,6 +244,14 @@ misc:
   cosmology: Planck18_arXiv_v2
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
 
+weather:
+  # time in seconds to wait before fetching weather for a given telescope
+  refresh_time: 3600.0
+  # Get an API key at OpenWeatherMap https://openweathermap.org/price
+  # the free tier should be sufficent, as we cache the weather results
+  # for each telescope
+  openweather_api_key: XXX
+
 cron:
   - interval: 1440
     script: jobs/delete_unsaved_candidates.py
