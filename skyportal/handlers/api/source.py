@@ -29,7 +29,7 @@ from ...models import (
     FollowupRequest,
     ClassicalAssignment,
     ObservingRun,
-    SourceAlert,
+    SourceNotification,
 )
 from .internal.source_views import register_source_view
 from ...utils import (
@@ -941,7 +941,7 @@ class SourceFinderHandler(BaseHandler):
                 await tornado.gen.sleep(1e-9)  # 1 ns
 
 
-class SourceAlertHandler(BaseHandler):
+class SourceNotificationHandler(BaseHandler):
     @auth_or_token
     def post(self):
         """
@@ -1020,7 +1020,7 @@ class SourceAlertHandler(BaseHandler):
         level = data["level"]
 
         DBSession().add(
-            SourceAlert(
+            SourceNotification(
                 source_id=source_id,
                 groups=groups,
                 additional_notes=additional_notes,

@@ -28,7 +28,7 @@ import FollowupRequestLists from "./FollowupRequestLists";
 import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
-import SourceAlert from "./SourceAlert";
+import SourceNotification from "./SourceNotification";
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -389,7 +389,7 @@ const SourceMobile = ({ source }) => {
           </AccordionSummary>
           <AccordionDetails>
             <div className={classes.sendAlert}>
-              <SourceAlert sourceId={source.id} />
+              <SourceNotification sourceId={source.id} />
             </div>
           </AccordionDetails>
         </Accordion>

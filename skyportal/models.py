@@ -411,8 +411,8 @@ class Obj(Base, ha.Point):
         doc="Assignments of the object to classical observing runs.",
     )
 
-    source_alerts = relationship(
-        "SourceAlert",
+    source_notifications = relationship(
+        "SourceNotification",
         back_populates="source",
         doc="Alerts regarding the object sent out by users",
     )
@@ -1339,7 +1339,10 @@ class Comment(Base):
 
     origin = sa.Column(sa.String, nullable=True, doc='Comment origin.')
     author = relationship(
-        "User", back_populates="comments", doc="Comment's author.", uselist=False,
+        "User",
+        back_populates="comments",
+        doc="Comment's author.",
+        uselist=False,
     )
     author_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
@@ -2163,7 +2166,7 @@ def send_user_invite_email(mapper, connection, target):
     sg.send(message)
 
 
-class SourceAlert(Base):
+class SourceNotification(Base):
     groups = relationship(
         "Group",
         secondary="group_alerts",
@@ -2183,17 +2186,19 @@ class SourceAlert(Base):
         index=True,
         doc="ID of the target Obj.",
     )
-    source = relationship('Obj', back_populates='source_alerts', doc='The target Obj.')
+    source = relationship(
+        'Obj', back_populates='source_notifications', doc='The target Obj.'
+    )
 
     additional_notes = sa.Column(sa.String(), nullable=True)
     level = sa.Column(sa.String(), nullable=False)
 
 
-GroupSourceAlert = join_model('group_alerts', Group, SourceAlert)
-UserSourceAlert = join_model("user_alerts", User, SourceAlert)
+GroupSourceNotification = join_model('group_alerts', Group, SourceNotification)
+UserSourceNotification = join_model("user_alerts", User, SourceNotification)
 
 
-@event.listens_for(SourceAlert, 'after_insert')
+@event.listens_for(SourceNotification, 'after_insert')
 def send_source_alert(mapper, connection, target):
     app_base_url = get_app_base_url()
 

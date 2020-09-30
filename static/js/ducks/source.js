@@ -139,7 +139,7 @@ export const deleteAssignment = (id) =>
   API.DELETE(`/api/assignment/${id}`, DELETE_ASSIGNMENT);
 
 export const sendAlert = (params) =>
-  API.POST(`/api/source_alerts`, SEND_ALERT, params);
+  API.POST(`/api/source_notifications`, SEND_ALERT, params);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {

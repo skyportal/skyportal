@@ -425,11 +425,11 @@ def test_dropdown_facility_change(driver, user, public_source):
 
 @pytest.mark.flaky(reruns=2)
 @responses.activate
-def test_source_alert(driver, user, public_group, public_source):
+def test_source_notification(driver, user, public_group, public_source):
     # Just test the front-end form and mock out the SkyPortal API call
     responses.add(
         responses.GET,
-        "http://localhost:5000/api/source_alerts",
+        "http://localhost:5000/api/source_notifications",
         json={"status": "success"},
         status=200,
     )
@@ -439,14 +439,14 @@ def test_source_alert(driver, user, public_group, public_source):
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     # Choose a group and click outside of the multi-select popup to close
     group_select = driver.wait_for_xpath(
-        "//div[@data-testid='sourceAlert_groupSelect']"
+        "//div[@data-testid='sourceNotification_groupSelect']"
     )
     driver.scroll_to_element_and_click(group_select)
     group_option = driver.wait_for_xpath(
-        f'//li[@data-testid="alertGroupSelect_{public_group.id}"]'
+        f'//li[@data-testid="notificationGroupSelect_{public_group.id}"]'
     )
     ActionChains(driver).click(group_option).perform()
-    textbox = driver.wait_for_xpath("//*[@id='sourcealert-textarea']")
+    textbox = driver.wait_for_xpath("//*[@id='sourcenotification-textarea']")
     driver.scroll_to_element_and_click(textbox)
-    driver.click_xpath("//button[@data-testid='sendAlertButton']")
-    driver.wait_for_xpath("//*[text()='Alert queued up sucessfully']")
+    driver.click_xpath("//button[@data-testid='sendNotificationButton']")
+    driver.wait_for_xpath("//*[text()='Notification queued up sucessfully']")

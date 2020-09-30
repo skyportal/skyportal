@@ -309,7 +309,9 @@ def view_only_token_two_groups(user_two_groups):
 @pytest.fixture()
 def manage_sources_token(group_admin_user):
     token_id = create_token(
-        ACLs=["Manage sources"], user_id=group_admin_user.id, name=str(uuid.uuid4()),
+        ACLs=["Manage sources"],
+        user_id=group_admin_user.id,
+        name=str(uuid.uuid4()),
     )
     return token_id
 
@@ -335,7 +337,9 @@ def upload_data_token(user):
 @pytest.fixture()
 def upload_data_token_two_groups(user_two_groups):
     token_id = create_token(
-        ACLs=["Upload data"], user_id=user_two_groups.id, name=str(uuid.uuid4()),
+        ACLs=["Upload data"],
+        user_id=user_two_groups.id,
+        name=str(uuid.uuid4()),
     )
     return token_id
 
@@ -343,7 +347,9 @@ def upload_data_token_two_groups(user_two_groups):
 @pytest.fixture()
 def manage_groups_token(super_admin_user):
     token_id = create_token(
-        ACLs=["Manage groups"], user_id=super_admin_user.id, name=str(uuid.uuid4()),
+        ACLs=["Manage groups"],
+        user_id=super_admin_user.id,
+        name=str(uuid.uuid4()),
     )
     return token_id
 
@@ -351,7 +357,9 @@ def manage_groups_token(super_admin_user):
 @pytest.fixture()
 def manage_users_token(super_admin_user):
     token_id = create_token(
-        ACLs=["Manage users"], user_id=super_admin_user.id, name=str(uuid.uuid4()),
+        ACLs=["Manage users"],
+        user_id=super_admin_user.id,
+        name=str(uuid.uuid4()),
     )
     return token_id
 
@@ -497,7 +505,7 @@ def sedm_listener_token(sedm, group_admin_user):
 
 
 @pytest.fixture()
-def source_alert_user(public_group):
+def source_notification_user(public_group):
     uid = str(uuid.uuid4())
     username = f"{uid}@cesium.ml.org"
     user = User(
@@ -506,7 +514,7 @@ def source_alert_user(public_group):
         contact_phone="+12345678910",
         groups=[public_group],
         roles=[models.Role.query.get("Full user")],
-        preferences={"allowEmailAlerts": True, "allowSMSAlerts": True},
+        preferences={"allowEmailNotifications": True, "allowSMSNotifications": True},
     )
     DBSession().add(user)
     DBSession().commit()
@@ -514,8 +522,10 @@ def source_alert_user(public_group):
 
 
 @pytest.fixture()
-def source_alert_user_token(source_alert_user):
+def source_notification_user_token(source_notification_user):
     token_id = create_token(
-        ACLs=[], user_id=source_alert_user.id, name=str(uuid.uuid4()),
+        ACLs=[],
+        user_id=source_notification_user.id,
+        name=str(uuid.uuid4()),
     )
     return token_id

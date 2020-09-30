@@ -22,7 +22,7 @@ from .source import (
     SourceHandler,
     SourceOffsetsHandler,
     SourceFinderHandler,
-    SourceAlertHandler,
+    SourceNotificationHandler,
 )
 from .spectrum import SpectrumHandler, ObjSpectraHandler
 from .stream import StreamHandler, StreamUserHandler

@@ -211,7 +211,9 @@ def test_starlist(manage_sources_token, public_source):
     assert isinstance(data['data']["starlist_info"][0]["ra"], float)
 
     status, data = api(
-        'GET', f'sources/{public_source.id}/offsets', token=manage_sources_token,
+        'GET',
+        f'sources/{public_source.id}/offsets',
+        token=manage_sources_token,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -278,18 +280,18 @@ def test_finder(manage_sources_token, public_source):
 
 
 def test_source_alert_unauthorized(
-    source_alert_user_token, public_group, public_source
+    source_notification_user_token, public_group, public_source
 ):
     status, data = api(
         "POST",
-        "source_alerts",
+        "source_notifications",
         data={
             "groupIds": [public_group.id],
             "sourceId": public_source.id,
             "level": "hard",
             "additionalNotes": "",
         },
-        token=source_alert_user_token,
+        token=source_notification_user_token,
     )
     assert status == 400
     # Test server should have no valid Twilio API credentials

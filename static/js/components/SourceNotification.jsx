@@ -41,7 +41,7 @@ const getFontStyles = (groupId, groupIds = [], theme) => ({
       : theme.typography.fontWeightMedium,
 });
 
-const SourceAlert = ({ sourceId }) => {
+const SourceNotification = ({ sourceId }) => {
   const classes = useStyles();
   const groups = useSelector((state) => state.groups.userAccessible);
   const theme = useTheme();
@@ -76,24 +76,26 @@ const SourceAlert = ({ sourceId }) => {
 
     const result = await dispatch(Actions.sendAlert(formData));
     if (result.status === "success") {
-      dispatch(showNotification("Alert queued up sucessfully", "info"));
+      dispatch(showNotification("Notification queued up sucessfully", "info"));
       reset(initialFormState);
     }
   };
 
   return (
     <div>
-      <Typography variant="h6">Send an Alert</Typography>
+      <Typography variant="h6">Send a Notification</Typography>
       <form onSubmit={handleSubmit(onSubmit)}>
         {errors.groupIds && (
-          <FormValidationError message="No target group(s) selected for alert" />
+          <FormValidationError message="No target group(s) selected for notification" />
         )}
         <div className={classes.formContainer}>
           <FormControl
             className={classes.formControl}
-            data-testid="sourceAlert_groupSelect"
+            data-testid="sourceNotification_groupSelect"
           >
-            <InputLabel id="alertGroupSelectLabel">Choose Group</InputLabel>
+            <InputLabel id="notificationGroupSelectLabel">
+              Choose Group
+            </InputLabel>
             <Controller
               as={Select}
               name="groupIds"
@@ -114,7 +116,7 @@ const SourceAlert = ({ sourceId }) => {
                   <MenuItem
                     value={group.id}
                     key={group.id.toString()}
-                    data-testid={`alertGroupSelect_${group.id}`}
+                    data-testid={`notificationGroupSelect_${group.id}`}
                     style={getFontStyles(group.id, selectedGroups, theme)}
                   >
                     {group.name}
@@ -144,7 +146,7 @@ const SourceAlert = ({ sourceId }) => {
             </Controller>
           </FormControl>
           <TextField
-            id="sourcealert-textarea"
+            id="sourcenotification-textarea"
             label="Additional Notes"
             variant="outlined"
             multiline
@@ -155,11 +157,11 @@ const SourceAlert = ({ sourceId }) => {
           />
           <Button
             type="submit"
-            name="alertSubmitButton"
+            name="sendNotificationButton"
             variant="contained"
-            data-testid="sendAlertButton"
+            data-testid="sendNotificationButton"
           >
-            Send Alert
+            Send Notification
           </Button>
         </div>
       </form>
@@ -167,8 +169,8 @@ const SourceAlert = ({ sourceId }) => {
   );
 };
 
-SourceAlert.propTypes = {
+SourceNotification.propTypes = {
   sourceId: PropTypes.string.isRequired,
 };
 
-export default SourceAlert;
+export default SourceNotification;
