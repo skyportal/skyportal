@@ -216,6 +216,7 @@ server:
   host: localhost
   port: 5000  # This is the public-facing port
   ssl: False  # Must be either True or False
+  processes: 1
 
   auth:
     debug_login: True

@@ -397,17 +397,23 @@ def photometry_plot(obj_id, user, width=600, height=300):
         midpoint = (upper + lower) / 2
         line_top = 5 * upper - 4 * midpoint
         line_bottom = 5 * lower - 4 * midpoint
-        first_x = np.full(5000, first)
-        last_x = np.full(5000, last)
         y = np.linspace(line_bottom, line_top, num=5000)
         first_r = plot.line(
-            x=first_x, y=y, line_alpha=0.5, line_color=first_color, line_width=2,
+            x=np.full(5000, first),
+            y=y,
+            line_alpha=0.5,
+            line_color=first_color,
+            line_width=2,
         )
         plot.add_tools(
             HoverTool(tooltips=[("First detection", f'{first}')], renderers=[first_r],)
         )
         last_r = plot.line(
-            x=last_x, y=y, line_alpha=0.5, line_color=last_color, line_width=2
+            x=np.full(5000, last),
+            y=y,
+            line_alpha=0.5,
+            line_color=last_color,
+            line_width=2,
         )
         plot.add_tools(
             HoverTool(tooltips=[("Last detection", f'{last}')], renderers=[last_r],)
@@ -454,19 +460,30 @@ def photometry_plot(obj_id, user, width=600, height=300):
     )
 
     # Mark the first and last detections again
+    detection_dates = data[obsind]['mjd']
     if len(detection_dates) > 0:
+        first = round(detection_dates.min(), 6)
+        last = round(detection_dates.max(), 6)
         midpoint = (ymax + ymin) / 2
         line_top = 5 * ymax - 4 * midpoint
         line_bottom = 5 * ymin - 4 * midpoint
         y = np.linspace(line_bottom, line_top, num=5000)
         first_r = plot.line(
-            x=first_x, y=y, line_alpha=0.5, line_color=first_color, line_width=2,
+            x=np.full(5000, first),
+            y=y,
+            line_alpha=0.5,
+            line_color=first_color,
+            line_width=2,
         )
         plot.add_tools(
             HoverTool(tooltips=[("First detection", f'{first}')], renderers=[first_r],)
         )
         last_r = plot.line(
-            x=last_x, y=y, line_alpha=0.5, line_color=last_color, line_width=2
+            x=np.full(5000, last),
+            y=y,
+            line_alpha=0.5,
+            line_color=last_color,
+            line_width=2,
         )
         plot.add_tools(
             HoverTool(
