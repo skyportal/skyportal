@@ -1,3 +1,4 @@
+import re
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -31,7 +32,7 @@ class AnnotationHandler(BaseHandler):
             return self.error('Invalid annotation ID.')
         return self.success(data=annotation)
 
-    @permissions(['Annotation'])
+    @permissions(['Annotate'])
     def post(self):
         """
         ---
@@ -46,6 +47,16 @@ class AnnotationHandler(BaseHandler):
                     type: string
                   origin:
                      type: string
+                     description: |
+                        String describing the source of this information.
+                        Only one Annotation per origin is allowed, although
+                        each Annotation can have multiple fields.
+                        To add/change data, use the update method instead
+                        of trying to post another Annotation from this origin.
+                        Origin must be a non-empty string starting with an
+                        alphanumeric character or underscore.
+                        (it must match the regex: /^\\w+/)
+
                   data:
                     type: object
                   group_ids:
@@ -78,19 +89,24 @@ class AnnotationHandler(BaseHandler):
                               description: New annotation ID
         """
         data = self.get_json()
+
+        group_ids = data.pop('group_ids', None)
+
+        schema = Annotation.__schema__(exclude=["author_id"])
+        try:
+            schema.load(data)
+        except ValidationError as e:
+            return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
+
         obj_id = data.get("obj_id")
         origin = data.get("origin")
 
-        if obj_id is None:
-            return self.error("Missing required field `obj_id`")
-
-        if origin is None or origin == '':
-            return self.error('Missing required field `origin`')
+        if not re.search(r'^\w+', origin):
+            return self.error("Input `origin` must begin with alphanumeric/underscore")
 
         annotation_data = data.get("data")
 
         # Ensure user/token has access to parent source
-        obj = Source.get_obj_if_owned_by(obj_id, self.current_user)
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
             filtr.id
@@ -98,7 +114,10 @@ class AnnotationHandler(BaseHandler):
             for filtr in g.filters
             if g.filters is not None
         ]
-        group_ids = [int(id) for id in data.pop("group_ids", user_accessible_group_ids)]
+
+        if not group_ids:
+            group_ids = user_accessible_group_ids
+        group_ids = [int(id) for id in group_ids]
         group_ids = set(group_ids).intersection(user_accessible_group_ids)
         if not group_ids:
             return self.error(
@@ -149,9 +168,6 @@ class AnnotationHandler(BaseHandler):
         )
 
         DBSession().add(annotation)
-        if 'redshift' in annotation_data:
-            obj.redshift = annotation_data['redshift']
-
         DBSession().commit()
 
         self.push_all(
@@ -160,7 +176,7 @@ class AnnotationHandler(BaseHandler):
         )
         return self.success(data={'annotation_id': annotation.id})
 
-    @permissions(['Annotation'])
+    @permissions(['Annotate'])
     def put(self, annotation_id):
         """
         ---
@@ -230,7 +246,7 @@ class AnnotationHandler(BaseHandler):
         )
         return self.success()
 
-    @permissions(['Annotation'])
+    @permissions(['Annotate'])
     def delete(self, annotation_id):
         """
         ---

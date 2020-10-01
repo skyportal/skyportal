@@ -1422,7 +1422,12 @@ class Annotation(Base):
         doc="ID of the Annotation author's User instance.",
     )
 
-    origin = sa.Column(sa.String, doc='Annotation origin.')
+    origin = sa.Column(
+        sa.String,
+        index=True,
+        nullable=False,
+        doc='What generated the annotation, e.g., `Kowalski`. One annotation with multiple fields from each origin is allowed.',
+    )
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
         nullable=False,
