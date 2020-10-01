@@ -1801,15 +1801,21 @@ class Spectrum(Base):
                         continue
                     cards.append(card)
 
-            # this ensures lines like COMMENT and HISTORY are properly dealt with
+            # this ensures lines like COMMENT and HISTORY are properly dealt
+            # with by
+
             fits_header = fits.Header(cards=cards)
             serialized = dict(fits_header)
 
+            commentary_keywords = ['', 'COMMENT', 'HISTORY', 'END']
+
             for key in serialized:
                 # coerce things to serializable JSON
-                if isinstance(serialized[key], fits.header._CardAccessor):
-                    # serialize as a string
+                if key in commentary_keywords:
+                    # serialize as a string - otherwise it returns a
+                    # funky astropy type that is not json serializable
                     serialized[key] = str(serialized[key])
+
                 if len(fits_header.comments[key]) > 0:
                     header[key] = {
                         'value': serialized[key],
@@ -1817,13 +1823,6 @@ class Spectrum(Base):
                     }
                 else:
                     header[key] = serialized[key]
-
-            # coerce things to serializable JSON
-            """
-            for k in header:
-                if isinstance(header[k], (datetime, date)):
-                    header[k] = header[k].isoformat()
-            """
 
         else:
             header = None
