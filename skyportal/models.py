@@ -1666,9 +1666,9 @@ class Spectrum(Base):
     def from_ascii(
         cls,
         file,
-        obj_id=None,
-        instrument_id=None,
-        observed_at=None,
+        obj_id,
+        instrument_id,
+        observed_at,
         wave_column=0,
         flux_column=1,
         fluxerr_column=None,
@@ -1682,13 +1682,13 @@ class Spectrum(Base):
            is not provided, `from_ascii` tries to read this file and parse its
            contents. If `data` is provided, the filename is used only for
            bookkeeping purposes; no attempt is made to actually read the file.
-        obj_id : str, optional
+        obj_id : str
            The id of the Obj that this Spectrum is of, if not present
            in the ASCII header.
-        instrument_id : int, optional
+        instrument_id : int
            ID of the Instrument with which this Spectrum was acquired,
            if not present in the ASCII header.
-        observed_at : string or datetime, optional
+        observed_at : string or datetime
            Median UTC ISO time stamp of the exposure or exposures in which
            the Spectrum was acquired, if not present in the ASCII header.
         wave_column: integer, optional
@@ -1708,7 +1708,7 @@ class Spectrum(Base):
         """
 
         try:
-            f = open(file, 'r')
+            f = open(file, 'rb')  # read as ascii
         except TypeError:
             # it's already a stream
             f = file
