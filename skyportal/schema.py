@@ -781,18 +781,23 @@ class SpectrumAsciiFilePostJSON(_Schema):
         fields.Integer, description="The IDs of the groups to share this spectrum with."
     )
 
-    wave_colindex = fields.Integer(
-        default=0,
+    followup_request_id = fields.Integer(
+        description='The ID of the followup request this Spectrum is associated with, if any.',
+        missing=None,
+    )
+
+    wave_column = fields.Integer(
+        missing=0,
         description="The 0-based index of the ASCII column corresponding "
         "to the wavelength values of the spectrum (default 0).",
     )
-    flux_colindex = fields.Integer(
-        default=1,
+    flux_column = fields.Integer(
+        missing=1,
         description="The 0-based index of the ASCII column corresponding to "
         "the flux values of the spectrum (default 1).",
     )
-    fluxerr_colindex = fields.Integer(
-        default=2,
+    fluxerr_column = fields.Integer(
+        missing=None,
         description="The 0-based index of the ASCII column corresponding to the flux "
         "error values of the spectrum (default 2). If there are only 2 "
         "columns in the input file this value will be ignored. If there are "

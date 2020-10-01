@@ -1,7 +1,6 @@
 import uuid
 import re
-import io
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone
 import arrow
 from astropy import units as u
 from astropy import time as ap_time
@@ -25,7 +24,6 @@ import healpix_alchemy as ha
 import timezonefinder
 from .utils.cosmology import establish_cosmology
 
-from pathlib import Path
 import yaml
 import warnings
 from astropy.utils.exceptions import AstropyWarning
@@ -1667,32 +1665,23 @@ class Spectrum(Base):
     @classmethod
     def from_ascii(
         cls,
-        filename,
-        data=None,
+        file,
         obj_id=None,
         instrument_id=None,
         observed_at=None,
-        wave_colindex=0,
-        flux_colindex=1,
-        fluxerr_colindex=2,
+        wave_column=0,
+        flux_column=1,
+        fluxerr_column=None,
     ):
         """Generate a `Spectrum` from an ascii file.
 
         Parameters
         ----------
-        filename : str
-           The original name of the ASCII file containing the spectrum,
-           or the name of the file on disk to read. If `data` is not provided,
-           `from_ascii` tries to read this file and parse its contents. If `data`
-           is provided, the filename is used only for bookkeeping purposes; no
-           attempt is made to actually read the file.
-        data: str, optional
-           The content of the ASCII file. If this argument is
-           supplied, then no attempt is made to read the file `filename` from
-           disk. This permits this method to be used on raw, in-memory data
-           (e.g., the kind supplied in an HTTP request) in addition to
-           file-like objects, saving the need for any interaction with the
-           filesystem.
+        file : str or file-like object
+           Name or handle of the ASCII file containing the spectrum. If `data`
+           is not provided, `from_ascii` tries to read this file and parse its
+           contents. If `data` is provided, the filename is used only for
+           bookkeeping purposes; no attempt is made to actually read the file.
         obj_id : str, optional
            The id of the Obj that this Spectrum is of, if not present
            in the ASCII header.
@@ -1701,20 +1690,16 @@ class Spectrum(Base):
            if not present in the ASCII header.
         observed_at : string or datetime, optional
            Median UTC ISO time stamp of the exposure or exposures in which
-           the Spectrum was acquired, if not present in the ASCII header."
-        wave_colindex: integer, optional
+           the Spectrum was acquired, if not present in the ASCII header.
+        wave_column: integer, optional
            The 0-based index of the ASCII column corresponding to the wavelength
            values of the spectrum (default 0).
-        flux_colindex: integer, optional
+        flux_column: integer, optional
            The 0-based index of the ASCII column corresponding to the flux
            values of the spectrum (default 1).
-        fluxerr_colindex: integer or None, optional
+        fluxerr_column: integer or None, optional
            The 0-based index of the ASCII column corresponding to the flux error
-           values of the spectrum (default 2). If there are only 2 columns
-           in the input file this value will be ignored. If there are more than
-           2 columns in the input file, but none of them correspond to flux error
-           values, set this parameter to None.
-
+           values of the spectrum (default None).
         Returns
         -------
         spec : `skyportal.models.Spectrum`
@@ -1722,33 +1707,62 @@ class Spectrum(Base):
 
         """
 
-        filename = Path(filename)
+        try:
+            f = open(file, 'r')
+        except TypeError:
+            # it's already a stream
+            f = file
 
-        if data is None:
-            try:
-                table = ascii.read(filename, comment='#', header_start=None)
-            except Exception as e:
-                e.args = (f'Error parsing ASCII file: {e.args[0]}',)
-                raise
-            bytes = open(filename).read().encode('ascii')
-        else:
-            file_obj = io.BytesIO(data.encode('ascii'))
-            try:
-                table = ascii.read(file_obj, comment='#', header_start=None)
-            except Exception as e:
-                e.args = (f'Error parsing ASCII file: {e.args[0]}',)
-                raise
-            bytes = data
+        try:
+            table = ascii.read(f, comment='#', header_start=None)
+        except Exception as e:
+            e.args = (f'Error parsing ASCII file: {e.args[0]}',)
+            raise
+        finally:
+            f.close()
 
         tabledata = np.asarray(table)
         colnames = table.colnames
 
-        if len(colnames) < 2:
+        # validate the table and some of the input parameters
+
+        # require at least 2 columns (wavelength, flux)
+        ncol = len(colnames)
+        if ncol < 2:
             raise ValueError(
                 'Input data must have at least 2 columns (wavelength, '
                 'flux, and optionally flux error).'
             )
 
+        spec_data = {}
+        # validate the column indices
+        for index, name, dbcol in zip(
+            [wave_column, flux_column, fluxerr_column],
+            ['wave_column', 'flux_column', 'fluxerr_column'],
+            ['wavelengths', 'fluxes', 'errors'],
+        ):
+
+            # index format / type validation:
+            if dbcol in ['wavelengths', 'fluxes']:
+                if not isinstance(index, int):
+                    raise ValueError(f'{name} must be an int')
+            else:
+                if index is not None and not isinstance(index, int):
+                    # The only other allowed value is that fluxerr_column can be
+                    # None. If the value of index is not None, raise.
+                    raise ValueError(f'invalid type for {name}')
+
+            # after validating the indices, ensure that the columns they
+            # point to exist
+            if isinstance(index, int):
+                if index >= ncol:
+                    raise ValueError(
+                        f'index {name} ({index}) is greater than the '
+                        f'maximum allowed value ({ncol - 1})'
+                    )
+                spec_data[dbcol] = tabledata[colnames[index]]
+
+        # parse the header
         if 'comments' in table.meta:
 
             # this section matches lines like:
@@ -1767,7 +1781,13 @@ class Spectrum(Base):
                 if isinstance(result, dict):
                     header.update(result)
 
-            # otherwise read it like a fits header
+            # this section matches lines like:
+            # FILTER  = 'clear   '           / Filter
+            # EXPTIME =              600.003 / Total exposure time (sec); avg. of R&B
+            # OBJECT  = 'ZTF20abpuxna'       / User-specified object name
+            # TARGNAME= 'ZTF20abpuxna_S1'    / Target name (from starlist)
+            # DICHNAME= '560     '           / Dichroic
+
             cards = []
             with warnings.catch_warnings():
                 warnings.simplefilter('error', AstropyWarning)
@@ -1786,6 +1806,7 @@ class Spectrum(Base):
             serialized = dict(fits_header)
 
             for key in serialized:
+                # coerce things to serializable JSON
                 if isinstance(serialized[key], fits.header._CardAccessor):
                     # serialize as a string
                     serialized[key] = str(serialized[key])
@@ -1798,24 +1819,21 @@ class Spectrum(Base):
                     header[key] = serialized[key]
 
             # coerce things to serializable JSON
+            """
             for k in header:
                 if isinstance(header[k], (datetime, date)):
                     header[k] = header[k].isoformat()
+            """
+
         else:
             header = None
 
         return cls(
-            wavelengths=tabledata[colnames[wave_colindex]],
-            fluxes=tabledata[colnames[flux_colindex]],
-            errors=tabledata[colnames[fluxerr_colindex]]
-            if len(colnames) > 2 and fluxerr_colindex is not None
-            else None,
             obj_id=obj_id,
             instrument_id=instrument_id,
             observed_at=observed_at,
-            original_file_filename=filename.name,
-            original_file_string=bytes,
             altdata=header,
+            **spec_data,
         )
 
 
@@ -1884,6 +1902,13 @@ class FollowupRequest(Base):
     photometry = relationship('Photometry', back_populates='followup_request')
     spectra = relationship('Spectrum', back_populates='followup_request')
 
+    target_groups = relationship(
+        'Group',
+        secondary='request_groups',
+        passive_deletes=True,
+        doc='The groups that the resulting data should be shared with.',
+    )
+
     @property
     def instrument(self):
         return self.allocation.instrument
@@ -1906,6 +1931,9 @@ class FollowupRequest(Base):
 
         user_or_token_group_ids = [g.id for g in user_or_token.accessible_groups]
         return self.allocation.group_id in user_or_token_group_ids
+
+
+FollowupRequestTargetGroup = join_model('request_groups', FollowupRequest, Group)
 
 
 class FacilityTransaction(Base):

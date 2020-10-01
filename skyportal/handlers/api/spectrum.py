@@ -1,7 +1,18 @@
+import io
+from pathlib import Path
+
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Group, Instrument, Obj, Source, Spectrum
+from ...models import (
+    DBSession,
+    Group,
+    Instrument,
+    Obj,
+    Source,
+    Spectrum,
+    FollowupRequest,
+)
 from ...schema import SpectrumAsciiFilePostJSON
 
 
@@ -197,20 +208,43 @@ class ASCIIHandler:
         if instrument is None:
             raise ValidationError('Invalid instrument id.')
 
+        groups = []
         group_ids = json.pop('group_ids')
-        user_group_ids = [g.id for g in self.current_user.accessible_groups]
         for group_id in group_ids:
-            if group_id not in user_group_ids:
-                raise PermissionError('Insufficient permissions.')
+            group = Group.query.get(group_id)
+            if group is None:
+                return self.error(f'Invalid group id: {group_id}.')
+            groups.append(group)
+
+        followup_request_id = json.pop('followup_request_id')
+        if followup_request_id is not None:
+            followup_request = FollowupRequest.get_if_owned_by(
+                self.current_user, followup_request_id
+            )
+
+            if followup_request is None:
+                return self.error('Invalid Followup Request ID.')
+            for group in followup_request.target_groups:
+                groups.append(group)
+
+        # keep only unique groups - must be a list for sqlalchemy
+        groups = list(set(groups))
 
         filename = json.pop('filename')
         ascii = json.pop('ascii')
 
-        # maximum size 200MB - above this don't parse. Assuming ~1 byte / char
-        if len(ascii) > 2e8:
+        # maximum size 10MB - above this don't parse. Assuming ~1 byte / char
+        if len(ascii) > 1e7:
             raise ValueError('File must be smaller than 200,000,000 characters.')
 
-        spec = Spectrum.from_ascii(filename, data=ascii, **json)
+        # pass ascii in as a file-like object
+        file = io.BytesIO(ascii.encode('ascii'))
+        spec = Spectrum.from_ascii(file, **json)
+
+        spec.original_file_filename = Path(filename).name
+        spec.original_file_string = ascii
+
+        spec.groups = groups
         return spec
 
 
@@ -245,7 +279,10 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
                 schema: Error
         """
 
-        spec = self.spec_from_ascii_request()
+        try:
+            spec = self.spec_from_ascii_request()
+        except Exception as e:
+            return self.error(f'Error parsing spectrum: {e.args[0]}')
         DBSession().add(spec)
         DBSession().commit()
         return self.success(data={'id': spec.id})
