@@ -170,16 +170,14 @@ class CandidateHandler(BaseHandler):
             )
             candidate_info["is_source"] = len(c.sources) > 0
             if candidate_info["is_source"]:
-                candidate_info["saved_groups"] = [
-                    g
-                    for g in (
-                        DBSession()
-                        .query(Group)
-                        .join(Source)
-                        .filter(Source.obj_id == obj_id)
-                        .filter(Group.id.in_(user_accessible_group_ids),)
-                    )
-                ]
+                candidate_info["saved_groups"] = (
+                    DBSession()
+                    .query(Group)
+                    .join(Source)
+                    .filter(Source.obj_id == obj_id)
+                    .filter(Group.id.in_(user_accessible_group_ids))
+                    .all()
+                )
             candidate_info["last_detected"] = c.last_detected
             candidate_info["gal_lon"] = c.gal_lon_deg
             candidate_info["gal_lat"] = c.gal_lat_deg
@@ -297,16 +295,14 @@ class CandidateHandler(BaseHandler):
         for obj in query_results["candidates"]:
             obj.is_source = (obj.id,) in matching_source_ids
             if obj.is_source:
-                obj.saved_groups = [
-                    g
-                    for g in (
-                        DBSession()
-                        .query(Group)
-                        .join(Source)
-                        .filter(Source.obj_id == obj.id)
-                        .filter(Group.id.in_(user_accessible_group_ids),)
-                    )
-                ]
+                obj.saved_groups = (
+                    DBSession()
+                    .query(Group)
+                    .join(Source)
+                    .filter(Source.obj_id == obj_id)
+                    .filter(Group.id.in_(user_accessible_group_ids))
+                    .all()
+                )
             obj.passing_group_ids = [
                 f.group_id
                 for f in (

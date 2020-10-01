@@ -1,5 +1,6 @@
 from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
+from collections import defaultdict
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 from ....models import DBSession, Obj, Source
@@ -42,14 +43,16 @@ class RecentSourcesHandler(BaseHandler):
     def get(self):
         query_results = RecentSourcesHandler.get_recent_source_ids(self.current_user)
         sources = []
-        sources_seen = {}
+        sources_seen = defaultdict(lambda: 1)
         for obj_id in query_results:
+            # The recency_index is how current a source row was saved for a given
+            # object. If recency_index = 0, this is the most recent time a source
+            # was saved; recency_index = 1 is the second-latest time the source
+            # was saved, etc.
             recency_index = 0
             if obj_id in sources_seen:
                 recency_index = sources_seen[obj_id]
                 sources_seen[obj_id] += 1
-            else:
-                sources_seen[obj_id] = 1
 
             s = Source.get_obj_if_owned_by(  # Returns Source.obj
                 obj_id,
@@ -80,12 +83,13 @@ class RecentSourcesHandler(BaseHandler):
 
         for source in sources:
             num_times_seen = sources_seen[source["obj_id"]]
-            # If this source was saved multiple times recently, and this is not the oldest instance
+            # If this source was saved multiple times recently, and this is not
+            # the oldest instance of an object being saved (highest recency_index)
             if num_times_seen > 1 and source["recency_index"] != num_times_seen - 1:
                 source["resaved"] = True
             else:
                 source["resaved"] = False
-            # Delete bookkeeping key
+            # Delete bookkeeping recency_index key
             del source["recency_index"]
 
         return self.success(data=sources)

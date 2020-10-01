@@ -83,7 +83,7 @@ const AddSourceGroup = ({ source, userGroups, icon }) => {
     <>
       <div style={displayStyle(unsavedGroups.length !== 0)}>
         {icon ? (
-          <Tooltip title="Add a group to this source">
+          <Tooltip title="Save source to new group(s)">
             <span>
               <IconButton
                 aria-label="add-group"
