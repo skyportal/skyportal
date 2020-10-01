@@ -781,11 +781,6 @@ class SpectrumAsciiFilePostJSON(_Schema):
         fields.Integer, description="The IDs of the groups to share this spectrum with."
     )
 
-    followup_request_id = fields.Integer(
-        description='The ID of the followup request this Spectrum is associated with, if any.',
-        missing=None,
-    )
-
     wave_column = fields.Integer(
         missing=0,
         description="The 0-based index of the ASCII column corresponding "

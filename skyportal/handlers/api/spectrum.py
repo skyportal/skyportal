@@ -11,7 +11,6 @@ from ...models import (
     Obj,
     Source,
     Spectrum,
-    FollowupRequest,
 )
 from ...schema import SpectrumAsciiFilePostJSON
 
@@ -215,20 +214,6 @@ class ASCIIHandler:
             if group is None:
                 return self.error(f'Invalid group id: {group_id}.')
             groups.append(group)
-
-        followup_request_id = json.pop('followup_request_id')
-        if followup_request_id is not None:
-            followup_request = FollowupRequest.get_if_owned_by(
-                self.current_user, followup_request_id
-            )
-
-            if followup_request is None:
-                return self.error('Invalid Followup Request ID.')
-            for group in followup_request.target_groups:
-                groups.append(group)
-
-        # keep only unique groups - must be a list for sqlalchemy
-        groups = list(set(groups))
 
         filename = json.pop('filename')
         ascii = json.pop('ascii')

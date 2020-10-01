@@ -1802,7 +1802,8 @@ class Spectrum(Base):
                     cards.append(card)
 
             # this ensures lines like COMMENT and HISTORY are properly dealt
-            # with by
+            # with by using the astropy.header machinery to coerce them to
+            # single strings
 
             fits_header = fits.Header(cards=cards)
             serialized = dict(fits_header)
@@ -1901,13 +1902,6 @@ class FollowupRequest(Base):
     photometry = relationship('Photometry', back_populates='followup_request')
     spectra = relationship('Spectrum', back_populates='followup_request')
 
-    target_groups = relationship(
-        'Group',
-        secondary='request_groups',
-        passive_deletes=True,
-        doc='The groups that the resulting data should be shared with.',
-    )
-
     @property
     def instrument(self):
         return self.allocation.instrument
@@ -1930,9 +1924,6 @@ class FollowupRequest(Base):
 
         user_or_token_group_ids = [g.id for g in user_or_token.accessible_groups]
         return self.allocation.group_id in user_or_token_group_ids
-
-
-FollowupRequestTargetGroup = join_model('request_groups', FollowupRequest, Group)
 
 
 class FacilityTransaction(Base):
