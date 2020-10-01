@@ -1,8 +1,19 @@
+import io
+from pathlib import Path
+
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from ..base import BaseHandler
-from ...models import DBSession, Group, Instrument, Obj, Source, Spectrum
+from ...models import (
+    DBSession,
+    Group,
+    Instrument,
+    Obj,
+    Source,
+    Spectrum,
+)
+from ...schema import SpectrumAsciiFilePostJSON
 
 
 _, cfg = load_env()
@@ -195,6 +206,117 @@ class SpectrumHandler(BaseHandler):
         return self.success()
 
 
+class ASCIIHandler:
+    def spec_from_ascii_request(self):
+        """Helper method to read in Spectrum objects from ASCII POST."""
+        json = self.get_json()
+
+        try:
+            json = SpectrumAsciiFilePostJSON.load(json)
+        except ValidationError as e:
+            raise ValidationError(
+                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+            )
+
+        obj = Source.get_obj_if_owned_by(json['obj_id'], self.current_user)
+        if obj is None:
+            raise ValidationError('Invalid Obj id.')
+
+        instrument = Instrument.query.get(json['instrument_id'])
+        if instrument is None:
+            raise ValidationError('Invalid instrument id.')
+
+        groups = []
+        group_ids = json.pop('group_ids')
+        for group_id in group_ids:
+            group = Group.query.get(group_id)
+            if group is None:
+                return self.error(f'Invalid group id: {group_id}.')
+            groups.append(group)
+
+        filename = json.pop('filename')
+        ascii = json.pop('ascii')
+
+        # maximum size 10MB - above this don't parse. Assuming ~1 byte / char
+        if len(ascii) > 1e7:
+            raise ValueError('File must be smaller than 200,000,000 characters.')
+
+        # pass ascii in as a file-like object
+        file = io.BytesIO(ascii.encode('ascii'))
+        spec = Spectrum.from_ascii(file, **json)
+
+        spec.original_file_filename = Path(filename).name
+        spec.original_file_string = ascii
+
+        spec.groups = groups
+        return spec
+
+
+class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
+    @permissions(['Upload data'])
+    def post(self):
+        """
+        ---
+        description: Upload spectrum from ASCII file
+        requestBody:
+          content:
+            application/json:
+              schema: SpectrumAsciiFilePostJSON
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New spectrum ID
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        try:
+            spec = self.spec_from_ascii_request()
+        except Exception as e:
+            return self.error(f'Error parsing spectrum: {e.args[0]}')
+        DBSession().add(spec)
+        DBSession().commit()
+        return self.success(data={'id': spec.id})
+
+
+class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
+    @permissions(['Upload data'])
+    def post(self):
+        """
+        ---
+        description: Parse spectrum from ASCII file
+        requestBody:
+          content:
+            application/json:
+              schema: SpectrumAsciiFilePostJSON
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SpectrumNoID
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        spec = self.spec_from_ascii_request()
+        return self.success(data=spec)
+
+
 class ObjSpectraHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
@@ -218,6 +340,7 @@ class ObjSpectraHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
         obj = Obj.query.get(obj_id)
         if obj is None:
             return self.error('Invalid object ID.')
