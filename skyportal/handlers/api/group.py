@@ -451,6 +451,62 @@ class GroupUserHandler(BaseHandler):
         )
 
     @permissions(["Manage users"])
+    def patch(self, group_id, *ignored_args):
+        """
+        ---
+        description: Update a group user's admin status
+        parameters:
+          - in: path
+            name: group_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userID:
+                    type: integer
+                  admin:
+                    type: boolean
+                required:
+                  - username
+                  - admin
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        data = self.get_json()
+        try:
+            group_id = int(group_id)
+        except ValueError:
+            return self.error("Invalid group ID")
+        user_id = data.get("userID")
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return self.error("Invalid userID parameter")
+        groupuser = (
+            DBSession()
+            .query(GroupUser)
+            .filter(GroupUser.group_id == group_id)
+            .filter(GroupUser.user_id == user_id)
+            .first()
+        )
+        if groupuser is None:
+            return self.error("Specified user is not a member of specified group.")
+        if data.get("admin") is None:
+            return self.error("Missing required parameter: `admin`")
+        admin = data.get("admin") in [True, "true", "True", "t", "T"]
+        groupuser.admin = admin
+        DBSession().commit()
+        return self.success()
+
+    @permissions(["Manage users"])
     def delete(self, group_id, username):
         """
         ---
