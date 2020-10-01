@@ -1678,10 +1678,7 @@ class Spectrum(Base):
         Parameters
         ----------
         file : str or file-like object
-           Name or handle of the ASCII file containing the spectrum. If `data`
-           is not provided, `from_ascii` tries to read this file and parse its
-           contents. If `data` is provided, the filename is used only for
-           bookkeeping purposes; no attempt is made to actually read the file.
+           Name or handle of the ASCII file containing the spectrum.
         obj_id : str
            The id of the Obj that this Spectrum is of, if not present
            in the ASCII header.
