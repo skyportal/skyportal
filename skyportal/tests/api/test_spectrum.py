@@ -128,7 +128,7 @@ def test_delete_spectrum_data(
 
 
 def test_jsonify_spectrum_header(
-    upload_data_token, manage_sources_token, public_source, public_group
+    upload_data_token, manage_sources_token, public_source, public_group, lris
 ):
     for filename in glob(f'{os.path.dirname(__file__)}/../data/ZTF*.ascii.head'):
         with open(filename[:-5], 'r') as f:
@@ -138,7 +138,7 @@ def test_jsonify_spectrum_header(
                 data={
                     'obj_id': str(public_source.id),
                     'observed_at': str(datetime.datetime.now()),
-                    'instrument_id': 1,
+                    'instrument_id': lris.id,
                     'group_ids': [public_group.id],
                     'fluxerr_column': 3
                     if 'ZTF20abpuxna_20200915_Keck1_v1.ascii' in filename
@@ -176,7 +176,7 @@ def test_jsonify_spectrum_header(
 
 
 def test_jsonify_spectrum_data(
-    upload_data_token, manage_sources_token, public_source, public_group
+    upload_data_token, manage_sources_token, public_source, public_group, lris
 ):
     for filename in glob(f'{os.path.dirname(__file__)}/../data/ZTF*.ascii'):
         with open(filename, 'r') as f:
@@ -186,7 +186,7 @@ def test_jsonify_spectrum_data(
                 data={
                     'obj_id': str(public_source.id),
                     'observed_at': str(datetime.datetime.now()),
-                    'instrument_id': 1,
+                    'instrument_id': lris.id,
                     'group_ids': [public_group.id],
                     'fluxerr_column': 3
                     if 'ZTF20abpuxna_20200915_Keck1_v1.ascii' in filename
@@ -236,11 +236,10 @@ def test_jsonify_spectrum_data(
 
 
 def test_upload_bad_spectrum_from_ascii_file(
-    upload_data_token, manage_sources_token, public_source, public_group
+    upload_data_token, manage_sources_token, public_source, public_group, lris
 ):
     for filename in glob(f'{os.path.dirname(__file__)}/../data/ZTF*.ascii.bad'):
         with open(filename, 'r') as f:
-
             content = f.read()
             observed_at = str(datetime.datetime.now())
 
@@ -250,7 +249,7 @@ def test_upload_bad_spectrum_from_ascii_file(
                 data={
                     'obj_id': str(public_source.id),
                     'observed_at': observed_at,
-                    'instrument_id': 1,
+                    'instrument_id': lris.id,
                     'group_ids': [public_group.id],
                     'fluxerr_column': 3
                     if 'ZTF20abpuxna_20200915_Keck1_v1.ascii' in filename
