@@ -458,6 +458,7 @@ def public_source_followup_request(public_group_sedm_allocation, public_source, 
             'observation_type': 'IFU',
         },
         requester_id=user.id,
+        last_modified_by_id=user.id,
     )
 
     DBSession().add(fr)
@@ -479,6 +480,7 @@ def public_source_group2_followup_request(
             'observation_type': 'IFU',
         },
         requester_id=user_two_groups.id,
+        last_modified_by_id=user_two_groups.id,
     )
 
     DBSession().add(fr)

@@ -5,12 +5,14 @@ from bokeh.core.json_encoder import serialize_json
 from bokeh.core.properties import List, String
 from bokeh.document import Document
 from bokeh.layouts import row, column
-from bokeh.models import CustomJS, HoverTool, Range1d, Slider, Button
+from bokeh.models import CustomJS, HoverTool, Range1d, Slider, Button, LinearAxis
 from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
 from bokeh.palettes import viridis
 from bokeh.plotting import figure, ColumnDataSource
 from bokeh.util.compiler import bundle_all_models
 from bokeh.util.serialization import make_id
+
+from astropy.time import Time
 
 from matplotlib import cm
 from matplotlib.colors import rgb2hex
@@ -395,17 +397,23 @@ def photometry_plot(obj_id, user, width=600, height=300):
         midpoint = (upper + lower) / 2
         line_top = 5 * upper - 4 * midpoint
         line_bottom = 5 * lower - 4 * midpoint
-        first_x = np.full(5000, first)
-        last_x = np.full(5000, last)
         y = np.linspace(line_bottom, line_top, num=5000)
         first_r = plot.line(
-            x=first_x, y=y, line_alpha=0.5, line_color=first_color, line_width=2,
+            x=np.full(5000, first),
+            y=y,
+            line_alpha=0.5,
+            line_color=first_color,
+            line_width=2,
         )
         plot.add_tools(
             HoverTool(tooltips=[("First detection", f'{first}')], renderers=[first_r],)
         )
         last_r = plot.line(
-            x=last_x, y=y, line_alpha=0.5, line_color=last_color, line_width=2
+            x=np.full(5000, last),
+            y=y,
+            line_alpha=0.5,
+            line_color=last_color,
+            line_width=2,
         )
         plot.add_tools(
             HoverTool(tooltips=[("Last detection", f'{last}')], renderers=[last_r],)
@@ -436,29 +444,46 @@ def photometry_plot(obj_id, user, width=600, height=300):
         - 0.1
     )
 
+    xmin = data['mjd'].min() - 2
+    xmax = data['mjd'].max() + 2
+
     plot = figure(
         plot_width=width,
-        plot_height=height,
+        plot_height=height + 100,
         active_drag='box_zoom',
         tools='box_zoom,wheel_zoom,pan,reset,save',
         y_range=(ymax, ymin),
+        x_range=(xmin, xmax),
         toolbar_location='above',
+        toolbar_sticky=False,
+        x_axis_location='above',
     )
 
     # Mark the first and last detections again
+    detection_dates = data[obsind]['mjd']
     if len(detection_dates) > 0:
+        first = round(detection_dates.min(), 6)
+        last = round(detection_dates.max(), 6)
         midpoint = (ymax + ymin) / 2
         line_top = 5 * ymax - 4 * midpoint
         line_bottom = 5 * ymin - 4 * midpoint
         y = np.linspace(line_bottom, line_top, num=5000)
         first_r = plot.line(
-            x=first_x, y=y, line_alpha=0.5, line_color=first_color, line_width=2,
+            x=np.full(5000, first),
+            y=y,
+            line_alpha=0.5,
+            line_color=first_color,
+            line_width=2,
         )
         plot.add_tools(
             HoverTool(tooltips=[("First detection", f'{first}')], renderers=[first_r],)
         )
         last_r = plot.line(
-            x=last_x, y=y, line_alpha=0.5, line_color=last_color, line_width=2
+            x=np.full(5000, last),
+            y=y,
+            line_alpha=0.5,
+            line_color=last_color,
+            line_width=2,
         )
         plot.add_tools(
             HoverTool(
@@ -615,6 +640,19 @@ def photometry_plot(obj_id, user, width=600, height=300):
     plot.xaxis.axis_label = 'MJD'
     plot.yaxis.axis_label = 'AB mag'
     plot.toolbar.logo = None
+
+    obj = DBSession().query(Obj).get(obj_id)
+    if obj.dm is not None:
+        plot.extra_y_ranges = {
+            "Absolute Mag": Range1d(start=ymax - obj.dm, end=ymin - obj.dm)
+        }
+        plot.add_layout(
+            LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
+        )
+
+    now = Time.now().mjd
+    plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
+    plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
 
     toggle = CheckboxWithLegendGroup(
         labels=list(data.label.unique()),

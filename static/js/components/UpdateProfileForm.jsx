@@ -39,7 +39,7 @@ const UpdateProfileForm = () => {
       username: profile.username,
       firstName: profile.first_name,
       lastName: profile.last_name,
-      email: profile.contact_email ? profile.contact_email : profile.username,
+      email: profile.contact_email,
       phone: profile.contact_phone,
     });
   }, [reset, profile]);
@@ -69,7 +69,9 @@ const UpdateProfileForm = () => {
         <CardContent>
           <h2>Username</h2>
           <form onSubmit={handleSubmit(onSubmit)}>
-            <InputLabel htmlFor="usernameInput">Username</InputLabel>
+            <InputLabel htmlFor="usernameInput">
+              Username (normalized upon save)
+            </InputLabel>
             <TextField
               inputRef={register({ required: true })}
               name="username"

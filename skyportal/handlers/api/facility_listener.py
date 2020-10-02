@@ -2,8 +2,7 @@ from skyportal.handlers import BaseHandler
 from baselayer.app.access import auth_or_token
 import jsonschema
 
-from ...utils import http
-from ...models import FollowupRequest, DBSession, FacilityTransaction
+from ...models import FollowupRequest, DBSession
 from ... import facility_apis, enum_types
 
 
@@ -37,14 +36,6 @@ class FacilityMessageHandler(BaseHandler):
 
         jsonschema.validate(data, instrument.listener_class.complete_schema())
         instrument.listener_class.process_message(self)
-
-        transaction_record = FacilityTransaction(
-            request=http.serialize_tornado_request(self),
-            followup_request=request,
-            initiator=self.associated_user_object,
-        )
-
-        DBSession().add(transaction_record)
         DBSession().commit()
 
         self.push_all(

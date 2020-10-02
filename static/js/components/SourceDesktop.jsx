@@ -180,7 +180,11 @@ const SourceDesktop = ({ source }) => {
           {showStarList && <StarList sourceId={source.id} />}
           {source.groups.map((group) => (
             <Chip
-              label={group.name.substring(0, 15)}
+              label={
+                group.nickname
+                  ? group.nickname.substring(0, 15)
+                  : group.name.substring(0, 15)
+              }
               key={group.id}
               size="small"
               className={classes.chip}

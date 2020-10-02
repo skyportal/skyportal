@@ -9,6 +9,7 @@ from ...models import (
     Obj,
     Thumbnail,
     Instrument,
+    Source,
 )
 from ...schema import ObservingRunPost, ObservingRunGet, ObservingRunGetWithAssignments
 
@@ -111,6 +112,10 @@ class ObservingRunHandler(BaseHandler):
                     joinedload(ObservingRun.instrument).joinedload(
                         Instrument.telescope
                     ),
+                    joinedload(ObservingRun.assignments)
+                    .joinedload(ClassicalAssignment.obj)
+                    .joinedload(Obj.sources)
+                    .joinedload(Source.group),
                 )
                 .filter(ObservingRun.id == run_id)
                 .first()
@@ -137,6 +142,13 @@ class ObservingRunHandler(BaseHandler):
             with DBSession().no_autoflush:
                 data = ObservingRunGetWithAssignments.dump(run)
                 data["assignments"] = [a.to_dict() for a in data["assignments"]]
+
+                gids = [g.id for g in self.current_user.accessible_groups]
+                for a in data["assignments"]:
+                    a['accessible_group_names'] = [
+                        s.group.name for s in a['obj'].sources if s.group_id in gids
+                    ]
+                    del a['obj'].sources
 
                 # calculate when the targets rise and set
                 for d, a in zip(data["assignments"], run.assignments):

@@ -5,6 +5,8 @@ import arrow
 from astropy import units as u
 from astropy import time as ap_time
 
+import json
+
 import astroplan
 import numpy as np
 import sqlalchemy as sa
@@ -20,9 +22,14 @@ from sendgrid.helpers.mail import Mail
 from twilio.rest import Client as TwilioClient
 
 from astropy import coordinates as ap_coord
+from astropy.io import fits, ascii
 import healpix_alchemy as ha
 import timezonefinder
 from .utils.cosmology import establish_cosmology
+
+import yaml
+import warnings
+from astropy.utils.exceptions import AstropyWarning
 
 from baselayer.app.models import (  # noqa
     init_db,
@@ -36,6 +43,7 @@ from baselayer.app.models import (  # noqa
 )
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
+from baselayer.app.json_util import to_json
 
 from . import schema
 from .enum_types import (
@@ -113,6 +121,9 @@ class Group(Base):
 
     name = sa.Column(
         sa.String, unique=True, nullable=False, index=True, doc='Name of the group.'
+    )
+    nickname = sa.Column(
+        sa.String, unique=True, nullable=True, index=True, doc='Short group nickname.'
     )
 
     streams = relationship(
@@ -1663,39 +1674,191 @@ class Spectrum(Base):
     assignment_id = sa.Column(sa.ForeignKey('classicalassignments.id'), nullable=True)
     assignment = relationship('ClassicalAssignment', back_populates='spectra')
 
+    altdata = sa.Column(
+        psql.JSONB, doc="Miscellaneous alternative metadata.", nullable=True
+    )
+
+    original_file_string = sa.Column(
+        sa.String,
+        doc="Content of original file that was passed to upload the spectrum.",
+    )
+    original_file_filename = sa.Column(
+        sa.String, doc="Original file name that was passed to upload the spectrum."
+    )
+
     @classmethod
-    def from_ascii(cls, filename, obj_id, instrument_id, observed_at):
+    def from_ascii(
+        cls,
+        file,
+        obj_id,
+        instrument_id,
+        observed_at,
+        wave_column=0,
+        flux_column=1,
+        fluxerr_column=None,
+    ):
         """Generate a `Spectrum` from an ascii file.
 
         Parameters
         ----------
-
-        filename : str
-           The name of the ASCII file containing the spectrum.
+        file : str or file-like object
+           Name or handle of the ASCII file containing the spectrum.
         obj_id : str
-           The name of the Spectrum's Obj.
+           The id of the Obj that this Spectrum is of, if not present
+           in the ASCII header.
         instrument_id : int
-           ID of the Instrument with which this Spectrum was acquired.
+           ID of the Instrument with which this Spectrum was acquired,
+           if not present in the ASCII header.
         observed_at : string or datetime
-           Median UTC ISO time stamp of the exposure or exposures in which the Spectrum was acquired."
-
+           Median UTC ISO time stamp of the exposure or exposures in which
+           the Spectrum was acquired, if not present in the ASCII header.
+        wave_column: integer, optional
+           The 0-based index of the ASCII column corresponding to the wavelength
+           values of the spectrum (default 0).
+        flux_column: integer, optional
+           The 0-based index of the ASCII column corresponding to the flux
+           values of the spectrum (default 1).
+        fluxerr_column: integer or None, optional
+           The 0-based index of the ASCII column corresponding to the flux error
+           values of the spectrum (default None).
         Returns
         -------
-
         spec : `skyportal.models.Spectrum`
            The Spectrum generated from the ASCII file.
 
         """
-        data = np.loadtxt(filename)
-        if data.shape[1] != 2:  # TODO support other formats
-            raise ValueError(f"Expected 2 columns, got {data.shape[1]}")
+
+        try:
+            f = open(file, 'rb')  # read as ascii
+        except TypeError:
+            # it's already a stream
+            f = file
+
+        try:
+            table = ascii.read(f, comment='#', header_start=None)
+        except Exception as e:
+            e.args = (f'Error parsing ASCII file: {e.args[0]}',)
+            raise
+        finally:
+            f.close()
+
+        tabledata = np.asarray(table)
+        colnames = table.colnames
+
+        # validate the table and some of the input parameters
+
+        # require at least 2 columns (wavelength, flux)
+        ncol = len(colnames)
+        if ncol < 2:
+            raise ValueError(
+                'Input data must have at least 2 columns (wavelength, '
+                'flux, and optionally flux error).'
+            )
+
+        spec_data = {}
+        # validate the column indices
+        for index, name, dbcol in zip(
+            [wave_column, flux_column, fluxerr_column],
+            ['wave_column', 'flux_column', 'fluxerr_column'],
+            ['wavelengths', 'fluxes', 'errors'],
+        ):
+
+            # index format / type validation:
+            if dbcol in ['wavelengths', 'fluxes']:
+                if not isinstance(index, int):
+                    raise ValueError(f'{name} must be an int')
+            else:
+                if index is not None and not isinstance(index, int):
+                    # The only other allowed value is that fluxerr_column can be
+                    # None. If the value of index is not None, raise.
+                    raise ValueError(f'invalid type for {name}')
+
+            # after validating the indices, ensure that the columns they
+            # point to exist
+            if isinstance(index, int):
+                if index >= ncol:
+                    raise ValueError(
+                        f'index {name} ({index}) is greater than the '
+                        f'maximum allowed value ({ncol - 1})'
+                    )
+                spec_data[dbcol] = tabledata[colnames[index]]
+
+        # parse the header
+        if 'comments' in table.meta:
+
+            # this section matches lines like:
+            # XTENSION: IMAGE
+            # BITPIX: -32
+            # NAXIS: 2
+            # NAXIS1: 433
+            # NAXIS2: 1
+
+            header = {}
+            for line in table.meta['comments']:
+                try:
+                    result = yaml.load(line, Loader=yaml.FullLoader)
+                except yaml.YAMLError:
+                    continue
+                if isinstance(result, dict):
+                    header.update(result)
+
+            # this section matches lines like:
+            # FILTER  = 'clear   '           / Filter
+            # EXPTIME =              600.003 / Total exposure time (sec); avg. of R&B
+            # OBJECT  = 'ZTF20abpuxna'       / User-specified object name
+            # TARGNAME= 'ZTF20abpuxna_S1'    / Target name (from starlist)
+            # DICHNAME= '560     '           / Dichroic
+
+            cards = []
+            with warnings.catch_warnings():
+                warnings.simplefilter('error', AstropyWarning)
+                for line in table.meta['comments']:
+                    # this line does not raise a warning
+                    card = fits.Card.fromstring(line)
+                    try:
+                        # this line warns (exception in this context)
+                        card.verify()
+                    except AstropyWarning:
+                        continue
+                    cards.append(card)
+
+            # this ensures lines like COMMENT and HISTORY are properly dealt
+            # with by using the astropy.header machinery to coerce them to
+            # single strings
+
+            fits_header = fits.Header(cards=cards)
+            serialized = dict(fits_header)
+
+            commentary_keywords = ['', 'COMMENT', 'HISTORY', 'END']
+
+            for key in serialized:
+                # coerce things to serializable JSON
+                if key in commentary_keywords:
+                    # serialize as a string - otherwise it returns a
+                    # funky astropy type that is not json serializable
+                    serialized[key] = str(serialized[key])
+
+                if len(fits_header.comments[key]) > 0:
+                    header[key] = {
+                        'value': serialized[key],
+                        'comment': fits_header.comments[key],
+                    }
+                else:
+                    header[key] = serialized[key]
+
+            # this ensures that the spectra are properly serialized to the
+            # database JSONB (database JSONB cant handle datetime/date values)
+            header = json.loads(to_json(header))
+
+        else:
+            header = None
 
         return cls(
-            wavelengths=data[:, 0],
-            fluxes=data[:, 1],
             obj_id=obj_id,
             instrument_id=instrument_id,
             observed_at=observed_at,
+            altdata=header,
+            **spec_data,
         )
 
 
@@ -1720,17 +1883,32 @@ class FollowupRequest(Base):
     """A request for follow-up data (spectroscopy, photometry, or both) using a
     robotic instrument."""
 
-    requester = relationship(
-        User,
-        back_populates='followup_requests',
-        doc="The User who requested the follow-up.",
-    )
     requester_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
         doc="ID of the User who requested the follow-up.",
     )
+
+    requester = relationship(
+        User,
+        back_populates='followup_requests',
+        doc="The User who requested the follow-up.",
+        foreign_keys=[requester_id],
+    )
+
+    last_modified_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='SET NULL'),
+        nullable=False,
+        doc="The ID of the User who last modified the request.",
+    )
+
+    last_modified_by = relationship(
+        User,
+        doc="The user who last modified the request.",
+        foreign_keys=[last_modified_by_id],
+    )
+
     obj = relationship('Obj', back_populates='followup_requests', doc="The target Obj.")
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
@@ -1740,8 +1918,9 @@ class FollowupRequest(Base):
     )
 
     payload = sa.Column(
-        psql.JSONB, nullable=True, doc="Content of the followup request."
+        psql.JSONB, nullable=False, doc="Content of the followup request."
     )
+
     status = sa.Column(
         sa.String(),
         nullable=False,
@@ -1831,6 +2010,7 @@ User.followup_requests = relationship(
     'FollowupRequest',
     back_populates='requester',
     doc="The follow-up requests this User has made.",
+    foreign_keys=[FollowupRequest.requester_id],
 )
 
 User.transactions = relationship(

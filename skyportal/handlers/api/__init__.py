@@ -24,7 +24,12 @@ from .source import (
     SourceFinderHandler,
     SourceNotificationHandler,
 )
-from .spectrum import SpectrumHandler, ObjSpectraHandler
+from .spectrum import (
+    SpectrumHandler,
+    ObjSpectraHandler,
+    SpectrumASCIIFileParser,
+    SpectrumASCIIFileHandler,
+)
 from .stream import StreamHandler, StreamUserHandler
 from .sysinfo import SysInfoHandler
 from .taxonomy import TaxonomyHandler
