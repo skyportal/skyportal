@@ -21,9 +21,10 @@ import MUIDataTable from "mui-datatables";
 
 import * as candidatesActions from "../ducks/candidates";
 import ThumbnailList from "./ThumbnailList";
-import CandidateCommentList from "./CandidateCommentList";
+// import CandidateCommentList from "./CandidateCommentList";
 import SaveCandidateButton from "./SaveCandidateButton";
 import FilterCandidateList from "./FilterCandidateList";
+import CandidateAnnotationsList from "./CandidateAnnotationsList";
 import AddSourceGroup from "./AddSourceGroup";
 
 const VegaPlot = React.lazy(() =>
@@ -84,11 +85,11 @@ const useStyles = makeStyles((theme) => ({
 const getMuiTheme = (theme) =>
   createMuiTheme({
     overrides: {
-      MUIDataTableFooter: {
-        root: {
-          display: "none",
-        },
-      },
+      // MUIDataTableFooter: {
+      //   root: {
+      //     display: "none",
+      //   },
+      // },
       MUIDataTableBodyCell: {
         root: {
           padding: `${theme.spacing(1)}px ${theme.spacing(
@@ -108,6 +109,8 @@ const getMuiTheme = (theme) =>
       },
     },
   });
+
+const defaultNumPerPage = 1;
 
 const CandidateList = () => {
   const history = useHistory();
@@ -132,6 +135,7 @@ const CandidateList = () => {
     totalMatches,
     numberingStart,
     numberingEnd,
+    selectedAnnotationItem,
   } = useSelector((state) => state.candidates);
 
   const userAccessibleGroups = useSelector(
@@ -143,11 +147,23 @@ const CandidateList = () => {
   useEffect(() => {
     if (candidates === null) {
       setQueryInProgress(true);
-      dispatch(candidatesActions.fetchCandidates());
+      dispatch(
+        candidatesActions.fetchCandidates({ numPerPage: defaultNumPerPage })
+      );
     } else {
       setQueryInProgress(false);
     }
   }, [candidates, dispatch]);
+
+  const candidateHasAnnotationItem = (candidateObj) => {
+    const annotation = candidateObj.annotations.find(
+      (a) => a.origin === selectedAnnotationItem.origin
+    );
+    if (annotation === undefined) {
+      return false;
+    }
+    return selectedAnnotationItem.key in annotation.data;
+  };
 
   const renderThumbnails = (dataIndex) => {
     const candidateObj = candidates[dataIndex];
@@ -260,7 +276,15 @@ const CandidateList = () => {
             {candidateObj.gal_lat.toFixed(3)}
           </span>
         </div>
-        <br />
+        {selectedAnnotationItem !== null &&
+          candidateHasAnnotationItem(candidateObj) && (
+            <div className={classes.infoItem}>
+              <b>
+                {selectedAnnotationItem.key} ({selectedAnnotationItem.origin}):{" "}
+              </b>
+              <span>{selectedAnnotationItem.value}</span>
+            </div>
+          )}
       </div>
     );
   };
@@ -278,11 +302,32 @@ const CandidateList = () => {
     const candidateObj = candidates[dataIndex];
     return (
       <div className={classes.annotations}>
-        {candidateObj.comments && (
-          <CandidateCommentList comments={candidateObj.comments} />
+        {candidateObj.annotations && (
+          <CandidateAnnotationsList annotations={candidateObj.annotations} />
         )}
       </div>
     );
+  };
+
+  const handlePageChange = async (page, rowsPerPage) => {
+    setQueryInProgress(true);
+    // API takes 1-indexed page number
+    const data = { pageNumber: page + 1, numPerPage: rowsPerPage };
+    await dispatch(candidatesActions.fetchCandidates(data));
+    setQueryInProgress(false);
+  };
+
+  const handleTableChange = (action, tableState) => {
+    switch (action) {
+      case "changePage":
+      case "changeRowsPerPage":
+        handlePageChange(tableState.page, tableState.rowsPerPage);
+        break;
+      case "sort":
+        // sort(tableState.page, tableState.sortOrder);
+        break;
+      default:
+    }
   };
 
   const columns = [
@@ -350,10 +395,14 @@ const CandidateList = () => {
                 sort: false,
                 print: false,
                 download: false,
+                count: totalMatches,
                 selectableRows: "none",
                 enableNestedDataAccess: ".",
-                rowsPerPage: 25,
-                rowsPerPageOptions: [10, 25, 100],
+                rowsPerPage: 1,
+                rowsPerPageOptions: [1, 25, 50, 75, 100, 200],
+                jumpToPage: true,
+                serverSide: true,
+                onTableChange: handleTableChange,
               }}
             />
           </MuiThemeProvider>

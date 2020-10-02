@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
 import PropTypes from "prop-types";
@@ -6,7 +6,7 @@ import PropTypes from "prop-types";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Checkbox from "@material-ui/core/Checkbox";
 import Button from "@material-ui/core/Button";
-import TextField from "@material-ui/core/TextField";
+// import TextField from "@material-ui/core/TextField";
 import { KeyboardDateTimePicker } from "@material-ui/pickers";
 import Paper from "@material-ui/core/Paper";
 import SearchIcon from "@material-ui/icons/Search";
@@ -46,16 +46,16 @@ const useStyles = makeStyles(() => ({
 
 const FilterCandidateList = ({
   userAccessibleGroups,
-  pageNumber,
-  numberingStart,
-  numberingEnd,
-  totalMatches,
-  lastPage,
+  // pageNumber,
+  // numberingStart,
+  // numberingEnd,
+  // totalMatches,
+  // lastPage,
   setQueryInProgress,
 }) => {
   const classes = useStyles();
 
-  const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
+  // const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
 
   const { handleSubmit, getValues, control, errors, reset } = useForm();
 
@@ -100,24 +100,24 @@ const FilterCandidateList = ({
     setQueryInProgress(false);
   };
 
-  const handleClickNextPage = async () => {
-    const formData = getValues({ nest: true });
-    onSubmit({ ...formData, pageNumber: pageNumber + 1 });
-  };
+  // const handleClickNextPage = async () => {
+  //   const formData = getValues({ nest: true });
+  //   onSubmit({ ...formData, pageNumber: pageNumber + 1 });
+  // };
 
-  const handleClickPreviousPage = async () => {
-    const formData = getValues({ nest: true });
-    onSubmit({ ...formData, pageNumber: pageNumber - 1 });
-  };
+  // const handleClickPreviousPage = async () => {
+  //   const formData = getValues({ nest: true });
+  //   onSubmit({ ...formData, pageNumber: pageNumber - 1 });
+  // };
 
-  const handleJumpToPageInputChange = (e) => {
-    setJumpToPageInputValue(e.target.value);
-  };
+  // const handleJumpToPageInputChange = (e) => {
+  //   setJumpToPageInputValue(e.target.value);
+  // };
 
-  const handleClickJumpToPage = async () => {
-    const formData = getValues({ nest: true });
-    onSubmit({ ...formData, pageNumber: jumpToPageInputValue });
-  };
+  // const handleClickJumpToPage = async () => {
+  //   const formData = getValues({ nest: true });
+  //   onSubmit({ ...formData, pageNumber: jumpToPageInputValue });
+  // };
 
   return (
     <Paper variant="outlined">
@@ -207,7 +207,7 @@ const FilterCandidateList = ({
             </Button>
           </div>
         </form>
-        <div className={classes.pages}>
+        {/* <div className={classes.pages}>
           <div>
             <Button
               variant="contained"
@@ -254,7 +254,7 @@ const FilterCandidateList = ({
           >
             Jump to Page
           </Button>
-        </div>
+        </div> */}
         <br />
         <br />
       </div>
@@ -263,11 +263,11 @@ const FilterCandidateList = ({
 };
 FilterCandidateList.propTypes = {
   userAccessibleGroups: PropTypes.arrayOf(PropTypes.object).isRequired,
-  pageNumber: PropTypes.number.isRequired,
-  numberingStart: PropTypes.number.isRequired,
-  numberingEnd: PropTypes.number.isRequired,
-  totalMatches: PropTypes.number.isRequired,
-  lastPage: PropTypes.bool.isRequired,
+  // pageNumber: PropTypes.number.isRequired,
+  // numberingStart: PropTypes.number.isRequired,
+  // numberingEnd: PropTypes.number.isRequired,
+  // totalMatches: PropTypes.number.isRequired,
+  // lastPage: PropTypes.bool.isRequired,
   setQueryInProgress: PropTypes.func.isRequired,
 };
 

@@ -258,6 +258,10 @@ class CandidateHandler(BaseHandler):
             page = int(page_number)
         except ValueError:
             return self.error("Invalid page number value.")
+        try:
+            n_per_page = int(n_per_page)
+        except ValueError:
+            return self.error("Invalid numPerPage value.")
         q = (
             Obj.query.options(
                 [
@@ -336,6 +340,23 @@ class CandidateHandler(BaseHandler):
                     )
                     .all()
                 )
+            ]
+            # Fake annotations for now
+            obj.annotations = [
+                {
+                    "origin": "test1",
+                    "data": {
+                        "numeric": random.random(),
+                        "flag": random.choice([True, False]),
+                    },
+                },
+                {
+                    "origin": "test2",
+                    "data": {
+                        "floats": random.random(),
+                        "bools": random.choice([True, False]),
+                    },
+                },
             ]
             candidate_list.append(obj.to_dict())
             candidate_list[-1]["comments"] = sorted(
