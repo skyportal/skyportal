@@ -13,7 +13,7 @@ import FormValidationError from "./FormValidationError";
 import styles from "./CommentEntry.css";
 
 const CommentEntry = ({ addComment }) => {
-  const userGroups = useSelector((state) => state.groups.user);
+  const { userAccessible: groups } = useSelector((state) => state.groups);
 
   const {
     handleSubmit,
@@ -32,9 +32,9 @@ const CommentEntry = ({ addComment }) => {
 
   useEffect(() => {
     reset({
-      group_ids: Array(userGroups.length).fill(true),
+      group_ids: Array(groups.length).fill(true),
     });
-  }, [reset, userGroups]);
+  }, [reset, groups]);
 
   const [groupSelectVisible, setGroupSelectVisible] = useState(false);
   const toggleGroupSelectVisible = () => {
@@ -42,7 +42,7 @@ const CommentEntry = ({ addComment }) => {
   };
 
   const onSubmit = (data) => {
-    const groupIDs = userGroups.map((g) => g.id);
+    const groupIDs = groups.map((g) => g.id);
     const selectedGroupIDs = groupIDs.filter((ID, idx) => data.group_ids[idx]);
     data.group_ids = selectedGroupIDs;
     addComment(data);
@@ -98,7 +98,7 @@ const CommentEntry = ({ addComment }) => {
           display={groupSelectVisible ? "flex" : "none"}
           className={styles.customizeGroupsContainer}
         >
-          {userGroups.map((userGroup, idx) => (
+          {groups.map((userGroup, idx) => (
             <FormControlLabel
               key={userGroup.id}
               control={
