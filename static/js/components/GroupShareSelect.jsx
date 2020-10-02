@@ -102,7 +102,7 @@ const GroupShareSelect = ({
             value={group.id}
             style={getStyles(group.name, groupIDs, theme)}
           >
-            {group.name}
+            <div data-testid={`group_${group.id}`}>{group.name}</div>
           </MenuItem>
         ))}
       </Select>
