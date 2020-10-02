@@ -23,7 +23,7 @@ def test_token_user_retrieving_source(view_only_token, public_source):
 
 def test_token_user_update_source(manage_sources_token, public_source):
     status, data = api(
-        'PUT',
+        'PATCH',
         f'sources/{public_source.id}',
         data={
             'ra': 234.22,
@@ -49,7 +49,7 @@ def test_token_user_update_source(manage_sources_token, public_source):
 
 def test_distance_modulus(manage_sources_token, public_source):
     status, data = api(
-        'PUT',
+        'PATCH',
         f'sources/{public_source.id}',
         data={
             'ra': 234.22,
@@ -79,7 +79,7 @@ def test_parallax(manage_sources_token, public_source):
     dm = 5.0 * np.log10(d_pc / (10.0))
 
     status, data = api(
-        'PUT',
+        'PATCH',
         f'sources/{public_source.id}',
         data={
             'ra': 234.22,
@@ -102,7 +102,7 @@ def test_parallax(manage_sources_token, public_source):
 
 def test_low_redshift(manage_sources_token, public_source):
     status, data = api(
-        'PUT',
+        'PATCH',
         f'sources/{public_source.id}',
         data={
             'ra': 234.22,
@@ -125,7 +125,7 @@ def test_low_redshift(manage_sources_token, public_source):
 
 def test_cannot_update_source_without_permission(view_only_token, public_source):
     status, data = api(
-        'PUT',
+        'PATCH',
         f'sources/{public_source.id}',
         data={
             'ra': 234.22,
@@ -189,7 +189,7 @@ def test_add_source_without_group_id(upload_data_token, view_only_token, public_
 
 def test_starlist(manage_sources_token, public_source):
     status, data = api(
-        'PUT',
+        'PATCH',
         f'sources/{public_source.id}',
         data={'ra': 234.22, 'dec': 22.33},
         token=manage_sources_token,
@@ -239,7 +239,7 @@ def test_starlist(manage_sources_token, public_source):
 @pytest.mark.xfail(strict=False)
 def test_finder(manage_sources_token, public_source):
     status, data = api(
-        'PUT',
+        'PATCH',
         f'sources/{public_source.id}',
         data={'ra': 234.22, 'dec': -22.33},
         token=manage_sources_token,

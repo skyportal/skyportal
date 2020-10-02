@@ -1,4 +1,6 @@
+import datetime
 import arrow
+from copy import copy
 
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
@@ -394,6 +396,20 @@ class CandidateHandler(BaseHandler):
         if not filters:
             return self.error("At least one valid filter ID must be provided.")
 
+        if "redshift" in data:
+            if obj.redshift_history is None:
+                redshift_history = []
+            else:
+                redshift_history = copy(obj.redshift_history)
+            redshift_history.append(
+                {
+                    "set_by_user_id": self.associated_user_object.id,
+                    "set_at_utc": datetime.datetime.utcnow().isoformat(),
+                    "value": float(data["redshift"]),
+                }
+            )
+            obj.redshift_history = redshift_history
+
         DBSession().add(obj)
         DBSession().add_all(
             [
@@ -444,11 +460,24 @@ class CandidateHandler(BaseHandler):
 
         schema = Obj.__schema__()
         try:
-            schema.load(data, partial=True)
+            obj = schema.load(data, partial=True)
         except ValidationError as e:
             return self.error(
                 "Invalid/missing parameters: " f"{e.normalized_messages()}"
             )
+        if "redshift" in data:
+            if obj.redshift_history is None:
+                redshift_history = []
+            else:
+                redshift_history = copy(obj.redshift_history)
+            redshift_history.append(
+                {
+                    "set_by_user_id": self.associated_user_object.id,
+                    "set_at_utc": datetime.datetime.utcnow().isoformat(),
+                    "value": float(data["redshift"]),
+                }
+            )
+            obj.redshift_history = redshift_history
         DBSession().commit()
 
         self.push_all(action="skyportal/FETCH_CANDIDATES")
