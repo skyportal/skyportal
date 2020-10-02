@@ -129,11 +129,18 @@ class CommentHandler(BaseHandler):
             return self.error("Obj is not associated with any of the specified groups.")
 
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
-        if 'attachment' in data and 'body' in data['attachment']:
-            attachment_bytes = str.encode(
-                data['attachment']['body'].split('base64,')[-1]
-            )
-            attachment_name = data['attachment']['name']
+        if 'attachment' in data:
+            if (
+                isinstance(data['attachment'], dict)
+                and 'body' in data['attachment']
+                and 'name' in data['attachment']
+            ):
+                attachment_bytes = str.encode(
+                    data['attachment']['body'].split('base64,')[-1]
+                )
+                attachment_name = data['attachment']['name']
+            else:
+                return self.error("Malformed comment attachment")
         else:
             attachment_bytes, attachment_name = None, None
 
