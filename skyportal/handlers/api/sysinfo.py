@@ -1,3 +1,5 @@
+import subprocess
+
 from baselayer.app.env import load_env
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
@@ -26,14 +28,50 @@ class SysInfoHandler(BaseHandler):
                         properties:
                           invitationsEnabled:
                             type: boolean
-                          description: |
-                            Boolean indicating whether new user invitation pipeline
-                            is enabled in current deployment.
+                            description: |
+                              Boolean indicating whether new user invitation pipeline
+                              is enabled in current deployment.
+                          gitlog:
+                              type: array
+                              description: Recent git commit lines
+                          cosmology:
+                              type: string
+                              description: Details of the cosmology used here
+                          cosmoref:
+                              type: string
+                              description: Reference for the cosmology used.
         """
+        default_lines = 25
+        p = subprocess.Popen(
+            ["git", "log", "--pretty=format:'%C(cyan)[%ci]%Creset %s %C(auto)%h'"],
+            stdout=subprocess.PIPE,
+            universal_newlines=True,
+        )
+        out, err = p.communicate()
+        raw_gitlog = out.splitlines()[:default_lines]
+        gitlog = []
+
+        pr_url = "https://github.com/skyportal/skyportal/pull/"
+        for commit in raw_gitlog:
+            # remove leading and trailing quote
+            result = commit[1:-1]
+            pr_number_start = result.find("(#")
+            if pr_number_start != -1:
+                pr_number_end = result.find(")", pr_number_start)
+                pr_str = result[(pr_number_start + 2):(pr_number_end)]
+                pr = pr_url + pr_str
+                result = result.replace(
+                    "(#" + pr_str + ")",
+                    "(<a target='_blank' rel='noopener noreferrer'"
+                    f" href='{pr}'>#{pr_str}</a>)",
+                )
+            gitlog.append(result)
+
         return self.success(
             data={
                 "invitationsEnabled": cfg["invitations.enabled"],
                 "cosmology": str(cosmo),
                 "cosmoref": cosmo.__doc__,
+                "gitlog": gitlog,
             }
         )
