@@ -779,7 +779,9 @@ class SpectrumAsciiFilePostJSON(_Schema):
         description='The ISO UTC time the spectrum was taken.', required=True
     )
     group_ids = fields.List(
-        fields.Integer, description="The IDs of the groups to share this spectrum with."
+        fields.Integer,
+        description="The IDs of the groups to share this spectrum with.",
+        missing=[],
     )
 
     wave_column = fields.Integer(

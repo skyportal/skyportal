@@ -227,7 +227,7 @@ class ASCIIHandler:
             raise ValidationError('Invalid instrument id.')
 
         groups = []
-        group_ids = json.pop('group_ids')
+        group_ids = json.pop('group_ids', [])
         for group_id in group_ids:
             group = Group.query.get(group_id)
             if group is None:
