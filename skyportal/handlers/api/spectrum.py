@@ -237,7 +237,8 @@ class ASCIIHandler:
             groups.append(group)
 
         # will never KeyError as missing value is imputed
-        if json['followup_request_id'] is not None:
+        followup_request_id = json.pop('followup_request_id', None)
+        if followup_request_id is not None:
             followup_request = FollowupRequest.query.get(json['followup_request_id'])
             for group in followup_request.target_groups:
                 if group not in groups:
