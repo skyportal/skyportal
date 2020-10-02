@@ -7,7 +7,9 @@ from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    FollowupRequest,
     Group,
+    GroupUser,
     Instrument,
     Obj,
     Source,
@@ -234,12 +236,29 @@ class ASCIIHandler:
                 return self.error(f'Invalid group id: {group_id}.')
             groups.append(group)
 
+        # will never KeyError as missing value is imputed
+        if json['followup_request_id'] is not None:
+            followup_request = FollowupRequest.query.get(json['followup_request_id'])
+            for group in followup_request.target_groups:
+                if group not in groups:
+                    groups.append(group)
+
+        # always add the single user group
+        single_user_group = Group.query.filter(
+            Group.single_user_group == True,  # noqa
+            GroupUser.user_id == self.associated_user_object.id,
+        ).first()
+
+        if single_user_group is not None:
+            if single_user_group not in groups:
+                groups.append(single_user_group)
+
         filename = json.pop('filename')
         ascii = json.pop('ascii')
 
         # maximum size 10MB - above this don't parse. Assuming ~1 byte / char
         if len(ascii) > 1e7:
-            raise ValueError('File must be smaller than 200,000,000 characters.')
+            raise ValueError('File must be smaller than 10MB.')
 
         # pass ascii in as a file-like object
         file = io.BytesIO(ascii.encode('ascii'))

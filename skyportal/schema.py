@@ -807,7 +807,6 @@ class SpectrumAsciiFilePostJSON(_Schema):
     group_ids = fields.List(
         fields.Integer,
         description="The IDs of the groups to share this spectrum with.",
-        missing=[],
     )
 
     wave_column = fields.Integer(
@@ -827,6 +826,12 @@ class SpectrumAsciiFilePostJSON(_Schema):
         "columns in the input file this value will be ignored. If there are "
         "more than 2 columns in the input file, but none of them correspond to "
         "flux error values, set this parameter to `None`.",
+    )
+
+    followup_request_id = fields.Integer(
+        missing=None,
+        description="ID of the followup request this spectrum is associated "
+        "with, if any.",
     )
 
     ascii = fields.String(
