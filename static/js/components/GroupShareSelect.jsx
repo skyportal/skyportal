@@ -32,17 +32,6 @@ const useStyles = makeStyles((theme) => ({
   chip: {
     margin: 2,
   },
-  textarea: {
-    "::-webkit-input-placeholder": {
-      opacity: 0.2,
-    },
-    "::-moz-placeholder": {
-      opacity: 0.2,
-    },
-    ":-ms-input-placeholder": {
-      opacity: 0.2,
-    },
-  },
 }));
 
 const getStyles = (groupID, groupIDs = [], theme) => ({

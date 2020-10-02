@@ -738,6 +738,32 @@ class ObservingRunPost(_Schema):
     )
 
 
+class FollowupRequestPost(_Schema):
+
+    obj_id = fields.Integer(required=True, description="ID of the target Obj.",)
+
+    payload = fields.Field(
+        required=False, description="Content of the followup request."
+    )
+
+    status = fields.String(
+        missing="pending submission",
+        description="The status of the request.",
+        required=False,
+    )
+
+    allocation_id = fields.Integer(
+        required=True, description="Followup request allocation ID."
+    )
+
+    target_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        description='IDs of groups to share the results of the f'
+        'ollowup request with.',
+    )
+
+
 class ObservingRunGet(ObservingRunPost):
     owner_id = fields.Integer(description='The User ID of the owner of this run.')
     ephemeris = fields.Field(description='Observing run ephemeris data.')
@@ -966,3 +992,4 @@ ObservingRunGet = ObservingRunGet()
 AssignmentSchema = AssignmentSchema()
 ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
 SpectrumAsciiFilePostJSON = SpectrumAsciiFilePostJSON()
+FollowupRequestPost = FollowupRequestPost()

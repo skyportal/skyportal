@@ -16,7 +16,7 @@ from ...models import (
 
 from sqlalchemy.orm import joinedload
 
-from ...schema import AssignmentSchema
+from ...schema import AssignmentSchema, FollowupRequestPost
 
 
 class AssignmentHandler(BaseHandler):
@@ -338,7 +338,7 @@ class FollowupRequestHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: FollowupRequestNoID
+              schema: FollowupRequestPost
         responses:
           200:
             content:
@@ -357,6 +357,14 @@ class FollowupRequestHandler(BaseHandler):
         """
         data = self.get_json()
         _ = Source.get_obj_if_owned_by(data["obj_id"], self.current_user)
+
+        try:
+            data = FollowupRequestPost.load(data)
+        except ValidationError as e:
+            return self.error(
+                f'Invalid / missing parameters: {e.normalized_messages()}'
+            )
+
         data["requester_id"] = self.associated_user_object.id
         data["last_modified_by_id"] = self.associated_user_object.id
         data['allocation_id'] = int(data['allocation_id'])
@@ -376,10 +384,18 @@ class FollowupRequestHandler(BaseHandler):
         if not instrument.api_class.implements()['submit']:
             return self.error('Cannot submit followup requests to this Instrument.')
 
+        target_groups = []
+        for group_id in data.pop('target_group_ids', []):
+            g = Group.query.get(group_id)
+            if g is None:
+                return self.error(f'Invalid group id: {group_id}')
+            target_groups.append(g)
+
         # validate the payload
         jsonschema.validate(data['payload'], instrument.api_class.form_json_schema)
 
         followup_request = FollowupRequest.__schema__().load(data)
+        followup_request.target_groups = target_groups
         DBSession().add(followup_request)
         DBSession().commit()
 
@@ -416,7 +432,7 @@ class FollowupRequestHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: FollowupRequestNoID
+              schema: FollowupRequestPost
         responses:
           200:
             content:
@@ -433,6 +449,14 @@ class FollowupRequestHandler(BaseHandler):
         )
 
         data = self.get_json()
+
+        try:
+            data = FollowupRequestPost.load(data)
+        except ValidationError as e:
+            return self.error(
+                f'Invalid / missing parameters: {e.normalized_messages()}'
+            )
+
         data['id'] = request_id
         data["last_modified_by_id"] = self.associated_user_object.id
 
@@ -440,6 +464,16 @@ class FollowupRequestHandler(BaseHandler):
 
         if not api.implements()['update']:
             return self.error('Cannot update requests on this instrument.')
+
+        target_group_ids = data.pop('target_group_ids', None)
+        if target_group_ids is not None:
+            target_groups = []
+            for group_id in target_group_ids:
+                g = Group.query.get(group_id)
+                if g is None:
+                    return self.error(f'Invalid group id: {group_id}')
+                target_groups.append(g)
+            followup_request.target_groups = target_groups
 
         # validate posted data
         try:
