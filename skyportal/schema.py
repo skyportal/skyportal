@@ -740,7 +740,7 @@ class ObservingRunPost(_Schema):
 
 class FollowupRequestPost(_Schema):
 
-    obj_id = fields.Integer(required=True, description="ID of the target Obj.",)
+    obj_id = fields.String(required=True, description="ID of the target Obj.",)
 
     payload = fields.Field(
         required=False, description="Content of the followup request."

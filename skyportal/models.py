@@ -1940,8 +1940,11 @@ class FollowupRequest(Base):
         order_by="FacilityTransaction.created_at.desc()",
     )
 
-    target_group_ids = relationship(
-        'FollowupRequestTargetGroup', secondary='request_groups', passive_deletes=True
+    target_groups = relationship(
+        'Group',
+        secondary='request_groups',
+        passive_deletes=True,
+        doc='Groups to share the resulting data from this request with.',
     )
 
     photometry = relationship('Photometry', back_populates='followup_request')
