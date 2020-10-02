@@ -23,13 +23,17 @@ export const shortenFilename = (filename) => {
   if (filename.length <= 15) {
     return filename;
   }
-  const extensionLength = filename.split(".", 2)[1].length;
-  // Where the ellipsis should start - either at character 12, or the extension
-  // plus an additional 5 characters into the basename (whichever is earlier)
-  const firstEnd = Math.min(12, filename.length - extensionLength - 5);
-  return `${filename.slice(0, firstEnd)}...${filename.slice(
-    -extensionLength - 5
-  )}`;
+  if (filename.includes(".")) {
+    const extensionLength = filename.split(".", 2)[1].length;
+    // Where the ellipsis should start - either at character 12, or the extension
+    // plus an additional 5 characters into the basename (whichever is earlier)
+    const firstEnd = Math.min(12, filename.length - extensionLength - 5);
+    return `${filename.slice(0, firstEnd)}...${filename.slice(
+      -extensionLength - 5
+    )}`;
+  }
+
+  return `${filename.slice(0, 12)}...`;
 };
 
 const CommentList = ({ isCandidate }) => {
