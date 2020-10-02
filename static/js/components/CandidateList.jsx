@@ -317,6 +317,10 @@ const CandidateList = () => {
     setQueryInProgress(false);
   };
 
+  // const handleSort = async (page, rowsPerPage, sortOrder) => {
+  //   console.log(sortOrder);
+  // };
+
   const handleTableChange = (action, tableState) => {
     switch (action) {
       case "changePage":
@@ -324,7 +328,11 @@ const CandidateList = () => {
         handlePageChange(tableState.page, tableState.rowsPerPage);
         break;
       case "sort":
-        // sort(tableState.page, tableState.sortOrder);
+        // handleSort(
+        //   tableState.page,
+        //   tableState.rowsPerPage,
+        //   tableState.sortOrder
+        // );
         break;
       default:
     }
@@ -336,6 +344,7 @@ const CandidateList = () => {
       label: "Images",
       options: {
         customBodyRenderLite: renderThumbnails,
+        sort: false,
       },
     },
     {
@@ -350,6 +359,7 @@ const CandidateList = () => {
       label: "Photometry",
       options: {
         customBodyRenderLite: renderPhotometry,
+        sort: false,
       },
     },
     {
@@ -357,6 +367,7 @@ const CandidateList = () => {
       label: "Autoannotations",
       options: {
         customBodyRenderLite: renderAutoannotations,
+        sort: false,
       },
     },
   ];
@@ -392,7 +403,6 @@ const CandidateList = () => {
                 responsive: "vertical",
                 filter: false,
                 search: false,
-                sort: false,
                 print: false,
                 download: false,
                 count: totalMatches,

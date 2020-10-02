@@ -2,6 +2,7 @@ import datetime
 from copy import copy
 
 import arrow
+
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 
@@ -340,23 +341,6 @@ class CandidateHandler(BaseHandler):
                     )
                     .all()
                 )
-            ]
-            # Fake annotations for now
-            obj.annotations = [
-                {
-                    "origin": "test1",
-                    "data": {
-                        "numeric": random.random(),
-                        "flag": random.choice([True, False]),
-                    },
-                },
-                {
-                    "origin": "test2",
-                    "data": {
-                        "floats": random.random(),
-                        "bools": random.choice([True, False]),
-                    },
-                },
             ]
             candidate_list.append(obj.to_dict())
             candidate_list[-1]["comments"] = sorted(
