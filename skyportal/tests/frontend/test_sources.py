@@ -450,3 +450,25 @@ def test_source_notification(driver, user, public_group, public_source):
     driver.scroll_to_element_and_click(textbox)
     driver.click_xpath("//button[@data-testid='sendNotificationButton']")
     driver.wait_for_xpath("//*[text()='Notification queued up sucessfully']")
+
+
+def test_update_redshift_and_history(driver, super_admin_user, public_source):
+    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.click_xpath("//*[@data-testid='updateRedshiftIconButton']")
+    input_field = driver.wait_for_xpath(
+        "//div[@data-testid='updateRedshiftTextfield']//input"
+    )
+    input_field.send_keys("0.9999")
+    driver.click_xpath("//button[@data-testid='updateRedshiftSubmitButton']")
+    driver.wait_for_xpath("//*[text()='Source redshift successfully updated.']")
+    driver.wait_for_xpath("//body").click()  # Close dialog
+    driver.wait_for_xpath("//*[contains(., '0.9999')]")
+
+    driver.click_xpath(
+        "//*[@data-testid='redshiftHistoryIconButton']", wait_clickable=False
+    )
+    driver.wait_for_xpath("//th[text()='Set By']")
+    driver.wait_for_xpath("//td[text()='0.9999']")
+    driver.wait_for_xpath(f"//td[text()='{super_admin_user.username}']")

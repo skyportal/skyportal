@@ -98,6 +98,7 @@ const UpdateSourceRedshift = ({ source }) => {
               onClick={handleSubmit}
               startIcon={<SaveIcon />}
               size="large"
+              data-testid="updateRedshiftSubmitButton"
               disabled={isSubmitting || invalid}
             >
               Save

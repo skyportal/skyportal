@@ -46,7 +46,7 @@ const SourceRedshiftHistory = ({ redshiftHistory }) => {
   return (
     <>
       <HistoryIcon
-        data-testid="updateRedshiftIconButton"
+        data-testid="redshiftHistoryIconButton"
         fontSize="small"
         className={classes.historyIcon}
         onClick={() => {
