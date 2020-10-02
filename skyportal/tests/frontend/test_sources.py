@@ -7,6 +7,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
 from PIL import Image, ImageChops
+import responses
 
 from baselayer.app.config import load_config
 from skyportal.tests import api, IS_CI_BUILD
@@ -420,6 +421,35 @@ def test_dropdown_facility_change(driver, user, public_source):
     element = driver.wait_for_xpath(xpath)
     ActionChains(driver).move_to_element(element).click_and_hold().perform()
     driver.wait_for_xpath("//code/div[text()[contains(., 'dist')]]", timeout=20)
+
+
+@pytest.mark.flaky(reruns=2)
+@responses.activate
+def test_source_notification(driver, user, public_group, public_source):
+    # Just test the front-end form and mock out the SkyPortal API call
+    responses.add(
+        responses.GET,
+        "http://localhost:5000/api/source_notifications",
+        json={"status": "success"},
+        status=200,
+    )
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    # Choose a group and click outside of the multi-select popup to close
+    group_select = driver.wait_for_xpath(
+        "//div[@data-testid='sourceNotification_groupSelect']"
+    )
+    driver.scroll_to_element_and_click(group_select)
+    group_option = driver.wait_for_xpath(
+        f'//li[@data-testid="notificationGroupSelect_{public_group.id}"]'
+    )
+    ActionChains(driver).click(group_option).perform()
+    textbox = driver.wait_for_xpath("//*[@id='sourcenotification-textarea']")
+    driver.scroll_to_element_and_click(textbox)
+    driver.click_xpath("//button[@data-testid='sendNotificationButton']")
+    driver.wait_for_xpath("//*[text()='Notification queued up sucessfully']")
 
 
 def test_add_group(driver, user_two_groups, public_source, public_group2):

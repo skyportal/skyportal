@@ -29,6 +29,7 @@ import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
 import AddSourceGroup from "./AddSourceGroup";
+import SourceNotification from "./SourceNotification";
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -122,6 +123,9 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "column",
     minWidth: 0,
+  },
+  sendAlert: {
+    margin: "auto",
   },
 }));
 
@@ -386,6 +390,22 @@ const SourceMobile = ({ source }) => {
                   size={centroidPlotSize}
                 />
               </Suspense>
+            </div>
+          </AccordionDetails>
+        </Accordion>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="alert-content"
+            id="alert-header"
+          >
+            <Typography className={classes.accordionHeading}>
+              Source Alert
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div className={classes.sendAlert}>
+              <SourceNotification sourceId={source.id} />
             </div>
           </AccordionDetails>
         </Accordion>

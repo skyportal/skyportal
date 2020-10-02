@@ -45,7 +45,7 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = User
 
-    username = factory.LazyFunction(lambda: f'{uuid.uuid4()}@cesium-ml.org')
+    username = factory.LazyFunction(lambda: str(uuid.uuid4()))
 
     @factory.post_generation
     def roles(obj, create, extracted, **kwargs):

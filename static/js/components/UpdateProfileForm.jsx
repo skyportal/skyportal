@@ -11,17 +11,16 @@ import DialogActions from "@material-ui/core/DialogActions";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogContentText from "@material-ui/core/DialogContentText";
 import DialogTitle from "@material-ui/core/DialogTitle";
-
-import { showNotification } from "baselayer/components/Notifications";
-
 import InputLabel from "@material-ui/core/InputLabel";
 import Grid from "@material-ui/core/Grid";
 
+import { showNotification } from "baselayer/components/Notifications";
 import { useForm } from "react-hook-form";
 
 import * as ProfileActions from "../ducks/profile";
 
 import UIPreferences from "./UIPreferences";
+import NotificationPreferences from "./NotificationPreferences";
 
 const UpdateProfileForm = () => {
   const profile = useSelector((state) => state.profile);
@@ -40,7 +39,7 @@ const UpdateProfileForm = () => {
       username: profile.username,
       firstName: profile.first_name,
       lastName: profile.last_name,
-      email: profile.contact_email ? profile.contact_email : profile.username,
+      email: profile.contact_email,
       phone: profile.contact_phone,
     });
   }, [reset, profile]);
@@ -70,7 +69,9 @@ const UpdateProfileForm = () => {
         <CardContent>
           <h2>Username</h2>
           <form onSubmit={handleSubmit(onSubmit)}>
-            <InputLabel htmlFor="usernameInput">Username</InputLabel>
+            <InputLabel htmlFor="usernameInput">
+              Username (normalized upon save)
+            </InputLabel>
             <TextField
               inputRef={register({ required: true })}
               name="username"
@@ -156,6 +157,9 @@ const UpdateProfileForm = () => {
               Update Profile
             </Button>
           </form>
+        </CardContent>
+        <CardContent>
+          <NotificationPreferences />
         </CardContent>
         <CardContent>
           <UIPreferences />

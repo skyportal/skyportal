@@ -1,0 +1,193 @@
+# FILTER  = 'clear   '           / Filter
+# EXPTIME =              600.003 / Total exposure time (sec); avg. of R&B
+# OBJECT  = 'ZTF20abpuxna'       / User-specified object name
+# TARGNAME= 'ZTF20abpuxna_S1'    / Target name (from starlist)
+# DICHNAME= '560     '           / Dichroic
+# GRISNAME= '400/3400'           / Blue grism
+# GRANAME = '400/8500'           / Red grating
+# WAVELEN =        7829.41406250 / Red specified central wavelength
+# BLUFILT = 'clear   '           / Blue filter
+# REDFILT = 'Clear   '           / Red filter
+# SLITNAME= 'long_1.0'           / Slitmask
+# INSTRUME= 'LRIS+LRISBLUE'      / Camera
+# TELESCOP= 'Keck I  '           / Telescope name
+# BLUDET  = 'LRISB   '           / LRIS blue detector
+# REDDET  = 'LRISR3  '           / LRIS red detector
+# OBSERVER= 'Andreoni Anand De'  / Observer name
+# REDUCER = '        '           / Name of reducer
+# LPIPEVER= '2020.06 '           / LPipe version number
+# HOSTNAME= 'gayatri '           / LPipe host computer name
+# IDLVER  = '8.1     '           / IDL version number
+# DATE    = '2020-09-15T09:47:10' / UT end of last exposure
+# UTC     = '09:37:01.33'        / Universal time (excl. day) at start
+# MJD-OBS = '59107.400710'       / MJD at start
+# JD      =        2459107.90071 / Julian date at start
+# JDMID   =        2459107.90418 / Julian date at midpoint
+# JDEND   =        2459107.90777 / Julian date end of last exposure
+# MJD     =        59107.4007100 / Mean julian date at start
+# MJDMID  =        59107.4041822 / Mean julian date at midpoint
+# MJDEND  =        59107.4077665 / Mean julian date end of last exposure
+# DATE_BEG= '2020-09-15T09:37:01' / UT start of first exposure
+# DATE_END= '2020-09-15T09:47:10' / UT end of last exposure
+# OBSDATE = '2020-09-15T09:37:01' / UT start of first exposure
+# AZ      =        69.9631922500 / Telescope azimuth (deg)
+# EL      =        33.7034059600 / Telescope elevation (deg)
+# RA      = '02:59:05.54'        / Right ascension
+# DEC     = '+27:10:54.8'        / Telescope declination
+# HA      = '+19:55:16.64'       / Hour angle at start
+# ST      = '22:54:21.68'        / Sidereal time at start
+# EQUINOX =        2000.00000000 / Equinox of RA/DEC
+# AIRMASS =              1.79770 / Approximate av. airmass of combined spectrum
+# SUNELEV =       -65.8237000000 / Sun elevation (deg)
+# MOONELEV=       -49.4260000000 / Moon elevation (deg)
+# MOONDIST=        93.3524325050 / Distance to moon (deg)
+# MOONPHAS=      0.0617458763502 / Lunar phase (1 = full)
+# PARANGLE=       -83.4618677946 / Parallactic angle (at start, deg)
+# OFFPA   =        358.461928830 / Slit rotation vs. parallactic angle (deg)
+# SLITPA  =              275.000 / Slit or right chip CCW from North (deg)
+# ROTPOSN =        185.000078210 / Rotator angle (deg; 90 = slit north)
+# ROTPPOSN=       -92.2092582000 / Rotator physical position (deg)
+# DOMEPOSN=        69.8948145900 / Dome azimuth angle (deg)
+# TRAPDOOR= 'open    '           / Trapdoor status (open/closed)
+# ADCWAVE0=        3400.00000000 / ADC min. compensation wavelength (Ang)
+# ADCWAVE1=        9000.00000000 / ADC max. compensation wavelength (Ang)
+# PREPARED= '2020-09-15T10:32:50' / Timestamp of prepare reduction step
+# TOTALEXP=              600.003 / Total exposure time (sec); avg. of R&B
+# EXTDATE = '2020-09-15T23:02:42' / UT time 1D spectrum extracted by specextract
+# REDUCED = '2020-09-15T23:04:53' / Timestamp of connect reduction step
+# MINWAV  =        1808.22226895 / Minimum wavelength
+# MAXWAV  =        10308.8084872 / Maximum wavelength
+# SOLFILE = 'fpb200915_0010r_arc.sol' / Secondary wave calibration solution
+# BLUFILE = 'celsb200915_0038r_ZTF20abpuxna.spec' / Blue spectrum file
+# REDFILE = 'celsr200915_0043r_ZTF20abpuxna.spec' / Red spectrum file
+# JDSTART =        2459107.90071 / Julian date start of first exposure
+# MJDSTART=        59107.4007100 / Mean julian date start of first exposure
+# RESCALER=        1.05049612287 / Rescaling factor applied to red
+# RESCALEB=              1.00000 / (blue not rescaled)
+# WAVOVER = '5551.80-5714.39'    / Wavelength region of useable red-blue overlap
+# ATCHWAV =        5655.09423828 / Red-blue connection wavelength
+# BLUDBEG = '2020-09-15T09:37:01' / UT start of first blue exposure
+# REDDBEG = '2020-09-15T09:37:10' / UT start of first red exposure
+# BLUDEND = '2020-09-15T09:47:01' / UT end of last blue exposure
+# REDDEND = '2020-09-15T09:47:10' / UT end of last red exposure
+# BLUNEXP =                    1 / Num. blue exposures summed
+# REDNEXP =                    1 / Num. red exposures summed
+# BLUEXPTM=              600.000 / Blue exposure time
+# REDEXPTM=              600.006 / Red exposure time
+# REDEXP1 =              600.006 /
+# BLUEXP1 =              600.000 /
+# BLUAIR1 =              1.79849 /
+# REDAIR1 =              1.79691 /
+# BLUBIN  = '2,2     '           / Blue binning (spat,spec)
+# REDBIN  = '2,1     '           / Red binning (spat,spec)
+# BLUXCENT=                 1587 / Blue X reference pixel for extraction
+# REDXCENT=                 2048 / Red X reference pixel for extraction
+# BLUYCENT=              108.060 / Blue Y extraction center position
+# REDYCENT=              71.7100 / Red Y extraction center position
+# BLUAPRAD=              4.36000 / Blue extraction aperture half-width
+# REDAPRAD=              4.36000 / Red extraction aperture half-width
+# BLUBKDST=              7.40000 / Blue background aper. inner edge distance
+# REDBKDST=              7.40000 / Red background aper. inner edge distance
+# BLUBKWID=              13.9000 / Blue background aperture width
+# REDBKWID=              13.9000 / Red background aperture width
+# BLUCWAV =        3615.60863468 / Blue central wavelength (Ang)
+# REDCWAV =        7856.51353270 / Red central wavelength (Ang)
+# BLUDISP =        2.08166480588 / Blue dispersion (Ang/pix)
+# REDDISP =        1.19920357139 / Red dispersion (Ang/pix)
+# BLU2DSPC= 'lsb200915_0038r_ZTF20abpuxna.fits' / Blue 2D spectrum file
+# RED2DSPC= 'lsr200915_0043r_ZTF20abpuxna.fits' / Red 2D spectrum file
+# BLU2DS1 = 'szfpb200915_0038r.fits' / Individual blue 2D spectra
+# RED2DS1 = 'szfpr200915_0043r.fits' / Individual red 2D spectra
+# BLUARCF = 'fpb200915_0010r_arc.fits' / Blue arc file
+# REDARCF = 'fpr200915_0010r_arc.fits' / Red arc file
+# BLUSOL  = 'fpb200915_0010r_arc.sol' / Blue arc solution file
+# REDSOL  = 'fpr200915_0010r_arc.sol' / Red arc solution file
+# BLUFLEX =              1.38863 / Blue flexure correction (Ang)
+# REDFLEX =              1.82353 / Red flexure correction (Ang)
+# BLUTRAC = 'lsb200915_0038r_ZTF20abpuxna.trace' / Blue tracing file
+# REDTRAC = 'lsr200915_0043r_ZTF20abpuxna.trace' / Red tracing file
+# BLUFCAL1= 'elsb200915_0023_BD+28_4211.response' / Blue flux standard file
+# REDFCAL1= 'elsr200915_0023_BD+28_4211.response' / Red flux standard file
+# BLUFAIR1=              1.54574 / Blue flux standard airmass
+# REDFAIR1=              1.54491 / Red flux standard airmass
+# BLUFNAM1= 'BD+28_4211'         / Blue flux standard star name
+# REDFNAM1= 'BD+28_4211'         / Red flux standard star name
+# BLUFLAT = 'lb200915_0012s11_domflat.fits' / Blue flat field file name
+# REDFLAT = 'lr200915_0012s11_domflat.fits' / Red flat field file name
+# KOAID1  = '           0'       /
+# KOAID2  = '           0'       /
+# HISTORY Processed by lrisprepare 2020-09-15 10:32:50 UT
+# HISTORY Processed by flatproc 2020-09-15 10:33:16 UT
+# HISTORY Processed by lrissplit 2020-09-15 10:33:19 UT
+# HISTORY Processed by pzapspec 2020-09-15 10:33:50 UT
+# HISTORY Processed by subtractsky2 2020-09-15 10:36:54 UT
+# HISTORY Processed by combinesum 2020-09-15 10:39:01 UT
+# HISTORY Processed by specextract 2020-09-15 23:02:42 UT
+# HISTORY Processed by specwavcal 2020-09-15 23:04:07 UT
+# HISTORY Processed by lrisfluxcal 2020-09-15 23:04:37 UT
+# HISTORY Processed by lrisconnect 2020-09-15 23:04:53 UT
+# COMMENT Wavelengths are Angstroms in air
+# COMMENT Fluxes are erg/cm^2/s/Ang; absolute calibration is approximate
+# END
+##   wavelen         flux     sky_flux     flux_unc  xpixel    ypixel     response   flag
+   3087.6265  9.99127e-16  5.10964e-16  1.33611e-16     763   103.972  1.71873e+14  0
+   3089.5828  9.99058e-16  5.09653e-16  1.33760e-16     764   103.976  1.78403e+14  0
+   3091.5396  9.99390e-16  5.58617e-16  1.25706e-16     765   103.980  1.84917e+14  0
+   3093.4971  9.99264e-16  4.56186e-16  1.17575e-16     766   103.984  1.91419e+14  0
+   3095.4548  9.99829e-16  2.62163e-16  1.10383e-16     767   103.988  1.98019e+14  0
+   3097.4136  9.99313e-16  5.70516e-16  1.16407e-16     768   103.991  2.04802e+14  0
+   3099.3726  9.99815e-17  4.10662e-16  1.04911e-16     769   103.995  2.12025e+14  0
+   3101.3323  9.99937e-16  3.89527e-16  1.08738e-16     770   103.999  2.20103e+14  0
+   3103.2925  9.99423e-16  3.10820e-16  1.02573e-16     771   104.003  2.29449e+14  0
+   3105.2534  9.99466e-16  3.05761e-16  9.52881e-17     772   104.007  2.39547e+14  0
+   3107.2146  9.99314e-16  3.17551e-16  9.28420e-17     773   104.011  2.50332e+14  0
+   3109.1765  9.99607e-16  3.42336e-16  9.38255e-17     774   104.014  2.61746e+14  0
+   3111.1392  9.99568e-16  3.80229e-16  9.11462e-17     775   104.018  2.73804e+14  0
+   3113.1023  9.99829e-16  2.85728e-16  8.42916e-17     776   104.022  2.85823e+14  0
+   3115.0659  9.99884e-16  3.24890e-16  8.90035e-17     777   104.026  2.98243e+14  0
+   3117.0300  9.99795e-16  2.69543e-16  7.82597e-17     778   104.030  3.10567e+14  0
+   3118.9949  9.99573e-16  2.87045e-16  7.82654e-17     779   104.034  3.23217e+14  0
+   3120.9602  9.99501e-16  2.95930e-16  7.30017e-17     780   104.038  3.35983e+14  0
+   3122.9260  9.99940e-16  2.54874e-16  7.29095e-17     781   104.041  3.48556e+14  0
+   3124.8926  9.99485e-16  3.10383e-16  6.79437e-17     782   104.045  3.60411e+14  0
+   3126.8596  9.99033e-16  2.49811e-16  6.66167e-17     783   104.049  3.72819e+14  0
+   3128.8271  9.99255e-16  2.24438e-16  6.45504e-17     784   104.053  3.85701e+14  0
+   3130.7954  9.99011e-16  2.59754e-16  6.65949e-17     785   104.057  3.99415e+14  0
+   3132.7639  9.99372e-16  2.69002e-16  6.30134e-17     786   104.061  4.13727e+14  0
+   3134.7334  9.99459e-16  2.17309e-16  6.15439e-17     787   104.065  4.28808e+14  0
+   3136.7031  9.99502e-16  2.30636e-16  5.67862e-17     788   104.069  4.44956e+14  0
+   3138.6733  9.99724e-16  3.18055e-16  5.95549e-17     789   104.073  4.61647e+14  0
+   3140.6443  9.99568e-16  3.49514e-16  5.83094e-17     790   104.076  4.78302e+14  0
+   3142.6160  9.99203e-16  4.01677e-16  5.78019e-17     791   104.080  4.94663e+14  0
+   3144.5879  9.99394e-16  4.26303e-16  5.61180e-17     792   104.084  5.10243e+14  0
+   3146.5605  9.99101e-16  3.74430e-16  5.61257e-17     793   104.088  5.24664e+14  0
+   3148.5337  9.99701e-16  3.44315e-16  5.37986e-17     794   104.092  5.38412e+14  0
+   3150.5073  9.99011e-16  3.10802e-16  5.24508e-17     795   104.096  5.51889e+14  0
+   3152.4817  9.99540e-16  2.94152e-16  5.15084e-17     796   104.100  5.65361e+14  0
+   3154.4563  9.99768e-16  2.54075e-16  4.83475e-17     797   104.104  5.79410e+14  0
+   3156.4316  9.99147e-16  2.51870e-16  4.66862e-17     798   104.108  5.94555e+14  0
+   3158.4077  9.99335e-16  2.38589e-16  4.68663e-17     799   104.112  6.11040e+14  0
+   3160.3840  9.99469e-16  2.03243e-16  4.30538e-17     800   104.115  6.28331e+14  0
+   3162.3611  9.99691e-16  2.34564e-16  4.44195e-17     801   104.119  6.45133e+14  0
+   3164.3386  9.99341e-16  2.45525e-16  4.49380e-17     802   104.123  6.62219e+14  0
+   3166.3167  9.99851e-16  2.16729e-16  4.32109e-17     803   104.127  6.78568e+14  0
+   3168.2954  9.99586e-16  1.94409e-16  4.26977e-17     804   104.131  6.94158e+14  0
+   3170.2747  9.99305e-16  1.99520e-16  3.97841e-17     805   104.135  7.09186e+14  0
+   3172.2544  9.99304e-16  2.12403e-16  4.14626e-17     806   104.139  7.23141e+14  0
+   3174.2346  9.99307e-16  1.67017e-16  3.90228e-17     807   104.143  7.36359e+14  0
+   3176.2153  9.99629e-16  1.94139e-16  3.83646e-17     808   104.147  7.49119e+14  0
+   3178.1968  9.99926e-16  1.59173e-16  3.76731e-17     809   104.151  7.62511e+14  0
+   3180.1787  9.99051e-16  1.19995e-16  3.64951e-17     810   104.155  7.76821e+14  0
+   3182.1611  9.99427e-16  1.58446e-16  3.67889e-17     811   104.159  7.91761e+14  0
+   3184.1440  9.99511e-16  1.88224e-16  3.68282e-17     812   104.163  8.07162e+14  0
+   3186.1277  9.99953e-16  1.60353e-16  3.70928e-17     813   104.167  8.23296e+14  0
+   3188.1118  9.99117e-16  1.63885e-16  3.58191e-17     814   104.170  8.40097e+14  0
+   3190.0962  9.99445e-16  1.64366e-16  3.55674e-17     815   104.174  8.57209e+14  0
+   3192.0815  9.99474e-16  1.52561e-16  3.54210e-17     816   104.178  8.72975e+14  0
+   3194.0671  9.99210e-16  1.68177e-16  3.43697e-17     817   104.182  8.87759e+14  0
+   3196.0532  9.99203e-16  1.62850e-16  3.46670e-17     818   104.186  9.00870e+14  0
+   3198.0400  9.99675e-16  1.66183e-16  3.45924e-17     819   104.190  9.12942e+14  0
+   3200.0273  9.99486e-16  1.44036e-16  3.36763e-17     820   104.194  9.25240e+14  0
+   3202.0151  9.99497e-16  1.54270e-16  3.32443e-17     821   104.198  9.38533e+14  0
+   3204.0037  9.99575e-16  1.65162e-16  3.34632e-17     822   104.202  9.51433e+14  0
+   3205.9924  9.99919e-16  1.59386e-16  3.12467e-17     823   104.206  9.64491e+14  0 999

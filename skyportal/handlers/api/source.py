@@ -1,6 +1,7 @@
 import datetime
 from json.decoder import JSONDecodeError
-
+import python_http_client.exceptions
+from twilio.base.exceptions import TwilioException
 import tornado
 from tornado.ioloop import IOLoop
 import io
@@ -13,6 +14,7 @@ from marshmallow.exceptions import ValidationError
 import functools
 import healpix_alchemy as ha
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -27,6 +29,7 @@ from ...models import (
     FollowupRequest,
     ClassicalAssignment,
     ObservingRun,
+    SourceNotification,
 )
 from .internal.source_views import register_source_view
 from ...utils import (
@@ -39,6 +42,8 @@ from ...utils import (
 from .candidate import grab_query_results_page
 
 SOURCES_PER_PAGE = 100
+
+_, cfg = load_env()
 
 
 class SourceHandler(BaseHandler):
@@ -943,3 +948,136 @@ class SourceFinderHandler(BaseHandler):
 
                 # pause the coroutine so other handlers can run
                 await tornado.gen.sleep(1e-9)  # 1 ns
+
+
+class SourceNotificationHandler(BaseHandler):
+    @auth_or_token
+    def post(self):
+        """
+        ---
+        description: Send out a new source notification
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  additionalNotes:
+                    type: string
+                    description: |
+                      Notes to append to the message sent out
+                  groupIds:
+                    type: array
+                    items:
+                      type: integer
+                    description: |
+                      List of IDs of groups whose members should get the notification (if they've opted in)
+                  sourceId:
+                    type: string
+                    description: |
+                      The ID of the Source's Obj the notification is being sent about
+                  level:
+                    type: string
+                    description: |
+                      Either 'soft' or 'hard', determines whether to send an email or email+SMS notification
+                required:
+                  - groupIds
+                  - sourceId
+                  - level
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: New SourceNotification ID
+        """
+        if not cfg["notifications.enabled"]:
+            return self.error("Notifications are not enabled in current deployment.")
+        data = self.get_json()
+
+        additional_notes = data.get("additionalNotes")
+        if isinstance(additional_notes, str):
+            additional_notes = data["additionalNotes"].strip()
+        else:
+            if additional_notes is not None:
+                return self.error(
+                    "Invalid parameter `additionalNotes`: should be a string"
+                )
+
+        if data.get("groupIds") is None:
+            return self.error("Missing required parameter `groupIds`")
+        try:
+            group_ids = [int(gid) for gid in data["groupIds"]]
+        except ValueError:
+            return self.error(
+                "Invalid value provided for `groupIDs`; unable to parse "
+                "all list items to integers."
+            )
+
+        groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
+
+        if data.get("sourceId") is None:
+            return self.error("Missing required parameter `sourceId`")
+
+        source = Source.get_obj_if_owned_by(data["sourceId"], self.current_user)
+        if source is None:
+            return self.error("Invalid source ID.")
+
+        source_id = data["sourceId"]
+
+        source_group_ids = [
+            row[0]
+            for row in DBSession()
+            .query(Source.group_id)
+            .filter(Source.obj_id == source_id)
+            .all()
+        ]
+
+        if bool(set(group_ids).difference(set(source_group_ids))):
+            forbidden_groups = list(set(group_ids) - set(source_group_ids))
+            return self.error(
+                "Insufficient recipient group access permissions. Not a member of "
+                f"group IDs: {forbidden_groups}."
+            )
+
+        if data.get("level") is None:
+            return self.error("Missing required parameter `level`")
+        if data["level"] not in ["soft", "hard"]:
+            return self.error(
+                "Invalid value provided for `level`: should be either 'soft' or 'hard'"
+            )
+        level = data["level"]
+
+        new_notification = SourceNotification(
+            source_id=source_id,
+            groups=groups,
+            additional_notes=additional_notes,
+            sent_by=self.associated_user_object,
+            level=level,
+        )
+        DBSession().add(new_notification)
+        try:
+            DBSession().commit()
+        except python_http_client.exceptions.UnauthorizedError:
+            return self.error(
+                "Twilio Sendgrid authorization error. Please ensure "
+                "valid Sendgrid API key is set in server environment as "
+                "per their setup docs."
+            )
+        except TwilioException:
+            return self.error(
+                "Twilio Communication SMS API authorization error. Please ensure "
+                "valid Twilio API key is set in server environment as "
+                "per their setup docs."
+            )
+
+        return self.success(data={'id': new_notification.id})
