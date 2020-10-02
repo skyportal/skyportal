@@ -56,7 +56,6 @@ const UpdateSourceRedshift = ({ source }) => {
     setIsSubmitting(false);
     if (result.status === "success") {
       dispatch(showNotification("Source redshift successfully updated."));
-      setState("");
       setDialogOpen(false);
     }
   };
