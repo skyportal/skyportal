@@ -20,6 +20,10 @@ const useStyles = makeStyles((theme) => ({
     padding: theme.spacing(1),
     maxHeight: "15rem",
     overflowY: "scroll",
+    // Prevent disabled annotations from being selected, but display normally for readability
+    "& .Mui-disabled": {
+      opacity: 1,
+    },
   },
   nested: {
     paddingLeft: theme.spacing(4),
@@ -27,6 +31,22 @@ const useStyles = makeStyles((theme) => ({
     paddingBottom: 0,
   },
 }));
+
+export const getAnnotationValueString = (value) => {
+  let valueString;
+  const valueType = typeof value;
+  switch (valueType) {
+    case "number":
+      valueString = value.toFixed(6);
+      break;
+    case "string":
+      valueString = `${value.substring(0, 15)}...`;
+      break;
+    default:
+      valueString = value.toString();
+  }
+  return valueString;
+};
 
 const CandidateAnnotationsList = ({ annotations }) => {
   const classes = useStyles();
@@ -45,15 +65,13 @@ const CandidateAnnotationsList = ({ annotations }) => {
     setopenedOrigins({ ...openedOrigins, [origin]: !openedOrigins[origin] });
   };
 
-  const handleItemSelect = (keyId, value) => {
-    const currentlySelected = selectedKey === keyId;
-    setSelectedKey(currentlySelected ? null : keyId);
-    /* eslint-disable one-var, prefer-const */
-    // ESLint disabled here as it doesn't seem to understand the array destructuring assignment
-    let origin, key;
-    [, origin, key] = keyId.split("_");
-    /* eslint-disable one-var, prefer-const */
-    const annotationItem = currentlySelected ? null : { origin, key, value };
+  const handleItemSelect = (origin, key, value, valueString) => {
+    const currentlySelected =
+      selectedKey && selectedKey.origin === origin && selectedKey.key === key;
+    setSelectedKey(currentlySelected ? null : { origin, key });
+    const annotationItem = currentlySelected
+      ? null
+      : { origin, key, value, valueString };
     dispatch(candidatesActions.setCandidatesAnnotationItem(annotationItem));
   };
 
@@ -81,24 +99,15 @@ const CandidateAnnotationsList = ({ annotations }) => {
           >
             <List component="div" dense disablePadding>
               {Object.entries(annotation.data).map(([key, value]) => {
-                let valueString;
                 // Only allow sorting by numbers and bools
-                let disabled = true;
-                const valueType = typeof value;
-                switch (valueType) {
+                let disabled;
+                switch (typeof value) {
                   case "number":
-                    valueString = value.toFixed(6);
-                    disabled = false;
-                    break;
-                  case "string":
-                    valueString = value.substring(0, 15);
-                    break;
-                  case "bool":
-                    valueString = value.toString();
+                  case "boolean":
                     disabled = false;
                     break;
                   default:
-                    valueString = value.toString();
+                    disabled = true;
                 }
                 return (
                   <ListItem
@@ -107,14 +116,13 @@ const CandidateAnnotationsList = ({ annotations }) => {
                     className={classes.nested}
                     selected={selectedKey === `key_${annotation.origin}_${key}`}
                     onClick={() =>
-                      handleItemSelect(
-                        `key_${annotation.origin}_${key}`,
-                        valueString
-                      )
+                      handleItemSelect(annotation.origin, key, value)
                     }
                     disabled={disabled}
                   >
-                    <ListItemText secondary={`${key}: ${valueString}`} />
+                    <ListItemText
+                      secondary={`${key}: ${getAnnotationValueString(value)}`}
+                    />
                   </ListItem>
                 );
               })}

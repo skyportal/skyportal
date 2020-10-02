@@ -24,7 +24,9 @@ import ThumbnailList from "./ThumbnailList";
 // import CandidateCommentList from "./CandidateCommentList";
 import SaveCandidateButton from "./SaveCandidateButton";
 import FilterCandidateList from "./FilterCandidateList";
-import CandidateAnnotationsList from "./CandidateAnnotationsList";
+import CandidateAnnotationsList, {
+  getAnnotationValueString,
+} from "./CandidateAnnotationsList";
 import AddSourceGroup from "./AddSourceGroup";
 
 const VegaPlot = React.lazy(() =>
@@ -165,6 +167,15 @@ const CandidateList = () => {
     return selectedAnnotationItem.key in annotation.data;
   };
 
+  const getCandidateAnnotationValue = (candidateObj) => {
+    const annotation = candidateObj.annotations.find(
+      (a) => a.origin === selectedAnnotationItem.origin
+    );
+    return getAnnotationValueString(
+      annotation.data[selectedAnnotationItem.key]
+    );
+  };
+
   const renderThumbnails = (dataIndex) => {
     const candidateObj = candidates[dataIndex];
     return (
@@ -280,9 +291,9 @@ const CandidateList = () => {
           candidateHasAnnotationItem(candidateObj) && (
             <div className={classes.infoItem}>
               <b>
-                {selectedAnnotationItem.key} ({selectedAnnotationItem.origin}):{" "}
+                {selectedAnnotationItem.key} ({selectedAnnotationItem.origin}):
               </b>
-              <span>{selectedAnnotationItem.value}</span>
+              <span>{getCandidateAnnotationValue(candidateObj)}</span>
             </div>
           )}
       </div>

@@ -348,6 +348,9 @@ class CandidateHandler(BaseHandler):
                 key=lambda x: x.created_at,
                 reverse=True,
             )
+            candidate_list[-1]["annotations"] = sorted(
+                obj.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
+            )
             candidate_list[-1]["last_detected"] = obj.last_detected
             candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
             candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
