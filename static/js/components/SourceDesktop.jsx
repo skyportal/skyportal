@@ -371,11 +371,11 @@ const SourceDesktop = ({ source }) => {
           <Accordion defaultExpanded>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
-              aria-controls="alert-content"
-              id="alert-header"
+              aria-controls="notifications-content"
+              id="notifications-header"
             >
               <Typography className={classes.accordionHeading}>
-                Source Alert
+                Source Notification
               </Typography>
             </AccordionSummary>
             <AccordionDetails>

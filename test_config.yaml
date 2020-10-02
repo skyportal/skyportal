@@ -33,7 +33,7 @@ invitations:
     <br />
     Some other text here.
 
-alerts:
+notifications:
   enabled: True
 
 testing: true
