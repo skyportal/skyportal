@@ -5,6 +5,8 @@ import arrow
 from astropy import units as u
 from astropy import time as ap_time
 
+import json
+
 import astroplan
 import numpy as np
 import sqlalchemy as sa
@@ -1828,7 +1830,7 @@ class Spectrum(Base):
 
             # this ensures that the spectra are properly serialized to the
             # database JSONB (database JSONB cant handle datetime/date values)
-            header = to_json(header)
+            header = json.loads(to_json(header))
 
         else:
             header = None
