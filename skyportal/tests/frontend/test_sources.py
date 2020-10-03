@@ -452,8 +452,8 @@ def test_source_notification(driver, user, public_group, public_source):
     driver.wait_for_xpath("//*[text()='Notification queued up sucessfully']")
 
 
-def test_update_redshift_and_history(driver, super_admin_user, public_source):
-    driver.get(f"/become_user/{super_admin_user.id}")
+def test_update_redshift_and_history(driver, user, public_source):
+    driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.click_xpath("//*[@data-testid='updateRedshiftIconButton']")
@@ -471,4 +471,24 @@ def test_update_redshift_and_history(driver, super_admin_user, public_source):
     )
     driver.wait_for_xpath("//th[text()='Set By']")
     driver.wait_for_xpath("//td[text()='0.9999']")
-    driver.wait_for_xpath(f"//td[text()='{super_admin_user.username}']")
+    driver.wait_for_xpath(f"//td[text()='{user.username}']")
+
+
+@pytest.mark.flaky(reruns=2)
+def test_set_redshift_via_comments_and_history(driver, user, public_source):
+    if "TRAVIS" in os.environ:
+        pytest.xfail("Xfailing this test on Travis builds.")
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    comment_box = driver.wait_for_xpath("//input[@name='text']")
+    comment_text = "z=0.3131"
+    comment_box.send_keys(comment_text)
+    driver.click_xpath('//*[@name="submitCommentButton"]')
+
+    driver.click_xpath(
+        "//*[@data-testid='redshiftHistoryIconButton']", wait_clickable=False
+    )
+    driver.wait_for_xpath("//th[text()='Set By']")
+    driver.wait_for_xpath("//td[text()='0.3131']")
+    driver.wait_for_xpath(f"//td[text()='{user.username}']")
