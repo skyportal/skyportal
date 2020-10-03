@@ -2346,7 +2346,7 @@ def send_user_invite_email(mapper, connection, target):
 class SourceNotification(Base):
     groups = relationship(
         "Group",
-        secondary="group_alerts",
+        secondary="group_notifications",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
     )
@@ -2376,7 +2376,7 @@ class SourceNotification(Base):
     level = sa.Column(sa.String(), nullable=False)
 
 
-GroupSourceNotification = join_model('group_alerts', Group, SourceNotification)
+GroupSourceNotification = join_model('group_notifications', Group, SourceNotification)
 User.source_notifications = relationship(
     'SourceNotification',
     back_populates='sent_by',
@@ -2425,7 +2425,7 @@ def send_source_notification(mapper, connection, target):
         from_number = cfg["twilio.from_number"]
         client = TwilioClient(account_sid, auth_token)
         for user in target_users:
-            # If user has a phone number registered and opted into SMS alerts
+            # If user has a phone number registered and opted into SMS notifications
             if (
                 user.contact_phone is not None
                 and "allowSMSAlerts" in user.preferences
@@ -2435,10 +2435,10 @@ def send_source_notification(mapper, connection, target):
                     body=message_text, from_=from_number, to=user.contact_phone.e164
                 )
 
-    # Send email alerts
+    # Send email notifications
     for user in target_users:
         descriptor = "immediate" if target.level == "hard" else ""
-        # If user has a contact email registered and opted into email alerts
+        # If user has a contact email registered and opted into email notifications
         if (
             user.contact_email is not None
             and "allowEmailAlerts" in user.preferences
