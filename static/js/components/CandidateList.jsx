@@ -112,7 +112,7 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const defaultNumPerPage = 1;
+const defaultNumPerPage = 25;
 
 const CandidateList = () => {
   const history = useHistory();
@@ -328,9 +328,20 @@ const CandidateList = () => {
     setQueryInProgress(false);
   };
 
-  // const handleSort = async (page, rowsPerPage, sortOrder) => {
-  //   console.log(sortOrder);
-  // };
+  const handleSort = async (page, rowsPerPage, sortOrder) => {
+    setQueryInProgress(true);
+    console.log(sortOrder);
+    // API takes 1-indexed page number
+    const data = {
+      pageNumber: page + 1,
+      numPerPage: rowsPerPage,
+      sortByAnnotationOrigin: selectedAnnotationItem.origin,
+      sortByAnnotationKey: selectedAnnotationItem.key,
+      sortByAnnotationOrder: sortOrder.direction,
+    };
+    await dispatch(candidatesActions.fetchCandidates(data));
+    setQueryInProgress(false);
+  };
 
   const handleTableChange = (action, tableState) => {
     switch (action) {
@@ -339,11 +350,11 @@ const CandidateList = () => {
         handlePageChange(tableState.page, tableState.rowsPerPage);
         break;
       case "sort":
-        // handleSort(
-        //   tableState.page,
-        //   tableState.rowsPerPage,
-        //   tableState.sortOrder
-        // );
+        handleSort(
+          tableState.page,
+          tableState.rowsPerPage,
+          tableState.sortOrder
+        );
         break;
       default:
     }
@@ -419,7 +430,7 @@ const CandidateList = () => {
                 count: totalMatches,
                 selectableRows: "none",
                 enableNestedDataAccess: ".",
-                rowsPerPage: 1,
+                rowsPerPage: defaultNumPerPage,
                 rowsPerPageOptions: [1, 25, 50, 75, 100, 200],
                 jumpToPage: true,
                 serverSide: true,

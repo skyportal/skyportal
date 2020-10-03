@@ -17,6 +17,8 @@ from ...models import (
     Instrument,
     Source,
     Filter,
+    Annotation,
+    GroupAnnotation,
     Group,
 )
 
@@ -129,6 +131,28 @@ class CandidateHandler(BaseHandler):
             description: |
               Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of user's
               groups' filters if groupIDs is not provided.
+          - in: query
+            name: sortByAnnotationOrigin
+            nullable: true
+            schema:
+              type: string
+            description: |
+              The origin of the Annotation to sort by
+          - in: query
+            name: sortByAnnotationKey
+            nullable: true
+            schema:
+              type: string
+            description: |
+              The key of the Annotation data value to sort by
+          - in: query
+            name: sortByAnnotationOrder
+            nullable: true
+            schema:
+              type: string
+            description: |
+              The sort order for annotations - either "asc" or "desc".
+              Defaults to "asc".
           responses:
             200:
               content:
@@ -214,6 +238,8 @@ class CandidateHandler(BaseHandler):
         end_date = self.get_query_argument("endDate", None)
         group_ids = self.get_query_argument("groupIDs", None)
         filter_ids = self.get_query_argument("filterIDs", None)
+        sort_by_origin = self.get_query_argument("sortByAnnotationOrigin", None)
+        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
             filtr.id
             for g in self.current_user.accessible_groups
@@ -254,7 +280,6 @@ class CandidateHandler(BaseHandler):
                 "Insufficient permissions - you must only specify "
                 "groups/filters that you have access to."
             )
-
         try:
             page = int(page_number)
         except ValueError:
@@ -263,6 +288,7 @@ class CandidateHandler(BaseHandler):
             n_per_page = int(n_per_page)
         except ValueError:
             return self.error("Invalid numPerPage value.")
+
         q = (
             Obj.query.options(
                 [
@@ -279,8 +305,12 @@ class CandidateHandler(BaseHandler):
                     .filter(Candidate.filter_id.in_(filter_ids))
                 )
             )
-            .order_by(Obj.last_detected.desc().nullslast(), Obj.id)
+            .join(Annotation)
+            .join(GroupAnnotation)
+            .filter(GroupAnnotation.group_id.in_(user_accessible_group_ids))
         )
+        if sort_by_origin is None:
+            q = q.order_by(Obj.last_detected.desc().nullslast(), Obj.id)
         if unsaved_only == "true":
             q = q.filter(
                 Obj.id.notin_(
@@ -299,6 +329,13 @@ class CandidateHandler(BaseHandler):
         if end_date is not None and end_date.strip() not in ["", "null", "undefined"]:
             end_date = arrow.get(end_date).datetime
             q = q.filter(Obj.last_detected <= end_date)
+        if sort_by_origin is not None:
+            sort_by_key = self.get_query_argument("sortByAnnotationKey", None)
+            sort_by_order = self.get_query_argument("sortByAnnotationOrder", None)
+            if sort_by_order == "desc":
+                q = q.order_by(Annotation.data[sort_by_key].desc().nullslast(), Obj.id)
+            else:
+                q = q.order_by(Annotation.data[sort_by_key].nullslast(), Obj.id)
         try:
             query_results = grab_query_results_page(
                 q, total_matches, page, n_per_page, "candidates"
@@ -532,7 +569,6 @@ def grab_query_results_page(q, total_matches, page, n_items_per_page, items_name
     info[items_name] = (
         q.limit(n_items_per_page).offset((page - 1) * n_items_per_page).all()
     )
-
     info["pageNumber"] = page
     info["lastPage"] = info["totalMatches"] <= page * n_items_per_page
     info["numberingStart"] = (page - 1) * n_items_per_page + 1
