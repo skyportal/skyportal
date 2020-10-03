@@ -13,8 +13,7 @@ from ...models import (
     Source,
     Spectrum,
 )
-from ...schema import SpectrumAsciiFilePostJSON
-
+from ...schema import SpectrumAsciiFilePostJSON, SpectrumPost, GroupIDList
 
 _, cfg = load_env()
 
@@ -28,20 +27,7 @@ class SpectrumHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SpectrumNoID'
-                  - type: object
-                    properties:
-                      group_ids:
-                        type: array
-                        items:
-                          type: integer
-                        description: |
-                          Group IDs that spectrum will be associated with. If 'all',
-                          will be shared with site-wide public group.
-                    required:
-                      - group_ids
+              schema: SpectrumPost
         responses:
           200:
             content:
@@ -62,20 +48,17 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
-        instrument_id = data.get('instrument_id')
-        if isinstance(instrument_id, list):
-            if not all(instrument == instrument_id[0] for instrument in instrument_id):
-                return self.error('Can only upload data for one instrument at a time')
-            else:
-                instrument_id = instrument_id[0]
+        json = self.get_json()
+
         try:
-            group_ids = data.pop("group_ids")
-        except KeyError:
-            return self.error("Missing required field: group_ids")
-        if isinstance(group_ids, (list, tuple)):
-            groups = Group.query.filter(Group.id.in_(group_ids)).all()
-        elif group_ids == "all":
+            data = SpectrumPost.load(json)
+        except ValidationError as e:
+            return self.error(
+                f'Invalid / missing parameters; {e.normalized_messages()}'
+            )
+
+        group_ids = data.pop("group_ids")
+        if group_ids == "all":
             groups = (
                 DBSession()
                 .query(Group)
@@ -83,20 +66,21 @@ class SpectrumHandler(BaseHandler):
                 .all()
             )
         else:
-            return self.error(
-                "Invalid group_ids parameter value. Must be a list of IDs "
-                "(integers) or the string 'all'."
-            )
+            try:
+                group_ids = GroupIDList.load({'group_ids': group_ids})
+            except ValidationError:
+                return self.error(
+                    "Invalid group_ids parameter value. Must be a list of IDs "
+                    "(integers) or the string 'all'."
+                )
+            group_ids = group_ids['group_ids']
+            groups = Group.query.filter(Group.id.in_(group_ids)).all()
 
-        instrument = Instrument.query.get(instrument_id)
+        instrument = Instrument.query.get(data['instrument_id'])
+        if instrument is None:
+            return self.error('Invalid instrument id.')
 
-        schema = Spectrum.__schema__()
-        try:
-            spec = schema.load(data)
-        except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
+        spec = Spectrum(**data)
         spec.instrument = instrument
         spec.groups = groups
         DBSession().add(spec)
@@ -148,7 +132,7 @@ class SpectrumHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: SpectrumNoID
+              schema: SpectrumPost
         responses:
           200:
             content:
@@ -159,21 +143,27 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            spectrum_id = int(spectrum_id)
+        except TypeError:
+            return self.error('Could not convert spectrum id to int.')
+
         spectrum = Spectrum.query.get(spectrum_id)
         # Permissions check
         _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
         data = self.get_json()
-        data['id'] = spectrum_id
 
-        schema = Spectrum.__schema__()
         try:
-            schema.load(data, partial=True)
+            data = SpectrumPost.load(data, partial=True)
         except ValidationError as e:
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
-        DBSession().commit()
 
+        for k in data:
+            setattr(spectrum, k, data[k])
+
+        DBSession().commit()
         return self.success()
 
     @permissions(['Manage sources'])
