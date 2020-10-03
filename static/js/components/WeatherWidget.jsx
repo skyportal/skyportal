@@ -69,16 +69,16 @@ const WeatherView = ({ weather }) => {
                 <img
                   src={url}
                   className={styles.media}
-                  alt={weather?.weather?.current.weather[0].description}
+                  alt={weather.weather.current.weather[0].description}
                 />
               </div>
               <div>
                 <Typography variant="body2" color="textSecondary" component="p">
                   Currently&nbsp;
-                  {(weather?.weather.current.temp - 273.15).toFixed(1)}&deg;C
+                  {(weather.weather.current.temp - 273.15).toFixed(1)}&deg;C
                   with&nbsp;
-                  {weather?.weather.current.humidity}% humidity and&nbsp;
-                  {weather?.weather.current.weather[0].description}. Sunrise:{" "}
+                  {weather.weather.current.humidity}% humidity and&nbsp;
+                  {weather.weather.current.weather[0].description}. Sunrise:{" "}
                   {dayjs().to(sunrise)}, Sunset: {dayjs().to(sunset)}
                 </Typography>
               </div>
@@ -88,14 +88,14 @@ const WeatherView = ({ weather }) => {
         </div>
         <CardActions className={styles.weatherLinks}>
           {weather?.weather_link && (
-            <a href={weather?.weather_link} rel="noreferrer" target="_blank">
+            <a href={weather.weather_link} rel="noreferrer" target="_blank">
               <Button size="small" color="primary">
                 Forecast
               </Button>
             </a>
           )}
           {weather?.skycam_link && (
-            <a href={weather?.skycam_link} rel="noreferrer" target="_blank">
+            <a href={weather.skycam_link} rel="noreferrer" target="_blank">
               <Button size="small" color="primary">
                 Webcam
               </Button>

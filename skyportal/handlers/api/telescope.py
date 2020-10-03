@@ -89,13 +89,8 @@ class WeatherHandler(BaseHandler):
 
         return self.success(
             data={
-                "weather": t.weather,
-                "weather_retrieved_at": t.weather_retrieved_at,
-                "weather_link": t.weather_link,
-                "name": t.name,
-                "nickname": t.nickname,
+                **t.to_dict(),
                 "message": message,
-                "skycam_link": t.skycam_link,
             }
         )
 
