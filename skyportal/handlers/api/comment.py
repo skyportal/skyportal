@@ -3,6 +3,7 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Source, Comment, Group, Candidate, Filter
+from .candidate import update_redshift_history_if_relevant
 
 
 class CommentHandler(BaseHandler):
@@ -164,6 +165,9 @@ class CommentHandler(BaseHandler):
                     "Invalid redshift value provided; unable to cast to float"
                 )
             obj.redshift = redshift
+            update_redshift_history_if_relevant(
+                {"redshift": redshift}, obj, self.associated_user_object
+            )
         DBSession().commit()
 
         self.push_all(
