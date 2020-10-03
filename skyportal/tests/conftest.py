@@ -496,3 +496,28 @@ def sedm_listener_token(sedm, group_admin_user):
         name=str(uuid.uuid4()),
     )
     return token_id
+
+
+@pytest.fixture()
+def source_notification_user(public_group):
+    uid = str(uuid.uuid4())
+    username = f"{uid}@cesium.ml.org"
+    user = User(
+        username=username,
+        contact_email=username,
+        contact_phone="+12345678910",
+        groups=[public_group],
+        roles=[models.Role.query.get("Full user")],
+        preferences={"allowEmailNotifications": True, "allowSMSNotifications": True},
+    )
+    DBSession().add(user)
+    DBSession().commit()
+    return user
+
+
+@pytest.fixture()
+def source_notification_user_token(source_notification_user):
+    token_id = create_token(
+        ACLs=[], user_id=source_notification_user.id, name=str(uuid.uuid4()),
+    )
+    return token_id

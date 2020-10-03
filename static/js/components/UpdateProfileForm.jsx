@@ -11,17 +11,16 @@ import DialogActions from "@material-ui/core/DialogActions";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogContentText from "@material-ui/core/DialogContentText";
 import DialogTitle from "@material-ui/core/DialogTitle";
-
-import { showNotification } from "baselayer/components/Notifications";
-
 import InputLabel from "@material-ui/core/InputLabel";
 import Grid from "@material-ui/core/Grid";
 
+import { showNotification } from "baselayer/components/Notifications";
 import { useForm } from "react-hook-form";
 
 import * as ProfileActions from "../ducks/profile";
 
 import UIPreferences from "./UIPreferences";
+import NotificationPreferences from "./NotificationPreferences";
 
 const UpdateProfileForm = () => {
   const profile = useSelector((state) => state.profile);
@@ -158,6 +157,9 @@ const UpdateProfileForm = () => {
               Update Profile
             </Button>
           </form>
+        </CardContent>
+        <CardContent>
+          <NotificationPreferences />
         </CardContent>
         <CardContent>
           <UIPreferences />

@@ -155,7 +155,7 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
         .filter(Group.name == cfg["misc"]["public_group_name"])
         .first()
     )
-    if public_group is not None:
+    if public_group is not None and public_group not in invitation.groups:
         DBSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
 
     invitation.used = True

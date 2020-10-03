@@ -31,7 +31,7 @@ from skyportal.models import (
 import sncosmo
 
 
-DETECT_THRESH = 5  # sigma
+DETECT_THRESH = 3  # sigma
 
 SPEC_LINES = {
     'H': ([3970, 4102, 4341, 4861, 6563], '#ff0000'),

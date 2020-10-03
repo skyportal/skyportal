@@ -9,7 +9,7 @@ Presuming you've just started off by running `make load_demo_data`,
 tell Alembic that you are on the latest database schema:
 
 ```
-PYTHONPATH=. alembic stamp head
+PYTHONPATH=. alembic -x config=config.yaml stamp head
 ```
 
 ## Upgrade to latest
@@ -18,7 +18,7 @@ Subsequently, when the database schema changes, run the following to
 upgrade:
 
 ```
-PYTHONPATH=. alembic upgrade head
+PYTHONPATH=. alembic -x config=config.yaml upgrade head
 ```
 
 ## Generate migration
