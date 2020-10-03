@@ -67,7 +67,7 @@ class SysInfoHandler(BaseHandler):
             pr_number_start = result.find("(#")
             if pr_number_start != -1:
                 pr_number_end = result.find(")", pr_number_start)
-                pr_str = result[(pr_number_start + 2):(pr_number_end)]
+                pr_str = result[(pr_number_start + 2) : (pr_number_end)]
                 pr = pr_url + pr_str
                 result = result.replace(
                     "(#" + pr_str + ")",
