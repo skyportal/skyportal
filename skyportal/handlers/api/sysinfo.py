@@ -1,3 +1,4 @@
+import os
 import subprocess
 
 from baselayer.app.env import load_env
@@ -6,6 +7,9 @@ from ..base import BaseHandler
 from skyportal.models import cosmo
 
 _, cfg = load_env()
+default_log_lines = 25
+gitlog_file = "data/gitlog.txt"
+pr_url = "https://github.com/skyportal/skyportal/pull/"
 
 
 class SysInfoHandler(BaseHandler):
@@ -41,17 +45,22 @@ class SysInfoHandler(BaseHandler):
                               type: string
                               description: Reference for the cosmology used.
         """
-        default_lines = 25
-        p = subprocess.Popen(
-            ["git", "log", "--pretty=format:'%C(cyan)[%ci]%Creset %s %C(auto)%h'"],
-            stdout=subprocess.PIPE,
-            universal_newlines=True,
-        )
-        out, err = p.communicate()
-        raw_gitlog = out.splitlines()[:default_lines]
+        # if another build system has written a gitlog file, use it
+        loginfo = None
+        if os.path.exists(gitlog_file):
+            with open(gitlog_file, "r") as spgl:
+                loginfo = spgl.read()
+        if not loginfo:
+            p = subprocess.Popen(
+                ["git", "log", "--pretty=format:'%C(cyan)[%ci]%Creset %s %C(auto)%h'"],
+                stdout=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            loginfo, err = p.communicate()
+
+        raw_gitlog = loginfo.splitlines()[:default_log_lines]
         gitlog = []
 
-        pr_url = "https://github.com/skyportal/skyportal/pull/"
         for commit in raw_gitlog:
             # remove leading and trailing quote
             result = commit[1:-1]
