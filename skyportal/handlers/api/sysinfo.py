@@ -52,10 +52,14 @@ class SysInfoHandler(BaseHandler):
                 loginfo = spgl.read()
         if not loginfo:
             p = subprocess.run(
-                ["git", "--git-dir=.git", "log",
-                 "--pretty=format:'%C(cyan)[%ci]%Creset %s %C(auto)%h'"],
+                [
+                    "git",
+                    "--git-dir=.git",
+                    "log",
+                    "--pretty=format:'%C(cyan)[%ci]%Creset %s %C(auto)%h'",
+                ],
                 capture_output=True,
-                universal_newlines=True
+                universal_newlines=True,
             )
             loginfo = p.stdout
 
@@ -68,7 +72,8 @@ class SysInfoHandler(BaseHandler):
             pr_number_start = result.find("(#")
             if pr_number_start != -1:
                 pr_number_end = result.find(")", pr_number_start)
-                pr_str = result[(pr_number_start + 2) : (pr_number_end)]
+                pr_slice = slice(pr_number_start + 2, pr_number_end)
+                pr_str = result[pr_slice]
                 pr = pr_url + pr_str
                 result = result.replace(
                     "(#" + pr_str + ")",
