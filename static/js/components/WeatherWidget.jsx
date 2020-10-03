@@ -51,14 +51,18 @@ const useStyles = makeStyles(() => ({
   },
   selector: {
     position: "relative",
-    top: "-0.5rem",
+    top: "-0.75rem",
+    left: "0.75rem",
+  },
+  description: {
+    position: "relative",
+    left: "0.5rem",
   },
 }));
 
 const WeatherView = ({ weather }) => {
   const styles = useStyles();
-
-  const url = `https://openweathermap.org/img/wn/${weather?.weather?.current.weather[0].icon}.png`;
+  const url = `/static/images/weather/${weather?.weather?.current.weather[0].icon}.png`;
   let sunrise = dayjs.unix(weather?.weather?.current.sunrise);
   let sunset = dayjs.unix(weather?.weather?.current.sunset);
 
@@ -79,14 +83,25 @@ const WeatherView = ({ weather }) => {
                   alt={weather?.weather?.current.weather[0].description}
                 />
               </div>
-              <div>
+              <div className={styles.description}>
                 <Typography variant="body2" color="textSecondary" component="p">
                   It&nbsp;is&nbsp;
                   {(weather?.weather?.current.temp - 273.15).toFixed(1)}&deg;C
                   with&nbsp;
                   {weather?.weather?.current.humidity}% humidity &amp;&nbsp;
-                  {weather?.weather?.current.weather[0].description}. Sunrise{" "}
-                  {dayjs().to(sunrise)}, sunset {dayjs().to(sunset)}
+                  {weather?.weather?.current.weather[0].description}.&nbsp;
+                  {sunrise.isBefore(sunset) && (
+                    <span>
+                      Sunrise {dayjs().to(sunrise)}, sunset {dayjs().to(sunset)}
+                      .
+                    </span>
+                  )}
+                  {!sunrise.isBefore(sunset) && (
+                    <span>
+                      Sunset {dayjs().to(sunset)}, sunrise&nbsp;
+                      {dayjs().to(sunrise)}
+                    </span>
+                  )}
                 </Typography>
               </div>
             </>
