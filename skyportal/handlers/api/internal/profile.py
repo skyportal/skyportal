@@ -4,6 +4,7 @@ import phonenumbers
 from phonenumbers.phonenumberutil import NumberParseException
 from validate_email import validate_email
 from sqlalchemy.exc import IntegrityError
+from slugify import slugify
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
@@ -151,7 +152,7 @@ class ProfileHandler(BaseHandler):
                     .first()
                 )
                 if user_group is not None:
-                    user_group.name = username
+                    user_group.name = slugify(username)
                 username_updated = True
 
         if data.get("first_name") is not None:

@@ -6,7 +6,6 @@ import Box from "@material-ui/core/Box";
 import Typography from "@material-ui/core/Typography";
 import { makeStyles } from "@material-ui/core/styles";
 
-import NewGroupForm from "./NewGroupForm";
 import GroupList from "./GroupList";
 
 const useStyles = makeStyles(() => ({
@@ -33,7 +32,6 @@ const GroupManagement = () => {
     <Paper variant="outlined">
       <Box p={1}>
         <Typography variant="h5">Group Management</Typography>
-        <NewGroupForm />
         <GroupList title="All Groups" groups={allGroups} classes={classes} />
       </Box>
     </Paper>
