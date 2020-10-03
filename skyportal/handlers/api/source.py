@@ -469,7 +469,7 @@ class SourceHandler(BaseHandler):
         self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
         return self.success(data={"id": obj.id})
 
-    @permissions(['Manage sources'])
+    @permissions(['Upload data'])
     def patch(self, obj_id):
         """
         ---
