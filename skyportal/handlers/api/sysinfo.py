@@ -51,12 +51,13 @@ class SysInfoHandler(BaseHandler):
             with open(gitlog_file, "r") as spgl:
                 loginfo = spgl.read()
         if not loginfo:
-            p = subprocess.Popen(
-                ["git", "log", "--pretty=format:'%C(cyan)[%ci]%Creset %s %C(auto)%h'"],
-                stdout=subprocess.PIPE,
-                universal_newlines=True,
+            p = subprocess.run(
+                ["git", "--git-dir=.git", "log",
+                 "--pretty=format:'%C(cyan)[%ci]%Creset %s %C(auto)%h'"],
+                capture_output=True,
+                universal_newlines=True
             )
-            loginfo, err = p.communicate()
+            loginfo = p.stdout
 
         raw_gitlog = loginfo.splitlines()[:default_log_lines]
         gitlog = []
