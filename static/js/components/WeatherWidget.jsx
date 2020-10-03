@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 
@@ -11,8 +11,11 @@ import Button from "@material-ui/core/Button";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
+import MenuItem from "@material-ui/core/MenuItem";
+import Menu from "@material-ui/core/Menu";
+import IconButton from "@material-ui/core/IconButton";
+import MoreVertIcon from "@material-ui/icons/MoreVert";
 
-import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import * as profileActions from "../ducks/profile";
 import * as fetchWeather from "../ducks/weather";
 
@@ -46,6 +49,10 @@ const useStyles = makeStyles(() => ({
     height: "4rem",
     width: "4rem",
   },
+  selector: {
+    position: "relative",
+    top: "-0.5rem",
+  },
 }));
 
 const WeatherView = ({ weather }) => {
@@ -69,17 +76,17 @@ const WeatherView = ({ weather }) => {
                 <img
                   src={url}
                   className={styles.media}
-                  alt={weather.weather.current.weather[0].description}
+                  alt={weather?.weather?.current.weather[0].description}
                 />
               </div>
               <div>
                 <Typography variant="body2" color="textSecondary" component="p">
-                  Currently&nbsp;
-                  {(weather.weather.current.temp - 273.15).toFixed(1)}&deg;C
+                  It&nbsp;is&nbsp;
+                  {(weather?.weather?.current.temp - 273.15).toFixed(1)}&deg;C
                   with&nbsp;
-                  {weather.weather.current.humidity}% humidity and&nbsp;
-                  {weather.weather.current.weather[0].description}. Sunrise:{" "}
-                  {dayjs().to(sunrise)}, Sunset: {dayjs().to(sunset)}
+                  {weather?.weather?.current.humidity}% humidity &amp;&nbsp;
+                  {weather?.weather?.current.weather[0].description}. Sunrise{" "}
+                  {dayjs().to(sunrise)}, sunset {dayjs().to(sunset)}
                 </Typography>
               </div>
             </>
@@ -108,18 +115,38 @@ const WeatherView = ({ weather }) => {
 };
 
 const WeatherWidget = ({ classes }) => {
+  const styles = useStyles();
+
   const dispatch = useDispatch();
   const weather = useSelector((state) => state.weather.weather);
   const userPrefs = useSelector((state) => state.profile.preferences.weather);
+  const telescopeList = useSelector((state) => state.telescopes.telescopeList);
 
   const weatherPrefs = userPrefs || defaultPrefs;
+  const [anchorEl, setAnchorEl] = useState(null);
 
   useEffect(() => {
     // eslint-disable-next-line no-unused-vars
-    const getWeatherData = async () => {
-      await dispatch(fetchWeather(weatherPrefs.telescopeID));
+    const getWeatherData = () => {
+      dispatch(fetchWeather(weatherPrefs.telescopeID));
     };
   }, [weatherPrefs, dispatch]);
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleMenuItemClick = (event, index) => {
+    const prefs = {
+      weather: { telescopeID: index },
+    };
+    dispatch(profileActions.updateUserPreferences(prefs));
+    setAnchorEl(null);
+  };
+
+  const handleClickListItem = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
 
   return (
     <Paper
@@ -132,14 +159,37 @@ const WeatherWidget = ({ classes }) => {
           {weather?.name}
         </Typography>
         <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
-        <div className={classes.widgetIcon}>
-          <WidgetPrefsDialog
-            formValues={weatherPrefs}
-            stateBranchName="weather"
-            title="Weather Preferences"
-            onSubmit={profileActions.updateUserPreferences}
-          />
-        </div>
+
+        {telescopeList && (
+          <div className={`${classes.widgetIcon} ${styles.selector}`}>
+            <IconButton
+              aria-controls="tel-list"
+              aria-haspopup="true"
+              onClick={handleClickListItem}
+            >
+              <MoreVertIcon />
+            </IconButton>
+
+            <Menu
+              id="tel-list"
+              anchorEl={anchorEl}
+              keepMounted
+              open={Boolean(anchorEl)}
+              onClose={handleClose}
+            >
+              {telescopeList.map((telescope) => (
+                <MenuItem
+                  key={telescope.id}
+                  value={telescope.id}
+                  onClick={(event) => handleMenuItemClick(event, telescope.id)}
+                  selected={telescope.id === weatherPrefs.telescopeID}
+                >
+                  {telescope.name}
+                </MenuItem>
+              ))}
+            </Menu>
+          </div>
+        )}
         <WeatherView weather={weather} />
       </div>
     </Paper>
