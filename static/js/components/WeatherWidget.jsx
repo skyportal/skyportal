@@ -62,7 +62,7 @@ const useStyles = makeStyles(() => ({
 
 const WeatherView = ({ weather }) => {
   const styles = useStyles();
-  const url = `/static/images/weather/${weather?.weather?.current.weather[0].icon}.png`;
+  const url = `/static/images/weather/${weather?.weather?.current?.weather[0].icon}.png`;
   let sunrise = dayjs.unix(weather?.weather?.current.sunrise);
   let sunset = dayjs.unix(weather?.weather?.current.sunset);
 
@@ -184,9 +184,9 @@ const WeatherWidget = ({ classes }) => {
             >
               <MoreVertIcon />
             </IconButton>
-
             <Menu
               id="tel-list"
+              data-testid="tel-list"
               anchorEl={anchorEl}
               keepMounted
               open={Boolean(anchorEl)}
@@ -194,6 +194,8 @@ const WeatherWidget = ({ classes }) => {
             >
               {telescopeList.map((telescope) => (
                 <MenuItem
+                  data-testid={telescope.name}
+                  id={telescope.name}
                   key={telescope.id}
                   value={telescope.id}
                   onClick={(event) => handleMenuItemClick(event, telescope.id)}
