@@ -1411,6 +1411,8 @@ User.comments = relationship("Comment", back_populates="author")
 class Annotation(Base):
     """A sortable/searchable Annotation made by a filter or other robot, with a set of data as JSON """
 
+    __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
+
     data = sa.Column(JSONB, default=None, doc="Searchable data in JSON format")
     author = relationship(
         "User", back_populates="annotations", doc="Annotation's author.", uselist=False,
@@ -1461,8 +1463,6 @@ class Annotation(Base):
         annotation.author_info = annotation.construct_author_info_dict()
 
         return annotation
-
-    __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
 
 GroupAnnotation = join_model("group_annotations", Group, Annotation)
