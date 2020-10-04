@@ -46,11 +46,11 @@ class SysInfoHandler(BaseHandler):
                               description: Reference for the cosmology used.
         """
         # if another build system has written a gitlog file, use it
-        loginfo = None
+        loginfo = ""
         if os.path.exists(gitlog_file):
             with open(gitlog_file, "r") as spgl:
                 loginfo = spgl.read()
-        if not loginfo:
+        if loginfo == "":
             p = subprocess.run(
                 [
                     "git",
