@@ -131,6 +131,8 @@ const CustomSortToolbar = ({
     setAscending(null);
   }, [selectedAnnotationItem]);
 
+  // ESLint rule is disabled below because we don't want to reload data on a new
+  // annotation item select every time until the sort button is actually clicked
   useEffect(() => {
     const dispatchSort = async () => {
       const data = {
@@ -147,13 +149,7 @@ const CustomSortToolbar = ({
     if (ascending !== null) {
       dispatchSort();
     }
-  }, [
-    ascending,
-    dispatch,
-    rowsPerPage,
-    selectedAnnotationItem,
-    setQueryInProgress,
-  ]);
+  }, [ascending, dispatch, rowsPerPage, setQueryInProgress]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSort = () => {
     setQueryInProgress(true);
@@ -402,10 +398,10 @@ const CandidateList = () => {
     );
   };
 
-  const handlePageChange = async (page) => {
+  const handlePageChange = async (page, numPerPage) => {
     setQueryInProgress(true);
     // API takes 1-indexed page number
-    const data = { pageNumber: page + 1, numPerPage: rowsPerPage };
+    const data = { pageNumber: page + 1, numPerPage };
     await dispatch(candidatesActions.fetchCandidates(data));
     setQueryInProgress(false);
   };
@@ -415,7 +411,7 @@ const CandidateList = () => {
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
-        handlePageChange(tableState.page);
+        handlePageChange(tableState.page, tableState.rowsPerPage);
         break;
       default:
     }
@@ -479,6 +475,9 @@ const CandidateList = () => {
         <Box display={queryInProgress ? "none" : "block"}>
           <MuiThemeProvider theme={getMuiTheme(theme)}>
             <MUIDataTable
+              // Reset key to reset page number
+              // https://github.com/gregnb/mui-datatables/issues/1166
+              key={`table_${pageNumber}`}
               columns={columns}
               data={candidates !== null ? candidates : []}
               className={classes.table}
@@ -496,8 +495,11 @@ const CandidateList = () => {
                 rowsPerPageOptions: [1, 25, 50, 75, 100, 200],
                 jumpToPage: true,
                 serverSide: true,
+                page: pageNumber - 1,
+                pagination: true,
                 onTableChange: handleTableChange,
-                customToolbar: (
+                // eslint-disable-next-line react/display-name
+                customToolbar: () => (
                   <CustomSortToolbar
                     selectedAnnotationItem={selectedAnnotationItem}
                     rowsPerPage={rowsPerPage}
