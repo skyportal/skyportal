@@ -80,6 +80,7 @@ const WeatherView = ({ weather }) => {
                 <img
                   src={url}
                   className={styles.media}
+                  // eslint-disable-next-line jsx-a11y/alt-text
                   alt={weather?.weather?.current.weather[0].description}
                 />
               </div>
