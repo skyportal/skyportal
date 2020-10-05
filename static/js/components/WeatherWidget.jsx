@@ -225,7 +225,20 @@ WeatherView.propTypes = {
   weather: PropTypes.shape({
     skycam_link: PropTypes.string,
     weather_link: PropTypes.string,
-    weather: PropTypes.shape({}),
+    weather: PropTypes.shape({
+      current: PropTypes.shape({
+        sunrise: PropTypes.number,
+        sunset: PropTypes.number,
+        temp: PropTypes.number,
+        humidity: PropTypes.number,
+        weather: PropTypes.arrayOf(
+          PropTypes.shape({
+            icon: PropTypes.string,
+            description: PropTypes.string,
+          })
+        ),
+      }),
+    }),
   }),
 };
 
