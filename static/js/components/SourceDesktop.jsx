@@ -26,6 +26,9 @@ import FollowupRequestLists from "./FollowupRequestLists";
 import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
+import SourceNotification from "./SourceNotification";
+import UpdateSourceRedshift from "./UpdateSourceRedshift";
+import SourceRedshiftHistory from "./SourceRedshiftHistory";
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -142,12 +145,12 @@ const SourceDesktop = ({ source }) => {
           {source.gal_lat.toFixed(6)}
           )
           <br />
-          {source.redshift != null && (
-            <>
-              <b>Redshift: &nbsp;</b>
-              {source.redshift?.toFixed(4)}
-            </>
-          )}
+          <>
+            <b>Redshift: &nbsp;</b>
+            {source.redshift && source.redshift.toFixed(4)}
+            <UpdateSourceRedshift source={source} />
+            <SourceRedshiftHistory redshiftHistory={source.redshift_history} />
+          </>
           {source.dm && (
             <>
               &nbsp;|&nbsp;
@@ -179,7 +182,11 @@ const SourceDesktop = ({ source }) => {
           {showStarList && <StarList sourceId={source.id} />}
           {source.groups.map((group) => (
             <Chip
-              label={group.name.substring(0, 15)}
+              label={
+                group.nickname
+                  ? group.nickname.substring(0, 15)
+                  : group.name.substring(0, 15)
+              }
               key={group.id}
               size="small"
               className={classes.chip}
@@ -362,6 +369,22 @@ const SourceDesktop = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </div>
+        <div className={classes.columnItem}>
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="notifications-content"
+              id="notifications-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Source Notification
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <SourceNotification sourceId={source.id} />
+            </AccordionDetails>
+          </Accordion>
+        </div>
       </div>
     </div>
   );
@@ -395,6 +418,7 @@ SourceDesktop.propTypes = {
     ),
     followup_requests: PropTypes.arrayOf(PropTypes.any),
     assignments: PropTypes.arrayOf(PropTypes.any),
+    redshift_history: PropTypes.arrayOf(PropTypes.any),
   }).isRequired,
 };
 

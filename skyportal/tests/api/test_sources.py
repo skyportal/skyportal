@@ -21,9 +21,9 @@ def test_token_user_retrieving_source(view_only_token, public_source):
     )
 
 
-def test_token_user_update_source(manage_sources_token, public_source):
+def test_token_user_update_source(upload_data_token, public_source):
     status, data = api(
-        'PUT',
+        'PATCH',
         f'sources/{public_source.id}',
         data={
             'ra': 234.22,
@@ -32,12 +32,12 @@ def test_token_user_update_source(manage_sources_token, public_source):
             'transient': False,
             'ra_dis': 2.3,
         },
-        token=manage_sources_token,
+        token=upload_data_token,
     )
     assert status == 200
     assert data['status'] == 'success'
 
-    status, data = api('GET', f'sources/{public_source.id}', token=manage_sources_token)
+    status, data = api('GET', f'sources/{public_source.id}', token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
     npt.assert_almost_equal(data['data']['ra'], 234.22)
@@ -47,9 +47,9 @@ def test_token_user_update_source(manage_sources_token, public_source):
     )
 
 
-def test_distance_modulus(manage_sources_token, public_source):
+def test_distance_modulus(upload_data_token, public_source):
     status, data = api(
-        'PUT',
+        'PATCH',
         f'sources/{public_source.id}',
         data={
             'ra': 234.22,
@@ -58,12 +58,12 @@ def test_distance_modulus(manage_sources_token, public_source):
             'transient': False,
             'ra_dis': 2.3,
         },
-        token=manage_sources_token,
+        token=upload_data_token,
     )
     assert status == 200
     assert data['status'] == 'success'
 
-    status, data = api('GET', f'sources/{public_source.id}', token=manage_sources_token)
+    status, data = api('GET', f'sources/{public_source.id}', token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
     npt.assert_almost_equal(10 ** ((28.5 / 5) - 5), data['data']['luminosity_distance'])
@@ -73,13 +73,13 @@ def test_distance_modulus(manage_sources_token, public_source):
     )
 
 
-def test_parallax(manage_sources_token, public_source):
+def test_parallax(upload_data_token, public_source):
     parallax = 0.001  # in arcsec = 1 kpc
     d_pc = 1 / parallax
     dm = 5.0 * np.log10(d_pc / (10.0))
 
     status, data = api(
-        'PUT',
+        'PATCH',
         f'sources/{public_source.id}',
         data={
             'ra': 234.22,
@@ -88,21 +88,21 @@ def test_parallax(manage_sources_token, public_source):
             'transient': False,
             'ra_dis': 2.3,
         },
-        token=manage_sources_token,
+        token=upload_data_token,
     )
     assert status == 200
     assert data['status'] == 'success'
 
-    status, data = api('GET', f'sources/{public_source.id}', token=manage_sources_token)
+    status, data = api('GET', f'sources/{public_source.id}', token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
 
     npt.assert_almost_equal(dm, data['data']['dm'])
 
 
-def test_low_redshift(manage_sources_token, public_source):
+def test_low_redshift(upload_data_token, public_source):
     status, data = api(
-        'PUT',
+        'PATCH',
         f'sources/{public_source.id}',
         data={
             'ra': 234.22,
@@ -111,12 +111,12 @@ def test_low_redshift(manage_sources_token, public_source):
             'ra_dis': 2.3,
             'redshift': 0.00001,
         },
-        token=manage_sources_token,
+        token=upload_data_token,
     )
     assert status == 200
     assert data['status'] == 'success'
 
-    status, data = api('GET', f'sources/{public_source.id}', token=manage_sources_token)
+    status, data = api('GET', f'sources/{public_source.id}', token=upload_data_token)
     assert status == 200
     assert data['status'] == 'success'
 
@@ -125,7 +125,7 @@ def test_low_redshift(manage_sources_token, public_source):
 
 def test_cannot_update_source_without_permission(view_only_token, public_source):
     status, data = api(
-        'PUT',
+        'PATCH',
         f'sources/{public_source.id}',
         data={
             'ra': 234.22,
@@ -187,12 +187,12 @@ def test_add_source_without_group_id(upload_data_token, view_only_token, public_
     npt.assert_almost_equal(data['data']['ra'], 234.22)
 
 
-def test_starlist(manage_sources_token, public_source):
+def test_starlist(upload_data_token, public_source):
     status, data = api(
-        'PUT',
+        'PATCH',
         f'sources/{public_source.id}',
         data={'ra': 234.22, 'dec': 22.33},
-        token=manage_sources_token,
+        token=upload_data_token,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -200,7 +200,7 @@ def test_starlist(manage_sources_token, public_source):
     status, data = api(
         'GET',
         f'sources/{public_source.id}/offsets?facility=P200&how_many=1',
-        token=manage_sources_token,
+        token=upload_data_token,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -211,7 +211,7 @@ def test_starlist(manage_sources_token, public_source):
     assert isinstance(data['data']["starlist_info"][0]["ra"], float)
 
     status, data = api(
-        'GET', f'sources/{public_source.id}/offsets', token=manage_sources_token,
+        'GET', f'sources/{public_source.id}/offsets', token=upload_data_token,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -226,7 +226,7 @@ def test_starlist(manage_sources_token, public_source):
     status, data = api(
         'GET',
         f'sources/{public_source.id}/offsets?use_ztfref=false',
-        token=manage_sources_token,
+        token=upload_data_token,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -237,12 +237,12 @@ def test_starlist(manage_sources_token, public_source):
 
 
 @pytest.mark.xfail(strict=False)
-def test_finder(manage_sources_token, public_source):
+def test_finder(upload_data_token, public_source):
     status, data = api(
-        'PUT',
+        'PATCH',
         f'sources/{public_source.id}',
         data={'ra': 234.22, 'dec': -22.33},
-        token=manage_sources_token,
+        token=upload_data_token,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -250,7 +250,7 @@ def test_finder(manage_sources_token, public_source):
     response = api(
         'GET',
         f'sources/{public_source.id}/finder?imsize=2',
-        token=manage_sources_token,
+        token=upload_data_token,
         raw_response=True,
     )
     status = response.status_code
@@ -264,14 +264,33 @@ def test_finder(manage_sources_token, public_source):
     status, data = api(
         'GET',
         f'sources/{public_source.id}/finder?image_source=whoknows',
-        token=manage_sources_token,
+        token=upload_data_token,
     )
     assert status == 400
 
     # try an image too big
     status, data = api(
-        'GET',
-        f'sources/{public_source.id}/finder?imsize=30',
-        token=manage_sources_token,
+        'GET', f'sources/{public_source.id}/finder?imsize=30', token=upload_data_token,
     )
     assert status == 400
+
+
+def test_source_notifications_unauthorized(
+    source_notification_user_token, public_group, public_source
+):
+    status, data = api(
+        "POST",
+        "source_notifications",
+        data={
+            "groupIds": [public_group.id],
+            "sourceId": public_source.id,
+            "level": "hard",
+            "additionalNotes": "",
+        },
+        token=source_notification_user_token,
+    )
+    assert status == 400
+    # Test server should have no valid Twilio API credentials
+    assert data["message"].startswith(
+        "Twilio Communication SMS API authorization error"
+    )

@@ -21,7 +21,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import emoji from "emoji-dictionary";
 
 import * as sourceActions from "../ducks/source";
-import CommentList from "./CommentList";
+import CommentList, { shortenFilename } from "./CommentList";
 import styles from "./CommentList.css";
 import UserAvatar from "./UserAvatar";
 
@@ -201,12 +201,14 @@ const CommentListMobile = ({ isCandidate }) => {
                   </div>
                   <span>
                     {attachment_name && (
-                      <div>
-                        Attachment:&nbsp;
-                        <a href={`/api/comment/${id}/attachment`}>
-                          {attachment_name}
-                        </a>
-                      </div>
+                      <Tooltip title={attachment_name}>
+                        <div>
+                          Attachment:&nbsp;
+                          <a href={`/api/comment/${id}/attachment`}>
+                            {shortenFilename(attachment_name)}
+                          </a>
+                        </div>
+                      </Tooltip>
                     )}
                   </span>
                 </div>

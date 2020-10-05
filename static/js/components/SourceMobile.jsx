@@ -28,6 +28,9 @@ import FollowupRequestLists from "./FollowupRequestLists";
 import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
+import SourceNotification from "./SourceNotification";
+import UpdateSourceRedshift from "./UpdateSourceRedshift";
+import SourceRedshiftHistory from "./SourceRedshiftHistory";
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -122,6 +125,9 @@ export const useSourceStyles = makeStyles((theme) => ({
     flexDirection: "column",
     minWidth: 0,
   },
+  sendAlert: {
+    margin: "auto",
+  },
 }));
 
 const SourceMobile = ({ source }) => {
@@ -165,12 +171,14 @@ const SourceMobile = ({ source }) => {
               {source.gal_lat.toFixed(1)}
               )
               <br />
-              {source.redshift != null && (
-                <>
-                  <b>Redshift: &nbsp;</b>
-                  {source.redshift?.toFixed(4)}
-                </>
-              )}
+              <>
+                <b>Redshift: &nbsp;</b>
+                {source.redshift && source.redshift.toFixed(4)}
+                <UpdateSourceRedshift source={source} />
+                <SourceRedshiftHistory
+                  redshiftHistory={source.redshift_history}
+                />
+              </>
               {source.dm && (
                 <>
                   &nbsp;|&nbsp;
@@ -202,7 +210,11 @@ const SourceMobile = ({ source }) => {
               {showStarList && <StarList sourceId={source.id} />}
               {source.groups.map((group) => (
                 <Chip
-                  label={group.name.substring(0, 15)}
+                  label={
+                    group.nickname
+                      ? group.nickname.substring(0, 15)
+                      : group.name.substring(0, 15)
+                  }
                   key={group.id}
                   size="small"
                   className={classes.chip}
@@ -373,6 +385,22 @@ const SourceMobile = ({ source }) => {
             </div>
           </AccordionDetails>
         </Accordion>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="notifications-content"
+            id="notifications-header"
+          >
+            <Typography className={classes.accordionHeading}>
+              Source Notification
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div className={classes.sendAlert}>
+              <SourceNotification sourceId={source.id} />
+            </div>
+          </AccordionDetails>
+        </Accordion>
       </div>
     </div>
   );
@@ -406,6 +434,7 @@ SourceMobile.propTypes = {
     ),
     followup_requests: PropTypes.arrayOf(PropTypes.any),
     assignments: PropTypes.arrayOf(PropTypes.any),
+    redshift_history: PropTypes.arrayOf(PropTypes.any),
   }).isRequired,
 };
 
