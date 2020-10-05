@@ -22,7 +22,7 @@
     "css-loader": "4.2.0",
     "d3": "5.16.0",
     "dayjs": "1.9.1",
-    "emoji-dictionary": "1.0.10",
+    "emoji-dictionary": "1.0.11",
     "emojilib": "2.4.0",
     "exports-loader": "0.7.0",
     "imports-loader": "0.8.0",
