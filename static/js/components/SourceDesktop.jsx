@@ -111,7 +111,7 @@ export const useSourceStyles = makeStyles((theme) => ({
   },
   position: {
     fontWeight: "bold",
-    fontSize: "120%",
+    fontSize: "110%",
   },
 }));
 
