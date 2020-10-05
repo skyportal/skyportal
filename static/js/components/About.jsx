@@ -10,6 +10,7 @@ import CardActions from "@material-ui/core/CardActions";
 import Button from "@material-ui/core/Button";
 import Typography from "@material-ui/core/Typography";
 import Box from "@material-ui/core/Box";
+import ReactHtmlParser from "react-html-parser";
 
 import clsx from "clsx";
 
@@ -18,7 +19,7 @@ const useStyles = makeStyles((theme) => ({
     display: "inline-block",
     paddingLeft: "1em",
     paddingRight: "1em",
-    maxWidth: "50rem",
+    maxWidth: "100rem",
     fontSize: "1rem",
   },
   bibcard: {
@@ -68,6 +69,7 @@ const About = () => {
   const version = useSelector((state) => state.sysInfo.version);
   const cosmology = useSelector((state) => state.sysInfo.cosmology);
   const cosmoref = useSelector((state) => state.sysInfo.cosmoref);
+  const gitlog = useSelector((state) => state.sysInfo.gitlog);
 
   return (
     <Box className={classes.root}>
@@ -120,17 +122,39 @@ const About = () => {
           .
         </BibLink>
       </div>
+      {gitlog && (
+        <>
+          <h2>Recent Changelog</h2>
+          <ul>
+            {gitlog.map((val) => (
+              <li key={val.slice(-6)}> {ReactHtmlParser(val)} </li>
+            ))}
+          </ul>
+          <div>
+            See all the pull requests at{" "}
+            <a href="https://github.com/skyportal/skyportal/pulls">
+              https://github.com/skyportal/skyportal/pulls
+            </a>
+          </div>
+        </>
+      )}
       <h2>Cosmology</h2>
-      <p>
+      <span>
         The cosmology currently used here is an instance of{" "}
         <code>astropy.cosmology</code> with the parameters (see{" "}
         <a href="https://github.com/astropy/astropy/blob/master/astropy/cosmology/parameters.py">
-          this link
-        </a>{" "}
-        for parameters definitions): <br />
-        <blockquote>{cosmology}</blockquote>
-        <b>Reference</b>: {cosmoref}
-      </p>
+          this link for parameters definitions): <br />
+        </a>
+        {cosmology && (
+          <>
+            <blockquote>{cosmology}</blockquote>
+            <b>Reference</b>: {cosmoref}
+            <br />
+            If you&apos;d like to change the cosmology, please do so in the{" "}
+            <code>config.yaml</code> under <code>misc.cosmology</code>.
+          </>
+        )}
+      </span>
     </Box>
   );
 };
