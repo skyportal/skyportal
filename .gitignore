@@ -38,3 +38,6 @@ data/taxonomy_sitewide.yaml
 data/taxonomy_demo.yaml
 .idea
 doc/images/erd.png
+
+# gitlog info
+data/gitlog.txt

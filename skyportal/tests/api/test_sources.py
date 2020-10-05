@@ -277,7 +277,7 @@ def test_finder(manage_sources_token, public_source):
     assert status == 400
 
 
-def test_source_alert_unauthorized(
+def test_source_notifications_unauthorized(
     source_notification_user_token, public_group, public_source
 ):
     status, data = api(
