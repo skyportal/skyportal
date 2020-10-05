@@ -4,7 +4,7 @@ from copy import copy
 import arrow
 
 from sqlalchemy.orm import joinedload
-from sqlalchemy import case
+from sqlalchemy.sql.expression import case
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
@@ -337,7 +337,7 @@ class CandidateHandler(BaseHandler):
             # Define a custom sort order to have annotations from the correct
             # origin first, all others afterwards
             origin_sort_order = case(
-                value=Annotation.origin, whens={sort_by_order: 1}, else_=None,
+                value=Annotation.origin, whens={sort_by_origin: 1}, else_=None,
             )
             if sort_by_order == "desc":
                 q = q.order_by(
