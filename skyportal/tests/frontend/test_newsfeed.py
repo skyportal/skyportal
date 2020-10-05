@@ -1,6 +1,8 @@
 import uuid
 import pytest
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import TimeoutException
+
 from skyportal.tests import api
 
 
@@ -97,7 +99,16 @@ def test_news_feed_prefs_widget(
     ActionChains(driver).click(n_items_input).send_keys("2").perform()
     driver.click_xpath('//button[contains(., "Save")]')
     source_added_item_xpath = f'//div[contains(@class, "NewsFeed__entryContent")][.//p[text()="New source added"]][.//a[@href="/source/{obj_id_base}_0"]]'
-    driver.wait_for_xpath_to_disappear(source_added_item_xpath)
+    try:
+        driver.wait_for_xpath_to_disappear(source_added_item_xpath)
+    except TimeoutException:
+        driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]').click()
+        n_items_input = driver.wait_for_xpath('//input[@id="numItems"]')
+        n_items_input.clear()
+        ActionChains(driver).click(n_items_input).send_keys("2").perform()
+        driver.click_xpath('//button[contains(., "Save")]')
+        driver.wait_for_xpath_to_disappear(source_added_item_xpath)
+
     driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]').click()
     n_items_input = driver.wait_for_xpath('//input[@id="numItems"]')
     n_items_input.clear()
