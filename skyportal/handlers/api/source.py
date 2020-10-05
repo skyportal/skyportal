@@ -39,7 +39,7 @@ from ...utils import (
     get_finding_chart,
     _calculate_best_position_for_offset_stars,
 )
-from .candidate import grab_query_results_page
+from .candidate import grab_query_results_page, update_redshift_history_if_relevant
 
 SOURCES_PER_PAGE = 100
 
@@ -459,6 +459,8 @@ class SourceHandler(BaseHandler):
                 "one valid group ID that you belong to."
             )
 
+        update_redshift_history_if_relevant(data, obj, self.associated_user_object)
+
         DBSession().add(obj)
         DBSession().add_all([Source(obj=obj, group=group) for group in groups])
         DBSession().commit()
@@ -476,8 +478,8 @@ class SourceHandler(BaseHandler):
         self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
         return self.success(data={"id": obj.id})
 
-    @permissions(['Manage sources'])
-    def put(self, obj_id):
+    @permissions(['Upload data'])
+    def patch(self, obj_id):
         """
         ---
         description: Update a source
@@ -508,13 +510,16 @@ class SourceHandler(BaseHandler):
 
         schema = Obj.__schema__()
         try:
-            schema.load(data)
+            obj = schema.load(data)
         except ValidationError as e:
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
+        update_redshift_history_if_relevant(data, obj, self.associated_user_object)
         DBSession().commit()
-
+        self.push_all(
+            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key},
+        )
         return self.success(action='skyportal/FETCH_SOURCES')
 
     @permissions(['Manage sources'])

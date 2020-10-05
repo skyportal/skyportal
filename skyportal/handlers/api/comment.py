@@ -3,6 +3,7 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Source, Comment, Group, Candidate, Filter
+from .candidate import update_redshift_history_if_relevant
 
 
 class CommentHandler(BaseHandler):
@@ -106,42 +107,41 @@ class CommentHandler(BaseHandler):
             )
 
         # Only post to groups source/candidate is actually associated with
-        if DBSession().query(Candidate).filter(Candidate.obj_id == obj_id).all():
-            candidate_group_ids = [
-                f.group_id
-                for f in (
-                    DBSession()
-                    .query(Filter)
-                    .filter(Filter.id.in_(user_accessible_filter_ids))
-                    .filter(
-                        Filter.id.in_(
-                            DBSession()
-                            .query(Candidate.filter_id)
-                            .filter(Candidate.obj_id == obj_id)
-                        )
-                    )
-                    .all()
-                )
-            ]
-        else:
-            candidate_group_ids = []
-        matching_sources = (
-            DBSession().query(Source).filter(Source.obj_id == obj_id).all()
-        )
-        if matching_sources:
-            source_group_ids = [source.group_id for source in matching_sources]
-        else:
-            source_group_ids = []
+        candidate_group_ids = [
+            f.group_id
+            for f in (
+                DBSession()
+                .query(Filter)
+                .join(Candidate)
+                .filter(Filter.id.in_(user_accessible_filter_ids))
+                .filter(Candidate.obj_id == obj_id)
+                .all()
+            )
+        ]
+        source_group_ids = [
+            source.group_id
+            for source in DBSession()
+            .query(Source)
+            .filter(Source.obj_id == obj_id)
+            .all()
+        ]
         group_ids = set(group_ids).intersection(candidate_group_ids + source_group_ids)
         if not group_ids:
             return self.error("Obj is not associated with any of the specified groups.")
 
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
-        if 'attachment' in data and 'body' in data['attachment']:
-            attachment_bytes = str.encode(
-                data['attachment']['body'].split('base64,')[-1]
-            )
-            attachment_name = data['attachment']['name']
+        if 'attachment' in data:
+            if (
+                isinstance(data['attachment'], dict)
+                and 'body' in data['attachment']
+                and 'name' in data['attachment']
+            ):
+                attachment_bytes = str.encode(
+                    data['attachment']['body'].split('base64,')[-1]
+                )
+                attachment_name = data['attachment']['name']
+            else:
+                return self.error("Malformed comment attachment")
         else:
             attachment_bytes, attachment_name = None, None
 
@@ -164,6 +164,9 @@ class CommentHandler(BaseHandler):
                     "Invalid redshift value provided; unable to cast to float"
                 )
             obj.redshift = redshift
+            update_redshift_history_if_relevant(
+                {"redshift": redshift}, obj, self.associated_user_object
+            )
         DBSession().commit()
 
         self.push_all(

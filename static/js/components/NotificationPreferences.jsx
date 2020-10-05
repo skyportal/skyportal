@@ -73,8 +73,8 @@ const NotificationPreferences = () => {
         }}
       >
         <Typography className={classes.typography}>
-          Enable these to receive alerts regarding sources triggered by other
-          users within your groups.
+          Enable these to receive notifications regarding sources triggered by
+          other users within your groups.
         </Typography>
       </Popover>
       <FormGroup row>
@@ -86,7 +86,7 @@ const NotificationPreferences = () => {
               onChange={prefToggled}
             />
           }
-          label="Email alerts"
+          label="Email notifications"
         />
         <FormControlLabel
           control={
@@ -96,7 +96,7 @@ const NotificationPreferences = () => {
               onChange={prefToggled}
             />
           }
-          label="SMS alerts"
+          label="SMS notifications"
         />
       </FormGroup>
     </div>

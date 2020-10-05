@@ -30,6 +30,8 @@ import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
 import AddSourceGroup from "./AddSourceGroup";
 import SourceNotification from "./SourceNotification";
+import UpdateSourceRedshift from "./UpdateSourceRedshift";
+import SourceRedshiftHistory from "./SourceRedshiftHistory";
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -173,12 +175,14 @@ const SourceMobile = ({ source }) => {
               {source.gal_lat.toFixed(1)}
               )
               <br />
-              {source.redshift != null && (
-                <>
-                  <b>Redshift: &nbsp;</b>
-                  {source.redshift?.toFixed(4)}
-                </>
-              )}
+              <>
+                <b>Redshift: &nbsp;</b>
+                {source.redshift && source.redshift.toFixed(4)}
+                <UpdateSourceRedshift source={source} />
+                <SourceRedshiftHistory
+                  redshiftHistory={source.redshift_history}
+                />
+              </>
               {source.dm && (
                 <>
                   &nbsp;|&nbsp;
@@ -396,11 +400,11 @@ const SourceMobile = ({ source }) => {
         <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
-            aria-controls="alert-content"
-            id="alert-header"
+            aria-controls="notifications-content"
+            id="notifications-header"
           >
             <Typography className={classes.accordionHeading}>
-              Source Alert
+              Source Notification
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
@@ -442,6 +446,7 @@ SourceMobile.propTypes = {
     ),
     followup_requests: PropTypes.arrayOf(PropTypes.any),
     assignments: PropTypes.arrayOf(PropTypes.any),
+    redshift_history: PropTypes.arrayOf(PropTypes.any),
   }).isRequired,
 };
 
