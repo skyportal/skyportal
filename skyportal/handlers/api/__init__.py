@@ -36,3 +36,4 @@ from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
 from .thumbnail import ThumbnailHandler
 from .user import UserHandler
+from .weather import WeatherHandler

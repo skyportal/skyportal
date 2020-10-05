@@ -42,6 +42,7 @@ from skyportal.handlers.api import (
     TelescopeHandler,
     ThumbnailHandler,
     UserHandler,
+    WeatherHandler,
 )
 from skyportal.handlers.api.internal import (
     PlotPhotometryHandler,
@@ -119,6 +120,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/telescope(/[0-9]+)?', TelescopeHandler),
         (r'/api/thumbnail(/[0-9]+)?', ThumbnailHandler),
         (r'/api/user(/.*)?', UserHandler),
+        (r'/api/weather(/.*)?', WeatherHandler),
         (r'/api/internal/tokens(/.*)?', TokenHandler),
         (r'/api/internal/profile', ProfileHandler),
         (r'/api/internal/dbinfo', DBInfoHandler),
