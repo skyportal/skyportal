@@ -32,6 +32,10 @@ export const useStyles = makeStyles(() => ({
   accordionItem: {
     maxWidth: "900px",
   },
+  position: {
+    fontWeight: "bold",
+    fontSize: "110%",
+  },
 }));
 
 const Candidate = ({ route }) => {
