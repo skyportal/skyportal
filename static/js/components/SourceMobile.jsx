@@ -28,6 +28,7 @@ import FollowupRequestLists from "./FollowupRequestLists";
 import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
+import AddSourceGroup from "./AddSourceGroup";
 import SourceNotification from "./SourceNotification";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
@@ -143,6 +144,9 @@ const SourceMobile = ({ source }) => {
   );
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
+  const userAccessibleGroups = useSelector(
+    (state) => state.groups.userAccessible
+  );
 
   return (
     <div className={classes.source}>
@@ -220,6 +224,14 @@ const SourceMobile = ({ source }) => {
                   className={classes.chip}
                 />
               ))}
+              <AddSourceGroup
+                source={{
+                  id: source.id,
+                  currentGroupIds: source.groups.map((g) => g.id),
+                }}
+                userGroups={userAccessibleGroups}
+                icon
+              />
             </div>
             <div className={classes.thumbnails}>
               <ThumbnailList

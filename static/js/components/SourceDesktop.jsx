@@ -27,6 +27,7 @@ import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
 import SourceNotification from "./SourceNotification";
+import AddSourceGroup from "./AddSourceGroup";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 
@@ -120,6 +121,9 @@ const SourceDesktop = ({ source }) => {
   );
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
+  const userAccessibleGroups = useSelector(
+    (state) => state.groups.userAccessible
+  );
 
   return (
     <div className={classes.source}>
@@ -190,8 +194,17 @@ const SourceDesktop = ({ source }) => {
               key={group.id}
               size="small"
               className={classes.chip}
+              data-testid={`groupChip_${group.id}`}
             />
           ))}
+          <AddSourceGroup
+            source={{
+              id: source.id,
+              currentGroupIds: source.groups.map((g) => g.id),
+            }}
+            userGroups={userAccessibleGroups}
+            icon
+          />
         </div>
         <div className={classes.columnItem}>
           <ThumbnailList

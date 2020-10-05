@@ -449,6 +449,9 @@ class SourceHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
+
+        previouslySaved = Source.query.filter(Source.obj_id == obj.id).first()
+
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
         if not groups:
             return self.error(
@@ -463,6 +466,12 @@ class SourceHandler(BaseHandler):
         DBSession().commit()
 
         self.push_all(action="skyportal/FETCH_SOURCES")
+        # If we're updating a source
+        if previouslySaved is not None:
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+            )
+
         self.push_all(
             action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
         )
