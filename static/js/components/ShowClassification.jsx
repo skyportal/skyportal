@@ -1,7 +1,16 @@
 import React from "react";
 import PropTypes from "prop-types";
-import Button from "@material-ui/core/Button";
 import Tooltip from "@material-ui/core/Tooltip";
+import Chip from "@material-ui/core/Chip";
+
+import { makeStyles } from "@material-ui/core/styles";
+
+// Export to allow Candidate.jsx to use styles
+export const useSourceStyles = makeStyles((theme) => ({
+  chip: {
+    margin: theme.spacing(0.5),
+  },
+}));
 
 const groupBy = (array, key) =>
   array.reduce((result, cv) => {
@@ -12,8 +21,9 @@ const groupBy = (array, key) =>
   }, {});
 
 function ShowClassification({ classifications, taxonomyList }) {
-  // Here we compute the most recent non-zero probability class for each taxonomy
+  const classes = useSourceStyles();
 
+  // Here we compute the most recent non-zero probability class for each taxonomy
   const filteredClasses = classifications.filter((i) => i.probability > 0);
   const groupedClasses = groupBy(filteredClasses, "taxonomy_id");
   const sortedClasses = [];
@@ -50,13 +60,12 @@ function ShowClassification({ classifications, taxonomyList }) {
                 </>
               }
             >
-              <Button
+              <Chip
+                label={c[0].classification}
                 key={`${c[0].modified}tb`}
-                style={{ cursor: "default" }}
-                disableRipple
-              >
-                {c[0].classification}
-              </Button>
+                size="small"
+                className={classes.chip}
+              />
             </Tooltip>
           );
         })}

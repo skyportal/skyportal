@@ -109,6 +109,10 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "column",
   },
+  position: {
+    fontWeight: "bold",
+    fontSize: "120%",
+  },
 }));
 
 const SourceDesktop = ({ source }) => {
@@ -139,13 +143,13 @@ const SourceDesktop = ({ source }) => {
             taxonomyList={taxonomyList}
           />
           <b>Position (J2000):</b>
-          &nbsp;
-          {source.ra}, &nbsp;
-          {source.dec}
-          &nbsp; (&alpha;,&delta;=
-          {ra_to_hours(source.ra)}, &nbsp;
-          {dec_to_hours(source.dec)}) &nbsp; (l,b=
-          {source.gal_lon.toFixed(6)}, &nbsp;
+          &nbsp; &nbsp;
+          <span className={classes.position}>
+            {ra_to_hours(source.ra)} &nbsp;
+            {dec_to_hours(source.dec)}
+          </span>
+          &nbsp; (&alpha;,&delta;= {source.ra}, &nbsp;
+          {source.dec}; <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
           {source.gal_lat.toFixed(6)}
           )
           <br />

@@ -129,6 +129,10 @@ export const useSourceStyles = makeStyles((theme) => ({
   sendAlert: {
     margin: "auto",
   },
+  position: {
+    fontWeight: "bold",
+    fontSize: "120%",
+  },
 }));
 
 const SourceMobile = ({ source }) => {
@@ -165,14 +169,15 @@ const SourceMobile = ({ source }) => {
                 taxonomyList={taxonomyList}
               />
               <b>Position (J2000):</b>
+              &nbsp; &nbsp;
+              <span className={classes.position}>
+                {ra_to_hours(source.ra)} &nbsp;
+                {dec_to_hours(source.dec)}
+              </span>
+              &nbsp; (&alpha;,&delta;= {source.ra}, &nbsp;
+              {source.dec}; <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)},
               &nbsp;
-              {source.ra}, &nbsp;
-              {source.dec}
-              &nbsp; (&alpha;,&delta;=
-              {ra_to_hours(source.ra)}, &nbsp;
-              {dec_to_hours(source.dec)}) &nbsp; (l,b=
-              {source.gal_lon.toFixed(1)}, &nbsp;
-              {source.gal_lat.toFixed(1)}
+              {source.gal_lat.toFixed(6)}
               )
               <br />
               <>
