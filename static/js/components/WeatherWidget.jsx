@@ -148,9 +148,9 @@ const WeatherWidget = ({ classes }) => {
     setAnchorEl(null);
   };
 
-  const handleMenuItemClick = (event, index) => {
+  const handleMenuItemClick = (event, telescopeID) => {
     const prefs = {
-      weather: { telescopeID: index },
+      weather: { telescopeID },
     };
     dispatch(profileActions.updateUserPreferences(prefs));
     setAnchorEl(null);
