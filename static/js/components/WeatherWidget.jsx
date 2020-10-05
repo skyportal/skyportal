@@ -69,6 +69,7 @@ const WeatherView = ({ weather }) => {
   const now = dayjs();
   sunrise = now.diff(sunrise, "hour") >= 12 ? sunrise.add("1", "day") : sunrise;
   sunset = now.diff(sunset, "hour") >= 12 ? sunset.add("1", "day") : sunset;
+  const description = weather?.weather?.current.weather[0].description || "N/A";
 
   return (
     <>
@@ -77,12 +78,7 @@ const WeatherView = ({ weather }) => {
           {weather.weather && (
             <>
               <div>
-                <img
-                  src={url}
-                  className={styles.media}
-                  // eslint-disable-next-line jsx-a11y/alt-text
-                  alt={weather?.weather?.current.weather[0].description}
-                />
+                <img src={url} className={styles.media} alt={description} />
               </div>
               <div className={styles.description}>
                 <Typography variant="body2" color="textSecondary" component="p">
