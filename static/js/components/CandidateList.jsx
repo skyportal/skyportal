@@ -83,6 +83,12 @@ const useStyles = makeStyles((theme) => ({
   annotations: (props) => ({
     minWidth: props.annotationsMinWidth,
   }),
+  sortButtton: {
+    verticalAlign: "top",
+    "&:hover": {
+      color: theme.palette.primary.main,
+    },
+  },
   chip: {
     margin: theme.spacing(0.5),
   },
@@ -125,6 +131,8 @@ const CustomSortToolbar = ({
   setQueryInProgress,
   loaded,
 }) => {
+  const classes = useStyles();
+
   const [ascending, setAscending] = useState(null);
   const dispatch = useDispatch();
   useEffect(() => {
@@ -163,6 +171,7 @@ const CustomSortToolbar = ({
         <IconButton
           onClick={handleSort}
           disabled={selectedAnnotationItem === null}
+          className={classes.sortButtton}
         >
           <span>
             <SortIcon />
@@ -424,6 +433,7 @@ const CandidateList = () => {
       options: {
         customBodyRenderLite: renderThumbnails,
         sort: false,
+        filter: false,
       },
     },
     {
@@ -431,6 +441,7 @@ const CandidateList = () => {
       label: "Info",
       options: {
         customBodyRenderLite: renderInfo,
+        filter: false,
       },
     },
     {
@@ -439,6 +450,7 @@ const CandidateList = () => {
       options: {
         customBodyRenderLite: renderPhotometry,
         sort: false,
+        filter: false,
       },
     },
     {
@@ -447,6 +459,7 @@ const CandidateList = () => {
       options: {
         customBodyRenderLite: renderAutoannotations,
         sort: false,
+        filter: false,
       },
     },
   ];
@@ -483,7 +496,8 @@ const CandidateList = () => {
               className={classes.table}
               options={{
                 responsive: "vertical",
-                filter: false,
+                filter: true,
+                filterType: "custom",
                 search: false,
                 print: false,
                 download: false,

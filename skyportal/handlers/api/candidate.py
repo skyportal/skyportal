@@ -4,6 +4,7 @@ from copy import copy
 import arrow
 
 from sqlalchemy.orm import joinedload
+from sqlalchemy import case
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
@@ -296,6 +297,7 @@ class CandidateHandler(BaseHandler):
                     .joinedload(Thumbnail.photometry)
                     .joinedload(Photometry.instrument)
                     .joinedload(Instrument.telescope),
+                    joinedload(Obj.annotations),
                 ]
             )
             .filter(
@@ -332,10 +334,23 @@ class CandidateHandler(BaseHandler):
         if sort_by_origin is not None:
             sort_by_key = self.get_query_argument("sortByAnnotationKey", None)
             sort_by_order = self.get_query_argument("sortByAnnotationOrder", None)
+            # Define a custom sort order to have annotations from the correct
+            # origin first, all others afterwards
+            origin_sort_order = case(
+                value=Annotation.origin, whens={sort_by_order: 1}, else_=None,
+            )
             if sort_by_order == "desc":
-                q = q.order_by(Annotation.data[sort_by_key].desc().nullslast(), Obj.id)
+                q = q.order_by(
+                    origin_sort_order.nullslast(),
+                    Annotation.data[sort_by_key].desc().nullslast(),
+                    Obj.id,
+                )
             else:
-                q = q.order_by(Annotation.data[sort_by_key].nullslast(), Obj.id)
+                q = q.order_by(
+                    origin_sort_order.nullslast(),
+                    Annotation.data[sort_by_key].nullslast(),
+                    Obj.id,
+                )
         try:
             query_results = grab_query_results_page(
                 q, total_matches, page, n_per_page, "candidates"
@@ -384,9 +399,6 @@ class CandidateHandler(BaseHandler):
                 obj.get_comments_owned_by(self.current_user),
                 key=lambda x: x.created_at,
                 reverse=True,
-            )
-            candidate_list[-1]["annotations"] = sorted(
-                obj.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
             )
             candidate_list[-1]["last_detected"] = obj.last_detected
             candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
