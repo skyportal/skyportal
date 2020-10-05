@@ -1,20 +1,19 @@
-import base64
+import re
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, Comment, Group, Candidate, Filter
-from .candidate import update_redshift_history_if_relevant
+from ...models import DBSession, Source, Annotation, Group, Candidate, Filter
 
 
-class CommentHandler(BaseHandler):
+class AnnotationHandler(BaseHandler):
     @auth_or_token
-    def get(self, comment_id):
+    def get(self, annotation_id):
         """
         ---
-        description: Retrieve a comment
+        description: Retrieve an annotation
         parameters:
           - in: path
-            name: comment_id
+            name: annotation_id
             required: true
             schema:
               type: integer
@@ -22,22 +21,22 @@ class CommentHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: SingleComment
+                schema: SingleAnnotation
           400:
             content:
               application/json:
                 schema: Error
         """
-        comment = Comment.get_if_owned_by(comment_id, self.current_user)
-        if comment is None:
-            return self.error('Invalid comment ID.')
-        return self.success(data=comment)
+        annotation = Annotation.get_if_owned_by(annotation_id, self.current_user)
+        if annotation is None:
+            return self.error('Invalid annotation ID.')
+        return self.success(data=annotation)
 
-    @permissions(['Comment'])
+    @permissions(['Annotate'])
     def post(self):
         """
         ---
-        description: Post a comment
+        description: Post an annotation
         requestBody:
           content:
             application/json:
@@ -46,8 +45,20 @@ class CommentHandler(BaseHandler):
                 properties:
                   obj_id:
                     type: string
-                  text:
-                    type: string
+                  origin:
+                     type: string
+                     description: |
+                        String describing the source of this information.
+                        Only one Annotation per origin is allowed, although
+                        each Annotation can have multiple fields.
+                        To add/change data, use the update method instead
+                        of trying to post another Annotation from this origin.
+                        Origin must be a non-empty string starting with an
+                        alphanumeric character or underscore.
+                        (it must match the regex: /^\\w+/)
+
+                  data:
+                    type: object
                   group_ids:
                     type: array
                     items:
@@ -56,19 +67,11 @@ class CommentHandler(BaseHandler):
                       List of group IDs corresponding to which groups should be
                       able to view comment. Defaults to all of requesting user's
                       groups.
-                  attachment:
-                    type: object
-                    properties:
-                      body:
-                        type: string
-                        format: byte
-                        description: base64-encoded file contents
-                      name:
-                        type: string
 
                 required:
                   - obj_id
-                  - text
+                  - origin
+                  - data
         responses:
           200:
             content:
@@ -81,18 +84,29 @@ class CommentHandler(BaseHandler):
                         data:
                           type: object
                           properties:
-                            comment_id:
+                            annotation_id:
                               type: integer
-                              description: New comment ID
+                              description: New annotation ID
         """
         data = self.get_json()
+
+        group_ids = data.pop('group_ids', None)
+
+        schema = Annotation.__schema__(exclude=["author_id"])
+        try:
+            schema.load(data)
+        except ValidationError as e:
+            return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
+
         obj_id = data.get("obj_id")
-        if obj_id is None:
-            return self.error("Missing required field `obj_id`")
-        comment_text = data.get("text")
+        origin = data.get("origin")
+
+        if not re.search(r'^\w+', origin):
+            return self.error("Input `origin` must begin with alphanumeric/underscore")
+
+        annotation_data = data.get("data")
 
         # Ensure user/token has access to parent source
-        obj = Source.get_obj_if_owned_by(obj_id, self.current_user)
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
             filtr.id
@@ -100,7 +114,10 @@ class CommentHandler(BaseHandler):
             for filtr in g.filters
             if g.filters is not None
         ]
-        group_ids = [int(id) for id in data.pop("group_ids", user_accessible_group_ids)]
+
+        if not group_ids:
+            group_ids = user_accessible_group_ids
+        group_ids = [int(id) for id in group_ids]
         group_ids = set(group_ids).intersection(user_accessible_group_ids)
         if not group_ids:
             return self.error(
@@ -132,59 +149,33 @@ class CommentHandler(BaseHandler):
             return self.error("Obj is not associated with any of the specified groups.")
 
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
-        if 'attachment' in data:
-            if (
-                isinstance(data['attachment'], dict)
-                and 'body' in data['attachment']
-                and 'name' in data['attachment']
-            ):
-                attachment_bytes = str.encode(
-                    data['attachment']['body'].split('base64,')[-1]
-                )
-                attachment_name = data['attachment']['name']
-            else:
-                return self.error("Malformed comment attachment")
-        else:
-            attachment_bytes, attachment_name = None, None
 
         author = self.associated_user_object
-        comment = Comment(
-            text=comment_text,
+        annotation = Annotation(
+            data=annotation_data,
             obj_id=obj_id,
-            attachment_bytes=attachment_bytes,
-            attachment_name=attachment_name,
+            origin=origin,
             author=author,
             groups=groups,
         )
 
-        DBSession().add(comment)
-        if comment_text.startswith("z="):
-            try:
-                redshift = float(comment_text.strip().split("z=")[1])
-            except ValueError:
-                return self.error(
-                    "Invalid redshift value provided; unable to cast to float"
-                )
-            obj.redshift = redshift
-            update_redshift_history_if_relevant(
-                {"redshift": redshift}, obj, self.associated_user_object
-            )
+        DBSession().add(annotation)
         DBSession().commit()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': comment.obj.internal_key},
+            payload={'obj_key': annotation.obj.internal_key},
         )
-        return self.success(data={'comment_id': comment.id})
+        return self.success(data={'annotation_id': annotation.id})
 
-    @permissions(['Comment'])
-    def put(self, comment_id):
+    @permissions(['Annotate'])
+    def put(self, annotation_id):
         """
         ---
-        description: Update a comment
+        description: Update an annotation
         parameters:
           - in: path
-            name: comment_id
+            name: annotation_id
             required: true
             schema:
               type: integer
@@ -193,7 +184,7 @@ class CommentHandler(BaseHandler):
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/CommentNoID'
+                  - $ref: '#/components/schemas/AnnotationNoID'
                   - type: object
                     properties:
                       group_ids:
@@ -202,7 +193,7 @@ class CommentHandler(BaseHandler):
                           type: integer
                         description: |
                           List of group IDs corresponding to which groups should be
-                          able to view comment.
+                          able to view the annotation.
         responses:
           200:
             content:
@@ -213,22 +204,22 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        c = Comment.get_if_owned_by(comment_id, self.current_user)
-        if c is None:
-            return self.error('Invalid comment ID.')
+        a = Annotation.get_if_owned_by(annotation_id, self.current_user)
+        if a is None:
+            return self.error('Invalid annotation ID.')
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
-        data['id'] = comment_id
+        data['id'] = annotation_id
 
-        schema = Comment.__schema__()
+        schema = Annotation.__schema__()
         try:
             schema.load(data, partial=True)
         except ValidationError as e:
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
         DBSession().flush()
         if group_ids is not None:
-            c = Comment.get_if_owned_by(comment_id, self.current_user)
+            a = Annotation.get_if_owned_by(annotation_id, self.current_user)
             groups = Group.query.filter(Group.id.in_(group_ids)).all()
             if not groups:
                 return self.error(
@@ -238,23 +229,23 @@ class CommentHandler(BaseHandler):
                 [group in self.current_user.accessible_groups for group in groups]
             ):
                 return self.error(
-                    "Cannot associate comment with groups you are not a member of."
+                    "Cannot associate an annotation with groups you are not a member of."
                 )
-            c.groups = groups
+            a.groups = groups
         DBSession().commit()
         self.push_all(
-            action='skyportal/REFRESH_SOURCE', payload={'obj_key': c.obj.internal_key}
+            action='skyportal/REFRESH_SOURCE', payload={'obj_key': a.obj.internal_key}
         )
         return self.success()
 
-    @permissions(['Comment'])
-    def delete(self, comment_id):
+    @permissions(['Annotate'])
+    def delete(self, annotation_id):
         """
         ---
-        description: Delete a comment
+        description: Delete an annotation
         parameters:
           - in: path
-            name: comment_id
+            name: annotation_id
             required: true
             schema:
               type: integer
@@ -265,47 +256,16 @@ class CommentHandler(BaseHandler):
                 schema: Success
         """
         user = self.associated_user_object
-        c = Comment.query.get(comment_id)
-        if c is None:
-            return self.error("Invalid comment ID")
-        obj_key = c.obj.internal_key
+        a = Annotation.query.get(annotation_id)
+        if a is None:
+            return self.error("Invalid annotation ID")
+        obj_key = a.obj.internal_key
         if (
             "System admin" in user.permissions or "Manage groups" in user.permissions
-        ) or (c.author == user):
-            Comment.query.filter_by(id=comment_id).delete()
+        ) or (a.author == user):
+            Annotation.query.filter_by(id=annotation_id).delete()
             DBSession().commit()
         else:
             return self.error('Insufficient user permissions.')
         self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key})
         return self.success()
-
-
-class CommentAttachmentHandler(BaseHandler):
-    @auth_or_token
-    def get(self, comment_id):
-        """
-        ---
-        description: Download comment attachment
-        parameters:
-          - in: path
-            name: comment_id
-            required: true
-            schema:
-              type: integer
-        responses:
-          200:
-            content:
-              application:
-                schema:
-                  type: string
-                  format: base64
-                  description: base64-encoded contents of attachment
-        """
-        comment = Comment.get_if_owned_by(comment_id, self.current_user)
-        if comment is None:
-            return self.error('Invalid comment ID.')
-        self.set_header(
-            "Content-Disposition", "attachment; " f"filename={comment.attachment_name}"
-        )
-        self.set_header("Content-type", "application/octet-stream")
-        self.write(base64.b64decode(comment.attachment_bytes))

@@ -6,6 +6,7 @@ from baselayer.app.env import load_env
 all_acl_ids = [
     'Become user',
     'Comment',
+    'Annotate',
     'Manage users',
     'Manage sources',
     'Manage groups',
