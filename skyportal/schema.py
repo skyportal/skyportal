@@ -733,10 +733,6 @@ class ObservingRunPost(_Schema):
         description='The local calendar date of the run.', required=True
     )
 
-    modified = fields.DateTime(
-        description="The UT datetime at which the " "observingrun was last modified."
-    )
-
 
 class ObservingRunGet(ObservingRunPost):
     owner_id = fields.Integer(description='The User ID of the owner of this run.')
@@ -932,6 +928,72 @@ Many-column ASCII:
     )
 
 
+class SpectrumPost(_Schema):
+
+    wavelengths = fields.List(
+        fields.Float,
+        required=True,
+        description="Wavelengths of the spectrum [Angstrom].",
+    )
+
+    fluxes = fields.List(
+        fields.Float,
+        required=True,
+        description="Flux of the Spectrum [F_lambda, arbitrary units].",
+    )
+
+    errors = fields.List(
+        fields.Float,
+        description="Errors on the fluxes of the spectrum [F_lambda, same units as `fluxes`.]",
+    )
+
+    obj_id = fields.String(required=True, description="ID of this Spectrum's Obj.",)
+
+    observed_at = fields.DateTime(
+        description='The ISO UTC time the spectrum was taken.', required=True
+    )
+
+    """
+    observed_at = fields.DateTime(
+        required=True,
+        description="Median UTC ISO time stamp of the exposure or "
+                    "exposures in which the Spectrum was acquired.",
+        format='iso'
+    )
+    """
+
+    origin = fields.String(required=False, description="Origin of the spectrum.")
+
+    instrument_id = fields.Integer(
+        required=True, description="ID of the Instrument that acquired the Spectrum.",
+    )
+
+    group_ids = fields.Field(
+        missing=[],
+        description='IDs of the Groups to share this spectrum with. Set to "all"'
+        ' to make this spectrum visible to all users.',
+    )
+
+    followup_request_id = fields.Integer(
+        required=False,
+        description='ID of the Followup request that generated this spectrum, '
+        'if any.',
+    )
+
+    assignment_id = fields.Integer(
+        required=False,
+        description='ID of the classical assignment that generated this spectrum, '
+        'if any.',
+    )
+
+    altdata = fields.Field(description='Miscellaneous alternative metadata.')
+
+
+class GroupIDList(_Schema):
+
+    group_ids = fields.List(fields.Integer, required=True)
+
+
 def register_components(spec):
     print('Registering schemas with APISpec')
 
@@ -964,3 +1026,5 @@ ObservingRunGet = ObservingRunGet()
 AssignmentSchema = AssignmentSchema()
 ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
 SpectrumAsciiFilePostJSON = SpectrumAsciiFilePostJSON()
+SpectrumPost = SpectrumPost()
+GroupIDList = GroupIDList()
