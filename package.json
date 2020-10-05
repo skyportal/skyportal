@@ -11,7 +11,7 @@
     "@material-ui/icons": "4.9.1",
     "@material-ui/lab": "4.0.0-alpha.56",
     "@material-ui/pickers": "3.2.10",
-    "@rjsf/core": "2.3.0",
+    "@rjsf/core": "2.4.0",
     "@rjsf/material-ui": "2.3.0",
     "autosuggest-highlight": "3.1.1",
     "bokehjs": "0.12.9",
