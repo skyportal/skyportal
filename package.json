@@ -54,7 +54,7 @@
     "redux-thunk": "2.3.0",
     "semver": "7.3.2",
     "style-loader": "1.2.1",
-    "styled-components": "4.1.1",
+    "styled-components": "4.4.1",
     "use-count-up": "2.2.4",
     "vega": "5.15.0",
     "vega-embed": "6.11.1",
