@@ -1,6 +1,7 @@
 import React, { useEffect, Suspense, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useHistory } from "react-router-dom";
+import PropTypes from "prop-types";
 
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
@@ -12,11 +13,15 @@ import {
 } from "@material-ui/core/styles";
 import useMediaQuery from "@material-ui/core/useMediaQuery";
 import Button from "@material-ui/core/Button";
+import IconButton from "@material-ui/core/IconButton";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import OpenInNewIcon from "@material-ui/icons/OpenInNew";
 import ArrowUpward from "@material-ui/icons/ArrowUpward";
+import ArrowDownward from "@material-ui/icons/ArrowDownward";
+import SortIcon from "@material-ui/icons/Sort";
 import Chip from "@material-ui/core/Chip";
 import Box from "@material-ui/core/Box";
+import Tooltip from "@material-ui/core/Tooltip";
 import MUIDataTable from "mui-datatables";
 
 import * as candidatesActions from "../ducks/candidates";
@@ -114,9 +119,86 @@ const getMuiTheme = (theme) =>
 
 const defaultNumPerPage = 25;
 
+const CustomSortToolbar = ({
+  selectedAnnotationItem,
+  rowsPerPage,
+  setQueryInProgress,
+  loaded,
+}) => {
+  const [ascending, setAscending] = useState(null);
+  const dispatch = useDispatch();
+  useEffect(() => {
+    setAscending(null);
+  }, [selectedAnnotationItem]);
+
+  useEffect(() => {
+    const dispatchSort = async () => {
+      const data = {
+        pageNumber: 1,
+        numPerPage: rowsPerPage,
+        sortByAnnotationOrigin: selectedAnnotationItem.origin,
+        sortByAnnotationKey: selectedAnnotationItem.key,
+        sortByAnnotationOrder: ascending ? "asc" : "desc",
+      };
+      await dispatch(candidatesActions.fetchCandidates(data));
+      setQueryInProgress(false);
+    };
+
+    if (ascending !== null) {
+      dispatchSort();
+    }
+  }, [
+    ascending,
+    dispatch,
+    rowsPerPage,
+    selectedAnnotationItem,
+    setQueryInProgress,
+  ]);
+
+  const handleSort = () => {
+    setQueryInProgress(true);
+    setAscending(ascending === null ? true : !ascending);
+  };
+
+  // Wait until sorted data is received before rendering the toolbar
+  return loaded ? (
+    <Tooltip title="Sort on Selected Annotation">
+      <span>
+        <IconButton
+          onClick={handleSort}
+          disabled={selectedAnnotationItem === null}
+        >
+          <span>
+            <SortIcon />
+            {ascending !== null && ascending && <ArrowUpward />}
+            {ascending !== null && !ascending && <ArrowDownward />}
+          </span>
+        </IconButton>
+      </span>
+    </Tooltip>
+  ) : (
+    <span />
+  );
+};
+
+CustomSortToolbar.propTypes = {
+  selectedAnnotationItem: PropTypes.shape({
+    origin: PropTypes.string.isRequired,
+    key: PropTypes.string.isRequired,
+  }),
+  setQueryInProgress: PropTypes.func.isRequired,
+  rowsPerPage: PropTypes.number.isRequired,
+  loaded: PropTypes.bool.isRequired,
+};
+
+CustomSortToolbar.defaultProps = {
+  selectedAnnotationItem: null,
+};
+
 const CandidateList = () => {
   const history = useHistory();
   const [queryInProgress, setQueryInProgress] = useState(false);
+  const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   // Maintain the three thumbnails in a row for larger screens
   const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("md"));
   const thumbnailsMinWidth = largeScreen ? "30rem" : 0;
@@ -320,7 +402,7 @@ const CandidateList = () => {
     );
   };
 
-  const handlePageChange = async (page, rowsPerPage) => {
+  const handlePageChange = async (page) => {
     setQueryInProgress(true);
     // API takes 1-indexed page number
     const data = { pageNumber: page + 1, numPerPage: rowsPerPage };
@@ -328,33 +410,12 @@ const CandidateList = () => {
     setQueryInProgress(false);
   };
 
-  const handleSort = async (page, rowsPerPage, sortOrder) => {
-    setQueryInProgress(true);
-    console.log(sortOrder);
-    // API takes 1-indexed page number
-    const data = {
-      pageNumber: page + 1,
-      numPerPage: rowsPerPage,
-      sortByAnnotationOrigin: selectedAnnotationItem.origin,
-      sortByAnnotationKey: selectedAnnotationItem.key,
-      sortByAnnotationOrder: sortOrder.direction,
-    };
-    await dispatch(candidatesActions.fetchCandidates(data));
-    setQueryInProgress(false);
-  };
-
   const handleTableChange = (action, tableState) => {
+    setRowsPerPage(tableState.rowsPerPage);
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
-        handlePageChange(tableState.page, tableState.rowsPerPage);
-        break;
-      case "sort":
-        handleSort(
-          tableState.page,
-          tableState.rowsPerPage,
-          tableState.sortOrder
-        );
+        handlePageChange(tableState.page);
         break;
       default:
     }
@@ -427,14 +488,23 @@ const CandidateList = () => {
                 search: false,
                 print: false,
                 download: false,
+                sort: false,
                 count: totalMatches,
                 selectableRows: "none",
                 enableNestedDataAccess: ".",
-                rowsPerPage: defaultNumPerPage,
+                rowsPerPage,
                 rowsPerPageOptions: [1, 25, 50, 75, 100, 200],
                 jumpToPage: true,
                 serverSide: true,
                 onTableChange: handleTableChange,
+                customToolbar: (
+                  <CustomSortToolbar
+                    selectedAnnotationItem={selectedAnnotationItem}
+                    rowsPerPage={rowsPerPage}
+                    setQueryInProgress={setQueryInProgress}
+                    loaded={!queryInProgress}
+                  />
+                ),
               }}
             />
           </MuiThemeProvider>
