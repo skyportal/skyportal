@@ -126,32 +126,24 @@ class AnnotationHandler(BaseHandler):
             )
 
         # Only post to groups source/candidate is actually associated with
-        if DBSession().query(Candidate).filter(Candidate.obj_id == obj_id).all():
-            candidate_group_ids = [
-                f.group_id
-                for f in (
-                    DBSession()
-                    .query(Filter)
-                    .filter(Filter.id.in_(user_accessible_filter_ids))
-                    .filter(
-                        Filter.id.in_(
-                            DBSession()
-                            .query(Candidate.filter_id)
-                            .filter(Candidate.obj_id == obj_id)
-                        )
-                    )
-                    .all()
-                )
-            ]
-        else:
-            candidate_group_ids = []
-        matching_sources = (
-            DBSession().query(Source).filter(Source.obj_id == obj_id).all()
-        )
-        if matching_sources:
-            source_group_ids = [source.group_id for source in matching_sources]
-        else:
-            source_group_ids = []
+        candidate_group_ids = [
+            f.group_id
+            for f in (
+                DBSession()
+                .query(Filter)
+                .join(Candidate)
+                .filter(Filter.id.in_(user_accessible_filter_ids))
+                .filter(Candidate.obj_id == obj_id)
+                .all()
+            )
+        ]
+        source_group_ids = [
+            source.group_id
+            for source in DBSession()
+            .query(Source)
+            .filter(Source.obj_id == obj_id)
+            .all()
+        ]
         group_ids = set(group_ids).intersection(candidate_group_ids + source_group_ids)
         if not group_ids:
             return self.error("Obj is not associated with any of the specified groups.")
