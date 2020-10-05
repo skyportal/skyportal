@@ -29,6 +29,8 @@ import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
 import SourceNotification from "./SourceNotification";
+import UpdateSourceRedshift from "./UpdateSourceRedshift";
+import SourceRedshiftHistory from "./SourceRedshiftHistory";
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -169,12 +171,14 @@ const SourceMobile = ({ source }) => {
               {source.gal_lat.toFixed(1)}
               )
               <br />
-              {source.redshift != null && (
-                <>
-                  <b>Redshift: &nbsp;</b>
-                  {source.redshift?.toFixed(4)}
-                </>
-              )}
+              <>
+                <b>Redshift: &nbsp;</b>
+                {source.redshift && source.redshift.toFixed(4)}
+                <UpdateSourceRedshift source={source} />
+                <SourceRedshiftHistory
+                  redshiftHistory={source.redshift_history}
+                />
+              </>
               {source.dm && (
                 <>
                   &nbsp;|&nbsp;
@@ -430,6 +434,7 @@ SourceMobile.propTypes = {
     ),
     followup_requests: PropTypes.arrayOf(PropTypes.any),
     assignments: PropTypes.arrayOf(PropTypes.any),
+    redshift_history: PropTypes.arrayOf(PropTypes.any),
   }).isRequired,
 };
 
