@@ -7,7 +7,7 @@ import datetime
 
 
 def test_token_user_post_get_spectrum_data(
-    upload_data_token, public_source, public_group
+    upload_data_token, public_source, public_group, lris
 ):
     status, data = api(
         'POST',
@@ -15,7 +15,7 @@ def test_token_user_post_get_spectrum_data(
         data={
             'obj_id': str(public_source.id),
             'observed_at': str(datetime.datetime.now()),
-            'instrument_id': 1,
+            'instrument_id': lris.id,
             'wavelengths': [664, 665, 666],
             'fluxes': [234.2, 232.1, 235.3],
             'group_ids': [public_group.id],
@@ -33,8 +33,31 @@ def test_token_user_post_get_spectrum_data(
     assert data['data']['obj_id'] == public_source.id
 
 
+def test_token_user_post_spectrum_no_instrument_id(
+    upload_data_token, public_source, public_group
+):
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert data['status'] == 'error'
+
+    # should be a marshamallow error, not a psycopg2 error
+    # (see https://github.com/skyportal/skyportal/issues/1047)
+    assert 'psycopg2' not in data['message']
+
+
 def test_token_user_post_spectrum_all_groups(
-    upload_data_token, public_source_two_groups,
+    upload_data_token, public_source_two_groups, lris
 ):
     status, data = api(
         'POST',
@@ -42,7 +65,7 @@ def test_token_user_post_spectrum_all_groups(
         data={
             'obj_id': str(public_source_two_groups.id),
             'observed_at': str(datetime.datetime.now()),
-            'instrument_id': 1,
+            'instrument_id': lris.id,
             'wavelengths': [664, 665, 666],
             'fluxes': [234.2, 232.1, 235.3],
             'group_ids': "all",
@@ -61,7 +84,7 @@ def test_token_user_post_spectrum_all_groups(
 
 
 def test_token_user_post_spectrum_no_access(
-    view_only_token, public_source, public_group
+    view_only_token, public_source, public_group, lris
 ):
     status, data = api(
         'POST',
@@ -69,7 +92,7 @@ def test_token_user_post_spectrum_no_access(
         data={
             'obj_id': str(public_source.id),
             'observed_at': str(datetime.datetime.now()),
-            'instrument_id': 1,
+            'instrument_id': lris.id,
             'wavelengths': [664, 665, 666],
             'fluxes': [234.2, 232.1, 235.3],
             'group_ids': [public_group.id],
@@ -81,7 +104,7 @@ def test_token_user_post_spectrum_no_access(
 
 
 def test_token_user_update_spectrum(
-    upload_data_token, manage_sources_token, public_source, public_group
+    upload_data_token, manage_sources_token, public_source, public_group, lris
 ):
     status, data = api(
         'POST',
@@ -89,7 +112,7 @@ def test_token_user_update_spectrum(
         data={
             'obj_id': str(public_source.id),
             'observed_at': str(datetime.datetime.now()),
-            'instrument_id': 1,
+            'instrument_id': lris.id,
             'wavelengths': [664, 665, 666],
             'fluxes': [234.2, 232.1, 235.3],
             'group_ids': [public_group.id],
@@ -122,7 +145,7 @@ def test_token_user_update_spectrum(
 
 
 def test_delete_spectrum_data(
-    upload_data_token, manage_sources_token, public_source, public_group
+    upload_data_token, manage_sources_token, public_source, public_group, lris
 ):
     status, data = api(
         'POST',
@@ -130,7 +153,7 @@ def test_delete_spectrum_data(
         data={
             'obj_id': str(public_source.id),
             'observed_at': str(datetime.datetime.now()),
-            'instrument_id': 1,
+            'instrument_id': lris.id,
             'wavelengths': [664, 665, 666],
             'fluxes': [234.2, 232.1, 235.3],
             'group_ids': [public_group.id],
