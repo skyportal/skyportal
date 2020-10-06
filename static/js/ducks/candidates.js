@@ -14,6 +14,9 @@ export const FETCH_CANDIDATE_AND_MERGE_OK =
 
 export const REFRESH_CANDIDATE = "skyportal/REFRESH_CANDIDATE";
 
+export const SELECT_CANDIDATES_ANNOTATION_ITEM =
+  "skyportal/SELECT_CANDIDATES_ANNOTATION_ITEM";
+
 export const fetchCandidates = (filterParams = {}) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
     filterParams.pageNumber = 1;
@@ -21,6 +24,13 @@ export const fetchCandidates = (filterParams = {}) => {
   const params = new URLSearchParams(filterParams);
   const queryString = params.toString();
   return API.GET(`/api/candidates?${queryString}`, FETCH_CANDIDATES);
+};
+
+export const setCandidatesAnnotationItem = (item) => {
+  return {
+    type: SELECT_CANDIDATES_ANNOTATION_ITEM,
+    item,
+  };
 };
 
 // Websocket message handler
@@ -50,6 +60,7 @@ const initialState = {
   totalMatches: 0,
   numberingStart: 0,
   numberingEnd: 0,
+  selectedAnnotationItem: null,
 };
 
 const reducer = (state = initialState, action) => {
@@ -78,6 +89,9 @@ const reducer = (state = initialState, action) => {
         candidate.id !== action.data.id ? candidate : action.data
       );
       return { ...state, candidates };
+    }
+    case SELECT_CANDIDATES_ANNOTATION_ITEM: {
+      return { ...state, selectedAnnotationItem: action.item };
     }
     default:
       return state;
