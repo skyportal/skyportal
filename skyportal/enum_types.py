@@ -14,7 +14,17 @@ def force_render_enum_markdown(values):
 
 ALLOWED_MAGSYSTEMS = tuple(l['name'] for l in _MAGSYSTEMS.get_loaders_metadata())
 ALLOWED_BANDPASSES = tuple(l['name'] for l in _BANDPASSES.get_loaders_metadata())
-THUMBNAIL_TYPES = ('new', 'ref', 'sub', 'sdss', 'dr8', "new_gz", 'ref_gz', 'sub_gz')
+THUMBNAIL_TYPES = (
+    'new',
+    'ref',
+    'sub',
+    'sdss',
+    'dr8',
+    'ps1',
+    "new_gz",
+    'ref_gz',
+    'sub_gz',
+)
 INSTRUMENT_TYPES = ('imager', 'spectrograph', 'imaging spectrograph')
 FOLLOWUP_PRIORITIES = ('1', '2', '3', '4', '5')
 FOLLOWUP_HTTP_REQUEST_ORIGINS = ('remote', 'skyportal')
