@@ -10,7 +10,7 @@ from ...models import (
     Thumbnail,
     Instrument,
 )
-from ...schema import ObservingRunPost, ObservingRunGet, ObservingRunGetWithAssignments
+from ...schema import ObservingRunPost, ObservingRunGetWithAssignments
 
 
 class ObservingRunHandler(BaseHandler):
@@ -88,7 +88,7 @@ class ObservingRunHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfObservingRunGets
+                  schema: ArrayOfObservingRuns
             400:
               content:
                 application/json:
@@ -146,10 +146,8 @@ class ObservingRunHandler(BaseHandler):
 
                 return self.success(data=data)
 
-        runs = ObservingRun.query.all()
-        data = ObservingRunGet.dump(runs, many=True)
-        out = sorted(data, key=lambda d: d["ephemeris"]["sunrise_utc"])
-        return self.success(data=out)
+        runs = ObservingRun.query.order_by(ObservingRun.calendar_date.asc()).all()
+        return self.success(data=runs)
 
     @permissions(["Upload data"])
     def put(self, run_id):
