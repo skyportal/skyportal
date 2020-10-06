@@ -1,5 +1,6 @@
 import os
 import subprocess
+import re
 
 from baselayer.app.env import load_env
 from baselayer.app.access import auth_or_token
@@ -56,30 +57,35 @@ class SysInfoHandler(BaseHandler):
                     "git",
                     "--git-dir=.git",
                     "log",
-                    "--pretty=format:'%C(cyan)[%ci]%Creset %s %C(auto)%h'",
+                    "--no-merges",
+                    "--first-parent",
+                    "--pretty=format:'[%ci %h] %s'",
+                    f"-{default_log_lines}",
                 ],
                 capture_output=True,
                 universal_newlines=True,
             )
             loginfo = p.stdout
 
-        raw_gitlog = loginfo.splitlines()[:default_log_lines]
+        raw_gitlog = loginfo.splitlines()
         gitlog = []
+
+        pr_re = r'\(#[0-9]+\)$'
 
         for commit in raw_gitlog:
             # remove leading and trailing quote
             result = commit[1:-1]
-            pr_number_start = result.find("(#")
-            if pr_number_start != -1:
-                pr_number_end = result.find(")", pr_number_start)
-                pr_slice = slice(pr_number_start + 2, pr_number_end)
-                pr_str = result[pr_slice]
-                pr = pr_url + pr_str
-                result = result.replace(
-                    "(#" + pr_str + ")",
-                    "(<a target='_blank' rel='noopener noreferrer'"
-                    f" href='{pr}'>#{pr_str}</a>)",
-                )
+            pr_number = re.search(pr_re, result)
+            if pr_number:
+                pr_str = result[pr_number.start() :]  # noqa: E203
+                pr_nr = pr_str[2:-1]
+                pr_link = f"""
+                (<a
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  href={pr_url + pr_nr}>#{pr_nr}</a>)
+                """
+                result = result[: pr_number.start()] + pr_link  # noqa: E203
             gitlog.append(result)
 
         return self.success(
