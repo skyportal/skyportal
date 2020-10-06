@@ -10,7 +10,7 @@ class DBInfoHandler(BaseHandler):
     def get(self):
         """
         ---
-        description: Determine whether sources table is empy.
+        description: Determine whether sources table is empty.
         responses:
           200:
             content:

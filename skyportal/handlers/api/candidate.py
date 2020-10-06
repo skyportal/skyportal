@@ -1,5 +1,7 @@
-import arrow
+import datetime
+from copy import copy
 
+import arrow
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 
@@ -14,7 +16,24 @@ from ...models import (
     Instrument,
     Source,
     Filter,
+    Group,
 )
+
+
+def update_redshift_history_if_relevant(request_data, obj, user):
+    if "redshift" in request_data:
+        if obj.redshift_history is None:
+            redshift_history = []
+        else:
+            redshift_history = copy(obj.redshift_history)
+        redshift_history.append(
+            {
+                "set_by_user_id": user.id,
+                "set_at_utc": datetime.datetime.utcnow().isoformat(),
+                "value": float(request_data["redshift"]),
+            }
+        )
+        obj.redshift_history = redshift_history
 
 
 class CandidateHandler(BaseHandler):
@@ -145,6 +164,8 @@ class CandidateHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
+
         if obj_id is not None:
             c = Candidate.get_obj_if_owned_by(
                 obj_id,
@@ -166,6 +187,15 @@ class CandidateHandler(BaseHandler):
                 reverse=True,
             )
             candidate_info["is_source"] = len(c.sources) > 0
+            if candidate_info["is_source"]:
+                candidate_info["saved_groups"] = (
+                    DBSession()
+                    .query(Group)
+                    .join(Source)
+                    .filter(Source.obj_id == obj_id)
+                    .filter(Group.id.in_(user_accessible_group_ids))
+                    .all()
+                )
             candidate_info["last_detected"] = c.last_detected
             candidate_info["gal_lon"] = c.gal_lon_deg
             candidate_info["gal_lat"] = c.gal_lat_deg
@@ -183,7 +213,6 @@ class CandidateHandler(BaseHandler):
         end_date = self.get_query_argument("endDate", None)
         group_ids = self.get_query_argument("groupIDs", None)
         filter_ids = self.get_query_argument("filterIDs", None)
-        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
             filtr.id
             for g in self.current_user.accessible_groups
@@ -283,6 +312,15 @@ class CandidateHandler(BaseHandler):
         candidate_list = []
         for obj in query_results["candidates"]:
             obj.is_source = (obj.id,) in matching_source_ids
+            if obj.is_source:
+                obj.saved_groups = (
+                    DBSession()
+                    .query(Group)
+                    .join(Source)
+                    .filter(Source.obj_id == obj_id)
+                    .filter(Group.id.in_(user_accessible_group_ids))
+                    .all()
+                )
             obj.passing_group_ids = [
                 f.group_id
                 for f in (
@@ -394,6 +432,8 @@ class CandidateHandler(BaseHandler):
         if not filters:
             return self.error("At least one valid filter ID must be provided.")
 
+        update_redshift_history_if_relevant(data, obj, self.associated_user_object)
+
         DBSession().add(obj)
         DBSession().add_all(
             [
@@ -444,11 +484,12 @@ class CandidateHandler(BaseHandler):
 
         schema = Obj.__schema__()
         try:
-            schema.load(data, partial=True)
+            obj = schema.load(data, partial=True)
         except ValidationError as e:
             return self.error(
                 "Invalid/missing parameters: " f"{e.normalized_messages()}"
             )
+        update_redshift_history_if_relevant(data, obj, self.associated_user_object)
         DBSession().commit()
 
         self.push_all(action="skyportal/FETCH_CANDIDATES")

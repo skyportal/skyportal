@@ -398,6 +398,12 @@ def comment_token(user):
 
 
 @pytest.fixture()
+def annotation_token(user):
+    token_id = create_token(ACLs=["Annotate"], user_id=user.id, name=str(uuid.uuid4()))
+    return token_id
+
+
+@pytest.fixture()
 def classification_token(user):
     token_id = create_token(ACLs=["Classify"], user_id=user.id, name=str(uuid.uuid4()))
     return token_id
@@ -427,6 +433,14 @@ def taxonomy_token_two_groups(user_two_groups):
 def comment_token_two_groups(user_two_groups):
     token_id = create_token(
         ACLs=["Comment"], user_id=user_two_groups.id, name=str(uuid.uuid4())
+    )
+    return token_id
+
+
+@pytest.fixture()
+def annotation_token_two_groups(user_two_groups):
+    token_id = create_token(
+        ACLs=["Annotate"], user_id=user_two_groups.id, name=str(uuid.uuid4())
     )
     return token_id
 

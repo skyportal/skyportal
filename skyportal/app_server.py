@@ -11,6 +11,7 @@ from skyportal.handlers.api import (
     ClassificationHandler,
     CommentHandler,
     CommentAttachmentHandler,
+    AnnotationHandler,
     FilterHandler,
     FollowupRequestHandler,
     FacilityMessageHandler,
@@ -42,6 +43,7 @@ from skyportal.handlers.api import (
     TelescopeHandler,
     ThumbnailHandler,
     UserHandler,
+    WeatherHandler,
 )
 from skyportal.handlers.api.internal import (
     PlotPhotometryHandler,
@@ -89,6 +91,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/classification(/[0-9]+)?', ClassificationHandler),
         (r'/api/comment(/[0-9]+)?', CommentHandler),
         (r'/api/comment(/[0-9]+)/attachment', CommentAttachmentHandler),
+        (r'/api/annotation(/[0-9]+)?', AnnotationHandler),
         (r'/api/facility', FacilityMessageHandler),
         (r'/api/filters(/.*)?', FilterHandler),
         (r'/api/followup_request(/.*)?', FollowupRequestHandler),
@@ -119,6 +122,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/telescope(/[0-9]+)?', TelescopeHandler),
         (r'/api/thumbnail(/[0-9]+)?', ThumbnailHandler),
         (r'/api/user(/.*)?', UserHandler),
+        (r'/api/weather(/.*)?', WeatherHandler),
         (r'/api/internal/tokens(/.*)?', TokenHandler),
         (r'/api/internal/profile', ProfileHandler),
         (r'/api/internal/dbinfo', DBInfoHandler),

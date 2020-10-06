@@ -148,6 +148,14 @@ app:
     # the column 1 (zero-indexed) and row 2. Note that each row is by default
     # 150px in height. The row height can be altered in the homepage_grid
     # section above (as well as other grid characteristics).
+    WeatherWidget:
+      resizeable: false
+      layouts:
+        xlg: [0, 10, 4, 1]
+        lg: [0, 10, 4, 1]
+        md: [0, 10, 4, 1]
+        sm: [0, 10, 4, 1]
+        xs: [0, 12, 4, 1]
 
     SourceCounts:
       props:
@@ -237,16 +245,24 @@ misc:
   cosmology: Planck18_arXiv_v2
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
 
+weather:
+  # time in seconds to wait before fetching weather for a given telescope
+  refresh_time: 3600.0
+  # Get an API key at OpenWeatherMap https://openweathermap.org/price
+  # the free tier should be sufficent, as we cache the weather results
+  # for each telescope
+  openweather_api_key:
+
 external_logging:
-    papertrail:
-       # get an account at https://papertrailapp.com
-       enabled: False
-       # change url to the correct subdomain for your account
-       # and change the port as well
-       url:
-       port:
-       # which log files, if any do you not want to send over to the 3rd party?
-       excluded_log_files: ["log/websocket_server.log"]
+  papertrail:
+    # get an account at https://papertrailapp.com
+    enabled: False
+    # change url to the correct subdomain for your account
+    # and change the port as well
+    url:
+    port:
+    # which log files, if any do you not want to send over to the 3rd party?
+    excluded_log_files: ["log/websocket_server.log"]
 
 cron:
   - interval: 1440

@@ -14,9 +14,11 @@ from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
+from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import URLType, EmailType
+from sqlalchemy import func
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from twilio.rest import Client as TwilioClient
@@ -61,6 +63,8 @@ from skyportal import facility_apis
 # All DB fluxes are stored in microJy (AB).
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
+
+utcnow = func.timezone('UTC', func.current_timestamp())
 
 _, cfg = load_env()
 cosmo = establish_cosmology(cfg)
@@ -313,6 +317,9 @@ class Obj(Base, ha.Point):
         sa.Float, default=0.0, doc="Offset from nearest static object [arcsec]."
     )
     redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.")
+    redshift_history = sa.Column(
+        JSONB, nullable=True, doc="Record of who set which redshift values and when.",
+    )
 
     # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
     altdata = sa.Column(
@@ -366,6 +373,14 @@ class Obj(Base, ha.Point):
         passive_deletes=True,
         order_by="Comment.created_at",
         doc="Comments posted about the object.",
+    )
+    annotations = relationship(
+        'Annotation',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        order_by="Annotation.created_at",
+        doc="Auto-annotations posted about the object.",
     )
 
     classifications = relationship(
@@ -748,7 +763,10 @@ Source.saved_by = relationship(
     doc="User that saved the Obj to its Group.",
 )
 Source.saved_at = sa.Column(
-    sa.DateTime, nullable=True, doc="ISO UTC time when the Obj was saved to its Group."
+    sa.DateTime,
+    nullable=False,
+    default=utcnow,
+    doc="ISO UTC time when the Obj was saved to its Group.",
 )
 Source.active = sa.Column(
     sa.Boolean,
@@ -918,6 +936,36 @@ def get_obj_comments_owned_by(self, user_or_token):
 Obj.get_comments_owned_by = get_obj_comments_owned_by
 
 
+def get_obj_annotations_owned_by(self, user_or_token):
+    """Query the database and return the Annotations on this Obj that are accessible
+    to any of the User or Token owner's accessible Groups.
+
+    Parameters
+    ----------
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    annotation_list : list of `skyportal.models.Annotation`
+       The accessible annotations attached to this Obj.
+    """
+    owned_annotations = [
+        annotation
+        for annotation in self.annotations
+        if annotation.is_owned_by(user_or_token)
+    ]
+
+    # Grab basic author info for the annotations
+    for annotation in owned_annotations:
+        annotation.author_info = annotation.construct_author_info_dict()
+
+    return owned_annotations
+
+
+Obj.get_annotations_owned_by = get_obj_annotations_owned_by
+
+
 def get_obj_classifications_owned_by(self, user_or_token):
     """Query the database and return the Classifications on this Obj that are accessible
     to any of the User or Token owner's accessible Groups.
@@ -1067,6 +1115,14 @@ class Telescope(Base):
     )
     robotic = sa.Column(
         sa.Boolean, default=False, nullable=False, doc="Is this telescope robotic?"
+    )
+
+    weather = sa.Column(JSONB, nullable=True, doc='Latest weather information')
+    weather_retrieved_at = sa.Column(
+        sa.DateTime, nullable=True, doc="When was the weather last retrieved?"
+    )
+    weather_link = sa.Column(
+        URLType, nullable=True, doc="Link to the preferred weather site."
     )
 
     instruments = relationship(
@@ -1396,6 +1452,69 @@ GroupComment = join_model("group_comments", Group, Comment)
 GroupComment.__doc__ = "Join table mapping Groups to Comments."
 
 User.comments = relationship("Comment", back_populates="author")
+
+
+class Annotation(Base):
+    """A sortable/searchable Annotation made by a filter or other robot, with a set of data as JSON """
+
+    __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
+
+    data = sa.Column(JSONB, default=None, doc="Searchable data in JSON format")
+    author = relationship(
+        "User", back_populates="annotations", doc="Annotation's author.", uselist=False,
+    )
+    author_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Annotation author's User instance.",
+    )
+
+    origin = sa.Column(
+        sa.String,
+        index=True,
+        nullable=False,
+        doc='What generated the annotation, e.g., `Kowalski`. One annotation with multiple fields from each origin is allowed.',
+    )
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Annotation's Obj.",
+    )
+
+    obj = relationship('Obj', back_populates='annotations', doc="The Annotation's Obj.")
+    groups = relationship(
+        "Group",
+        secondary="group_annotations",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="Groups that can see the annotation.",
+    )
+
+    def construct_author_info_dict(self):
+        return {
+            field: getattr(self.author, field)
+            for field in ('username', 'first_name', 'last_name', 'gravatar_url')
+        }
+
+    @classmethod
+    def get_if_owned_by(cls, ident, user, options=[]):
+        annotation = cls.query.options(options).get(ident)
+
+        if annotation is not None and not annotation.is_owned_by(user):
+            raise AccessError('Insufficient permissions.')
+
+        # Grab basic author info for the annotation
+        annotation.author_info = annotation.construct_author_info_dict()
+
+        return annotation
+
+
+GroupAnnotation = join_model("group_annotations", Group, Annotation)
+GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
+
+User.annotations = relationship("Annotation", back_populates="author")
 
 
 class Classification(Base):
@@ -2356,7 +2475,7 @@ def send_user_invite_email(mapper, connection, target):
 class SourceNotification(Base):
     groups = relationship(
         "Group",
-        secondary="group_alerts",
+        secondary="group_notifications",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
     )
@@ -2386,7 +2505,7 @@ class SourceNotification(Base):
     level = sa.Column(sa.String(), nullable=False)
 
 
-GroupSourceNotification = join_model('group_alerts', Group, SourceNotification)
+GroupSourceNotification = join_model('group_notifications', Group, SourceNotification)
 User.source_notifications = relationship(
     'SourceNotification',
     back_populates='sent_by',
@@ -2435,7 +2554,7 @@ def send_source_notification(mapper, connection, target):
         from_number = cfg["twilio.from_number"]
         client = TwilioClient(account_sid, auth_token)
         for user in target_users:
-            # If user has a phone number registered and opted into SMS alerts
+            # If user has a phone number registered and opted into SMS notifications
             if (
                 user.contact_phone is not None
                 and "allowSMSAlerts" in user.preferences
@@ -2445,10 +2564,10 @@ def send_source_notification(mapper, connection, target):
                     body=message_text, from_=from_number, to=user.contact_phone.e164
                 )
 
-    # Send email alerts
+    # Send email notifications
     for user in target_users:
         descriptor = "immediate" if target.level == "hard" else ""
-        # If user has a contact email registered and opted into email alerts
+        # If user has a contact email registered and opted into email notifications
         if (
             user.contact_email is not None
             and "allowEmailAlerts" in user.preferences

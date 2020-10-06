@@ -20,6 +20,8 @@ import GroupList from "./GroupList";
 import NewsFeed from "./NewsFeed";
 import TopSources from "./TopSources";
 import SourceCounts from "./SourceCounts";
+import WeatherWidget from "./WeatherWidget";
+
 import UninitializedDBMessage from "./UninitializedDBMessage";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);

@@ -1,4 +1,6 @@
 import uuid
+import time
+
 import pytest
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException
@@ -117,7 +119,15 @@ def test_recently_saved_candidate(driver, user, public_filter, upload_data_token
     driver.click_xpath(
         f'//button[contains(@data-testid, "saveCandidateButton_{obj_id}")]'
     )
-    driver.wait_for_xpath("//span[text()='Previously Saved']")
+    try:
+        driver.wait_for_xpath("//span[text()='Previously Saved']")
+    except TimeoutException:
+        driver.click_xpath(
+            f'//button[contains(@data-testid, "saveCandidateButton_{obj_id}")]'
+        )
+        time.sleep(1)
+        driver.wait_for_xpath("//span[text()='Previously Saved']")
+
     driver.get('/')
     driver.wait_for_xpath(
         f'//div[starts-with(@data-testid, "recentSourceItem")][.//span[text()="a few seconds ago"]][.//a[contains(text(), "{obj_id}")]]'
