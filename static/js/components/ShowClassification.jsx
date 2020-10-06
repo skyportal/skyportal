@@ -5,8 +5,7 @@ import Chip from "@material-ui/core/Chip";
 
 import { makeStyles } from "@material-ui/core/styles";
 
-// Export to allow Candidate.jsx to use styles
-export const useSourceStyles = makeStyles((theme) => ({
+export const useStyles = makeStyles((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
   },
@@ -21,7 +20,7 @@ const groupBy = (array, key) =>
   }, {});
 
 function ShowClassification({ classifications, taxonomyList }) {
-  const classes = useSourceStyles();
+  const classes = useStyles();
 
   // Here we compute the most recent non-zero probability class for each taxonomy
   const filteredClasses = classifications.filter((i) => i.probability > 0);
