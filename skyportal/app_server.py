@@ -1,7 +1,10 @@
 import tornado.web
+import requests
+import time
 
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app import model_util as baselayer_model_util
+from baselayer.log import make_log
 
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
@@ -62,6 +65,21 @@ from skyportal.handlers.api.internal import (
 from . import models, model_util, openapi
 
 
+log = make_log('app_server')
+
+
+def migrated_db(migration_manager_port):
+    port = migration_manager_port
+    try:
+        r = requests.get(f'http://localhost:{port}')
+        status = r.json()
+    except requests.exceptions.RequestException:
+        log(f'Could not connect to migration manager on port [{port}]')
+        return None
+
+    return status["migrated"]
+
+
 def make_app(cfg, baselayer_handlers, baselayer_settings):
     """Create and return a `tornado.web.Application` object with specified
     handlers and settings.
@@ -82,6 +100,15 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         print('  Your server is insecure. Please update the secret string ')
         print('  in the configuration file!')
         print('!' * 80)
+
+    # Ask migration manager whether we may launch
+    log('Verifying database migration status')
+    port = cfg['ports.migration_manager']
+    while not migrated_db(port):
+        log('Database not migrated, or could not verify; trying again in 5s')
+        time.sleep(5)
+
+    log('Database is migrated; continuing')
 
     handlers = baselayer_handlers + [
         # API endpoints
