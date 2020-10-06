@@ -37,10 +37,13 @@ export const getAnnotationValueString = (value) => {
   const valueType = typeof value;
   switch (valueType) {
     case "number":
-      valueString = value.toFixed(6);
+      valueString = value.toFixed(4);
       break;
     case "string":
-      valueString = `${value.substring(0, 15)}...`;
+      valueString = `${value.substring(0, 20)}...`;
+      break;
+    case "object":
+      valueString = `${JSON.stringify(value).substring(0, 20)}...`;
       break;
     default:
       valueString = value.toString();

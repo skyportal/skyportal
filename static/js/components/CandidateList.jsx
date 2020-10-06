@@ -93,7 +93,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-// Hide built-in pagination and tweak responsive column widths
+// Tweak responsive column widths
 const getMuiTheme = (theme) =>
   createMuiTheme({
     overrides: {
@@ -458,6 +458,33 @@ const CandidateList = () => {
     },
   ];
 
+  const options = {
+    responsive: "vertical",
+    search: false,
+    print: false,
+    download: false,
+    sort: false,
+    count: totalMatches,
+    selectableRows: "none",
+    enableNestedDataAccess: ".",
+    rowsPerPage,
+    rowsPerPageOptions: [1, 25, 50, 75, 100, 200],
+    jumpToPage: true,
+    serverSide: true,
+    page: pageNumber - 1,
+    pagination: true,
+    onTableChange: handleTableChange,
+    // eslint-disable-next-line react/display-name
+    customToolbar: () => (
+      <CustomSortToolbar
+        selectedAnnotationItem={selectedAnnotationItem}
+        rowsPerPage={rowsPerPage}
+        setQueryInProgress={setQueryInProgress}
+        loaded={!queryInProgress}
+      />
+    ),
+  };
+
   return (
     <Paper elevation={1}>
       <div className={classes.candidateListContainer}>
@@ -488,32 +515,7 @@ const CandidateList = () => {
               columns={columns}
               data={candidates !== null ? candidates : []}
               className={classes.table}
-              options={{
-                responsive: "vertical",
-                search: false,
-                print: false,
-                download: false,
-                sort: false,
-                count: totalMatches,
-                selectableRows: "none",
-                enableNestedDataAccess: ".",
-                rowsPerPage,
-                rowsPerPageOptions: [1, 25, 50, 75, 100, 200],
-                jumpToPage: true,
-                serverSide: true,
-                page: pageNumber - 1,
-                pagination: true,
-                onTableChange: handleTableChange,
-                // eslint-disable-next-line react/display-name
-                customToolbar: () => (
-                  <CustomSortToolbar
-                    selectedAnnotationItem={selectedAnnotationItem}
-                    rowsPerPage={rowsPerPage}
-                    setQueryInProgress={setQueryInProgress}
-                    loaded={!queryInProgress}
-                  />
-                ),
-              }}
+              options={options}
             />
           </MuiThemeProvider>
         </Box>

@@ -212,6 +212,9 @@ class CandidateHandler(BaseHandler):
                 key=lambda x: x.created_at,
                 reverse=True,
             )
+            candidate_info["annotations"] = sorted(
+                c.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
+            )
             candidate_info["is_source"] = len(c.sources) > 0
             if candidate_info["is_source"]:
                 candidate_info["saved_groups"] = (
