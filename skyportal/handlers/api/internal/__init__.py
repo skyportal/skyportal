@@ -11,4 +11,4 @@ from .recent_sources import RecentSourcesHandler
 from .robotic_instruments import RoboticInstrumentsHandler
 from .source_counts import SourceCountHandler
 from .log import LogHandler
-from .annotation_filtering_info import AnnotationFilteringInfo
+from .annotations_info import AnnotationsInfo

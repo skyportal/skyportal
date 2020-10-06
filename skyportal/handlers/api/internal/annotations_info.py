@@ -1,3 +1,4 @@
+from collections import defaultdict
 from sqlalchemy import func, literal
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql import functions
@@ -85,7 +86,7 @@ def _compile_jsonb_each_func(element, compiler, **kw):
     return compiler.visit_function(element, **kw)  # + " WITH ORDINALITY"
 
 
-class AnnotationFilteringInfo(BaseHandler):
+class AnnotationsInfo(BaseHandler):
     @auth_or_token
     def get(self):
         """
@@ -124,19 +125,9 @@ class AnnotationFilteringInfo(BaseHandler):
                   allOf:
                     - $ref: '#/components/schemas/Success'
                     - type: object
-                      properties:
-                        annotations:
-                          type: array
-                          items:
-                            allOf:
-                              - type: object
-                                properties:
-                                  origin:
-                                    type: string
-                                  key:
-                                    type: string
-                                  value_type:
-                                    type: string
+                      description: |
+                        An object in which each key is an annotation origin, and
+                        the values are arrays of { key: value_type } objects
         """
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
@@ -199,7 +190,15 @@ class AnnotationFilteringInfo(BaseHandler):
             )
             .join(GroupAnnotation)
             .filter(GroupAnnotation.group_id.in_(group_ids))
-            .group_by(Annotation.origin)
         )
 
-        return self.success(data=q.all())
+        results = q.all()
+        grouped = defaultdict(list)
+        keys_seen = defaultdict(set)
+        for annotation in results:
+            if annotation.key not in keys_seen[annotation.origin]:
+                grouped[annotation.origin].append({annotation.key: annotation.type})
+
+            keys_seen[annotation.origin].add(annotation.key)
+
+        return self.success(data=grouped)
