@@ -498,6 +498,7 @@ const CandidateList = () => {
                 responsive: "vertical",
                 filter: true,
                 filterType: "custom",
+                confirmFilters: true,
                 search: false,
                 print: false,
                 download: false,
