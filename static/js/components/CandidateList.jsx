@@ -26,7 +26,6 @@ import MUIDataTable from "mui-datatables";
 
 import * as candidatesActions from "../ducks/candidates";
 import ThumbnailList from "./ThumbnailList";
-// import CandidateCommentList from "./CandidateCommentList";
 import SaveCandidateButton from "./SaveCandidateButton";
 import FilterCandidateList from "./FilterCandidateList";
 import CandidateAnnotationsList, {
@@ -98,11 +97,6 @@ const useStyles = makeStyles((theme) => ({
 const getMuiTheme = (theme) =>
   createMuiTheme({
     overrides: {
-      // MUIDataTableFooter: {
-      //   root: {
-      //     display: "none",
-      //   },
-      // },
       MUIDataTableBodyCell: {
         root: {
           padding: `${theme.spacing(1)}px ${theme.spacing(
@@ -496,9 +490,6 @@ const CandidateList = () => {
               className={classes.table}
               options={{
                 responsive: "vertical",
-                filter: true,
-                filterType: "custom",
-                confirmFilters: true,
                 search: false,
                 print: false,
                 download: false,

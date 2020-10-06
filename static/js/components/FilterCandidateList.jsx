@@ -6,7 +6,6 @@ import PropTypes from "prop-types";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Checkbox from "@material-ui/core/Checkbox";
 import Button from "@material-ui/core/Button";
-// import TextField from "@material-ui/core/TextField";
 import { KeyboardDateTimePicker } from "@material-ui/pickers";
 import Paper from "@material-ui/core/Paper";
 import SearchIcon from "@material-ui/icons/Search";
@@ -44,15 +43,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const FilterCandidateList = ({
-  userAccessibleGroups,
-  // pageNumber,
-  // numberingStart,
-  // numberingEnd,
-  // totalMatches,
-  // lastPage,
-  setQueryInProgress,
-}) => {
+const FilterCandidateList = ({ userAccessibleGroups, setQueryInProgress }) => {
   const classes = useStyles();
 
   // const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
@@ -99,25 +90,6 @@ const FilterCandidateList = ({
     await dispatch(candidatesActions.fetchCandidates(data));
     setQueryInProgress(false);
   };
-
-  // const handleClickNextPage = async () => {
-  //   const formData = getValues({ nest: true });
-  //   onSubmit({ ...formData, pageNumber: pageNumber + 1 });
-  // };
-
-  // const handleClickPreviousPage = async () => {
-  //   const formData = getValues({ nest: true });
-  //   onSubmit({ ...formData, pageNumber: pageNumber - 1 });
-  // };
-
-  // const handleJumpToPageInputChange = (e) => {
-  //   setJumpToPageInputValue(e.target.value);
-  // };
-
-  // const handleClickJumpToPage = async () => {
-  //   const formData = getValues({ nest: true });
-  //   onSubmit({ ...formData, pageNumber: jumpToPageInputValue });
-  // };
 
   return (
     <Paper variant="outlined">
@@ -207,54 +179,6 @@ const FilterCandidateList = ({
             </Button>
           </div>
         </form>
-        {/* <div className={classes.pages}>
-          <div>
-            <Button
-              variant="contained"
-              onClick={handleClickPreviousPage}
-              disabled={pageNumber === 1}
-              size="small"
-            >
-              Previous Page
-            </Button>
-          </div>
-          <div>
-            <i>
-              Displaying&nbsp;
-              {numberingStart}-{numberingEnd}
-              &nbsp; of&nbsp;
-              {totalMatches}
-              &nbsp; candidates.
-            </i>
-          </div>
-          <div>
-            <Button
-              variant="contained"
-              onClick={handleClickNextPage}
-              disabled={lastPage}
-              size="small"
-            >
-              Next Page
-            </Button>
-          </div>
-        </div>
-        <div className={classes.jumpToPage}>
-          <TextField
-            label="Jump to Page Number"
-            type="number"
-            onChange={handleJumpToPageInputChange}
-            value={jumpToPageInputValue}
-            inputProps={{ min: "1" }}
-            name="jumpToPageInputField"
-          />
-          <Button
-            variant="contained"
-            onClick={handleClickJumpToPage}
-            size="small"
-          >
-            Jump to Page
-          </Button>
-        </div> */}
         <br />
         <br />
       </div>
@@ -263,11 +187,6 @@ const FilterCandidateList = ({
 };
 FilterCandidateList.propTypes = {
   userAccessibleGroups: PropTypes.arrayOf(PropTypes.object).isRequired,
-  // pageNumber: PropTypes.number.isRequired,
-  // numberingStart: PropTypes.number.isRequired,
-  // numberingEnd: PropTypes.number.isRequired,
-  // totalMatches: PropTypes.number.isRequired,
-  // lastPage: PropTypes.bool.isRequired,
   setQueryInProgress: PropTypes.func.isRequired,
 };
 
