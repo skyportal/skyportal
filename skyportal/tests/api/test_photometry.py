@@ -1028,7 +1028,7 @@ def test_token_user_big_post(
     assert data['status'] == 'success'
 
 
-def test_token_user_get_recent_photometry(
+def test_token_user_get_range_photometry(
     upload_data_token, public_source, public_group, ztf_camera
 ):
     status, data = api(
@@ -1052,7 +1052,7 @@ def test_token_user_get_recent_photometry(
 
     status, data = api(
         'GET',
-        f'photometry/recent',
+        f'photometry/range',
         token=upload_data_token,
         data={'instrument_ids': [ztf_camera.id], 'max_date': '2018-05-15T00:00:00'},
     )
@@ -1062,7 +1062,7 @@ def test_token_user_get_recent_photometry(
 
     status, data = api(
         'GET',
-        f'photometry/recent?format=flux&magsys=vega',
+        f'photometry/range?format=flux&magsys=vega',
         token=upload_data_token,
         data={'instrument_ids': [ztf_camera.id], 'max_date': '2019-02-01T00:00:00'},
     )

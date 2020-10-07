@@ -581,7 +581,7 @@ class BulkDeletePhotometryHandler(BaseHandler):
         return self.success(f"Deleted {n_deleted} photometry points.")
 
 
-class RecentPhotometryHandler(BaseHandler):
+class PhotometryRangeHandler(BaseHandler):
     @auth_or_token
     def get(self):
         """Docstring appears below as an f-string."""
@@ -717,7 +717,7 @@ ObjPhotometryHandler.get.__doc__ = f"""
                 schema: Error
         """
 
-RecentPhotometryHandler.get.__doc__ = f"""
+PhotometryRangeHandler.get.__doc__ = f"""
         ---
         description: Get photometry taken by specific instruments over a date range
         parameters:
@@ -745,7 +745,7 @@ RecentPhotometryHandler.get.__doc__ = f"""
           content:
             application/json:
               schema:
-                RecentPhotometryQuery
+                PhotometryRangeQuery
         responses:
           200:
             content:

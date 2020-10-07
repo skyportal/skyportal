@@ -15,7 +15,7 @@ from .photometry import (
     PhotometryHandler,
     ObjPhotometryHandler,
     BulkDeletePhotometryHandler,
-    RecentPhotometryHandler,
+    PhotometryRangeHandler,
 )
 from .public_group import PublicGroupHandler
 from .sharing import SharingHandler
