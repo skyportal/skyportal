@@ -26,7 +26,7 @@ from ...schema import (
     PhotometryFlux,
     PhotFluxFlexible,
     PhotMagFlexible,
-    RecentPhotometryQuery,
+    PhotometryRangeQuery,
 )
 from ...enum_types import ALLOWED_MAGSYSTEMS
 
@@ -603,7 +603,7 @@ class PhotometryRangeHandler(BaseHandler):
         json = self.get_json()
 
         try:
-            standardized = RecentPhotometryQuery.load(json)
+            standardized = PhotometryRangeQuery.load(json)
         except ValidationError as e:
             return self.error(f'Invalid request body: {e.normalized_messages()}')
 

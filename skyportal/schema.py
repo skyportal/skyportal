@@ -764,7 +764,7 @@ class ObservingRunGetWithAssignments(ObservingRunGet):
     instrument = fields.Field()
 
 
-class RecentPhotometryQuery(_Schema):
+class PhotometryRangeQuery(_Schema):
     instrument_ids = fields.List(
         fields.Integer,
         description="IDs of the instruments to query "
@@ -1055,7 +1055,7 @@ ObservingRunPost = ObservingRunPost()
 ObservingRunGet = ObservingRunGet()
 AssignmentSchema = AssignmentSchema()
 ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
-RecentPhotometryQuery = RecentPhotometryQuery()
+PhotometryRangeQuery = PhotometryRangeQuery()
 SpectrumAsciiFilePostJSON = SpectrumAsciiFilePostJSON()
 SpectrumPost = SpectrumPost()
 GroupIDList = GroupIDList()
