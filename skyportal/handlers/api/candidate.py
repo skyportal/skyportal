@@ -339,12 +339,14 @@ class CandidateHandler(BaseHandler):
                 q = q.order_by(
                     origin_sort_order.nullslast(),
                     Annotation.data[sort_by_key].desc().nullslast(),
+                    Obj.last_detected.desc().nullslast(),
                     Obj.id,
                 )
             else:
                 q = q.order_by(
                     origin_sort_order.nullslast(),
                     Annotation.data[sort_by_key].nullslast(),
+                    Obj.last_detected.desc().nullslast(),
                     Obj.id,
                 )
         try:
@@ -556,6 +558,21 @@ class CandidateHandler(BaseHandler):
 
 
 def grab_query_results_page(q, total_matches, page, n_items_per_page, items_name):
+    # The query can return multiple rows for candidates with multiple annotations
+    # Now that the sorting/filtering on annotations is done, deduplicate those
+    q = (
+        Obj.query.options(
+            [
+                joinedload(Obj.thumbnails)
+                .joinedload(Thumbnail.photometry)
+                .joinedload(Photometry.instrument)
+                .joinedload(Instrument.telescope),
+            ]
+        )
+        .select_entity_from(q.subquery())
+        .distinct(Obj.id)
+    )
+
     info = {}
     if total_matches:
         info["totalMatches"] = int(total_matches)
