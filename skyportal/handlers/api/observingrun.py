@@ -7,7 +7,6 @@ from ...models import (
     ObservingRun,
     ClassicalAssignment,
     Obj,
-    Thumbnail,
     Instrument,
     Source,
 )
@@ -102,8 +101,10 @@ class ObservingRunHandler(BaseHandler):
                 .options(
                     joinedload(ObservingRun.assignments)
                     .joinedload(ClassicalAssignment.obj)
-                    .joinedload(Obj.thumbnails)
-                    .joinedload(Thumbnail.photometry),
+                    .joinedload(Obj.thumbnails),
+                    joinedload(ObservingRun.assignments)
+                    .joinedload(ClassicalAssignment.obj)
+                    .joinedload(Obj.photometry),
                     joinedload(ObservingRun.assignments).joinedload(
                         ClassicalAssignment.requester
                     ),
