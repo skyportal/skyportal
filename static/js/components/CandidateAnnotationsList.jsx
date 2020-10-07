@@ -108,7 +108,6 @@ const CandidateAnnotationsList = ({ annotations }) => {
                 let disabled;
                 switch (typeof value) {
                   case "number":
-                  case "boolean":
                     disabled = false;
                     break;
                   default:
