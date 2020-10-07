@@ -37,17 +37,16 @@ export const getAnnotationValueString = (value) => {
   const valueType = typeof value;
   switch (valueType) {
     case "number":
-      valueString = value.toFixed(6);
+      valueString = value.toFixed(4);
       break;
-    case "string":
-      valueString = `${value.substring(0, 15)}...`;
+    case "object":
+      valueString = JSON.stringify(value);
       break;
     default:
       valueString = value.toString();
   }
   return valueString;
 };
-
 const CandidateAnnotationsList = ({ annotations }) => {
   const classes = useStyles();
 
