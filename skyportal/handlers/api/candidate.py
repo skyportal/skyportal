@@ -4,7 +4,7 @@ from copy import copy
 import arrow
 
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql.expression import case
+from sqlalchemy.sql.expression import case, or_
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
@@ -310,9 +310,14 @@ class CandidateHandler(BaseHandler):
                     .filter(Candidate.filter_id.in_(filter_ids))
                 )
             )
-            .join(Annotation)
-            .join(GroupAnnotation)
-            .filter(GroupAnnotation.group_id.in_(user_accessible_group_ids))
+            .outerjoin(Annotation)
+            .outerjoin(GroupAnnotation)
+            .filter(
+                or_(
+                    GroupAnnotation.group_id == None,  # noqa: E711
+                    GroupAnnotation.group_id.in_(user_accessible_group_ids),
+                )
+            )
         )
         if sort_by_origin is None:
             q = q.order_by(Obj.last_detected.desc().nullslast(), Obj.id)
