@@ -166,6 +166,7 @@ const CustomSortToolbar = ({
           onClick={handleSort}
           disabled={selectedAnnotationItem === null}
           className={classes.sortButtton}
+          data-testid="sortOnAnnotationButton"
         >
           <span>
             <SortIcon />

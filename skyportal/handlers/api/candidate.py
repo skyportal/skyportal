@@ -4,7 +4,7 @@ from copy import copy
 import arrow
 
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql.expression import case, or_
+from sqlalchemy.sql.expression import case
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
@@ -19,7 +19,6 @@ from ...models import (
     Source,
     Filter,
     Annotation,
-    GroupAnnotation,
     Group,
 )
 
@@ -300,7 +299,6 @@ class CandidateHandler(BaseHandler):
                     .joinedload(Thumbnail.photometry)
                     .joinedload(Photometry.instrument)
                     .joinedload(Instrument.telescope),
-                    joinedload(Obj.annotations),
                 ]
             )
             .filter(
@@ -310,14 +308,7 @@ class CandidateHandler(BaseHandler):
                     .filter(Candidate.filter_id.in_(filter_ids))
                 )
             )
-            .outerjoin(Annotation)
-            .outerjoin(GroupAnnotation)
-            .filter(
-                or_(
-                    GroupAnnotation.group_id == None,  # noqa: E711
-                    GroupAnnotation.group_id.in_(user_accessible_group_ids),
-                )
-            )
+            .outerjoin(Annotation)  # Join in annotations info for sort/filter
         )
         if sort_by_origin is None:
             q = q.order_by(Obj.last_detected.desc().nullslast(), Obj.id)
@@ -407,6 +398,9 @@ class CandidateHandler(BaseHandler):
                 obj.get_comments_owned_by(self.current_user),
                 key=lambda x: x.created_at,
                 reverse=True,
+            )
+            candidate_list[-1]["annotations"] = sorted(
+                obj.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
             )
             candidate_list[-1]["last_detected"] = obj.last_detected
             candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
