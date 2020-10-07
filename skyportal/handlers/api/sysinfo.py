@@ -7,10 +7,12 @@ from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from skyportal.models import cosmo
 
+
 _, cfg = load_env()
 default_log_lines = 25
 gitlog_file = "data/gitlog.txt"
-pr_url = "https://github.com/skyportal/skyportal/pull/"
+pr_url_base = "https://github.com/skyportal/skyportal/pull"
+commit_url_base = "https://github.com/skyportal/skyportal/commit"
 
 
 class SysInfoHandler(BaseHandler):
@@ -59,7 +61,7 @@ class SysInfoHandler(BaseHandler):
                     "log",
                     "--no-merges",
                     "--first-parent",
-                    "--pretty=format:'[%ci %h] %s'",
+                    "--pretty=format:[%ci %h] %s",
                     f"-{default_log_lines}",
                 ],
                 capture_output=True,
@@ -68,25 +70,27 @@ class SysInfoHandler(BaseHandler):
             loginfo = p.stdout
 
         raw_gitlog = loginfo.splitlines()
+
+        timestamp_re = '(?P<time>[0-9\\-:].*)'
+        sha_re = '(?P<sha>[0-9a-f]{8})'
+        pr_desc_re = '(?P<pr_desc>.*?)'
+        pr_nr_re = '( \\(\\#(?P<pr_nr>[0-9]*)\\))?'
+        log_re = f'\\[{timestamp_re} {sha_re}\\] {pr_desc_re}{pr_nr_re}$'
+
         gitlog = []
+        for line in raw_gitlog:
+            m = re.match(log_re, line)
+            if m is None:
+                print(f'sysinfo: could not parse gitlog line: [{line}]')
+                continue
 
-        pr_re = r'\(#[0-9]+\)$'
+            log_fields = m.groupdict()
+            pr_nr = log_fields['pr_nr']
+            sha = log_fields['sha']
+            log_fields['pr_url'] = f'{pr_url_base}/{pr_nr}' if pr_nr else ''
+            log_fields['commit_url'] = f'{commit_url_base}/{sha}'
 
-        for commit in raw_gitlog:
-            # remove leading and trailing quote
-            result = commit[1:-1]
-            pr_number = re.search(pr_re, result)
-            if pr_number:
-                pr_str = result[pr_number.start() :]  # noqa: E203
-                pr_nr = pr_str[2:-1]
-                pr_link = f"""
-                (<a
-                  target='_blank'
-                  rel='noopener noreferrer'
-                  href={pr_url + pr_nr}>#{pr_nr}</a>)
-                """
-                result = result[: pr_number.start()] + pr_link  # noqa: E203
-            gitlog.append(result)
+            gitlog.append(log_fields)
 
         return self.success(
             data={

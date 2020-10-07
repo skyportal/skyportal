@@ -10,7 +10,7 @@ import CardActions from "@material-ui/core/CardActions";
 import Button from "@material-ui/core/Button";
 import Typography from "@material-ui/core/Typography";
 import Box from "@material-ui/core/Box";
-import ReactHtmlParser from "react-html-parser";
+import Paper from "@material-ui/core/Paper";
 
 import clsx from "clsx";
 
@@ -32,6 +32,15 @@ const useStyles = makeStyles((theme) => ({
   },
   hidden: {
     display: "none",
+  },
+  gitlogList: {
+    fontFamily: "monospace",
+  },
+  gitlogSHA: {
+    color: `${theme.palette.secondary.dark} !important`,
+  },
+  gitlogPR: {
+    color: theme.palette.primary.dark,
   },
 }));
 
@@ -125,17 +134,35 @@ const About = () => {
       {gitlog && (
         <>
           <h2>Recent Changelog</h2>
-          <ul>
-            {gitlog.map((val) => (
-              <li key={val.slice(-6)}> {ReactHtmlParser(val)} </li>
-            ))}
-          </ul>
-          <div>
-            See all the pull requests at{" "}
-            <a href="https://github.com/skyportal/skyportal/pulls">
-              https://github.com/skyportal/skyportal/pulls
-            </a>
-          </div>
+          <Paper mt={1}>
+            <Box p={1}>
+              <ul className={classes.gitlogList}>
+                {gitlog.map(
+                  ({ time, sha, pr_desc, pr_nr, pr_url, commit_url }) => (
+                    <li key={sha}>
+                      [{time}
+                      <a className={classes.gitlogSHA} href={commit_url}>
+                        &nbsp;{sha}
+                      </a>
+                      ] {pr_desc}
+                      {pr_nr && (
+                        <a href={pr_url}>
+                          &nbsp;(
+                          <span className={classes.gitlogPR}>#{pr_nr}</span>)
+                        </a>
+                      )}
+                    </li>
+                  )
+                )}
+              </ul>
+              <div>
+                See all the pull requests at{" "}
+                <a href="https://github.com/skyportal/skyportal/pulls">
+                  https://github.com/skyportal/skyportal/pulls
+                </a>
+              </div>
+            </Box>
+          </Paper>
         </>
       )}
       <h2>Cosmology</h2>
