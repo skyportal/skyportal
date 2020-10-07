@@ -2,8 +2,8 @@ from skyportal.utils import gitlog
 
 
 log = '''
-[2020-10-06 19:38:32 -0700 f3542fa8] Pass git log to frontend as parsed components
-[2020-10-05 14:06:20 -0700 a4052098] Bump emoji-dictionary from 1.0.10 to 1.0.11 (#1040)
+[2020-10-06T19:38:32-07:00 f3542fa8 someone@berkeley.edu] Pass git log to frontend as parsed components
+[2020-10-05T14:06:20-07:00 a4052098 noreply@github.com] Bump emoji-dictionary from 1.0.10 to 1.0.11 (#1040)
 '''.split(
     '\n'
 )
@@ -14,18 +14,20 @@ def test_gitlog_parse():
     e0 = entries[0]
     e1 = entries[1]
 
-    assert e0['time'] == '2020-10-06 19:38:32 -0700'
+    assert e0['time'] == '2020-10-06T19:38:32-07:00'
     assert e0['sha'] == 'f3542fa8'
-    assert e0['pr_desc'] == 'Pass git log to frontend as parsed components'
+    assert e0['email'] == 'someone@berkeley.edu'
+    assert e0['description'] == 'Pass git log to frontend as parsed components'
     assert e0['pr_nr'] is None
     assert e0['pr_url'] == ''
     assert e0['commit_url'] == (
         f"https://github.com/skyportal/skyportal/commit/f3542fa8"
     )
 
-    assert e1['time'] == '2020-10-05 14:06:20 -0700'
+    assert e1['time'] == '2020-10-05T14:06:20-07:00'
     assert e1['sha'] == 'a4052098'
-    assert e1['pr_desc'] == 'Bump emoji-dictionary from 1.0.10 to 1.0.11'
+    assert e1['email'] == 'noreply@github.com'
+    assert e1['description'] == 'Bump emoji-dictionary from 1.0.10 to 1.0.11'
     assert e1['pr_nr'] == '1040'
     assert e1['pr_url'] == 'https://github.com/skyportal/skyportal/pull/1040'
     assert e1['commit_url'] == (

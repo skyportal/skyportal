@@ -14,20 +14,23 @@ def parse_gitlog(log):
         The log should be passed in as a list of lines, obtained using::
 
           git log --no-merges --first-parent \
-                  --pretty='format:[%ci %h] %s' -25
+                  --pretty='format:[%cI %h %cE] %s' -25
 
     Returns
     -------
     parsed_log : list of dict
         Each entry has keys `time` (commit time), `sha` (commit hash),
-        `commit_url`, `pr_desc` (commit description), `pr_nr`, `pr_url`.
+        `email` (committer email), `commit_url`, `pr_desc` (commit description),
+        `pr_nr`, `pr_url`.
 
     """
-    timestamp_re = '(?P<time>[0-9\\-:].*)'
+    timechars = '[0-9\\-:]'
+    timestamp_re = f'(?P<time>{timechars}+T{timechars}+)'
     sha_re = '(?P<sha>[0-9a-f]{8})'
-    pr_desc_re = '(?P<pr_desc>.*?)'
+    email_re = '(?P<email>\\S*@\\S*?)'
+    pr_desc_re = '(?P<description>.*?)'
     pr_nr_re = '( \\(\\#(?P<pr_nr>[0-9]*)\\))?'
-    log_re = f'\\[{timestamp_re} {sha_re}\\] {pr_desc_re}{pr_nr_re}$'
+    log_re = f'\\[{timestamp_re} {sha_re} {email_re}\\] {pr_desc_re}{pr_nr_re}$'
 
     gitlog = []
     for line in log:
@@ -36,7 +39,7 @@ def parse_gitlog(log):
 
         m = re.match(log_re, line)
         if m is None:
-            print(f'sysinfo: could not parse gitlog line: [{line}]')
+            print(f'sysinfo: could not parse gitlog line: `{line}`')
             continue
 
         log_fields = m.groupdict()

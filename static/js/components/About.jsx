@@ -13,6 +13,7 @@ import Box from "@material-ui/core/Box";
 import Paper from "@material-ui/core/Paper";
 
 import clsx from "clsx";
+import dayjs from "dayjs";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -32,6 +33,10 @@ const useStyles = makeStyles((theme) => ({
   },
   hidden: {
     display: "none",
+  },
+  gitlogPaper: {
+    maxHeight: "30rem",
+    overflow: "auto",
   },
   gitlogList: {
     fontFamily: "monospace",
@@ -134,17 +139,23 @@ const About = () => {
       {gitlog && (
         <>
           <h2>Recent Changelog</h2>
-          <Paper mt={1}>
+          <Paper mt={1} className={classes.gitlogPaper}>
             <Box p={1}>
+              <div>
+                See all pull requests at{" "}
+                <a href="https://github.com/skyportal/skyportal/pulls?q=is%3Apr+">
+                  https://github.com/skyportal/skyportal/pulls
+                </a>
+              </div>
               <ul className={classes.gitlogList}>
                 {gitlog.map(
-                  ({ time, sha, pr_desc, pr_nr, pr_url, commit_url }) => (
+                  ({ time, sha, description, pr_nr, pr_url, commit_url }) => (
                     <li key={sha}>
-                      [{time}
+                      [{dayjs(time).format("YYYY-MM-DD")}
                       <a className={classes.gitlogSHA} href={commit_url}>
                         &nbsp;{sha}
                       </a>
-                      ] {pr_desc}
+                      ] {description}
                       {pr_nr && (
                         <a href={pr_url}>
                           &nbsp;(
@@ -155,12 +166,6 @@ const About = () => {
                   )
                 )}
               </ul>
-              <div>
-                See all the pull requests at{" "}
-                <a href="https://github.com/skyportal/skyportal/pulls">
-                  https://github.com/skyportal/skyportal/pulls
-                </a>
-              </div>
             </Box>
           </Paper>
         </>

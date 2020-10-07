@@ -14,10 +14,15 @@ _, cfg = load_env()
 # This file is generated with
 #
 #   git log --no-merges --first-parent \
-#           --pretty='format:[%ci %h] %s' -25
+#           --pretty='format:[%cI %h %cE] %s' -250
+#
+# We query for more than the number desired (250 instead of 25), because
+# we filter out all commits by noreply@github.com and hope to end up
+# with 25 commits still.
+
 
 gitlog_file = "data/gitlog.txt"
-default_log_lines = 25
+max_log_lines = 100
 
 
 class SysInfoHandler(BaseHandler):
@@ -66,8 +71,8 @@ class SysInfoHandler(BaseHandler):
                     "log",
                     "--no-merges",
                     "--first-parent",
-                    "--pretty=format:[%ci %h] %s",
-                    f"-{default_log_lines}",
+                    "--pretty=format:[%cI %h %cE] %s",
+                    f"-{max_log_lines * 10}",
                 ],
                 capture_output=True,
                 universal_newlines=True,
@@ -77,6 +82,13 @@ class SysInfoHandler(BaseHandler):
         raw_gitlog = loginfo.splitlines()
 
         log = gitlog.parse_gitlog(raw_gitlog)
+        log = [
+            entry
+            for entry in log
+            if not (entry['description'].lower().startswith(('bump', 'pin')))
+        ]
+
+        log = log[:max_log_lines]
 
         return self.success(
             data={
