@@ -1,17 +1,17 @@
 user:
-  - username: testadmin@cesium-ml.org
+  - username: testadmin
     roles:
       - Super admin
     =id: testadmin
-  - username: groupadmin@cesium-ml.org
+  - username: groupadmin
     roles:
       - Group admin
     =id: groupadmin
-  - username: fulluser@cesium-ml.org
+  - username: fulluser
     roles:
       - Full user
     =id: fulluser
-  - username: viewonlyuser@cesium-ml.org
+  - username: viewonlyuser
     roles:
       - View only
     =id: viewonlyuser
@@ -46,9 +46,9 @@ groups:
     =id: program_B
 
 groups/=program_A/users:
-  - username: viewonlyuser@cesium-ml.org
+  - username: viewonlyuser
     admin: false
-  - username: fulluser@cesium-ml.org
+  - username: fulluser
     admin: false
 
 streams/=ztf_public/users:
@@ -81,6 +81,7 @@ telescope:
     diameter: 1.5
     robotic: true
     skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+    weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
     =id: P60
   - name: Nordic Optical Telescope
     nickname: NOT

@@ -26,6 +26,10 @@ import FollowupRequestLists from "./FollowupRequestLists";
 import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
+import SourceNotification from "./SourceNotification";
+import AddSourceGroup from "./AddSourceGroup";
+import UpdateSourceRedshift from "./UpdateSourceRedshift";
+import SourceRedshiftHistory from "./SourceRedshiftHistory";
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -105,6 +109,10 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "column",
   },
+  position: {
+    fontWeight: "bold",
+    fontSize: "110%",
+  },
 }));
 
 const SourceDesktop = ({ source }) => {
@@ -117,6 +125,9 @@ const SourceDesktop = ({ source }) => {
   );
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
+  const userAccessibleGroups = useSelector(
+    (state) => state.groups.userAccessible
+  );
 
   return (
     <div className={classes.source}>
@@ -132,19 +143,42 @@ const SourceDesktop = ({ source }) => {
             taxonomyList={taxonomyList}
           />
           <b>Position (J2000):</b>
-          &nbsp;
-          {source.ra}, &nbsp;
-          {source.dec}
-          &nbsp; (&alpha;,&delta;=
-          {ra_to_hours(source.ra)}, &nbsp;
-          {dec_to_hours(source.dec)}) &nbsp; (l,b=
-          {source.gal_lon.toFixed(6)}, &nbsp;
+          &nbsp; &nbsp;
+          <span className={classes.position}>
+            {ra_to_hours(source.ra)} &nbsp;
+            {dec_to_hours(source.dec)}
+          </span>
+          &nbsp; (&alpha;,&delta;= {source.ra}, &nbsp;
+          {source.dec}; <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
           {source.gal_lat.toFixed(6)}
           )
           <br />
-          <b>Redshift: &nbsp;</b>
-          {source.redshift}
-          &nbsp;|&nbsp;
+          <>
+            <b>Redshift: &nbsp;</b>
+            {source.redshift && source.redshift.toFixed(4)}
+            <UpdateSourceRedshift source={source} />
+            <SourceRedshiftHistory redshiftHistory={source.redshift_history} />
+          </>
+          {source.dm && (
+            <>
+              &nbsp;|&nbsp;
+              <b>DM: &nbsp;</b>
+              {source.dm.toFixed(3)}
+              &nbsp; mag
+            </>
+          )}
+          {source.luminosity_distance && (
+            <>
+              &nbsp;|&nbsp;
+              <b>
+                <i>D</i>
+                <sub>L</sub>: &nbsp;
+              </b>
+              {source.luminosity_distance.toFixed(2)}
+              &nbsp; Mpc
+            </>
+          )}
+          {source.redshift != null && <>&nbsp;|&nbsp;</>}
           <Button href={`/api/sources/${source.id}/finder`}>
             PDF Finding Chart
           </Button>
@@ -156,12 +190,25 @@ const SourceDesktop = ({ source }) => {
           {showStarList && <StarList sourceId={source.id} />}
           {source.groups.map((group) => (
             <Chip
-              label={group.name.substring(0, 15)}
+              label={
+                group.nickname
+                  ? group.nickname.substring(0, 15)
+                  : group.name.substring(0, 15)
+              }
               key={group.id}
               size="small"
               className={classes.chip}
+              data-testid={`groupChip_${group.id}`}
             />
           ))}
+          <AddSourceGroup
+            source={{
+              id: source.id,
+              currentGroupIds: source.groups.map((g) => g.id),
+            }}
+            userGroups={userAccessibleGroups}
+            icon
+          />
         </div>
         <div className={classes.columnItem}>
           <ThumbnailList
@@ -169,6 +216,22 @@ const SourceDesktop = ({ source }) => {
             dec={source.dec}
             thumbnails={source.thumbnails}
           />
+        </div>
+        <div className={classes.columnItem}>
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="surveys-content"
+              id="surveys-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Surveys
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
+            </AccordionDetails>
+          </Accordion>
         </div>
         <div className={classes.columnItem}>
           <Accordion defaultExpanded>
@@ -226,22 +289,6 @@ const SourceDesktop = ({ source }) => {
           </Accordion>
         </div>
         {/* TODO 1) check for dead links; 2) simplify link formatting if possible */}
-        <div className={classes.columnItem}>
-          <Accordion defaultExpanded>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="surveys-content"
-              id="surveys-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Surveys
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
-            </AccordionDetails>
-          </Accordion>
-        </div>
         <div className={classes.columnItem}>
           <Accordion defaultExpanded>
             <AccordionSummary
@@ -339,6 +386,22 @@ const SourceDesktop = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </div>
+        <div className={classes.columnItem}>
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="notifications-content"
+              id="notifications-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Source Notification
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <SourceNotification sourceId={source.id} />
+            </AccordionDetails>
+          </Accordion>
+        </div>
       </div>
     </div>
   );
@@ -355,6 +418,8 @@ SourceDesktop.propTypes = {
     groups: PropTypes.arrayOf(PropTypes.shape({})),
     gal_lon: PropTypes.number,
     gal_lat: PropTypes.number,
+    dm: PropTypes.number,
+    luminosity_distance: PropTypes.number,
     classifications: PropTypes.arrayOf(
       PropTypes.shape({
         author_name: PropTypes.string,
@@ -370,6 +435,7 @@ SourceDesktop.propTypes = {
     ),
     followup_requests: PropTypes.arrayOf(PropTypes.any),
     assignments: PropTypes.arrayOf(PropTypes.any),
+    redshift_history: PropTypes.arrayOf(PropTypes.any),
   }).isRequired,
 };
 

@@ -121,7 +121,9 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
         <Button
           onClick={handleClickMainButton}
           name={`initialSaveCandidateButton${candidate.id}`}
+          data-testid={`saveCandidateButton_${candidate.id}`}
           disabled={isSubmitting}
+          size="small"
         >
           {options[selectedIndex]}
         </Button>

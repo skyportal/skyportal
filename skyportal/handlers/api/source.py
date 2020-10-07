@@ -1,5 +1,7 @@
 import datetime
-
+from json.decoder import JSONDecodeError
+import python_http_client.exceptions
+from twilio.base.exceptions import TwilioException
 import tornado
 from tornado.ioloop import IOLoop
 import io
@@ -12,6 +14,7 @@ from marshmallow.exceptions import ValidationError
 import functools
 import healpix_alchemy as ha
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -26,6 +29,7 @@ from ...models import (
     FollowupRequest,
     ClassicalAssignment,
     ObservingRun,
+    SourceNotification,
 )
 from .internal.source_views import register_source_view
 from ...utils import (
@@ -33,10 +37,13 @@ from ...utils import (
     facility_parameters,
     source_image_parameters,
     get_finding_chart,
+    _calculate_best_position_for_offset_stars,
 )
-from .candidate import grab_query_results_page
+from .candidate import grab_query_results_page, update_redshift_history_if_relevant
 
 SOURCES_PER_PAGE = 100
+
+_, cfg = load_env()
 
 
 class SourceHandler(BaseHandler):
@@ -253,6 +260,10 @@ class SourceHandler(BaseHandler):
             source_info["last_detected"] = s.last_detected
             source_info["gal_lat"] = s.gal_lat_deg
             source_info["gal_lon"] = s.gal_lon_deg
+            source_info["luminosity_distance"] = s.luminosity_distance
+            source_info["dm"] = s.dm
+            source_info["angular_diameter_distance"] = s.angular_diameter_distance
+
             source_info["followup_requests"] = [
                 f for f in source_info['followup_requests'] if f.status != 'deleted'
             ]
@@ -266,7 +277,6 @@ class SourceHandler(BaseHandler):
                 )
                 .all()
             )
-
             return self.success(data=source_info)
 
         # Fetch multiple sources
@@ -355,6 +365,12 @@ class SourceHandler(BaseHandler):
             source_list[-1]["last_detected"] = source.last_detected
             source_list[-1]["gal_lon"] = source.gal_lon_deg
             source_list[-1]["gal_lat"] = source.gal_lat_deg
+            source_list[-1]["luminosity_distance"] = source.luminosity_distance
+            source_list[-1]["dm"] = source.dm
+            source_list[-1][
+                "angular_diameter_distance"
+            ] = source.angular_diameter_distance
+
             source_list[-1]["groups"] = (
                 DBSession()
                 .query(Group)
@@ -433,25 +449,37 @@ class SourceHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
+
+        previouslySaved = Source.query.filter(Source.obj_id == obj.id).first()
+
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
         if not groups:
             return self.error(
                 "Invalid group_ids field. Please specify at least "
                 "one valid group ID that you belong to."
             )
+
+        update_redshift_history_if_relevant(data, obj, self.associated_user_object)
+
         DBSession().add(obj)
         DBSession().add_all([Source(obj=obj, group=group) for group in groups])
         DBSession().commit()
 
         self.push_all(action="skyportal/FETCH_SOURCES")
+        # If we're updating a source
+        if previouslySaved is not None:
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+            )
+
         self.push_all(
             action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
         )
         self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
         return self.success(data={"id": obj.id})
 
-    @permissions(['Manage sources'])
-    def put(self, obj_id):
+    @permissions(['Upload data'])
+    def patch(self, obj_id):
         """
         ---
         description: Update a source
@@ -482,13 +510,16 @@ class SourceHandler(BaseHandler):
 
         schema = Obj.__schema__()
         try:
-            schema.load(data)
+            obj = schema.load(data)
         except ValidationError as e:
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
+        update_redshift_history_if_relevant(data, obj, self.associated_user_object)
         DBSession().commit()
-
+        self.push_all(
+            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key},
+        )
         return self.success(action='skyportal/FETCH_SOURCES')
 
     @permissions(['Manage sources'])
@@ -565,6 +596,13 @@ class SourceOffsetsHandler(BaseHandler):
             type: string
           description: |
             datetime of observation in isoformat (e.g. 2020-12-30T12:34:10)
+        - in: query
+          name: use_ztfref
+          required: false
+          schema:
+            type: boolean
+          description: |
+            Use ZTFref catalog for offset star positions, otherwise Gaia DR2
         responses:
           200:
             content:
@@ -643,12 +681,35 @@ class SourceOffsetsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(
+            obj_id,
+            self.current_user,
+            options=[joinedload(Source.obj).joinedload(Obj.photometry)],
+        )
         if source is None:
             return self.error('Invalid source ID.')
 
+        initial_pos = (source.ra, source.dec)
+
+        try:
+            best_ra, best_dec = _calculate_best_position_for_offset_stars(
+                source.photometry,
+                fallback=(initial_pos[0], initial_pos[1]),
+                how="snr2",
+            )
+        except JSONDecodeError:
+            self.push_notification(
+                'Source position using photometry points failed.'
+                ' Reverting to discovery position.'
+            )
+            best_ra, best_dec = initial_pos[0], initial_pos[1]
+
         facility = self.get_query_argument('facility', 'Keck')
         how_many = self.get_query_argument('how_many', '3')
+        use_ztfref = self.get_query_argument('use_ztfref', True)
+        if isinstance(use_ztfref, str):
+            use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
+
         obstime = self.get_query_argument(
             'obstime', datetime.datetime.utcnow().isoformat()
         )
@@ -676,8 +737,8 @@ class SourceOffsetsHandler(BaseHandler):
                 queries_issued,
                 noffsets,
             ) = get_nearby_offset_stars(
-                source.ra,
-                source.dec,
+                best_ra,
+                best_dec,
                 obj_id,
                 how_many=how_many,
                 radius_degrees=radius_degrees,
@@ -687,6 +748,7 @@ class SourceOffsetsHandler(BaseHandler):
                 mag_min=mag_min,
                 obstime=obstime,
                 allowed_queries=2,
+                use_ztfref=use_ztfref,
             )
 
         except ValueError:
@@ -742,6 +804,13 @@ class SourceFinderHandler(BaseHandler):
             enum: [desi, dss, ztfref]
           description: Source of the image used in the finding chart
         - in: query
+          name: use_ztfref
+          required: false
+          schema:
+            type: boolean
+          description: |
+            Use ZTFref catalog for offset star positions, otherwise DR2
+        - in: query
           name: obstime
           nullable: True
           schema:
@@ -761,7 +830,11 @@ class SourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(
+            obj_id,
+            self.current_user,
+            options=[joinedload(Source.obj).joinedload(Obj.photometry)],
+        )
         if source is None:
             return self.error('Invalid source ID.')
 
@@ -775,8 +848,25 @@ class SourceFinderHandler(BaseHandler):
         if imsize < 2.0 or imsize > 15.0:
             return self.error('The value for `imsize` is outside the allowed range')
 
+        initial_pos = (source.ra, source.dec)
+        try:
+            best_ra, best_dec = _calculate_best_position_for_offset_stars(
+                source.photometry,
+                fallback=(initial_pos[0], initial_pos[1]),
+                how="snr2",
+            )
+        except JSONDecodeError:
+            self.push_notification(
+                'Source position using photometry points failed.'
+                ' Reverting to discovery position.'
+            )
+            best_ra, best_dec = initial_pos[0], initial_pos[1]
+
         facility = self.get_query_argument('facility', 'Keck')
-        image_source = self.get_query_argument('image_source', 'desi')
+        image_source = self.get_query_argument('image_source', 'ztfref')
+        use_ztfref = self.get_query_argument('use_ztfref', True)
+        if isinstance(use_ztfref, str):
+            use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
 
         how_many = 3
         obstime = self.get_query_argument(
@@ -798,8 +888,8 @@ class SourceFinderHandler(BaseHandler):
 
         finder = functools.partial(
             get_finding_chart,
-            source.ra,
-            source.dec,
+            best_ra,
+            best_dec,
             obj_id,
             image_source=image_source,
             output_format='pdf',
@@ -814,6 +904,7 @@ class SourceFinderHandler(BaseHandler):
             use_source_pos_in_starlist=True,
             allowed_queries=2,
             queries_issued=0,
+            use_ztfref=use_ztfref,
         )
 
         self.push_notification(
@@ -862,3 +953,136 @@ class SourceFinderHandler(BaseHandler):
 
                 # pause the coroutine so other handlers can run
                 await tornado.gen.sleep(1e-9)  # 1 ns
+
+
+class SourceNotificationHandler(BaseHandler):
+    @auth_or_token
+    def post(self):
+        """
+        ---
+        description: Send out a new source notification
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  additionalNotes:
+                    type: string
+                    description: |
+                      Notes to append to the message sent out
+                  groupIds:
+                    type: array
+                    items:
+                      type: integer
+                    description: |
+                      List of IDs of groups whose members should get the notification (if they've opted in)
+                  sourceId:
+                    type: string
+                    description: |
+                      The ID of the Source's Obj the notification is being sent about
+                  level:
+                    type: string
+                    description: |
+                      Either 'soft' or 'hard', determines whether to send an email or email+SMS notification
+                required:
+                  - groupIds
+                  - sourceId
+                  - level
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: New SourceNotification ID
+        """
+        if not cfg["notifications.enabled"]:
+            return self.error("Notifications are not enabled in current deployment.")
+        data = self.get_json()
+
+        additional_notes = data.get("additionalNotes")
+        if isinstance(additional_notes, str):
+            additional_notes = data["additionalNotes"].strip()
+        else:
+            if additional_notes is not None:
+                return self.error(
+                    "Invalid parameter `additionalNotes`: should be a string"
+                )
+
+        if data.get("groupIds") is None:
+            return self.error("Missing required parameter `groupIds`")
+        try:
+            group_ids = [int(gid) for gid in data["groupIds"]]
+        except ValueError:
+            return self.error(
+                "Invalid value provided for `groupIDs`; unable to parse "
+                "all list items to integers."
+            )
+
+        groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
+
+        if data.get("sourceId") is None:
+            return self.error("Missing required parameter `sourceId`")
+
+        source = Source.get_obj_if_owned_by(data["sourceId"], self.current_user)
+        if source is None:
+            return self.error("Invalid source ID.")
+
+        source_id = data["sourceId"]
+
+        source_group_ids = [
+            row[0]
+            for row in DBSession()
+            .query(Source.group_id)
+            .filter(Source.obj_id == source_id)
+            .all()
+        ]
+
+        if bool(set(group_ids).difference(set(source_group_ids))):
+            forbidden_groups = list(set(group_ids) - set(source_group_ids))
+            return self.error(
+                "Insufficient recipient group access permissions. Not a member of "
+                f"group IDs: {forbidden_groups}."
+            )
+
+        if data.get("level") is None:
+            return self.error("Missing required parameter `level`")
+        if data["level"] not in ["soft", "hard"]:
+            return self.error(
+                "Invalid value provided for `level`: should be either 'soft' or 'hard'"
+            )
+        level = data["level"]
+
+        new_notification = SourceNotification(
+            source_id=source_id,
+            groups=groups,
+            additional_notes=additional_notes,
+            sent_by=self.associated_user_object,
+            level=level,
+        )
+        DBSession().add(new_notification)
+        try:
+            DBSession().commit()
+        except python_http_client.exceptions.UnauthorizedError:
+            return self.error(
+                "Twilio Sendgrid authorization error. Please ensure "
+                "valid Sendgrid API key is set in server environment as "
+                "per their setup docs."
+            )
+        except TwilioException:
+            return self.error(
+                "Twilio Communication SMS API authorization error. Please ensure "
+                "valid Twilio API key is set in server environment as "
+                "per their setup docs."
+            )
+
+        return self.success(data={'id': new_notification.id})

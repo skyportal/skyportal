@@ -11,6 +11,19 @@ server:
     google_oauth2_key:
     google_oauth2_secret:
 
+twilio:
+  # Twilio Sendgrid API configs
+  # This needs to be set to a valid, Sendgrid-registered address in config.yaml
+  from_email:
+  # This needs to be obtained via Sendgrid setup on their site
+  sendgrid_api_key:
+
+  # Twilio SMS API configs
+  # These values must be valid ones from the Twitter API console
+  from_number:
+  sms_account_sid:
+  sms_auth_token:
+
 invitations:
   enabled: False
   days_until_expiry: 3
@@ -19,5 +32,8 @@ invitations:
     Welcome to <b>SkyPortal</b>!
     <br />
     Some other text here.
-  from_email: # This needs to be set to a valid, Sendgrid-registered address in config.yaml
-  sendgrid_api_key: # This needs to be obtained via Sendgrid setup on their site
+
+notifications:
+  enabled: True
+
+testing: true

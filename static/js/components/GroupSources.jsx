@@ -35,6 +35,11 @@ const useStyles = makeStyles((theme) => ({
     margin: theme.spacing(0.5),
   },
   source: {},
+  commentListContainer: {
+    height: "15rem",
+    overflowY: "scroll",
+    padding: "0.5rem 0",
+  },
 }));
 
 const GroupSources = ({ route }) => {
@@ -104,63 +109,68 @@ const GroupSources = ({ route }) => {
               </Suspense>
             </Grid>
             <Grid item>
-              {comments.map(
-                ({
-                  id,
-                  author,
-                  author_info,
-                  created_at,
-                  text,
-                  attachment_name,
-                  groups: comment_groups,
-                }) => (
-                  <span key={id} className={commentStyle}>
-                    <div className={styles.commentUserAvatar}>
-                      <UserAvatar
-                        size={24}
-                        firstName={author_info.first_name}
-                        lastName={author_info.last_name}
-                        username={author_info.username}
-                        gravatarUrl={author_info.gravatar_url}
-                      />
-                    </div>
-                    <div className={styles.commentContent}>
-                      <div className={styles.commentHeader}>
-                        <span className={styles.commentUser}>
-                          <span className={styles.commentUserName}>
-                            {author.username}
+              <div className={classes.commentListContainer}>
+                {comments.map(
+                  ({
+                    id,
+                    author,
+                    author_info,
+                    created_at,
+                    text,
+                    attachment_name,
+                    groups: comment_groups,
+                  }) => (
+                    <span key={id} className={commentStyle}>
+                      <div className={styles.commentUserAvatar}>
+                        <UserAvatar
+                          size={24}
+                          firstName={author_info.first_name}
+                          lastName={author_info.last_name}
+                          username={author_info.username}
+                          gravatarUrl={author_info.gravatar_url}
+                        />
+                      </div>
+                      <div className={styles.commentContent}>
+                        <div className={styles.commentHeader}>
+                          <span className={styles.commentUser}>
+                            <span className={styles.commentUserName}>
+                              {author.username}
+                            </span>
                           </span>
-                        </span>
-                        <span className={styles.commentTime}>
-                          {dayjs().to(dayjs.utc(`${created_at}Z`))}
-                        </span>
-                        <div className={styles.commentUserGroup}>
-                          <Tooltip
-                            title={comment_groups
-                              .map((group) => group.name)
-                              .join(", ")}
-                          >
-                            <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
-                          </Tooltip>
-                        </div>
-                      </div>
-                      <div className={styles.wrap} name={`commentDiv${id}`}>
-                        <div className={styles.commentMessage}>{text}</div>
-                      </div>
-                      <span>
-                        {attachment_name && (
-                          <div>
-                            Attachment:&nbsp;
-                            <a href={`/api/comment/${id}/attachment`}>
-                              {attachment_name}
-                            </a>
+                          <span className={styles.commentTime}>
+                            {dayjs().to(dayjs.utc(`${created_at}Z`))}
+                          </span>
+                          <div className={styles.commentUserGroup}>
+                            <Tooltip
+                              title={comment_groups
+                                .map((group) => group.name)
+                                .join(", ")}
+                            >
+                              <GroupIcon
+                                fontSize="small"
+                                viewBox="0 -2 24 24"
+                              />
+                            </Tooltip>
                           </div>
-                        )}
-                      </span>
-                    </div>
-                  </span>
-                )
-              )}
+                        </div>
+                        <div className={styles.wrap} name={`commentDiv${id}`}>
+                          <div className={styles.commentMessage}>{text}</div>
+                        </div>
+                        <span>
+                          {attachment_name && (
+                            <div>
+                              Attachment:&nbsp;
+                              <a href={`/api/comment/${id}/attachment`}>
+                                {attachment_name}
+                              </a>
+                            </div>
+                          )}
+                        </span>
+                      </div>
+                    </span>
+                  )
+                )}
+              </div>
             </Grid>
             <Grid item>
               <Suspense fallback={<div>Loading classifications</div>}>

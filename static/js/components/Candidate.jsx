@@ -82,18 +82,42 @@ const Candidate = ({ route }) => {
               </div>
               <div>
                 <b>Position (J2000):</b>
-                &nbsp;
-                {candidate.ra}, &nbsp;
-                {candidate.dec}
-                &nbsp; (&alpha;,&delta;=
-                {ra_to_hours(candidate.ra)}, &nbsp;
-                {dec_to_hours(candidate.dec)}) &nbsp; (l,b=
+                &nbsp; &nbsp;
+                <span className={classes.position}>
+                  {ra_to_hours(candidate.ra)} &nbsp;
+                  {dec_to_hours(candidate.dec)}
+                </span>
+                &nbsp; (&alpha;,&delta;= {candidate.ra}, &nbsp;
+                {candidate.dec}; <i>l</i>,<i>b</i>=
                 {candidate.gal_lon.toFixed(6)}, &nbsp;
                 {candidate.gal_lat.toFixed(6)}
                 )
                 <br />
-                <b>Redshift: &nbsp;</b>
-                {candidate.redshift}
+                {candidate.redshift != null && (
+                  <>
+                    <b>Redshift: &nbsp;</b>
+                    {candidate.redshift?.toFixed(4)}
+                  </>
+                )}
+                {candidate.dm && (
+                  <>
+                    &nbsp;|&nbsp;
+                    <b>DM: &nbsp;</b>
+                    {candidate.dm.toFixed(3)}
+                    &nbsp; mag
+                  </>
+                )}
+                {candidate.luminosity_distance && (
+                  <>
+                    &nbsp;|&nbsp;
+                    <b>
+                      <i>D</i>
+                      <sub>L</sub>: &nbsp;
+                    </b>
+                    {candidate.luminosity_distance.toFixed(2)}
+                    &nbsp; Mpc
+                  </>
+                )}
               </div>
               <ThumbnailList
                 ra={candidate.ra}

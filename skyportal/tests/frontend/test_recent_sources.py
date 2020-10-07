@@ -1,4 +1,6 @@
 import uuid
+import time
+
 import pytest
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException
@@ -87,3 +89,46 @@ def test_hidden_recent_source(driver, user_no_groups, public_group, upload_data_
         driver.wait_for_xpath(
             f'//div[starts-with(@class, "{recent_source_class}")][.//span[text()="a few seconds ago"]][.//a[contains(text(), "{obj_id}")]]'
         )
+
+
+def test_recently_saved_candidate(driver, user, public_filter, upload_data_token):
+    obj_id = str(uuid.uuid4())
+
+    status, data = api(
+        'POST',
+        'candidates',
+        data={
+            'id': obj_id,
+            'ra': 50.1,
+            'dec': 22.33,
+            'redshift': 2.5,
+            "altdata": {"simbad": {"class": "RRLyr"}},
+            'transient': False,
+            'ra_dis': 2.3,
+            'filter_ids': [public_filter.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['data']['id'] == obj_id
+
+    driver.get(f'/become_user/{user.id}')
+    driver.get('/candidates')
+    # Save a new candidate and see if it shows up in recent sources
+    driver.wait_for_xpath(f'//a[text()="{obj_id}"]')
+    driver.click_xpath(
+        f'//button[contains(@data-testid, "saveCandidateButton_{obj_id}")]'
+    )
+    try:
+        driver.wait_for_xpath("//span[text()='Previously Saved']")
+    except TimeoutException:
+        driver.click_xpath(
+            f'//button[contains(@data-testid, "saveCandidateButton_{obj_id}")]'
+        )
+        time.sleep(1)
+        driver.wait_for_xpath("//span[text()='Previously Saved']")
+
+    driver.get('/')
+    driver.wait_for_xpath(
+        f'//div[starts-with(@data-testid, "recentSourceItem")][.//span[text()="a few seconds ago"]][.//a[contains(text(), "{obj_id}")]]'
+    )
