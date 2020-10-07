@@ -54,7 +54,7 @@ const ObservingRunPage = () => {
   const classes = useStyles();
   return (
     <Grid container spacing={3}>
-      <Grid item xs={12} md={6} sm={12}>
+      <Grid item md={6} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <Typography variant="h6">List of Observing Runs</Typography>
@@ -62,7 +62,7 @@ const ObservingRunPage = () => {
           </div>
         </Paper>
       </Grid>
-      <Grid item xs={12} md={6} sm={12}>
+      <Grid item md={6} sm={12}>
         <Paper>
           <div className={classes.paperContent}>
             <Typography variant="h6">Add a New Observing Run</Typography>
