@@ -465,6 +465,7 @@ const CandidateList = () => {
     print: false,
     download: false,
     sort: false,
+    filter: false,
     count: totalMatches,
     selectableRows: "none",
     enableNestedDataAccess: ".",
