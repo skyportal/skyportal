@@ -562,25 +562,14 @@ class CandidateHandler(BaseHandler):
 
 def grab_query_results_page(q, total_matches, page, n_items_per_page, items_name):
     # The query can return multiple rows for candidates with multiple annotations
-    # Now that the sorting/filtering on annotations is done, deduplicate those
-    q = (
-        Obj.query.options(
-            [
-                joinedload(Obj.thumbnails)
-                .joinedload(Thumbnail.photometry)
-                .joinedload(Photometry.instrument)
-                .joinedload(Instrument.telescope),
-            ]
-        )
-        .select_entity_from(q.subquery())
-        .distinct(Obj.id)
-    )
-
+    # Getting the query results and doing the limit/offset on the Python side
+    # simplifies the deduplication
+    items = q.all()
     info = {}
     if total_matches:
         info["totalMatches"] = int(total_matches)
     else:
-        info["totalMatches"] = q.count()
+        info["totalMatches"] = len(items)
     if (
         (
             (
@@ -597,9 +586,8 @@ def grab_query_results_page(q, total_matches, page, n_items_per_page, items_name
         or (info["totalMatches"] == 0 and page != 1)
     ):
         raise ValueError("Page number out of range.")
-    info[items_name] = (
-        q.limit(n_items_per_page).offset((page - 1) * n_items_per_page).all()
-    )
+    s = slice((page - 1) * n_items_per_page, page * n_items_per_page)
+    info[items_name] = items[s]
     info["pageNumber"] = page
     info["lastPage"] = info["totalMatches"] <= page * n_items_per_page
     info["numberingStart"] = (page - 1) * n_items_per_page + 1
