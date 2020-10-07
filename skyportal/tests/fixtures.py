@@ -84,7 +84,7 @@ class AnnotationFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Annotation
 
-    data = {'unique_id': {str(uuid.uuid4())}}
+    data = {'unique_id': str(uuid.uuid4())}
     author = factory.SubFactory(UserFactory)
 
 
