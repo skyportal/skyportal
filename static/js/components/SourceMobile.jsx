@@ -32,6 +32,7 @@ import AddSourceGroup from "./AddSourceGroup";
 import SourceNotification from "./SourceNotification";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
+import AnnotationsTable from "./AnnotationsTable";
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -258,6 +259,22 @@ const SourceMobile = ({ source }) => {
           <Accordion defaultExpanded>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
+              aria-controls="annotations-content"
+              id="annotations-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Auto-annotations
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <AnnotationsTable annotations={source.annotations} />
+            </AccordionDetails>
+          </Accordion>
+        </div>
+        <div>
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
               aria-controls="photometry-content"
               id="photometry-header"
             >
@@ -436,6 +453,12 @@ SourceMobile.propTypes = {
     gal_lat: PropTypes.number,
     dm: PropTypes.number,
     luminosity_distance: PropTypes.number,
+    annotations: PropTypes.arrayOf(
+      PropTypes.shape({
+        origin: PropTypes.string.isRequired,
+        data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+      })
+    ),
     classifications: PropTypes.arrayOf(
       PropTypes.shape({
         author_name: PropTypes.string,

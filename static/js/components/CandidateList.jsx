@@ -80,7 +80,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-// Hide built-in pagination and tweak responsive column widths
+// Tweak responsive column widths
 const getMuiTheme = (theme) =>
   createMuiTheme({
     overrides: {

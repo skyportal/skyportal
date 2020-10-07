@@ -254,6 +254,9 @@ class SourceHandler(BaseHandler):
             source_info["comments"] = sorted(
                 comments, key=lambda x: x.created_at, reverse=True
             )
+            source_info["annotations"] = sorted(
+                s.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
+            )
             source_info["classifications"] = s.get_classifications_owned_by(
                 self.current_user
             )
