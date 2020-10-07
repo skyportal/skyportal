@@ -222,6 +222,22 @@ const SourceDesktop = ({ source }) => {
           <Accordion defaultExpanded>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
+              aria-controls="surveys-content"
+              id="surveys-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Surveys
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
+            </AccordionDetails>
+          </Accordion>
+        </div>
+        <div className={classes.columnItem}>
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
               aria-controls="photometry-content"
               id="photometry-header"
             >
@@ -274,22 +290,6 @@ const SourceDesktop = ({ source }) => {
           </Accordion>
         </div>
         {/* TODO 1) check for dead links; 2) simplify link formatting if possible */}
-        <div className={classes.columnItem}>
-          <Accordion defaultExpanded>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="surveys-content"
-              id="surveys-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Surveys
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
-            </AccordionDetails>
-          </Accordion>
-        </div>
         <div className={classes.columnItem}>
           <Accordion defaultExpanded>
             <AccordionSummary

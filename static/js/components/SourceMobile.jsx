@@ -259,6 +259,22 @@ const SourceMobile = ({ source }) => {
           <Accordion defaultExpanded>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
+              aria-controls="surveys-content"
+              id="surveys-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Surveys
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
+            </AccordionDetails>
+          </Accordion>
+        </div>
+        <div>
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
               aria-controls="annotations-content"
               id="annotations-header"
             >
@@ -327,22 +343,6 @@ const SourceMobile = ({ source }) => {
           </Accordion>
         </div>
         {/* TODO 1) check for dead links; 2) simplify link formatting if possible */}
-        <div>
-          <Accordion defaultExpanded>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="surveys-content"
-              id="surveys-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Surveys
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
-            </AccordionDetails>
-          </Accordion>
-        </div>
         <div>
           <Accordion defaultExpanded>
             <AccordionSummary
