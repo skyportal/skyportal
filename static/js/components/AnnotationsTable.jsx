@@ -9,7 +9,14 @@ import {
 } from "@material-ui/core/styles";
 import MUIDataTable from "mui-datatables";
 
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import relativeTime from "dayjs/plugin/relativeTime";
+
 import { getAnnotationValueString } from "./CandidateAnnotationsList";
+
+dayjs.extend(relativeTime);
+dayjs.extend(utc);
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -43,13 +50,13 @@ const AnnotationsTable = ({ annotations }) => {
   const classes = useStyles();
   const theme = useTheme();
   const renderValue = (value) => getAnnotationValueString(value);
-
+  const renderTime = (created_at) => dayjs().to(dayjs.utc(`${created_at}Z`));
   // Curate data
   const tableData = [];
   annotations.forEach((annotation) => {
-    const { origin, data } = annotation;
+    const { origin, data, author_info, created_at } = annotation;
     Object.entries(data).forEach(([key, value]) => {
-      tableData.push({ origin, key, value });
+      tableData.push({ origin, key, value, author_info, created_at });
     });
   });
 
@@ -67,6 +74,17 @@ const AnnotationsTable = ({ annotations }) => {
       label: "Value",
       options: {
         customBodyRender: renderValue,
+      },
+    },
+    {
+      name: "author_info.username",
+      label: "Author",
+    },
+    {
+      name: "created_at",
+      label: "Created",
+      options: {
+        customBodyRender: renderTime,
       },
     },
   ];
@@ -99,6 +117,10 @@ AnnotationsTable.propTypes = {
     PropTypes.shape({
       origin: PropTypes.string.isRequired,
       data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+      author_info: PropTypes.shape({
+        username: PropTypes.string.isRequired,
+      }).isRequired,
+      created_at: PropTypes.string.isRequired,
     })
   ).isRequired,
 };
