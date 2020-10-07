@@ -7,7 +7,7 @@ import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Checkbox from "@material-ui/core/Checkbox";
 import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
-import { KeyboardDatePicker } from "@material-ui/pickers";
+import { KeyboardDateTimePicker } from "@material-ui/pickers";
 import Paper from "@material-ui/core/Paper";
 import SearchIcon from "@material-ui/icons/Search";
 import { makeStyles } from "@material-ui/core/styles";
@@ -46,8 +46,6 @@ const useStyles = makeStyles(() => ({
 
 const FilterCandidateList = ({
   userAccessibleGroups,
-  handleClickNextPage,
-  handleClickPreviousPage,
   pageNumber,
   numberingStart,
   numberingEnd,
@@ -102,16 +100,23 @@ const FilterCandidateList = ({
     setQueryInProgress(false);
   };
 
+  const handleClickNextPage = async () => {
+    const formData = getValues({ nest: true });
+    onSubmit({ ...formData, pageNumber: pageNumber + 1 });
+  };
+
+  const handleClickPreviousPage = async () => {
+    const formData = getValues({ nest: true });
+    onSubmit({ ...formData, pageNumber: pageNumber - 1 });
+  };
+
   const handleJumpToPageInputChange = (e) => {
     setJumpToPageInputValue(e.target.value);
   };
 
   const handleClickJumpToPage = async () => {
-    setQueryInProgress(true);
-    await dispatch(
-      candidatesActions.fetchCandidates({ pageNumber: jumpToPageInputValue })
-    );
-    setQueryInProgress(false);
+    const formData = getValues({ nest: true });
+    onSubmit({ ...formData, pageNumber: jumpToPageInputValue });
   };
 
   return (
@@ -124,28 +129,32 @@ const FilterCandidateList = ({
             )}
             <Controller
               as={
-                <KeyboardDatePicker
-                  format="YYYY-MM-DD"
+                <KeyboardDateTimePicker
                   value={formState.startDate}
-                  emptyLabel="Start Date"
+                  label="Start (browser local time)"
+                  format="YYYY/MM/DD HH:mm"
+                  ampm={false}
+                  showTodayButton
                 />
               }
               rules={{ validate: validateDates }}
               name="startDate"
               control={control}
             />
+            &nbsp;
             <Controller
               as={
-                <KeyboardDatePicker
-                  format="YYYY-MM-DD"
+                <KeyboardDateTimePicker
                   value={formState.endDate}
-                  emptyLabel="End Date"
+                  label="End (browser local time)"
+                  format="YYYY/MM/DD HH:mm"
+                  ampm={false}
+                  showTodayButton
                 />
               }
               rules={{ validate: validateDates }}
               name="endDate"
               control={control}
-              onChange={([selected]) => selected}
             />
           </div>
           <div>
@@ -235,6 +244,7 @@ const FilterCandidateList = ({
             type="number"
             onChange={handleJumpToPageInputChange}
             value={jumpToPageInputValue}
+            inputProps={{ min: "1" }}
             name="jumpToPageInputField"
           />
           <Button
@@ -253,8 +263,6 @@ const FilterCandidateList = ({
 };
 FilterCandidateList.propTypes = {
   userAccessibleGroups: PropTypes.arrayOf(PropTypes.object).isRequired,
-  handleClickNextPage: PropTypes.func.isRequired,
-  handleClickPreviousPage: PropTypes.func.isRequired,
   pageNumber: PropTypes.number.isRequired,
   numberingStart: PropTypes.number.isRequired,
   numberingEnd: PropTypes.number.isRequired,

@@ -123,6 +123,7 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
           name={`initialSaveCandidateButton${candidate.id}`}
           data-testid={`saveCandidateButton_${candidate.id}`}
           disabled={isSubmitting}
+          size="small"
         >
           {options[selectedIndex]}
         </Button>

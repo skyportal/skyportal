@@ -70,15 +70,27 @@ class NewsFeedHandler(BaseHandler):
 
         sources = fetch_newest(Source)
         comments = fetch_newest(Comment)
-        news_feed_items = [
-            {
-                'type': 'source',
-                'time': s.created_at,
-                'message': 'New source added',
-                'source_id': s.obj_id,
-            }
-            for s in sources
-        ]
+        news_feed_items = []
+        source_seen = set()
+        # Iterate in reverse so that we arrive at re-saved sources second
+        for s in reversed(sources):
+            if s.obj_id in source_seen:
+                message = 'Source saved to new group'
+            else:
+                message = 'New source saved'
+                source_seen.add(s.obj_id)
+
+            # Prepend since we are iterating in reverse
+            news_feed_items.insert(
+                0,
+                {
+                    'type': 'source',
+                    'time': s.created_at,
+                    'message': message,
+                    'source_id': s.obj_id,
+                },
+            )
+
         news_feed_items.extend(
             [
                 {

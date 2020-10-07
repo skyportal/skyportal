@@ -385,6 +385,12 @@ def comment_token(user):
 
 
 @pytest.fixture()
+def annotation_token(user):
+    token_id = create_token(ACLs=["Annotate"], user_id=user.id, name=str(uuid.uuid4()))
+    return token_id
+
+
+@pytest.fixture()
 def classification_token(user):
     token_id = create_token(ACLs=["Classify"], user_id=user.id, name=str(uuid.uuid4()))
     return token_id
@@ -414,6 +420,14 @@ def taxonomy_token_two_groups(user_two_groups):
 def comment_token_two_groups(user_two_groups):
     token_id = create_token(
         ACLs=["Comment"], user_id=user_two_groups.id, name=str(uuid.uuid4())
+    )
+    return token_id
+
+
+@pytest.fixture()
+def annotation_token_two_groups(user_two_groups):
+    token_id = create_token(
+        ACLs=["Annotate"], user_id=user_two_groups.id, name=str(uuid.uuid4())
     )
     return token_id
 
@@ -458,6 +472,7 @@ def public_source_followup_request(public_group_sedm_allocation, public_source, 
             'observation_type': 'IFU',
         },
         requester_id=user.id,
+        last_modified_by_id=user.id,
     )
 
     DBSession().add(fr)
@@ -479,6 +494,7 @@ def public_source_group2_followup_request(
             'observation_type': 'IFU',
         },
         requester_id=user_two_groups.id,
+        last_modified_by_id=user_two_groups.id,
     )
 
     DBSession().add(fr)
@@ -492,5 +508,30 @@ def sedm_listener_token(sedm, group_admin_user):
         ACLs=[sedm.listener_class.get_acl_id()],
         user_id=group_admin_user.id,
         name=str(uuid.uuid4()),
+    )
+    return token_id
+
+
+@pytest.fixture()
+def source_notification_user(public_group):
+    uid = str(uuid.uuid4())
+    username = f"{uid}@cesium.ml.org"
+    user = User(
+        username=username,
+        contact_email=username,
+        contact_phone="+12345678910",
+        groups=[public_group],
+        roles=[models.Role.query.get("Full user")],
+        preferences={"allowEmailNotifications": True, "allowSMSNotifications": True},
+    )
+    DBSession().add(user)
+    DBSession().commit()
+    return user
+
+
+@pytest.fixture()
+def source_notification_user_token(source_notification_user):
+    token_id = create_token(
+        ACLs=[], user_id=source_notification_user.id, name=str(uuid.uuid4()),
     )
     return token_id

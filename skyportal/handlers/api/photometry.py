@@ -6,6 +6,7 @@ from marshmallow.exceptions import ValidationError
 import sncosmo
 from sncosmo.photdata import PhotometricData
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -28,6 +29,9 @@ from ...schema import (
     RecentPhotometryQuery,
 )
 from ...enum_types import ALLOWED_MAGSYSTEMS
+
+
+_, cfg = load_env()
 
 
 def nan_to_none(value):
@@ -189,14 +193,16 @@ class PhotometryHandler(BaseHandler):
             group_ids = data.pop("group_ids")
         except KeyError:
             return self.error("Missing required field: group_ids")
-        groups = Group.query.filter(Group.id.in_(group_ids)).all()
-        if not groups:
+        if isinstance(group_ids, (list, tuple)):
+            groups = Group.query.filter(Group.id.in_(group_ids)).all()
+            if not groups:
+                return self.error(
+                    "Invalid group_ids field. Specify at least one valid group ID."
+                )
+        elif group_ids != "all":
             return self.error(
-                "Invalid group_ids field. " "Specify at least one valid group ID."
-            )
-        if not all([group in self.current_user.accessible_groups for group in groups]):
-            return self.error(
-                "Cannot upload photometry to groups that you " "are not a member of."
+                "Invalid group_ids parameter value. Must be a list of IDs "
+                "(integers) or the string 'all'."
             )
         if "alert_id" in data:
             phot = (
@@ -409,6 +415,14 @@ class PhotometryHandler(BaseHandler):
 
         groupquery = GroupPhotometry.__table__.insert()
         params = []
+        if group_ids == "all":
+            public_group = (
+                DBSession()
+                .query(Group)
+                .filter(Group.name == cfg["misc"]["public_group_name"])
+                .first()
+            )
+            group_ids = [public_group.id]
         for id in ids:
             for group_id in group_ids:
                 params.append({'photometr_id': id, 'group_id': group_id})
