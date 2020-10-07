@@ -11,6 +11,11 @@ from skyportal.utils import gitlog
 
 _, cfg = load_env()
 
+# This file is generated with
+#
+#   git log --no-merges --first-parent \
+#           --pretty='format:[%ci %h] %s' -25
+
 gitlog_file = "data/gitlog.txt"
 default_log_lines = 25
 
