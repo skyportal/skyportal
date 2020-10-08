@@ -31,6 +31,7 @@ from baselayer.log import make_log
 log = make_log('finder-chart')
 
 warnings.simplefilter('ignore', category=AstropyWarning)
+warnings.simplefilter('ignore', category=RuntimeWarning)
 
 facility_parameters = {
     'Keck': {
@@ -285,15 +286,23 @@ def _calculate_best_position_for_offset_stars(
         df = df[df["offset_arcsec"] < sigma_clip * np.std(df["offset_arcsec"])]
 
     # TODO: add the ability to use only use observations from some filters
-    if how == "snr2":
-        df["snr"] = df["flux"] / df["fluxerr"]
-        diff_ra = np.average(df["ra_offset"], weights=df["snr"] ** 2)
-        diff_dec = np.average(df["dec_offset"], weights=df["snr"] ** 2)
-    elif how == "invvar":
-        diff_ra = np.average(df["ra_offset"], weights=1 / df["ra_unc"] ** 2)
-        diff_dec = np.average(df["dec_offset"], weights=1 / df["dec_unc"] ** 2)
-    else:
-        log(f"Warning: do not recognize {how} as a valid way to weight astrometry")
+    try:
+        if how == "snr2":
+            df["snr"] = df["flux"] / df["fluxerr"]
+            diff_ra = np.average(df["ra_offset"], weights=df["snr"] ** 2)
+            diff_dec = np.average(df["dec_offset"], weights=df["snr"] ** 2)
+        elif how == "invvar":
+            diff_ra = np.average(df["ra_offset"], weights=1 / df["ra_unc"] ** 2)
+            diff_dec = np.average(df["dec_offset"], weights=1 / df["dec_unc"] ** 2)
+        else:
+            log(f"Warning: do not recognize {how} as a valid way to weight astrometry")
+            return (med_ra, med_dec)
+    except ZeroDivisionError as e:
+        log(f"ZeroDivisionError in calculating position with {how}: {e}")
+        return (med_ra, med_dec)
+
+    if not np.isfinite([diff_ra, diff_dec]).all():
+        log(f"Error calculating position correction with {how}: {[diff_ra, diff_dec]}")
         return (med_ra, med_dec)
 
     position = (
