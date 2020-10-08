@@ -464,8 +464,12 @@ class Obj(Base, ha.Point):
         insert them into the Thumbnails table, and link them to the object."""
         sdss_thumb = Thumbnail(obj=self, public_url=self.sdss_url, type='sdss')
         dr8_thumb = Thumbnail(obj=self, public_url=self.desi_dr8_url, type='dr8')
+        DBSession().add_all([sdss_thumb, dr8_thumb])
+        DBSession().commit()
+
+    def add_ps1_thumbnail(self):
         ps1_thumb = Thumbnail(obj=self, public_url=self.panstarrs_url, type="ps1")
-        DBSession().add_all([sdss_thumb, dr8_thumb, ps1_thumb])
+        DBSession().add(ps1_thumb)
         DBSession().commit()
 
     @property
@@ -2159,7 +2163,7 @@ class Thumbnail(Base):
 
     # TODO delete file after deleting row
     type = sa.Column(
-        thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ...)'
+        thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ps1, ...)'
     )
     file_uri = sa.Column(
         sa.String(),

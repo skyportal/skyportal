@@ -45,6 +45,13 @@ SOURCES_PER_PAGE = 100
 _, cfg = load_env()
 
 
+def add_ps1_thumbnail_and_push_ws_msg(obj, request_handler):
+    obj.add_ps1_thumbnail()
+    request_handler.push_all(
+        action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+    )
+
+
 class SourceHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id=None):
@@ -248,6 +255,11 @@ class SourceHandler(BaseHandler):
             )
             if s is None:
                 return self.error("Invalid source ID.")
+            if "ps1" not in [thumb.type for thumb in s.thumbnails]:
+                create_thumbnail_link = functools.partial(
+                    add_ps1_thumbnail_and_push_ws_msg, s, self,
+                )
+                IOLoop.current().add_callback(create_thumbnail_link)
             comments = s.get_comments_owned_by(self.current_user)
             source_info = s.to_dict()
             source_info["comments"] = sorted(
