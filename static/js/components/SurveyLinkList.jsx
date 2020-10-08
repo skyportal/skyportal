@@ -33,7 +33,7 @@ const useStyles = makeStyles(() => ({
 const SurveyLink = ({ name, url }) => {
   const styles = useStyles();
   return (
-    <a href={url} target="new">
+    <a href={url} target="_blank" rel="noreferrer">
       <div className={styles.SurveyLink}>{name}</div>
     </a>
   );
@@ -45,7 +45,7 @@ const SurveyLinkForm = ({ name, url, formData, urlEncoded = false }) => {
     <div className={styles.SurveyLink}>
       <form
         method="post"
-        target="new"
+        target="_blank"
         action={url}
         encType={
           urlEncoded
