@@ -882,7 +882,7 @@ def get_finding_chart(
     starlist_str = (
         f"# Note: {origin} used for offset star positions\n"
         "# Note: spacing in starlist many not copy/paste correctly in PDF\n"
-        + f"#       you can get starlist directly from"
+        + "#       you can get starlist directly from"
         + f" /api/sources/{source_name}/offsets?"
         + f"facility={offset_star_kwargs.get('facility', 'Keck')}\n"
         + "\n".join([x["str"] for x in star_list])
