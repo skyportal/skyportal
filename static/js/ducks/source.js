@@ -44,6 +44,9 @@ export const DELETE_ASSIGNMENT_OK = "skyportal/DELETE_ASSIGNMENT_OK";
 export const SAVE_SOURCE = "skyportal/SAVE_SOURCE";
 export const SAVE_SOURCE_OK = "skyportal/SAVE_SOURCE_OK";
 
+export const UPDATE_SOURCE = "skyportal/UPDATE_SOURCE";
+export const UPDATE_SOURCE_OK = "skyportal/UPDATE_SOURCE_OK";
+
 export const DELETE_FOLLOWUP_REQUEST = "skyportal/DELETE_FOLLOWUP_REQUEST";
 export const DELETE_FOLLOWUP_REQUEST_OK =
   "skyportal/DELETE_FOLLOWUP_REQUEST_OK";
@@ -53,6 +56,9 @@ export const UPLOAD_PHOTOMETRY_OK = "skyportal/UPLOAD_PHOTOMETRY_OK";
 
 export const SHARE_DATA = "skyportal/SHARE_DATA";
 export const SHARE_DATA_OK = "skyportal/SHARE_DATA_OK";
+
+export const SEND_ALERT = "skyportal/SEND_ALERT";
+export const SEND_ALERT_OK = "skyportal/SEND_ALERT_OK";
 
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
 
@@ -102,6 +108,9 @@ export function addSourceView(id) {
   return API.POST(`/api/internal/source_views/${id}`, ADD_SOURCE_VIEW);
 }
 
+export const updateSource = (id, payload) =>
+  API.PATCH(`/api/sources/${id}`, UPDATE_SOURCE, payload);
+
 export const saveSource = (payload) =>
   API.POST(`/api/sources`, SAVE_SOURCE, payload);
 
@@ -134,6 +143,9 @@ export const editAssignment = (params, assignmentID) =>
 
 export const deleteAssignment = (id) =>
   API.DELETE(`/api/assignment/${id}`, DELETE_ASSIGNMENT);
+
+export const sendAlert = (params) =>
+  API.POST(`/api/source_notifications`, SEND_ALERT, params);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {

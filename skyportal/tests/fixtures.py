@@ -15,6 +15,7 @@ from skyportal.models import (
     Telescope,
     Obj,
     Comment,
+    Annotation,
     Thumbnail,
     Filter,
     ObservingRun,
@@ -45,7 +46,7 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = User
 
-    username = factory.LazyFunction(lambda: f'{uuid.uuid4()}@cesium-ml.org')
+    username = factory.LazyFunction(lambda: str(uuid.uuid4()))
 
     @factory.post_generation
     def roles(obj, create, extracted, **kwargs):
@@ -76,6 +77,14 @@ class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     text = f'Test comment {str(uuid.uuid4())}'
     ctype = 'text'
+    author = factory.SubFactory(UserFactory)
+
+
+class AnnotationFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Annotation
+
+    data = {'unique_id': {str(uuid.uuid4())}}
     author = factory.SubFactory(UserFactory)
 
 

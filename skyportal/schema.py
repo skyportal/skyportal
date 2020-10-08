@@ -244,9 +244,10 @@ class PhotBaseFlexible(object):
         "identical). Defaults to None."
     )
 
-    group_ids = fields.List(
-        fields.Integer(),
-        description="List of group IDs to which photometry " "points will be visible.",
+    group_ids = fields.Field(
+        description="List of group IDs to which photometry points will be visible. "
+        "If 'all', will be shared with site-wide public group (visible to all users "
+        "who can view associated source).",
         required=True,
     )
 
@@ -732,10 +733,6 @@ class ObservingRunPost(_Schema):
         description='The local calendar date of the run.', required=True
     )
 
-    modified = fields.DateTime(
-        description="The UT datetime at which the " "observingrun was last modified."
-    )
-
 
 class ObservingRunGet(ObservingRunPost):
     owner_id = fields.Integer(description='The User ID of the owner of this run.')
@@ -765,6 +762,236 @@ class ObservingRunGet(ObservingRunPost):
 class ObservingRunGetWithAssignments(ObservingRunGet):
     assignments = fields.List(fields.Field())
     instrument = fields.Field()
+
+
+class SpectrumAsciiFilePostJSON(_Schema):
+    obj_id = fields.String(
+        description='The ID of the object that the spectrum is of.', required=True
+    )
+    instrument_id = fields.Integer(
+        description='The ID of the instrument that took the spectrum.', required=True
+    )
+    observed_at = fields.DateTime(
+        description='The ISO UTC time the spectrum was taken.', required=True
+    )
+    group_ids = fields.List(
+        fields.Integer, description="The IDs of the groups to share this spectrum with."
+    )
+
+    wave_column = fields.Integer(
+        missing=0,
+        description="The 0-based index of the ASCII column corresponding "
+        "to the wavelength values of the spectrum (default 0).",
+    )
+    flux_column = fields.Integer(
+        missing=1,
+        description="The 0-based index of the ASCII column corresponding to "
+        "the flux values of the spectrum (default 1).",
+    )
+    fluxerr_column = fields.Integer(
+        missing=None,
+        description="The 0-based index of the ASCII column corresponding to the flux "
+        "error values of the spectrum (default 2). If there are only 2 "
+        "columns in the input file this value will be ignored. If there are "
+        "more than 2 columns in the input file, but none of them correspond to "
+        "flux error values, set this parameter to `None`.",
+    )
+
+    ascii = fields.String(
+        description="""The content of the ASCII file to be parsed.
+
+The file can optionally contain a header which will be parsed and stored.
+
+The lines that make up the ASCII header must appear at the beginning of the \
+file and all be formatted the same way within a single file. They can be \
+formatted in one of two ways.
+
+```
+1) # KEY: VALUE
+2) # KEY = VALUE / COMMENT
+```
+
+`astropy.io.ascii.read` is used to load the table into Python memory. An \
+attempt is made to parse the header first using method 1, then method 2.
+
+Example of format 1:
+
+```
+# XTENSION: IMAGE
+# BITPIX: -32
+# NAXIS: 2
+# NAXIS1: 433
+# NAXIS2: 1
+# RA: 230.14
+```
+
+Example of format 2:
+
+```
+# FILTER  = 'clear   '           / Filter
+# EXPTIME =              600.003 / Total exposure time (sec); avg. of R&B
+# OBJECT  = 'ZTF20abpuxna'       / User-specified object name
+# TARGNAME= 'ZTF20abpuxna_S1'    / Target name (from starlist)
+# DICHNAME= '560     '           / Dichroic
+# GRISNAME= '400/3400'           / Blue grism
+# GRANAME = '400/8500'           / Red grating
+# WAVELEN =        7829.41406250 / Red specified central wavelength
+# BLUFILT = 'clear   '           / Blue filter
+# REDFILT = 'Clear   '           / Red filter
+# SLITNAME= 'long_1.0'           / Slitmask
+# INSTRUME= 'LRIS+LRISBLUE'      / Camera
+# TELESCOP= 'Keck I  '           / Telescope name
+# BLUDET  = 'LRISB   '           / LRIS blue detector
+# REDDET  = 'LRISR3  '           / LRIS red detector
+# OBSERVER= 'Andreoni Anand De'  / Observer name
+# REDUCER = '        '           / Name of reducer
+# LPIPEVER= '2020.06 '           / LPipe version number
+# HOSTNAME= 'gayatri '           / LPipe host computer name
+# IDLVER  = '8.1     '           / IDL version number
+# DATE    = '2020-09-15T09:47:10' / UT end of last exposure
+```
+
+The data must be at least 2 column ascii (wavelength, flux). If three columns \
+are given, they are interpreted as (wavelength, flux, fluxerr). If more than 3 \
+columns are given, by default the first three are interpreted as (wavelength, \
+flux, fluxerr). The column indices of each of these arguments can be controlled \
+by passing the integer column index to the POST JSON.
+
+Examples of valid data sections:
+
+Many-column ASCII:
+
+```
+   10295.736  2.62912e-16  1.67798e-15  2.24407e-17    4084    75.956  5.48188e+15  0
+   10296.924  2.96887e-16  1.57197e-15  2.21469e-17    4085    75.959  5.42569e+15  0
+   10298.112  3.20429e-16  1.45017e-15  2.16863e-17    4086    75.962  5.36988e+15  0
+   10299.301  3.33367e-16  1.06116e-15  1.94187e-17    4087    75.965  5.31392e+15  0
+   10300.489  3.09943e-16  6.99539e-16  1.67183e-17    4088    75.968  5.25836e+15  0
+   10301.678  3.48273e-16  5.56194e-16  1.59555e-17    4089    75.972  5.20314e+15  0
+   10302.866  3.48102e-16  5.28483e-16  1.58033e-17    4090    75.975  5.15146e+15  0
+   10304.055  3.78640e-16  6.00997e-16  1.67462e-17    4091    75.978  5.10058e+15  0
+   10305.243  4.28820e-16  7.18759e-16  1.81534e-17    4092    75.981  5.05032e+15  0
+   10306.432  4.13152e-16  7.54203e-16  1.83965e-17    4093    75.984  5.00097e+15  0
+```
+
+3-column ASCII:
+
+```
+8993.2 1.148e-16 7.919e-34
+9018.7 1.068e-16 6.588e-34
+9044.3 1.056e-16 5.660e-34
+9069.9 9.763e-17 5.593e-34
+9095.4 1.048e-16 8.374e-34
+9121.0 1.026e-16 8.736e-34
+9146.6 8.472e-17 9.505e-34
+9172.1 9.323e-17 7.592e-34
+9197.7 1.050e-16 7.863e-34
+9223.3 8.701e-17 7.135e-34
+```
+
+2-column ASCII:
+
+```
+      10045.1    0.0217740
+      10046.3    0.0182158
+      10047.4    0.0204764
+      10048.6    0.0231833
+      10049.8    0.0207157
+      10051.0    0.0185226
+      10052.2    0.0200072
+      10053.4    0.0205159
+      10054.5    0.0199460
+      10055.7    0.0210533
+```
+
+
+2-column ASCII:
+```
+7911.60 1.045683
+7920.80 1.046414
+7930.00 1.235362
+7939.20 0.783466
+7948.40 1.116153
+7957.60 1.375844
+7966.80 1.029127
+7976.00 1.019637
+7985.20 0.732859
+7994.40 1.236514
+```
+
+""",
+        required=True,
+    )
+
+    filename = fields.String(
+        description="The original filename (for bookkeeping purposes).", required=True,
+    )
+
+
+class SpectrumPost(_Schema):
+
+    wavelengths = fields.List(
+        fields.Float,
+        required=True,
+        description="Wavelengths of the spectrum [Angstrom].",
+    )
+
+    fluxes = fields.List(
+        fields.Float,
+        required=True,
+        description="Flux of the Spectrum [F_lambda, arbitrary units].",
+    )
+
+    errors = fields.List(
+        fields.Float,
+        description="Errors on the fluxes of the spectrum [F_lambda, same units as `fluxes`.]",
+    )
+
+    obj_id = fields.String(required=True, description="ID of this Spectrum's Obj.",)
+
+    observed_at = fields.DateTime(
+        description='The ISO UTC time the spectrum was taken.', required=True
+    )
+
+    """
+    observed_at = fields.DateTime(
+        required=True,
+        description="Median UTC ISO time stamp of the exposure or "
+                    "exposures in which the Spectrum was acquired.",
+        format='iso'
+    )
+    """
+
+    origin = fields.String(required=False, description="Origin of the spectrum.")
+
+    instrument_id = fields.Integer(
+        required=True, description="ID of the Instrument that acquired the Spectrum.",
+    )
+
+    group_ids = fields.Field(
+        missing=[],
+        description='IDs of the Groups to share this spectrum with. Set to "all"'
+        ' to make this spectrum visible to all users.',
+    )
+
+    followup_request_id = fields.Integer(
+        required=False,
+        description='ID of the Followup request that generated this spectrum, '
+        'if any.',
+    )
+
+    assignment_id = fields.Integer(
+        required=False,
+        description='ID of the classical assignment that generated this spectrum, '
+        'if any.',
+    )
+
+    altdata = fields.Field(description='Miscellaneous alternative metadata.')
+
+
+class GroupIDList(_Schema):
+
+    group_ids = fields.List(fields.Integer, required=True)
 
 
 def register_components(spec):
@@ -798,3 +1025,6 @@ ObservingRunPost = ObservingRunPost()
 ObservingRunGet = ObservingRunGet()
 AssignmentSchema = AssignmentSchema()
 ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
+SpectrumAsciiFilePostJSON = SpectrumAsciiFilePostJSON()
+SpectrumPost = SpectrumPost()
+GroupIDList = GroupIDList()

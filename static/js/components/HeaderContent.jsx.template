@@ -10,7 +10,13 @@ import styles from "./Main.css";
 const HeaderContent = () => (
   <div className={styles.topBannerContent}>
     <div style= {%- raw -%} {{display: "inline-flex", flexDirection: "row" }} {%- endraw -%} >
-      <Logo className={styles.logo} />
+      <div className={styles.logos}>
+        {%- for logo in app.logos %}
+        <div className={styles.logoContainer}>
+          <Logo src="{{ logo.src }}" altText="{{ logo.alt_text }}" />
+        </div>
+        {%- endfor %}
+      </div>
       <Link className={styles.title} to="/">
         {{ app.title }}
       </Link>

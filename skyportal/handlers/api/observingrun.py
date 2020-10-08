@@ -9,8 +9,9 @@ from ...models import (
     Obj,
     Thumbnail,
     Instrument,
+    Source,
 )
-from ...schema import ObservingRunPost, ObservingRunGet, ObservingRunGetWithAssignments
+from ...schema import ObservingRunPost, ObservingRunGetWithAssignments
 
 
 class ObservingRunHandler(BaseHandler):
@@ -58,6 +59,7 @@ class ObservingRunHandler(BaseHandler):
         DBSession().add(run)
         DBSession().commit()
 
+        self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
         return self.success(data={"id": run.id})
 
     @auth_or_token
@@ -87,7 +89,7 @@ class ObservingRunHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfObservingRunGets
+                  schema: ArrayOfObservingRuns
             400:
               content:
                 application/json:
@@ -111,6 +113,10 @@ class ObservingRunHandler(BaseHandler):
                     joinedload(ObservingRun.instrument).joinedload(
                         Instrument.telescope
                     ),
+                    joinedload(ObservingRun.assignments)
+                    .joinedload(ClassicalAssignment.obj)
+                    .joinedload(Obj.sources)
+                    .joinedload(Source.group),
                 )
                 .filter(ObservingRun.id == run_id)
                 .first()
@@ -138,6 +144,13 @@ class ObservingRunHandler(BaseHandler):
                 data = ObservingRunGetWithAssignments.dump(run)
                 data["assignments"] = [a.to_dict() for a in data["assignments"]]
 
+                gids = [g.id for g in self.current_user.accessible_groups]
+                for a in data["assignments"]:
+                    a['accessible_group_names'] = [
+                        s.group.name for s in a['obj'].sources if s.group_id in gids
+                    ]
+                    del a['obj'].sources
+
                 # calculate when the targets rise and set
                 for d, a in zip(data["assignments"], run.assignments):
                     d["rise_time_utc"] = a.rise_time.isot
@@ -145,10 +158,8 @@ class ObservingRunHandler(BaseHandler):
 
                 return self.success(data=data)
 
-        runs = ObservingRun.query.all()
-        data = ObservingRunGet.dump(runs, many=True)
-        out = sorted(data, key=lambda d: d["ephemeris"]["sunrise_utc"])
-        return self.success(data=out)
+        runs = ObservingRun.query.order_by(ObservingRun.calendar_date.asc()).all()
+        return self.success(data=runs)
 
     @permissions(["Upload data"])
     def put(self, run_id):
@@ -198,6 +209,8 @@ class ObservingRunHandler(BaseHandler):
 
         DBSession().add(orun)
         DBSession().commit()
+
+        self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
         return self.success()
 
     @permissions(["Upload data"])
@@ -234,4 +247,5 @@ class ObservingRunHandler(BaseHandler):
         DBSession().query(ObservingRun).filter(ObservingRun.id == run_id).delete()
         DBSession().commit()
 
+        self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
         return self.success()

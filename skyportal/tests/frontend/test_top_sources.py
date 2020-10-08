@@ -1,6 +1,10 @@
 import uuid
 import pytest
 import datetime
+import time
+
+from selenium.common.exceptions import TimeoutException
+
 from skyportal.models import DBSession, SourceView
 from skyportal.tests import api
 
@@ -83,8 +87,21 @@ def test_top_source_prefs(driver, user, public_source, public_group, upload_data
 
     # Test that source doesn't show up in last 7 days of views
     source_view_xpath = "//*[contains(.,'1 view(s)')]"
-    driver.wait_for_xpath_to_disappear(source_view_xpath)
+    try:
+        driver.wait_for_xpath_to_disappear(source_view_xpath)
+    except TimeoutException:
+        last_30_days_button = "//button[contains(@data-testid, 'topSources_30days')]"
+        driver.wait_for_xpath(last_30_days_button)
+        # Test that source doesn't show up in last 7 days of views
+        source_view_xpath = "//*[contains(.,'1 view(s)')]"
+        time.sleep(1)
+        driver.wait_for_xpath_to_disappear(source_view_xpath)
 
     # Test that source view appears after changing prefs
     driver.click_xpath(last_30_days_button)
-    driver.wait_for_xpath(source_view_xpath)
+    try:
+        driver.wait_for_xpath(source_view_xpath)
+    except TimeoutException:
+        driver.click_xpath(last_30_days_button)
+        time.sleep(1)
+        driver.wait_for_xpath(source_view_xpath)
