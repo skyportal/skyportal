@@ -172,14 +172,6 @@ const GroupSources = ({ route }) => {
                 )}
               </div>
             </Grid>
-            <Grid item>
-              <Suspense fallback={<div>Loading classifications</div>}>
-                <ShowClassification
-                  classifications={source.classifications}
-                  taxonomyList={taxonomyList}
-                />
-              </Suspense>
-            </Grid>
           </Grid>
         </TableCell>
       </TableRow>
@@ -196,28 +188,57 @@ const GroupSources = ({ route }) => {
     );
   };
 
+  const renderAlias = (dataIndex) => {
+    const { id: objid, alias } = sources[dataIndex];
+
+    return (
+      <a href={`/source/${objid}`} key={`${objid}_alias`}>
+        {alias}
+      </a>
+    );
+  };
+
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
 
   const renderRA = (dataIndex) => {
     const source = sources[dataIndex];
-    return (
-      <div key={`${source.id}_ra`}>
-        {source.ra}
-        <br />
-        {ra_to_hours(source.ra)}
-      </div>
-    );
+    return <div key={`${source.id}_ra`}>{source.ra}</div>;
+  };
+
+  const renderRA_sex = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div key={`${source.id}_ra_sex`}>{ra_to_hours(source.ra)}</div>;
   };
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderDec = (dataIndex) => {
     const source = sources[dataIndex];
+    return <div key={`${source.id}_dec`}>{source.dec}</div>;
+  };
+
+  const renderDec_sex = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div key={`${source.id}_dec_sex`}>{dec_to_hours(source.dec)}</div>;
+  };
+
+  const renderRedshift = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div key={`${source.id}_redshift`}>{source.redshift}</div>;
+  };
+
+  const renderClassification = (dataIndex) => {
+    const source = sources[dataIndex];
     return (
-      <div key={`${source.id}_dec`}>
-        {source.dec}
-        <br />
-        {dec_to_hours(source.dec)}
-      </div>
+      <Suspense fallback={<div>Loading classifications</div>}>
+        <ShowClassification
+          classifications={source.classifications}
+          taxonomyList={taxonomyList}
+          shortened
+        />
+      </Suspense>
+      //       <div key={`${source.id}_classification`}>
+      //          {source.latest_class}
+      //       </div>
     );
   };
 
@@ -236,6 +257,11 @@ const GroupSources = ({ route }) => {
         ))}
       </div>
     );
+  };
+
+  const renderDateSaved = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div key={`${source.id}_date_saved`}>{source.created_at}</div>;
   };
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
@@ -259,23 +285,54 @@ const GroupSources = ({ route }) => {
       },
     },
     {
-      name: "RA",
+      name: "Alias",
+      options: {
+        filter: true,
+        customBodyRenderLite: renderAlias,
+      },
+    },
+    {
+      name: "RA (deg)",
       options: {
         filter: false,
         customBodyRenderLite: renderRA,
       },
     },
     {
-      name: "Dec",
+      name: "Dec (deg)",
       options: {
         filter: false,
         customBodyRenderLite: renderDec,
       },
     },
     {
+      name: "RA (hh:mm:ss)",
+      options: {
+        filter: false,
+        display: false,
+        customBodyRenderLite: renderRA_sex,
+      },
+    },
+    {
+      name: "Dec (dd:mm:ss)",
+      options: {
+        filter: false,
+        display: false,
+        customBodyRenderLite: renderDec_sex,
+      },
+    },
+    {
       name: "Redshift",
       options: {
         filter: false,
+        customBodyRenderLite: renderRedshift,
+      },
+    },
+    {
+      name: "Classification",
+      options: {
+        filter: true,
+        customBodyRenderLite: renderClassification,
       },
     },
     {
@@ -283,6 +340,13 @@ const GroupSources = ({ route }) => {
       options: {
         filter: false,
         customBodyRenderLite: renderGroups,
+      },
+    },
+    {
+      name: "Date Saved",
+      options: {
+        filter: false,
+        customBodyRenderLite: renderDateSaved,
       },
     },
     {
@@ -303,12 +367,18 @@ const GroupSources = ({ route }) => {
 
   const data = sources.map((source) => [
     source.id,
+    source.alias,
     source.ra,
     source.dec,
+    ra_to_hours(source.ra),
+    dec_to_hours(source.dec),
     source.redshift,
-    source.classifications,
-    source.groups,
-    source.recent_comments,
+    source.latest_class,
+    source.groups.map((group) => {
+      return group.name;
+    }),
+    source.created_at,
+    "", // this last one is for the finder chart
   ]);
 
   return (
