@@ -26,7 +26,7 @@ export const fetchCandidates = (filterParams = {}) => {
   return API.GET(`/api/candidates?${queryString}`, FETCH_CANDIDATES);
 };
 
-export const setCandidatesAnnotationItem = (item) => {
+export const setSelectedCandidatesAnnotationKey = (item) => {
   return {
     type: SELECT_CANDIDATES_ANNOTATION_ITEM,
     item,
@@ -60,7 +60,7 @@ const initialState = {
   totalMatches: 0,
   numberingStart: 0,
   numberingEnd: 0,
-  selectedAnnotationItem: null,
+  selectedAnnotationKey: null,
 };
 
 const reducer = (state = initialState, action) => {
@@ -91,7 +91,7 @@ const reducer = (state = initialState, action) => {
       return { ...state, candidates };
     }
     case SELECT_CANDIDATES_ANNOTATION_ITEM: {
-      return { ...state, selectedAnnotationItem: action.item };
+      return { ...state, selectedAnnotationKey: action.item };
     }
     default:
       return state;

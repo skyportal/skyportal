@@ -58,8 +58,8 @@ const CandidateAnnotationsList = ({ annotations }) => {
   });
   const [openedOrigins, setopenedOrigins] = useState(initState);
 
-  const selectedAnnotationItem = useSelector(
-    (state) => state.candidates.selectedAnnotationItem
+  const selectedAnnotationKey = useSelector(
+    (state) => state.candidates.selectedAnnotationKey
   );
 
   const handleClick = (origin) => {
@@ -68,9 +68,9 @@ const CandidateAnnotationsList = ({ annotations }) => {
 
   const handleItemSelect = (origin, key) => {
     const currentlySelected =
-      selectedAnnotationItem &&
-      selectedAnnotationItem.origin === origin &&
-      selectedAnnotationItem.key === key;
+      selectedAnnotationKey &&
+      selectedAnnotationKey.origin === origin &&
+      selectedAnnotationKey.key === key;
 
     const annotationItem = currentlySelected ? null : { origin, key };
     dispatch(candidatesActions.setCandidatesAnnotationItem(annotationItem));
@@ -115,9 +115,9 @@ const CandidateAnnotationsList = ({ annotations }) => {
                     button
                     className={classes.nested}
                     selected={
-                      selectedAnnotationItem &&
-                      selectedAnnotationItem.origin === annotation.origin &&
-                      selectedAnnotationItem.key === key
+                      selectedAnnotationKey &&
+                      selectedAnnotationKey.origin === annotation.origin &&
+                      selectedAnnotationKey.key === key
                     }
                     onClick={() => handleItemSelect(annotation.origin, key)}
                     disabled={disabled}

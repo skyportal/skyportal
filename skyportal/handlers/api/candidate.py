@@ -335,20 +335,17 @@ class CandidateHandler(BaseHandler):
             origin_sort_order = case(
                 value=Annotation.origin, whens={sort_by_origin: 1}, else_=None,
             )
-            if sort_by_order == "desc":
-                q = q.order_by(
-                    origin_sort_order.nullslast(),
-                    Annotation.data[sort_by_key].desc().nullslast(),
-                    Obj.last_detected.desc().nullslast(),
-                    Obj.id,
-                )
-            else:
-                q = q.order_by(
-                    origin_sort_order.nullslast(),
-                    Annotation.data[sort_by_key].nullslast(),
-                    Obj.last_detected.desc().nullslast(),
-                    Obj.id,
-                )
+            annotation_sort_criterion = (
+                Annotation.data[sort_by_key].desc().nullslast()
+                if sort_by_order == "desc"
+                else Annotation.data[sort_by_key].nullslast()
+            )
+            q = q.order_by(
+                origin_sort_order.nullslast(),
+                annotation_sort_criterion,
+                Obj.last_detected.desc().nullslast(),
+                Obj.id,
+            )
         try:
             query_results = grab_query_results_page(
                 q, total_matches, page, n_per_page, "candidates"

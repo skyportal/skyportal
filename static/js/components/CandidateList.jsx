@@ -120,7 +120,7 @@ const getMuiTheme = (theme) =>
 const defaultNumPerPage = 25;
 
 const CustomSortToolbar = ({
-  selectedAnnotationItem,
+  selectedAnnotationKey,
   rowsPerPage,
   setQueryInProgress,
   loaded,
@@ -131,7 +131,7 @@ const CustomSortToolbar = ({
   const dispatch = useDispatch();
   useEffect(() => {
     setAscending(null);
-  }, [selectedAnnotationItem]);
+  }, [selectedAnnotationKey]);
 
   // ESLint rule is disabled below because we don't want to reload data on a new
   // annotation item select every time until the sort button is actually clicked
@@ -140,8 +140,8 @@ const CustomSortToolbar = ({
       const data = {
         pageNumber: 1,
         numPerPage: rowsPerPage,
-        sortByAnnotationOrigin: selectedAnnotationItem.origin,
-        sortByAnnotationKey: selectedAnnotationItem.key,
+        sortByAnnotationOrigin: selectedAnnotationKey.origin,
+        sortByAnnotationKey: selectedAnnotationKey.key,
         sortByAnnotationOrder: ascending ? "asc" : "desc",
       };
       await dispatch(candidatesActions.fetchCandidates(data));
@@ -164,7 +164,7 @@ const CustomSortToolbar = ({
       <span>
         <IconButton
           onClick={handleSort}
-          disabled={selectedAnnotationItem === null}
+          disabled={selectedAnnotationKey === null}
           className={classes.sortButtton}
           data-testid="sortOnAnnotationButton"
         >
@@ -182,7 +182,7 @@ const CustomSortToolbar = ({
 };
 
 CustomSortToolbar.propTypes = {
-  selectedAnnotationItem: PropTypes.shape({
+  selectedAnnotationKey: PropTypes.shape({
     origin: PropTypes.string.isRequired,
     key: PropTypes.string.isRequired,
   }),
@@ -192,7 +192,7 @@ CustomSortToolbar.propTypes = {
 };
 
 CustomSortToolbar.defaultProps = {
-  selectedAnnotationItem: null,
+  selectedAnnotationKey: null,
 };
 
 const CandidateList = () => {
@@ -219,7 +219,7 @@ const CandidateList = () => {
     totalMatches,
     numberingStart,
     numberingEnd,
-    selectedAnnotationItem,
+    selectedAnnotationKey,
   } = useSelector((state) => state.candidates);
 
   const userAccessibleGroups = useSelector(
@@ -239,23 +239,21 @@ const CandidateList = () => {
     }
   }, [candidates, dispatch]);
 
-  const candidateHasAnnotationItem = (candidateObj) => {
+  const candidateHasAnnotationWithSelectedKey = (candidateObj) => {
     const annotation = candidateObj.annotations.find(
-      (a) => a.origin === selectedAnnotationItem.origin
+      (a) => a.origin === selectedAnnotationKey.origin
     );
     if (annotation === undefined) {
       return false;
     }
-    return selectedAnnotationItem.key in annotation.data;
+    return selectedAnnotationKey.key in annotation.data;
   };
 
-  const getCandidateAnnotationValue = (candidateObj) => {
+  const getCandidateSelectedAnnotationValue = (candidateObj) => {
     const annotation = candidateObj.annotations.find(
-      (a) => a.origin === selectedAnnotationItem.origin
+      (a) => a.origin === selectedAnnotationKey.origin
     );
-    return getAnnotationValueString(
-      annotation.data[selectedAnnotationItem.key]
-    );
+    return getAnnotationValueString(annotation.data[selectedAnnotationKey.key]);
   };
 
   const renderThumbnails = (dataIndex) => {
@@ -369,13 +367,13 @@ const CandidateList = () => {
             {candidateObj.gal_lat.toFixed(3)}
           </span>
         </div>
-        {selectedAnnotationItem !== null &&
-          candidateHasAnnotationItem(candidateObj) && (
+        {selectedAnnotationKey !== null &&
+          candidateHasAnnotationWithSelectedKey(candidateObj) && (
             <div className={classes.infoItem}>
               <b>
-                {selectedAnnotationItem.key} ({selectedAnnotationItem.origin}):
+                {selectedAnnotationKey.key} ({selectedAnnotationKey.origin}):
               </b>
-              <span>{getCandidateAnnotationValue(candidateObj)}</span>
+              <span>{getCandidateSelectedAnnotationValue(candidateObj)}</span>
             </div>
           )}
       </div>
@@ -479,7 +477,7 @@ const CandidateList = () => {
     // eslint-disable-next-line react/display-name
     customToolbar: () => (
       <CustomSortToolbar
-        selectedAnnotationItem={selectedAnnotationItem}
+        selectedAnnotationKey={selectedAnnotationKey}
         rowsPerPage={rowsPerPage}
         setQueryInProgress={setQueryInProgress}
         loaded={!queryInProgress}
