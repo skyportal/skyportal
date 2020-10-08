@@ -1,20 +1,24 @@
 import re
 
+from baselayer.log import make_log
+
 
 pr_url_base = "https://github.com/skyportal/skyportal/pull"
 commit_url_base = "https://github.com/skyportal/skyportal/commit"
 
+log = make_log('gitlog')
 
-def parse_gitlog(log):
+
+def parse_gitlog(gitlog):
     """Parse git log.
 
     Parameters
     ----------
-    log : list
+    gitlog : list
         The log should be passed in as a list of lines, obtained using::
 
           git log --no-merges --first-parent \
-                  --pretty='format:[%cI %h %cE] %s' -25
+                  --pretty='format:[%cI %h %cE] %s' -1000
 
     Returns
     -------
@@ -24,22 +28,22 @@ def parse_gitlog(log):
         `pr_nr`, `pr_url`.
 
     """
-    timechars = '[0-9\\-:]'
+    timechars = '[0-9\\-:\\+]'
     timestamp_re = f'(?P<time>{timechars}+T{timechars}+)'
-    sha_re = '(?P<sha>[0-9a-f]{8})'
+    sha_re = '(?P<sha>[0-9a-f]{7,12})'
     email_re = '(?P<email>\\S*@\\S*?)'
     pr_desc_re = '(?P<description>.*?)'
     pr_nr_re = '( \\(\\#(?P<pr_nr>[0-9]*)\\))?'
     log_re = f'\\[{timestamp_re} {sha_re} {email_re}\\] {pr_desc_re}{pr_nr_re}$'
 
-    gitlog = []
-    for line in log:
+    parsed_log = []
+    for line in gitlog:
         if not line:
             continue
 
         m = re.match(log_re, line)
         if m is None:
-            print(f'sysinfo: could not parse gitlog line: `{line}`')
+            log(f'sysinfo: could not parse gitlog line: `{line}`')
             continue
 
         log_fields = m.groupdict()
@@ -48,6 +52,6 @@ def parse_gitlog(log):
         log_fields['pr_url'] = f'{pr_url_base}/{pr_nr}' if pr_nr else ''
         log_fields['commit_url'] = f'{commit_url_base}/{sha}'
 
-        gitlog.append(log_fields)
+        parsed_log.append(log_fields)
 
-    return gitlog
+    return parsed_log

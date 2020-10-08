@@ -3,7 +3,7 @@ from skyportal.utils import gitlog
 
 log = '''
 [2020-10-06T19:38:32-07:00 f3542fa8 someone@berkeley.edu] Pass git log to frontend as parsed components
-[2020-10-05T14:06:20-07:00 a4052098 noreply@github.com] Bump emoji-dictionary from 1.0.10 to 1.0.11 (#1040)
+[2020-10-05T14:06:20+03:00 a4052098f noreply@github.com] Bump emoji-dictionary from 1.0.10 to 1.0.11 (#1040)
 '''.split(
     '\n'
 )
@@ -24,12 +24,12 @@ def test_gitlog_parse():
         f"https://github.com/skyportal/skyportal/commit/f3542fa8"
     )
 
-    assert e1['time'] == '2020-10-05T14:06:20-07:00'
-    assert e1['sha'] == 'a4052098'
+    assert e1['time'] == '2020-10-05T14:06:20+03:00'
+    assert e1['sha'] == 'a4052098f'
     assert e1['email'] == 'noreply@github.com'
     assert e1['description'] == 'Bump emoji-dictionary from 1.0.10 to 1.0.11'
     assert e1['pr_nr'] == '1040'
     assert e1['pr_url'] == 'https://github.com/skyportal/skyportal/pull/1040'
     assert e1['commit_url'] == (
-        f"https://github.com/skyportal/skyportal/commit/a4052098"
+        f"https://github.com/skyportal/skyportal/commit/a4052098f"
     )

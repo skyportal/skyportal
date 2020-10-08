@@ -14,11 +14,11 @@ _, cfg = load_env()
 # This file is generated with
 #
 #   git log --no-merges --first-parent \
-#           --pretty='format:[%cI %h %cE] %s' -250
+#           --pretty='format:[%cI %h %cE] %s' -1000
 #
-# We query for more than the number desired (250 instead of 25), because
+# We query for more than the number desired (1000 instead of 100), because
 # we filter out all commits by noreply@github.com and hope to end up
-# with 25 commits still.
+# with 100 commits still.
 
 
 gitlog_file = "data/gitlog.txt"
@@ -79,22 +79,19 @@ class SysInfoHandler(BaseHandler):
             )
             loginfo = p.stdout
 
-        raw_gitlog = loginfo.splitlines()
-
-        log = gitlog.parse_gitlog(raw_gitlog)
-        log = [
+        parsed_log = gitlog.parse_gitlog(loginfo.splitlines())
+        parsed_log = [
             entry
-            for entry in log
+            for entry in parsed_log
             if not (entry['description'].lower().startswith(('bump', 'pin')))
         ]
-
-        log = log[:max_log_lines]
+        parsed_log = parsed_log[:max_log_lines]
 
         return self.success(
             data={
                 "invitationsEnabled": cfg["invitations.enabled"],
                 "cosmology": str(cosmo),
                 "cosmoref": cosmo.__doc__,
-                "gitlog": log,
+                "gitlog": parsed_log,
             }
         )
