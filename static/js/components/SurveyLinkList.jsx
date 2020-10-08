@@ -46,6 +46,7 @@ const SurveyLinkForm = ({ name, url, formData, urlEncoded = false }) => {
       <form
         method="post"
         target="_blank"
+        rel="noreferrer"
         action={url}
         encType={
           urlEncoded
