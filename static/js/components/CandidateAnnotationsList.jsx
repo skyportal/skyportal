@@ -73,7 +73,9 @@ const CandidateAnnotationsList = ({ annotations }) => {
       selectedAnnotationKey.key === key;
 
     const annotationItem = currentlySelected ? null : { origin, key };
-    dispatch(candidatesActions.setCandidatesAnnotationItem(annotationItem));
+    dispatch(
+      candidatesActions.setSelectedCandidatesAnnotationKey(annotationItem)
+    );
   };
 
   return (
@@ -100,15 +102,6 @@ const CandidateAnnotationsList = ({ annotations }) => {
           >
             <List component="div" dense disablePadding>
               {Object.entries(annotation.data).map(([key, value]) => {
-                // Only allow sorting by numbers and bools
-                let disabled;
-                switch (typeof value) {
-                  case "number":
-                    disabled = false;
-                    break;
-                  default:
-                    disabled = true;
-                }
                 return (
                   <ListItem
                     key={`key_${annotation.origin}_${key}`}
@@ -120,7 +113,6 @@ const CandidateAnnotationsList = ({ annotations }) => {
                       selectedAnnotationKey.key === key
                     }
                     onClick={() => handleItemSelect(annotation.origin, key)}
-                    disabled={disabled}
                   >
                     <ListItemText
                       secondary={`${key}: ${getAnnotationValueString(value)}`}
