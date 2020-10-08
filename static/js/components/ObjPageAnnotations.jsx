@@ -13,7 +13,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { getAnnotationValueString } from "./CandidateAnnotationsList";
+import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -46,7 +46,8 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const AnnotationsTable = ({ annotations }) => {
+// Table for displaying Obj annotations on Candidate page and Source page
+const ObjPageAnnotations = ({ annotations }) => {
   const classes = useStyles();
   const theme = useTheme();
   const renderValue = (value) => getAnnotationValueString(value);
@@ -112,7 +113,7 @@ const AnnotationsTable = ({ annotations }) => {
   );
 };
 
-AnnotationsTable.propTypes = {
+ObjPageAnnotations.propTypes = {
   annotations: PropTypes.arrayOf(
     PropTypes.shape({
       origin: PropTypes.string.isRequired,
@@ -125,4 +126,4 @@ AnnotationsTable.propTypes = {
   ).isRequired,
 };
 
-export default AnnotationsTable;
+export default ObjPageAnnotations;

@@ -15,7 +15,7 @@ import ThumbnailList from "./ThumbnailList";
 import SurveyLinkList from "./SurveyLinkList";
 import SharePage from "./SharePage";
 import { useSourceStyles } from "./SourceMobile";
-import AnnotationsTable from "./AnnotationsTable";
+import ObjPageAnnotations from "./ObjPageAnnotations";
 import { ra_to_hours, dec_to_hours } from "../units";
 
 import fetchCandidate from "../ducks/candidate";
@@ -145,7 +145,7 @@ const Candidate = ({ route }) => {
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <AnnotationsTable annotations={candidate.annotations} />
+                <ObjPageAnnotations annotations={candidate.annotations} />
               </AccordionDetails>
             </Accordion>
           </div>

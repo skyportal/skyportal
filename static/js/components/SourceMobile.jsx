@@ -32,7 +32,7 @@ import AddSourceGroup from "./AddSourceGroup";
 import SourceNotification from "./SourceNotification";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
-import AnnotationsTable from "./AnnotationsTable";
+import ObjPageAnnotations from "./ObjPageAnnotations";
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -283,7 +283,7 @@ const SourceMobile = ({ source }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <AnnotationsTable annotations={source.annotations} />
+              <ObjPageAnnotations annotations={source.annotations} />
             </AccordionDetails>
           </Accordion>
         </div>

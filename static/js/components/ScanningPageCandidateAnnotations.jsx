@@ -54,16 +54,16 @@ export const getAnnotationValueString = (value) => {
 // This component will be used to display annotations in the scanning page.
 // Included in this PR only for the getAnnotationValueString() function above.
 // Can ignore the rest of this component during review of this PR for now.
-const CandidateAnnotationsList = ({ annotations }) => {
+const ScanningPageCandidateAnnotations = ({ annotations }) => {
   const classes = useStyles();
 
   const dispatch = useDispatch();
 
-  const initState = {};
+  const initialState = {};
   annotations.forEach((annotation) => {
-    initState[annotation.origin] = true;
+    initialState[annotation.origin] = true;
   });
-  const [openedOrigins, setopenedOrigins] = useState(initState);
+  const [openedOrigins, setopenedOrigins] = useState(initialState);
 
   const selectedAnnotationItem = useSelector(
     (state) => state.candidates.selectedAnnotationItem
@@ -73,7 +73,7 @@ const CandidateAnnotationsList = ({ annotations }) => {
     setopenedOrigins({ ...openedOrigins, [origin]: !openedOrigins[origin] });
   };
 
-  const handleItemSelect = (origin, key) => {
+  const handleAnnotationKeySelect = (origin, key) => {
     const currentlySelected =
       selectedAnnotationItem &&
       selectedAnnotationItem.origin === origin &&
@@ -127,7 +127,9 @@ const CandidateAnnotationsList = ({ annotations }) => {
                       selectedAnnotationItem.origin === annotation.origin &&
                       selectedAnnotationItem.key === key
                     }
-                    onClick={() => handleItemSelect(annotation.origin, key)}
+                    onClick={() =>
+                      handleAnnotationKeySelect(annotation.origin, key)
+                    }
                     disabled={disabled}
                   >
                     <ListItemText
@@ -145,7 +147,7 @@ const CandidateAnnotationsList = ({ annotations }) => {
   );
 };
 
-CandidateAnnotationsList.propTypes = {
+ScanningPageCandidateAnnotations.propTypes = {
   annotations: PropTypes.arrayOf(
     PropTypes.shape({
       origin: PropTypes.string.isRequired,
@@ -154,4 +156,4 @@ CandidateAnnotationsList.propTypes = {
   ).isRequired,
 };
 
-export default CandidateAnnotationsList;
+export default ScanningPageCandidateAnnotations;
