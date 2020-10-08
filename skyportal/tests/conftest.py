@@ -172,7 +172,7 @@ def keck1_telescope():
     observer = astroplan.Observer.at_site('Keck')
     return TelescopeFactory(
         name=f'Keck I Telescope_{uuid.uuid4()}',
-        nickname='Keck1_{uuid.uuid4()}',
+        nickname=f'Keck1_{uuid.uuid4()}',
         lat=observer.location.lat.to('deg').value,
         lon=observer.location.lon.to('deg').value,
         elevation=observer.location.height.to('m').value,

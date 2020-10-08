@@ -52,7 +52,7 @@ app:
     - path: "/filter/:fid"
       component: Filter
     - path: "/runs"
-      component: ObservingRunList
+      component: ObservingRunPage
     - path: "/group_sources/:id"
       component: GroupSources
     - path: "/user_management"
