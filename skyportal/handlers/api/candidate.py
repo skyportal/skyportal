@@ -11,7 +11,6 @@ from ...models import (
     DBSession,
     Obj,
     Candidate,
-    Thumbnail,
     Photometry,
     Instrument,
     Source,
@@ -171,11 +170,11 @@ class CandidateHandler(BaseHandler):
                 obj_id,
                 self.current_user,
                 options=[
+                    joinedload(Candidate.obj).joinedload(Obj.thumbnails),
                     joinedload(Candidate.obj)
-                    .joinedload(Obj.thumbnails)
-                    .joinedload(Thumbnail.photometry)
+                    .joinedload(Obj.photometry)
                     .joinedload(Photometry.instrument)
-                    .joinedload(Instrument.telescope)
+                    .joinedload(Instrument.telescope),
                 ],
             )
             if c is None:
@@ -261,8 +260,8 @@ class CandidateHandler(BaseHandler):
         q = (
             Obj.query.options(
                 [
-                    joinedload(Obj.thumbnails)
-                    .joinedload(Thumbnail.photometry)
+                    joinedload(Obj.thumbnails),
+                    joinedload(Obj.photometry)
                     .joinedload(Photometry.instrument)
                     .joinedload(Instrument.telescope),
                 ]
@@ -400,6 +399,7 @@ class CandidateHandler(BaseHandler):
                               description: New candidate ID
         """
         data = self.get_json()
+        obj_already_exists = Obj.query.get(data["id"]) is not None
         schema = Obj.__schema__()
 
         passing_alert_id = data.pop("passing_alert_id", None)
@@ -447,6 +447,8 @@ class CandidateHandler(BaseHandler):
             ]
         )
         DBSession().commit()
+        if not obj_already_exists:
+            obj.add_linked_thumbnails()
 
         return self.success(data={"id": obj.id})
 
