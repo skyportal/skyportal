@@ -163,6 +163,19 @@ const ThumbnailList = ({
             />
           </Grid>
         ))}
+        {displayTypes.includes("ps1") &&
+          !latestThumbnails.map((t) => t.type).includes("ps1") && (
+            <Grid item key="placeholder">
+              <Thumbnail
+                key="thumbPlaceHolder"
+                ra={ra}
+                dec={dec}
+                name="PS1"
+                url={null}
+                size={size}
+              />
+            </Grid>
+          )}
       </Grid>
     );
   }
