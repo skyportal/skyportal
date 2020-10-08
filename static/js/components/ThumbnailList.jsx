@@ -170,7 +170,7 @@ const ThumbnailList = ({
                 key="thumbPlaceHolder"
                 ra={ra}
                 dec={dec}
-                name="PS1"
+                name="PS1: Loading..."
                 url={null}
                 size={size}
               />

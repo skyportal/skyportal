@@ -256,10 +256,9 @@ class SourceHandler(BaseHandler):
             if s is None:
                 return self.error("Invalid source ID.")
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
-                create_thumbnail_link = functools.partial(
-                    add_ps1_thumbnail_and_push_ws_msg, s, self,
+                IOLoop.current().add_callback(
+                    lambda: add_ps1_thumbnail_and_push_ws_msg(s, self)
                 )
-                IOLoop.current().add_callback(create_thumbnail_link)
             comments = s.get_comments_owned_by(self.current_user)
             source_info = s.to_dict()
             source_info["comments"] = sorted(
