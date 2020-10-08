@@ -12,7 +12,7 @@ import Paper from "@material-ui/core/Paper";
 import { makeStyles } from "@material-ui/core/styles";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
 
-import { ra_to_hours, dec_to_hours } from "../units";
+import { ra_to_hours, dec_to_dms } from "../units";
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import SourceQuickView from "./SourceQuickView";
@@ -141,9 +141,9 @@ const RecentSourcesList = ({ sources, styles }) => {
                       </Link>
                     </span>
                     <span>
-                      {`\u03B1, \u03B4: ${ra_to_hours(
-                        source.ra
-                      )} ${dec_to_hours(source.dec)}`}
+                      {`\u03B1, \u03B4: ${ra_to_hours(source.ra)} ${dec_to_dms(
+                        source.dec
+                      )}`}
                     </span>
                   </div>
                   <div className={styles.sourceTime}>

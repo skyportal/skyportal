@@ -15,7 +15,7 @@ import ThumbnailList from "./ThumbnailList";
 import SurveyLinkList from "./SurveyLinkList";
 import SharePage from "./SharePage";
 import { useSourceStyles } from "./SourceMobile";
-import { ra_to_hours, dec_to_hours } from "../units";
+import { ra_to_hours, dec_to_dms } from "../units";
 
 import fetchCandidate from "../ducks/candidate";
 
@@ -87,7 +87,7 @@ const Candidate = ({ route }) => {
                 {candidate.dec}
                 &nbsp; (&alpha;,&delta;=
                 {ra_to_hours(candidate.ra)}, &nbsp;
-                {dec_to_hours(candidate.dec)}) &nbsp; (l,b=
+                {dec_to_dms(candidate.dec)}) &nbsp; (l,b=
                 {candidate.gal_lon.toFixed(6)}, &nbsp;
                 {candidate.gal_lat.toFixed(6)}
                 )
