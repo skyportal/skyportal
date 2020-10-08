@@ -495,7 +495,7 @@ class Obj(Base, ha.Point):
 
         The cutout service doesn't allow directly querying for an image; the
         best we can do is request a page that contains a link to the image we
-        want (in this case a combination of the green/blue/red filters).
+        want (in this case a combination of the g/r/i filters).
         """
         try:
             ps_query_url = (
