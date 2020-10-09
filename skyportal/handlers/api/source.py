@@ -381,7 +381,19 @@ class SourceHandler(BaseHandler):
             source_list[-1]["alias"] = ""  # placeholder until we get TNS names
             source_list[-1]["luminosity_distance"] = source.luminosity_distance
             source_list[-1]["dm"] = source.dm
-            source_list[-1]["saved_at"] = source.saved_at
+            source_list[-1]["saved_at"] = [
+                s.saved_at
+                for s in (
+                    DBSession()
+                    .query(Source.saved_at)
+                    .filter(
+                        Source.obj_id == source_list[-1]["id"],
+                        Source.group_id.in_(user_accessible_group_ids),
+                    )
+                    .order_by(Source.saved_at.desc())
+                    .all()
+                )
+            ]
             source_list[-1][
                 "angular_diameter_distance"
             ] = source.angular_diameter_distance

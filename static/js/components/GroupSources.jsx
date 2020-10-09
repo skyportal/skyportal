@@ -43,6 +43,9 @@ const useStyles = makeStyles((theme) => ({
     overflowY: "scroll",
     padding: "0.5rem 0",
   },
+  tableGrid: {
+    width: "100%",
+  },
 }));
 
 const GroupSources = ({ route }) => {
@@ -118,7 +121,7 @@ const GroupSources = ({ route }) => {
                     id,
                     author,
                     author_info,
-                    saved_at,
+                    created_at,
                     text,
                     attachment_name,
                     groups: comment_groups,
@@ -141,7 +144,7 @@ const GroupSources = ({ route }) => {
                             </span>
                           </span>
                           <span className={styles.commentTime}>
-                            {dayjs().to(dayjs.utc(`${saved_at}Z`))}
+                            {dayjs().to(dayjs.utc(`${created_at}Z`))}
                           </span>
                           <div className={styles.commentUserGroup}>
                             <Tooltip
@@ -263,7 +266,7 @@ const GroupSources = ({ route }) => {
 
   const renderDateSaved = (dataIndex) => {
     const source = sources[dataIndex];
-    return <div key={`${source.id}_date_saved`}>{source.saved_at}</div>;
+    return <div key={`${source.id}_date_saved`}>{source.saved_at[0]}</div>;
   };
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
@@ -406,7 +409,7 @@ const GroupSources = ({ route }) => {
               </Typography>
             </div>
           </Grid>
-          <Grid item>
+          <Grid item className={classes.tableGrid}>
             <MUIDataTable
               title="Sources"
               columns={columns}
