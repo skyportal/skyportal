@@ -171,7 +171,7 @@ const ThumbnailList = ({
                 ra={ra}
                 dec={dec}
                 name="PS1: Loading..."
-                url={null}
+                url="#"
                 size={size}
               />
             </Grid>
