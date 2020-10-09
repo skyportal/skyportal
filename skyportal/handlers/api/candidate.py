@@ -4,7 +4,7 @@ from copy import copy
 import arrow
 
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql.expression import case
+from sqlalchemy.sql.expression import case, func
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
@@ -289,26 +289,21 @@ class CandidateHandler(BaseHandler):
         except ValueError:
             return self.error("Invalid numPerPage value.")
 
-        q = (
-            Obj.query.options(
-                [
-                    joinedload(Obj.thumbnails)
-                    .joinedload(Thumbnail.photometry)
-                    .joinedload(Photometry.instrument)
-                    .joinedload(Instrument.telescope),
-                ]
+        # We'll join in the nested data for Obj (like photometry) later
+        q = Obj.query.filter(
+            Obj.id.in_(
+                DBSession()
+                .query(Candidate.obj_id)
+                .filter(Candidate.filter_id.in_(filter_ids))
             )
-            .filter(
-                Obj.id.in_(
-                    DBSession()
-                    .query(Candidate.obj_id)
-                    .filter(Candidate.filter_id.in_(filter_ids))
-                )
-            )
-            .outerjoin(Annotation)  # Join in annotations info for sort/filter
-        )
+        ).outerjoin(
+            Annotation
+        )  # Join in annotations info for sort/filter
         if sort_by_origin is None:
-            q = q.order_by(Obj.last_detected.desc().nullslast(), Obj.id)
+            # Don't apply the order by just yet. Save it so we can pass it to
+            # the LIMT/OFFSET helper function down the line once other query
+            # params are set.
+            order_by = [Obj.last_detected.desc().nullslast(), Obj.id]
         if unsaved_only == "true":
             q = q.filter(
                 Obj.id.notin_(
@@ -340,15 +335,17 @@ class CandidateHandler(BaseHandler):
                 if sort_by_order == "desc"
                 else Annotation.data[sort_by_key].nullslast()
             )
-            q = q.order_by(
+            # Don't apply the order by just yet. Save it so we can pass it to
+            # the LIMT/OFFSET helper function.
+            order_by = [
                 origin_sort_order.nullslast(),
                 annotation_sort_criterion,
                 Obj.last_detected.desc().nullslast(),
                 Obj.id,
-            )
+            ]
         try:
             query_results = grab_query_results_page(
-                q, total_matches, page, n_per_page, "candidates"
+                q, total_matches, page, n_per_page, "candidates", order_by
             )
         except ValueError as e:
             if "Page number out of range" in str(e):
@@ -554,16 +551,56 @@ class CandidateHandler(BaseHandler):
     # candidates will automatically be deleted by cron job.
 
 
-def grab_query_results_page(q, total_matches, page, n_items_per_page, items_name):
-    # The query can return multiple rows for candidates with multiple annotations
-    # Getting the query results and doing the limit/offset on the Python side
-    # simplifies the deduplication
-    items = q.all()
+def grab_query_results_page(
+    q, total_matches, page, n_items_per_page, items_name, order_by
+):
+    # The query will return multiple rows per candidate object if it has multiple
+    # annotations associated with it, with rows appearing at the end of the query
+    # for any annotations with origins not equal to the one being sorted on (if applicable).
+    # We want to essentially grab only the candidate objects as they first appear
+    # in the query results, and ignore these other irrelevant annotation entries.
+
+    # Add a "row_num" column to the desire query that explicitly encodes the ordering
+    # of the query results - remember that these query rows are essentially
+    # (Obj, Annotation) tuples, so the earliest row numbers for a given Obj is
+    # the one we want to adhere to (and the later ones are annotation records for
+    # the candidate that are not being sorted/filtered on right now)
+    #
+    # The row number must be preserved like this in order to remember the desired
+    # ordering info even while using the passed in query as a subquery to select
+    # from. This is because subqueries provide a set of results to query from,
+    # losing any order_by information.
+    row = func.row_number().over(order_by=order_by).label("row_num")
+    full_query = q.add_column(row)
+
     info = {}
+    full_query = full_query.subquery()
+    # Using the PostgreSQL DISTINCT ON keyword, we grab the candidate Obj ids
+    # in the order that they first appear in the query (per the row_num values)
+    # NOTE: It is probably possible to grab the full Obj records here instead of
+    # just the ID values, but querying "full_query" here means we lost the original
+    # ORM mappings, so we would have to explicity re-label the columns here.
+    # It is much more straightforward to just get an ordered list of Obj ID
+    # values here and get the corresponding n_items_per_page full Obj objects
+    # at the end, I think, for minimal additional overhead.
+    ids_with_row_nums = (
+        DBSession()
+        .query(full_query.c.id, full_query.c.row_num)
+        .distinct(full_query.c.id)
+        .order_by(full_query.c.id, full_query.c.row_num)
+        .subquery()
+    )
+    # Grouping and getting the first distinct obj_id above messed up the order
+    # in the query set, so re-order by the row_num we used to remember the
+    # original ordering
+    ordered_ids = (
+        DBSession().query(ids_with_row_nums.c.id).order_by(ids_with_row_nums.c.row_num)
+    )
+
     if total_matches:
         info["totalMatches"] = int(total_matches)
     else:
-        info["totalMatches"] = len(items)
+        info["totalMatches"] = ordered_ids.count()
     if (
         (
             (
@@ -580,8 +617,24 @@ def grab_query_results_page(q, total_matches, page, n_items_per_page, items_name
         or (info["totalMatches"] == 0 and page != 1)
     ):
         raise ValueError("Page number out of range.")
-    s = slice((page - 1) * n_items_per_page, page * n_items_per_page)
-    info[items_name] = items[s]
+
+    # Now bring in the full Obj info for the candidates
+    page_ids = (
+        ordered_ids.limit(n_items_per_page).offset((page - 1) * n_items_per_page).all()
+    )
+    items = []
+    for item_id in page_ids:
+        items.append(
+            Obj.query.options(
+                [
+                    joinedload(Obj.thumbnails)
+                    .joinedload(Thumbnail.photometry)
+                    .joinedload(Photometry.instrument)
+                    .joinedload(Instrument.telescope),
+                ]
+            ).get(item_id)
+        )
+    info[items_name] = items
     info["pageNumber"] = page
     info["lastPage"] = info["totalMatches"] <= page * n_items_per_page
     info["numberingStart"] = (page - 1) * n_items_per_page + 1
