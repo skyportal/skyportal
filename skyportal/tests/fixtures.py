@@ -113,8 +113,6 @@ class ThumbnailFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Thumbnail
 
-    type = 'new'
-
 
 class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
@@ -202,7 +200,8 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
                 )
             )
 
-            DBSession().add(ThumbnailFactory(photometry=phot1))
+            DBSession().add(ThumbnailFactory(obj_id=obj.id, type="new"))
+            DBSession().add(ThumbnailFactory(obj_id=obj.id, type="ps1"))
             DBSession().add(CommentFactory(obj_id=obj.id, groups=passed_groups))
         DBSession().add(SpectrumFactory(obj_id=obj.id, instrument=instruments[0]))
         DBSession().commit()

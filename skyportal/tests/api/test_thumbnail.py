@@ -25,25 +25,6 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
     assert status == 200
     assert data['data']['id'] == obj_id
 
-    status, data = api(
-        'POST',
-        'photometry',
-        data={
-            'obj_id': obj_id,
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
-
     orig_source_thumbnail_count = len(
         DBSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails
     )
@@ -98,25 +79,6 @@ def test_token_user_delete_thumbnail_cascade_source(
     assert status == 200
     assert data['data']['id'] == obj_id
 
-    status, data = api(
-        'POST',
-        'photometry',
-        data={
-            'obj_id': obj_id,
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfr',
-            'group_ids': [public_group.id],
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
-
     orig_source_thumbnail_count = len(
         DBSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails
     )
@@ -160,80 +122,6 @@ def test_token_user_delete_thumbnail_cascade_source(
     )
 
 
-def test_token_user_post_get_thumbnail_phot_id(
-    upload_data_token, public_group, ztf_camera
-):
-
-    obj_id = str(uuid.uuid4())
-    status, data = api(
-        'POST',
-        'sources',
-        data={
-            'id': obj_id,
-            'ra': 234.22,
-            'dec': -22.33,
-            'redshift': 3,
-            'transient': False,
-            'ra_dis': 2.3,
-            'group_ids': [public_group.id],
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data['data']['id'] == obj_id
-
-    status, data = api(
-        'POST',
-        'photometry',
-        data={
-            'obj_id': obj_id,
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
-    photometry_id = data['data']['ids'][0]
-
-    orig_source_thumbnail_count = len(
-        DBSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails
-    )
-    data = base64.b64encode(
-        open(os.path.abspath('skyportal/tests/data/14gqr_new.png'), 'rb').read()
-    )
-    ttype = 'new'
-    status, data = api(
-        'POST',
-        'thumbnail',
-        data={'photometry_id': photometry_id, 'data': data, 'ttype': ttype},
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
-    thumbnail_id = data['data']['id']
-    assert isinstance(thumbnail_id, int)
-
-    status, data = api('GET', f'thumbnail/{thumbnail_id}', token=upload_data_token)
-    assert status == 200
-    assert data['status'] == 'success'
-    assert data['data']['type'] == 'new'
-
-    assert (
-        DBSession.query(Thumbnail).filter(Thumbnail.id == thumbnail_id).first().obj.id
-    ) == obj_id
-    assert (
-        len(DBSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails)
-        == orig_source_thumbnail_count + 1
-    )
-
-
 def test_cannot_post_thumbnail_invalid_ttype(
     upload_data_token, public_group, ztf_camera
 ):
@@ -254,24 +142,6 @@ def test_cannot_post_thumbnail_invalid_ttype(
     )
     assert status == 200
     assert data['data']['id'] == obj_id
-    status, data = api(
-        'POST',
-        'photometry',
-        data={
-            'obj_id': obj_id,
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfi',
-            'group_ids': [public_group.id],
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
 
     data = base64.b64encode(
         open(os.path.abspath('skyportal/tests/data/14gqr_new.png'), 'rb').read()
@@ -308,24 +178,6 @@ def test_cannot_post_thumbnail_invalid_image_type(
     )
     assert status == 200
     assert data['data']['id'] == obj_id
-    status, data = api(
-        'POST',
-        'photometry',
-        data={
-            'obj_id': obj_id,
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfr',
-            'group_ids': [public_group.id],
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
 
     data = base64.b64encode(
         open(
@@ -364,24 +216,6 @@ def test_cannot_post_thumbnail_invalid_size(
     )
     assert status == 200
     assert data['data']['id'] == obj_id
-    status, data = api(
-        'POST',
-        'photometry',
-        data={
-            'obj_id': obj_id,
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
 
     data = base64.b64encode(
         open(os.path.abspath('skyportal/tests/data/14gqr_new_13px.png'), 'rb').read()
@@ -418,24 +252,6 @@ def test_cannot_post_thumbnail_invalid_file_type(
     )
     assert status == 200
     assert data['data']['id'] == obj_id
-    status, data = api(
-        'POST',
-        'photometry',
-        data={
-            'obj_id': obj_id,
-            'mjd': 58000.0,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfi',
-            'group_ids': [public_group.id],
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
 
     data = base64.b64encode(os.urandom(2048))  # invalid image data
     ttype = 'ref'

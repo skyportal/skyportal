@@ -21,3 +21,20 @@
 .websocket {
   display: none;
 }
+
+.logos {
+  display: inline-flex;
+  flex-direction: row;
+}
+
+.logoContainer {
+  margin-top: -0.5em;
+  height: 50px;
+  border-right: 1px solid white;
+  padding: 0 0.75rem;
+}
+
+.logoContainer:last-of-type {
+  border-right: none;
+  padding-right: 0;
+}

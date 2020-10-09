@@ -74,6 +74,10 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
       alt = "Link to DESI DR8 Image Access";
       link = `http://legacysurvey.org/viewer/jpeg-cutout?ra=${ra}&dec=${dec}&size=512&layer=dr8&pixscale=0.262&bands=grz`;
       break;
+    case "ps1":
+      alt = "Link to PanSTARRS-1 Image Access";
+      link = `http://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos=${ra}+${dec}&filter=color&filter=g&filter=r&filter=i&filter=z&filter=y&filetypes=stack&auxiliary=data&size=240&output_size=0&verbose=0&autoscale=99.500000&catlist=`;
+      break;
     default:
       alt = "";
       link = "";
@@ -90,7 +94,7 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
         <a href={link}>
           <img src={url} alt={alt} className={classes.media} title={alt} />
         </a>
-        {name === "dr8" && (
+        {(name === "dr8" || name === "ps1") && (
           <img
             className={classes.crosshair}
             src="/static/images/crosshairs.png"
@@ -128,7 +132,7 @@ const ThumbnailList = ({
   thumbnails,
   useGrid = true,
   size = "13rem",
-  displayTypes = ["new", "ref", "sub"],
+  displayTypes = ["new", "ref", "sub", "sdss", "dr8", "ps1"],
 }) => {
   thumbnails
     .filter((thumbnail) => displayTypes.includes(thumbnail.type))
@@ -138,7 +142,7 @@ const ThumbnailList = ({
     .map((type) => thumbnails.find((thumbnail) => thumbnail.type === type))
     .filter((thumbnail) => thumbnail !== undefined);
 
-  const thumbnail_order = ["new", "ref", "sub", "sdss", "dr8"];
+  const thumbnail_order = ["new", "ref", "sub", "sdss", "dr8", "ps1"];
   // Sort thumbnails by order of appearance in `thumbnail_order`
   latestThumbnails.sort((a, b) =>
     thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1
@@ -159,6 +163,19 @@ const ThumbnailList = ({
             />
           </Grid>
         ))}
+        {displayTypes.includes("ps1") &&
+          !latestThumbnails.map((t) => t.type).includes("ps1") && (
+            <Grid item key="placeholder">
+              <Thumbnail
+                key="thumbPlaceHolder"
+                ra={ra}
+                dec={dec}
+                name="PS1: Loading..."
+                url={null}
+                size={size}
+              />
+            </Grid>
+          )}
       </Grid>
     );
   }
