@@ -35,9 +35,6 @@ const useStyles = makeStyles((theme) => ({
     margin: theme.spacing(0.5),
   },
   source: {},
-  flexTable: {
-    minWidth: "100%",
-  },
   commentListContainer: {
     height: "15rem",
     overflowY: "scroll",
