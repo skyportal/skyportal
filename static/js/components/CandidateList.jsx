@@ -109,6 +109,16 @@ const getMuiTheme = (theme) =>
     },
   });
 
+const getMostRecentClassification = (classifications) => {
+  // Display the most recent non-zero probability class
+  const filteredClasses = classifications.filter((i) => i.probability > 0);
+  const sortedClasses = filteredClasses.sort((a, b) =>
+    a.modified < b.modified ? 1 : -1
+  );
+
+  return `${sortedClasses[0].classification}`;
+};
+
 const CandidateList = () => {
   const history = useHistory();
   const [queryInProgress, setQueryInProgress] = useState(false);
@@ -261,6 +271,15 @@ const CandidateList = () => {
             {candidateObj.gal_lat.toFixed(3)}
           </span>
         </div>
+        {candidateObj.classifications &&
+          candidateObj.classifications.length > 0 && (
+            <div className={classes.infoItem}>
+              <b>Classification: </b>
+              <span>
+                {getMostRecentClassification(candidateObj.classifications)}
+              </span>
+            </div>
+          )}
         <br />
       </div>
     );

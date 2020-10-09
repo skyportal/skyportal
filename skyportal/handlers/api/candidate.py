@@ -320,6 +320,9 @@ class CandidateHandler(BaseHandler):
                     .filter(Group.id.in_(user_accessible_group_ids))
                     .all()
                 )
+                obj.classifications = obj.get_classifications_owned_by(
+                    self.current_user
+                )
             obj.passing_group_ids = [
                 f.group_id
                 for f in (
