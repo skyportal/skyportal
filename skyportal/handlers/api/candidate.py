@@ -629,8 +629,8 @@ def grab_query_results_page(
         items.append(
             Obj.query.options(
                 [
-                    joinedload(Obj.thumbnails)
-                    .joinedload(Thumbnail.photometry)
+                    joinedload(Obj.thumbnails),
+                    joinedload(Obj.photometry)
                     .joinedload(Photometry.instrument)
                     .joinedload(Instrument.telescope),
                 ]
