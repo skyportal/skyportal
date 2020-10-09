@@ -202,7 +202,7 @@ const GroupSources = ({ route }) => {
 
   const renderRA = (dataIndex) => {
     const source = sources[dataIndex];
-    return <div key={`${source.id}_ra`}>{source.ra}</div>;
+    return <div key={`${source.id}_ra`}>{source.ra.toFixed(6)}</div>;
   };
 
   const renderRA_sex = (dataIndex) => {
@@ -213,7 +213,7 @@ const GroupSources = ({ route }) => {
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderDec = (dataIndex) => {
     const source = sources[dataIndex];
-    return <div key={`${source.id}_dec`}>{source.dec}</div>;
+    return <div key={`${source.id}_dec`}>{source.dec.toFixed(6)}</div>;
   };
 
   const renderDec_sex = (dataIndex) => {
@@ -223,7 +223,7 @@ const GroupSources = ({ route }) => {
 
   const renderRedshift = (dataIndex) => {
     const source = sources[dataIndex];
-    return <div key={`${source.id}_redshift`}>{source.redshift}</div>;
+    return <div key={`${source.id}_redshift`}>{source.redshift.toFixed(6)}</div>;
   };
 
   const renderClassification = (dataIndex) => {
@@ -236,9 +236,6 @@ const GroupSources = ({ route }) => {
           shortened
         />
       </Suspense>
-      //       <div key={`${source.id}_classification`}>
-      //          {source.latest_class}
-      //       </div>
     );
   };
 
@@ -288,6 +285,7 @@ const GroupSources = ({ route }) => {
       name: "Alias",
       options: {
         filter: true,
+        display: false,
         customBodyRenderLite: renderAlias,
       },
     },
@@ -359,6 +357,7 @@ const GroupSources = ({ route }) => {
   ];
 
   const options = {
+
     draggableColumns: { enabled: true },
     expandableRows: true,
     renderExpandableRow: renderPullOutRow,
@@ -403,7 +402,7 @@ const GroupSources = ({ route }) => {
               </Typography>
             </div>
           </Grid>
-          <Grid item>
+          <Grid item >
             <MUIDataTable
               title="Sources"
               columns={columns}
