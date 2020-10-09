@@ -10,6 +10,7 @@ all_acl_ids = [
     'Manage users',
     'Manage sources',
     'Manage groups',
+    'Manage allocations',
     'Upload data',
     'System admin',
     'Post taxonomy',

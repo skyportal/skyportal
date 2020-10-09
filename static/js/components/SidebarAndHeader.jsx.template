@@ -49,8 +49,10 @@ const useStyles = makeStyles((theme) => ({
     }),
   },
   menuButton: {
-    marginRight: theme.spacing(2),
     marginTop: "0.8em",
+    [theme.breakpoints.up('sm')]: {
+      marginRight: theme.spacing(2),
+    }
   },
   hide: {
     display: 'none',

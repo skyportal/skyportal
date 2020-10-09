@@ -266,6 +266,7 @@ const CandidateList = () => {
           dec={candidateObj.dec}
           thumbnails={candidateObj.thumbnails}
           size="9rem"
+          displayTypes={["new", "ref", "sub", "sdss", "dr8"]}
         />
       </div>
     );

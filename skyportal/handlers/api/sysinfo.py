@@ -4,12 +4,25 @@ import subprocess
 from baselayer.app.env import load_env
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
+
 from skyportal.models import cosmo
+from skyportal.utils import gitlog
+
 
 _, cfg = load_env()
-default_log_lines = 25
+
+# This file is generated with
+#
+#   git log --no-merges --first-parent \
+#           --pretty='format:[%cI %h %cE] %s' -1000
+#
+# We query for more than the number desired (1000 instead of 100), because
+# we filter out all commits by noreply@github.com and hope to end up
+# with 100 commits still.
+
+
 gitlog_file = "data/gitlog.txt"
-pr_url = "https://github.com/skyportal/skyportal/pull/"
+max_log_lines = 100
 
 
 class SysInfoHandler(BaseHandler):
@@ -56,37 +69,29 @@ class SysInfoHandler(BaseHandler):
                     "git",
                     "--git-dir=.git",
                     "log",
-                    "--pretty=format:'%C(cyan)[%ci]%Creset %s %C(auto)%h'",
+                    "--no-merges",
+                    "--first-parent",
+                    "--pretty=format:[%cI %h %cE] %s",
+                    f"-{max_log_lines * 10}",
                 ],
                 capture_output=True,
                 universal_newlines=True,
             )
             loginfo = p.stdout
 
-        raw_gitlog = loginfo.splitlines()[:default_log_lines]
-        gitlog = []
-
-        for commit in raw_gitlog:
-            # remove leading and trailing quote
-            result = commit[1:-1]
-            pr_number_start = result.find("(#")
-            if pr_number_start != -1:
-                pr_number_end = result.find(")", pr_number_start)
-                pr_slice = slice(pr_number_start + 2, pr_number_end)
-                pr_str = result[pr_slice]
-                pr = pr_url + pr_str
-                result = result.replace(
-                    "(#" + pr_str + ")",
-                    "(<a target='_blank' rel='noopener noreferrer'"
-                    f" href='{pr}'>#{pr_str}</a>)",
-                )
-            gitlog.append(result)
+        parsed_log = gitlog.parse_gitlog(loginfo.splitlines())
+        parsed_log = [
+            entry
+            for entry in parsed_log
+            if not (entry['description'].lower().startswith(('bump', 'pin')))
+        ]
+        parsed_log = parsed_log[:max_log_lines]
 
         return self.success(
             data={
                 "invitationsEnabled": cfg["invitations.enabled"],
                 "cosmology": str(cosmo),
                 "cosmoref": cosmo.__doc__,
-                "gitlog": gitlog,
+                "gitlog": parsed_log,
             }
         )
