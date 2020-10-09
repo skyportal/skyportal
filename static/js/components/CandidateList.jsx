@@ -120,42 +120,40 @@ const getMuiTheme = (theme) =>
 const defaultNumPerPage = 25;
 
 const CustomSortToolbar = ({
-  selectedAnnotationKey,
+  selectedAnnotationSortOptions,
   rowsPerPage,
   setQueryInProgress,
   loaded,
 }) => {
   const classes = useStyles();
 
-  const [ascending, setAscending] = useState(null);
+  const [sortOrder, setSortOrder] = useState(
+    selectedAnnotationSortOptions ? selectedAnnotationSortOptions.order : null
+  );
   const dispatch = useDispatch();
-  useEffect(() => {
-    setAscending(null);
-  }, [selectedAnnotationKey]);
 
-  // ESLint rule is disabled below because we don't want to reload data on a new
-  // annotation item select every time until the sort button is actually clicked
-  useEffect(() => {
-    const dispatchSort = async () => {
-      const data = {
-        pageNumber: 1,
-        numPerPage: rowsPerPage,
-        sortByAnnotationOrigin: selectedAnnotationKey.origin,
-        sortByAnnotationKey: selectedAnnotationKey.key,
-        sortByAnnotationOrder: ascending ? "asc" : "desc",
-      };
-      await dispatch(candidatesActions.fetchCandidates(data));
-      setQueryInProgress(false);
+  const handleSort = async () => {
+    const newSortOrder =
+      sortOrder === null || sortOrder === "desc" ? "asc" : "desc";
+    setSortOrder(newSortOrder);
+
+    setQueryInProgress(true);
+    const data = {
+      pageNumber: 1,
+      numPerPage: rowsPerPage,
+      sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
+      sortByAnnotationKey: selectedAnnotationSortOptions.key,
+      sortByAnnotationOrder: newSortOrder,
     };
 
-    if (ascending !== null) {
-      dispatchSort();
-    }
-  }, [ascending, dispatch, rowsPerPage, setQueryInProgress]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleSort = () => {
-    setQueryInProgress(true);
-    setAscending(ascending === null ? true : !ascending);
+    await dispatch(
+      candidatesActions.setCandidatesAnnotationSortOptions({
+        ...selectedAnnotationSortOptions,
+        order: newSortOrder,
+      })
+    );
+    await dispatch(candidatesActions.fetchCandidates(data));
+    setQueryInProgress(false);
   };
 
   // Wait until sorted data is received before rendering the toolbar
@@ -164,14 +162,14 @@ const CustomSortToolbar = ({
       <span>
         <IconButton
           onClick={handleSort}
-          disabled={selectedAnnotationKey === null}
+          disabled={selectedAnnotationSortOptions === null}
           className={classes.sortButtton}
           data-testid="sortOnAnnotationButton"
         >
           <span>
             <SortIcon />
-            {ascending !== null && ascending && <ArrowUpward />}
-            {ascending !== null && !ascending && <ArrowDownward />}
+            {sortOrder !== null && sortOrder === "asc" && <ArrowUpward />}
+            {sortOrder !== null && sortOrder === "desc" && <ArrowDownward />}
           </span>
         </IconButton>
       </span>
@@ -182,9 +180,10 @@ const CustomSortToolbar = ({
 };
 
 CustomSortToolbar.propTypes = {
-  selectedAnnotationKey: PropTypes.shape({
+  selectedAnnotationSortOptions: PropTypes.shape({
     origin: PropTypes.string.isRequired,
     key: PropTypes.string.isRequired,
+    order: PropTypes.string,
   }),
   setQueryInProgress: PropTypes.func.isRequired,
   rowsPerPage: PropTypes.number.isRequired,
@@ -192,7 +191,7 @@ CustomSortToolbar.propTypes = {
 };
 
 CustomSortToolbar.defaultProps = {
-  selectedAnnotationKey: null,
+  selectedAnnotationSortOptions: null,
 };
 
 const CandidateList = () => {
@@ -219,7 +218,7 @@ const CandidateList = () => {
     totalMatches,
     numberingStart,
     numberingEnd,
-    selectedAnnotationKey,
+    selectedAnnotationSortOptions,
   } = useSelector((state) => state.candidates);
 
   const userAccessibleGroups = useSelector(
@@ -241,19 +240,21 @@ const CandidateList = () => {
 
   const candidateHasAnnotationWithSelectedKey = (candidateObj) => {
     const annotation = candidateObj.annotations.find(
-      (a) => a.origin === selectedAnnotationKey.origin
+      (a) => a.origin === selectedAnnotationSortOptions.origin
     );
     if (annotation === undefined) {
       return false;
     }
-    return selectedAnnotationKey.key in annotation.data;
+    return selectedAnnotationSortOptions.key in annotation.data;
   };
 
   const getCandidateSelectedAnnotationValue = (candidateObj) => {
     const annotation = candidateObj.annotations.find(
-      (a) => a.origin === selectedAnnotationKey.origin
+      (a) => a.origin === selectedAnnotationSortOptions.origin
     );
-    return getAnnotationValueString(annotation.data[selectedAnnotationKey.key]);
+    return getAnnotationValueString(
+      annotation.data[selectedAnnotationSortOptions.key]
+    );
   };
 
   const renderThumbnails = (dataIndex) => {
@@ -367,11 +368,12 @@ const CandidateList = () => {
             {candidateObj.gal_lat.toFixed(3)}
           </span>
         </div>
-        {selectedAnnotationKey !== null &&
+        {selectedAnnotationSortOptions !== null &&
           candidateHasAnnotationWithSelectedKey(candidateObj) && (
             <div className={classes.infoItem}>
               <b>
-                {selectedAnnotationKey.key} ({selectedAnnotationKey.origin}):
+                {selectedAnnotationSortOptions.key} (
+                {selectedAnnotationSortOptions.origin}):
               </b>
               <span>{getCandidateSelectedAnnotationValue(candidateObj)}</span>
             </div>
@@ -403,7 +405,16 @@ const CandidateList = () => {
   const handlePageChange = async (page, numPerPage) => {
     setQueryInProgress(true);
     // API takes 1-indexed page number
-    const data = { pageNumber: page + 1, numPerPage };
+    let data = { pageNumber: page + 1, numPerPage };
+    if (selectedAnnotationSortOptions !== null) {
+      data = {
+        ...data,
+        sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
+        sortByAnnotationKey: selectedAnnotationSortOptions.key,
+        sortByAnnotationOrder: selectedAnnotationSortOptions.order,
+      };
+    }
+
     await dispatch(candidatesActions.fetchCandidates(data));
     setQueryInProgress(false);
   };
@@ -477,7 +488,7 @@ const CandidateList = () => {
     // eslint-disable-next-line react/display-name
     customToolbar: () => (
       <CustomSortToolbar
-        selectedAnnotationKey={selectedAnnotationKey}
+        selectedAnnotationSortOptions={selectedAnnotationSortOptions}
         rowsPerPage={rowsPerPage}
         setQueryInProgress={setQueryInProgress}
         loaded={!queryInProgress}

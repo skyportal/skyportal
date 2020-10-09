@@ -14,8 +14,8 @@ export const FETCH_CANDIDATE_AND_MERGE_OK =
 
 export const REFRESH_CANDIDATE = "skyportal/REFRESH_CANDIDATE";
 
-export const SELECT_CANDIDATES_ANNOTATION_ITEM =
-  "skyportal/SELECT_CANDIDATES_ANNOTATION_ITEM";
+export const SET_CANDIDATES_ANNOTATION_SORT_OPTIONS =
+  "skyportal/SET_CANDIDATES_ANNOTATION_SORT_OPTIONS";
 
 export const fetchCandidates = (filterParams = {}) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
@@ -26,9 +26,9 @@ export const fetchCandidates = (filterParams = {}) => {
   return API.GET(`/api/candidates?${queryString}`, FETCH_CANDIDATES);
 };
 
-export const setSelectedCandidatesAnnotationKey = (item) => {
+export const setCandidatesAnnotationSortOptions = (item) => {
   return {
-    type: SELECT_CANDIDATES_ANNOTATION_ITEM,
+    type: SET_CANDIDATES_ANNOTATION_SORT_OPTIONS,
     item,
   };
 };
@@ -60,7 +60,7 @@ const initialState = {
   totalMatches: 0,
   numberingStart: 0,
   numberingEnd: 0,
-  selectedAnnotationKey: null,
+  selectedAnnotationSortOptions: null,
 };
 
 const reducer = (state = initialState, action) => {
@@ -90,8 +90,8 @@ const reducer = (state = initialState, action) => {
       );
       return { ...state, candidates };
     }
-    case SELECT_CANDIDATES_ANNOTATION_ITEM: {
-      return { ...state, selectedAnnotationKey: action.item };
+    case SET_CANDIDATES_ANNOTATION_SORT_OPTIONS: {
+      return { ...state, selectedAnnotationSortOptions: action.item };
     }
     default:
       return state;

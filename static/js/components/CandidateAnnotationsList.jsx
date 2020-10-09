@@ -58,8 +58,8 @@ const CandidateAnnotationsList = ({ annotations }) => {
   });
   const [openedOrigins, setopenedOrigins] = useState(initState);
 
-  const selectedAnnotationKey = useSelector(
-    (state) => state.candidates.selectedAnnotationKey
+  const selectedAnnotationSortOptions = useSelector(
+    (state) => state.candidates.selectedAnnotationSortOptions
   );
 
   const handleClick = (origin) => {
@@ -68,13 +68,15 @@ const CandidateAnnotationsList = ({ annotations }) => {
 
   const handleItemSelect = (origin, key) => {
     const currentlySelected =
-      selectedAnnotationKey &&
-      selectedAnnotationKey.origin === origin &&
-      selectedAnnotationKey.key === key;
+      selectedAnnotationSortOptions &&
+      selectedAnnotationSortOptions.origin === origin &&
+      selectedAnnotationSortOptions.key === key;
 
-    const annotationItem = currentlySelected ? null : { origin, key };
+    const annotationItem = currentlySelected
+      ? null
+      : { origin, key, order: null };
     dispatch(
-      candidatesActions.setSelectedCandidatesAnnotationKey(annotationItem)
+      candidatesActions.setCandidatesAnnotationSortOptions(annotationItem)
     );
   };
 
@@ -108,9 +110,10 @@ const CandidateAnnotationsList = ({ annotations }) => {
                     button
                     className={classes.nested}
                     selected={
-                      selectedAnnotationKey &&
-                      selectedAnnotationKey.origin === annotation.origin &&
-                      selectedAnnotationKey.key === key
+                      selectedAnnotationSortOptions &&
+                      selectedAnnotationSortOptions.origin ===
+                        annotation.origin &&
+                      selectedAnnotationSortOptions.key === key
                     }
                     onClick={() => handleItemSelect(annotation.origin, key)}
                   >
