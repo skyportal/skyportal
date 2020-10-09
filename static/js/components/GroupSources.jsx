@@ -35,6 +35,9 @@ const useStyles = makeStyles((theme) => ({
     margin: theme.spacing(0.5),
   },
   source: {},
+  flexTable: {
+    minWidth: "100%",
+  },
   commentListContainer: {
     height: "15rem",
     overflowY: "scroll",
@@ -115,7 +118,7 @@ const GroupSources = ({ route }) => {
                     id,
                     author,
                     author_info,
-                    created_at,
+                    saved_at,
                     text,
                     attachment_name,
                     groups: comment_groups,
@@ -138,7 +141,7 @@ const GroupSources = ({ route }) => {
                             </span>
                           </span>
                           <span className={styles.commentTime}>
-                            {dayjs().to(dayjs.utc(`${created_at}Z`))}
+                            {dayjs().to(dayjs.utc(`${saved_at}Z`))}
                           </span>
                           <div className={styles.commentUserGroup}>
                             <Tooltip
@@ -223,7 +226,9 @@ const GroupSources = ({ route }) => {
 
   const renderRedshift = (dataIndex) => {
     const source = sources[dataIndex];
-    return <div key={`${source.id}_redshift`}>{source.redshift.toFixed(6)}</div>;
+    return (
+      <div key={`${source.id}_redshift`}>{source.redshift.toFixed(6)}</div>
+    );
   };
 
   const renderClassification = (dataIndex) => {
@@ -258,7 +263,7 @@ const GroupSources = ({ route }) => {
 
   const renderDateSaved = (dataIndex) => {
     const source = sources[dataIndex];
-    return <div key={`${source.id}_date_saved`}>{source.created_at}</div>;
+    return <div key={`${source.id}_date_saved`}>{source.saved_at}</div>;
   };
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
@@ -357,7 +362,6 @@ const GroupSources = ({ route }) => {
   ];
 
   const options = {
-
     draggableColumns: { enabled: true },
     expandableRows: true,
     renderExpandableRow: renderPullOutRow,
@@ -376,13 +380,13 @@ const GroupSources = ({ route }) => {
     source.groups.map((group) => {
       return group.name;
     }),
-    source.created_at,
+    source.saved_at,
     "", // this last one is for the finder chart
   ]);
 
   return (
     <div className={classes.source}>
-      <div>
+      <div className={classes.flexTable}>
         <Grid
           container
           direction="column"
@@ -402,7 +406,7 @@ const GroupSources = ({ route }) => {
               </Typography>
             </div>
           </Grid>
-          <Grid item >
+          <Grid item>
             <MUIDataTable
               title="Sources"
               columns={columns}

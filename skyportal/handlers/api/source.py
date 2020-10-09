@@ -381,6 +381,7 @@ class SourceHandler(BaseHandler):
             source_list[-1]["alias"] = ""  # placeholder until we get TNS names
             source_list[-1]["luminosity_distance"] = source.luminosity_distance
             source_list[-1]["dm"] = source.dm
+            source_list[-1]["saved_at"] = source.saved_at
             source_list[-1][
                 "angular_diameter_distance"
             ] = source.angular_diameter_distance
