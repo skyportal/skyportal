@@ -1,10 +1,7 @@
 app:
   title: SkyPortal
-  logos: # Logos to place in the top-left of the header bar (zero or more)
+  logos: # Logos to place in the top-left of the header/login page (zero or more)
     - src: /static/images/skyportal_logo_dark.png
-      alt_text: Skyportal logo
-  login_logos: # Logos to place on the login screen
-    - src: /static/images/skyportal_logo.png
       alt_text: Skyportal logo
   login_message: |
     For more information about the project, see

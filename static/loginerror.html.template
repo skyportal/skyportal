@@ -7,32 +7,36 @@
   </head>
   <body>
     <div class="loginBox">
-      <div class="logos">
-          {%- for logo in app.login_logos %}
-          <div class="logoContainer">
-            <img src="{{ logo.src }}" altText="{{ logo.alt_text }}"  class="logo" />
-          </div>
-          {%- endfor %}
+      <div class="loginHeader">
+        <div class="logos">
+            {%- for logo in app.logos %}
+            <div class="logoContainer">
+              <img src="{{ logo.src }}" altText="{{ logo.alt_text }}"  class="logo" />
+            </div>
+            {%- endfor %}
+        </div>
+        <span class="title">Oops! Your login attempt has failed.</span>
       </div>
-      <span class="title">Oops! Your login attempt has failed.</span>
-      <p>
-        Your authentication attempt has failed with the following message:
-        <em>{%- raw -%} {{ error_message }} {%- endraw -%}</em>
-      </p>
-      <p>
-        Please ensure that you are either logging in via a valid invitation link
-        or are attempting to login with the same OAuth account that you
-        previously used to login via an invite link. If you believe you are
-        seeing this in error, delete your cookies and try logging in again; if
-        the problem persists, please contact a site administrator.
-      </p>
-      <div class="loginButton">
-        <a href="/login/google-oauth2">
-          <img
-            src="/static/images/btn_google_signin_dark_normal_web.png"
-            alt="Click this image to log in"
-          />
-        </a>
+      <div class="loginText">
+        <p>
+          Your authentication attempt has failed with the following message:
+          <em>{%- raw -%} {{ error_message }} {%- endraw -%}</em>
+        </p>
+        <p>
+          Please ensure that you are either logging in via a valid invitation link
+          or are attempting to login with the same OAuth account that you
+          previously used to login via an invite link. If you believe you are
+          seeing this in error, delete your cookies and try logging in again; if
+          the problem persists, please contact a site administrator.
+        </p>
+        <div class="loginButton">
+          <a href="/login/google-oauth2">
+            <img
+              src="/static/images/btn_google_signin_dark_normal_web.png"
+              alt="Click this image to log in"
+            />
+          </a>
+        </div>
       </div>
     </div>
   </body>
