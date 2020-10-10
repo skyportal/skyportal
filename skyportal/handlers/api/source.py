@@ -288,6 +288,25 @@ class SourceHandler(BaseHandler):
                 )
                 .all()
             )
+            # add the date(s) this source was saved to each of these groups
+            new_group_list = []
+            for g in source_info["groups"]:
+                saved_at = [
+                    s.saved_at
+                    for s in DBSession()
+                    .query(Source.saved_at)
+                    .filter(
+                        Source.obj_id == source_info["id"], Source.group_id == g.id,
+                    )
+                    .order_by(Source.saved_at.desc())
+                    .all()
+                ]
+                g_new = g.to_dict()
+                g_new['saved_at'] = saved_at
+                new_group_list.append(g_new)
+
+            source_info["groups"] = new_group_list
+
             return self.success(data=source_info)
 
         # Fetch multiple sources
