@@ -7,7 +7,13 @@
   </head>
   <body>
     <div class="loginBox">
-      <img src="{{ app.logo }}" class="logo" />
+      <div class="logos">
+        {%- for logo in app.login_logos %}
+        <div class="logoContainer">
+          <img src="{{ logo.src }}" altText="{{ logo.alt_text }}"  class="logo" />
+        </div>
+        {%- endfor %}
+      </div>
       <span class="title">Welcome to {{ app.title }}</span>
 
       <p>{{ app.login_message }}</p>

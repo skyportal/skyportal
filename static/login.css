@@ -24,13 +24,28 @@ body {
 
 .logo {
   height: 50px;
-  display: inline-block;
-  vertical-align: middle;
-  padding-right: 1em;
+  padding: 0 0.5em;
 }
 
 .title {
   font-size: 200%;
   line-height: 50px;
   vertical-align: middle;
+}
+
+.logos {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.logoContainer {
+  height: 50px;
+  border-right: 1px solid gray;
+}
+
+.logoContainer:last-of-type {
+  border-right: none;
+  padding-right: 0;
 }
