@@ -105,10 +105,8 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
     log('Verifying database migration status')
     port = cfg['ports.migration_manager']
     while not migrated_db(port):
-        log('Database not migrated, or could not verify; trying again in 5s')
+        log('Could not confirm database migration status; trying again in 5s')
         time.sleep(5)
-
-    log('Database is migrated; continuing')
 
     handlers = baselayer_handlers + [
         # API endpoints
