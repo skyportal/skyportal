@@ -263,7 +263,10 @@ const GroupSources = ({ route }) => {
 
   const renderDateSaved = (dataIndex) => {
     const source = sources[dataIndex];
-    return <div key={`${source.id}_date_saved`}>{source.saved_at[0]}</div>;
+    const group = source.groups.find((g) => {
+      return g.id === group_id;
+    });
+    return <div key={`${source.id}_date_saved`}>{group.saved_at[0]}</div>;
   };
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.

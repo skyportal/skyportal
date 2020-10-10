@@ -381,19 +381,6 @@ class SourceHandler(BaseHandler):
             source_list[-1]["alias"] = ""  # placeholder until we get TNS names
             source_list[-1]["luminosity_distance"] = source.luminosity_distance
             source_list[-1]["dm"] = source.dm
-            source_list[-1]["saved_at"] = [
-                s.saved_at
-                for s in (
-                    DBSession()
-                    .query(Source.saved_at)
-                    .filter(
-                        Source.obj_id == source_list[-1]["id"],
-                        Source.group_id.in_(user_accessible_group_ids),
-                    )
-                    .order_by(Source.saved_at.desc())
-                    .all()
-                )
-            ]
             source_list[-1][
                 "angular_diameter_distance"
             ] = source.angular_diameter_distance
@@ -408,6 +395,43 @@ class SourceHandler(BaseHandler):
                 )
                 .all()
             )
+
+            # add the date(s) this source was saved to each of these groups
+            new_group_list = []
+            for g in source_list[-1]["groups"]:
+                saved_at = [
+                    s.saved_at
+                    for s in DBSession()
+                    .query(Source.saved_at)
+                    .filter(
+                        Source.obj_id == source_list[-1]["id"], Source.group_id == g.id,
+                    )
+                    .order_by(Source.saved_at.desc())
+                    .all()
+                ]
+                g_new = g.to_dict()
+                g_new['saved_at'] = saved_at
+                new_group_list.append(g_new)
+
+            source_list[-1]["groups"] = new_group_list
+
+            # source_list[-1]["groups"] = [
+            #     g.to_dict().update(
+            #         {
+            #             'saved_at':  [s.saved_at for s in DBSession()
+            #                                               .query(Source.saved_at)
+            #                                               .filter(
+            #                                               Source.obj_id == source_list[-1]["id"],
+            #                                               Source.group_id == g.id,
+            #                                               )
+            #                                               .order_by(Source.saved_at.desc())
+            #                                               .all()
+            #             ]
+            #         }
+            #     )
+            #     for g in source_list[-1]["groups"]
+            # ]
+            # print(source_list[-1]["groups"][0])
 
         query_results["sources"] = source_list
 
