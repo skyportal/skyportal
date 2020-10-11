@@ -2,6 +2,7 @@ import io
 import os
 import datetime
 import warnings
+from functools import wraps
 
 import pandas as pd
 import requests
@@ -30,8 +31,21 @@ from baselayer.log import make_log
 
 log = make_log('finder-chart')
 
-warnings.simplefilter('ignore', category=AstropyWarning)
-warnings.simplefilter('ignore', category=RuntimeWarning)
+
+def warningfilter(action="ignore", category=RuntimeWarning):
+    """decorator to filter warnings using a context manager"""
+
+    def wrapper(func):
+        @wraps(func)
+        def decorated_function(*args, **kwargs):
+            with warnings.catch_warnings():
+                warnings.simplefilter(action, category=category)
+                return func(*args, **kwargs)
+
+        return decorated_function
+
+    return wrapper
+
 
 facility_parameters = {
     'Keck': {
@@ -208,6 +222,7 @@ def get_ztfcatalog(ra, dec, cache_dir="./cache/finder_cat/", cache_max_items=25)
         return None
 
 
+@warningfilter(action="ignore", category=RuntimeWarning)
 def _calculate_best_position_for_offset_stars(
     photometry, fallback=(None, None), how="snr2", max_offset=0.5, sigma_clip=4.0
 ):
@@ -230,11 +245,9 @@ def _calculate_best_position_for_offset_stars(
     sigma_clip : float, optional
         Remove positions that are this number of std away from the median
     """
-
     if not isinstance(photometry, list):
         log(
-            "Warning: No photometry given. Falling back to "
-            " original source position."
+            "Warning: No photometry given. Falling back to" " original source position."
         )
         return fallback
 
@@ -312,6 +325,8 @@ def _calculate_best_position_for_offset_stars(
     return position
 
 
+@warningfilter(action="ignore", category=DeprecationWarning)
+@warningfilter(action="ignore", category=AstropyWarning)
 def get_nearby_offset_stars(
     source_ra,
     source_dec,
