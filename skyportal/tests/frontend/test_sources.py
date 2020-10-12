@@ -325,9 +325,9 @@ def test_super_user_can_delete_unowned_comment(
 def test_show_starlist(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    button = driver.wait_for_xpath(f'//span[text()="Show Starlist"]')
+    button = driver.wait_for_xpath('//span[text()="Show Starlist"]')
     button.click()
-    driver.wait_for_xpath(f"//code/div[text()[contains(., '_off1')]]", timeout=20)
+    driver.wait_for_xpath("//code/div[text()[contains(., '_o1')]]", timeout=45)
 
 
 @pytest.mark.flaky(reruns=2)
@@ -407,7 +407,7 @@ def test_dropdown_facility_change(driver, user, public_source):
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//span[text()="Show Starlist"]')
     )
-    driver.wait_for_xpath("//code/div[text()[contains(., 'raoffset')]]", timeout=20)
+    driver.wait_for_xpath("//code/div[text()[contains(., 'raoffset')]]", timeout=45)
 
     xpath = '//*[@id="mui-component-select-StarListSelectElement"]'
     element = driver.wait_for_xpath(xpath)
@@ -415,7 +415,7 @@ def test_dropdown_facility_change(driver, user, public_source):
     xpath = '//li[@data-value="P200"]'
     element = driver.wait_for_xpath(xpath)
     ActionChains(driver).move_to_element(element).click_and_hold().perform()
-    driver.wait_for_xpath("//code/div[text()[contains(., 'dist')]]", timeout=20)
+    driver.wait_for_xpath("//code/div[text()[contains(., 'dist')]]", timeout=45)
 
 
 @pytest.mark.flaky(reruns=2)
