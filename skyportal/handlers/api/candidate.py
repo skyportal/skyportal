@@ -195,6 +195,9 @@ class CandidateHandler(BaseHandler):
                     .filter(Group.id.in_(user_accessible_group_ids))
                     .all()
                 )
+                candidate_info["classifications"] = c.get_classifications_owned_by(
+                    self.current_user
+                )
             candidate_info["last_detected"] = c.last_detected
             candidate_info["gal_lon"] = c.gal_lon_deg
             candidate_info["gal_lat"] = c.gal_lat_deg
