@@ -166,7 +166,7 @@ const RunSummary = ({ route }) => {
     }
 
     const colSpan = rowData.length + 1;
-    const assignment = assignments[rowMeta.rowIndex];
+    const assignment = assignments[rowMeta.dataIndex];
 
     return (
       <TableRow>

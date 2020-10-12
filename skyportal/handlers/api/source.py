@@ -434,24 +434,6 @@ class SourceHandler(BaseHandler):
 
             source_list[-1]["groups"] = new_group_list
 
-            # source_list[-1]["groups"] = [
-            #     g.to_dict().update(
-            #         {
-            #             'saved_at':  [s.saved_at for s in DBSession()
-            #                                               .query(Source.saved_at)
-            #                                               .filter(
-            #                                               Source.obj_id == source_list[-1]["id"],
-            #                                               Source.group_id == g.id,
-            #                                               )
-            #                                               .order_by(Source.saved_at.desc())
-            #                                               .all()
-            #             ]
-            #         }
-            #     )
-            #     for g in source_list[-1]["groups"]
-            # ]
-            # print(source_list[-1]["groups"][0])
-
         query_results["sources"] = source_list
 
         return self.success(data=query_results)
@@ -549,6 +531,7 @@ class SourceHandler(BaseHandler):
             action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
         )
         self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
+        self.push_all(action="skyportal/FETCH_GROUP_SOURCES")
         return self.success(data={"id": obj.id})
 
     @permissions(['Upload data'])
@@ -593,6 +576,8 @@ class SourceHandler(BaseHandler):
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key},
         )
+        self.push_all(action="skyportal/FETCH_GROUP_SOURCES")
+
         return self.success(action='skyportal/FETCH_SOURCES')
 
     @permissions(['Manage sources'])

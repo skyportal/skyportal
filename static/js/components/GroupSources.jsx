@@ -83,7 +83,7 @@ const GroupSources = ({ route }) => {
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
     const colSpan = rowData.length + 1;
-    const source = sources[rowMeta.rowIndex];
+    const source = sources[rowMeta.dataIndex];
 
     const comments = source.comments || [];
 
