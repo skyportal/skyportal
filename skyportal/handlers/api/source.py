@@ -781,6 +781,7 @@ class SourceOffsetsHandler(BaseHandler):
                 query_string,
                 queries_issued,
                 noffsets,
+                used_ztfref,
             ) = get_nearby_offset_stars(
                 best_ra,
                 best_dec,
@@ -795,13 +796,13 @@ class SourceOffsetsHandler(BaseHandler):
                 allowed_queries=2,
                 use_ztfref=use_ztfref,
             )
-
         except ValueError:
             return self.error('Error while querying for nearby offset stars')
 
         starlist_str = "\n".join(
             [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
         )
+
         return self.success(
             data={
                 'facility': facility,
