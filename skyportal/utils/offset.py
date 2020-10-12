@@ -719,7 +719,6 @@ def fits_image(
     return get_hdu(url)
 
 
-@warningfilter(action="error", category=AstropyWarning)
 def get_finding_chart(
     source_ra,
     source_dec,
