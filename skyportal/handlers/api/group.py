@@ -548,6 +548,96 @@ class GroupUserHandler(BaseHandler):
 
 
 class GroupStreamHandler(BaseHandler):
+    @auth_or_token
+    def get(self, group_id):
+        """
+        ---
+        single:
+          description: Retrieve info on group stream access
+          parameters:
+            - in: path
+              name: group_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            allOf:
+                              - $ref: '#/components/schemas/Group'
+                              - type: object
+                                properties:
+                                  users:
+                                    type: array
+                                    items:
+                                      - $ref: '#/components/schemas/User'
+                                    description: List of group users
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all groups
+          parameters:
+            - in: query
+              name: name
+              schema:
+                type: string
+              description: Fetch by name (exact match)
+            - in: query
+              name: includeSingleUserGroups
+              schema:
+                type: boolean
+              description: |
+                Bool indicating whether to include single user groups.
+                Defaults to false.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              user_groups:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Group'
+                                description: List of groups current user is a member of.
+                              user_accessible_groups:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Group'
+                                description: |
+                                  List of groups current user can access, not including
+                                  single user groups.
+                              all_groups:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Group'
+                                description: |
+                                  List of all groups, optionally including single user
+                                  groups if query parameter `includeSingleUserGroups` is
+                                  `true`.
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+        # todo:
+        pass
+
     @permissions(['System admin'])
     def post(self, group_id, *ignored_args):
         """
