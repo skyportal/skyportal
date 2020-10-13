@@ -111,5 +111,7 @@ def test_add_new_source_renders_on_group_sources_page(
     # go to the group sources page
     # driver.get(f"/group_sources/{public_group.id}")
 
+    driver.wait_for_xpath(f"//*[text()[contains(., '{'wrong!'}')]]")
+
     # check the classification shows up
     driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")

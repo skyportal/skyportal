@@ -263,9 +263,14 @@ const GroupSources = ({ route }) => {
 
   const renderDateSaved = (dataIndex) => {
     const source = sources[dataIndex];
+
     const group = source.groups.find((g) => {
       return g.id === group_id;
     });
+    if (typeof group === "undefined") {
+      return "";
+    }
+    //     group = source.groups[0];
     return <div key={`${source.id}_date_saved`}>{group.saved_at[0]}</div>;
   };
 
