@@ -154,6 +154,23 @@ def test_add_delete_stream_group(super_admin_token, public_group, public_stream)
     assert status == 200
 
 
+def test_add_get_stream_group(super_admin_token, public_group, public_stream):
+    status, data = api(
+        "POST",
+        f"groups/{public_group.id}/streams",
+        data={"stream_id": public_stream.id},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["data"]["stream_id"] == public_stream.id
+
+    status, data = api(
+        "GET", f"groups/{public_group.id}/streams", token=super_admin_token,
+    )
+    assert status == 200
+    assert public_stream.id == data["data"][0]["id"]
+
+
 def test_non_su_add_stream_to_group(manage_groups_token, public_group, public_stream):
     status, data = api(
         "POST",
