@@ -289,7 +289,13 @@ const UploadSpectrumForm = ({ route }) => {
         enum: ["No", "Yes"],
       },
     },
-    required: ["has_fluxerr", "mjd", "wave_column", "flux_column"],
+    required: [
+      "has_fluxerr",
+      "mjd",
+      "wave_column",
+      "flux_column",
+      "instrument_id",
+    ],
     dependencies: {
       has_fluxerr: {
         oneOf: [

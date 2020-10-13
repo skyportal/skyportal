@@ -92,6 +92,11 @@ class SpectrumHandler(BaseHandler):
         DBSession().add(spec)
         DBSession().commit()
 
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': spec.obj.internal_key},
+        )
+
         return self.success(data={"id": spec.id})
 
     @auth_or_token
@@ -170,6 +175,12 @@ class SpectrumHandler(BaseHandler):
             setattr(spectrum, k, data[k])
 
         DBSession().commit()
+
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': spectrum.obj.internal_key},
+        )
+
         return self.success()
 
     @permissions(['Manage sources'])
@@ -198,6 +209,11 @@ class SpectrumHandler(BaseHandler):
         _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
         DBSession().delete(spectrum)
         DBSession().commit()
+
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': spectrum.obj.internal_key},
+        )
 
         return self.success()
 
@@ -315,6 +331,12 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
         DBSession().add(spec)
         DBSession().commit()
+
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': spec.obj.internal_key},
+        )
+
         return self.success(data={'id': spec.id})
 
 
