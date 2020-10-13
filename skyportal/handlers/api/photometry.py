@@ -50,7 +50,7 @@ def serialize(phot, outsys, format):
         'instrument_name': phot.instrument.name,
         'ra_unc': phot.ra_unc,
         'dec_unc': phot.dec_unc,
-        'alert_id': phot.alert_id,
+        'origin': phot.origin,
         'id': phot.id,
         'groups': phot.groups,
     }
@@ -236,6 +236,9 @@ class PhotometryHandler(BaseHandler):
         # -dataframe-to-integers-in-pandas-0-17-0/34844867
         df = df.apply(pd.to_numeric, errors='ignore')
 
+        if "origin" not in data:
+            df["origin"] = None
+
         if kind == 'mag':
             # drop possible duplicates:
             df = df.drop_duplicates(
@@ -343,6 +346,7 @@ class PhotometryHandler(BaseHandler):
                     row["mjd"],
                     row["standardized_flux"],
                     row["standardized_fluxerr"],
+                    row["origin"],
                 )
             ),
             axis=1,
@@ -355,6 +359,7 @@ class PhotometryHandler(BaseHandler):
                 return self.error(f'Invalid instrument ID: {iid}')
             instcache[iid] = instrument
 
+        updated_photometry_groups = False
         for oid in df['obj_id'].unique():
             obj = Obj.query.get(oid)
             if not obj:
@@ -375,6 +380,7 @@ class PhotometryHandler(BaseHandler):
                             row["mjd"],
                             row["flux"],
                             row["fluxerr"],
+                            row["origin"],
                         )
                     ),
                     axis=1,
@@ -410,8 +416,25 @@ class PhotometryHandler(BaseHandler):
                             index_to_update = np.where(w)[0][0]
                             existing_photometry[index_to_update].groups = groups
 
+                            updated_photometry_groups = True
+
                     # now safely drop the duplicates:
                     df = df.drop(index=np.where(w_oid_duplicate)[0])
+
+        # posted data contains only duplicates already present in the db?
+        if len(df) == 0:
+            if updated_photometry_groups:
+                DBSession().commit()
+                return self.success(
+                    data={
+                        "ids": [],
+                        "message": "Photometry already exists, updated photometry groups.",
+                    }
+                )
+            else:
+                return self.success(
+                    data={"ids": [], "message": "Photometry already exists."}
+                )
 
         # pre-fetch the photometry PKs. these are not guaranteed to be
         # gapless (e.g., 1, 2, 3, 4, 5, ...) but they are guaranteed
@@ -461,6 +484,7 @@ class PhotometryHandler(BaseHandler):
                 filter=packet['filter'],
                 ra=packet['ra'],
                 dec=packet['dec'],
+                origin=packet['origin'],
             )
 
             params.append(phot)

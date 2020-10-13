@@ -237,10 +237,10 @@ class PhotBaseFlexible(object):
         missing=None,
     )
 
-    alert_id = fields.Field(
-        description="Corresponding alert ID. If a record is "
-        "already present with identical alert ID, only the "
-        "groups list will be updated (other alert data assumed "
+    origin = fields.Field(
+        description="Provenance of the Photometry. If a record is "
+        "already present with identical origin, only the "
+        "groups list will be updated (other data assumed "
         "identical). Defaults to None."
     )
 
