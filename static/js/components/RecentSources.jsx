@@ -132,6 +132,7 @@ const RecentSourcesList = ({ sources, styles }) => {
                       className={styles.stamp}
                       src={source.public_url}
                       alt={source.obj_id}
+                      loading="lazy"
                     />
                   </Link>
                   <div className={styles.sourceInfo}>
