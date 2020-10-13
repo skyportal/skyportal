@@ -2181,11 +2181,7 @@ class Thumbnail(Base):
     )
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the Thumbnail.")
     obj = relationship(
-        'Obj',
-        back_populates='thumbnails',
-        uselist=False,
-        passive_deletes=True,
-        doc="The Thumbnail's Obj.",
+        'Obj', back_populates='thumbnails', uselist=False, doc="The Thumbnail's Obj.",
     )
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
