@@ -92,7 +92,13 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
       </CardContent>
       <div className={classes.mediaDiv}>
         <a href={link}>
-          <img src={url} alt={alt} className={classes.media} title={alt} />
+          <img
+            src={url}
+            alt={alt}
+            className={classes.media}
+            title={alt}
+            loading="lazy"
+          />
         </a>
         {(name === "dr8" || name === "ps1") && (
           <img
