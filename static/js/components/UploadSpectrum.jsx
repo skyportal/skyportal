@@ -105,7 +105,9 @@ SpectrumPreview.propTypes = {
 const UploadSpectrumForm = ({ route }) => {
   const { parsed } = useSelector((state) => state.spectra);
   const groups = useSelector((state) => state.groups.all);
-  const instruments = useSelector((state) => state.instruments.instrumentList);
+  const instrumentList = useSelector(
+    (state) => state.instruments.instrumentList
+  );
   const telescopes = useSelector((state) => state.telescopes.telescopeList);
   const source = useSelector((state) => state.source);
   const dispatch = useDispatch();
@@ -133,9 +135,13 @@ const UploadSpectrumForm = ({ route }) => {
     blockingFunc();
   }, [dispatch, route.id]);
 
-  if (!groups || !instruments || !telescopes || source.id !== route.id) {
+  if (!groups || !instrumentList || !telescopes || source.id !== route.id) {
     return <p>Loading...</p>;
   }
+
+  const instruments = instrumentList.filter((inst) =>
+    inst.type.includes("spec")
+  );
 
   const newPersistentFormData = { ...persistentFormData };
   newPersistentFormData.group_ids = source.groups.map((group) => group.id);
