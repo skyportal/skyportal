@@ -245,8 +245,7 @@ class SourceHandler(BaseHandler):
                     joinedload(Source.obj).joinedload(Obj.thumbnails),
                     joinedload(Source.obj)
                     .joinedload(Obj.photometry)
-                    .joinedload(Photometry.instrument)
-                    .joinedload(Instrument.telescope),
+                    .joinedload(Photometry.instrument),
                     joinedload(Source.obj)
                     .joinedload(Obj.followup_requests)
                     .joinedload(FollowupRequest.allocation)
@@ -262,8 +261,13 @@ class SourceHandler(BaseHandler):
             comments = s.get_comments_owned_by(self.current_user)
             source_info = s.to_dict()
             source_info["comments"] = sorted(
-                comments, key=lambda x: x.created_at, reverse=True
+                [c.to_dict() for c in comments],
+                key=lambda x: x["created_at"],
+                reverse=True,
             )
+            for comment in source_info["comments"]:
+                comment["author"] = comment["author"].to_dict()
+                del comment["author"]["preferences"]
             source_info["classifications"] = s.get_classifications_owned_by(
                 self.current_user
             )
@@ -302,9 +306,7 @@ class SourceHandler(BaseHandler):
             .options(
                 [
                     joinedload(Obj.thumbnails),
-                    joinedload(Obj.photometry)
-                    .joinedload(Photometry.instrument)
-                    .joinedload(Instrument.telescope),
+                    joinedload(Obj.photometry).joinedload(Photometry.instrument),
                 ]
             )
         )
@@ -367,10 +369,13 @@ class SourceHandler(BaseHandler):
         for source in query_results["sources"]:
             source_list.append(source.to_dict())
             source_list[-1]["comments"] = sorted(
-                source.get_comments_owned_by(self.current_user),
-                key=lambda x: x.created_at,
+                [s.to_dict() for s in source.get_comments_owned_by(self.current_user)],
+                key=lambda x: x["created_at"],
                 reverse=True,
             )
+            for comment in source_list[-1]["comments"]:
+                comment["author"] = comment["author"].to_dict()
+                del comment["author"]["preferences"]
             source_list[-1]["classifications"] = source.get_classifications_owned_by(
                 self.current_user
             )
