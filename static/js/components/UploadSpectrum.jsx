@@ -368,6 +368,7 @@ const UploadSpectrumForm = ({ route }) => {
         instrument_id: undefined,
         fluxerr_column: undefined,
       });
+      setFormKey(Date.now());
     }
   };
 
