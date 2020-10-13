@@ -28,7 +28,7 @@ import FollowupRequestLists from "./FollowupRequestLists";
 import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
-import AddSourceGroup from "./AddSourceGroup";
+import EditSourceGroups from "./EditSourceGroups";
 import SourceNotification from "./SourceNotification";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
@@ -230,7 +230,7 @@ const SourceMobile = ({ source }) => {
                   className={classes.chip}
                 />
               ))}
-              <AddSourceGroup
+              <EditSourceGroups
                 source={{
                   id: source.id,
                   currentGroupIds: source.groups.map((g) => g.id),

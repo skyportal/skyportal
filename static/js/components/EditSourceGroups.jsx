@@ -9,7 +9,7 @@ import DialogTitle from "@material-ui/core/DialogTitle";
 import Checkbox from "@material-ui/core/Checkbox";
 import Button from "@material-ui/core/Button";
 import IconButton from "@material-ui/core/IconButton";
-import AddCircleIcon from "@material-ui/icons/AddCircle";
+import EditIcon from "@material-ui/icons/Edit";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Tooltip from "@material-ui/core/Tooltip";
 import { makeStyles } from "@material-ui/core/styles";
@@ -22,33 +22,36 @@ const useStyles = makeStyles(() => ({
   iconButton: {
     display: "inline-block",
   },
+  editIcon: {
+    display: "inline-block",
+  },
 }));
 
-const displayStyle = (isDisplayed) => ({
-  display: isDisplayed ? "inline-block" : "none",
-});
-
-const AddSourceGroup = ({ source, userGroups, icon }) => {
+const EditSourceGroups = ({ source, userGroups, icon }) => {
   const classes = useStyles();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Dialog logic:
-
-  const dispatch = useDispatch();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const dispatch = useDispatch();
 
   const { handleSubmit, errors, reset, control, getValues } = useForm();
-
-  useEffect(() => {
-    reset({
-      group_ids: userGroups.map(
-        (userGroup) => !source.currentGroupIds.includes(userGroup.id)
-      ),
-    });
-  }, [reset, userGroups, source]);
 
   const unsavedGroups = userGroups.filter(
     (g) => !source.currentGroupIds.includes(g.id)
   );
+  const savedGroups = userGroups.filter((g) =>
+    source.currentGroupIds.includes(g.id)
+  );
+
+  useEffect(() => {
+    reset({
+      inviteGroupIds: Array(
+        userGroups.filter((g) => !source.currentGroupIds.includes(g.id)).length
+      ).fill(false),
+      unsaveGroupIds: Array(
+        userGroups.filter((g) => source.currentGroupIds.includes(g.id)).length
+      ).fill(false),
+    });
+  }, [reset, userGroups, source]);
 
   const openDialog = () => {
     setDialogOpen(true);
@@ -60,19 +63,34 @@ const AddSourceGroup = ({ source, userGroups, icon }) => {
 
   const validateGroups = () => {
     const formState = getValues({ nest: true });
-    return formState.group_ids.filter((value) => Boolean(value)).length >= 1;
+    console.log("formState:", formState);
+    return (
+      formState.inviteGroupIds.filter((value) => Boolean(value)).length >= 1 ||
+      formState.unsaveGroupIds.filter((value) => Boolean(value)).length >= 1
+    );
   };
 
   const onSubmit = async (data) => {
+    console.log("got to submit call...");
+    console.log("data:", data);
     setIsSubmitting(true);
-    data.id = source.id;
-    const groupIDs = unsavedGroups.map((g) => g.id);
-    const selectedGroupIDs = groupIDs.filter((ID, idx) => data.group_ids[idx]);
-    data.group_ids = selectedGroupIDs;
-    const result = await dispatch(sourceActions.saveSource(data));
+    data.objId = source.id;
+    const unsavedGroupIds = unsavedGroups.map((g) => g.id);
+    const inviteGroupIds = unsavedGroupIds.filter(
+      (ID, idx) => data.inviteGroupIds[idx]
+    );
+    data.inviteGroupIds = inviteGroupIds;
+    const savedGroupIds = savedGroups.map((g) => g.id);
+    const unsaveGroupIds = savedGroupIds.filter(
+      (ID, idx) => data.unsaveGroupIds[idx]
+    );
+    data.unsaveGroupIds = unsaveGroupIds;
+    console.log("data:", data);
+    const result = await dispatch(sourceActions.inviteGroupToSaveSource(data));
     if (result.status === "success") {
       dispatch(showNotification("Source groups updated successfully", "info"));
       reset();
+      setIsSubmitting(false);
       setDialogOpen(false);
     } else if (result.status === "error") {
       setIsSubmitting(false);
@@ -81,9 +99,9 @@ const AddSourceGroup = ({ source, userGroups, icon }) => {
 
   return (
     <>
-      <div style={displayStyle(unsavedGroups.length !== 0)}>
+      <div className={classes.editIcon}>
         {icon ? (
-          <Tooltip title="Save source to new group(s)">
+          <Tooltip title="Edit source groups">
             <span>
               <IconButton
                 aria-label="add-group"
@@ -93,20 +111,20 @@ const AddSourceGroup = ({ source, userGroups, icon }) => {
                 disabled={isSubmitting}
                 className={classes.iconButton}
               >
-                <AddCircleIcon />
+                <EditIcon />
               </IconButton>
             </span>
           </Tooltip>
         ) : (
           <Button
             variant="contained"
-            aria-label="add-group"
-            data-testid={`addGroup_${source.id}`}
+            aria-label="edit-groups"
+            data-testid={`editGroups${source.id}`}
             size="small"
             onClick={openDialog}
             disabled={isSubmitting}
           >
-            Save to a new group
+            Edit groups
           </Button>
         )}
       </div>
@@ -116,33 +134,54 @@ const AddSourceGroup = ({ source, userGroups, icon }) => {
         onClose={closeDialog}
         style={{ position: "fixed" }}
       >
-        <DialogTitle>Select one or more groups to add:</DialogTitle>
+        <DialogTitle>Edit source groups:</DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(onSubmit)}>
-            {errors.group_ids && (
+            {(errors.inviteGroupIds || errors.unsaveGroupIds) && (
               <FormValidationError message="Select at least one group." />
             )}
-            {unsavedGroups.map((userGroup, idx) => (
+            <div>
+              Select new group(s) to which to <b>save</b> source:
+            </div>
+            {unsavedGroups.map((unsavedGroup, idx) => (
               <FormControlLabel
-                key={userGroup.id}
+                key={unsavedGroup.id}
                 control={
                   <Controller
                     as={Checkbox}
-                    name={`group_ids[${idx}]`}
+                    name={`inviteGroupIds[${idx}]`}
                     control={control}
                     rules={{ validate: validateGroups }}
-                    data-testid={`addGroupSelect_${userGroup.id}`}
+                    data-testid={`addGroupSelect_${unsavedGroup.id}`}
                   />
                 }
-                label={userGroup.name}
+                label={unsavedGroup.name}
               />
             ))}
             <br />
+            <div>
+              Optionally, select groups from which to <b>unsave</b> source:
+            </div>
+            {savedGroups.map((savedGroup, idx) => (
+              <FormControlLabel
+                key={savedGroup.id}
+                control={
+                  <Controller
+                    as={Checkbox}
+                    name={`unsaveGroupIds[${idx}]`}
+                    control={control}
+                    rules={{ validate: validateGroups }}
+                    data-testid={`unsaveGroupSelect_${savedGroup.id}`}
+                  />
+                }
+                label={savedGroup.name}
+              />
+            ))}
             <div style={{ textAlign: "center" }}>
               <Button
                 variant="contained"
                 type="submit"
-                name={`addSourceGroupButton_${source.id}`}
+                name={`editSourceGroupsButton_${source.id}`}
               >
                 Save
               </Button>
@@ -153,7 +192,7 @@ const AddSourceGroup = ({ source, userGroups, icon }) => {
     </>
   );
 };
-AddSourceGroup.propTypes = {
+EditSourceGroups.propTypes = {
   source: PropTypes.shape({
     id: PropTypes.string,
     currentGroupIds: PropTypes.arrayOf(PropTypes.number),
@@ -167,8 +206,8 @@ AddSourceGroup.propTypes = {
   icon: PropTypes.bool,
 };
 
-AddSourceGroup.defaultProps = {
+EditSourceGroups.defaultProps = {
   icon: false,
 };
 
-export default AddSourceGroup;
+export default EditSourceGroups;

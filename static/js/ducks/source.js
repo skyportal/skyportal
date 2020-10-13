@@ -44,6 +44,11 @@ export const DELETE_ASSIGNMENT_OK = "skyportal/DELETE_ASSIGNMENT_OK";
 export const SAVE_SOURCE = "skyportal/SAVE_SOURCE";
 export const SAVE_SOURCE_OK = "skyportal/SAVE_SOURCE_OK";
 
+export const TRANSFER_SOURCE_OR_REQUEST_SAVE =
+  "skyportal/TRANSFER_SOURCE_OR_REQUEST_SAVE";
+export const TRANSFER_SOURCE_OR_REQUEST_SAVE_OK =
+  "skyportal/TRANSFER_SOURCE_OR_REQUEST_SAVE_OK";
+
 export const UPDATE_SOURCE = "skyportal/UPDATE_SOURCE";
 export const UPDATE_SOURCE_OK = "skyportal/UPDATE_SOURCE_OK";
 
@@ -113,6 +118,13 @@ export const updateSource = (id, payload) =>
 
 export const saveSource = (payload) =>
   API.POST(`/api/sources`, SAVE_SOURCE, payload);
+
+export const inviteGroupToSaveSource = (payload) =>
+  API.POST(
+    `/api/source_transfers_invites`,
+    TRANSFER_SOURCE_OR_REQUEST_SAVE,
+    payload
+  );
 
 export const submitFollowupRequest = (params) => {
   const { instrument_name, ...paramsToSubmit } = params;
