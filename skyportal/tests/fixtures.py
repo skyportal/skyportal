@@ -185,7 +185,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
                 instrument=instrument,
                 filter=filter,
                 groups=passed_groups,
-                alert_id=np.random.randint(100, 9223372036854775807),
+                origin=uuid.uuid4(),
             )
             DBSession().add(phot1)
             DBSession().add(
@@ -196,7 +196,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
                     instrument=instrument,
                     filter=filter,
                     groups=passed_groups,
-                    alert_id=np.random.randint(100, 9223372036854775807),
+                    origin=uuid.uuid4(),
                 )
             )
 
