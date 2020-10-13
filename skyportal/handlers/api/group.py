@@ -549,10 +549,10 @@ class GroupUserHandler(BaseHandler):
 
 class GroupStreamHandler(BaseHandler):
     @auth_or_token
-    def get(self, group_id):
+    def get(self, group_id, *ignored_args):
         """
         ---
-        single:
+        multiple:
           description: Retrieve info on group stream access
           parameters:
             - in: path
@@ -570,73 +570,26 @@ class GroupStreamHandler(BaseHandler):
                       - type: object
                         properties:
                           data:
-                            allOf:
-                              - $ref: '#/components/schemas/Group'
-                              - type: object
-                                properties:
-                                  users:
-                                    type: array
-                                    items:
-                                      - $ref: '#/components/schemas/User'
-                                    description: List of group users
-            400:
-              content:
-                application/json:
-                  schema: Error
-        multiple:
-          description: Retrieve all groups
-          parameters:
-            - in: query
-              name: name
-              schema:
-                type: string
-              description: Fetch by name (exact match)
-            - in: query
-              name: includeSingleUserGroups
-              schema:
-                type: boolean
-              description: |
-                Bool indicating whether to include single user groups.
-                Defaults to false.
-          responses:
-            200:
-              content:
-                application/json:
-                  schema:
-                    allOf:
-                      - $ref: '#/components/schemas/Success'
-                      - type: object
-                        properties:
-                          data:
-                            type: object
-                            properties:
-                              user_groups:
-                                type: array
-                                items:
-                                  $ref: '#/components/schemas/Group'
-                                description: List of groups current user is a member of.
-                              user_accessible_groups:
-                                type: array
-                                items:
-                                  $ref: '#/components/schemas/Group'
-                                description: |
-                                  List of groups current user can access, not including
-                                  single user groups.
-                              all_groups:
-                                type: array
-                                items:
-                                  $ref: '#/components/schemas/Group'
-                                description: |
-                                  List of all groups, optionally including single user
-                                  groups if query parameter `includeSingleUserGroups` is
-                                  `true`.
+                            type: array
+                            items:
+                              - $ref: '#/components/schemas/Stream'
+                            description: List of group streams
             400:
               content:
                 application/json:
                   schema: Error
         """
-        # todo:
-        pass
+        gid = int(group_id)
+        if gid in [g.id for g in self.current_user.accessible_groups]:
+            group_streams = (
+                GroupStream.query.options(joinedload(GroupStream.stream))
+                .filter(GroupStream.group_id == gid)
+                .all()
+            )
+            streams = [gs.stream for gs in group_streams]
+            return self.success(data=streams)
+        else:
+            return self.error('Insufficient permissions.')
 
     @permissions(['System admin'])
     def post(self, group_id, *ignored_args):

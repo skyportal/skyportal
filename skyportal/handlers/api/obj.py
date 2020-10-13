@@ -3,7 +3,7 @@ from ..base import BaseHandler
 from ...models import Candidate, DBSession, Filter, Group, Obj, Photometry, Source
 
 
-class ObjHandler(BaseHandler):
+class ObjShortHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id=None):
         """
