@@ -337,6 +337,7 @@ class SourceHandler(BaseHandler):
                 .join(Source)
                 .filter(
                     Source.obj_id == source_info["id"],
+                    Source.active.is_(True),
                     Group.id.in_(user_accessible_group_ids),
                 )
                 .all()
