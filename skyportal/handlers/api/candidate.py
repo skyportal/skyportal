@@ -179,7 +179,27 @@ class CandidateHandler(BaseHandler):
             )
             if c is None:
                 return self.error("Invalid ID")
+            accessible_candidates = (
+                DBSession()
+                .query(Candidate)
+                .filter(Candidate.obj_id == obj_id)
+                .filter(
+                    Candidate.filter_id.in_(
+                        DBSession()
+                        .query(Filter.id)
+                        .filter(
+                            Filter.group_id.in_(
+                                [g.id for g in self.current_user.accessible_groups]
+                            )
+                        )
+                    )
+                )
+                .all()
+            )
+            filter_ids = [cand.filter_id for cand in accessible_candidates]
+
             candidate_info = c.to_dict()
+            candidate_info["filter_ids"] = filter_ids
             candidate_info["comments"] = sorted(
                 c.get_comments_owned_by(self.current_user),
                 key=lambda x: x.created_at,

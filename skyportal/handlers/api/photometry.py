@@ -196,18 +196,6 @@ class PhotometryHandler(BaseHandler):
                 "Invalid group_ids parameter value. Must be a list of IDs "
                 "(integers) or the string 'all'."
             )
-        if "alert_id" in data:
-            phot = (
-                Photometry.query.filter(Photometry.alert_id == data["alert_id"])
-                .filter(Photometry.alert_id.isnot(None))
-                .first()
-            )
-            if phot is not None:
-                phot.groups = groups
-                DBSession().commit()
-                return self.success(
-                    data={"ids": [phot.id], "upload_id": phot.upload_id}
-                )
 
         if allscalar(data):
             data = [data]
@@ -241,7 +229,7 @@ class PhotometryHandler(BaseHandler):
         #  (int, float)
 
         #  errors='ignore' means if something is actually an alphanumeric
-        #  string, just leave it alone and dont error out
+        #  string, just leave it alone and don't error out
 
         #  apply is used to apply it to each column
         # (https://stackoverflow.com/questions/34844711/convert-entire-pandas
@@ -249,6 +237,11 @@ class PhotometryHandler(BaseHandler):
         df = df.apply(pd.to_numeric, errors='ignore')
 
         if kind == 'mag':
+            # drop possible duplicates:
+            df = df.drop_duplicates(
+                subset=["instrument_id", "mjd", "mag", "magerr", "limiting_mag"]
+            ).sort_values(by=["mjd"])
+
             # ensure that neither or both mag and magerr are null
             magnull = df['mag'].isna()
             magerrnull = df['magerr'].isna()
@@ -312,6 +305,11 @@ class PhotometryHandler(BaseHandler):
             phot_table['fluxerr'][magnull] = ndetfluxerr
 
         else:
+            # drop possible duplicates:
+            df = df.drop_duplicates(
+                subset=["instrument_id", "mjd", "flux", "fluxerr"]
+            ).sort_values(by=["mjd"])
+
             for field in PhotFluxFlexible.required_keys:
                 missing = df[field].isna().values
                 if any(missing):
@@ -337,6 +335,19 @@ class PhotometryHandler(BaseHandler):
         df['standardized_flux'] = standardized.flux
         df['standardized_fluxerr'] = standardized.fluxerr
 
+        df["hash"] = df.apply(
+            lambda row: hash(
+                (
+                    row["instrument_id"],
+                    row["filter"],
+                    row["mjd"],
+                    row["standardized_flux"],
+                    row["standardized_fluxerr"],
+                )
+            ),
+            axis=1,
+        )
+
         instcache = {}
         for iid in df['instrument_id'].unique():
             instrument = Instrument.query.get(int(iid))
@@ -348,6 +359,59 @@ class PhotometryHandler(BaseHandler):
             obj = Obj.query.get(oid)
             if not obj:
                 return self.error(f'Invalid object ID: {oid}')
+
+            # make sure no duplicate data are posted
+            existing_photometry = Obj.get_photometry_owned_by_user(
+                oid, self.current_user
+            )
+            ep = [serialize(phot, "ab", "flux") for phot in existing_photometry]
+            df_existing_photometry = pd.DataFrame(ep)
+            if len(df_existing_photometry) > 0:
+                df_existing_photometry["hash"] = df_existing_photometry.apply(
+                    lambda row: hash(
+                        (
+                            row["instrument_id"],
+                            row["filter"],
+                            row["mjd"],
+                            row["flux"],
+                            row["fluxerr"],
+                        )
+                    ),
+                    axis=1,
+                )
+                df_existing_photometry["group_ids"] = df_existing_photometry.apply(
+                    lambda row: set([g.id for g in row["groups"]]), axis=1
+                )
+
+                w_oid_duplicate = (df.obj_id == oid) & (
+                    df.hash.isin(df_existing_photometry.hash)
+                )
+
+                if any(w_oid_duplicate):
+                    # update photometry.groups if necessary
+                    for row in df.loc[w_oid_duplicate].itertuples():
+                        # select the corresponding row in existing photometry by the pre-computed hash:
+                        w = df_existing_photometry.hash == row.hash
+                        # select the photometry point's group_ids:
+                        row_group_ids = set(
+                            df_existing_photometry.loc[w, "group_ids"].values[0]
+                        )
+                        # posting to new groups?
+                        if len(set(group_ids) - row_group_ids) > 0:
+                            # select old + new groups
+                            group_ids_update = set(group_ids).union(row_group_ids)
+                            groups = (
+                                DBSession()
+                                .query(Group)
+                                .filter(Group.id.in_(group_ids_update))
+                                .all()
+                            )
+                            # update the corresponding photometry entry in the db
+                            index_to_update = np.where(w)[0][0]
+                            existing_photometry[index_to_update].groups = groups
+
+                    # now safely drop the duplicates:
+                    df = df.drop(index=np.where(w_oid_duplicate)[0])
 
         # pre-fetch the photometry PKs. these are not guaranteed to be
         # gapless (e.g., 1, 2, 3, 4, 5, ...) but they are guaranteed
