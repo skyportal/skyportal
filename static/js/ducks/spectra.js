@@ -6,17 +6,13 @@ import store from "../store";
 export const FETCH_SOURCE_SPECTRA = "skyportal/FETCH_SOURCE_SPECTRA";
 export const FETCH_SOURCE_SPECTRA_OK = "skyportal/FETCH_SOURCE_SPECTRA_OK";
 
-export const UPLOAD_SOURCE_SPECTRUM_ASCII =
-  "skyportal/UPLOAD_SOURCE_SPECTRUM_ASCII";
-export const UPLOAD_SOURCE_SPECTRUM_ASCII_OK =
-  "skyportal/UPLOAD_SOURCE_SPECTRUM_ASCII_OK";
+export const UPLOAD_SPECTRUM = "skyportal/UPLOAD_SPECTRUM";
+export const UPLOAD_SPECTRUM_OK = "skyportal/UPLOAD_SPECTRUM_OK";
 
 export const PARSE_SOURCE_SPECTRUM_ASCII =
   "skyportal/PARSE_SOURCE_SPECTRUM_ASCII";
 export const PARSE_SOURCE_SPECTRUM_ASCII_OK =
   "skyportal/PARSE_SOURCE_SPECTRUM_ASCII_OK";
-export const PARSE_SOURCE_SPECTRUM_ASCII_ERROR =
-  "skyportal/PARSE_SOURCE_SPECTRUM_ASCII_ERROR";
 
 export const RESET_PARSED_SPECTRUM = "skyportal/RESET_PARSED_SPECTRUM";
 
@@ -32,13 +28,14 @@ export function parseASCIISpectrum(data) {
   );
 }
 
+export function uploadSpectrumAscii(data) {
+  return API.POST(`/api/spectrum/ascii`, UPLOAD_SPECTRUM, data);
+}
+
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {
   if (actionType === FETCH_SOURCE_SPECTRA) {
     dispatch(fetchSourceSpectra(payload.obj_id));
-  }
-  if (actionType === PARSE_SOURCE_SPECTRUM_ASCII_ERROR) {
-    dispatch({ type: RESET_PARSED_SPECTRUM });
   }
 });
 
@@ -63,6 +60,12 @@ const reducer = (state = { parsed: null }, action) => {
       };
     }
     case RESET_PARSED_SPECTRUM: {
+      return {
+        ...state,
+        parsed: null,
+      };
+    }
+    case UPLOAD_SPECTRUM_OK: {
       return {
         ...state,
         parsed: null,

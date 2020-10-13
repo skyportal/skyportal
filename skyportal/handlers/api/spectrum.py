@@ -11,6 +11,7 @@ from ...models import (
     Instrument,
     Obj,
     Source,
+    GroupUser,
     Spectrum,
 )
 from ...schema import (
@@ -219,11 +220,19 @@ class ASCIIHandler:
 
         # maximum size 10MB - above this don't parse. Assuming ~1 byte / char
         if len(ascii) > 1e7:
-            raise ValueError('File must be smaller than 200,000,000 characters.')
+            raise ValueError('File must be smaller than 10,000,000 characters.')
 
         # pass ascii in as a file-like object
         file = io.BytesIO(ascii.encode('ascii'))
-        spec = Spectrum.from_ascii(file, **json)
+        spec = Spectrum.from_ascii(
+            file,
+            obj_id=json.get('obj_id', None),
+            instrument_id=json.get('instrument_id', None),
+            observed_at=json.get('observed_at', None),
+            wave_column=json.get('wave_column', None),
+            flux_column=json.get('flux_column', None),
+            fluxerr_column=json.get('fluxerr_column', None),
+        )
         spec.original_file_string = ascii
 
         if return_json:
@@ -278,12 +287,28 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             raise ValidationError('Invalid instrument id.')
 
         groups = []
-        group_ids = json.pop('group_ids')
+        group_ids = json.pop('group_ids', [])
         for group_id in group_ids:
             group = Group.query.get(group_id)
             if group is None:
                 return self.error(f'Invalid group id: {group_id}.')
             groups.append(group)
+
+        # always add the single user group
+        single_user_group_query = (
+            DBSession()
+            .query(Group)
+            .join(GroupUser)
+            .filter(
+                Group.single_user_group == True,  # noqa
+                GroupUser.user_id == self.associated_user_object.id,
+            )
+        )
+        single_user_group = single_user_group_query.first()
+
+        if single_user_group is not None:
+            if single_user_group not in groups:
+                groups.append(single_user_group)
 
         spec.original_file_filename = Path(filename).name
         spec.groups = groups
