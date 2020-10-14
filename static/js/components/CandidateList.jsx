@@ -25,6 +25,7 @@ import CandidateCommentList from "./CandidateCommentList";
 import SaveCandidateButton from "./SaveCandidateButton";
 import FilterCandidateList from "./FilterCandidateList";
 import AddSourceGroup from "./AddSourceGroup";
+import { ra_to_hours, dec_to_hours } from "../units";
 
 const VegaPlot = React.lazy(() =>
   import(/* webpackChunkName: "VegaPlot" */ "./VegaPlot")
@@ -77,6 +78,10 @@ const useStyles = makeStyles((theme) => ({
   }),
   chip: {
     margin: theme.spacing(0.5),
+  },
+  position: {
+    fontWeight: "bold",
+    fontSize: "110%",
   },
 }));
 
@@ -260,9 +265,12 @@ const CandidateList = () => {
         )}
         <div className={classes.infoItem}>
           <b>Coordinates: </b>
-          <span>
-            {candidateObj.ra}&nbsp;&nbsp;{candidateObj.dec}
+          <span className={classes.position}>
+            {ra_to_hours(candidateObj.ra)} &nbsp;
+            {dec_to_hours(candidateObj.dec)}
           </span>
+          &nbsp; (&alpha;,&delta;= {candidateObj.ra.toFixed(3)}, &nbsp;
+          {candidateObj.dec.toFixed(3)})
         </div>
         <div className={classes.infoItem}>
           <b>Gal. Coords (l,b): </b>
