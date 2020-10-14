@@ -1602,7 +1602,7 @@ class Photometry(Base, ha.Point):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
     __tablename__ = 'photometry'
-    mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.')
+    mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
     flux = sa.Column(
         sa.Float,
         doc='Flux of the observation in µJy. '

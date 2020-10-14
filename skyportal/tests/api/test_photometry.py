@@ -1057,3 +1057,46 @@ def test_token_user_big_post(
     )
     assert status == 200
     assert data['status'] == 'success'
+
+
+def test_token_user_get_range_photometry(
+    upload_data_token, public_source, public_group, ztf_camera
+):
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': [58000.0, 58500.0, 59000.0],
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'GET',
+        f'photometry/range',
+        token=upload_data_token,
+        data={'instrument_ids': [ztf_camera.id], 'max_date': '2018-05-15T00:00:00'},
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+
+    status, data = api(
+        'GET',
+        f'photometry/range?format=flux&magsys=vega',
+        token=upload_data_token,
+        data={'instrument_ids': [ztf_camera.id], 'max_date': '2019-02-01T00:00:00'},
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 2
