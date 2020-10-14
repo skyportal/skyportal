@@ -19,8 +19,14 @@ def test_add_new_source_renders_on_group_sources_page(
 
     driver.get(f"/become_user/{super_admin_user.id}")  # become a super-user
 
-    obj_id = str(uuid.uuid4())
+    # go to the group sources page
+    driver.get(f"/group_sources/{public_group.id}")
 
+    # make sure the group name appears
+    driver.wait_for_xpath(f"//*[text()[contains(., '{public_group.name}')]]")
+
+    # make a new object/source and savbe the time when it was posted
+    obj_id = str(uuid.uuid4())
     t0 = datetime.now(timezone.utc)
 
     # upload a new source, saved to the public group
@@ -31,7 +37,7 @@ def test_add_new_source_renders_on_group_sources_page(
             'id': f'{obj_id}',
             'ra': 234.22,
             'dec': -22.33,
-            'redshift': 3,
+            'redshift': 0.153,
             'altdata': {'simbad': {'class': 'RRLyr'}},
             'transient': False,
             'ra_dis': 2.3,
@@ -42,11 +48,8 @@ def test_add_new_source_renders_on_group_sources_page(
     assert status == 200
     assert data['data']['id'] == f'{obj_id}'
 
-    # go to the group sources page
+    # need to reload the page to see changes!
     driver.get(f"/group_sources/{public_group.id}")
-
-    # make sure the group name appears
-    driver.wait_for_xpath(f"//*[text()[contains(., '{public_group.name}')]]")
 
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
@@ -55,6 +58,9 @@ def test_add_new_source_renders_on_group_sources_page(
     driver.wait_for_xpath(
         f"//*[text()[contains(., '{t0.strftime('%Y-%m-%dT%H:%M:%S')}')]]"
     )
+
+    # check the redshift shows up
+    driver.wait_for_xpath(f"//*[text()[contains(., '{'0.153'}')]]")
 
     # little triangle you push to expand the table
     expand_button = driver.wait_for_xpath("//*[@id='expandable-button']")
@@ -108,10 +114,18 @@ def test_add_new_source_renders_on_group_sources_page(
     )
     assert status == 200
 
-    # go to the group sources page
-    # driver.get(f"/group_sources/{public_group.id}")
+    # check the classification shows up (it should not show up without a page refresh!)
+    try:
+        driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]", timeout=1)
 
-    driver.wait_for_xpath(f"//*[text()[contains(., '{'wrong!'}')]]")
+    except TimeoutException:
+        pass  # the classification should not appear on its own, so we ignore this error
 
-    # check the classification shows up
+    # making sure the drawer is still open even after posting a classification!
+    driver.wait_for_xpath("//*[@class='vega-embed']")
+
+    # need to reload the page to see changes!
+    driver.get(f"/group_sources/{public_group.id}")
+
+    # check the classification does show up after a refresh
     driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")

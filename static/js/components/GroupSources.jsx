@@ -23,6 +23,7 @@ import dayjs from "dayjs";
 
 import { ra_to_hours, dec_to_hours } from "../units";
 import * as SourcesAction from "../ducks/sources";
+import * as GroupAction from "../ducks/group";
 import styles from "./CommentList.css";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
@@ -47,8 +48,8 @@ const useStyles = makeStyles((theme) => ({
 
 const GroupSources = ({ route }) => {
   const dispatch = useDispatch();
-  const sources = useSelector((state) => state.sources.groupSources);
   const groups = useSelector((state) => state.groups.userAccessible);
+  const sources = useSelector((state) => state.sources.groupSources);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const classes = useStyles();
 
@@ -62,6 +63,7 @@ const GroupSources = ({ route }) => {
 
   // Load the group sources
   useEffect(() => {
+    dispatch(GroupAction.fetchGroup(route.id));
     dispatch(SourcesAction.fetchGroupSources({ group_ids: [route.id] }));
   }, [route.id, dispatch]);
 
@@ -72,13 +74,37 @@ const GroupSources = ({ route }) => {
       </div>
     );
   }
-  if (sources.length === 0) {
-    return "No sources have been saved to this group yet. ";
-  }
 
   const group_id = parseInt(route.id, 10);
 
   const groupName = groups.filter((g) => g.id === group_id)[0]?.name || "";
+
+  if (sources.length === 0) {
+    return (
+      <Grid item>
+        <div>
+          <Typography
+            variant="h4"
+            gutterBottom
+            color="textSecondary"
+            align="center"
+          >
+            <b>No sources have been saved to {groupName}</b>
+          </Typography>
+        </div>
+        <div>
+          <Typography
+            variant="h4"
+            gutterBottom
+            color="textSecondary"
+            align="center"
+          >
+            Refresh page to show new sources!
+          </Typography>
+        </div>
+      </Grid>
+    );
+  }
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
@@ -421,6 +447,18 @@ const GroupSources = ({ route }) => {
               data={data}
               options={options}
             />
+          </Grid>
+          <Grid item>
+            <div>
+              <Typography
+                variant="h4"
+                gutterBottom
+                color="textSecondary"
+                align="center"
+              >
+                (Refresh page to see updates)
+              </Typography>
+            </div>
           </Grid>
         </Grid>
       </div>

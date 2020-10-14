@@ -171,8 +171,6 @@ class ClassificationHandler(BaseHandler):
         ):
             self.push_all(action='skyportal/FETCH_TOP_SOURCES')
 
-        self.push_all(action='skyportal/FETCH_GROUP_SOURCES')
-
         return self.success(data={'classification_id': classification.id})
 
     @permissions(['Classify'])
@@ -248,8 +246,6 @@ class ClassificationHandler(BaseHandler):
         )
         if c.obj_id in RecentSourcesHandler.get_recent_source_ids(self.current_user):
             self.push_all(action='skyportal/FETCH_RECENT_SOURCES')
-
-        self.push_all(action='skyportal/FETCH_GROUP_SOURCES')
 
         return self.success()
 

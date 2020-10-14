@@ -96,9 +96,11 @@ const reducer = (state = initialState, action) => {
 };
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType, payload, dispatch, getState) => {
+  const { group } = getState();
+
   if (actionType === FETCH_GROUP_SOURCES) {
-    dispatch(fetchGroupSources());
+    dispatch(fetchGroupSources({ group_ids: [group.id] }));
   }
 });
 
