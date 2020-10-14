@@ -20,7 +20,7 @@ import ShowClassification from "./ShowClassification";
 import ThumbnailList from "./ThumbnailList";
 import SurveyLinkList from "./SurveyLinkList";
 import StarList from "./StarList";
-import { ra_to_hours, dec_to_hours } from "../units";
+import { ra_to_hours, dec_to_dms } from "../units";
 import FollowupRequestForm from "./FollowupRequestForm";
 import FollowupRequestLists from "./FollowupRequestLists";
 import SharePage from "./SharePage";
@@ -146,7 +146,7 @@ const SourceDesktop = ({ source }) => {
           &nbsp; &nbsp;
           <span className={classes.position}>
             {ra_to_hours(source.ra)} &nbsp;
-            {dec_to_hours(source.dec)}
+            {dec_to_dms(source.dec)}
           </span>
           &nbsp; (&alpha;,&delta;= {source.ra}, &nbsp;
           {source.dec}; <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
