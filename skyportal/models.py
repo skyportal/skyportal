@@ -1397,7 +1397,11 @@ def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
 
     return (
         Taxonomy.query.filter(Taxonomy.id == taxonomy_id)
-        .filter(Taxonomy.groups.any(Group.id.in_([g.id for g in user_or_token.groups])))
+        .filter(
+            Taxonomy.groups.any(
+                Group.id.in_([g.id for g in user_or_token.accessible_groups])
+            )
+        )
         .all()
     )
 
@@ -1600,7 +1604,7 @@ class Photometry(Base, ha.Point):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
     __tablename__ = 'photometry'
-    mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.')
+    mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
     flux = sa.Column(
         sa.Float,
         doc='Flux of the observation in µJy. '
