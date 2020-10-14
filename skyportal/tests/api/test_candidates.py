@@ -9,6 +9,16 @@ def test_candidate_list(view_only_token, public_candidate):
     assert data["status"] == "success"
 
 
+def test_candidate_existence(view_only_token, public_candidate):
+    status = api('HEAD', f'candidates/{public_candidate.id}', token=view_only_token)
+    assert status == 200
+
+    status = api(
+        'HEAD', f'candidates/{public_candidate.id[:-1]}', token=view_only_token
+    )
+    assert status == 400
+
+
 def test_token_user_retrieving_candidate(view_only_token, public_candidate):
     status, data = api(
         "GET", f"candidates/{public_candidate.id}", token=view_only_token
