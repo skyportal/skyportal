@@ -8,18 +8,6 @@ import FormControl from "@material-ui/core/FormControl";
 import Chip from "@material-ui/core/Chip";
 import Input from "@material-ui/core/Input";
 
-const ITEM_HEIGHT = 48;
-const ITEM_PADDING_TOP = 8;
-
-const MenuProps = {
-  PaperProps: {
-    style: {
-      maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
-      width: 250,
-    },
-  },
-};
-
 const useStyles = makeStyles((theme) => ({
   formControl: {
     marginTop: theme.spacing(1),
@@ -45,7 +33,7 @@ const GroupShareSelect = ({
   groupList,
   groupIDs,
   setGroupIDs,
-  maxGroups = 2,
+  maxGroups = 3,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -94,7 +82,6 @@ const GroupShareSelect = ({
             </div>
           );
         }}
-        MenuProps={MenuProps}
       >
         {groupList.map((group) => (
           <MenuItem
