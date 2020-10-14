@@ -12,7 +12,6 @@ from ...models import (
     Obj,
     Candidate,
     Photometry,
-    Instrument,
     Source,
     Filter,
     Group,
@@ -173,18 +172,20 @@ class CandidateHandler(BaseHandler):
                     joinedload(Candidate.obj).joinedload(Obj.thumbnails),
                     joinedload(Candidate.obj)
                     .joinedload(Obj.photometry)
-                    .joinedload(Photometry.instrument)
-                    .joinedload(Instrument.telescope),
+                    .joinedload(Photometry.instrument),
                 ],
             )
             if c is None:
                 return self.error("Invalid ID")
             candidate_info = c.to_dict()
             candidate_info["comments"] = sorted(
-                c.get_comments_owned_by(self.current_user),
-                key=lambda x: x.created_at,
+                [cmt.to_dict() for cmt in c.get_comments_owned_by(self.current_user)],
+                key=lambda x: x["created_at"],
                 reverse=True,
             )
+            for comment in candidate_info["comments"]:
+                comment["author"] = comment["author"].to_dict()
+                del comment["author"]["preferences"]
             candidate_info["is_source"] = len(c.sources) > 0
             if candidate_info["is_source"]:
                 candidate_info["saved_groups"] = (
@@ -264,9 +265,7 @@ class CandidateHandler(BaseHandler):
             Obj.query.options(
                 [
                     joinedload(Obj.thumbnails),
-                    joinedload(Obj.photometry)
-                    .joinedload(Photometry.instrument)
-                    .joinedload(Instrument.telescope),
+                    joinedload(Obj.photometry).joinedload(Photometry.instrument),
                 ]
             )
             .filter(
@@ -344,10 +343,13 @@ class CandidateHandler(BaseHandler):
             ]
             candidate_list.append(obj.to_dict())
             candidate_list[-1]["comments"] = sorted(
-                obj.get_comments_owned_by(self.current_user),
-                key=lambda x: x.created_at,
+                [cmt.to_dict() for cmt in obj.get_comments_owned_by(self.current_user)],
+                key=lambda x: x["created_at"],
                 reverse=True,
             )
+            for comment in candidate_list[-1]["comments"]:
+                comment["author"] = comment["author"].to_dict()
+                del comment["author"]["preferences"]
             candidate_list[-1]["last_detected"] = obj.last_detected
             candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
             candidate_list[-1]["gal_lon"] = obj.gal_lon_deg

@@ -2,6 +2,7 @@ import io
 import os
 import datetime
 import warnings
+from functools import wraps
 
 import pandas as pd
 import requests
@@ -30,7 +31,21 @@ from baselayer.log import make_log
 
 log = make_log('finder-chart')
 
-warnings.simplefilter('ignore', category=AstropyWarning)
+
+def warningfilter(action="ignore", category=RuntimeWarning):
+    """decorator to filter warnings using a context manager"""
+
+    def wrapper(func):
+        @wraps(func)
+        def decorated_function(*args, **kwargs):
+            with warnings.catch_warnings():
+                warnings.simplefilter(action, category=category)
+                return func(*args, **kwargs)
+
+        return decorated_function
+
+    return wrapper
+
 
 facility_parameters = {
     'Keck': {
@@ -207,6 +222,7 @@ def get_ztfcatalog(ra, dec, cache_dir="./cache/finder_cat/", cache_max_items=25)
         return None
 
 
+@warningfilter(action="ignore", category=RuntimeWarning)
 def _calculate_best_position_for_offset_stars(
     photometry, fallback=(None, None), how="snr2", max_offset=0.5, sigma_clip=4.0
 ):
@@ -229,11 +245,9 @@ def _calculate_best_position_for_offset_stars(
     sigma_clip : float, optional
         Remove positions that are this number of std away from the median
     """
-
     if not isinstance(photometry, list):
         log(
-            "Warning: No photometry given. Falling back to "
-            " original source position."
+            "Warning: No photometry given. Falling back to" " original source position."
         )
         return fallback
 
@@ -285,15 +299,23 @@ def _calculate_best_position_for_offset_stars(
         df = df[df["offset_arcsec"] < sigma_clip * np.std(df["offset_arcsec"])]
 
     # TODO: add the ability to use only use observations from some filters
-    if how == "snr2":
-        df["snr"] = df["flux"] / df["fluxerr"]
-        diff_ra = np.average(df["ra_offset"], weights=df["snr"] ** 2)
-        diff_dec = np.average(df["dec_offset"], weights=df["snr"] ** 2)
-    elif how == "invvar":
-        diff_ra = np.average(df["ra_offset"], weights=1 / df["ra_unc"] ** 2)
-        diff_dec = np.average(df["dec_offset"], weights=1 / df["dec_unc"] ** 2)
-    else:
-        log(f"Warning: do not recognize {how} as a valid way to weight astrometry")
+    try:
+        if how == "snr2":
+            df["snr"] = df["flux"] / df["fluxerr"]
+            diff_ra = np.average(df["ra_offset"], weights=df["snr"] ** 2)
+            diff_dec = np.average(df["dec_offset"], weights=df["snr"] ** 2)
+        elif how == "invvar":
+            diff_ra = np.average(df["ra_offset"], weights=1 / df["ra_unc"] ** 2)
+            diff_dec = np.average(df["dec_offset"], weights=1 / df["dec_unc"] ** 2)
+        else:
+            log(f"Warning: do not recognize {how} as a valid way to weight astrometry")
+            return (med_ra, med_dec)
+    except ZeroDivisionError as e:
+        log(f"ZeroDivisionError in calculating position with {how}: {e}")
+        return (med_ra, med_dec)
+
+    if not np.isfinite([diff_ra, diff_dec]).all():
+        log(f"Error calculating position correction with {how}: {[diff_ra, diff_dec]}")
         return (med_ra, med_dec)
 
     position = (
@@ -303,6 +325,8 @@ def _calculate_best_position_for_offset_stars(
     return position
 
 
+@warningfilter(action="ignore", category=DeprecationWarning)
+@warningfilter(action="ignore", category=AstropyWarning)
 def get_nearby_offset_stars(
     source_ra,
     source_dec,

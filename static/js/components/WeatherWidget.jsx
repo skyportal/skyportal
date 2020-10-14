@@ -78,7 +78,12 @@ const WeatherView = ({ weather }) => {
           {weather.weather && (
             <>
               <div>
-                <img src={url} className={styles.media} alt={description} />
+                <img
+                  src={url}
+                  className={styles.media}
+                  alt={description}
+                  loading="lazy"
+                />
               </div>
               <div className={styles.description}>
                 <Typography variant="body2" color="textSecondary" component="p">
