@@ -22,6 +22,8 @@ import SortIcon from "@material-ui/icons/Sort";
 import Chip from "@material-ui/core/Chip";
 import Box from "@material-ui/core/Box";
 import Tooltip from "@material-ui/core/Tooltip";
+import Popover from "@material-ui/core/Popover";
+import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
 import MUIDataTable from "mui-datatables";
 
 import * as candidatesActions from "../ducks/candidates";
@@ -91,6 +93,12 @@ const useStyles = makeStyles((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
   },
+  typography: {
+    padding: theme.spacing(2),
+  },
+  helpButton: {
+    display: "inline-block",
+  },
 }));
 
 // Hide built-in pagination and tweak responsive column widths
@@ -112,6 +120,17 @@ const getMuiTheme = (theme) =>
             display: "none",
             overflowWrap: "break-word",
           },
+        },
+      },
+    },
+  });
+
+const getMuiPopoverTheme = () =>
+  createMuiTheme({
+    overrides: {
+      MuiPopover: {
+        paper: {
+          maxWidth: "30rem",
         },
       },
     },
@@ -237,6 +256,16 @@ const CandidateList = () => {
       setQueryInProgress(false);
     }
   }, [candidates, dispatch]);
+
+  const [annotationsHeaderAnchor, setAnnotationsHeaderAnchor] = useState(null);
+  const annotationsHelpOpen = Boolean(annotationsHeaderAnchor);
+  const annotationsHelpId = annotationsHelpOpen ? "simple-popover" : undefined;
+  const handleClickAnnotationsHelp = (event) => {
+    setAnnotationsHeaderAnchor(event.currentTarget);
+  };
+  const handleCloseAnnotationsHelp = () => {
+    setAnnotationsHeaderAnchor(null);
+  };
 
   const candidateHasAnnotationWithSelectedKey = (candidateObj) => {
     const annotation = candidateObj.annotations.find(
@@ -403,6 +432,50 @@ const CandidateList = () => {
     );
   };
 
+  const renderAutoannotationsHeader = () => {
+    return (
+      <div>
+        Autoannotations
+        <IconButton
+          aria-label="help"
+          size="small"
+          onClick={handleClickAnnotationsHelp}
+          className={classes.helpButton}
+        >
+          <HelpOutlineIcon />
+        </IconButton>
+        <MuiThemeProvider theme={getMuiPopoverTheme(theme)}>
+          <Popover
+            id={annotationsHelpId}
+            open={annotationsHelpOpen}
+            anchorEl={annotationsHeaderAnchor}
+            onClose={handleCloseAnnotationsHelp}
+            className={classes.helpPopover}
+            anchorOrigin={{
+              vertical: "top",
+              horizontal: "right",
+            }}
+            transformOrigin={{
+              vertical: "top",
+              horizontal: "left",
+            }}
+          >
+            <Typography className={classes.typography}>
+              Annotation fields are uniquely identified by the combination of
+              origin and key. That is, if two annotation values belong to a key
+              with the same name will be considered different if they come from
+              different origins. <br />
+              <b>Sorting: </b> Clicking on an annotation field will display it,
+              if available, in the Info column. You can then click on the sort
+              tool button at the top of the table to sort on that annotation
+              field.
+            </Typography>
+          </Popover>
+        </MuiThemeProvider>
+      </div>
+    );
+  };
+
   const handlePageChange = async (page, numPerPage) => {
     setQueryInProgress(true);
     // API takes 1-indexed page number
@@ -465,6 +538,7 @@ const CandidateList = () => {
         customBodyRenderLite: renderAutoannotations,
         sort: false,
         filter: false,
+        customHeadLabelRender: renderAutoannotationsHeader,
       },
     },
   ];
