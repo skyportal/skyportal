@@ -90,7 +90,7 @@ def test_failed_check(request):
 def take_screenshot_and_page_source(webdriver, nodeid):
     file_name = f'{nodeid}_{datetime.today().strftime("%Y-%m-%d_%H:%M")}.png'.replace(
         "/", "_"
-    ).replace("::", "__")
+    ).replace(":", "_")
     file_name = os.path.join(os.path.dirname(__file__), '../../test-results', file_name)
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
     webdriver.save_screenshot(file_name)
