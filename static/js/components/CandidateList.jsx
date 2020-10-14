@@ -559,6 +559,7 @@ const CandidateList = () => {
     serverSide: true,
     page: pageNumber - 1,
     pagination: true,
+    rowHover: false,
     onTableChange: handleTableChange,
     // eslint-disable-next-line react/display-name
     customToolbar: () => (
