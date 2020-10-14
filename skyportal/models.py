@@ -1397,7 +1397,11 @@ def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
 
     return (
         Taxonomy.query.filter(Taxonomy.id == taxonomy_id)
-        .filter(Taxonomy.groups.any(Group.id.in_([g.id for g in user_or_token.groups])))
+        .filter(
+            Taxonomy.groups.any(
+                Group.id.in_([g.id for g in user_or_token.accessible_groups])
+            )
+        )
         .all()
     )
 
