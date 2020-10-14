@@ -541,7 +541,6 @@ class SourceHandler(BaseHandler):
             action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
         )
         self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
-        self.push_all(action="skyportal/FETCH_GROUP_SOURCES")
         return self.success(data={"id": obj.id})
 
     @permissions(['Upload data'])
@@ -586,7 +585,6 @@ class SourceHandler(BaseHandler):
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key},
         )
-        self.push_all(action="skyportal/FETCH_GROUP_SOURCES")
 
         return self.success(action='skyportal/FETCH_SOURCES')
 
