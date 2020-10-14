@@ -10,14 +10,17 @@ from datetime import datetime, timezone
 
 def test_add_new_source_renders_on_group_sources_page(
     driver,
-    super_admin_user,
+    super_admin_user_two_groups,
     public_group,
-    upload_data_token,
-    taxonomy_token,
-    classification_token,
+    public_group2,
+    upload_data_token_two_groups,
+    taxonomy_token_two_groups,
+    classification_token_two_groups,
 ):
 
-    driver.get(f"/become_user/{super_admin_user.id}")  # become a super-user
+    print(super_admin_user_two_groups)
+
+    driver.get(f"/become_user/{super_admin_user_two_groups.id}")  # become a super-user
 
     # go to the group sources page
     driver.get(f"/group_sources/{public_group.id}")
@@ -25,7 +28,7 @@ def test_add_new_source_renders_on_group_sources_page(
     # make sure the group name appears
     driver.wait_for_xpath(f"//*[text()[contains(., '{public_group.name}')]]")
 
-    # make a new object/source and savbe the time when it was posted
+    # make a new object/source and save the time when it was posted
     obj_id = str(uuid.uuid4())
     t0 = datetime.now(timezone.utc)
 
@@ -41,9 +44,9 @@ def test_add_new_source_renders_on_group_sources_page(
             'altdata': {'simbad': {'class': 'RRLyr'}},
             'transient': False,
             'ra_dis': 2.3,
-            'group_ids': [public_group.id],
+            'group_ids': [public_group.id, public_group2.id],
         },
-        token=upload_data_token,
+        token=upload_data_token_two_groups,
     )
     assert status == 200
     assert data['data']['id'] == f'{obj_id}'
@@ -70,9 +73,8 @@ def test_add_new_source_renders_on_group_sources_page(
     driver.wait_for_xpath("//div[@class='MuiGrid-root MuiGrid-item']")
 
     try:  # the vega plot may take some time to appear, and in the meanwhile the MUI drawer gets closed for some reason.
-        driver.wait_for_xpath(
-            "//*[@class='vega-embed']"
-        )  # make sure the table row opens up and show the vega plot
+        # make sure the table row opens up and show the vega plot
+        driver.wait_for_xpath("//*[@class='vega-embed']", timeout=2)
     except TimeoutException:
         # try again to click this triangle thingy to open the drawer
         expand_button = driver.wait_for_xpath("//*[@id='expandable-button']")
@@ -90,12 +92,12 @@ def test_add_new_source_renders_on_group_sources_page(
         data={
             'name': "test taxonomy" + str(uuid.uuid4()),
             'hierarchy': taxonomy,
-            'group_ids': [public_group.id],
+            'group_ids': [public_group.id, public_group2.id],
             'provenance': f"tdtax_{__version__}",
             'version': __version__,
             'isLatest': True,
         },
-        token=taxonomy_token,
+        token=taxonomy_token_two_groups,
     )
     assert status == 200
     taxonomy_id = data['data']['taxonomy_id']
@@ -110,7 +112,7 @@ def test_add_new_source_renders_on_group_sources_page(
             'probability': 1.0,
             'group_ids': [public_group.id],
         },
-        token=classification_token,
+        token=classification_token_two_groups,
     )
     assert status == 200
 
@@ -128,4 +130,26 @@ def test_add_new_source_renders_on_group_sources_page(
     driver.get(f"/group_sources/{public_group.id}")
 
     # check the classification does show up after a refresh
+    driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")
+
+    print(public_group2.id)
+
+    status, data = api(
+        'POST',
+        'classification',
+        data={
+            'obj_id': obj_id,
+            'classification': 'RS CVn',
+            'taxonomy_id': taxonomy_id,
+            'probability': 1.0,
+            'group_ids': [public_group2.id],
+        },
+        token=classification_token_two_groups,
+    )
+    assert status == 200
+
+    # need to reload the page to see changes!
+    driver.get(f"/group_sources/{public_group.id}")
+
+    # make sure the new classification, made to group 2, does NOT show up!
     driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")

@@ -92,16 +92,6 @@ const GroupSources = ({ route }) => {
             <b>No sources have been saved to {groupName}</b>
           </Typography>
         </div>
-        <div>
-          <Typography
-            variant="h4"
-            gutterBottom
-            color="textSecondary"
-            align="center"
-          >
-            Refresh page to show new sources!
-          </Typography>
-        </div>
       </Grid>
     );
   }
@@ -252,9 +242,7 @@ const GroupSources = ({ route }) => {
 
   const renderRedshift = (dataIndex) => {
     const source = sources[dataIndex];
-    return (
-      <div key={`${source.id}_redshift`}>{source.redshift.toFixed(6)}</div>
-    );
+    return <div key={`${source.id}_redshift`}>{source.redshift}</div>;
   };
 
   const renderClassification = (dataIndex) => {
@@ -262,7 +250,11 @@ const GroupSources = ({ route }) => {
     return (
       <Suspense fallback={<div>Loading classifications</div>}>
         <ShowClassification
-          classifications={source.classifications}
+          classifications={source.classifications.filter((cls) => {
+            return cls.groups.find((g) => {
+              return g.id === group_id;
+            });
+          })}
           taxonomyList={taxonomyList}
           shortened
         />
@@ -276,12 +268,15 @@ const GroupSources = ({ route }) => {
     return (
       <div key={`${source.id}_groups`}>
         {source.groups.map((group) => (
-          <Chip
-            label={group.name.substring(0, 15)}
-            key={group.id}
-            size="small"
-            className={classes.chip}
-          />
+          <div key={group.name}>
+            <Chip
+              label={group.name.substring(0, 15)}
+              key={group.id}
+              size="small"
+              className={classes.chip}
+            />
+            <br />
+          </div>
         ))}
       </div>
     );
@@ -293,11 +288,11 @@ const GroupSources = ({ route }) => {
     const group = source.groups.find((g) => {
       return g.id === group_id;
     });
-    if (typeof group === "undefined") {
-      return "";
-    }
-    //     group = source.groups[0];
-    return <div key={`${source.id}_date_saved`}>{group.saved_at[0]}</div>;
+    return (
+      <div key={`${source.id}_date_saved`}>
+        {group.saved_at[0].substring(0, 19)}
+      </div>
+    );
   };
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
@@ -380,7 +375,7 @@ const GroupSources = ({ route }) => {
       },
     },
     {
-      name: "Latest Date Saved",
+      name: "Date Saved",
       options: {
         filter: false,
         customBodyRenderLite: renderDateSaved,
