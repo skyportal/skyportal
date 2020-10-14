@@ -41,3 +41,6 @@ doc/images/erd.png
 
 # gitlog info
 data/gitlog.txt
+
+# test results
+test-results/
