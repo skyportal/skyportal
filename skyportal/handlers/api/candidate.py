@@ -36,6 +36,47 @@ def update_redshift_history_if_relevant(request_data, obj, user):
 
 class CandidateHandler(BaseHandler):
     @auth_or_token
+    def head(self, obj_id=None):
+        """
+        ---
+        single:
+          description: Check if a Candidate exists
+          parameters:
+            - in: path
+              name: obj_id
+              required: true
+              schema:
+                type: string
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: Success
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+        user_group_ids = [g.id for g in self.associated_user_object.accessible_groups]
+        num_c = (
+            DBSession()
+            .query(Candidate)
+            .filter(Candidate.obj_id == obj_id)
+            .filter(
+                Candidate.filter_id.in_(
+                    DBSession.query(Filter.id).filter(
+                        Filter.group_id.in_(user_group_ids)
+                    )
+                )
+            )
+            .count()
+        )
+        if num_c > 0:
+            return self.success()
+        else:
+            return self.error()
+
+    @auth_or_token
     def get(self, obj_id=None):
         """
         ---

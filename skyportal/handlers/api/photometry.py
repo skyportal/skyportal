@@ -242,7 +242,14 @@ class PhotometryHandler(BaseHandler):
         if kind == 'mag':
             # drop possible duplicates:
             df = df.drop_duplicates(
-                subset=["instrument_id", "mjd", "mag", "magerr", "limiting_mag"]
+                subset=[
+                    "instrument_id",
+                    "mjd",
+                    "mag",
+                    "magerr",
+                    "limiting_mag",
+                    "origin",
+                ]
             ).sort_values(by=["mjd"])
 
             # ensure that neither or both mag and magerr are null
@@ -310,7 +317,7 @@ class PhotometryHandler(BaseHandler):
         else:
             # drop possible duplicates:
             df = df.drop_duplicates(
-                subset=["instrument_id", "mjd", "flux", "fluxerr"]
+                subset=["instrument_id", "mjd", "flux", "fluxerr", "origin"]
             ).sort_values(by=["mjd"])
 
             for field in PhotFluxFlexible.required_keys:
