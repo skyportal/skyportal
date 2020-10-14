@@ -15,11 +15,12 @@
           </div>
           {%- endfor %}
         </div>
-        <span class="title">Welcome to {{ app.title }}</span>
+        <span class="title">{% block title %} Welcome to {{ app.title }} {% endblock %}</span>
       </div>
       <div class="loginText">
+        {% block loginText -%}
         <p>{{ app.login_message }}</p>
-
+        {%- endblock %}
         <div class="loginButton">
           <a href="/login/google-oauth2">
             <img

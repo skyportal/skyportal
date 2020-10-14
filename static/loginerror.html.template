@@ -1,23 +1,6 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>{{ app.title }}</title>
-    <link rel="stylesheet" type="text/css" href="/static/login.css" />
-  </head>
-  <body>
-    <div class="loginBox">
-      <div class="loginHeader">
-        <div class="logos">
-            {%- for logo in app.logos %}
-            <div class="logoContainer">
-              <img src="{{ logo.src }}" altText="{{ logo.alt_text }}"  class="logo" />
-            </div>
-            {%- endfor %}
-        </div>
-        <span class="title">Oops! Your login attempt has failed.</span>
-      </div>
-      <div class="loginText">
+{% extends "login.html.template" %}
+{% block title %}Oops! Your login attempt has failed.{% endblock %}
+{% block loginText %}
         <p>
           Your authentication attempt has failed with the following message:
           <em>{%- raw -%} {{ error_message }} {%- endraw -%}</em>
@@ -29,15 +12,4 @@
           seeing this in error, delete your cookies and try logging in again; if
           the problem persists, please contact a site administrator.
         </p>
-        <div class="loginButton">
-          <a href="/login/google-oauth2">
-            <img
-              src="/static/images/btn_google_signin_dark_normal_web.png"
-              alt="Click this image to log in"
-            />
-          </a>
-        </div>
-      </div>
-    </div>
-  </body>
-</html>
+{% endblock %}
