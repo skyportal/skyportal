@@ -60,6 +60,42 @@ def pytest_runtest_setup(item):
     print(datetime.now().strftime('[%H:%M:%S] '), end='')
 
 
+# set up a hook to be able to check if a test has failed
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    # execute all other hooks to obtain the report object
+    outcome = yield
+    rep = outcome.get_result()
+
+    # set a report attribute for each phase of a call, which can
+    # be "setup", "call", "teardown"
+
+    setattr(item, "rep_" + rep.when, rep)
+
+
+# check if a test has failed
+@pytest.fixture(scope="function", autouse=True)
+def test_failed_check(request):
+    yield
+    # request.node is an "item" because we use the default
+    # "function" scope
+    if request.node.rep_call.failed:
+        webdriver = request.node.funcargs['selenium_driver']
+        take_screenshot_and_page_source(webdriver, request.node.nodeid)
+
+
+# make a screenshot with a name of the test, date and time.
+# also save the page HTML.
+def take_screenshot_and_page_source(webdriver, nodeid):
+    file_name = f'{nodeid}_{datetime.today().strftime("%Y-%m-%d_%H:%M")}.png'.replace(
+        "/", "_"
+    ).replace("::", "__")
+    file_name = os.path.join(os.path.dirname(__file__), '../test_results', file_name)
+    webdriver.save_screenshot(file_name)
+    with open(file_name.replace('png', 'html'), 'w') as f:
+        f.write(webdriver.page_source)
+
+
 @pytest.fixture(scope='session')
 def iers_data():
     # grab the latest earth orientation data for observatory calculations
