@@ -346,7 +346,7 @@ class CandidateHandler(BaseHandler):
             ]
         try:
             query_results = grab_query_results_page(
-                q, total_matches, page, n_per_page, "candidates", order_by
+                q, total_matches, page, n_per_page, "candidates", order_by=order_by
             )
         except ValueError as e:
             if "Page number out of range" in str(e):
@@ -559,7 +559,7 @@ class CandidateHandler(BaseHandler):
 
 
 def grab_query_results_page(
-    q, total_matches, page, n_items_per_page, items_name, order_by
+    q, total_matches, page, n_items_per_page, items_name, order_by=None
 ):
     # The query will return multiple rows per candidate object if it has multiple
     # annotations associated with it, with rows appearing at the end of the query
