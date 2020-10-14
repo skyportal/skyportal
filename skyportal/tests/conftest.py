@@ -79,8 +79,8 @@ def test_failed_check(request):
     yield
     # request.node is an "item" because we use the default
     # "function" scope
-    if request.node.rep_call.failed:
-        webdriver = request.node.funcargs['selenium_driver']
+    if request.node.rep_call.failed and 'driver' in request.node.funcargs:
+        webdriver = request.node.funcargs['driver']
         take_screenshot_and_page_source(webdriver, request.node.nodeid)
 
 
