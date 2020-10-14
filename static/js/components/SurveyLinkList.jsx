@@ -27,6 +27,8 @@ const useStyles = makeStyles(() => ({
     margin: 0,
     fontWeight: "bold",
     color: "gray",
+    textDecoration: "none",
+    fontFamily: ["Roboto", "Helvetica", "Arial", "sans-serif"],
   },
 }));
 
