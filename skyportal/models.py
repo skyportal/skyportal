@@ -1397,7 +1397,11 @@ def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
 
     return (
         Taxonomy.query.filter(Taxonomy.id == taxonomy_id)
-        .filter(Taxonomy.groups.any(Group.id.in_([g.id for g in user_or_token.groups])))
+        .filter(
+            Taxonomy.groups.any(
+                Group.id.in_([g.id for g in user_or_token.accessible_groups])
+            )
+        )
         .all()
     )
 
@@ -2181,11 +2185,7 @@ class Thumbnail(Base):
     )
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the Thumbnail.")
     obj = relationship(
-        'Obj',
-        back_populates='thumbnails',
-        uselist=False,
-        passive_deletes=True,
-        doc="The Thumbnail's Obj.",
+        'Obj', back_populates='thumbnails', uselist=False, doc="The Thumbnail's Obj.",
     )
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
