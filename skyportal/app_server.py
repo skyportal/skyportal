@@ -2,6 +2,7 @@ import tornado.web
 
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app import model_util as baselayer_model_util
+from baselayer.log import make_log
 
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
@@ -60,6 +61,9 @@ from skyportal.handlers.api.internal import (
 )
 
 from . import models, model_util, openapi
+
+
+log = make_log('app_server')
 
 
 def make_app(cfg, baselayer_handlers, baselayer_settings):
