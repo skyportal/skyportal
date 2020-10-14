@@ -16,7 +16,7 @@ import SurveyLinkList from "./SurveyLinkList";
 import SharePage from "./SharePage";
 import { useSourceStyles } from "./SourceMobile";
 import ObjPageAnnotations from "./ObjPageAnnotations";
-import { ra_to_hours, dec_to_hours } from "../units";
+import { ra_to_hours, dec_to_dms } from "../units";
 
 import fetchCandidate from "../ducks/candidate";
 
@@ -86,7 +86,7 @@ const Candidate = ({ route }) => {
                 &nbsp; &nbsp;
                 <span className={classes.position}>
                   {ra_to_hours(candidate.ra)} &nbsp;
-                  {dec_to_hours(candidate.dec)}
+                  {dec_to_dms(candidate.dec)}
                 </span>
                 &nbsp; (&alpha;,&delta;= {candidate.ra}, &nbsp;
                 {candidate.dec}; <i>l</i>,<i>b</i>=

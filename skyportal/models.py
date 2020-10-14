@@ -1,11 +1,12 @@
 import uuid
 import re
+import json
+import warnings
 from datetime import datetime, timezone
+import requests
 import arrow
 from astropy import units as u
 from astropy import time as ap_time
-
-import json
 
 import astroplan
 import numpy as np
@@ -30,7 +31,6 @@ import timezonefinder
 from .utils.cosmology import establish_cosmology
 
 import yaml
-import warnings
 from astropy.utils.exceptions import AstropyWarning
 
 from baselayer.app.models import (  # noqa
@@ -420,7 +420,6 @@ class Obj(Base, ha.Point):
     thumbnails = relationship(
         'Thumbnail',
         back_populates='obj',
-        secondary='photometry',
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
         doc="Thumbnails of the object.",
@@ -463,13 +462,14 @@ class Obj(Base, ha.Point):
     def add_linked_thumbnails(self):
         """Determine the URLs of the SDSS and DESI DR8 thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
-        sdss_thumb = Thumbnail(
-            photometry=self.photometry[0], public_url=self.sdss_url, type='sdss'
-        )
-        dr8_thumb = Thumbnail(
-            photometry=self.photometry[0], public_url=self.desi_dr8_url, type='dr8'
-        )
+        sdss_thumb = Thumbnail(obj=self, public_url=self.sdss_url, type='sdss')
+        dr8_thumb = Thumbnail(obj=self, public_url=self.desi_dr8_url, type='dr8')
         DBSession().add_all([sdss_thumb, dr8_thumb])
+        DBSession().commit()
+
+    def add_ps1_thumbnail(self):
+        ps1_thumb = Thumbnail(obj=self, public_url=self.panstarrs_url, type="ps1")
+        DBSession().add(ps1_thumb)
         DBSession().commit()
 
     @property
@@ -488,6 +488,28 @@ class Obj(Base, ha.Point):
             f"http://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
             f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz"
         )
+
+    @property
+    def panstarrs_url(self):
+        """Construct URL for public PanSTARRS-1 (PS1) cutout.
+
+        The cutout service doesn't allow directly querying for an image; the
+        best we can do is request a page that contains a link to the image we
+        want (in this case a combination of the g/r/i filters).
+        """
+        try:
+            ps_query_url = (
+                f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
+                f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
+                f"&filter=r&filter=i&filetypes=stack&size=250"
+            )
+            response = requests.get(ps_query_url)
+            match = re.search(
+                'src="//ps1images.stsci.edu.*?"', response.content.decode()
+            )
+            return match.group().replace('src="', 'http:').replace('"', '')
+        except (ValueError, ConnectionError):
+            return None
 
     @property
     def target(self):
@@ -1375,7 +1397,11 @@ def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
 
     return (
         Taxonomy.query.filter(Taxonomy.id == taxonomy_id)
-        .filter(Taxonomy.groups.any(Group.id.in_([g.id for g in user_or_token.groups])))
+        .filter(
+            Taxonomy.groups.any(
+                Group.id.in_([g.id for g in user_or_token.accessible_groups])
+            )
+        )
         .all()
     )
 
@@ -1576,7 +1602,7 @@ class Photometry(Base, ha.Point):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
     __tablename__ = 'photometry'
-    mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.')
+    mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
     flux = sa.Column(
         sa.Float,
         doc='Flux of the observation in µJy. '
@@ -1644,9 +1670,6 @@ class Photometry(Base, ha.Point):
         'Instrument',
         back_populates='photometry',
         doc="Instrument that took this Photometry.",
-    )
-    thumbnails = relationship(
-        'Thumbnail', passive_deletes=True, doc="Thumbnails for this Photometry."
     )
 
     followup_request_id = sa.Column(
@@ -2144,7 +2167,7 @@ class Thumbnail(Base):
 
     # TODO delete file after deleting row
     type = sa.Column(
-        thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ...)'
+        thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ps1, ...)'
     )
     file_uri = sa.Column(
         sa.String(),
@@ -2161,24 +2184,14 @@ class Thumbnail(Base):
         doc="Publically accessible URL of the thumbnail.",
     )
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the Thumbnail.")
-    photometry_id = sa.Column(
-        sa.ForeignKey('photometry.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True,
-        doc="ID of the Thumbnail's corresponding Photometry point.",
-    )
-    photometry = relationship(
-        'Photometry',
-        back_populates='thumbnails',
-        doc="The Thumbnail's corresponding Photometry point.",
-    )
     obj = relationship(
-        'Obj',
-        back_populates='thumbnails',
-        uselist=False,
-        secondary='photometry',
-        passive_deletes=True,
-        doc="The Thumbnail's Obj.",
+        'Obj', back_populates='thumbnails', uselist=False, doc="The Thumbnail's Obj.",
+    )
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        index=True,
+        nullable=False,
+        doc="ID of the thumbnail's obj.",
     )
 
 

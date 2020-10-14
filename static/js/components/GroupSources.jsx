@@ -21,7 +21,7 @@ import GroupIcon from "@material-ui/icons/Group";
 
 import dayjs from "dayjs";
 
-import { ra_to_hours, dec_to_hours } from "../units";
+import { ra_to_hours, dec_to_dms } from "../units";
 import * as SourcesAction from "../ducks/sources";
 import styles from "./CommentList.css";
 import ThumbnailList from "./ThumbnailList";
@@ -216,7 +216,7 @@ const GroupSources = ({ route }) => {
       <div key={`${source.id}_dec`}>
         {source.dec}
         <br />
-        {dec_to_hours(source.dec)}
+        {dec_to_dms(source.dec)}
       </div>
     );
   };

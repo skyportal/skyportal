@@ -8,8 +8,13 @@ export const REFRESH_OBSERVING_RUN = "skyportal/REFRESH_OBSERVING_RUN";
 export const FETCH_OBSERVING_RUN = "skyportal/FETCH_OBSERVING_RUN";
 export const FETCH_OBSERVING_RUN_OK = "skyportal/FETCH_OBSERVING_RUN_OK";
 
+export const SUBMIT_OBSERVING_RUN = "skyportal/SUBMIT_OBSERVING_RUN";
+
 export const fetchObservingRun = (id) =>
   API.GET(`/api/observing_run/${id}`, FETCH_OBSERVING_RUN);
+
+export const submitObservingRun = (run) =>
+  API.POST(`/api/observing_run`, SUBMIT_OBSERVING_RUN, run);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {

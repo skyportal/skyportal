@@ -23,7 +23,6 @@ from ...models import (
     Photometry,
     Obj,
     Source,
-    Thumbnail,
     Token,
     Group,
     FollowupRequest,
@@ -44,6 +43,13 @@ from .candidate import grab_query_results_page, update_redshift_history_if_relev
 SOURCES_PER_PAGE = 100
 
 _, cfg = load_env()
+
+
+def add_ps1_thumbnail_and_push_ws_msg(obj, request_handler):
+    obj.add_ps1_thumbnail()
+    request_handler.push_all(
+        action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+    )
 
 
 class SourceHandler(BaseHandler):
@@ -236,11 +242,10 @@ class SourceHandler(BaseHandler):
                     .joinedload(ClassicalAssignment.run)
                     .joinedload(ObservingRun.instrument)
                     .joinedload(Instrument.telescope),
+                    joinedload(Source.obj).joinedload(Obj.thumbnails),
                     joinedload(Source.obj)
-                    .joinedload(Obj.thumbnails)
-                    .joinedload(Thumbnail.photometry)
-                    .joinedload(Photometry.instrument)
-                    .joinedload(Instrument.telescope),
+                    .joinedload(Obj.photometry)
+                    .joinedload(Photometry.instrument),
                     joinedload(Source.obj)
                     .joinedload(Obj.followup_requests)
                     .joinedload(FollowupRequest.allocation)
@@ -249,11 +254,20 @@ class SourceHandler(BaseHandler):
             )
             if s is None:
                 return self.error("Invalid source ID.")
+            if "ps1" not in [thumb.type for thumb in s.thumbnails]:
+                IOLoop.current().add_callback(
+                    lambda: add_ps1_thumbnail_and_push_ws_msg(s, self)
+                )
             comments = s.get_comments_owned_by(self.current_user)
             source_info = s.to_dict()
             source_info["comments"] = sorted(
-                comments, key=lambda x: x.created_at, reverse=True
+                [c.to_dict() for c in comments],
+                key=lambda x: x["created_at"],
+                reverse=True,
             )
+            for comment in source_info["comments"]:
+                comment["author"] = comment["author"].to_dict()
+                del comment["author"]["preferences"]
             source_info["annotations"] = sorted(
                 s.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
             )
@@ -293,10 +307,10 @@ class SourceHandler(BaseHandler):
                 )  # only give sources the user has access to
             )
             .options(
-                joinedload(Obj.thumbnails)
-                .joinedload(Thumbnail.photometry)
-                .joinedload(Photometry.instrument)
-                .joinedload(Instrument.telescope)
+                [
+                    joinedload(Obj.thumbnails),
+                    joinedload(Obj.photometry).joinedload(Photometry.instrument),
+                ]
             )
         )
 
@@ -358,10 +372,13 @@ class SourceHandler(BaseHandler):
         for source in query_results["sources"]:
             source_list.append(source.to_dict())
             source_list[-1]["comments"] = sorted(
-                source.get_comments_owned_by(self.current_user),
-                key=lambda x: x.created_at,
+                [s.to_dict() for s in source.get_comments_owned_by(self.current_user)],
+                key=lambda x: x["created_at"],
                 reverse=True,
             )
+            for comment in source_list[-1]["comments"]:
+                comment["author"] = comment["author"].to_dict()
+                del comment["author"]["preferences"]
             source_list[-1]["classifications"] = source.get_classifications_owned_by(
                 self.current_user
             )
@@ -426,6 +443,7 @@ class SourceHandler(BaseHandler):
                               description: New source ID
         """
         data = self.get_json()
+        obj_already_exists = Obj.query.get(data["id"]) is not None
         schema = Obj.__schema__()
         user_group_ids = [g.id for g in self.current_user.groups]
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
@@ -453,7 +471,7 @@ class SourceHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
 
-        previouslySaved = Source.query.filter(Source.obj_id == obj.id).first()
+        previously_saved = Source.query.filter(Source.obj_id == obj.id).first()
 
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
         if not groups:
@@ -465,12 +483,19 @@ class SourceHandler(BaseHandler):
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
 
         DBSession().add(obj)
-        DBSession().add_all([Source(obj=obj, group=group) for group in groups])
+        DBSession().add_all(
+            [
+                Source(obj=obj, group=group, saved_by_id=self.associated_user_object.id)
+                for group in groups
+            ]
+        )
         DBSession().commit()
+        if not obj_already_exists:
+            obj.add_linked_thumbnails()
 
         self.push_all(action="skyportal/FETCH_SOURCES")
         # If we're updating a source
-        if previouslySaved is not None:
+        if previously_saved is not None:
             self.push_all(
                 action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
             )

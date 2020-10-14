@@ -11,9 +11,7 @@ from ...models import (
     DBSession,
     Obj,
     Candidate,
-    Thumbnail,
     Photometry,
-    Instrument,
     Source,
     Filter,
     Group,
@@ -171,21 +169,23 @@ class CandidateHandler(BaseHandler):
                 obj_id,
                 self.current_user,
                 options=[
+                    joinedload(Candidate.obj).joinedload(Obj.thumbnails),
                     joinedload(Candidate.obj)
-                    .joinedload(Obj.thumbnails)
-                    .joinedload(Thumbnail.photometry)
-                    .joinedload(Photometry.instrument)
-                    .joinedload(Instrument.telescope)
+                    .joinedload(Obj.photometry)
+                    .joinedload(Photometry.instrument),
                 ],
             )
             if c is None:
                 return self.error("Invalid ID")
             candidate_info = c.to_dict()
             candidate_info["comments"] = sorted(
-                c.get_comments_owned_by(self.current_user),
-                key=lambda x: x.created_at,
+                [cmt.to_dict() for cmt in c.get_comments_owned_by(self.current_user)],
+                key=lambda x: x["created_at"],
                 reverse=True,
             )
+            for comment in candidate_info["comments"]:
+                comment["author"] = comment["author"].to_dict()
+                del comment["author"]["preferences"]
             candidate_info["annotations"] = sorted(
                 c.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
             )
@@ -264,10 +264,8 @@ class CandidateHandler(BaseHandler):
         q = (
             Obj.query.options(
                 [
-                    joinedload(Obj.thumbnails)
-                    .joinedload(Thumbnail.photometry)
-                    .joinedload(Photometry.instrument)
-                    .joinedload(Instrument.telescope),
+                    joinedload(Obj.thumbnails),
+                    joinedload(Obj.photometry).joinedload(Photometry.instrument),
                 ]
             )
             .filter(
@@ -342,10 +340,13 @@ class CandidateHandler(BaseHandler):
             ]
             candidate_list.append(obj.to_dict())
             candidate_list[-1]["comments"] = sorted(
-                obj.get_comments_owned_by(self.current_user),
-                key=lambda x: x.created_at,
+                [cmt.to_dict() for cmt in obj.get_comments_owned_by(self.current_user)],
+                key=lambda x: x["created_at"],
                 reverse=True,
             )
+            for comment in candidate_list[-1]["comments"]:
+                comment["author"] = comment["author"].to_dict()
+                del comment["author"]["preferences"]
             candidate_list[-1]["last_detected"] = obj.last_detected
             candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
             candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
@@ -403,6 +404,7 @@ class CandidateHandler(BaseHandler):
                               description: New candidate ID
         """
         data = self.get_json()
+        obj_already_exists = Obj.query.get(data["id"]) is not None
         schema = Obj.__schema__()
 
         passing_alert_id = data.pop("passing_alert_id", None)
@@ -450,6 +452,8 @@ class CandidateHandler(BaseHandler):
             ]
         )
         DBSession().commit()
+        if not obj_already_exists:
+            obj.add_linked_thumbnails()
 
         return self.success(data={"id": obj.id})
 

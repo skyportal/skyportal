@@ -178,10 +178,8 @@ const ShareDataForm = ({ route }) => {
           users or groups. Select the photometry or spectra you would like to
           share from the list below, then select the users or groups you would
           like to share the data with. When you click submit, the access
-          permissions on the data will be updated. This page does <em>not</em>
-          reproduce the &ldquo;transfer source&ldquo; functionality of the
-          GROWTH marshal. Data shared via this page will not cause the source to
-          be saved to another group.
+          permissions on the data will be updated. Data shared via this page
+          will not cause the source to be saved to another group.
         </p>
       </div>
       <br />

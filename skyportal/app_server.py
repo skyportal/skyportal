@@ -2,6 +2,7 @@ import tornado.web
 
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app import model_util as baselayer_model_util
+from baselayer.log import make_log
 
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
@@ -27,6 +28,7 @@ from skyportal.handlers.api import (
     PhotometryHandler,
     BulkDeletePhotometryHandler,
     ObjPhotometryHandler,
+    PhotometryRangeHandler,
     SharingHandler,
     SourceHandler,
     SourceOffsetsHandler,
@@ -60,6 +62,9 @@ from skyportal.handlers.api.internal import (
 )
 
 from . import models, model_util, openapi
+
+
+log = make_log('app_server')
 
 
 def make_app(cfg, baselayer_handlers, baselayer_settings):
@@ -106,6 +111,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
         (r'/api/sharing', SharingHandler),
         (r'/api/photometry/bulk_delete/(.*)', BulkDeletePhotometryHandler),
+        (r'/api/photometry/range(/.*)?', PhotometryRangeHandler),
         (r'/api/sources(/[0-9A-Za-z-_]+)/photometry', ObjPhotometryHandler),
         (r'/api/sources(/[0-9A-Za-z-_]+)/spectra', ObjSpectraHandler),
         (r'/api/sources(/[0-9A-Za-z-_]+)/offsets', SourceOffsetsHandler),

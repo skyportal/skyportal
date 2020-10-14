@@ -3,9 +3,18 @@ import numpy as np
 from astropy.time import Time
 from astroplan import FixedTarget
 from skyportal.models import Obj
+from astropy.coordinates.name_resolve import NameResolveError
 
-pole_star = FixedTarget.from_name('Polaris')
-horizon_star = FixedTarget.from_name('Skat')
+ads_down = False
+try:
+    pole_star = FixedTarget.from_name('Polaris')
+except NameResolveError:
+    ads_down = True
+
+try:
+    horizon_star = FixedTarget.from_name('Skat')
+except NameResolveError:
+    ads_down = True
 
 # roughly sunset to sunrise on July 22 2020 (UTC; for palomar observatory)
 night_times = Time(
@@ -28,6 +37,7 @@ star_dict = {
 }
 
 
+@pytest.mark.skipif(ads_down, reason='Star data server is down.')
 @pytest.mark.parametrize('star', ['polaris', 'skat'])
 def test_airmass(ztf_camera, star, iers_data):
     star_obj = star_dict[star]['target']
