@@ -212,8 +212,14 @@ class PhotometryHandler(BaseHandler):
             group_ids = data.pop("group_ids")
         except KeyError:
             return self.error("Missing required field: group_ids")
+        user_group_ids = [g.id for g in self.associated_user_object.accessible_groups]
         if isinstance(group_ids, (list, tuple)):
-            groups = Group.query.filter(Group.id.in_(group_ids)).all()
+            forbidden_groups = set(group_ids) - set(user_group_ids)
+            if len(forbidden_groups) > 0:
+                return self.error(
+                    f"Invalid group_ids field. User does not have access to group IDs: {list(forbidden_groups)}."
+                )
+            groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
             if not groups:
                 return self.error(
                     "Invalid group_ids field. Specify at least one valid group ID."
@@ -516,8 +522,14 @@ class PhotometryHandler(BaseHandler):
             group_ids = data.pop("group_ids")
         except KeyError:
             return self.error("Missing required field: group_ids")
+        user_group_ids = [g.id for g in self.associated_user_object.accessible_groups]
         if isinstance(group_ids, (list, tuple)):
-            groups = Group.query.filter(Group.id.in_(group_ids)).all()
+            forbidden_groups = set(group_ids) - set(user_group_ids)
+            if len(forbidden_groups) > 0:
+                return self.error(
+                    f"Invalid group_ids field. User does not have access to group IDs: {list(forbidden_groups)}."
+                )
+            groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
             if not groups:
                 return self.error(
                     "Invalid group_ids field. Specify at least one valid group ID."
