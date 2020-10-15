@@ -7,6 +7,7 @@ import TableRow from "@material-ui/core/TableRow";
 
 import Typography from "@material-ui/core/Typography";
 import IconButton from "@material-ui/core/IconButton";
+import Button from "@material-ui/core/Button";
 import Grid from "@material-ui/core/Grid";
 import Chip from "@material-ui/core/Chip";
 import Link from "@material-ui/core/Link";
@@ -22,11 +23,12 @@ import GroupIcon from "@material-ui/icons/Group";
 import dayjs from "dayjs";
 
 import { ra_to_hours, dec_to_dms } from "../units";
-import * as SourcesAction from "../ducks/sources";
+import * as sourcesActions from "../ducks/sources";
 import styles from "./CommentList.css";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
+import * as sourceActions from "../ducks/source";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 
@@ -42,40 +44,45 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const GroupSources = ({ route }) => {
+const GroupSourcesTable = ({ sources, title, sourceStatus, groupID }) => {
+  // sourceStatus should be one of either "saved" or "requested"
   const dispatch = useDispatch();
-  const sources = useSelector((state) => state.sources.groupSources);
-  const groups = useSelector((state) => state.groups.userAccessible);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const classes = useStyles();
-
   // Color styling
   const userColorTheme = useSelector(
     (state) => state.profile.preferences.theme
   );
-
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
-  // Load the group sources
-  useEffect(() => {
-    dispatch(SourcesAction.fetchGroupSources({ group_ids: [route.id] }));
-  }, [route.id, dispatch]);
-
-  if (!sources) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
+  const handleSaveSource = async (sourceID) => {
+    const result = await dispatch(
+      sourceActions.acceptSaveRequest({ sourceID, groupID })
     );
-  }
-  if (sources.length === 0) {
-    return "No sources have been saved to this group yet. ";
-  }
+    if (result.status === "success") {
+      dispatch(
+        sourcesActions.fetchGroupSources({
+          group_ids: [groupID],
+          includeRequested: true,
+        })
+      );
+    }
+  };
 
-  const group_id = parseInt(route.id, 10);
-
-  const groupName = groups.filter((g) => g.id === group_id)[0]?.name || "";
+  const handleIgnoreSource = async (sourceID) => {
+    const result = await dispatch(
+      sourceActions.declineSaveRequest({ sourceID, groupID })
+    );
+    if (result.status === "success") {
+      dispatch(
+        sourcesActions.fetchGroupSources({
+          group_ids: [groupID],
+          includeRequested: true,
+        })
+      );
+    }
+  };
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
@@ -250,6 +257,34 @@ const GroupSources = ({ route }) => {
     );
   };
 
+  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
+  const renderSaveIgnore = (dataIndex) => {
+    const source = sources[dataIndex];
+    return (
+      <>
+        <Button
+          size="small"
+          variant="contained"
+          onClick={() => {
+            handleSaveSource(source.id);
+          }}
+        >
+          Save
+        </Button>
+        &nbsp;
+        <Button
+          size="small"
+          variant="contained"
+          onClick={() => {
+            handleIgnoreSource(source.id);
+          }}
+        >
+          Ignore
+        </Button>
+      </>
+    );
+  };
+
   const columns = [
     {
       name: "Source ID",
@@ -301,6 +336,16 @@ const GroupSources = ({ route }) => {
     selectableRows: "none",
   };
 
+  if (sourceStatus === "requested") {
+    columns.push({
+      name: "Save/Decline",
+      options: {
+        filter: false,
+        customBodyRenderLite: renderSaveIgnore,
+      },
+    });
+  }
+
   const data = sources.map((source) => [
     source.id,
     source.ra,
@@ -312,37 +357,116 @@ const GroupSources = ({ route }) => {
   ]);
 
   return (
-    <div className={classes.source}>
-      <div>
-        <Grid
-          container
-          direction="column"
-          alignItems="center"
-          justify="flex-start"
-          spacing={3}
-        >
-          <Grid item>
-            <div>
-              <Typography
-                variant="h4"
-                gutterBottom
-                color="textSecondary"
-                align="center"
-              >
-                <b>Sources saved to {groupName}</b>
-              </Typography>
-            </div>
-          </Grid>
-          <Grid item>
-            <MUIDataTable
-              title="Sources"
-              columns={columns}
-              data={data}
-              options={options}
-            />
-          </Grid>
+    <div>
+      <Grid
+        container
+        direction="column"
+        alignItems="center"
+        justify="flex-start"
+        spacing={3}
+      >
+        <Grid item>
+          <div>
+            <Typography
+              variant="h4"
+              gutterBottom
+              color="textSecondary"
+              align="center"
+            >
+              <b>{title}</b>
+            </Typography>
+          </div>
         </Grid>
+        <Grid item>
+          <MUIDataTable
+            title="Sources"
+            columns={columns}
+            data={data}
+            options={options}
+          />
+        </Grid>
+      </Grid>
+    </div>
+  );
+};
+GroupSourcesTable.propTypes = {
+  sources: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      ra: PropTypes.number,
+      dec: PropTypes.number,
+      redshift: PropTypes.number,
+      classifications: PropTypes.arrayOf(PropTypes.string),
+      recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
+      groups: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          name: PropTypes.string,
+        })
+      ),
+    })
+  ).isRequired,
+  sourceStatus: PropTypes.string.isRequired,
+  groupID: PropTypes.number.isRequired,
+  title: PropTypes.string.isRequired,
+};
+
+const GroupSources = ({ route }) => {
+  const dispatch = useDispatch();
+  const sources = useSelector((state) => state.sources.groupSources);
+  const groups = useSelector((state) => state.groups.userAccessible);
+  const classes = useStyles();
+
+  // Load the group sources
+  useEffect(() => {
+    dispatch(
+      sourcesActions.fetchGroupSources({
+        group_ids: [route.id],
+        includeRequested: true,
+      })
+    );
+  }, [route.id, dispatch]);
+
+  if (!sources) {
+    return (
+      <div>
+        <CircularProgress color="secondary" />
       </div>
+    );
+  }
+  if (sources.length === 0) {
+    return "No sources have been saved to this group yet. ";
+  }
+
+  const groupID = parseInt(route.id, 10);
+
+  const groupName = groups.filter((g) => g.id === groupID)[0]?.name || "";
+
+  const savedSources = sources.filter((source) => {
+    const matchingGroup = source.groups.filter((g) => g.id === groupID)[0];
+    return matchingGroup.active;
+  });
+  const pendingSources = sources.filter((source) => {
+    const matchingGroup = source.groups.filter((g) => g.id === groupID)[0];
+    return matchingGroup.requested;
+  });
+
+  return (
+    <div className={classes.source}>
+      <GroupSourcesTable
+        sources={savedSources}
+        title={`Sources saved to ${groupName}`}
+        sourceStatus="saved"
+        groupID={groupID}
+      />
+      <br />
+      <br />
+      <GroupSourcesTable
+        sources={pendingSources}
+        title={`Sources ${groupName} has been requested to save`}
+        sourceStatus="requested"
+        groupID={groupID}
+      />
     </div>
   );
 };

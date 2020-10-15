@@ -119,12 +119,22 @@ export const updateSource = (id, payload) =>
 export const saveSource = (payload) =>
   API.POST(`/api/sources`, SAVE_SOURCE, payload);
 
+export const acceptSaveRequest = ({ sourceID, groupID }) =>
+  API.PATCH(`/api/source_groups/${sourceID}`, SAVE_SOURCE, {
+    groupID,
+    active: true,
+    requested: false,
+  });
+
+export const declineSaveRequest = ({ sourceID, groupID }) =>
+  API.PATCH(`/api/source_groups/${sourceID}`, SAVE_SOURCE, {
+    groupID,
+    active: false,
+    requested: false,
+  });
+
 export const inviteGroupToSaveSource = (payload) =>
-  API.POST(
-    `/api/source_transfers_invites`,
-    TRANSFER_SOURCE_OR_REQUEST_SAVE,
-    payload
-  );
+  API.POST(`/api/source_groups`, TRANSFER_SOURCE_OR_REQUEST_SAVE, payload);
 
 export const submitFollowupRequest = (params) => {
   const { instrument_name, ...paramsToSubmit } = params;

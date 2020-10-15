@@ -63,16 +63,16 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
 
   const validateGroups = () => {
     const formState = getValues({ nest: true });
-    console.log("formState:", formState);
     return (
-      formState.inviteGroupIds.filter((value) => Boolean(value)).length >= 1 ||
-      formState.unsaveGroupIds.filter((value) => Boolean(value)).length >= 1
+      (formState.inviteGroupIds?.length &&
+        formState.inviteGroupIds.filter((value) => Boolean(value)).length >=
+          1) ||
+      (formState.unsaveGroupIds?.length &&
+        formState.unsaveGroupIds.filter((value) => Boolean(value)).length >= 1)
     );
   };
 
   const onSubmit = async (data) => {
-    console.log("got to submit call...");
-    console.log("data:", data);
     setIsSubmitting(true);
     data.objId = source.id;
     const unsavedGroupIds = unsavedGroups.map((g) => g.id);
@@ -85,7 +85,6 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
       (ID, idx) => data.unsaveGroupIds[idx]
     );
     data.unsaveGroupIds = unsaveGroupIds;
-    console.log("data:", data);
     const result = await dispatch(sourceActions.inviteGroupToSaveSource(data));
     if (result.status === "success") {
       dispatch(showNotification("Source groups updated successfully", "info"));
