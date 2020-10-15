@@ -122,9 +122,7 @@ def test_token_user_post_put_photometry_data(
     assert data['status'] == 'success'
     new_ids = data["data"]["ids"]
     assert len(new_ids) == 3
-    assert new_ids[0] == ids[0]
-    assert new_ids[1] != ids[1]
-    assert new_ids[2] != ids[2]
+    assert len(set(new_ids).intersection(set(ids))) == 1
 
 
 def test_token_user_post_put_get_photometry_data(
@@ -189,8 +187,7 @@ def test_token_user_post_put_get_photometry_data(
     assert data['status'] == 'success'
     new_ids = data["data"]["ids"]
     assert len(new_ids) == 2
-    assert new_ids[0] == ids[0]
-    assert new_ids[1] == ids[1]
+    assert len(set(new_ids).intersection(set(ids))) == 2
 
     status, data = api(
         'GET', f'photometry/{ids[0]}?format=flux', token=upload_data_token
