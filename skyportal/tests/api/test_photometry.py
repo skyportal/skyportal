@@ -126,7 +126,7 @@ def test_token_user_post_put_photometry_data(
 
 
 def test_token_user_post_put_get_photometry_data(
-    upload_data_token, public_source, public_group, public_group2, ztf_camera
+    upload_data_token_two_groups, public_source, public_group, public_group2, ztf_camera
 ):
     status, data = api(
         'POST',
@@ -145,7 +145,7 @@ def test_token_user_post_put_get_photometry_data(
             "origin": [None, "lol", "lol"],
             'group_ids': [public_group.id],
         },
-        token=upload_data_token,
+        token=upload_data_token_two_groups,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -153,7 +153,7 @@ def test_token_user_post_put_get_photometry_data(
     assert len(ids) == 3
 
     status, data = api(
-        'GET', f'photometry/{ids[0]}?format=flux', token=upload_data_token
+        'GET', f'photometry/{ids[0]}?format=flux', token=upload_data_token_two_groups
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -181,7 +181,7 @@ def test_token_user_post_put_get_photometry_data(
             "origin": [None, "lol"],
             'group_ids': [public_group.id, public_group2.id],
         },
-        token=upload_data_token,
+        token=upload_data_token_two_groups,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -190,7 +190,7 @@ def test_token_user_post_put_get_photometry_data(
     assert len(set(new_ids).intersection(set(ids))) == 2
 
     status, data = api(
-        'GET', f'photometry/{ids[0]}?format=flux', token=upload_data_token
+        'GET', f'photometry/{ids[0]}?format=flux', token=upload_data_token_two_groups
     )
     assert status == 200
     assert data['status'] == 'success'
