@@ -1,5 +1,6 @@
 import pytest
 import uuid
+import pdb
 
 
 def test_token_acls_options_rendering1(driver, user):
@@ -65,18 +66,22 @@ def test_add_data_to_user_profile(driver, user):
 
 
 def test_insufficient_name_entry_in_profile(driver, user):
+    pdb.set_trace()
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
     first_name_entry = driver.wait_for_xpath('//input[@name="firstName"]')
     first_name = ""
+    driver.scroll_to_element_and_click(first_name_entry)
     first_name_entry.send_keys(first_name)
     last_name_entry = driver.wait_for_xpath('//input[@name="lastName"]')
     last_name = str(uuid.uuid4())
+    driver.scroll_to_element_and_click(last_name_entry)
     last_name_entry.send_keys(last_name)
 
-    driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@id="updateProfileButton"]')
+    update_profile_button = driver.find_element_by_xpath(
+        '//*[@id="updateProfileButton"]'
     )
+    driver.scroll_to_element_and_click(update_profile_button)
 
     helper = driver.wait_for_xpath('//p[@id="firstName_id-helper-text"]')
     assert helper.text == "Required"
