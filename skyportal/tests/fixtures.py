@@ -21,7 +21,10 @@ from skyportal.models import (
     ObservingRun,
 )
 
+from baselayer.app.env import load_env
+
 TMP_DIR = mkdtemp()
+env, cfg = load_env()
 
 
 class BaseMeta:
@@ -69,6 +72,28 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
                 obj.groups.append(group)
                 DBSession().add(obj)
                 DBSession().commit()
+
+        # always add the single user group
+        single_user_group = Group(
+            users=[obj],
+            single_user_group=True,
+            streams=obj.streams,
+            name=obj.username,
+            nickname=obj.username[:15],
+        )
+        DBSession().add(single_user_group)
+        DBSession().commit()
+
+        # always add the sitewide group
+        sitewide_group = (
+            DBSession()
+            .query(Group)
+            .filter(Group.name == cfg['misc']['public_group_name'])
+            .first()
+        )
+
+        obj.groups.append(sitewide_group)
+        DBSession().commit()
 
 
 class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
