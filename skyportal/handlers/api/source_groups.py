@@ -9,12 +9,12 @@ from ...models import (
 )
 
 
-class SourceTransferOrInviteHandler(BaseHandler):
+class SourceGroupsHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
         """
         ---
-        description: Request group(s) to save source, and optionally unsave from group(s).
+        description: Save or request group(s) to save source, and optionally unsave from group(s).
         requestBody:
           content:
             application/json:
@@ -71,13 +71,17 @@ class SourceTransferOrInviteHandler(BaseHandler):
                     Source(
                         obj_id=obj_id,
                         group_id=invite_group_id,
-                        active=True,
+                        active=False,
                         requested=True,
                         saved_by_id=self.associated_user_object.id,
                     )
                 )
+            elif not source.active:
+                source.requested = True
             else:
-                source.active = True
+                return self.error(
+                    f"Source already saved to group w/ ID {invite_group_id}"
+                )
         for unsave_group_id in unsave_group_ids:
             source = (
                 DBSession()
@@ -94,6 +98,62 @@ class SourceTransferOrInviteHandler(BaseHandler):
             source.active = False
             source.unsaved_at = datetime.datetime.utcnow()
 
+        DBSession().commit()
+        self.push_all(action="skyportal/FETCH_SOURCES")
+        self.push_all(
+            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+        )
+        self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
+        return self.success()
+
+    @permissions(['Upload data'])
+    def patch(self, obj_id, *ignored_args):
+        """
+        ---
+        description: Update a Source table row
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groupID:
+                    type: integer
+                  active:
+                    type: boolean
+                  requested:
+                    type: boolean
+                required:
+                  - groupID
+                  - active
+                  - requested
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        data = self.get_json()
+        group_id = data.get("groupID")
+        if group_id is None:
+            return self.error("Missing required parameter: groupID")
+        active = data.get("active")
+        requested = data.get("requested")
+        obj = Obj.get_if_owned_by(obj_id, self.associated_user_object)
+        source = (
+            DBSession()
+            .query(Source)
+            .filter(Source.obj_id == obj_id, Source.group_id == group_id)
+            .first()
+        )
+        source.active = active
+        source.requested = requested
         DBSession().commit()
         self.push_all(action="skyportal/FETCH_SOURCES")
         self.push_all(
