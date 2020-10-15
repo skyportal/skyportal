@@ -1500,7 +1500,14 @@ class Annotation(Base):
         sa.String,
         index=True,
         nullable=False,
-        doc='What generated the annotation, e.g., `Kowalski`. One annotation with multiple fields from each origin is allowed.',
+        doc=(
+            'What generated the annotation. This should generally map to a '
+            'filter/group name. But since an annotation can be made accessible to multiple '
+            'groups, the origin name does not necessarily have to map to a single group name.'
+            ' The important thing is to make the origin distinct and descriptive such '
+            'that annotations from the same origin generally have the same metrics. One '
+            'annotation with multiple fields from each origin is allowed.'
+        ),
     )
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),

@@ -40,6 +40,7 @@ from ...utils import (
 )
 from .candidate import grab_query_results_page, update_redshift_history_if_relevant
 
+
 SOURCES_PER_PAGE = 100
 
 _, cfg = load_env()
@@ -194,6 +195,14 @@ class SourceHandler(BaseHandler):
                 type: integer
             description: |
                If provided, filter only sources saved to one of these group IDs.
+          - in: query
+            name: includePhotometry
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include associated photometry. Defaults to
+              false.
           responses:
             200:
               content:
@@ -235,6 +244,7 @@ class SourceHandler(BaseHandler):
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
+        include_photometry = self.get_query_argument("includePhotometry", False)
 
         # parse the group ids:
         group_ids = self.get_query_argument('group_ids', None)
@@ -253,6 +263,31 @@ class SourceHandler(BaseHandler):
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
         if obj_id is not None:
+            query_options = [
+                joinedload(Source.obj)
+                .joinedload(Obj.followup_requests)
+                .joinedload(FollowupRequest.requester),
+                joinedload(Source.obj)
+                .joinedload(Obj.followup_requests)
+                .joinedload(FollowupRequest.allocation)
+                .joinedload(Allocation.instrument),
+                joinedload(Source.obj)
+                .joinedload(Obj.assignments)
+                .joinedload(ClassicalAssignment.run)
+                .joinedload(ObservingRun.instrument)
+                .joinedload(Instrument.telescope),
+                joinedload(Source.obj).joinedload(Obj.thumbnails),
+                joinedload(Source.obj)
+                .joinedload(Obj.followup_requests)
+                .joinedload(FollowupRequest.allocation)
+                .joinedload(Allocation.group),
+            ]
+            if include_photometry:
+                query_options.append(
+                    joinedload(Source.obj)
+                    .joinedload(Obj.photometry)
+                    .joinedload(Photometry.instrument)
+                )
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
                 register_source_view(
@@ -262,30 +297,7 @@ class SourceHandler(BaseHandler):
                 )
                 self.push_all(action="skyportal/FETCH_TOP_SOURCES")
             s = Source.get_obj_if_owned_by(
-                obj_id,
-                self.current_user,
-                options=[
-                    joinedload(Source.obj)
-                    .joinedload(Obj.followup_requests)
-                    .joinedload(FollowupRequest.requester),
-                    joinedload(Source.obj)
-                    .joinedload(Obj.followup_requests)
-                    .joinedload(FollowupRequest.allocation)
-                    .joinedload(Allocation.instrument),
-                    joinedload(Source.obj)
-                    .joinedload(Obj.assignments)
-                    .joinedload(ClassicalAssignment.run)
-                    .joinedload(ObservingRun.instrument)
-                    .joinedload(Instrument.telescope),
-                    joinedload(Source.obj).joinedload(Obj.thumbnails),
-                    joinedload(Source.obj)
-                    .joinedload(Obj.photometry)
-                    .joinedload(Photometry.instrument),
-                    joinedload(Source.obj)
-                    .joinedload(Obj.followup_requests)
-                    .joinedload(FollowupRequest.allocation)
-                    .joinedload(Allocation.group),
-                ],
+                obj_id, self.current_user, options=query_options,
             )
             if s is None:
                 return self.error("Invalid source ID.")
@@ -303,6 +315,9 @@ class SourceHandler(BaseHandler):
             for comment in source_info["comments"]:
                 comment["author"] = comment["author"].to_dict()
                 del comment["author"]["preferences"]
+            source_info["annotations"] = sorted(
+                s.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
+            )
             source_info["classifications"] = s.get_classifications_owned_by(
                 self.current_user
             )
@@ -329,6 +344,11 @@ class SourceHandler(BaseHandler):
             return self.success(data=source_info)
 
         # Fetch multiple sources
+        query_options = [joinedload(Obj.thumbnails)]
+        if include_photometry:
+            query_options.append(
+                joinedload(Obj.photometry).joinedload(Photometry.instrument)
+            )
         q = (
             DBSession()
             .query(Obj)
@@ -338,12 +358,7 @@ class SourceHandler(BaseHandler):
                     user_accessible_group_ids
                 )  # only give sources the user has access to
             )
-            .options(
-                [
-                    joinedload(Obj.thumbnails),
-                    joinedload(Obj.photometry).joinedload(Photometry.instrument),
-                ]
-            )
+            .options(query_options)
         )
 
         if sourceID:
@@ -391,7 +406,12 @@ class SourceHandler(BaseHandler):
                 return self.error("Invalid page number value.")
             try:
                 query_results = grab_query_results_page(
-                    q, total_matches, page, num_per_page, "sources"
+                    q,
+                    total_matches,
+                    page,
+                    num_per_page,
+                    "sources",
+                    include_photometry=include_photometry,
                 )
             except ValueError as e:
                 if "Page number out of range" in str(e):
