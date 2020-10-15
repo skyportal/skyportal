@@ -21,7 +21,7 @@ import GroupIcon from "@material-ui/icons/Group";
 
 import dayjs from "dayjs";
 
-import { ra_to_hours, dec_to_hours } from "../units";
+import { ra_to_hours, dec_to_dms } from "../units";
 import * as SourcesAction from "../ducks/sources";
 import * as GroupAction from "../ducks/group";
 import styles from "./CommentList.css";
@@ -237,7 +237,7 @@ const GroupSources = ({ route }) => {
 
   const renderDec_sex = (dataIndex) => {
     const source = sources[dataIndex];
-    return <div key={`${source.id}_dec_sex`}>{dec_to_hours(source.dec)}</div>;
+    return <div key={`${source.id}_dec_sex`}>{dec_to_dms(source.dec)}</div>;
   };
 
   const renderRedshift = (dataIndex) => {
@@ -290,7 +290,7 @@ const GroupSources = ({ route }) => {
     });
     return (
       <div key={`${source.id}_date_saved`}>
-        {group.saved_at[0].substring(0, 19)}
+        {group.saved_at.substring(0, 19)}
       </div>
     );
   };
@@ -403,7 +403,7 @@ const GroupSources = ({ route }) => {
     source.ra,
     source.dec,
     ra_to_hours(source.ra),
-    dec_to_hours(source.dec),
+    dec_to_dms(source.dec),
     source.redshift,
     source.latest_class,
     source.groups.map((group) => {

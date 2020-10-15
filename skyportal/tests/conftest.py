@@ -5,6 +5,7 @@ import os
 import uuid
 import pathlib
 from datetime import datetime
+from pathlib import Path
 
 from baselayer.app import models
 from baselayer.app.config import load_config
@@ -58,6 +59,43 @@ if not DBSession.query(User).filter(User.username == "test factory").scalar():
 def pytest_runtest_setup(item):
     # Print timestamp when running each test
     print(datetime.now().strftime('[%H:%M:%S] '), end='')
+
+
+# set up a hook to be able to check if a test has failed
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    # execute all other hooks to obtain the report object
+    outcome = yield
+    rep = outcome.get_result()
+
+    # set a report attribute for each phase of a call, which can
+    # be "setup", "call", "teardown"
+
+    setattr(item, "rep_" + rep.when, rep)
+
+
+# check if a test has failed
+@pytest.fixture(scope="function", autouse=True)
+def test_failed_check(request):
+    yield
+    # request.node is an "item" because we use the default
+    # "function" scope
+    if request.node.rep_call.failed and 'driver' in request.node.funcargs:
+        webdriver = request.node.funcargs['driver']
+        take_screenshot_and_page_source(webdriver, request.node.nodeid)
+
+
+# make a screenshot with a name of the test, date and time.
+# also save the page HTML.
+def take_screenshot_and_page_source(webdriver, nodeid):
+    file_name = f'{nodeid}_{datetime.today().strftime("%Y-%m-%d_%H:%M")}.png'.replace(
+        "/", "_"
+    ).replace(":", "_")
+    file_name = os.path.join(os.path.dirname(__file__), '../../test-results', file_name)
+    Path(file_name).parent.mkdir(parents=True, exist_ok=True)
+    webdriver.save_screenshot(file_name)
+    with open(file_name.replace('png', 'html'), 'w') as f:
+        f.write(webdriver.page_source)
 
 
 @pytest.fixture(scope='session')
@@ -122,6 +160,11 @@ def public_filter(public_group, public_stream):
 
 
 @pytest.fixture()
+def public_filter2(public_group2, public_stream):
+    return FilterFactory(group=public_group2, stream=public_stream)
+
+
+@pytest.fixture()
 def public_source(public_group):
     obj = ObjFactory(groups=[public_group])
     DBSession.add(Source(obj_id=obj.id, group_id=public_group.id))
@@ -148,6 +191,25 @@ def public_source_group2(public_group2):
 
 @pytest.fixture()
 def public_candidate(public_filter):
+    obj = ObjFactory(groups=[public_filter.group])
+    DBSession.add(Candidate(obj=obj, filter=public_filter))
+    DBSession.commit()
+    return obj
+
+
+@pytest.fixture()
+def public_candidate_two_groups(
+    public_filter, public_filter2, public_group, public_group2
+):
+    obj = ObjFactory(groups=[public_group, public_group2])
+    DBSession.add(Candidate(obj=obj, filter=public_filter))
+    DBSession.add(Candidate(obj=obj, filter=public_filter2))
+    DBSession.commit()
+    return obj
+
+
+@pytest.fixture()
+def public_candidate2(public_filter):
     obj = ObjFactory(groups=[public_filter.group])
     DBSession.add(Candidate(obj=obj, filter=public_filter))
     DBSession.commit()

@@ -19,7 +19,7 @@ import Typography from "@material-ui/core/Typography";
 import ThumbnailList from "./ThumbnailList";
 import ShowClassification from "./ShowClassification";
 import * as Action from "../ducks/source";
-import { ra_to_hours, dec_to_hours } from "../units";
+import { ra_to_hours, dec_to_dms } from "../units";
 import styles from "./SourceQuickView.css";
 
 const dialogTitleStyles = (theme) => ({
@@ -82,7 +82,7 @@ const DialogContentDiv = ({ source, isCached, taxonomyList }) => {
           &nbsp;
           <br />
           {source.ra}, {source.dec} (&alpha;, &delta; =&nbsp;
-          {ra_to_hours(source.ra)}, {dec_to_hours(source.dec)})
+          {ra_to_hours(source.ra)}, {dec_to_dms(source.dec)})
         </div>
         <div className={styles.textContentItem}>
           <b>Redshift: &nbsp;</b>

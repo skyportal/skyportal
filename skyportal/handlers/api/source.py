@@ -295,16 +295,23 @@ class SourceHandler(BaseHandler):
             # add the date(s) this source was saved to each of these groups
             new_group_list = []
             for g in source_info["groups"]:
-                saved_at = [
-                    s.saved_at
-                    for s in DBSession()
+                # saved_at = [
+                #     s.saved_at
+                #     for s in DBSession()
+                #     .query(Source.saved_at)
+                #     .filter(
+                #         Source.obj_id == source_info["id"], Source.group_id == g.id,
+                #     )
+                #     .order_by(Source.saved_at.desc())
+                #     .all()
+                # ]
+                saved_at = (
+                    DBSession()
                     .query(Source.saved_at)
-                    .filter(
-                        Source.obj_id == source_info["id"], Source.group_id == g.id,
-                    )
-                    .order_by(Source.saved_at.desc())
-                    .all()
-                ]
+                    .filter(Source.obj_id == source_info["id"], Source.group_id == g.id)
+                    .first()
+                    .saved_at
+                )
                 g_new = g.to_dict()
                 g_new['saved_at'] = saved_at
                 new_group_list.append(g_new)
@@ -423,16 +430,25 @@ class SourceHandler(BaseHandler):
             # add the date(s) this source was saved to each of these groups
             new_group_list = []
             for g in source_list[-1]["groups"]:
-                saved_at = [
-                    s.saved_at
-                    for s in DBSession()
+                # saved_at = [
+                #     s.saved_at
+                #     for s in DBSession()
+                #     .query(Source.saved_at)
+                #     .filter(
+                #         Source.obj_id == source_list[-1]["id"], Source.group_id == g.id,
+                #     )
+                #     .order_by(Source.saved_at.desc())
+                #     .all()
+                # ]
+                saved_at = (
+                    DBSession()
                     .query(Source.saved_at)
                     .filter(
-                        Source.obj_id == source_list[-1]["id"], Source.group_id == g.id,
+                        Source.obj_id == source_list[-1]["id"], Source.group_id == g.id
                     )
-                    .order_by(Source.saved_at.desc())
-                    .all()
-                ]
+                    .first()
+                    .saved_at
+                )
                 g_new = g.to_dict()
                 g_new['saved_at'] = saved_at
                 new_group_list.append(g_new)
