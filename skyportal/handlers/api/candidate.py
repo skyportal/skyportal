@@ -65,14 +65,8 @@ class CandidateHandler(BaseHandler):
         num_c = (
             DBSession()
             .query(Candidate)
-            .filter(Candidate.obj_id == obj_id)
-            .filter(
-                Candidate.filter_id.in_(
-                    DBSession.query(Filter.id).filter(
-                        Filter.group_id.in_(user_group_ids)
-                    )
-                )
-            )
+            .join(Filter)
+            .filter(Candidate.obj_id == obj_id, Filter.group_id.in_(user_group_ids))
             .count()
         )
         if num_c > 0:
@@ -247,17 +241,12 @@ class CandidateHandler(BaseHandler):
             accessible_candidates = (
                 DBSession()
                 .query(Candidate)
-                .filter(Candidate.obj_id == obj_id)
+                .join(Filter)
                 .filter(
-                    Candidate.filter_id.in_(
-                        DBSession()
-                        .query(Filter.id)
-                        .filter(
-                            Filter.group_id.in_(
-                                [g.id for g in self.current_user.accessible_groups]
-                            )
-                        )
-                    )
+                    Candidate.obj_id == obj_id,
+                    Filter.group_id.in_(
+                        [g.id for g in self.current_user.accessible_groups]
+                    ),
                 )
                 .all()
             )

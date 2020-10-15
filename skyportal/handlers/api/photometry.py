@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import sncosmo
 from sncosmo.photdata import PhotometricData
+from sqlalchemy.orm import joinedload
 import uuid
 
 from baselayer.app.access import permissions, auth_or_token
@@ -675,53 +676,43 @@ class PhotometryHandler(BaseHandler):
                 return self.error(f'Invalid object ID: {oid}')
 
             # make sure no duplicate data are posted
-            existing_photometry = Obj.get_photometry_owned_by_user(
-                oid, self.current_user
+            duplicated_photometry = (
+                DBSession()
+                .query(Photometry)
+                .filter(
+                    Photometry.obj_id == oid, Photometry.hash.in_(df["hash"].tolist())
+                )
+                .options(joinedload(Photometry.groups))
+                # .all()
             )
-            ep = [serialize(phot, "ab", "flux") for phot in existing_photometry]
-            df_existing_photometry = pd.DataFrame(ep)
-            if len(df_existing_photometry) > 0:
-                df_existing_photometry["group_ids"] = df_existing_photometry.apply(
-                    lambda row: set([g.id for g in row["groups"]]), axis=1
-                )
 
-                w_oid_duplicate = (df.obj_id == oid) & (
-                    df.hash.isin(df_existing_photometry.hash)
-                )
+            if duplicated_photometry is not None:
+                existing_hashes = [d.hash for d in duplicated_photometry]
+                # save existing ids:
+                existing_ids.extend([d.id for d in duplicated_photometry])
 
-                if any(w_oid_duplicate):
-                    # update photometry.groups if necessary
-                    for row in df.loc[w_oid_duplicate].itertuples():
-                        # select the corresponding row in existing photometry by the pre-computed hash:
-                        w = df_existing_photometry.hash == row.hash
-                        # select the photometry point's group_ids:
-                        row_group_ids = set(
-                            df_existing_photometry.loc[w, "group_ids"].values[0]
+                # update groups if necessary
+                for duplicate in duplicated_photometry:
+                    duplicate_group_ids = set([g.id for g in duplicate.groups])
+
+                    # posting to new groups?
+                    if len(set(group_ids) - duplicate_group_ids) > 0:
+                        # select old + new groups
+                        group_ids_update = set(group_ids).union(duplicate_group_ids)
+                        groups = (
+                            DBSession()
+                            .query(Group)
+                            .filter(Group.id.in_(group_ids_update))
+                            .all()
                         )
-                        # posting to new groups?
-                        if len(set(group_ids) - row_group_ids) > 0:
-                            # select old + new groups
-                            group_ids_update = set(group_ids).union(row_group_ids)
-                            groups = (
-                                DBSession()
-                                .query(Group)
-                                .filter(Group.id.in_(group_ids_update))
-                                .all()
-                            )
-                            # update the corresponding photometry entry in the db
-                            index_to_update = np.where(w)[0][0]
-                            existing_photometry[index_to_update].groups = groups
+                        # update the corresponding photometry entry in the db
+                        duplicate.groups = groups
 
-                            updated_photometry_groups = True
+                        updated_photometry_groups = True
 
-                    # save existing ids:
-                    w_ids = df_existing_photometry.hash.isin(df.hash)
-                    existing_ids.extend(
-                        df_existing_photometry.loc[w_ids, "id"].values.tolist()
-                    )
-
-                    # now safely drop the duplicates:
-                    df = df.drop(index=np.where(w_oid_duplicate)[0])
+                w_oid_duplicate = (df.obj_id == oid) & (df.hash.isin(existing_hashes))
+                # now safely drop the duplicates:
+                df = df.drop(index=np.where(w_oid_duplicate)[0])
 
         # posted data contains only duplicates already present in the db?
         if len(df) == 0:

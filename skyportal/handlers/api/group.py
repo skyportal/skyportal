@@ -548,49 +548,6 @@ class GroupUserHandler(BaseHandler):
 
 
 class GroupStreamHandler(BaseHandler):
-    @auth_or_token
-    def get(self, group_id, *ignored_args):
-        """
-        ---
-        multiple:
-          description: Retrieve info on group stream access
-          parameters:
-            - in: path
-              name: group_id
-              required: true
-              schema:
-                type: integer
-          responses:
-            200:
-              content:
-                application/json:
-                  schema:
-                    allOf:
-                      - $ref: '#/components/schemas/Success'
-                      - type: object
-                        properties:
-                          data:
-                            type: array
-                            items:
-                              - $ref: '#/components/schemas/Stream'
-                            description: List of group streams
-            400:
-              content:
-                application/json:
-                  schema: Error
-        """
-        gid = int(group_id)
-        if gid in [g.id for g in self.current_user.accessible_groups]:
-            group_streams = (
-                GroupStream.query.options(joinedload(GroupStream.stream))
-                .filter(GroupStream.group_id == gid)
-                .all()
-            )
-            streams = [gs.stream for gs in group_streams]
-            return self.success(data=streams)
-        else:
-            return self.error('Insufficient permissions.')
-
     @permissions(['System admin'])
     def post(self, group_id, *ignored_args):
         """

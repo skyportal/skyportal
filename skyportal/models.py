@@ -1644,12 +1644,14 @@ class Photometry(Base, ha.Point):
         sa.String,
         nullable=True,
         unique=False,
+        index=True,
         doc="Origin from which this Photometry was extracted (if any).",
     )
     hash = sa.Column(
         sa.String,
         nullable=False,
         unique=True,
+        index=True,
         doc="SHA1 hash of the posted Photometry + metadata. Used for de-duplication in PUT requests.",
     )
 
