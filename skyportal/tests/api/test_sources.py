@@ -183,10 +183,7 @@ def test_token_user_post_new_source(upload_data_token, view_only_token, public_g
     assert data['data']['id'] == obj_id
     npt.assert_almost_equal(data['data']['ra'], 234.22)
 
-    # saved_at = datetime.strptime(data['data']['groups'][0]['saved_at'][0]+" 0", '%Y-%m-%dT%H:%M:%S.%f %z')
-    saved_at = parser.parse(data['data']['groups'][0]['saved_at'][0] + " UTC")
-    print(saved_at)
-
+    saved_at = parser.parse(data['data']['groups'][0]['saved_at'] + " UTC")
     assert abs(saved_at - t0) < timedelta(seconds=2)
 
 
