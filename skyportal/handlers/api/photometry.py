@@ -688,7 +688,7 @@ class PhotometryHandler(BaseHandler):
 
             existing_hashes = [d.hash for d in duplicated_photometry]
 
-            if len(existing_hashes):
+            if len(existing_hashes) > 0:
                 # save existing ids:
                 existing_ids.extend([d.id for d in duplicated_photometry])
 
