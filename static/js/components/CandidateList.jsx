@@ -30,9 +30,9 @@ import * as candidatesActions from "../ducks/candidates";
 import ThumbnailList from "./ThumbnailList";
 import SaveCandidateButton from "./SaveCandidateButton";
 import FilterCandidateList from "./FilterCandidateList";
-import CandidateAnnotationsList, {
+import ScanningPageCandidateAnnotations, {
   getAnnotationValueString,
-} from "./CandidateAnnotationsList";
+} from "./ScanningPageCandidateAnnotations";
 import AddSourceGroup from "./AddSourceGroup";
 
 const VegaPlot = React.lazy(() =>
@@ -426,7 +426,9 @@ const CandidateList = () => {
     return (
       <div className={classes.annotations}>
         {candidateObj.annotations && (
-          <CandidateAnnotationsList annotations={candidateObj.annotations} />
+          <ScanningPageCandidateAnnotations
+            annotations={candidateObj.annotations}
+          />
         )}
       </div>
     );

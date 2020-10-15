@@ -39,48 +39,45 @@ export const getAnnotationValueString = (value) => {
     case "number":
       valueString = value.toFixed(4);
       break;
-    case "string":
-      valueString = `${value.substring(0, 20)}...`;
-      break;
     case "object":
-      valueString = `${JSON.stringify(value).substring(0, 20)}...`;
+      valueString = JSON.stringify(value);
       break;
     default:
       valueString = value.toString();
   }
   return valueString;
 };
-
-// This component will be used to display annotations in the scanning page.
-// Included in this PR only for the getAnnotationValueString() function above.
-// Can ignore the rest of this component during review of this PR for now.
 const ScanningPageCandidateAnnotations = ({ annotations }) => {
   const classes = useStyles();
 
   const dispatch = useDispatch();
 
-  const initialState = {};
+  const initState = {};
   annotations.forEach((annotation) => {
-    initialState[annotation.origin] = true;
+    initState[annotation.origin] = true;
   });
-  const [openedOrigins, setopenedOrigins] = useState(initialState);
+  const [openedOrigins, setopenedOrigins] = useState(initState);
 
-  const selectedAnnotationItem = useSelector(
-    (state) => state.candidates.selectedAnnotationItem
+  const selectedAnnotationSortOptions = useSelector(
+    (state) => state.candidates.selectedAnnotationSortOptions
   );
 
   const handleClick = (origin) => {
     setopenedOrigins({ ...openedOrigins, [origin]: !openedOrigins[origin] });
   };
 
-  const handleAnnotationKeySelect = (origin, key) => {
+  const handleItemSelect = (origin, key) => {
     const currentlySelected =
-      selectedAnnotationItem &&
-      selectedAnnotationItem.origin === origin &&
-      selectedAnnotationItem.key === key;
+      selectedAnnotationSortOptions &&
+      selectedAnnotationSortOptions.origin === origin &&
+      selectedAnnotationSortOptions.key === key;
 
-    const annotationItem = currentlySelected ? null : { origin, key };
-    dispatch(candidatesActions.setCandidatesAnnotationItem(annotationItem));
+    const annotationItem = currentlySelected
+      ? null
+      : { origin, key, order: null };
+    dispatch(
+      candidatesActions.setCandidatesAnnotationSortOptions(annotationItem)
+    );
   };
 
   return (
@@ -107,30 +104,18 @@ const ScanningPageCandidateAnnotations = ({ annotations }) => {
           >
             <List component="div" dense disablePadding>
               {Object.entries(annotation.data).map(([key, value]) => {
-                // Only allow sorting by numbers and bools
-                let disabled;
-                switch (typeof value) {
-                  case "number":
-                  case "boolean":
-                    disabled = false;
-                    break;
-                  default:
-                    disabled = true;
-                }
                 return (
                   <ListItem
                     key={`key_${annotation.origin}_${key}`}
                     button
                     className={classes.nested}
                     selected={
-                      selectedAnnotationItem &&
-                      selectedAnnotationItem.origin === annotation.origin &&
-                      selectedAnnotationItem.key === key
+                      selectedAnnotationSortOptions &&
+                      selectedAnnotationSortOptions.origin ===
+                        annotation.origin &&
+                      selectedAnnotationSortOptions.key === key
                     }
-                    onClick={() =>
-                      handleAnnotationKeySelect(annotation.origin, key)
-                    }
-                    disabled={disabled}
+                    onClick={() => handleItemSelect(annotation.origin, key)}
                   >
                     <ListItemText
                       secondary={`${key}: ${getAnnotationValueString(value)}`}
