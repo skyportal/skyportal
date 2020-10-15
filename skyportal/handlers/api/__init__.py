@@ -11,7 +11,6 @@ from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
 from .news_feed import NewsFeedHandler
-from .obj import ObjShortHandler
 from .observingrun import ObservingRunHandler
 from .photometry import (
     PhotometryHandler,
