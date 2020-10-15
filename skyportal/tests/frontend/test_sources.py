@@ -311,10 +311,13 @@ def test_super_user_can_delete_unowned_comment(
     comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
     comment_div = comment_text_div.find_element_by_xpath("..")
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
+
+    # wait for delete button to become interactible - hence pause 0.1
+    ActionChains(driver).move_to_element(comment_text_div).pause(0.1).perform()
+
     delete_button = driver.wait_for_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']"
     )
-
     driver.scroll_to_element_and_click(delete_button)
     driver.wait_for_xpath_to_disappear(f'//p[text()="{comment_text}"]')
 
