@@ -7,18 +7,28 @@
   </head>
   <body>
     <div class="loginBox">
-      <img src="{{ app.logo }}" class="logo" />
-      <span class="title">Welcome to {{ app.title }}</span>
-
-      <p>{{ app.login_message }}</p>
-
-      <div class="loginButton">
-        <a href="/login/google-oauth2">
-          <img
-            src="/static/images/btn_google_signin_dark_normal_web.png"
-            alt="Click this image to log in"
-          />
-        </a>
+      <div class="loginHeader">
+        <div class="logos">
+          {%- for logo in app.logos %}
+          <div class="logoContainer">
+            <img src="{{ logo.src }}" altText="{{ logo.alt_text }}"  class="logo" />
+          </div>
+          {%- endfor %}
+        </div>
+        <span class="title">{% block title %} Welcome to {{ app.title }} {% endblock %}</span>
+      </div>
+      <div class="loginText">
+        {% block loginText -%}
+        <p>{{ app.login_message }}</p>
+        {%- endblock %}
+        <div class="loginButton">
+          <a href="/login/google-oauth2">
+            <img
+              src="/static/images/btn_google_signin_dark_normal_web.png"
+              alt="Click this image to log in"
+            />
+          </a>
+        </div>
       </div>
     </div>
   </body>

@@ -6,6 +6,7 @@ from skyportal.models import Obj
 from astropy.coordinates.name_resolve import NameResolveError
 
 ads_down = False
+
 try:
     pole_star = FixedTarget.from_name('Polaris')
 except NameResolveError:
@@ -16,25 +17,25 @@ try:
 except NameResolveError:
     ads_down = True
 
-# roughly sunset to sunrise on July 22 2020 (UTC; for palomar observatory)
-night_times = Time(
-    [f'2020-07-22 {h:02d}:00:00.000' for h in range(3, 13)], format='iso'
-)
+if not ads_down:
+    # roughly sunset to sunrise on July 22 2020 (UTC; for palomar observatory)
+    night_times = Time(
+        [f'2020-07-22 {h:02d}:00:00.000' for h in range(3, 13)], format='iso'
+    )
 
-# taken from http://www.briancasey.org/artifacts/astro/airmass.cgi?
-pole_star_airmass = np.asarray(
-    [1.851, 1.850, 1.846, 1.841, 1.834, 1.826, 1.818, 1.810, 1.802, 1.796]
-)
+    # taken from http://www.briancasey.org/artifacts/astro/airmass.cgi?
+    pole_star_airmass = np.asarray(
+        [1.851, 1.850, 1.846, 1.841, 1.834, 1.826, 1.818, 1.810, 1.802, 1.796]
+    )
 
-horizon_star_airmass = np.asarray(
-    [np.inf, np.inf, np.inf, 8.222, 3.238, 2.152, 1.728, 1.556, 1.533, 1.647]
-)
+    horizon_star_airmass = np.asarray(
+        [np.inf, np.inf, np.inf, 8.222, 3.238, 2.152, 1.728, 1.556, 1.533, 1.647]
+    )
 
-
-star_dict = {
-    'polaris': {'target': pole_star, 'airmass': pole_star_airmass},
-    'skat': {'target': horizon_star, 'airmass': horizon_star_airmass},
-}
+    star_dict = {
+        'polaris': {'target': pole_star, 'airmass': pole_star_airmass},
+        'skat': {'target': horizon_star, 'airmass': horizon_star_airmass},
+    }
 
 
 @pytest.mark.skipif(ads_down, reason='Star data server is down.')
@@ -65,6 +66,7 @@ def test_airmass(ztf_camera, star, iers_data):
     )
 
 
+@pytest.mark.skipif(ads_down, reason='Star data server is down.')
 def test_airmass_single(ztf_camera, public_source, iers_data):
     telescope = ztf_camera.telescope
     time = night_times[-1]
