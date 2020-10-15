@@ -90,7 +90,7 @@ def register_source_view(obj_id, username_or_token_id, is_token):
 
 
 def first_public_url(thumbnails):
-    urls = [t.public_url for t in sorted(thumbnails, key=lambda t: tIndex(t))]
+    urls = [t.public_url for t in sorted(thumbnails, key=lambda t: tIndex(t.type))]
     return urls[0] if urls else ""
 
 
