@@ -1640,6 +1640,12 @@ class Photometry(Base, ha.Point):
         unique=False,
         doc="Origin from which this Photometry was extracted (if any).",
     )
+    hash = sa.Column(
+        sa.String,
+        nullable=False,
+        unique=True,
+        doc="SHA1 hash of the posted Photometry + metadata. Used for de-duplication in PUT requests.",
+    )
 
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
