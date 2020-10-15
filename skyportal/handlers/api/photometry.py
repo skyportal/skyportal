@@ -131,7 +131,8 @@ def hash_photometry(row):
     m.update(np.int32(row["instrument_id"]))
     m.update(row["filter"].encode('utf-8'))
     m.update(np.float64(row["mjd"]))
-    m.update(np.float32(row["standardized_flux"]))
+    if row["standardized_flux"] is not None:
+        m.update(np.float32(row["standardized_flux"]))
     m.update(np.float32(row["standardized_fluxerr"]))
     if row["origin"] is not None:
         m.update(row["origin"].encode('utf-8'))
