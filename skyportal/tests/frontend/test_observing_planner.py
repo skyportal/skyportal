@@ -50,7 +50,7 @@ def test_source_is_added_to_observing_run_via_frontend(
 
     driver.scroll_to_element_and_click(submit_button)
     driver.get(f"/run/{red_transients_run.id}")
-    driver.wait_for_xpath(f'//*[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//*[text()="{public_source.id}"]', timeout=20)
     driver.wait_for_xpath(f'//*[text()="{comment_text}"]')
 
 
@@ -73,7 +73,7 @@ def test_assignment_posts_to_observing_run(
     assert data["status"] == "success"
 
     driver.get(f"/run/{red_transients_run.id}")
-    driver.wait_for_xpath(f'//*[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//*[text()="{public_source.id}"]', timeout=20)
     for group in [s.group for s in public_source.sources]:
         driver.wait_for_xpath(f'//*[text()="{group.name[:15]}"]')
 
@@ -96,7 +96,7 @@ def test_observing_run_skycam_component(
     assert data["status"] == "success"
 
     driver.get(f"/run/{red_transients_run.id}")
-    driver.wait_for_xpath('//*[text()="Current Conditions"]')
+    driver.wait_for_xpath('//*[text()="Current Conditions"]', timeout=20)
     driver.wait_for_xpath(
         f'//img[contains(@src, "{red_transients_run.instrument.telescope.skycam_link}")]'
     )
@@ -121,7 +121,7 @@ def test_observing_run_skycam_component(
 
     driver.get(f"/run/{red_transients_run.id}")
     driver.wait_for_xpath(
-        f'//b[contains(text(), "{red_transients_run.instrument.name}")]'
+        f'//b[contains(text(), "{red_transients_run.instrument.name}")]', timeout=20
     )
     driver.wait_for_xpath_to_disappear('//*[text()="Current Conditions"]')
     driver.wait_for_xpath_to_disappear(
