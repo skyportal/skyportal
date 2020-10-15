@@ -160,6 +160,11 @@ def public_filter(public_group, public_stream):
 
 
 @pytest.fixture()
+def public_filter2(public_group2, public_stream):
+    return FilterFactory(group=public_group2, stream=public_stream)
+
+
+@pytest.fixture()
 def public_source(public_group):
     obj = ObjFactory(groups=[public_group])
     DBSession.add(Source(obj_id=obj.id, group_id=public_group.id))
@@ -186,6 +191,25 @@ def public_source_group2(public_group2):
 
 @pytest.fixture()
 def public_candidate(public_filter):
+    obj = ObjFactory(groups=[public_filter.group])
+    DBSession.add(Candidate(obj=obj, filter=public_filter))
+    DBSession.commit()
+    return obj
+
+
+@pytest.fixture()
+def public_candidate_two_groups(
+    public_filter, public_filter2, public_group, public_group2
+):
+    obj = ObjFactory(groups=[public_group, public_group2])
+    DBSession.add(Candidate(obj=obj, filter=public_filter))
+    DBSession.add(Candidate(obj=obj, filter=public_filter2))
+    DBSession.commit()
+    return obj
+
+
+@pytest.fixture()
+def public_candidate2(public_filter):
     obj = ObjFactory(groups=[public_filter.group])
     DBSession.add(Candidate(obj=obj, filter=public_filter))
     DBSession.commit()

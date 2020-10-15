@@ -65,7 +65,7 @@ class AnnotationHandler(BaseHandler):
                       type: integer
                     description: |
                       List of group IDs corresponding to which groups should be
-                      able to view comment. Defaults to all of requesting user's
+                      able to view annotation. Defaults to all of requesting user's
                       groups.
 
                 required:
