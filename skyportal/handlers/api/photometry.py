@@ -18,8 +18,16 @@ from ...models import (
     GroupPhotometry,
 )
 
+from astropy.time import Time
 
-from ...schema import PhotometryMag, PhotometryFlux, PhotFluxFlexible, PhotMagFlexible
+
+from ...schema import (
+    PhotometryMag,
+    PhotometryFlux,
+    PhotFluxFlexible,
+    PhotMagFlexible,
+    PhotometryRangeQuery,
+)
 from ...enum_types import ALLOWED_MAGSYSTEMS
 
 
@@ -587,6 +595,53 @@ class BulkDeletePhotometryHandler(BaseHandler):
         return self.success(f"Deleted {n_deleted} photometry points.")
 
 
+class PhotometryRangeHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """Docstring appears below as an f-string."""
+
+        json = self.get_json()
+
+        try:
+            standardized = PhotometryRangeQuery.load(json)
+        except ValidationError as e:
+            return self.error(f'Invalid request body: {e.normalized_messages()}')
+
+        magsys = self.get_query_argument('magsys', default='ab')
+
+        if magsys not in ALLOWED_MAGSYSTEMS:
+            return self.error('Invalid mag system.')
+
+        format = self.get_query_argument('format', default='mag')
+        if format not in ['mag', 'flux']:
+            return self.error('Invalid output format.')
+
+        instrument_ids = standardized['instrument_ids']
+        min_date = standardized['min_date']
+        max_date = standardized['max_date']
+
+        gids = [g.id for g in self.current_user.accessible_groups]
+
+        query = (
+            DBSession()
+            .query(Photometry)
+            .join(GroupPhotometry)
+            .filter(GroupPhotometry.group_id.in_(gids))
+        )
+
+        if instrument_ids is not None:
+            query = query.filter(Photometry.instrument_id.in_(instrument_ids))
+        if min_date is not None:
+            mjd = Time(min_date, format='datetime').mjd
+            query = query.filter(Photometry.mjd >= mjd)
+        if max_date is not None:
+            mjd = Time(max_date, format='datetime').mjd
+            query = query.filter(Photometry.mjd <= mjd)
+
+        output = [serialize(p, magsys, format) for p in query]
+        return self.success(data=output)
+
+
 PhotometryHandler.get.__doc__ = f"""
         ---
         description: Retrieve photometry
@@ -662,6 +717,49 @@ ObjPhotometryHandler.get.__doc__ = f"""
               type: string
               enum: {list(ALLOWED_MAGSYSTEMS)}
 
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  oneOf:
+                    - $ref: "#/components/schemas/ArrayOfPhotometryFluxs"
+                    - $ref: "#/components/schemas/ArrayOfPhotometryMags"
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+PhotometryRangeHandler.get.__doc__ = f"""
+        ---
+        description: Get photometry taken by specific instruments over a date range
+        parameters:
+          - in: query
+            name: format
+            required: false
+            description: >-
+              Return the photometry in flux or magnitude space?
+              If a value for this query parameter is not provided, the
+              result will be returned in magnitude space.
+            schema:
+              type: string
+              enum:
+                - mag
+                - flux
+          - in: query
+            name: magsys
+            required: false
+            description: >-
+              The magnitude or zeropoint system of the output. (Default AB)
+            schema:
+              type: string
+              enum: {list(ALLOWED_MAGSYSTEMS)}
+        requestBody:
+          content:
+            application/json:
+              schema:
+                PhotometryRangeQuery
         responses:
           200:
             content:
