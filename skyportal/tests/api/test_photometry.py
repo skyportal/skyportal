@@ -946,7 +946,7 @@ def test_token_user_update_photometry(
     np.testing.assert_allclose(data['data']['flux'], 12.24 * 10 ** (-0.4 * (25 - 23.9)))
 
     status, data = api(
-        'PUT',
+        'PATCH',
         f'photometry/{photometry_id}',
         data={
             'obj_id': str(public_source.id),
@@ -1009,7 +1009,7 @@ def test_token_user_update_photometry_groups(
     assert data['status'] == 'success'
 
     status, data = api(
-        'PUT',
+        'PATCH',
         f'photometry/{photometry_id}',
         data={
             'obj_id': str(public_source.id),
