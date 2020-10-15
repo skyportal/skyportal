@@ -718,9 +718,7 @@ class PhotometryHandler(BaseHandler):
         if len(df) == 0:
             if updated_photometry_groups:
                 DBSession().commit()
-                return self.success(data={"ids": existing_ids})
-            else:
-                return self.success(data={"ids": existing_ids})
+            return self.success(data={"ids": existing_ids})
 
         # pre-fetch the photometry PKs. these are not guaranteed to be
         # gapless (e.g., 1, 2, 3, 4, 5, ...) but they are guaranteed
