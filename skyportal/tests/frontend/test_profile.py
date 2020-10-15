@@ -1,6 +1,5 @@
 import pytest
 import uuid
-import pdb
 
 
 def test_token_acls_options_rendering1(driver, user):
@@ -66,7 +65,6 @@ def test_add_data_to_user_profile(driver, user):
 
 
 def test_insufficient_name_entry_in_profile(driver, user):
-    pdb.set_trace()
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
     first_name_entry = driver.wait_for_xpath('//input[@name="firstName"]')
