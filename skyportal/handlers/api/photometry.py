@@ -681,7 +681,6 @@ class PhotometryHandler(BaseHandler):
             instcache[iid] = instrument
 
         existing_ids = []
-        updated_photometry_groups = False
         for oid in df['obj_id'].unique():
             obj = Obj.query.get(oid)
             if not obj:
@@ -721,16 +720,13 @@ class PhotometryHandler(BaseHandler):
                         # update the corresponding photometry entry in the db
                         duplicate.groups = groups
 
-                        updated_photometry_groups = True
-
                 w_oid_duplicate = (df.obj_id == oid) & (df.hash.isin(existing_hashes))
                 # now safely drop the duplicates:
                 df = df.drop(index=np.where(w_oid_duplicate)[0])
 
         # posted data contains only duplicates already present in the db?
         if len(df) == 0:
-            if updated_photometry_groups:
-                DBSession().commit()
+            DBSession().commit()
             return self.success(data={"ids": existing_ids})
 
         # pre-fetch the photometry PKs. these are not guaranteed to be
