@@ -94,7 +94,8 @@ def test_profile_dropdown(driver, user):
     test_add_data_to_user_profile(driver, user)
 
     # click on profile dropdown
-    driver.scroll_to_element_and_click("//span[contains(@data-testid, 'avatar')]")
+    avatar_element = driver.wait_for_xpath("//span[contains(@data-testid, 'avatar')]")
+    driver.scroll_to_element_and_click(avatar_element)
 
     # check dropdown contents
     driver.wait_for_xpath("//p[contains(@data-testid, 'firstLastName')]")
