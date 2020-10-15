@@ -268,6 +268,9 @@ class SourceHandler(BaseHandler):
             for comment in source_info["comments"]:
                 comment["author"] = comment["author"].to_dict()
                 del comment["author"]["preferences"]
+            source_info["annotations"] = sorted(
+                s.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
+            )
             source_info["classifications"] = s.get_classifications_owned_by(
                 self.current_user
             )
