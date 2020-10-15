@@ -360,13 +360,14 @@ const UploadSpectrumForm = ({ route }) => {
           : null,
       obj_id: route.id,
       instrument_id: persistentFormData.instrument_id,
+      // 40_587 is the MJD of the unix epoch, 86400 converts days to seconds.
       observed_at: dayjs
         .unix((persistentFormData.mjd - 40_587) * 86400)
         .utc()
         .format(),
       filename,
     };
-    const result = await dispatch(Actions.uploadSpectrumAscii(payload));
+    const result = await dispatch(Actions.uploadASCIISpectrum(payload));
     if (result.status === "success") {
       dispatch(showNotification("Upload successful."));
       dispatch({ type: RESET_PARSED_SPECTRUM });

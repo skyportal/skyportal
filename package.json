@@ -21,7 +21,7 @@
     "core-js": "3.6.5",
     "css-loader": "4.2.0",
     "d3": "5.16.0",
-    "data-uri-to-buffer": "^3.0.1",
+    "data-uri-to-buffer": "3.0.1",
     "dayjs": "1.9.1",
     "emoji-dictionary": "1.0.11",
     "emojilib": "2.4.0",

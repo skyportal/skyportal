@@ -311,7 +311,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             groups.append(group)
 
         # always add the single user group
-        single_user_group_query = (
+        single_user_group = (
             DBSession()
             .query(Group)
             .join(GroupUser)
@@ -319,8 +319,8 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
                 Group.single_user_group == True,  # noqa
                 GroupUser.user_id == self.associated_user_object.id,
             )
+            .first()
         )
-        single_user_group = single_user_group_query.first()
 
         if single_user_group is not None:
             if single_user_group not in groups:

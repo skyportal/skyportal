@@ -28,7 +28,7 @@ export function parseASCIISpectrum(data) {
   );
 }
 
-export function uploadSpectrumAscii(data) {
+export function uploadASCIISpectrum(data) {
   return API.POST(`/api/spectrum/ascii`, UPLOAD_SPECTRUM, data);
 }
 

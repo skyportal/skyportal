@@ -33,7 +33,7 @@ def test_upload_spectroscopy(
     submit_button = driver.wait_for_xpath(f'//button[contains(.,"Upload Spectrum")]')
     driver.scroll_to_element_and_click(submit_button)
 
-    driver.wait_for_xpath('//*[contains(.,"uccessful")]')
+    driver.wait_for_xpath('//*[contains(.,"successful")]')
 
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//*[contains(.,"{sedm.telescope.nickname}/{sedm.name}")]')
