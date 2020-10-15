@@ -26,7 +26,7 @@ import { observingRunTitle } from "./AssignmentForm";
 import { ObservingRunStarList } from "./StarList";
 import * as SourceAction from "../ducks/source";
 import * as Action from "../ducks/observingRun";
-import { ra_to_hours, dec_to_hours } from "../units";
+import { ra_to_hours, dec_to_dms } from "../units";
 
 import SkyCam from "./SkyCam";
 
@@ -237,7 +237,7 @@ const RunSummary = ({ route }) => {
       <div key={`${assignment.id}_dec`}>
         {assignment.obj.dec}
         <br />
-        {dec_to_hours(assignment.obj.dec)}
+        {dec_to_dms(assignment.obj.dec)}
       </div>
     );
   };

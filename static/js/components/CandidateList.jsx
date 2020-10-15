@@ -1,6 +1,7 @@
 import React, { useEffect, Suspense, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useHistory } from "react-router-dom";
+import PropTypes from "prop-types";
 
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
@@ -12,18 +13,26 @@ import {
 } from "@material-ui/core/styles";
 import useMediaQuery from "@material-ui/core/useMediaQuery";
 import Button from "@material-ui/core/Button";
+import IconButton from "@material-ui/core/IconButton";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import OpenInNewIcon from "@material-ui/icons/OpenInNew";
 import ArrowUpward from "@material-ui/icons/ArrowUpward";
+import ArrowDownward from "@material-ui/icons/ArrowDownward";
+import SortIcon from "@material-ui/icons/Sort";
 import Chip from "@material-ui/core/Chip";
 import Box from "@material-ui/core/Box";
+import Tooltip from "@material-ui/core/Tooltip";
+import Popover from "@material-ui/core/Popover";
+import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
 import MUIDataTable from "mui-datatables";
 
 import * as candidatesActions from "../ducks/candidates";
 import ThumbnailList from "./ThumbnailList";
-import CandidateCommentList from "./CandidateCommentList";
 import SaveCandidateButton from "./SaveCandidateButton";
 import FilterCandidateList from "./FilterCandidateList";
+import CandidateAnnotationsList, {
+  getAnnotationValueString,
+} from "./CandidateAnnotationsList";
 import AddSourceGroup from "./AddSourceGroup";
 
 const VegaPlot = React.lazy(() =>
@@ -75,8 +84,20 @@ const useStyles = makeStyles((theme) => ({
   annotations: (props) => ({
     minWidth: props.annotationsMinWidth,
   }),
+  sortButtton: {
+    verticalAlign: "top",
+    "&:hover": {
+      color: theme.palette.primary.main,
+    },
+  },
   chip: {
     margin: theme.spacing(0.5),
+  },
+  typography: {
+    padding: theme.spacing(2),
+  },
+  helpButton: {
+    display: "inline-block",
   },
 }));
 
@@ -84,11 +105,6 @@ const useStyles = makeStyles((theme) => ({
 const getMuiTheme = (theme) =>
   createMuiTheme({
     overrides: {
-      MUIDataTableFooter: {
-        root: {
-          display: "none",
-        },
-      },
       MUIDataTableBodyCell: {
         root: {
           padding: `${theme.spacing(1)}px ${theme.spacing(
@@ -109,9 +125,98 @@ const getMuiTheme = (theme) =>
     },
   });
 
+const getMuiPopoverTheme = () =>
+  createMuiTheme({
+    overrides: {
+      MuiPopover: {
+        paper: {
+          maxWidth: "30rem",
+        },
+      },
+    },
+  });
+
+const defaultNumPerPage = 25;
+
+const CustomSortToolbar = ({
+  selectedAnnotationSortOptions,
+  rowsPerPage,
+  setQueryInProgress,
+  loaded,
+}) => {
+  const classes = useStyles();
+
+  const [sortOrder, setSortOrder] = useState(
+    selectedAnnotationSortOptions ? selectedAnnotationSortOptions.order : null
+  );
+  const dispatch = useDispatch();
+
+  const handleSort = async () => {
+    const newSortOrder =
+      sortOrder === null || sortOrder === "desc" ? "asc" : "desc";
+    setSortOrder(newSortOrder);
+
+    setQueryInProgress(true);
+    const data = {
+      pageNumber: 1,
+      numPerPage: rowsPerPage,
+      sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
+      sortByAnnotationKey: selectedAnnotationSortOptions.key,
+      sortByAnnotationOrder: newSortOrder,
+    };
+
+    await dispatch(
+      candidatesActions.setCandidatesAnnotationSortOptions({
+        ...selectedAnnotationSortOptions,
+        order: newSortOrder,
+      })
+    );
+    await dispatch(candidatesActions.fetchCandidates(data));
+    setQueryInProgress(false);
+  };
+
+  // Wait until sorted data is received before rendering the toolbar
+  return loaded ? (
+    <Tooltip title="Sort on Selected Annotation">
+      <span>
+        <IconButton
+          onClick={handleSort}
+          disabled={selectedAnnotationSortOptions === null}
+          className={classes.sortButtton}
+          data-testid="sortOnAnnotationButton"
+        >
+          <span>
+            <SortIcon />
+            {sortOrder !== null && sortOrder === "asc" && <ArrowUpward />}
+            {sortOrder !== null && sortOrder === "desc" && <ArrowDownward />}
+          </span>
+        </IconButton>
+      </span>
+    </Tooltip>
+  ) : (
+    <span />
+  );
+};
+
+CustomSortToolbar.propTypes = {
+  selectedAnnotationSortOptions: PropTypes.shape({
+    origin: PropTypes.string.isRequired,
+    key: PropTypes.string.isRequired,
+    order: PropTypes.string,
+  }),
+  setQueryInProgress: PropTypes.func.isRequired,
+  rowsPerPage: PropTypes.number.isRequired,
+  loaded: PropTypes.bool.isRequired,
+};
+
+CustomSortToolbar.defaultProps = {
+  selectedAnnotationSortOptions: null,
+};
+
 const CandidateList = () => {
   const history = useHistory();
   const [queryInProgress, setQueryInProgress] = useState(false);
+  const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   // Maintain the three thumbnails in a row for larger screens
   const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("md"));
   const thumbnailsMinWidth = largeScreen ? "30rem" : 0;
@@ -132,6 +237,7 @@ const CandidateList = () => {
     totalMatches,
     numberingStart,
     numberingEnd,
+    selectedAnnotationSortOptions,
   } = useSelector((state) => state.candidates);
 
   const userAccessibleGroups = useSelector(
@@ -143,11 +249,42 @@ const CandidateList = () => {
   useEffect(() => {
     if (candidates === null) {
       setQueryInProgress(true);
-      dispatch(candidatesActions.fetchCandidates());
+      dispatch(
+        candidatesActions.fetchCandidates({ numPerPage: defaultNumPerPage })
+      );
     } else {
       setQueryInProgress(false);
     }
   }, [candidates, dispatch]);
+
+  const [annotationsHeaderAnchor, setAnnotationsHeaderAnchor] = useState(null);
+  const annotationsHelpOpen = Boolean(annotationsHeaderAnchor);
+  const annotationsHelpId = annotationsHelpOpen ? "simple-popover" : undefined;
+  const handleClickAnnotationsHelp = (event) => {
+    setAnnotationsHeaderAnchor(event.currentTarget);
+  };
+  const handleCloseAnnotationsHelp = () => {
+    setAnnotationsHeaderAnchor(null);
+  };
+
+  const candidateHasAnnotationWithSelectedKey = (candidateObj) => {
+    const annotation = candidateObj.annotations.find(
+      (a) => a.origin === selectedAnnotationSortOptions.origin
+    );
+    if (annotation === undefined) {
+      return false;
+    }
+    return selectedAnnotationSortOptions.key in annotation.data;
+  };
+
+  const getCandidateSelectedAnnotationValue = (candidateObj) => {
+    const annotation = candidateObj.annotations.find(
+      (a) => a.origin === selectedAnnotationSortOptions.origin
+    );
+    return getAnnotationValueString(
+      annotation.data[selectedAnnotationSortOptions.key]
+    );
+  };
 
   const renderThumbnails = (dataIndex) => {
     const candidateObj = candidates[dataIndex];
@@ -261,7 +398,16 @@ const CandidateList = () => {
             {candidateObj.gal_lat.toFixed(3)}
           </span>
         </div>
-        <br />
+        {selectedAnnotationSortOptions !== null &&
+          candidateHasAnnotationWithSelectedKey(candidateObj) && (
+            <div className={classes.infoItem}>
+              <b>
+                {selectedAnnotationSortOptions.key} (
+                {selectedAnnotationSortOptions.origin}):
+              </b>
+              <span>{getCandidateSelectedAnnotationValue(candidateObj)}</span>
+            </div>
+          )}
       </div>
     );
   };
@@ -279,11 +425,83 @@ const CandidateList = () => {
     const candidateObj = candidates[dataIndex];
     return (
       <div className={classes.annotations}>
-        {candidateObj.comments && (
-          <CandidateCommentList comments={candidateObj.comments} />
+        {candidateObj.annotations && (
+          <CandidateAnnotationsList annotations={candidateObj.annotations} />
         )}
       </div>
     );
+  };
+
+  const renderAutoannotationsHeader = () => {
+    return (
+      <div>
+        Autoannotations
+        <IconButton
+          aria-label="help"
+          size="small"
+          onClick={handleClickAnnotationsHelp}
+          className={classes.helpButton}
+        >
+          <HelpOutlineIcon />
+        </IconButton>
+        <MuiThemeProvider theme={getMuiPopoverTheme(theme)}>
+          <Popover
+            id={annotationsHelpId}
+            open={annotationsHelpOpen}
+            anchorEl={annotationsHeaderAnchor}
+            onClose={handleCloseAnnotationsHelp}
+            className={classes.helpPopover}
+            anchorOrigin={{
+              vertical: "top",
+              horizontal: "right",
+            }}
+            transformOrigin={{
+              vertical: "top",
+              horizontal: "left",
+            }}
+          >
+            <Typography className={classes.typography}>
+              Annotation fields are uniquely identified by the combination of
+              origin and key. That is, if two annotation values belong to a key
+              with the same name will be considered different if they come from
+              different origins. <br />
+              <b>Sorting: </b> Clicking on an annotation field will display it,
+              if available, in the Info column. You can then click on the sort
+              tool button at the top of the table to sort on that annotation
+              field.
+            </Typography>
+          </Popover>
+        </MuiThemeProvider>
+      </div>
+    );
+  };
+
+  const handlePageChange = async (page, numPerPage) => {
+    setQueryInProgress(true);
+    // API takes 1-indexed page number
+    let data = { pageNumber: page + 1, numPerPage };
+    if (selectedAnnotationSortOptions !== null) {
+      data = {
+        ...data,
+        sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
+        sortByAnnotationKey: selectedAnnotationSortOptions.key,
+        sortByAnnotationOrder: selectedAnnotationSortOptions.order,
+      };
+    }
+
+    await dispatch(candidatesActions.fetchCandidates(data));
+    setQueryInProgress(false);
+  };
+
+  const handleTableChange = (action, tableState) => {
+    setRowsPerPage(tableState.rowsPerPage);
+    switch (action) {
+      case "changePage":
+      case "changeRowsPerPage":
+        handlePageChange(tableState.page, tableState.rowsPerPage);
+        break;
+      default:
+    }
   };
 
   const columns = [
@@ -292,6 +510,8 @@ const CandidateList = () => {
       label: "Images",
       options: {
         customBodyRenderLite: renderThumbnails,
+        sort: false,
+        filter: false,
       },
     },
     {
@@ -299,6 +519,7 @@ const CandidateList = () => {
       label: "Info",
       options: {
         customBodyRenderLite: renderInfo,
+        filter: false,
       },
     },
     {
@@ -306,6 +527,8 @@ const CandidateList = () => {
       label: "Photometry",
       options: {
         customBodyRenderLite: renderPhotometry,
+        sort: false,
+        filter: false,
       },
     },
     {
@@ -313,9 +536,41 @@ const CandidateList = () => {
       label: "Autoannotations",
       options: {
         customBodyRenderLite: renderAutoannotations,
+        sort: false,
+        filter: false,
+        customHeadLabelRender: renderAutoannotationsHeader,
       },
     },
   ];
+
+  const options = {
+    responsive: "vertical",
+    search: false,
+    print: false,
+    download: false,
+    sort: false,
+    filter: false,
+    count: totalMatches,
+    selectableRows: "none",
+    enableNestedDataAccess: ".",
+    rowsPerPage,
+    rowsPerPageOptions: [1, 25, 50, 75, 100, 200],
+    jumpToPage: true,
+    serverSide: true,
+    page: pageNumber - 1,
+    pagination: true,
+    rowHover: false,
+    onTableChange: handleTableChange,
+    // eslint-disable-next-line react/display-name
+    customToolbar: () => (
+      <CustomSortToolbar
+        selectedAnnotationSortOptions={selectedAnnotationSortOptions}
+        rowsPerPage={rowsPerPage}
+        setQueryInProgress={setQueryInProgress}
+        loaded={!queryInProgress}
+      />
+    ),
+  };
 
   return (
     <Paper elevation={1}>
@@ -341,21 +596,13 @@ const CandidateList = () => {
         <Box display={queryInProgress ? "none" : "block"}>
           <MuiThemeProvider theme={getMuiTheme(theme)}>
             <MUIDataTable
+              // Reset key to reset page number
+              // https://github.com/gregnb/mui-datatables/issues/1166
+              key={`table_${pageNumber}`}
               columns={columns}
               data={candidates !== null ? candidates : []}
               className={classes.table}
-              options={{
-                responsive: "vertical",
-                filter: false,
-                search: false,
-                sort: false,
-                print: false,
-                download: false,
-                selectableRows: "none",
-                enableNestedDataAccess: ".",
-                rowsPerPage: 25,
-                rowsPerPageOptions: [10, 25, 100],
-              }}
+              options={options}
             />
           </MuiThemeProvider>
         </Box>

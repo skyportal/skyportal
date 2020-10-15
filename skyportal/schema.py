@@ -764,6 +764,36 @@ class ObservingRunGetWithAssignments(ObservingRunGet):
     instrument = fields.Field()
 
 
+class PhotometryRangeQuery(_Schema):
+    instrument_ids = fields.List(
+        fields.Integer,
+        description="IDs of the instruments to query "
+        "for photometry from. If `None`, "
+        "queries all instruments.",
+        required=False,
+        missing=None,
+        default=None,
+    )
+
+    min_date = fields.DateTime(
+        required=False,
+        description='Query for photometry taken after '
+        'this UT `DateTime`. For an '
+        'open-ended interval use `None`.',
+        missing=None,
+        default=None,
+    )
+
+    max_date = fields.DateTime(
+        required=False,
+        description='Query for photometry taken before '
+        'this UT `DateTime`. For an '
+        'open-ended interval use `None`.',
+        missing=None,
+        default=None,
+    )
+
+
 class SpectrumAsciiFilePostJSON(_Schema):
     obj_id = fields.String(
         description='The ID of the object that the spectrum is of.', required=True
@@ -1025,6 +1055,7 @@ ObservingRunPost = ObservingRunPost()
 ObservingRunGet = ObservingRunGet()
 AssignmentSchema = AssignmentSchema()
 ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
+PhotometryRangeQuery = PhotometryRangeQuery()
 SpectrumAsciiFilePostJSON = SpectrumAsciiFilePostJSON()
 SpectrumPost = SpectrumPost()
 GroupIDList = GroupIDList()

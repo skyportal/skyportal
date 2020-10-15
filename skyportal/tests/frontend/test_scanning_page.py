@@ -292,3 +292,63 @@ def test_save_candidate_no_groups_error_message(
     )
     second_save_button.click()
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
+
+
+@pytest.mark.flaky(reruns=2)
+def test_submit_annotations_sorting(
+    driver,
+    view_only_user,
+    public_group,
+    public_candidate,
+    public_candidate2,
+    annotation_token,
+):
+    origin = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "annotation",
+        data={
+            "obj_id": public_candidate.id,
+            "origin": origin,
+            "data": {"numeric_field": 1},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "annotation",
+        data={
+            "obj_id": public_candidate2.id,
+            "origin": origin,
+            "data": {"numeric_field": 2},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{view_only_user.id}")
+    driver.get("/candidates")
+    driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
+
+    driver.click_xpath(f"//p[text()='numeric_field: 1.0000']")
+    # Check to see that selected annotation appears in info column
+    driver.wait_for_xpath(
+        f'//td[contains(@data-testid, "MuiDataTableBodyCell")][.//span[text()=1.0000]]'
+    )
+
+    # Check to see that sorting button has become enabled, and click
+    driver.wait_for_xpath_to_be_clickable(
+        "//button[@data-testid='sortOnAnnotationButton']"
+    )
+    driver.click_xpath("//button[@data-testid='sortOnAnnotationButton']")
+
+    # Check that results come back as expected
+    # Col 1, Row 0 should be the first candidate's info (MuiDataTableBodyCell-1-0)
+    driver.wait_for_xpath(
+        f'//td[contains(@data-testid, "MuiDataTableBodyCell-1-0")][.//span[text()="1.0000"]]'
+    )
+    # Col 1, Row 1 should be the second candidate's info (MuiDataTableBodyCell-1-1)
+    driver.wait_for_xpath(
+        f'//td[contains(@data-testid, "MuiDataTableBodyCell-1-1")][.//span[text()="2.0000"]]'
+    )

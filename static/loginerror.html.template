@@ -1,0 +1,15 @@
+{% extends "login.html.template" %}
+{% block title %}Oops! Your login attempt has failed.{% endblock %}
+{% block loginText %}
+        <p>
+          Your authentication attempt has failed with the following message:
+          <em>{%- raw -%} {{ error_message }} {%- endraw -%}</em>
+        </p>
+        <p>
+          Please ensure that you are either logging in via a valid invitation link
+          or are attempting to login with the same OAuth account that you
+          previously used to login via an invite link. If you believe you are
+          seeing this in error, delete your cookies and try logging in again; if
+          the problem persists, please contact a site administrator.
+        </p>
+{% endblock %}
