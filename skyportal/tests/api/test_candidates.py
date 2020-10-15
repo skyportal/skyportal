@@ -16,6 +16,18 @@ def test_token_user_retrieving_candidate(view_only_token, public_candidate):
     assert status == 200
     assert data["status"] == "success"
     assert all(k in data["data"] for k in ["ra", "dec", "redshift", "dm"])
+    assert "photometry" not in data["data"]
+
+
+def test_token_user_retrieving_candidate_with_phot(view_only_token, public_candidate):
+    status, data = api(
+        "GET",
+        f"candidates/{public_candidate.id}?includePhotometry=true",
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert all(k in data["data"] for k in ["ra", "dec", "redshift", "dm", "photometry"])
 
 
 def test_token_user_update_candidate(manage_sources_token, public_candidate):
