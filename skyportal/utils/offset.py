@@ -387,10 +387,11 @@ def get_nearby_offset_stars(
 
     Returns
     -------
-    (list, str, int, int)
+    (list, str, int, int, bool)
         Return a tuple which contains: a list of dictionaries for each object
-        in the star list, the query issued, the number of queries issues, and
-        the length of the star list (not including the source itself)
+        in the star list, the query issued, the number of queries issues,
+        the length of the star list (not including the source itself),
+        and whether the ZTFref catalog was used for source positions or not.
     """
 
     if queries_issued >= allowed_queries:
@@ -575,7 +576,7 @@ def get_nearby_offset_stars(
 
     space = " "
     star_list_format = (
-        f"{basename:{space}<{maxname_size}} "
+        f"{basename:{space}<.{maxname_size}} "
         + f"{center.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}"
         + f" 2000.0 {commentstr} source_name={source_name}"
     )
@@ -605,7 +606,7 @@ def get_nearby_offset_stars(
         name = f"{abrev_basename}_o{i+1}"
 
         star_list_format = (
-            f"{name:{space}<{maxname_size}} "
+            f"{name:{space}<.{maxname_size}} "
             + f"{c.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}"
             + f" 2000.0 {offsets} "
             + f" {commentstr} dist={3600*dist:<0.02f}\"; {source['phot_rp_mean_mag']:<0.02f} mag"
@@ -729,6 +730,8 @@ def get_finding_chart(
     tick_offset=0.02,
     tick_length=0.03,
     fallback_image_source='dss',
+    zscale_contrast=0.045,
+    zscale_krej=2.5,
     **offset_star_kwargs,
 ):
 
@@ -757,6 +760,10 @@ def get_finding_chart(
     fallback_image_source : str, optional
         Where what `image_source` should we fall back to if the
         one requested fails
+    zscale_contrast : float, optional
+        Contrast parameter for the ZScale interval
+    zscale_krej : float, optional
+        Krej parameter for the Zscale interval
     **offset_star_kwargs : dict, optional
         Other parameters passed to `get_nearby_offset_stars`
 
@@ -857,7 +864,12 @@ def get_finding_chart(
             percents = np.nanpercentile(im.flatten(), [10, 99.0])
             vmin = percents[0]
             vmax = percents[1]
-            norm = ImageNormalize(im, vmin=vmin, vmax=vmax, interval=ZScaleInterval())
+            interval = ZScaleInterval(
+                nsamples=int(0.1 * (im.shape[0] * im.shape[1])),
+                contrast=zscale_contrast,
+                krej=zscale_krej,
+            )
+            norm = ImageNormalize(im, vmin=vmin, vmax=vmax, interval=interval)
             watermark = source_image_parameters[image_source]["str"]
             fallback = False
 
@@ -883,10 +895,10 @@ def get_finding_chart(
         # we dont have an image here, so let's create a dummy one
         # so we can still plot
         im = np.zeros((npixels, npixels))
-        norm = None
         watermark = None
         vmin = 0
         vmax = 0
+        norm = ImageNormalize(im, vmin=vmin, vmax=vmax)
 
     # add the images in the top left corner
     ax = fig.add_subplot(spec[0, 0], projection=wcs)
@@ -895,7 +907,7 @@ def get_finding_chart(
     ax_starlist = fig.add_subplot(spec[1, 0:])
     ax_starlist.axis('off')
 
-    ax.imshow(im, origin='lower', norm=norm, cmap='gray_r', vmin=vmin, vmax=vmax)
+    ax.imshow(im, origin='lower', norm=norm, cmap='gray_r')
     ax.set_autoscale_on(False)
     ax.grid(color='white', ls='dotted')
     ax.set_xlabel(r'$\alpha$ (J2000)', fontsize='large')
@@ -1048,7 +1060,7 @@ def get_finding_chart(
         for ang in [0, 90]:
             # for the source itself (i=0), change the angle of the lines in
             # case the offset star is the same as the source itself
-            position_angle = ang * u.deg if i != 0 else (ang + 195) * u.deg
+            position_angle = ang * u.deg if i != 0 else (ang + 225) * u.deg
             separation = (tick_offset * imsize * 60) * u.arcsec
             p1 = c1.directional_offset_by(position_angle, separation)
             separation = (tick_offset + tick_length) * imsize * 60 * u.arcsec
