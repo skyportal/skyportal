@@ -119,12 +119,13 @@ def serialize(phot, outsys, format):
 
 def hash_photometry(row):
     m = hashlib.sha1()
+    m.update(row["obj_id"].encode('utf-8'))
     m.update(np.int32(row["instrument_id"]))
     m.update(row["filter"].encode('utf-8'))
     m.update(np.float64(row["mjd"]))
     m.update(np.float32(row["standardized_flux"]))
     m.update(np.float32(row["standardized_fluxerr"]))
-    if row["origin"]:
+    if row["origin"] is not None:
         m.update(row["origin"].encode('utf-8'))
 
     return m.hexdigest()
@@ -345,9 +346,6 @@ class PhotometryHandler(BaseHandler):
         df['standardized_fluxerr'] = standardized.fluxerr
 
         df["hash"] = df.apply(hash_photometry, axis=1)
-
-        pd.set_option("display.max_columns", None)
-        print(df)
 
         instcache = {}
         for iid in df['instrument_id'].unique():
