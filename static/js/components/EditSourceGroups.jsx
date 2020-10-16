@@ -85,7 +85,7 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
       (ID, idx) => data.unsaveGroupIds[idx]
     );
     data.unsaveGroupIds = unsaveGroupIds;
-    const result = await dispatch(sourceActions.inviteGroupToSaveSource(data));
+    const result = await dispatch(sourceActions.updateSourceGroups(data));
     if (result.status === "success") {
       dispatch(showNotification("Source groups updated successfully", "info"));
       reset();

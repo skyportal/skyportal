@@ -133,7 +133,7 @@ export const declineSaveRequest = ({ sourceID, groupID }) =>
     requested: false,
   });
 
-export const inviteGroupToSaveSource = (payload) =>
+export const updateSourceGroups = (payload) =>
   API.POST(`/api/source_groups`, TRANSFER_SOURCE_OR_REQUEST_SAVE, payload);
 
 export const submitFollowupRequest = (params) => {
