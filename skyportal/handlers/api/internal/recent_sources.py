@@ -96,7 +96,7 @@ class RecentSourcesHandler(BaseHandler):
 
 
 def first_thumbnail_public_url(thumbnails):
-    urls = [t.public_url for t in sorted(thumbnails, key=lambda t: tIndex(t))]
+    urls = [t.public_url for t in sorted(thumbnails, key=lambda t: tIndex(t.type))]
     return urls[0] if urls else ""
 
 
