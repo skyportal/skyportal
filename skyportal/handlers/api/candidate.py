@@ -39,6 +39,40 @@ def update_redshift_history_if_relevant(request_data, obj, user):
 
 class CandidateHandler(BaseHandler):
     @auth_or_token
+    def head(self, obj_id=None):
+        """
+        ---
+        single:
+          description: Check if a Candidate exists
+          parameters:
+            - in: path
+              name: obj_id
+              required: true
+              schema:
+                type: string
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: Success
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+        user_group_ids = [g.id for g in self.associated_user_object.accessible_groups]
+        num_c = (
+            DBSession()
+            .query(Candidate)
+            .join(Filter)
+            .filter(Candidate.obj_id == obj_id, Filter.group_id.in_(user_group_ids))
+            .count()
+        )
+        if num_c == 0:
+            return self.error()
+        return self.success()
+
+    @auth_or_token
     def get(self, obj_id=None):
         """
         ---
@@ -211,7 +245,22 @@ class CandidateHandler(BaseHandler):
             )
             if c is None:
                 return self.error("Invalid ID")
+            accessible_candidates = (
+                DBSession()
+                .query(Candidate)
+                .join(Filter)
+                .filter(
+                    Candidate.obj_id == obj_id,
+                    Filter.group_id.in_(
+                        [g.id for g in self.current_user.accessible_groups]
+                    ),
+                )
+                .all()
+            )
+            filter_ids = [cand.filter_id for cand in accessible_candidates]
+
             candidate_info = c.to_dict()
+            candidate_info["filter_ids"] = filter_ids
             candidate_info["comments"] = sorted(
                 [cmt.to_dict() for cmt in c.get_comments_owned_by(self.current_user)],
                 key=lambda x: x["created_at"],
