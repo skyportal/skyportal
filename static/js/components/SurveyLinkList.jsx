@@ -93,7 +93,7 @@ const SurveyLinkList = ({ ra, dec, id }) => {
   const dec_hrs = dec_to_dms(dec, ":");
   // TODO: const thumbnail_timestamp = "TODO";
   const photometry = useSelector((state) => state.photometry);
-  const objPhotometry = photometry[id];
+  const objPhotometry = photometry?.[id];
 
   let isDetected = false;
   let magErr = Infinity;
