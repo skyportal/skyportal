@@ -268,6 +268,7 @@ const GroupSourcesTable = ({ sources, title, sourceStatus, groupID }) => {
           onClick={() => {
             handleSaveSource(source.id);
           }}
+          data-testid={`saveSourceButton_${source.id}`}
         >
           Save
         </Button>
@@ -278,6 +279,7 @@ const GroupSourcesTable = ({ sources, title, sourceStatus, groupID }) => {
           onClick={() => {
             handleIgnoreSource(source.id);
           }}
+          data-testid={`declineRequestButton_${source.id}`}
         >
           Ignore
         </Button>

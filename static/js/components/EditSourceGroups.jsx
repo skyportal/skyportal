@@ -153,7 +153,7 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
                         name={`inviteGroupIds[${idx}]`}
                         control={control}
                         rules={{ validate: validateGroups }}
-                        data-testid={`addGroupSelect_${unsavedGroup.id}`}
+                        data-testid={`inviteGroupCheckbox_${unsavedGroup.id}`}
                       />
                     }
                     label={unsavedGroup.name}
