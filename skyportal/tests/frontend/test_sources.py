@@ -194,7 +194,7 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     attachment_button = driver.wait_for_xpath(
         '//button[@data-testid="attachmentButton_spec"]'
     )
-    ActionChains(driver).move_to_element(attachment_button).pause(0.1).click().perform()
+    ActionChains(driver).move_to_element(attachment_button).pause(2).click().perform()
     # Preview dialog
     driver.click_xpath('//button[@data-testid="attachmentDownloadButton_spec"]')
 
