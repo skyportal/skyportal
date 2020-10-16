@@ -342,6 +342,7 @@ def get_nearby_offset_stars(
     allowed_queries=2,
     queries_issued=0,
     use_ztfref=True,
+    required_ztfref_source_distance=60,
 ):
     """Finds good list of nearby offset stars for spectroscopy
        and returns info about those stars, including their
@@ -377,13 +378,20 @@ def get_nearby_offset_stars(
         before giving up on getting the number of offset stars we desire?
     queries_issued : int, optional
         How many times have we issued a query? Bookkeeping parameter.
+    use_ztfref : boolean, optional
+        Use the ZTFref catalog for offset star positions if possible
+    required_ztfref_source_distance : float, optional
+        If there are zero ZTF ref stars within this distance in arcsec,
+        then do not use the ztfref catalog even if asked. This probably
+        means that the source is at the end of the ref catalog.
 
     Returns
     -------
-    (list, str, int, int)
+    (list, str, int, int, bool)
         Return a tuple which contains: a list of dictionaries for each object
-        in the star list, the query issued, the number of queries issues, and
-        the length of the star list (not including the source itself)
+        in the star list, the query issued, the number of queries issues,
+        the length of the star list (not including the source itself),
+        and whether the ZTFref catalog was used for source positions or not.
     """
 
     if queries_issued >= allowed_queries:
@@ -438,6 +446,21 @@ def get_nearby_offset_stars(
                 'Warning: Could not find the ZTF reference catalog'
                 f' at position {source_ra} {source_dec}'
             )
+        else:
+            if (
+                sum(
+                    center.separation(ztfcatalog)
+                    < required_ztfref_source_distance * u.arcsec
+                )
+                == 0
+            ):
+                ztfcatalog = None
+                log(
+                    'Warning: The ZTF reference catalog is empty near'
+                    f' position {source_ra} {source_dec}. This probably means'
+                    ' that the source is at the edge of the ref catalog.'
+                )
+                use_ztfref = False
 
     # star needs to be this far away
     # from another star
@@ -516,45 +539,49 @@ def get_nearby_offset_stars(
             queries_issued=queries_issued,
             allowed_queries=allowed_queries,
             use_ztfref=use_ztfref,
+            required_ztfref_source_distance=required_ztfref_source_distance,
         )
 
     # default to Keck starlist
-    sep = ' '  # 'fromunit'
-    commentstr = "#"
-    giveoffsets = True
-    maxname_size = 16
-    # truncate the source_name if we need to
-    if len(source_name) > 10:
-        basename = source_name[0:3] + ".." + source_name[-6:]
-    else:
-        basename = source_name
 
     if starlist_type == 'Keck':
-        pass
+        sep = ' '  # 'fromunit'
+        commentstr = "#"
+        giveoffsets = True
+        maxname_size = 15
+        first_line = None
     elif starlist_type == 'P200':
         sep = ':'  # 'fromunit'
         commentstr = "!"
         giveoffsets = False
         maxname_size = 20
-
-        # truncate the source_name if we need to
-        if len(source_name) > 15:
-            basename = source_name[0:3] + ".." + source_name[-11:]
-        else:
-            basename = source_name
-
+        first_line = None
+    elif starlist_type == 'Shane':
+        sep = ' '  # 'fromunit'
+        commentstr = "#"
+        giveoffsets = True
+        maxname_size = 15
+        # see https://mthamilton.ucolick.org/techdocs/telescopes/Shane/coords/
+        first_line = "!Data {name %16} ra_h ra_m ra_s dec_d dec_m dec_s equinox keyval {comment *}"
     else:
         log("Warning: Do not recognize this starlist format. Using Keck.")
 
-    basename = basename.strip().replace(" ", "")
+    basename = source_name.strip().replace(" ", "")
+    if len(basename) > maxname_size:
+        basename = basename[3:]
+
+    abrev_basename = source_name.strip().replace(" ", "")
+    if len(abrev_basename) > maxname_size - 3:
+        abrev_basename = basename[3:maxname_size]
+
     space = " "
     star_list_format = (
-        f"{basename:{space}<{maxname_size}} "
+        f"{basename:{space}<.{maxname_size}} "
         + f"{center.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}"
-        + f" 2000.0 {commentstr}"
+        + f" 2000.0 {commentstr} source_name={source_name}"
     )
 
-    star_list = []
+    star_list = [{"str": first_line}] if first_line else []
     if use_source_pos_in_starlist:
         star_list.append(
             {
@@ -576,10 +603,10 @@ def get_nearby_offset_stars(
         else:
             offsets = ""
 
-        name = f"{basename}_off{i+1}"
+        name = f"{abrev_basename}_o{i+1}"
 
         star_list_format = (
-            f"{name:{space}<{maxname_size}} "
+            f"{name:{space}<.{maxname_size}} "
             + f"{c.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}"
             + f" 2000.0 {offsets} "
             + f" {commentstr} dist={3600*dist:<0.02f}\"; {source['phot_rp_mean_mag']:<0.02f} mag"
@@ -605,6 +632,7 @@ def get_nearby_offset_stars(
         query_string.replace("\n", " "),
         queries_issued,
         len(star_list) - 1,
+        use_ztfref,
     )
 
 
@@ -702,6 +730,8 @@ def get_finding_chart(
     tick_offset=0.02,
     tick_length=0.03,
     fallback_image_source='dss',
+    zscale_contrast=0.045,
+    zscale_krej=2.5,
     **offset_star_kwargs,
 ):
 
@@ -730,6 +760,10 @@ def get_finding_chart(
     fallback_image_source : str, optional
         Where what `image_source` should we fall back to if the
         one requested fails
+    zscale_contrast : float, optional
+        Contrast parameter for the ZScale interval
+    zscale_krej : float, optional
+        Krej parameter for the Zscale interval
     **offset_star_kwargs : dict, optional
         Other parameters passed to `get_nearby_offset_stars`
 
@@ -796,11 +830,19 @@ def get_finding_chart(
     wcs.wcs.cd = np.array([[-pixscale / 3600, 0], [0, pixscale / 3600]])
     wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
 
+    fallback = True
     if hdu is not None:
         im = hdu.data
 
         # replace the nans with medians
         im[np.isnan(im)] = np.nanmedian(im)
+
+        # Fix the header keyword for the input system, if needed
+        hdr = hdu.header
+        if 'RADECSYS' in hdr:
+            hdr.set('RADESYSa', hdr['RADECSYS'], before='RADECSYS')
+            del hdr['RADECSYS']
+
         if source_image_parameters[image_source].get("reproject", False):
             # project image to the skeleton WCS solution
             log("Reprojecting image to requested position and orientation")
@@ -813,12 +855,25 @@ def get_finding_chart(
                 hdu.data, source_image_parameters[image_source]["smooth"] / pixscale
             )
 
-        percents = np.nanpercentile(im.flatten(), [10, 99.0])
-        vmin = percents[0]
-        vmax = percents[1]
-        norm = ImageNormalize(im, vmin=vmin, vmax=vmax, interval=ZScaleInterval())
-        watermark = source_image_parameters[image_source]["str"]
-    else:
+        cent = int(npixels / 2)
+        width = int(0.05 * npixels)
+        test_slice = slice(cent - width, cent + width)
+        all_nans = np.isnan(im[test_slice, test_slice].flatten()).all()
+        all_zeros = (im[test_slice, test_slice].flatten() == 0).all()
+        if not (all_zeros or all_nans):
+            percents = np.nanpercentile(im.flatten(), [10, 99.0])
+            vmin = percents[0]
+            vmax = percents[1]
+            interval = ZScaleInterval(
+                nsamples=int(0.1 * (im.shape[0] * im.shape[1])),
+                contrast=zscale_contrast,
+                krej=zscale_krej,
+            )
+            norm = ImageNormalize(im, vmin=vmin, vmax=vmax, interval=interval)
+            watermark = source_image_parameters[image_source]["str"]
+            fallback = False
+
+    if hdu is None or fallback:
         # if we got back a blank image, try to fallback on another survey
         # and return the results from that call
         if fallback_image_source is not None:
@@ -840,10 +895,10 @@ def get_finding_chart(
         # we dont have an image here, so let's create a dummy one
         # so we can still plot
         im = np.zeros((npixels, npixels))
-        norm = None
         watermark = None
         vmin = 0
         vmax = 0
+        norm = ImageNormalize(im, vmin=vmin, vmax=vmax)
 
     # add the images in the top left corner
     ax = fig.add_subplot(spec[0, 0], projection=wcs)
@@ -852,7 +907,7 @@ def get_finding_chart(
     ax_starlist = fig.add_subplot(spec[1, 0:])
     ax_starlist.axis('off')
 
-    ax.imshow(im, origin='lower', norm=norm, cmap='gray_r', vmin=vmin, vmax=vmax)
+    ax.imshow(im, origin='lower', norm=norm, cmap='gray_r')
     ax.set_autoscale_on(False)
     ax.grid(color='white', ls='dotted')
     ax.set_xlabel(r'$\alpha$ (J2000)', fontsize='large')
@@ -862,7 +917,7 @@ def get_finding_chart(
         f'{source_name} Finder ({obstime})', fontsize='large', fontweight='bold'
     )
 
-    star_list, _, _, _ = get_nearby_offset_stars(
+    star_list, _, _, _, used_ztfref = get_nearby_offset_stars(
         source_ra, source_dec, source_name, **offset_star_kwargs
     )
 
@@ -875,14 +930,16 @@ def get_finding_chart(
         }
 
     ncolors = len(star_list)
+    if star_list[0]['str'].startswith("!Data"):
+        ncolors -= 1
     colors = sns.color_palette("colorblind", ncolors)
 
     start_text = [-0.35, 0.99]
-    origin = "GaiaDR2" if not offset_star_kwargs.get("use_ztfref") else "ZTFref"
+    origin = "GaiaDR2" if not used_ztfref else "ZTFref"
     starlist_str = (
         f"# Note: {origin} used for offset star positions\n"
         "# Note: spacing in starlist many not copy/paste correctly in PDF\n"
-        + f"#       you can get starlist directly from"
+        + "#       you can get starlist directly from"
         + f" /api/sources/{source_name}/offsets?"
         + f"facility={offset_star_kwargs.get('facility', 'Keck')}\n"
         + "\n".join([x["str"] for x in star_list])
@@ -899,7 +956,7 @@ def get_finding_chart(
     )
 
     # add the watermark for the survey
-    props = dict(boxstyle='round', facecolor='gray', alpha=0.5)
+    props = dict(boxstyle='round', facecolor='gray', alpha=0.7)
 
     if watermark is not None:
         ax.text(
@@ -961,6 +1018,10 @@ def get_finding_chart(
             fontweight='bold',
         )
 
+    # account for Shane header
+    if star_list[0]['str'].startswith("!Data"):
+        star_list = star_list[1:]
+
     for i, star in enumerate(star_list):
 
         c1 = SkyCoord(star["ra"] * u.deg, star["dec"] * u.deg, frame='icrs')
@@ -997,7 +1058,9 @@ def get_finding_chart(
 
         # work on making marks where the stars are
         for ang in [0, 90]:
-            position_angle = ang * u.deg
+            # for the source itself (i=0), change the angle of the lines in
+            # case the offset star is the same as the source itself
+            position_angle = ang * u.deg if i != 0 else (ang + 225) * u.deg
             separation = (tick_offset * imsize * 60) * u.arcsec
             p1 = c1.directional_offset_by(position_angle, separation)
             separation = (tick_offset + tick_length) * imsize * 60 * u.arcsec
@@ -1008,10 +1071,11 @@ def get_finding_chart(
                 transform=ax.get_transform('world'),
                 color=colors[i],
                 linewidth=3 if imsize <= 4 else 2,
+                alpha=0.8,
             )
-        if star["name"].find("_off") != -1:
+        if star["name"].find("_o") != -1:
             # this is an offset star
-            text = star["name"].split("_off")[-1]
+            text = star["name"].split("_o")[-1]
             position_angle = 14 * u.deg
             separation = (tick_offset + tick_length * 1.6) * imsize * 60 * u.arcsec
             p1 = c1.directional_offset_by(position_angle, separation)

@@ -1647,11 +1647,19 @@ class Photometry(Base, ha.Point):
         default=lambda: str(uuid.uuid4()),
         doc="ID of the batch in which this Photometry was uploaded (for bulk deletes).",
     )
-    alert_id = sa.Column(
-        sa.BigInteger,
+    origin = sa.Column(
+        sa.String,
         nullable=True,
+        unique=False,
+        index=True,
+        doc="Origin from which this Photometry was extracted (if any).",
+    )
+    hash = sa.Column(
+        sa.String,
+        nullable=False,
         unique=True,
-        doc="ID of the alert from which this Photometry was extracted (if any).",
+        index=True,
+        doc="SHA1 hash of the posted Photometry + metadata. Used for de-duplication in PUT requests.",
     )
 
     obj_id = sa.Column(
