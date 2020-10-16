@@ -104,7 +104,7 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
             <span>
               <IconButton
                 aria-label="add-group"
-                data-testid={`addGroup_${source.id}`}
+                data-testid={`editGroups_${source.id}`}
                 onClick={openDialog}
                 size="small"
                 disabled={isSubmitting}
@@ -176,7 +176,7 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
                         name={`unsaveGroupIds[${idx}]`}
                         control={control}
                         rules={{ validate: validateGroups }}
-                        data-testid={`unsaveGroupSelect_${savedGroup.id}`}
+                        data-testid={`unsaveGroupCheckbox_${savedGroup.id}`}
                       />
                     }
                     label={savedGroup.name}
