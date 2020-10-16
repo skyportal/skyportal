@@ -139,43 +139,51 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
             {(errors.inviteGroupIds || errors.unsaveGroupIds) && (
               <FormValidationError message="Select at least one group." />
             )}
-            <div>
-              Select new group(s) to which to <b>save</b> source:
-            </div>
-            {unsavedGroups.map((unsavedGroup, idx) => (
-              <FormControlLabel
-                key={unsavedGroup.id}
-                control={
-                  <Controller
-                    as={Checkbox}
-                    name={`inviteGroupIds[${idx}]`}
-                    control={control}
-                    rules={{ validate: validateGroups }}
-                    data-testid={`addGroupSelect_${unsavedGroup.id}`}
+            {!!unsavedGroups.length && (
+              <>
+                <div>
+                  Request selected group(s) to <b>save</b> source:
+                </div>
+                {unsavedGroups.map((unsavedGroup, idx) => (
+                  <FormControlLabel
+                    key={unsavedGroup.id}
+                    control={
+                      <Controller
+                        as={Checkbox}
+                        name={`inviteGroupIds[${idx}]`}
+                        control={control}
+                        rules={{ validate: validateGroups }}
+                        data-testid={`addGroupSelect_${unsavedGroup.id}`}
+                      />
+                    }
+                    label={unsavedGroup.name}
                   />
-                }
-                label={unsavedGroup.name}
-              />
-            ))}
-            <br />
-            <div>
-              Optionally, select groups from which to <b>unsave</b> source:
-            </div>
-            {savedGroups.map((savedGroup, idx) => (
-              <FormControlLabel
-                key={savedGroup.id}
-                control={
-                  <Controller
-                    as={Checkbox}
-                    name={`unsaveGroupIds[${idx}]`}
-                    control={control}
-                    rules={{ validate: validateGroups }}
-                    data-testid={`unsaveGroupSelect_${savedGroup.id}`}
+                ))}
+                <br />
+              </>
+            )}
+            {!!savedGroups.length && (
+              <>
+                <div>
+                  Select groups from which to <b>unsave</b> source:
+                </div>
+                {savedGroups.map((savedGroup, idx) => (
+                  <FormControlLabel
+                    key={savedGroup.id}
+                    control={
+                      <Controller
+                        as={Checkbox}
+                        name={`unsaveGroupIds[${idx}]`}
+                        control={control}
+                        rules={{ validate: validateGroups }}
+                        data-testid={`unsaveGroupSelect_${savedGroup.id}`}
+                      />
+                    }
+                    label={savedGroup.name}
                   />
-                }
-                label={savedGroup.name}
-              />
-            ))}
+                ))}
+              </>
+            )}
             <div style={{ textAlign: "center" }}>
               <Button
                 variant="contained"
