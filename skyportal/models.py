@@ -1611,6 +1611,7 @@ class Photometry(Base, ha.Point):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
     __tablename__ = 'photometry'
+
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
     flux = sa.Column(
         sa.Float,
@@ -1618,6 +1619,7 @@ class Photometry(Base, ha.Point):
         'Corresponds to an AB Zeropoint of 23.9 in all '
         'filters.',
     )
+
     fluxerr = sa.Column(
         sa.Float, nullable=False, doc='Gaussian error on the flux in µJy.'
     )
@@ -1768,6 +1770,23 @@ class Photometry(Base, ha.Point):
     def snr(self):
         """Signal-to-noise ratio of this Photometry point."""
         return self.flux / self.fluxerr
+
+    MJD_FIXED = psql.NUMERIC(20, 10)
+    FLUX_FIXED = psql.NUMERIC(20, 5)
+
+
+Photometry.__table_args__ = (
+    sa.Index(
+        Photometry.obj_id,
+        Photometry.instrument_id,
+        Photometry.origin,
+        # Use fixed-point (exact) representation for guaranteed integrity
+        sa.cast(Photometry.mjd, Photometry.MJD_FIXED),
+        sa.cast(Photometry.fluxerr, Photometry.FLUX_FIXED),
+        sa.cast(Photometry.flux, Photometry.FLUX_FIXED),
+        unique=True,
+    ),
+)
 
 
 GroupPhotometry = join_model("group_photometry", Group, Photometry)
