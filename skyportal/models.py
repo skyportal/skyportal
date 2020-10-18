@@ -1618,6 +1618,8 @@ class Photometry(Base, ha.Point):
         doc='Flux of the observation in µJy. '
         'Corresponds to an AB Zeropoint of 23.9 in all '
         'filters.',
+        server_default='NaN',
+        nullable=False,
     )
 
     fluxerr = sa.Column(
@@ -1651,17 +1653,11 @@ class Photometry(Base, ha.Point):
     )
     origin = sa.Column(
         sa.String,
-        nullable=True,
+        nullable=False,
         unique=False,
         index=True,
         doc="Origin from which this Photometry was extracted (if any).",
-    )
-    hash = sa.Column(
-        sa.String,
-        nullable=False,
-        unique=True,
-        index=True,
-        doc="SHA1 hash of the posted Photometry + metadata. Used for de-duplication in PUT requests.",
+        server_default='',
     )
 
     obj_id = sa.Column(
@@ -1777,6 +1773,7 @@ class Photometry(Base, ha.Point):
 
 Photometry.__table_args__ = (
     sa.Index(
+        'deduplication_index',
         Photometry.obj_id,
         Photometry.instrument_id,
         Photometry.origin,

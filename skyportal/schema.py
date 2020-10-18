@@ -241,7 +241,8 @@ class PhotBaseFlexible(object):
         description="Provenance of the Photometry. If a record is "
         "already present with identical origin, only the "
         "groups list will be updated (other data assumed "
-        "identical). Defaults to None."
+        "identical). Defaults to None.",
+        missing=None,
     )
 
     group_ids = fields.Field(

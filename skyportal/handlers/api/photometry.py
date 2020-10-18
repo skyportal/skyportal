@@ -5,14 +5,16 @@ import pandas as pd
 import sncosmo
 from sncosmo.photdata import PhotometricData
 from sqlalchemy.orm import joinedload
-from sqlalchemy import and_, cast, func
+from sqlalchemy import and_, cast
 import uuid
 
+import math
 
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FromClause
 from sqlalchemy.sql import column
 
+import sqlalchemy as sa
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -55,29 +57,48 @@ def allscalar(d):
     return all(np.isscalar(v) or v is None for v in d.values())
 
 
-# https://stackoverflow.com/a/18900176
-class values(FromClause):
-    def __init__(self, *args):
+# https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
+class _photometry_values(FromClause):
+    named_with_column = True
+
+    def __init__(self, columns, *args, **kw):
+        self._column_args = columns
         self.list = args
+        self.alias_name = self.name = kw.pop("alias_name", None)
 
     def _populate_column_collection(self):
-        self._columns.update(
-            [
-                ("column%d" % i, column("column%d" % i))
-                for i in range(1, len(self.list[0]) + 1)
-            ]
-        )
+        for c in self._column_args:
+            c._make_proxy(self)  # noqa
+
+    @property
+    def _from_objects(self):
+        return [self]
 
 
-# https://stackoverflow.com/a/18900176
-@compiles(values)
-def compile_values(element, compiler, asfrom=False, **kw):
+# https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
+@compiles(_photometry_values)
+def _compile_photometry_values(element, compiler, asfrom=False, **kw):
+    columns = element.columns
+
     v = "VALUES %s" % ", ".join(
-        "(%s)" % ", ".join(compiler.render_literal_value(elem, None) for elem in tup)
+        "(%s)"
+        % ", ".join(
+            compiler.render_literal_value(elem, column.type)
+            if not (isinstance(elem, float) and math.isnan(elem))
+            else "'NaN'::numeric"
+            for elem, column in zip(tup, columns)
+        )
         for tup in element.list
     )
     if asfrom:
-        v = "(%s)" % v
+        if element.alias_name:
+            v = "(%s) AS %s (%s)" % (
+                v,
+                element.alias_name,
+                (", ".join(c.name for c in element.columns)),
+            )
+        else:
+            v = "(%s)" % v
     return v
 
 
@@ -134,8 +155,10 @@ def serialize(phot, outsys, format):
 
         retval.update(
             {
-                'mag': phot.mag + db_correction if phot.mag is not None else None,
-                'magerr': phot.e_mag if phot.e_mag is not None else None,
+                'mag': phot.mag + db_correction
+                if nan_to_none(phot.mag) is not None
+                else None,
+                'magerr': phot.e_mag if nan_to_none(phot.e_mag) is not None else None,
                 'magsys': outsys.name,
                 'limiting_mag': maglimit_out,
             }
@@ -143,7 +166,7 @@ def serialize(phot, outsys, format):
     elif format == 'flux':
         retval.update(
             {
-                'flux': phot.flux,
+                'flux': nan_to_none(phot.flux),
                 'magsys': outsys.name,
                 'zp': corrected_db_zp,
                 'fluxerr': phot.fluxerr,
@@ -189,6 +212,9 @@ class PhotometryHandler(BaseHandler):
         else:
             kind = 'mag'
 
+        # not used here
+        _ = data.pop('group_ids', None)
+
         if allscalar(data):
             data = [data]
 
@@ -226,8 +252,8 @@ class PhotometryHandler(BaseHandler):
         # -dataframe-to-integers-in-pandas-0-17-0/34844867
         df = df.apply(pd.to_numeric, errors='ignore')
 
-        if "origin" not in data:
-            df["origin"] = None
+        # set origin to '' where it is None.
+        df.loc[df['origin'].isna(), 'origin'] = ''
 
         if kind == 'mag':
             # ensure that neither or both mag and magerr are null
@@ -249,7 +275,8 @@ class PhotometryHandler(BaseHandler):
 
                 # coerce nans to nones
                 for key in packet:
-                    packet[key] = nan_to_none(packet[key])
+                    if key != 'standardized_flux':
+                        packet[key] = nan_to_none(packet[key])
 
                 raise ValidationError(
                     f'Error parsing packet "{packet}": mag '
@@ -332,47 +359,63 @@ class PhotometryHandler(BaseHandler):
 
         return df, instcache
 
-    def insert_new_photometry_data(self, df, instcache, group_ids):
-        # check for existing photometry and error if any is found
+    def get_values_table_and_condition(self, df):
 
-        values_table = values(
+        values_table = _photometry_values(
+            (
+                column("pdidx", sa.Integer),
+                column("obj_id", sa.String),
+                column("instrument_id", sa.Integer),
+                column("origin", sa.String),
+                column("mjd", sa.Float),
+                column("fluxerr", sa.Float),
+                column("flux", sa.Float),
+            ),
             *[
                 (
-                    row.index,
+                    idx,
                     row["obj_id"],
                     row["instrument_id"],
                     row["origin"],
-                    row["mjd"],
-                    row["fluxerr"],
-                    row["flux"],
+                    float(row["mjd"]),
+                    float(row["standardized_fluxerr"]),
+                    float(row["standardized_flux"]),
                 )
-                for _, row in df.iterrows()
-            ]
+                for idx, row in df.iterrows()
+            ],
+            alias_name="values_table",
         )
 
         # make sure no duplicate data are posted using the index
         condition = and_(
-            Photometry.obj_id == values_table.c.column2,
-            Photometry.instrument_id == values_table.c.column3,
-            Photometry.origin == values_table.c.column4,
+            Photometry.obj_id == values_table.c.obj_id,
+            Photometry.instrument_id == values_table.c.instrument_id,
+            Photometry.origin == values_table.c.origin,
             cast(Photometry.mjd, Photometry.MJD_FIXED)
-            == func.round(values_table.c.column5, Photometry.MJD_FIXED.scale),
+            == cast(values_table.c.mjd, Photometry.MJD_FIXED),
             cast(Photometry.fluxerr, Photometry.FLUX_FIXED)
-            == func.round(values_table.c.column6, Photometry.FLUX_FIXED.scale),
+            == cast(values_table.c.fluxerr, Photometry.FLUX_FIXED),
             cast(Photometry.flux, Photometry.FLUX_FIXED)
-            == func.round(values_table.c.column7, Photometry.FLUX_FIXED.scale),
+            == cast(values_table.c.flux, Photometry.FLUX_FIXED),
         )
+
+        return values_table, condition
+
+    def insert_new_photometry_data(self, df, instcache, group_ids):
+        # check for existing photometry and error if any is found
+
+        values_table, condition = self.get_values_table_and_condition(df)
 
         duplicated_photometry = (
             DBSession()
             .query(Photometry)
             .join(values_table, condition)
             .options(joinedload(Photometry.groups))
-        ).all()
+        )
 
         dict_rep = [d.to_dict() for d in duplicated_photometry]
 
-        if len(duplicated_photometry) > 0:
+        if len(dict_rep) > 0:
             raise ValidationError(
                 'The following photometry already exists '
                 f'in the database: {dict_rep}.'
@@ -393,8 +436,11 @@ class PhotometryHandler(BaseHandler):
         # cache this as list for response
         ids = [i[0] for i in proxy]
         df['id'] = ids
-        rows = df.where(pd.notnull(df), None).to_dict('records')
 
+        df = df.where(pd.notnull(df), None)
+        df.loc[df['standardized_flux'].isna(), 'standardized_flux'] = np.nan
+
+        rows = df.to_dict('records')
         upload_id = str(uuid.uuid4())
 
         params = []
@@ -462,7 +508,7 @@ class PhotometryHandler(BaseHandler):
         try:
             group_ids = data.pop("group_ids")
         except KeyError:
-            return self.error("Missing required field: group_ids")
+            raise ValidationError("Missing required field: group_ids")
         user_group_ids = [g.id for g in self.associated_user_object.accessible_groups]
         if isinstance(group_ids, (list, tuple)):
             forbidden_groups = set(group_ids) - set(user_group_ids)
@@ -585,53 +631,28 @@ class PhotometryHandler(BaseHandler):
         except ValidationError as e:
             return self.error(e.args[0])
 
-        # query for non-duplicate IDs
-        values_table = values(
-            *[
-                (
-                    row.index,
-                    row["obj_id"],
-                    row["instrument_id"],
-                    row["origin"],
-                    row["mjd_hash"],
-                    row["fluxerr_hash"],
-                    row["flux_hash"],
-                )
-                for _, row in df.iterrows()
-            ]
+        values_table, condition = self.get_values_table_and_condition(df)
+
+        new_photometry_query = (
+            DBSession()
+            .query(values_table.c.pdidx)
+            .outerjoin(Photometry, condition)
+            .filter(Photometry.id.is_(None))
         )
 
-        # make sure no duplicate data are posted using the index
-        condition = and_(
-            Photometry.obj_id == values_table.c.column2,
-            Photometry.instrument_id == values_table.c.column3,
-            Photometry.origin == values_table.c.column4,
-            cast(Photometry.mjd, Photometry.MJD_FIXED)
-            == func.round(values_table.c.column5, Photometry.MJD_FIXED.scale),
-            cast(Photometry.fluxerr, Photometry.FLUX_FIXED)
-            == func.round(values_table.c.column6, Photometry.FLUX_FIXED.scale),
-            cast(Photometry.flux, Photometry.FLUX_FIXED)
-            == func.round(values_table.c.column7, Photometry.FLUX_FIXED.scale),
-        )
+        new_photometry_ids = [g[0] for g in new_photometry_query]
 
-        new_photometry_ids = [
-            g[0]
-            for g in (
-                DBSession()
-                .query(values_table.c.column1)
-                .outerjoin(Photometry, condition)
-                .filter(Photometry.id.is_(None))
-            )
-        ]
+        id_map = {}
 
         duplicated_photometry = (
             DBSession()
-            .query(Photometry)
+            .query(values_table.c.pdidx, Photometry)
             .join(values_table, condition)
             .options(joinedload(Photometry.groups))
         ).all()
 
-        for duplicate in duplicated_photometry:
+        for pdidx, duplicate in duplicated_photometry:
+            id_map[pdidx] = duplicate.id
             duplicate_group_ids = set([g.id for g in duplicate.groups])
 
             # posting to new groups?
@@ -648,15 +669,22 @@ class PhotometryHandler(BaseHandler):
                 duplicate.groups = groups
 
         # now safely drop the duplicates:
-        df = df.loc[new_photometry_ids]
+        new = df.loc[new_photometry_ids]
 
-        try:
-            ids, upload_id = self.insert_new_photometry_data(df, instcache, group_ids)
-        except ValidationError as e:
-            return self.error(e.args[0])
+        if len(new) > 0:
+            try:
+                ids, _ = self.insert_new_photometry_data(new, instcache, group_ids)
+            except ValidationError as e:
+                return self.error(e.args[0])
+
+            for (pdidx, _), id in zip(new.iterrows(), ids):
+                id_map[pdidx] = id
+
+        # get ids in the correct order
+        ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
 
         DBSession().commit()
-        return self.success(data={'ids': ids, 'upload_id': upload_id})
+        return self.success(data={'ids': ids})
 
     @auth_or_token
     def get(self, photometry_id):
