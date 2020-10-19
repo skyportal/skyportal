@@ -48,7 +48,7 @@ const useStyles = makeStyles((theme) => ({
   filename: {
     marginBottom: theme.spacing(1),
   },
-  unknownType: {
+  unsupportedType: {
     width: "20rem",
     border: "1px solid lightgray",
     padding: theme.spacing(1),
@@ -120,7 +120,7 @@ const CommentAttachmentPreview = ({ filename, commentId }) => {
   };
 
   const fileType = filename.includes(".") ? filename.split(".", 2)[1] : "";
-  const knownType = ["png", "jpg", "jpeg", "pdf", "gif"].includes(
+  const supportedType = ["png", "jpg", "jpeg", "pdf", "gif"].includes(
     fileType.toLowerCase()
   );
 
@@ -128,23 +128,22 @@ const CommentAttachmentPreview = ({ filename, commentId }) => {
   const baseUrl = `/api/comment/${commentId}/attachment`;
   const url = fileType === "pdf" ? `${baseUrl}.pdf` : baseUrl;
 
-  // Only load file preview once dialog is opened
-  if (open) {
-    return (
-      <div>
-        <Tooltip title={filename}>
-          <div>
-            Attachment:&nbsp;
-            <button
-              type="button"
-              className={classes.linkButton}
-              onClick={handleClickOpen}
-              data-testid={`attachmentButton_${filename.split(".")[0]}`}
-            >
-              {shortenFilename(filename)}
-            </button>
-          </div>
-        </Tooltip>
+  return (
+    <div>
+      <Tooltip title={filename}>
+        <div>
+          Attachment:&nbsp;
+          <button
+            type="button"
+            className={classes.linkButton}
+            onClick={handleClickOpen}
+            data-testid={`attachmentButton_${filename.split(".")[0]}`}
+          >
+            {shortenFilename(filename)}
+          </button>
+        </div>
+      </Tooltip>
+      {open && (
         <Dialog
           open={open}
           onClose={handleClose}
@@ -157,18 +156,18 @@ const CommentAttachmentPreview = ({ filename, commentId }) => {
               <Typography variant="subtitle1" className={classes.filename}>
                 {filename}
               </Typography>
-              {knownType && fileType === "pdf" && (
+              {supportedType && fileType === "pdf" && (
                 // Using FilePreviewerThumbnail results with PDF in very small
                 // preview with no way to edit it without losing resolution due
                 // to hard-coded in-line styling, so use the FilePreviewer
                 // component for PDF
                 <FilePreviewer file={{ url }} hideControls />
               )}
-              {knownType && fileType !== "pdf" && (
+              {supportedType && fileType !== "pdf" && (
                 <FilePreviewerThumbnail file={{ url }} hideControls />
               )}
-              {!knownType && (
-                <div className={classes.unknownType}>
+              {!supportedType && (
+                <div className={classes.unsupportedType}>
                   Previews are unavailable for {fileType.toUpperCase()} files.
                 </div>
               )}
@@ -192,24 +191,8 @@ const CommentAttachmentPreview = ({ filename, commentId }) => {
             </div>
           </DialogActions>
         </Dialog>
-      </div>
-    );
-  }
-
-  return (
-    <Tooltip title={filename}>
-      <div>
-        Attachment:&nbsp;
-        <button
-          type="button"
-          className={classes.linkButton}
-          onClick={handleClickOpen}
-          data-testid={`attachmentButton_${filename.split(".")[0]}`}
-        >
-          {shortenFilename(filename)}
-        </button>
-      </div>
-    </Tooltip>
+      )}
+    </div>
   );
 };
 
