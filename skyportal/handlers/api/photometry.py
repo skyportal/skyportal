@@ -59,6 +59,8 @@ def allscalar(d):
 
 # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
 class _photometry_values(FromClause):
+    """Render a postgres VALUES statement (in-memory constant table)."""
+
     named_with_column = True
 
     def __init__(self, columns, *args, **kw):
@@ -360,6 +362,27 @@ class PhotometryHandler(BaseHandler):
         return df, instcache
 
     def get_values_table_and_condition(self, df):
+        """Return a postgres VALUES representation of the indexed columns of
+        a photometry dataframe returned by `standardize_photometry_data`.
+        Also returns the join condition for cross-matching the VALUES
+        representation of `df` against the Photometry table using the
+        deduplication index.
+
+        Parameters
+        ----------
+        df: `pandas.DataFrame`
+            Dataframe with the columns 'obj_id', 'instrument_id', 'origin',
+            'mjd', 'standardized_fluxerr', 'standardized_flux'.
+
+        Returns
+        -------
+        values_table: `sqlalchemy.sql.expression.FromClause`
+            The VALUES representation of the photometry DataFrame.
+
+        condition: `sqlalchemy.sql.elements.AsBoolean`
+           The join condition for cross matching the VALUES representation of
+           `df` against the Photometry table using the deduplication index.
+        """
 
         values_table = _photometry_values(
             (
@@ -566,6 +589,8 @@ class PhotometryHandler(BaseHandler):
                                 points in a single request.
         """
 
+        DBSession().rollback()
+        DBSession().execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
         try:
             group_ids = self.get_group_ids()
         except ValidationError as e:
@@ -621,6 +646,8 @@ class PhotometryHandler(BaseHandler):
                                 points in a single request.
         """
 
+        DBSession().rollback()
+        DBSession().execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
         try:
             group_ids = self.get_group_ids()
         except ValidationError as e:
@@ -728,6 +755,9 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        DBSession().rollback()
+        DBSession().execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
         photometry = Photometry.get_if_owned_by(photometry_id, self.current_user)
         data = self.get_json()
         group_ids = data.pop("group_ids", None)

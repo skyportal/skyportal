@@ -295,3 +295,9 @@ invitations:
 
 notifications:
   enabled: True
+
+photometry_deduplication:
+  flux_precision: 20
+  flux_scale: 5
+  mjd_precision: 20
+  mjd_scale: 10
