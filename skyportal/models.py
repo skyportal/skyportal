@@ -1767,36 +1767,12 @@ class Photometry(Base, ha.Point):
         """Signal-to-noise ratio of this Photometry point."""
         return self.flux / self.fluxerr
 
-    # Fixed-point representations of MJD and Flux/Flux Error. The columns are
-    # coerced to these exact representations, which are robust to the ==
-    # operator, in the deduplication index below. The first argument
-    # encodes the total number of digits of precision, and the second argument
-    # encodes the number of digits of precision after the decimal point.
 
-    # The exactness of these representations has the downside of setting a
-    # maximum allowed value for MJD and FLUX which is enforced by the
-    # deduplication index. The default precision for MJD is 20, and the
-    # default scale is 10. This means that by default, the maximum allowed
-    # MJD value is 9999999999.9999999999. This is 5 orders of magnitude
-    # larger than MJDs typically encountered in astronomy. If more precision is
-    # needed, it can be configured in config.defaults.yaml.
-
-    MJD_FIXED = psql.NUMERIC(
-        cfg['photometry_deduplication']['mjd_precision'],
-        cfg['photometry_deduplication']['mjd_scale'],
-    )
-    FLUX_FIXED = psql.NUMERIC(
-        cfg['photometry_deduplication']['flux_precision'],
-        cfg['photometry_deduplication']['flux_scale'],
-    )
-
-
-# Deduplication index. This is a unique index that prevents any photometry point
-# that has the same obj_id, instrument_id, origin, and fixed-point representations
-# of mjd, flux error, and flux as a photometry point that already exists within
-# the table from being inserted into the table. The index also allows fast
-# lookups on this set of columns, making the search for duplicates a O(log(n))
-# operation.
+# Deduplication index. This is a unique index that prevents any photometry
+# point that has the same obj_id, instrument_id, origin, mjd, flux error,
+# and flux as a photometry point that already exists within the table from
+# being inserted into the table. The index also allows fast lookups on this
+# set of columns, making the search for duplicates a O(log(n)) operation.
 
 Photometry.__table_args__ = (
     sa.Index(
@@ -1804,10 +1780,9 @@ Photometry.__table_args__ = (
         Photometry.obj_id,
         Photometry.instrument_id,
         Photometry.origin,
-        # Use fixed-point (exact) representation for guaranteed integrity
-        sa.cast(Photometry.mjd, Photometry.MJD_FIXED),
-        sa.cast(Photometry.fluxerr, Photometry.FLUX_FIXED),
-        sa.cast(Photometry.flux, Photometry.FLUX_FIXED),
+        Photometry.mjd,
+        Photometry.fluxerr,
+        Photometry.flux,
         unique=True,
     ),
 )

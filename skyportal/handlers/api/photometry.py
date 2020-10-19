@@ -5,7 +5,7 @@ import pandas as pd
 import sncosmo
 from sncosmo.photdata import PhotometricData
 from sqlalchemy.orm import joinedload
-from sqlalchemy import and_, cast
+from sqlalchemy import and_
 import uuid
 
 import math
@@ -414,12 +414,9 @@ class PhotometryHandler(BaseHandler):
             Photometry.obj_id == values_table.c.obj_id,
             Photometry.instrument_id == values_table.c.instrument_id,
             Photometry.origin == values_table.c.origin,
-            cast(Photometry.mjd, Photometry.MJD_FIXED)
-            == cast(values_table.c.mjd, Photometry.MJD_FIXED),
-            cast(Photometry.fluxerr, Photometry.FLUX_FIXED)
-            == cast(values_table.c.fluxerr, Photometry.FLUX_FIXED),
-            cast(Photometry.flux, Photometry.FLUX_FIXED)
-            == cast(values_table.c.flux, Photometry.FLUX_FIXED),
+            Photometry.mjd == values_table.c.mjd,
+            Photometry.fluxerr == values_table.c.fluxerr,
+            Photometry.flux == values_table.c.flux,
         )
 
         return values_table, condition
