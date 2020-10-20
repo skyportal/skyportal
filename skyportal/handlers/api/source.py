@@ -55,6 +55,41 @@ def add_ps1_thumbnail_and_push_ws_msg(obj, request_handler):
 
 class SourceHandler(BaseHandler):
     @auth_or_token
+    def head(self, obj_id=None):
+        """
+        ---
+        single:
+          description: Check if a Source exists
+          parameters:
+            - in: path
+              name: obj_id
+              required: true
+              schema:
+                type: string
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: Success
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+        user_group_ids = [g.id for g in self.associated_user_object.accessible_groups]
+        num_s = (
+            DBSession()
+            .query(Source)
+            .filter(Source.obj_id == obj_id)
+            .filter(Source.group_id.in_(user_group_ids))
+            .count()
+        )
+        if num_s > 0:
+            return self.success()
+        else:
+            return self.error()
+
+    @auth_or_token
     def get(self, obj_id=None):
         """
         ---
@@ -818,6 +853,7 @@ class SourceOffsetsHandler(BaseHandler):
                 query_string,
                 queries_issued,
                 noffsets,
+                used_ztfref,
             ) = get_nearby_offset_stars(
                 best_ra,
                 best_dec,
@@ -832,13 +868,13 @@ class SourceOffsetsHandler(BaseHandler):
                 allowed_queries=2,
                 use_ztfref=use_ztfref,
             )
-
         except ValueError:
             return self.error('Error while querying for nearby offset stars')
 
         starlist_str = "\n".join(
             [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
         )
+
         return self.success(
             data={
                 'facility': facility,

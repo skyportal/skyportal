@@ -107,6 +107,7 @@ class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
     mjd = factory.LazyFunction(lambda: 58000.0 + np.random.random())
     flux = factory.LazyFunction(lambda: 20 + 10 * np.random.random())
     fluxerr = factory.LazyFunction(lambda: 2 * np.random.random())
+    hash = factory.LazyFunction(lambda: uuid.uuid4())
 
 
 class ThumbnailFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -185,7 +186,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
                 instrument=instrument,
                 filter=filter,
                 groups=passed_groups,
-                alert_id=np.random.randint(100, 9223372036854775807),
+                origin=uuid.uuid4(),
             )
             DBSession().add(phot1)
             DBSession().add(
@@ -196,7 +197,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
                     instrument=instrument,
                     filter=filter,
                     groups=passed_groups,
-                    alert_id=np.random.randint(100, 9223372036854775807),
+                    origin=uuid.uuid4(),
                 )
             )
 
