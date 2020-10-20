@@ -1,20 +1,20 @@
+import uuid
+import math
+
+from astropy.time import Time
 from astropy.table import Table
 from marshmallow.exceptions import ValidationError
 import numpy as np
 import pandas as pd
 import sncosmo
 from sncosmo.photdata import PhotometricData
-from sqlalchemy.orm import joinedload
-from sqlalchemy import and_
-import uuid
 
-import math
-
+import sqlalchemy as sa
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FromClause
 from sqlalchemy.sql import column
-
-import sqlalchemy as sa
+from sqlalchemy.orm import joinedload
+from sqlalchemy import and_
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -28,9 +28,6 @@ from ...models import (
     PHOT_ZP,
     GroupPhotometry,
 )
-
-from astropy.time import Time
-
 
 from ...schema import (
     PhotometryMag,
@@ -106,7 +103,7 @@ def _compile_photometry_values(element, compiler, asfrom=False, **kw):
 
 def serialize(phot, outsys, format):
 
-    retval = {
+    return_value = {
         'obj_id': phot.obj_id,
         'ra': phot.ra,
         'dec': phot.dec,
@@ -155,7 +152,7 @@ def serialize(phot, outsys, format):
             fivesigma = 5 * fluxerr
             maglimit_out = -2.5 * np.log10(fivesigma) + corrected_db_zp
 
-        retval.update(
+        return_value.update(
             {
                 'mag': phot.mag + db_correction
                 if nan_to_none(phot.mag) is not None
@@ -166,7 +163,7 @@ def serialize(phot, outsys, format):
             }
         )
     elif format == 'flux':
-        retval.update(
+        return_value.update(
             {
                 'flux': nan_to_none(phot.flux),
                 'magsys': outsys.name,
@@ -179,7 +176,7 @@ def serialize(phot, outsys, format):
             'Invalid output format specified. Must be one of '
             f"['flux', 'mag'], got '{format}'."
         )
-    return retval
+    return return_value
 
 
 class PhotometryHandler(BaseHandler):
@@ -347,19 +344,19 @@ class PhotometryHandler(BaseHandler):
         df['standardized_flux'] = standardized.flux
         df['standardized_fluxerr'] = standardized.fluxerr
 
-        instcache = {}
+        instrument_cache = {}
         for iid in df['instrument_id'].unique():
             instrument = Instrument.query.get(int(iid))
             if not instrument:
                 raise ValidationError(f'Invalid instrument ID: {iid}')
-            instcache[iid] = instrument
+            instrument_cache[iid] = instrument
 
         for oid in df['obj_id'].unique():
             obj = Obj.query.get(oid)
             if not obj:
                 raise ValidationError(f'Invalid object ID: {oid}')
 
-        return df, instcache
+        return df, instrument_cache
 
     def get_values_table_and_condition(self, df):
         """Return a postgres VALUES representation of the indexed columns of
@@ -421,25 +418,28 @@ class PhotometryHandler(BaseHandler):
 
         return values_table, condition
 
-    def insert_new_photometry_data(self, df, instcache, group_ids):
+    def insert_new_photometry_data(
+        self, df, instrument_cache, group_ids, validate=True
+    ):
         # check for existing photometry and error if any is found
 
-        values_table, condition = self.get_values_table_and_condition(df)
+        if validate:
+            values_table, condition = self.get_values_table_and_condition(df)
 
-        duplicated_photometry = (
-            DBSession()
-            .query(Photometry)
-            .join(values_table, condition)
-            .options(joinedload(Photometry.groups))
-        )
-
-        dict_rep = [d.to_dict() for d in duplicated_photometry]
-
-        if len(dict_rep) > 0:
-            raise ValidationError(
-                'The following photometry already exists '
-                f'in the database: {dict_rep}.'
+            duplicated_photometry = (
+                DBSession()
+                .query(Photometry)
+                .join(values_table, condition)
+                .options(joinedload(Photometry.groups))
             )
+
+            dict_rep = [d.to_dict() for d in duplicated_photometry]
+
+            if len(dict_rep) > 0:
+                raise ValidationError(
+                    'The following photometry already exists '
+                    f'in the database: {dict_rep}.'
+                )
 
         # pre-fetch the photometry PKs. these are not guaranteed to be
         # gapless (e.g., 1, 2, 3, 4, 5, ...) but they are guaranteed
@@ -465,8 +465,11 @@ class PhotometryHandler(BaseHandler):
 
         params = []
         for packet in rows:
-            if packet["filter"] not in instcache[packet['instrument_id']].filters:
-                instrument = instcache[packet['instrument_id']]
+            if (
+                packet["filter"]
+                not in instrument_cache[packet['instrument_id']].filters
+            ):
+                instrument = instrument_cache[packet['instrument_id']]
                 raise ValidationError(
                     f"Instrument {instrument.name} has no filter "
                     f"{packet['filter']}."
@@ -586,6 +589,16 @@ class PhotometryHandler(BaseHandler):
                                 points in a single request.
         """
 
+        # The Repeatable Read isolation level only sees data committed before
+        # the transaction began; it never sees either uncommitted data or
+        # changes committed during transaction execution by concurrent
+        # transactions. (However, the query does see the effects of previous
+        # updates executed within its own transaction, even though they are
+        # not yet committed.) We use it here to ensure internally consistent
+        # deduplication queries (i.e., to ensure that SELECT queries against
+        # the photometry table do not return different results within this
+        # method's transaction due to concurrent inserts or updates.
+
         DBSession().rollback()
         DBSession().execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
         try:
@@ -594,12 +607,14 @@ class PhotometryHandler(BaseHandler):
             return self.error(e.args[0])
 
         try:
-            df, instcache = self.standardize_photometry_data()
+            df, instrument_cache = self.standardize_photometry_data()
         except ValidationError as e:
             return self.error(e.args[0])
 
         try:
-            ids, upload_id = self.insert_new_photometry_data(df, instcache, group_ids)
+            ids, upload_id = self.insert_new_photometry_data(
+                df, instrument_cache, group_ids
+            )
         except ValidationError as e:
             return self.error(e.args[0])
 
@@ -643,6 +658,16 @@ class PhotometryHandler(BaseHandler):
                                 points in a single request.
         """
 
+        # The Repeatable Read isolation level only sees data committed before
+        # the transaction began; it never sees either uncommitted data or
+        # changes committed during transaction execution by concurrent
+        # transactions. (However, the query does see the effects of previous
+        # updates executed within its own transaction, even though they are
+        # not yet committed.) We use it here to ensure internally consistent
+        # deduplication queries (i.e., to ensure that SELECT queries against
+        # the photometry table do not return different results within this
+        # method's transaction due to concurrent inserts or updates.
+
         DBSession().rollback()
         DBSession().execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
         try:
@@ -651,7 +676,7 @@ class PhotometryHandler(BaseHandler):
             return self.error(e.args[0])
 
         try:
-            df, instcache = self.standardize_photometry_data()
+            df, instrument_cache = self.standardize_photometry_data()
         except ValidationError as e:
             return self.error(e.args[0])
 
@@ -664,19 +689,19 @@ class PhotometryHandler(BaseHandler):
             .filter(Photometry.id.is_(None))
         )
 
-        new_photometry_ids = [g[0] for g in new_photometry_query]
+        new_photometry_df_idxs = [g[0] for g in new_photometry_query]
 
         id_map = {}
 
         duplicated_photometry = (
             DBSession()
             .query(values_table.c.pdidx, Photometry)
-            .join(values_table, condition)
+            .join(Photometry, condition)
             .options(joinedload(Photometry.groups))
         ).all()
 
-        for pdidx, duplicate in duplicated_photometry:
-            id_map[pdidx] = duplicate.id
+        for df_index, duplicate in duplicated_photometry:
+            id_map[df_index] = duplicate.id
             duplicate_group_ids = set([g.id for g in duplicate.groups])
 
             # posting to new groups?
@@ -693,16 +718,18 @@ class PhotometryHandler(BaseHandler):
                 duplicate.groups = groups
 
         # now safely drop the duplicates:
-        new = df.loc[new_photometry_ids]
+        new_photometry = df.loc[new_photometry_df_idxs]
 
-        if len(new) > 0:
+        if len(new_photometry) > 0:
             try:
-                ids, _ = self.insert_new_photometry_data(new, instcache, group_ids)
+                ids, _ = self.insert_new_photometry_data(
+                    new_photometry, instrument_cache, group_ids, validate=False
+                )
             except ValidationError as e:
                 return self.error(e.args[0])
 
-            for (pdidx, _), id in zip(new.iterrows(), ids):
-                id_map[pdidx] = id
+            for (df_index, _), id in zip(new_photometry.iterrows(), ids):
+                id_map[df_index] = id
 
         # get ids in the correct order
         ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
@@ -752,6 +779,16 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        # The Repeatable Read isolation level only sees data committed before
+        # the transaction began; it never sees either uncommitted data or
+        # changes committed during transaction execution by concurrent
+        # transactions. (However, the query does see the effects of previous
+        # updates executed within its own transaction, even though they are
+        # not yet committed.) We use it here to ensure internally consistent
+        # deduplication queries (i.e., to ensure that SELECT queries against
+        # the photometry table do not return different results within this
+        # method's transaction due to concurrent inserts or updates.
 
         DBSession().rollback()
         DBSession().execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
