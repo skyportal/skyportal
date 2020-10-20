@@ -167,6 +167,12 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
                 <div>
                   Select groups from which to <b>unsave</b> source:
                 </div>
+                <div>
+                  <em>
+                    Warning: This will unsave the source from selected groups
+                    for all group members
+                  </em>
+                </div>
                 {savedGroups.map((savedGroup, idx) => (
                   <FormControlLabel
                     key={savedGroup.id}
