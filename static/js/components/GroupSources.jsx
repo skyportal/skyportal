@@ -372,7 +372,7 @@ const GroupSourcesTable = ({ sources, title, sourceStatus, groupID }) => {
         <Grid item>
           <div>
             <Typography
-              variant="h4"
+              variant="h5"
               gutterBottom
               color="textSecondary"
               align="center"
@@ -457,9 +457,13 @@ const GroupSources = ({ route }) => {
 
   return (
     <div className={classes.source}>
+      <Typography variant="h4" gutterBottom align="center">
+        {`${groupName} sources`}
+      </Typography>
+      <br />
       <GroupSourcesTable
         sources={savedSources}
-        title={`Sources saved to ${groupName}`}
+        title="Saved"
         sourceStatus="saved"
         groupID={groupID}
       />
@@ -467,7 +471,7 @@ const GroupSources = ({ route }) => {
       <br />
       <GroupSourcesTable
         sources={pendingSources}
-        title={`Sources ${groupName} has been requested to save`}
+        title="Requested to save"
         sourceStatus="requested"
         groupID={groupID}
       />
