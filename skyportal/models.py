@@ -1614,13 +1614,17 @@ class Photometry(Base, ha.Point):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
     __tablename__ = 'photometry'
+
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
     flux = sa.Column(
         sa.Float,
         doc='Flux of the observation in µJy. '
         'Corresponds to an AB Zeropoint of 23.9 in all '
         'filters.',
+        server_default='NaN',
+        nullable=False,
     )
+
     fluxerr = sa.Column(
         sa.Float, nullable=False, doc='Gaussian error on the flux in µJy.'
     )
@@ -1652,17 +1656,11 @@ class Photometry(Base, ha.Point):
     )
     origin = sa.Column(
         sa.String,
-        nullable=True,
+        nullable=False,
         unique=False,
         index=True,
         doc="Origin from which this Photometry was extracted (if any).",
-    )
-    hash = sa.Column(
-        sa.String,
-        nullable=False,
-        unique=True,
-        index=True,
-        doc="SHA1 hash of the posted Photometry + metadata. Used for de-duplication in PUT requests.",
+        server_default='',
     )
 
     obj_id = sa.Column(
@@ -1771,6 +1769,26 @@ class Photometry(Base, ha.Point):
     def snr(self):
         """Signal-to-noise ratio of this Photometry point."""
         return self.flux / self.fluxerr
+
+
+# Deduplication index. This is a unique index that prevents any photometry
+# point that has the same obj_id, instrument_id, origin, mjd, flux error,
+# and flux as a photometry point that already exists within the table from
+# being inserted into the table. The index also allows fast lookups on this
+# set of columns, making the search for duplicates a O(log(n)) operation.
+
+Photometry.__table_args__ = (
+    sa.Index(
+        'deduplication_index',
+        Photometry.obj_id,
+        Photometry.instrument_id,
+        Photometry.origin,
+        Photometry.mjd,
+        Photometry.fluxerr,
+        Photometry.flux,
+        unique=True,
+    ),
+)
 
 
 GroupPhotometry = join_model("group_photometry", Group, Photometry)
