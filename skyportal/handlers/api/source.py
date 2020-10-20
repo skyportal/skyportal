@@ -469,6 +469,11 @@ class SourceHandler(BaseHandler):
                 "angular_diameter_distance"
             ] = source.angular_diameter_distance
 
+            source_filter_condition = (
+                or_(Source.requested.is_(True), Source.active.is_(True))
+                if include_requested
+                else Source.active.is_(True)
+            )
             source_list[-1]["groups"] = [
                 g.to_dict()
                 for g in (
@@ -477,6 +482,7 @@ class SourceHandler(BaseHandler):
                     .join(Source)
                     .filter(
                         Source.obj_id == source_list[-1]["id"],
+                        source_filter_condition,
                         Group.id.in_(user_accessible_group_ids),
                     )
                     .all()
