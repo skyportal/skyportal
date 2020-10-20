@@ -79,10 +79,25 @@ class _photometry_values(FromClause):
 def _compile_photometry_values(element, compiler, asfrom=False, **kw):
     columns = element.columns
 
+    value_types = {
+        'pdidx': 'INTEGER',
+        'obj_id': 'CHARACTER VARYING',
+        'instrument_id': 'INTEGER',
+        'origin': 'CHARACTER VARYING',
+        'mjd': 'DOUBLE PRECISION',
+        'fluxerr': 'DOUBLE PRECISION',
+        'flux': 'DOUBLE PRECISION',
+    }
+
+    def coerced_value(elem, column):
+        literal_value = compiler.render_literal_value(elem, column.type)
+        cast_value = value_types[column.name]
+        return f'{literal_value}::{cast_value}'
+
     v = "VALUES %s" % ", ".join(
         "(%s)"
         % ", ".join(
-            compiler.render_literal_value(elem, column.type)
+            coerced_value(elem, column)
             if not (isinstance(elem, float) and math.isnan(elem))
             else "'NaN'::numeric"
             for elem, column in zip(tup, columns)
@@ -698,7 +713,7 @@ class PhotometryHandler(BaseHandler):
             .query(values_table.c.pdidx, Photometry)
             .join(Photometry, condition)
             .options(joinedload(Photometry.groups))
-        ).all()
+        )
 
         for df_index, duplicate in duplicated_photometry:
             id_map[df_index] = duplicate.id
