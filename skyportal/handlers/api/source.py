@@ -362,6 +362,12 @@ class SourceHandler(BaseHandler):
                 ).first()
                 group["active"] = source_table_row.active
                 group["requested"] = source_table_row.requested
+                group["saved_at"] = source_table_row.saved_at
+                group["saved_by"] = (
+                    source_table_row.saved_by.to_dict()
+                    if source_table_row.saved_by is not None
+                    else None
+                )
 
             return self.success(data=source_info)
 
@@ -494,6 +500,12 @@ class SourceHandler(BaseHandler):
                 ).first()
                 group["active"] = source_table_row.active
                 group["requested"] = source_table_row.requested
+                group["saved_at"] = source_table_row.saved_at
+                group["saved_by"] = (
+                    source_table_row.saved_by.to_dict()
+                    if source_table_row.saved_by is not None
+                    else None
+                )
 
         query_results["sources"] = source_list
 
