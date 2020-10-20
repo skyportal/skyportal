@@ -814,6 +814,9 @@ Source.unsaved_by_id = sa.Column(
 Source.unsaved_by = relationship(
     "User", foreign_keys=[Source.unsaved_by_id], doc="User who unsaved the Source."
 )
+Source.unsaved_at = sa.Column(
+    sa.DateTime, nullable=True, doc="ISO UTC time when the Obj was unsaved from Group.",
+)
 
 Obj.sources = relationship(
     Source, back_populates='obj', doc="Instances in which a group saved this Obj."

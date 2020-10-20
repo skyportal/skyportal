@@ -29,6 +29,7 @@ class RecentSourcesHandler(BaseHandler):
                             [g.id for g in current_user.accessible_groups]
                         )
                     )
+                    .filter(Source.active.is_(True))
                 )
             )
             .order_by(desc('created_at'))
