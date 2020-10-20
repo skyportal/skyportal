@@ -152,8 +152,11 @@ class SourceGroupsHandler(BaseHandler):
             .filter(Source.obj_id == obj_id, Source.group_id == group_id)
             .first()
         )
+        previously_active = bool(source.active)
         source.active = active
         source.requested = requested
+        if active and not previously_active:
+            source.saved_by_id = self.associated_user_object.id
         DBSession().commit()
         self.push_all(action="skyportal/FETCH_SOURCES")
         self.push_all(
