@@ -233,14 +233,16 @@ const GroupSourcesTable = ({ sources, title, sourceStatus, groupID }) => {
     const source = sources[dataIndex];
     return (
       <div key={`${source.id}_groups`}>
-        {source.groups.map((group) => (
-          <Chip
-            label={group.name.substring(0, 15)}
-            key={group.id}
-            size="small"
-            className={classes.chip}
-          />
-        ))}
+        {source.groups
+          .filter((group) => group.active)
+          .map((group) => (
+            <Chip
+              label={group.name.substring(0, 15)}
+              key={group.id}
+              size="small"
+              className={classes.chip}
+            />
+          ))}
       </div>
     );
   };
