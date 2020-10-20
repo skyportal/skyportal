@@ -18,8 +18,6 @@ def test_add_new_source_renders_on_group_sources_page(
     classification_token_two_groups,
 ):
 
-    print(super_admin_user_two_groups)
-
     driver.get(f"/become_user/{super_admin_user_two_groups.id}")  # become a super-user
 
     # go to the group sources page
@@ -131,8 +129,6 @@ def test_add_new_source_renders_on_group_sources_page(
 
     # check the classification does show up after a refresh
     driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")
-
-    print(public_group2.id)
 
     status, data = api(
         'POST',

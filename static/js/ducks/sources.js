@@ -1,5 +1,3 @@
-import messageHandler from "baselayer/MessageHandler";
-
 import * as API from "../API";
 import store from "../store";
 
@@ -94,14 +92,5 @@ const reducer = (state = initialState, action) => {
       return state;
   }
 };
-
-// Websocket message handler
-messageHandler.add((actionType, payload, dispatch, getState) => {
-  const { group } = getState();
-
-  if (actionType === FETCH_GROUP_SOURCES) {
-    dispatch(fetchGroupSources({ group_ids: [group.id] }));
-  }
-});
 
 store.injectReducer("sources", reducer);

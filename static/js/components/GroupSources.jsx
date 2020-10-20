@@ -224,7 +224,7 @@ const GroupSources = ({ route }) => {
     return <div key={`${source.id}_ra`}>{source.ra.toFixed(6)}</div>;
   };
 
-  const renderRA_sex = (dataIndex) => {
+  const renderRASex = (dataIndex) => {
     const source = sources[dataIndex];
     return <div key={`${source.id}_ra_sex`}>{ra_to_hours(source.ra)}</div>;
   };
@@ -235,7 +235,7 @@ const GroupSources = ({ route }) => {
     return <div key={`${source.id}_dec`}>{source.dec.toFixed(6)}</div>;
   };
 
-  const renderDec_sex = (dataIndex) => {
+  const renderDecSex = (dataIndex) => {
     const source = sources[dataIndex];
     return <div key={`${source.id}_dec_sex`}>{dec_to_dms(source.dec)}</div>;
   };
@@ -342,7 +342,7 @@ const GroupSources = ({ route }) => {
       options: {
         filter: false,
         display: false,
-        customBodyRenderLite: renderRA_sex,
+        customBodyRenderLite: renderRASex,
       },
     },
     {
@@ -350,7 +350,7 @@ const GroupSources = ({ route }) => {
       options: {
         filter: false,
         display: false,
-        customBodyRenderLite: renderDec_sex,
+        customBodyRenderLite: renderDecSex,
       },
     },
     {
@@ -411,6 +411,7 @@ const GroupSources = ({ route }) => {
     }),
     source.saved_at,
     "", // this last one is for the finder chart
+    // (must have the same number of data points as columns)
   ]);
 
   return (
