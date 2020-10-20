@@ -54,68 +54,6 @@ def allscalar(d):
     return all(np.isscalar(v) or v is None for v in d.values())
 
 
-# https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
-class _photometry_values(FromClause):
-    """Render a postgres VALUES statement (in-memory constant table)."""
-
-    named_with_column = True
-
-    def __init__(self, columns, *args, **kw):
-        self._column_args = columns
-        self.list = args
-        self.alias_name = self.name = kw.pop("alias_name", None)
-
-    def _populate_column_collection(self):
-        for c in self._column_args:
-            c._make_proxy(self)  # noqa
-
-    @property
-    def _from_objects(self):
-        return [self]
-
-
-# https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
-@compiles(_photometry_values)
-def _compile_photometry_values(element, compiler, asfrom=False, **kw):
-    columns = element.columns
-
-    value_types = {
-        'pdidx': 'INTEGER',
-        'obj_id': 'CHARACTER VARYING',
-        'instrument_id': 'INTEGER',
-        'origin': 'CHARACTER VARYING',
-        'mjd': 'DOUBLE PRECISION',
-        'fluxerr': 'DOUBLE PRECISION',
-        'flux': 'DOUBLE PRECISION',
-    }
-
-    def coerced_value(elem, column):
-        literal_value = compiler.render_literal_value(elem, column.type)
-        cast_value = value_types[column.name]
-        return f'{literal_value}::{cast_value}'
-
-    v = "VALUES %s" % ", ".join(
-        "(%s)"
-        % ", ".join(
-            coerced_value(elem, column)
-            if not (isinstance(elem, float) and math.isnan(elem))
-            else "'NaN'::numeric"
-            for elem, column in zip(tup, columns)
-        )
-        for tup in element.list
-    )
-    if asfrom:
-        if element.alias_name:
-            v = "(%s) AS %s (%s)" % (
-                v,
-                element.alias_name,
-                (", ".join(c.name for c in element.columns)),
-            )
-        else:
-            v = "(%s)" % v
-    return v
-
-
 def serialize(phot, outsys, format):
 
     return_value = {
@@ -395,6 +333,66 @@ class PhotometryHandler(BaseHandler):
            The join condition for cross matching the VALUES representation of
            `df` against the Photometry table using the deduplication index.
         """
+
+        # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
+        class _photometry_values(FromClause):
+            """Render a postgres VALUES statement (in-memory constant table)."""
+
+            named_with_column = True
+
+            def __init__(self, columns, *args, **kw):
+                self._column_args = columns
+                self.list = args
+                self.alias_name = self.name = kw.pop("alias_name", None)
+
+            def _populate_column_collection(self):
+                for c in self._column_args:
+                    c._make_proxy(self)  # noqa
+
+            @property
+            def _from_objects(self):
+                return [self]
+
+        # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
+        @compiles(_photometry_values)
+        def _compile_photometry_values(element, compiler, asfrom=False, **kw):
+            columns = element.columns
+
+            value_types = {
+                'pdidx': 'INTEGER',
+                'obj_id': 'CHARACTER VARYING',
+                'instrument_id': 'INTEGER',
+                'origin': 'CHARACTER VARYING',
+                'mjd': 'DOUBLE PRECISION',
+                'fluxerr': 'DOUBLE PRECISION',
+                'flux': 'DOUBLE PRECISION',
+            }
+
+            def coerced_value(elem, column):
+                literal_value = compiler.render_literal_value(elem, column.type)
+                cast_value = value_types[column.name]
+                return f'{literal_value}::{cast_value}'
+
+            v = "VALUES %s" % ", ".join(
+                "(%s)"
+                % ", ".join(
+                    coerced_value(elem, column)
+                    if not (isinstance(elem, float) and math.isnan(elem))
+                    else "'NaN'::numeric"
+                    for elem, column in zip(tup, columns)
+                )
+                for tup in element.list
+            )
+            if asfrom:
+                if element.alias_name:
+                    v = "(%s) AS %s (%s)" % (
+                        v,
+                        element.alias_name,
+                        (", ".join(c.name for c in element.columns)),
+                    )
+                else:
+                    v = "(%s)" % v
+            return v
 
         values_table = _photometry_values(
             (
