@@ -149,3 +149,69 @@ def test_add_new_source_renders_on_group_sources_page(
 
     # make sure the new classification, made to group 2, does NOT show up!
     driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")
+
+
+def test_request_source(
+    driver,
+    super_admin_user_two_groups,
+    public_group,
+    public_group2,
+    upload_data_token_two_groups,
+):
+
+    driver.get(f"/become_user/{super_admin_user_two_groups.id}")  # become a super-user
+
+    # go to the group sources page
+    driver.get(f"/group_sources/{public_group.id}")
+
+    # make sure the group name appears
+    driver.wait_for_xpath(f"//*[text()[contains(., '{public_group.name}')]]")
+
+    obj_id = str(uuid.uuid4())
+
+    # upload a new source, saved to the public group
+    status, data = api(
+        'POST',
+        'sources',
+        data={
+            'id': f'{obj_id}',
+            'ra': 234.22,
+            'dec': -22.33,
+            'redshift': 0.153,
+            'altdata': {'simbad': {'class': 'RRLyr'}},
+            'transient': False,
+            'ra_dis': 2.3,
+            'group_ids': [public_group2.id],
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    assert data['data']['id'] == f'{obj_id}'
+
+    # reload the group sources page
+    driver.get(f"/group_sources/{public_group.id}")
+
+    # there should not be any new sources (the source is in group2)
+    driver.wait_for_xpath("//*[text()[contains(., 'No sources')]]")
+
+    # request this source to be added to group1
+    status, data = api(
+        'POST',
+        'source_groups',
+        data={'objId': f'{obj_id}', 'inviteGroupIds': [public_group.id]},
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+
+    # reload the group sources page
+    driver.get(f"/group_sources/{public_group.id}")
+
+    # make sure the second table appears
+    driver.wait_for_xpath("//*[text()[contains(., 'Requested to save')]]")
+
+    # find the name of the newly added source
+    driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
+
+    # make sure the second table has "save/ignore" buttons
+    driver.wait_for_xpath("//*[text()[contains(., 'Save')]]")
+    driver.wait_for_xpath("//*[text()[contains(., 'Ignore')]]")

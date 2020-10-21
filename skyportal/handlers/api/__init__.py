@@ -26,6 +26,7 @@ from .source import (
     SourceFinderHandler,
     SourceNotificationHandler,
 )
+from .source_groups import SourceGroupsHandler
 from .spectrum import (
     SpectrumHandler,
     ObjSpectraHandler,

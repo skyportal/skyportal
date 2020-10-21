@@ -33,7 +33,7 @@ import FilterCandidateList from "./FilterCandidateList";
 import ScanningPageCandidateAnnotations, {
   getAnnotationValueString,
 } from "./ScanningPageCandidateAnnotations";
-import AddSourceGroup from "./AddSourceGroup";
+import EditSourceGroups from "./EditSourceGroups";
 
 const VegaPlot = React.lazy(() =>
   import(/* webpackChunkName: "VegaPlot" */ "./VegaPlot")
@@ -333,7 +333,7 @@ const CandidateList = () => {
               />
             </div>
             <div className={classes.saveCandidateButton}>
-              <AddSourceGroup
+              <EditSourceGroups
                 source={{
                   id: candidateObj.id,
                   currentGroupIds: candidateObj.saved_groups.map((g) => g.id),

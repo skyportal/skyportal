@@ -7,6 +7,7 @@ import TableRow from "@material-ui/core/TableRow";
 
 import Typography from "@material-ui/core/Typography";
 import IconButton from "@material-ui/core/IconButton";
+import Button from "@material-ui/core/Button";
 import Grid from "@material-ui/core/Grid";
 import Chip from "@material-ui/core/Chip";
 import Link from "@material-ui/core/Link";
@@ -22,12 +23,12 @@ import GroupIcon from "@material-ui/icons/Group";
 import dayjs from "dayjs";
 
 import { ra_to_hours, dec_to_dms } from "../units";
-import * as SourcesAction from "../ducks/sources";
-import * as GroupAction from "../ducks/group";
+import * as sourcesActions from "../ducks/sources";
 import styles from "./CommentList.css";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
+import * as sourceActions from "../ducks/source";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 
@@ -46,10 +47,9 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const GroupSources = ({ route }) => {
+const GroupSourcesTable = ({ sources, title, sourceStatus, groupID }) => {
+  // sourceStatus should be one of either "saved" or "requested"
   const dispatch = useDispatch();
-  const groups = useSelector((state) => state.groups.userAccessible);
-  const sources = useSelector((state) => state.sources.groupSources);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const classes = useStyles();
 
@@ -57,15 +57,8 @@ const GroupSources = ({ route }) => {
   const userColorTheme = useSelector(
     (state) => state.profile.preferences.theme
   );
-
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
-
-  // Load the group sources
-  useEffect(() => {
-    dispatch(GroupAction.fetchGroup(route.id));
-    dispatch(SourcesAction.fetchGroupSources({ group_ids: [route.id] }));
-  }, [route.id, dispatch]);
 
   if (!sources) {
     return (
@@ -75,11 +68,35 @@ const GroupSources = ({ route }) => {
     );
   }
 
-  const group_id = parseInt(route.id, 10);
+  const handleSaveSource = async (sourceID) => {
+    const result = await dispatch(
+      sourceActions.acceptSaveRequest({ sourceID, groupID })
+    );
+    if (result.status === "success") {
+      dispatch(
+        sourcesActions.fetchGroupSources({
+          group_ids: [groupID],
+          includeRequested: true,
+        })
+      );
+    }
+  };
 
-  const groupName = groups.filter((g) => g.id === group_id)[0]?.name || "";
+  const handleIgnoreSource = async (sourceID) => {
+    const result = await dispatch(
+      sourceActions.declineSaveRequest({ sourceID, groupID })
+    );
+    if (result.status === "success") {
+      dispatch(
+        sourcesActions.fetchGroupSources({
+          group_ids: [groupID],
+          includeRequested: true,
+        })
+      );
+    }
+  };
 
-  if (sources.length === 0) {
+  if (sources.length === 0 && sourceStatus === "saved") {
     return (
       <Grid item>
         <div>
@@ -89,11 +106,14 @@ const GroupSources = ({ route }) => {
             color="textSecondary"
             align="center"
           >
-            <b>No sources have been saved to {groupName}</b>
+            <b>No sources have been saved...</b>
           </Typography>
         </div>
       </Grid>
     );
+  }
+  if (sources.length === 0 && sourceStatus === "requested") {
+    return null;
   }
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
@@ -252,7 +272,7 @@ const GroupSources = ({ route }) => {
         <ShowClassification
           classifications={source.classifications.filter((cls) => {
             return cls.groups.find((g) => {
-              return g.id === group_id;
+              return g.id === groupID;
             });
           })}
           taxonomyList={taxonomyList}
@@ -267,17 +287,19 @@ const GroupSources = ({ route }) => {
     const source = sources[dataIndex];
     return (
       <div key={`${source.id}_groups`}>
-        {source.groups.map((group) => (
-          <div key={group.name}>
-            <Chip
-              label={group.name.substring(0, 15)}
-              key={group.id}
-              size="small"
-              className={classes.chip}
-            />
-            <br />
-          </div>
-        ))}
+        {source.groups
+          .filter((group) => group.active)
+          .map((group) => (
+            <div key={group.name}>
+              <Chip
+                label={group.name.substring(0, 15)}
+                key={group.id}
+                size="small"
+                className={classes.chip}
+              />
+              <br />
+            </div>
+          ))}
       </div>
     );
   };
@@ -286,7 +308,7 @@ const GroupSources = ({ route }) => {
     const source = sources[dataIndex];
 
     const group = source.groups.find((g) => {
-      return g.id === group_id;
+      return g.id === groupID;
     });
     return (
       <div key={`${source.id}_date_saved`}>
@@ -304,6 +326,36 @@ const GroupSources = ({ route }) => {
           <PictureAsPdfIcon />
         </Link>
       </IconButton>
+    );
+  };
+
+  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
+  const renderSaveIgnore = (dataIndex) => {
+    const source = sources[dataIndex];
+    return (
+      <>
+        <Button
+          size="small"
+          variant="contained"
+          onClick={() => {
+            handleSaveSource(source.id);
+          }}
+          data-testid={`saveSourceButton_${source.id}`}
+        >
+          Save
+        </Button>
+        &nbsp;
+        <Button
+          size="small"
+          variant="contained"
+          onClick={() => {
+            handleIgnoreSource(source.id);
+          }}
+          data-testid={`declineRequestButton_${source.id}`}
+        >
+          Ignore
+        </Button>
+      </>
     );
   };
 
@@ -397,6 +449,16 @@ const GroupSources = ({ route }) => {
     selectableRows: "none",
   };
 
+  if (sourceStatus === "requested") {
+    columns.push({
+      name: "Save/Decline",
+      options: {
+        filter: false,
+        customBodyRenderLite: renderSaveIgnore,
+      },
+    });
+  }
+
   const data = sources.map((source) => [
     source.id,
     source.alias,
@@ -405,18 +467,14 @@ const GroupSources = ({ route }) => {
     ra_to_hours(source.ra),
     dec_to_dms(source.dec),
     source.redshift,
-    source.latest_class,
     source.groups.map((group) => {
       return group.name;
     }),
-    source.saved_at,
-    "", // this last one is for the finder chart
-    // (must have the same number of data points as columns)
   ]);
 
   return (
     <div className={classes.source}>
-      <div className={classes.flexTable}>
+      <div>
         <Grid
           container
           direction="column"
@@ -424,40 +482,113 @@ const GroupSources = ({ route }) => {
           justify="flex-start"
           spacing={3}
         >
-          <Grid item>
-            <div>
-              <Typography
-                variant="h4"
-                gutterBottom
-                color="textSecondary"
-                align="center"
-              >
-                <b>Sources saved to {groupName}</b>
-              </Typography>
-            </div>
-          </Grid>
           <Grid item className={classes.tableGrid}>
             <MUIDataTable
-              title="Sources"
+              title={title}
               columns={columns}
               data={data}
               options={options}
             />
           </Grid>
-          <Grid item>
-            <div>
-              <Typography
-                variant="h4"
-                gutterBottom
-                color="textSecondary"
-                align="center"
-              >
-                (Refresh page to see updates)
-              </Typography>
-            </div>
-          </Grid>
         </Grid>
       </div>
+    </div>
+  );
+};
+
+GroupSourcesTable.propTypes = {
+  sources: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      ra: PropTypes.number,
+      dec: PropTypes.number,
+      alias: PropTypes.string,
+      redshift: PropTypes.number,
+      classifications: PropTypes.arrayOf(PropTypes.string),
+      recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
+      groups: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          name: PropTypes.string,
+        })
+      ),
+    })
+  ).isRequired,
+  sourceStatus: PropTypes.string.isRequired,
+  groupID: PropTypes.number.isRequired,
+  title: PropTypes.string.isRequired,
+};
+
+const GroupSources = ({ route }) => {
+  const dispatch = useDispatch();
+  const sources = useSelector((state) => state.sources.groupSources);
+  const groups = useSelector((state) => state.groups.userAccessible);
+  const classes = useStyles();
+
+  // Load the group sources
+  useEffect(() => {
+    dispatch(
+      sourcesActions.fetchGroupSources({
+        group_ids: [route.id],
+        includeRequested: true,
+      })
+    );
+  }, [route.id, dispatch]);
+
+  if (!sources) {
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
+  }
+  const groupID = parseInt(route.id, 10);
+
+  const groupName = groups.filter((g) => g.id === groupID)[0]?.name || "";
+
+  if (sources.length === 0) {
+    return (
+      <div className={classes.source}>
+        <Typography variant="h4" gutterBottom align="center">
+          {`${groupName} sources`}
+        </Typography>
+        <br />
+        <Typography align="center">
+          No sources have been saved to this group yet.
+        </Typography>
+      </div>
+    );
+  }
+
+  const savedSources = sources.filter((source) => {
+    const matchingGroup = source.groups.filter((g) => g.id === groupID)[0];
+    return matchingGroup.active;
+  });
+  const pendingSources = sources.filter((source) => {
+    const matchingGroup = source.groups.filter((g) => g.id === groupID)[0];
+    return matchingGroup.requested;
+  });
+
+  return (
+    <div className={classes.source}>
+      <Typography variant="h4" gutterBottom align="center">
+        {`${groupName} sources`}
+      </Typography>
+      <br />
+      <GroupSourcesTable
+        sources={savedSources}
+        title="Saved sources"
+        sourceStatus="saved"
+        groupID={groupID}
+      />
+      <br />
+      <br />
+      <GroupSourcesTable
+        sources={pendingSources}
+        title="Requested to save"
+        sourceStatus="requested"
+        groupID={groupID}
+      />
     </div>
   );
 };
