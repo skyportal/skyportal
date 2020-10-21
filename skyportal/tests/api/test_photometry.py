@@ -46,6 +46,159 @@ def test_token_user_post_get_photometry_data(
     )
 
 
+def test_token_user_post_put_photometry_data(
+    upload_data_token, public_source, public_group, ztf_camera
+):
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'instrument_id': ztf_camera.id,
+            "mjd": [59400, 59401, 59402],
+            "mag": [19.2, 19.3, np.random.uniform(19, 20)],
+            "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
+            "limiting_mag": [20.0, 20.1, 20.2],
+            "magsys": ["ab", "ab", "ab"],
+            "filter": ["ztfr", "ztfg", "ztfr"],
+            "ra": [42.01, 42.01, 42.02],
+            "dec": [42.02, 42.01, 42.03],
+            "origin": [None, "lol", "lol"],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    ids = data["data"]["ids"]
+    assert len(ids) == 3
+
+    # POSTing photometry that contains the same first two points should fail:
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'instrument_id': ztf_camera.id,
+            "mjd": [59400, 59401, 59402],
+            "mag": [19.2, 19.3, np.random.uniform(19, 20)],
+            "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
+            "limiting_mag": [20.0, 20.1, 20.2],
+            "magsys": ["ab", "ab", "ab"],
+            "filter": ["ztfr", "ztfg", "ztfr"],
+            "ra": [42.01, 42.01, 42.02],
+            "dec": [42.02, 42.01, 42.03],
+            "origin": [None, "lol", "lol"],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert data['status'] == 'error'
+
+    # PUTing photometry that contains
+    # the same first point, the second point with a different origin, and a new third point should succeed
+    # only the last two points will be ingested
+    status, data = api(
+        'PUT',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'instrument_id': ztf_camera.id,
+            "mjd": [59400, 59401, 59402],
+            "mag": [19.2, 19.3, np.random.uniform(19, 20)],
+            "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
+            "limiting_mag": [20.0, 20.1, 20.2],
+            "magsys": ["ab", "ab", "ab"],
+            "filter": ["ztfr", "ztfg", "ztfr"],
+            "ra": [42.01, 42.01, 42.02],
+            "dec": [42.02, 42.01, 42.03],
+            "origin": [None, "omg", "lol"],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    new_ids = data["data"]["ids"]
+    assert len(new_ids) == 3
+    assert len(set(new_ids).intersection(set(ids))) == 1
+
+
+def test_token_user_post_put_get_photometry_data(
+    upload_data_token_two_groups, public_source, public_group, public_group2, ztf_camera
+):
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'instrument_id': ztf_camera.id,
+            "mjd": [59400, 59401, 59402],
+            "mag": [19.2, 19.3, np.random.uniform(19, 20)],
+            "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
+            "limiting_mag": [20.0, 20.1, 20.2],
+            "magsys": ["ab", "ab", "ab"],
+            "filter": ["ztfr", "ztfg", "ztfr"],
+            "ra": [42.01, 42.01, 42.02],
+            "dec": [42.02, 42.01, 42.03],
+            "origin": [None, "lol", "lol"],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    ids = data["data"]["ids"]
+    assert len(ids) == 3
+
+    status, data = api(
+        'GET', f'photometry/{ids[0]}?format=flux', token=upload_data_token_two_groups
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    group_ids = [g["id"] for g in data['data']['groups']]
+    assert len(group_ids) == 1
+    assert group_ids[0] == public_group.id
+
+    # PUTing photometry that contains
+    # the same first point, the second point with a different origin, and a new third point should succeed
+    # only the last two points will be ingested
+    status, data = api(
+        'PUT',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'instrument_id': ztf_camera.id,
+            "mjd": [59400, 59401],
+            "mag": [19.2, 19.3],
+            "magerr": [0.05, 0.06],
+            "limiting_mag": [20.0, 20.1],
+            "magsys": ["ab", "ab"],
+            "filter": ["ztfr", "ztfg"],
+            "ra": [42.01, 42.01],
+            "dec": [42.02, 42.01],
+            "origin": [None, "lol"],
+            'group_ids': [public_group.id, public_group2.id],
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    new_ids = data["data"]["ids"]
+    assert len(new_ids) == 2
+    assert len(set(new_ids).intersection(set(ids))) == 2
+
+    status, data = api(
+        'GET', f'photometry/{ids[0]}?format=flux', token=upload_data_token_two_groups
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    group_ids = [g["id"] for g in data['data']['groups']]
+    assert len(group_ids) == 2
+    assert group_ids == [public_group.id, public_group2.id]
+
+
 def test_post_photometry_multiple_groups(
     upload_data_token_two_groups,
     public_source_two_groups,
@@ -790,7 +943,7 @@ def test_token_user_update_photometry(
     np.testing.assert_allclose(data['data']['flux'], 12.24 * 10 ** (-0.4 * (25 - 23.9)))
 
     status, data = api(
-        'PUT',
+        'PATCH',
         f'photometry/{photometry_id}',
         data={
             'obj_id': str(public_source.id),
@@ -853,7 +1006,7 @@ def test_token_user_update_photometry_groups(
     assert data['status'] == 'success'
 
     status, data = api(
-        'PUT',
+        'PATCH',
         f'photometry/{photometry_id}',
         data={
             'obj_id': str(public_source.id),

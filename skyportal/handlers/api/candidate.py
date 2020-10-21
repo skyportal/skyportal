@@ -14,7 +14,6 @@ from ...models import (
     Obj,
     Candidate,
     Photometry,
-    Instrument,
     Source,
     Filter,
     Annotation,
@@ -39,6 +38,40 @@ def update_redshift_history_if_relevant(request_data, obj, user):
 
 
 class CandidateHandler(BaseHandler):
+    @auth_or_token
+    def head(self, obj_id=None):
+        """
+        ---
+        single:
+          description: Check if a Candidate exists
+          parameters:
+            - in: path
+              name: obj_id
+              required: true
+              schema:
+                type: string
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: Success
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+        user_group_ids = [g.id for g in self.associated_user_object.accessible_groups]
+        num_c = (
+            DBSession()
+            .query(Candidate)
+            .join(Filter)
+            .filter(Candidate.obj_id == obj_id, Filter.group_id.in_(user_group_ids))
+            .count()
+        )
+        if num_c == 0:
+            return self.error()
+        return self.success()
+
     @auth_or_token
     def get(self, obj_id=None):
         """
@@ -152,6 +185,14 @@ class CandidateHandler(BaseHandler):
             description: |
               The sort order for annotations - either "asc" or "desc".
               Defaults to "asc".
+          - in: query
+            name: includePhotometry
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include associated photometry. Defaults to
+              false.
           responses:
             200:
               content:
@@ -189,21 +230,37 @@ class CandidateHandler(BaseHandler):
                   schema: Error
         """
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
+        include_photometry = self.get_query_argument("includePhotometry", False)
 
         if obj_id is not None:
-            c = Candidate.get_obj_if_owned_by(
-                obj_id,
-                self.current_user,
-                options=[
-                    joinedload(Candidate.obj).joinedload(Obj.thumbnails),
+            query_options = [joinedload(Candidate.obj).joinedload(Obj.thumbnails)]
+            if include_photometry:
+                query_options.append(
                     joinedload(Candidate.obj)
                     .joinedload(Obj.photometry)
-                    .joinedload(Photometry.instrument),
-                ],
+                    .joinedload(Photometry.instrument)
+                )
+            c = Candidate.get_obj_if_owned_by(
+                obj_id, self.current_user, options=query_options,
             )
             if c is None:
                 return self.error("Invalid ID")
+            accessible_candidates = (
+                DBSession()
+                .query(Candidate)
+                .join(Filter)
+                .filter(
+                    Candidate.obj_id == obj_id,
+                    Filter.group_id.in_(
+                        [g.id for g in self.current_user.accessible_groups]
+                    ),
+                )
+                .all()
+            )
+            filter_ids = [cand.filter_id for cand in accessible_candidates]
+
             candidate_info = c.to_dict()
+            candidate_info["filter_ids"] = filter_ids
             candidate_info["comments"] = sorted(
                 [cmt.to_dict() for cmt in c.get_comments_owned_by(self.current_user)],
                 key=lambda x: x["created_at"],
@@ -212,6 +269,9 @@ class CandidateHandler(BaseHandler):
             for comment in candidate_info["comments"]:
                 comment["author"] = comment["author"].to_dict()
                 del comment["author"]["preferences"]
+            candidate_info["annotations"] = sorted(
+                c.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
+            )
             candidate_info["is_source"] = len(c.sources) > 0
             if candidate_info["is_source"]:
                 candidate_info["saved_groups"] = (
@@ -349,7 +409,13 @@ class CandidateHandler(BaseHandler):
             ]
         try:
             query_results = grab_query_results_page(
-                q, total_matches, page, n_per_page, "candidates", order_by=order_by
+                q,
+                total_matches,
+                page,
+                n_per_page,
+                "candidates",
+                order_by=order_by,
+                include_photometry=include_photometry,
             )
         except ValueError as e:
             if "Page number out of range" in str(e):
@@ -565,7 +631,13 @@ class CandidateHandler(BaseHandler):
 
 
 def grab_query_results_page(
-    q, total_matches, page, n_items_per_page, items_name, order_by=None
+    q,
+    total_matches,
+    page,
+    n_items_per_page,
+    items_name,
+    order_by=None,
+    include_photometry=False,
 ):
     # The query will return multiple rows per candidate object if it has multiple
     # annotations associated with it, with rows appearing at the end of the query
@@ -636,17 +708,13 @@ def grab_query_results_page(
         ordered_ids.limit(n_items_per_page).offset((page - 1) * n_items_per_page).all()
     )
     items = []
-    for item_id in page_ids:
-        items.append(
-            Obj.query.options(
-                [
-                    joinedload(Obj.thumbnails),
-                    joinedload(Obj.photometry)
-                    .joinedload(Photometry.instrument)
-                    .joinedload(Instrument.telescope),
-                ]
-            ).get(item_id)
+    query_options = [joinedload(Obj.thumbnails)]
+    if include_photometry:
+        query_options.append(
+            joinedload(Obj.photometry).joinedload(Photometry.instrument)
         )
+    for item_id in page_ids:
+        items.append(Obj.query.options(query_options).get(item_id))
     info[items_name] = items
     info["pageNumber"] = page
     info["lastPage"] = info["totalMatches"] <= page * n_items_per_page

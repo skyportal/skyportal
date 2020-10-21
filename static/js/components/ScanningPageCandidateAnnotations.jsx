@@ -47,7 +47,7 @@ export const getAnnotationValueString = (value) => {
   }
   return valueString;
 };
-const CandidateAnnotationsList = ({ annotations }) => {
+const ScanningPageCandidateAnnotations = ({ annotations }) => {
   const classes = useStyles();
 
   const dispatch = useDispatch();
@@ -132,7 +132,7 @@ const CandidateAnnotationsList = ({ annotations }) => {
   );
 };
 
-CandidateAnnotationsList.propTypes = {
+ScanningPageCandidateAnnotations.propTypes = {
   annotations: PropTypes.arrayOf(
     PropTypes.shape({
       origin: PropTypes.string.isRequired,
@@ -141,4 +141,4 @@ CandidateAnnotationsList.propTypes = {
   ).isRequired,
 };
 
-export default CandidateAnnotationsList;
+export default ScanningPageCandidateAnnotations;

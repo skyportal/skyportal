@@ -1,7 +1,7 @@
+import uuid
 import pytest
 import numpy.testing as npt
 import numpy as np
-import uuid
 from skyportal.tests import api
 from skyportal.models import cosmo
 
@@ -12,12 +12,35 @@ def test_source_list(view_only_token):
     assert data['status'] == 'success'
 
 
+def test_source_existence(view_only_token, public_source):
+    status = api('HEAD', f'sources/{public_source.id}', token=view_only_token)
+    assert status == 200
+
+    status = api('HEAD', f'sources/{public_source.id[:-1]}', token=view_only_token)
+    assert status == 400
+
+
 def test_token_user_retrieving_source(view_only_token, public_source):
     status, data = api('GET', f'sources/{public_source.id}', token=view_only_token)
     assert status == 200
     assert data['status'] == 'success'
     assert all(
         k in data['data'] for k in ['ra', 'dec', 'redshift', 'dm', 'created_at', 'id']
+    )
+    assert "photometry" not in data['data']
+
+
+def test_token_user_retrieving_source_with_phot(view_only_token, public_source):
+    status, data = api(
+        'GET',
+        f'sources/{public_source.id}?includePhotometry=true',
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert all(
+        k in data['data']
+        for k in ['ra', 'dec', 'redshift', 'dm', 'created_at', 'id', 'photometry']
     )
 
 

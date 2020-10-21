@@ -30,10 +30,10 @@ import * as candidatesActions from "../ducks/candidates";
 import ThumbnailList from "./ThumbnailList";
 import SaveCandidateButton from "./SaveCandidateButton";
 import FilterCandidateList from "./FilterCandidateList";
-import CandidateAnnotationsList, {
+import ScanningPageCandidateAnnotations, {
   getAnnotationValueString,
-} from "./CandidateAnnotationsList";
-import AddSourceGroup from "./AddSourceGroup";
+} from "./ScanningPageCandidateAnnotations";
+import EditSourceGroups from "./EditSourceGroups";
 import { ra_to_hours, dec_to_dms } from "../units";
 
 const VegaPlot = React.lazy(() =>
@@ -106,7 +106,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-// Hide built-in pagination and tweak responsive column widths
+// Tweak responsive column widths
 const getMuiTheme = (theme) =>
   createMuiTheme({
     overrides: {
@@ -348,7 +348,7 @@ const CandidateList = () => {
               />
             </div>
             <div className={classes.saveCandidateButton}>
-              <AddSourceGroup
+              <EditSourceGroups
                 source={{
                   id: candidateObj.id,
                   currentGroupIds: candidateObj.saved_groups.map((g) => g.id),
@@ -453,7 +453,9 @@ const CandidateList = () => {
     return (
       <div className={classes.annotations}>
         {candidateObj.annotations && (
-          <CandidateAnnotationsList annotations={candidateObj.annotations} />
+          <ScanningPageCandidateAnnotations
+            annotations={candidateObj.annotations}
+          />
         )}
       </div>
     );

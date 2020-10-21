@@ -27,9 +27,10 @@ import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
 import SourceNotification from "./SourceNotification";
-import AddSourceGroup from "./AddSourceGroup";
+import EditSourceGroups from "./EditSourceGroups";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
+import ObjPageAnnotations from "./ObjPageAnnotations";
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -201,7 +202,7 @@ const SourceDesktop = ({ source }) => {
               data-testid={`groupChip_${group.id}`}
             />
           ))}
-          <AddSourceGroup
+          <EditSourceGroups
             source={{
               id: source.id,
               currentGroupIds: source.groups.map((g) => g.id),
@@ -326,6 +327,22 @@ const SourceDesktop = ({ source }) => {
 
       <div className={classes.rightColumn}>
         <div className={classes.columnItem}>
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="annotations-content"
+              id="annotations-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Auto-annotations
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <ObjPageAnnotations annotations={source.annotations} />
+            </AccordionDetails>
+          </Accordion>
+        </div>
+        <div className={classes.columnItem}>
           <Accordion defaultExpanded className={classes.comments}>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
@@ -420,6 +437,12 @@ SourceDesktop.propTypes = {
     gal_lat: PropTypes.number,
     dm: PropTypes.number,
     luminosity_distance: PropTypes.number,
+    annotations: PropTypes.arrayOf(
+      PropTypes.shape({
+        origin: PropTypes.string.isRequired,
+        data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+      })
+    ),
     classifications: PropTypes.arrayOf(
       PropTypes.shape({
         author_name: PropTypes.string,
