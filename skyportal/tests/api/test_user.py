@@ -150,7 +150,7 @@ def test_add_modify_user_adds_modifies_single_user_group(
         "GET", "groups?includeSingleUserGroups=true", token=manage_groups_token
     )
     assert data["status"] == "success"
-    assert not any(
+    assert any(
         [
             group["single_user_group"] and group["name"] == new_username
             for group in data["data"]["all_groups"]

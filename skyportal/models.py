@@ -2662,12 +2662,15 @@ def delete_single_user_group(mapper, connection, target):
     DBSession().delete(target.single_user_group)
 
 
-@event.listens_for(User.username, 'modified')
-def update_single_user_group(target, initiator):
-    # Update single user group name if needed
-    single_user_group = target.single_user_group
-    single_user_group.name = slugify(target.username)
-    DBSession().add(single_user_group)
+@event.listens_for(User, 'after_update')
+def update_single_user_group(mapper, connection, target):
+    @event.listens_for(DBSession(), "after_flush_postexec", once=True)
+    def receive_after_flush(session, context):
+
+        # Update single user group name if needed
+        single_user_group = target.single_user_group
+        single_user_group.name = slugify(target.username)
+        DBSession().add(single_user_group)
 
 
 schema.setup_schema()
