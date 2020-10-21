@@ -23,7 +23,6 @@ class FunctionColumn(ColumnClause):
     def __init__(self, function, name, type_=None):
         self.function = self.table = function
         self.name = self.key = name
-        self.key = self.name
         self.type_ = type_
         self.is_literal = False
 
@@ -34,7 +33,6 @@ class FunctionColumn(ColumnClause):
     def _make_proxy(
         self, selectable, name=None, attach=True, name_is_truncatable=False, **kw
     ):
-        print('_make_proxy')
         if self.name == self.function.name:
             name = selectable.name
         else:
@@ -99,9 +97,12 @@ class AnnotationsInfoHandler(BaseHandler):
                   allOf:
                     - $ref: '#/components/schemas/Success'
                     - type: object
-                      description: |
-                        An object in which each key is an annotation origin, and
-                        the values are arrays of { key: value_type } objects
+                      properties:
+                        data:
+                          type: object
+                            description: |
+                                An object in which each key is an annotation origin, and
+                                the values are arrays of { key: value_type } objects
         """
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
@@ -111,7 +112,15 @@ class AnnotationsInfoHandler(BaseHandler):
             if g.filters is not None
         ]
 
-        annotations = jsonb_each_func(Annotation.data)
+        # This query gets the origin/keys present in the accessible annotaions
+        # for an Obj, as well as the data type for the values for each key.
+        # This information is used to generate the front-end form for selecting
+        # filters to apply on the auto-annotations column on the scanning page.
+        # For example, if given that an annotation field is numeric we should
+        # have min/max fields on the form.
+        annotations = jsonb_each_func(
+            Annotation.data
+        )  # Get each key/value tuple in annotations
         q = (
             DBSession()
             .query(Annotation.origin)
@@ -131,6 +140,8 @@ class AnnotationsInfoHandler(BaseHandler):
             .filter(GroupAnnotation.group_id.in_(user_accessible_group_ids))
         )
 
+        # Restructure query results so that records are grouped by origin in a
+        # nice, nested dictionary
         results = q.all()
         grouped = defaultdict(list)
         keys_seen = defaultdict(set)

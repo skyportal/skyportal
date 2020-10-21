@@ -1,5 +1,7 @@
 import datetime
 from copy import copy
+import re
+import json
 
 import arrow
 
@@ -196,9 +198,9 @@ class CandidateHandler(BaseHandler):
             explode: false
             style: simple
             description: |
-              Comma-separated string of annotation filter strings formatted as
-              "{origin}:{key}:{value}" for non-numeric fields or
-              "{origin}:{key}:{min}:{max}" for numeric fields
+              Comma-separated string of JSON objects representing annotation filters.
+              Filter objects are expected to have keys { origin, key, value } for
+              non-numeric value types, or { origin, key, min, max } for numeric values.
           - in: query
             name: includePhotometry
             nullable: true
@@ -401,17 +403,27 @@ class CandidateHandler(BaseHandler):
         if annotation_filter_list is not None:
             # Parse annotation filter list objects from the query string
             # and apply the filters to the query
-            print(annotation_filter_list)
-            for item in annotation_filter_list.split(","):
-                tokens = item.split(":")
-                new_filter = {"origin": tokens[0], "key": tokens[1]}
-                if len(tokens) < 3:
+
+            for item in re.split(r",(?={)", annotation_filter_list):
+                try:
+                    new_filter = json.loads(item)
+                except json.decoder.JSONDecodeError:
                     return self.error(
-                        f"Invalid annotation filter list item: {item}. Not enough colon-separated tokens - should have at least 3 for origin:key:value."
+                        "Could not parse JSON objects for annotation filtering"
+                    )
+                print(new_filter)
+                if "origin" not in new_filter:
+                    self.error(
+                        f"Invalid annotation filter list item {item}: \"origin\" is required."
                     )
 
-                if len(tokens) == 3:
-                    value = tokens[2]
+                if "key" not in new_filter:
+                    self.error(
+                        f"Invalid annotation filter list item {item}: \"key\" is required."
+                    )
+
+                if "value" in new_filter:
+                    value = new_filter["value"]
                     # Support True/False and true/false convention
                     if value in ["True", "False"]:
                         value = value.lower()
@@ -419,10 +431,10 @@ class CandidateHandler(BaseHandler):
                         Annotation.origin == new_filter["origin"],
                         Annotation.data[new_filter["key"]].astext == value,
                     )
-                elif len(tokens) == 4:
+                elif "min" in new_filter and "max" in new_filter:
                     try:
-                        min_value = float(tokens[2])
-                        max_value = float(tokens[3])
+                        min_value = float(new_filter["min"])
+                        max_value = float(new_filter["max"])
                         q = q.filter(
                             Annotation.origin == new_filter["origin"],
                             Annotation.data[new_filter["key"]].cast(Float) >= min_value,
@@ -434,7 +446,7 @@ class CandidateHandler(BaseHandler):
                         )
                 else:
                     return self.error(
-                        f"Invalid annotation filter list item: {item}. Too many colon-separated tokens - should have at most 4 for origin:key:min:max."
+                        f"Invalid annotation filter list item: {item}. Should have either \"value\" or \"min\" and \"max\""
                     )
 
         if sort_by_origin is not None:

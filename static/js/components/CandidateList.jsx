@@ -341,14 +341,6 @@ const CandidateList = () => {
       : `${annotationObj.key} (${annotationObj.origin}): ${annotationObj.min} - ${annotationObj.max}`;
   };
 
-  const filterAnnotationObjToQueryString = (annotationObj) => {
-    // Convert an object representing an annotation filter to a formatted string
-    // to be sent as the API query params
-    return "value" in annotationObj
-      ? `${annotationObj.origin}:${annotationObj.key}:${annotationObj.value}`
-      : `${annotationObj.origin}:${annotationObj.key}:${annotationObj.min}:${annotationObj.max}`;
-  };
-
   const handleFilterSubmit = async (filterListQueryString) => {
     setQueryInProgress(true);
 
@@ -379,7 +371,7 @@ const CandidateList = () => {
 
   const handleFilterAdd = ({ formData }) => {
     const filterListChip = filterAnnotationObjToChip(formData);
-    const filterListQueryItem = filterAnnotationObjToQueryString(formData);
+    const filterListQueryItem = JSON.stringify(formData);
 
     setTableFilterList(tableFilterList.concat([filterListChip]));
     const newFilterListQueryStrings = filterListQueryStrings.concat([
@@ -623,7 +615,7 @@ const CandidateList = () => {
       setTableFilterList(annotationsFilterList);
       const newFilterListQueryStrings = annotationsFilterList.map((chip) => {
         const annotationObject = filterChipToAnnotationObj(chip);
-        return filterAnnotationObjToQueryString(annotationObject);
+        return JSON.stringify(annotationObject);
       });
       setFilterListQueryStrings(newFilterListQueryStrings);
 

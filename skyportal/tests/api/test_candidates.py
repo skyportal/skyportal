@@ -324,7 +324,7 @@ def test_candidate_list_filtering_numeric(
     # is returned
     status, data = api(
         "GET",
-        f"candidates/?annotationFilterList={origin}:numeric_field:0:1.5",
+        f'candidates/?annotationFilterList={{"origin":"{origin}","key":"numeric_field","min":0, "max":1.5}}',
         token=view_only_token,
     )
     assert status == 200
@@ -364,7 +364,7 @@ def test_candidate_list_filtering_boolean(
     # is returned
     status, data = api(
         "GET",
-        f"candidates/?annotationFilterList={origin}:bool_field:True",
+        f'candidates/?annotationFilterList={{"origin":"{origin}","key":"bool_field","value":"true"}}',
         token=view_only_token,
     )
     assert status == 200
@@ -404,7 +404,7 @@ def test_candidate_list_filtering_string(
     # is returned
     status, data = api(
         "GET",
-        f"candidates/?annotationFilterList={origin}:string_field:a",
+        f'candidates/?annotationFilterList={{"origin":"{origin}","key":"string_field","value":"a"}}',
         token=view_only_token,
     )
     assert status == 200
