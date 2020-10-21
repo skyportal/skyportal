@@ -222,7 +222,7 @@ const SourceMobile = ({ source }) => {
               {showStarList && <StarList sourceId={source.id} />}
               {source.groups.map((group) => (
                 <Tooltip
-                  title={`Saved at ${group.saved_at} by ${group.saved_by.username}`}
+                  title={`Saved at ${group.saved_at} by ${group.saved_by?.username}`}
                   key={group.id}
                 >
                   <Chip

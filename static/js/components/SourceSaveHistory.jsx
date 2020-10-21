@@ -73,7 +73,7 @@ const SourceSaveHistory = ({ groups }) => {
                 sortedHistory.map((historyItem) => (
                   <TableRow key={historyItem.saved_at}>
                     <TableCell>{historyItem.name}</TableCell>
-                    <TableCell>{historyItem.saved_by.username}</TableCell>
+                    <TableCell>{historyItem.saved_by?.username}</TableCell>
                     <TableCell>{historyItem.saved_at}</TableCell>
                   </TableRow>
                 ))}
