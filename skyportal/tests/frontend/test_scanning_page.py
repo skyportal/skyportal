@@ -354,7 +354,7 @@ def test_submit_annotations_sorting(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 def test_submit_annotations_filtering(
     driver,
     view_only_user,
