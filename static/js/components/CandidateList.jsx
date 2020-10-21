@@ -84,6 +84,8 @@ const useStyles = makeStyles((theme) => ({
   }),
   annotations: (props) => ({
     minWidth: props.annotationsMinWidth,
+    maxWidth: props.annotationsMaxWidth,
+    overflowWrap: "break-word",
   }),
   sortButtton: {
     verticalAlign: "top",
@@ -233,11 +235,13 @@ const CandidateList = () => {
   const infoMinWidth = largeScreen ? "7rem" : 0;
   const infoMaxWidth = "14rem";
   const annotationsMinWidth = largeScreen ? "10rem" : 0;
+  const annotationsMaxWidth = "25rem";
   const classes = useStyles({
     thumbnailsMinWidth,
     infoMinWidth,
     infoMaxWidth,
     annotationsMinWidth,
+    annotationsMaxWidth,
   });
   const theme = useTheme();
   const {
