@@ -722,6 +722,11 @@ def spectroscopy_plot(obj_id, spec_id=None):
         # normalize spectra to a common total flux (facilitates easy visual comparison)
         normfac = np.sum(np.gradient(s.wavelengths) * s.fluxes)
 
+        if not (np.isfinite(normfac) and normfac > 0):
+            # otherwise normalize the value at 6000A to 2e-4
+            minimum_wave_index = np.argmin(np.abs(s.wavelengths - 6000.0))
+            normfac = s.fluxes[minimum_wave_index] / 2.0e-4
+
         df = pd.DataFrame(
             {
                 'wavelength': s.wavelengths,
