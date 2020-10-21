@@ -86,7 +86,15 @@ const SourceSaveHistory = ({ groups }) => {
 };
 
 SourceSaveHistory.propTypes = {
-  groups: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
+  groups: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string,
+      saved_at: PropTypes.string,
+      saved_by: PropTypes.shape({
+        username: PropTypes.string,
+      }),
+    })
+  ).isRequired,
 };
 
 export default SourceSaveHistory;
