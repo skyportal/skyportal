@@ -147,8 +147,7 @@ def setup_schema():
                 schema_class_name, exclude=['created_at', 'modified'], add_to_model=True
             )
             add_schema(
-                f'{schema_class_name}NoID',
-                exclude=['created_at', 'id', 'modified', 'single_user_group'],
+                f'{schema_class_name}NoID', exclude=['created_at', 'id', 'modified'],
             )
 
 

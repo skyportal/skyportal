@@ -1,7 +1,7 @@
 import phonenumbers
 from phonenumbers.phonenumberutil import NumberParseException
 from validate_email import validate_email
-from slugify import slugify
+
 
 from ..base import BaseHandler
 from baselayer.app.access import permissions, auth_or_token
@@ -42,11 +42,6 @@ def add_user_and_setup_groups(
         if group.streams:
             for stream in group.streams:
                 DBSession().add(StreamUser(user_id=user.id, stream_id=stream.id))
-
-    # Create single-user group
-    DBSession().add(
-        Group(name=slugify(user.username), users=[user], single_user_group=True)
-    )
 
     # Add user to sitewide public group
     public_group = Group.query.filter(
@@ -248,8 +243,5 @@ class UserHandler(BaseHandler):
         """
         user = User.query.get(user_id)
         DBSession().delete(user)
-        single_user_group = Group.query.filter(Group.name == user.username).first()
-        if single_user_group is not None:
-            DBSession().delete(single_user_group)
         DBSession().commit()
         return self.success()
