@@ -17,7 +17,6 @@ from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
-from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -2663,13 +2662,12 @@ def delete_single_user_group(mapper, connection, target):
     DBSession().delete(target.single_user_group)
 
 
-@event.listens_for(User, 'after_update')
-def update_single_user_group(mapper, connection, target):
+@event.listens_for(User.username, 'modified')
+def update_single_user_group(target, initiator):
     # Update single user group name if needed
-
-    @event.listens_for(DBSession(), "after_flush", once=True)
-    def receive_after_flush(session, context):
-        set_committed_value(target.single_user_group, 'name', slugify(target.username))
+    single_user_group = target.single_user_group
+    single_user_group.name = slugify(target.username)
+    DBSession().add(single_user_group)
 
 
 schema.setup_schema()
