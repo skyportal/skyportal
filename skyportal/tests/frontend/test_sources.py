@@ -173,6 +173,7 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     comment_box = driver.wait_for_xpath("//input[@name='text']")
+    driver.scroll_to_element(comment_box)
     comment_text = str(uuid.uuid4())
     comment_box.send_keys(comment_text)
     attachment_file = driver.find_element_by_css_selector('input[type=file]')
@@ -188,7 +189,17 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     comment_div = comment_text_div.find_element_by_xpath("..")
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
-    driver.click_xpath('//a[text()="spec.csv"]')
+
+    # Scroll up to top of comments list
+    comments = driver.wait_for_xpath("//p[text()='Comments']")
+    driver.scroll_to_element(comments)
+    attachment_button = driver.wait_for_xpath(
+        '//button[@data-testid="attachmentButton_spec"]'
+    )
+    ActionChains(driver).move_to_element(attachment_button).pause(0.1).click().perform()
+    # Preview dialog
+    driver.click_xpath('//button[@data-testid="attachmentDownloadButton_spec"]')
+
     fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'spec.csv')))
     try_count = 1
     while not os.path.exists(fpath) and try_count <= 3:

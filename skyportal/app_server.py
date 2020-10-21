@@ -97,6 +97,9 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/classification(/[0-9]+)?', ClassificationHandler),
         (r'/api/comment(/[0-9]+)?', CommentHandler),
         (r'/api/comment(/[0-9]+)/attachment', CommentAttachmentHandler),
+        # Allow the '.pdf' suffix for the attachment route, as the react-file-previewer
+        # package expects URLs ending with '.pdf' to load PDF files.
+        (r'/api/comment(/[0-9]+)/attachment.pdf', CommentAttachmentHandler),
         (r'/api/annotation(/[0-9]+)?', AnnotationHandler),
         (r'/api/facility', FacilityMessageHandler),
         (r'/api/filters(/.*)?', FilterHandler),
