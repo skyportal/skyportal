@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { makeStyles } from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
+import Tooltip from "@material-ui/core/Tooltip";
 import Accordion from "@material-ui/core/Accordion";
 import AccordionSummary from "@material-ui/core/AccordionSummary";
 import AccordionDetails from "@material-ui/core/AccordionDetails";
@@ -31,6 +32,7 @@ import EditSourceGroups from "./EditSourceGroups";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import ObjPageAnnotations from "./ObjPageAnnotations";
+import SourceSaveHistory from "./SourceSaveHistory";
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -190,17 +192,21 @@ const SourceDesktop = ({ source }) => {
           <br />
           {showStarList && <StarList sourceId={source.id} />}
           {source.groups.map((group) => (
-            <Chip
-              label={
-                group.nickname
-                  ? group.nickname.substring(0, 15)
-                  : group.name.substring(0, 15)
-              }
+            <Tooltip
+              title={`Saved at ${group.saved_at} by ${group.saved_by?.username}`}
               key={group.id}
-              size="small"
-              className={classes.chip}
-              data-testid={`groupChip_${group.id}`}
-            />
+            >
+              <Chip
+                label={
+                  group.nickname
+                    ? group.nickname.substring(0, 15)
+                    : group.name.substring(0, 15)
+                }
+                size="small"
+                className={classes.chip}
+                data-testid={`groupChip_${group.id}`}
+              />
+            </Tooltip>
           ))}
           <EditSourceGroups
             source={{
@@ -210,6 +216,7 @@ const SourceDesktop = ({ source }) => {
             userGroups={userAccessibleGroups}
             icon
           />
+          <SourceSaveHistory groups={source.groups} />
         </div>
         <div className={classes.columnItem}>
           <ThumbnailList

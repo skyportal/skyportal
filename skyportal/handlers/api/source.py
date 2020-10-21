@@ -362,6 +362,12 @@ class SourceHandler(BaseHandler):
                 ).first()
                 group["active"] = source_table_row.active
                 group["requested"] = source_table_row.requested
+                group["saved_at"] = source_table_row.saved_at
+                group["saved_by"] = (
+                    source_table_row.saved_by.to_dict()
+                    if source_table_row.saved_by is not None
+                    else None
+                )
 
             return self.success(data=source_info)
 
@@ -469,6 +475,11 @@ class SourceHandler(BaseHandler):
                 "angular_diameter_distance"
             ] = source.angular_diameter_distance
 
+            source_filter_condition = (
+                or_(Source.requested.is_(True), Source.active.is_(True))
+                if include_requested
+                else Source.active.is_(True)
+            )
             source_list[-1]["groups"] = [
                 g.to_dict()
                 for g in (
@@ -477,6 +488,7 @@ class SourceHandler(BaseHandler):
                     .join(Source)
                     .filter(
                         Source.obj_id == source_list[-1]["id"],
+                        source_filter_condition,
                         Group.id.in_(user_accessible_group_ids),
                     )
                     .all()
@@ -488,6 +500,12 @@ class SourceHandler(BaseHandler):
                 ).first()
                 group["active"] = source_table_row.active
                 group["requested"] = source_table_row.requested
+                group["saved_at"] = source_table_row.saved_at
+                group["saved_by"] = (
+                    source_table_row.saved_by.to_dict()
+                    if source_table_row.saved_by is not None
+                    else None
+                )
 
         query_results["sources"] = source_list
 
