@@ -5,6 +5,7 @@ import arrow
 
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import case, func
+from sqlalchemy.types import Float
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
@@ -186,6 +187,19 @@ class CandidateHandler(BaseHandler):
               The sort order for annotations - either "asc" or "desc".
               Defaults to "asc".
           - in: query
+            name: annotationFilterList
+            nullable: true
+            schema:
+              type: array
+              items:
+                type: string
+            explode: false
+            style: simple
+            description: |
+              Comma-separated string of annotation filter strings formatted as
+              "{origin}:{key}:{value}" for non-numeric fields or
+              "{origin}:{key}:{min}:{max}" for numeric fields
+          - in: query
             name: includePhotometry
             nullable: true
             schema:
@@ -300,6 +314,7 @@ class CandidateHandler(BaseHandler):
         group_ids = self.get_query_argument("groupIDs", None)
         filter_ids = self.get_query_argument("filterIDs", None)
         sort_by_origin = self.get_query_argument("sortByAnnotationOrigin", None)
+        annotation_filter_list = self.get_query_argument("annotationFilterList", None)
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
             filtr.id
@@ -383,6 +398,45 @@ class CandidateHandler(BaseHandler):
         if end_date is not None and end_date.strip() not in ["", "null", "undefined"]:
             end_date = arrow.get(end_date).datetime
             q = q.filter(Obj.last_detected <= end_date)
+        if annotation_filter_list is not None:
+            # Parse annotation filter list objects from the query string
+            # and apply the filters to the query
+            print(annotation_filter_list)
+            for item in annotation_filter_list.split(","):
+                tokens = item.split(":")
+                new_filter = {"origin": tokens[0], "key": tokens[1]}
+                if len(tokens) < 3:
+                    return self.error(
+                        f"Invalid annotation filter list item: {item}. Not enough colon-separated tokens - should have at least 3 for origin:key:value."
+                    )
+
+                if len(tokens) == 3:
+                    value = tokens[2]
+                    # Support True/False and true/false convention
+                    if value in ["True", "False"]:
+                        value = value.lower()
+                    q = q.filter(
+                        Annotation.origin == new_filter["origin"],
+                        Annotation.data[new_filter["key"]].astext == value,
+                    )
+                elif len(tokens) == 4:
+                    try:
+                        min_value = float(tokens[2])
+                        max_value = float(tokens[3])
+                        q = q.filter(
+                            Annotation.origin == new_filter["origin"],
+                            Annotation.data[new_filter["key"]].cast(Float) >= min_value,
+                            Annotation.data[new_filter["key"]].cast(Float) <= max_value,
+                        )
+                    except ValueError:
+                        return self.error(
+                            f"Invalid annotation filter list item: {item}. The min/max provided is not a valid number."
+                        )
+                else:
+                    return self.error(
+                        f"Invalid annotation filter list item: {item}. Too many colon-separated tokens - should have at most 4 for origin:key:min:max."
+                    )
+
         if sort_by_origin is not None:
             sort_by_key = self.get_query_argument("sortByAnnotationKey", None)
             sort_by_order = self.get_query_argument("sortByAnnotationOrder", None)

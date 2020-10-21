@@ -352,3 +352,61 @@ def test_submit_annotations_sorting(
     driver.wait_for_xpath(
         f'//td[contains(@data-testid, "MuiDataTableBodyCell-1-1")][.//span[text()="2.0000"]]'
     )
+
+
+# @pytest.mark.flaky(reruns=2)
+def test_submit_annotations_filtering(
+    driver,
+    view_only_user,
+    public_group,
+    public_candidate,
+    public_candidate2,
+    annotation_token,
+):
+    origin = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "annotation",
+        data={
+            "obj_id": public_candidate.id,
+            "origin": origin,
+            "data": {"numeric_field": 1},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "annotation",
+        data={
+            "obj_id": public_candidate2.id,
+            "origin": origin,
+            "data": {"numeric_field": 2},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{view_only_user.id}")
+    driver.get("/candidates")
+    driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
+
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    # Filter by numeric_field < 1.5
+    driver.click_xpath("//div[@id='root_origin']")
+    driver.click_xpath(f'//li[@data-value="{origin}"]')
+    driver.click_xpath("//div[@id='root_key']")
+    driver.click_xpath("//li[@data-value='numeric_field']")
+    min_box = driver.wait_for_xpath("//input[@id='root_min']")
+    min_text = "0"
+    min_box.send_keys(min_text)
+    max_box = driver.wait_for_xpath("//input[@id='root_max']")
+    max_text = "1.5"
+    max_box.send_keys(max_text)
+    driver.click_xpath("//span[text()='Submit']")
+
+    # Check that results come back as expected
+    # The first candidate should exist
+    driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
+    # The second candidate should not exist
+    driver.wait_for_xpath_to_disappear(f'//a[text()="{public_candidate2.id}"]')

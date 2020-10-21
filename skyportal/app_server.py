@@ -60,6 +60,7 @@ from skyportal.handlers.api.internal import (
     LogHandler,
     RecentSourcesHandler,
     PlotAirmassHandler,
+    AnnotationsInfoHandler,
 )
 
 from . import models, model_util, openapi
@@ -145,6 +146,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/internal/plot/airmass/(.*)', PlotAirmassHandler),
         (r'/api/internal/log', LogHandler),
         (r'/api/internal/recent_sources(/.*)?', RecentSourcesHandler),
+        (r'/api/internal/annotations_info', AnnotationsInfoHandler),
         (r'/api/.*', InvalidEndpointHandler),
         (r'/become_user(/.*)?', BecomeUserHandler),
         (r'/logout', LogoutHandler),
