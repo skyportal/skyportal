@@ -72,7 +72,7 @@ class CandidateHandler(BaseHandler):
             .count()
         )
         if num_c == 0:
-            return self.error()
+            return self.error(message='')
         return self.success()
 
     @auth_or_token
