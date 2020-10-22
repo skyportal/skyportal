@@ -191,7 +191,7 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     # Scroll up to top of comments list
     comments = driver.wait_for_xpath("//p[text()='Comments']")
     driver.scroll_to_element(comments)
-    ActionChains(driver).move_to_element(comments).perform()
+
     attachment_div = driver.wait_for_xpath("//div[contains(text(), 'Attachment:')]")
     attachment_button = driver.wait_for_xpath(
         '//button[@data-testid="attachmentButton_spec"]'
