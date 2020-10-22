@@ -513,6 +513,7 @@ class PhotometryHandler(BaseHandler):
                 ra=packet['ra'],
                 dec=packet['dec'],
                 origin=packet["origin"],
+                owner_id=self.associated_user_object.id,
             )
 
             params.append(phot)
@@ -602,6 +603,16 @@ class PhotometryHandler(BaseHandler):
                                 points in a single request.
         """
 
+        try:
+            group_ids = self.get_group_ids()
+        except ValidationError as e:
+            return self.error(e.args[0])
+
+        try:
+            df, instrument_cache = self.standardize_photometry_data()
+        except ValidationError as e:
+            return self.error(e.args[0])
+
         # The Repeatable Read isolation level only sees data committed before
         # the transaction began; it never sees either uncommitted data or
         # changes committed during transaction execution by concurrent
@@ -614,15 +625,6 @@ class PhotometryHandler(BaseHandler):
 
         DBSession().rollback()
         DBSession().execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
-        try:
-            group_ids = self.get_group_ids()
-        except ValidationError as e:
-            return self.error(e.args[0])
-
-        try:
-            df, instrument_cache = self.standardize_photometry_data()
-        except ValidationError as e:
-            return self.error(e.args[0])
 
         try:
             ids, upload_id = self.insert_new_photometry_data(
@@ -671,6 +673,16 @@ class PhotometryHandler(BaseHandler):
                                 points in a single request.
         """
 
+        try:
+            group_ids = self.get_group_ids()
+        except ValidationError as e:
+            return self.error(e.args[0])
+
+        try:
+            df, instrument_cache = self.standardize_photometry_data()
+        except ValidationError as e:
+            return self.error(e.args[0])
+
         # The Repeatable Read isolation level only sees data committed before
         # the transaction began; it never sees either uncommitted data or
         # changes committed during transaction execution by concurrent
@@ -683,15 +695,6 @@ class PhotometryHandler(BaseHandler):
 
         DBSession().rollback()
         DBSession().execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
-        try:
-            group_ids = self.get_group_ids()
-        except ValidationError as e:
-            return self.error(e.args[0])
-
-        try:
-            df, instrument_cache = self.standardize_photometry_data()
-        except ValidationError as e:
-            return self.error(e.args[0])
 
         values_table, condition = self.get_values_table_and_condition(df)
 
