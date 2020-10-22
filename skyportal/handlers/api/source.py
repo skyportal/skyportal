@@ -87,7 +87,8 @@ class SourceHandler(BaseHandler):
         if num_s > 0:
             return self.success()
         else:
-            return self.error()
+            self.set_status(404)
+            self.finish()
 
     @auth_or_token
     def get(self, obj_id=None):

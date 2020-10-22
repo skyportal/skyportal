@@ -71,9 +71,11 @@ class CandidateHandler(BaseHandler):
             .filter(Candidate.obj_id == obj_id, Filter.group_id.in_(user_group_ids))
             .count()
         )
-        if num_c == 0:
-            return self.error()
-        return self.success()
+        if num_c > 0:
+            return self.success()
+        else:
+            self.set_status(404)
+            self.finish()
 
     @auth_or_token
     def get(self, obj_id=None):

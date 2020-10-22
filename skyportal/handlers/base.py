@@ -12,5 +12,5 @@ class BaseHandler(BaselayerHandler):
     def success(self, *args, **kwargs):
         super().success(*args, **kwargs, extra={'version': __version__})
 
-    def error(self, *args, **kwargs):
-        super().error(*args, **kwargs, extra={'version': __version__})
+    def error(self, message, *args, **kwargs):
+        super().error(message, *args, **kwargs, extra={'version': __version__})
