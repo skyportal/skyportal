@@ -96,6 +96,7 @@ const ProfileDropdown = () => {
           vertical: "top",
           horizontal: "right",
         }}
+        disableScrollLock
       >
         <Box
           display="flex"

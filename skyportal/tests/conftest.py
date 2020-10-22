@@ -459,6 +459,14 @@ def classification_token(user):
 
 
 @pytest.fixture()
+def classification_token_two_groups(user_two_groups):
+    token_id = create_token(
+        ACLs=["Classify"], user_id=user_two_groups.id, name=str(uuid.uuid4())
+    )
+    return token_id
+
+
+@pytest.fixture()
 def taxonomy_token(user):
     token_id = create_token(
         ACLs=["Post taxonomy", "Delete taxonomy"],
