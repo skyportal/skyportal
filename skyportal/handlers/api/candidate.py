@@ -593,6 +593,15 @@ class CandidateHandler(BaseHandler):
         obj_already_exists = Obj.query.get(data["id"]) is not None
         schema = Obj.__schema__()
 
+        ra = data.get('ra', None)
+        dec = data.get('dec', None)
+
+        if ra is None:
+            return self.error("RA must not be null")
+
+        if dec is None:
+            return self.error("Dec must not be null")
+
         passing_alert_id = data.pop("passing_alert_id", None)
         passed_at = data.pop("passed_at", None)
         if passed_at is not None:

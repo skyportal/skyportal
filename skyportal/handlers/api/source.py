@@ -578,6 +578,16 @@ class SourceHandler(BaseHandler):
         data = self.get_json()
         obj_already_exists = Obj.query.get(data["id"]) is not None
         schema = Obj.__schema__()
+
+        ra = data.get('ra', None)
+        dec = data.get('dec', None)
+
+        if ra is None:
+            return self.error("RA must not be null")
+
+        if dec is None:
+            return self.error("Dec must not be null")
+
         user_group_ids = [g.id for g in self.current_user.groups]
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         if not user_group_ids:
