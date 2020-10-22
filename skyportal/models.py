@@ -103,6 +103,35 @@ def is_owned_by(self, user_or_token):
     raise NotImplementedError(f"{type(self).__name__} object has no owner")
 
 
+def is_modifiable_by(self, user_or_token):
+    """Return a boolean indicating whether an object point can be modified or
+    deleted by a given user or token.
+
+    Parameters
+    ----------
+    user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The User or Token to check.
+
+    Returns
+    -------
+    owned: bool
+       Whether the Object can be modified by the User or Token.
+    """
+
+    if not hasattr(self, 'owner'):
+        raise TypeError(
+            f'Object {self} does not have an `owner` attribute, '
+            f'and thus does not expose the interface that is needed '
+            f'to check for modification or deletion privileges.'
+        )
+
+    is_admin = "System admin" in [acl.id for acl in user_or_token.acls]
+    owns_spectrum = self.owner is (
+        user_or_token if isinstance(user_or_token, User) else user_or_token.created_by
+    )
+    return is_admin or owns_spectrum
+
+
 Base.is_owned_by = is_owned_by
 
 
@@ -1785,6 +1814,8 @@ class Photometry(Base, ha.Point):
         return self.flux / self.fluxerr
 
 
+Photometry.is_modifiable_by = is_modifiable_by
+
 # Deduplication index. This is a unique index that prevents any photometry
 # point that has the same obj_id, instrument_id, origin, mjd, flux error,
 # and flux as a photometry point that already exists within the table from
@@ -2073,30 +2104,8 @@ class Spectrum(Base):
             **spec_data,
         )
 
-    def is_modifiable_by(self, user_or_token):
-        """Return a boolean indicating whether a Spectrum can be modified by
-        a given user or token.
 
-        Parameters
-        ----------
-        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
-           The User or Token to check.
-
-        Returns
-        -------
-        owned: bool
-           Whether the Spectrum can be modified by the User or Token.
-        """
-
-        is_admin = "System admin" in [acl.id for acl in user_or_token.acls]
-        owns_spectrum = self.owner is (
-            user_or_token
-            if isinstance(user_or_token, User)
-            else user_or_token.created_by
-        )
-        return is_admin or owns_spectrum
-
-
+Spectrum.is_modifiable_by = is_modifiable_by
 User.spectra = relationship(
     'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
 )
