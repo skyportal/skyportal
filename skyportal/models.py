@@ -2598,6 +2598,7 @@ def send_source_notification(mapper, connection, target):
             # If user has a phone number registered and opted into SMS notifications
             if (
                 user.contact_phone is not None
+                and user.preferences is not None
                 and "allowSMSAlerts" in user.preferences
                 and user.preferences.get("allowSMSAlerts")
             ):
@@ -2611,6 +2612,7 @@ def send_source_notification(mapper, connection, target):
         # If user has a contact email registered and opted into email notifications
         if (
             user.contact_email is not None
+            and user.preferences is not None
             and "allowEmailAlerts" in user.preferences
             and user.preferences.get("allowEmailAlerts")
         ):
