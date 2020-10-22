@@ -2,6 +2,7 @@ import uuid
 
 from .. import api
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.action_chains import ActionChains
 
 from tdtax import taxonomy, __version__
 
@@ -65,10 +66,10 @@ def test_add_new_source_renders_on_group_sources_page(
 
     # little triangle you push to expand the table
     expand_button = driver.wait_for_xpath("//*[@id='expandable-button']")
-    driver.scroll_to_element_and_click(expand_button)
+    ActionChains(driver).move_to_element(expand_button).pause(0.1).click().perform()
 
     # make sure the div containing the individual source appears
-    driver.wait_for_xpath("//tr[contains(@class, 'MuiTableRow-root')]")
+    driver.wait_for_xpath(f'//tr[@data-testid="groupSourceExpand_{obj_id}"]')
 
     try:  # the vega plot may take some time to appear, and in the meanwhile the MUI drawer gets closed for some reason.
         # make sure the table row opens up and show the vega plot
@@ -76,7 +77,7 @@ def test_add_new_source_renders_on_group_sources_page(
     except TimeoutException:
         # try again to click this triangle thingy to open the drawer
         expand_button = driver.wait_for_xpath("//*[@id='expandable-button']")
-        driver.scroll_to_element_and_click(expand_button)
+        ActionChains(driver).move_to_element(expand_button).pause(0.1).click().perform()
 
         # with the drawer opened again, it should now work...
         driver.wait_for_xpath(
