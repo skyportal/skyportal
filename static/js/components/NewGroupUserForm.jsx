@@ -11,6 +11,8 @@ import DialogActions from "@material-ui/core/DialogActions";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogContentText from "@material-ui/core/DialogContentText";
 import DialogTitle from "@material-ui/core/DialogTitle";
+import Typography from "@material-ui/core/Typography";
+import { makeStyles } from "@material-ui/core/styles";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as groupsActions from "../ducks/groups";
@@ -18,6 +20,13 @@ import * as usersActions from "../ducks/users";
 import * as inviteUsersActions from "../ducks/inviteUsers";
 
 const filter = createFilterOptions();
+
+const useStyles = makeStyles(() => ({
+  heading: {
+    fontSize: "1.0625rem",
+    fontWeight: 500,
+  },
+}));
 
 const NewGroupUserForm = ({ group_id }) => {
   const dispatch = useDispatch();
@@ -29,6 +38,7 @@ const NewGroupUserForm = ({ group_id }) => {
     invitingNewUser: false,
   });
   const [confirmDialogOpen, setConfirmDialogOpen] = React.useState(false);
+  const classes = useStyles();
 
   useEffect(() => {
     if (allUsers.length === 0) {
@@ -97,6 +107,9 @@ const NewGroupUserForm = ({ group_id }) => {
 
   return (
     <div>
+      <Typography className={classes.heading}>
+        Add or invite a new user to this group
+      </Typography>
       <Autocomplete
         id="newUserEmail"
         value={formState.newUserEmail || ""}
