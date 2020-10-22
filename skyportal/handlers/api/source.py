@@ -370,6 +370,19 @@ class SourceHandler(BaseHandler):
                     else None
                 )
 
+            # add the date(s) this source was saved to each of these groups
+            for i, g in enumerate(source_info["groups"]):
+                saved_at = (
+                    DBSession()
+                    .query(Source.saved_at)
+                    .filter(
+                        Source.obj_id == source_info["id"], Source.group_id == g["id"]
+                    )
+                    .first()
+                    .saved_at
+                )
+                source_info["groups"][i]['saved_at'] = saved_at
+
             return self.success(data=source_info)
 
         # Fetch multiple sources
@@ -507,6 +520,20 @@ class SourceHandler(BaseHandler):
                     if source_table_row.saved_by is not None
                     else None
                 )
+
+            # add the date(s) this source was saved to each of these groups
+            for i, g in enumerate(source_list[-1]["groups"]):
+                saved_at = (
+                    DBSession()
+                    .query(Source.saved_at)
+                    .filter(
+                        Source.obj_id == source_list[-1]["id"],
+                        Source.group_id == g["id"],
+                    )
+                    .first()
+                    .saved_at
+                )
+                source_list[-1]["groups"][i]['saved_at'] = saved_at
 
         query_results["sources"] = source_list
 
@@ -654,6 +681,7 @@ class SourceHandler(BaseHandler):
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key},
         )
+
         return self.success(action='skyportal/FETCH_SOURCES')
 
     @permissions(['Manage sources'])

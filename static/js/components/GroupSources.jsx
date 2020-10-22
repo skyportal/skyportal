@@ -42,6 +42,9 @@ const useStyles = makeStyles((theme) => ({
     overflowY: "scroll",
     padding: "0.5rem 0",
   },
+  tableGrid: {
+    width: "100%",
+  },
 }));
 
 const GroupSourcesTable = ({ sources, title, sourceStatus, groupID }) => {
@@ -49,12 +52,21 @@ const GroupSourcesTable = ({ sources, title, sourceStatus, groupID }) => {
   const dispatch = useDispatch();
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const classes = useStyles();
+
   // Color styling
   const userColorTheme = useSelector(
     (state) => state.profile.preferences.theme
   );
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
+
+  if (!sources) {
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
+  }
 
   const handleSaveSource = async (sourceID) => {
     const result = await dispatch(
@@ -84,10 +96,30 @@ const GroupSourcesTable = ({ sources, title, sourceStatus, groupID }) => {
     }
   };
 
+  if (sources.length === 0 && sourceStatus === "saved") {
+    return (
+      <Grid item>
+        <div>
+          <Typography
+            variant="h4"
+            gutterBottom
+            color="textSecondary"
+            align="center"
+          >
+            <b>No sources have been saved...</b>
+          </Typography>
+        </div>
+      </Grid>
+    );
+  }
+  if (sources.length === 0 && sourceStatus === "requested") {
+    return null;
+  }
+
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
     const colSpan = rowData.length + 1;
-    const source = sources[rowMeta.rowIndex];
+    const source = sources[rowMeta.dataIndex];
 
     const comments = source.comments || [];
 
@@ -179,14 +211,6 @@ const GroupSourcesTable = ({ sources, title, sourceStatus, groupID }) => {
                 )}
               </div>
             </Grid>
-            <Grid item>
-              <Suspense fallback={<div>Loading classifications</div>}>
-                <ShowClassification
-                  classifications={source.classifications}
-                  taxonomyList={taxonomyList}
-                />
-              </Suspense>
-            </Grid>
           </Grid>
         </TableCell>
       </TableRow>
@@ -203,28 +227,58 @@ const GroupSourcesTable = ({ sources, title, sourceStatus, groupID }) => {
     );
   };
 
+  const renderAlias = (dataIndex) => {
+    const { id: objid, alias } = sources[dataIndex];
+
+    return (
+      <a href={`/source/${objid}`} key={`${objid}_alias`}>
+        {alias}
+      </a>
+    );
+  };
+
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
 
   const renderRA = (dataIndex) => {
     const source = sources[dataIndex];
-    return (
-      <div key={`${source.id}_ra`}>
-        {source.ra}
-        <br />
-        {ra_to_hours(source.ra)}
-      </div>
-    );
+    return <div key={`${source.id}_ra`}>{source.ra.toFixed(6)}</div>;
+  };
+
+  const renderRASex = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div key={`${source.id}_ra_sex`}>{ra_to_hours(source.ra)}</div>;
   };
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderDec = (dataIndex) => {
     const source = sources[dataIndex];
+    return <div key={`${source.id}_dec`}>{source.dec.toFixed(6)}</div>;
+  };
+
+  const renderDecSex = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div key={`${source.id}_dec_sex`}>{dec_to_dms(source.dec)}</div>;
+  };
+
+  const renderRedshift = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div key={`${source.id}_redshift`}>{source.redshift}</div>;
+  };
+
+  const renderClassification = (dataIndex) => {
+    const source = sources[dataIndex];
     return (
-      <div key={`${source.id}_dec`}>
-        {source.dec}
-        <br />
-        {dec_to_dms(source.dec)}
-      </div>
+      <Suspense fallback={<div>Loading classifications</div>}>
+        <ShowClassification
+          classifications={source.classifications.filter((cls) => {
+            return cls.groups.find((g) => {
+              return g.id === groupID;
+            });
+          })}
+          taxonomyList={taxonomyList}
+          shortened
+        />
+      </Suspense>
     );
   };
 
@@ -236,13 +290,29 @@ const GroupSourcesTable = ({ sources, title, sourceStatus, groupID }) => {
         {source.groups
           .filter((group) => group.active)
           .map((group) => (
-            <Chip
-              label={group.name.substring(0, 15)}
-              key={group.id}
-              size="small"
-              className={classes.chip}
-            />
+            <div key={group.name}>
+              <Chip
+                label={group.name.substring(0, 15)}
+                key={group.id}
+                size="small"
+                className={classes.chip}
+              />
+              <br />
+            </div>
           ))}
+      </div>
+    );
+  };
+
+  const renderDateSaved = (dataIndex) => {
+    const source = sources[dataIndex];
+
+    const group = source.groups.find((g) => {
+      return g.id === groupID;
+    });
+    return (
+      <div key={`${source.id}_date_saved`}>
+        {group.saved_at.substring(0, 19)}
       </div>
     );
   };
@@ -298,23 +368,55 @@ const GroupSourcesTable = ({ sources, title, sourceStatus, groupID }) => {
       },
     },
     {
-      name: "RA",
+      name: "Alias",
+      options: {
+        filter: true,
+        display: false,
+        customBodyRenderLite: renderAlias,
+      },
+    },
+    {
+      name: "RA (deg)",
       options: {
         filter: false,
         customBodyRenderLite: renderRA,
       },
     },
     {
-      name: "Dec",
+      name: "Dec (deg)",
       options: {
         filter: false,
         customBodyRenderLite: renderDec,
       },
     },
     {
+      name: "RA (hh:mm:ss)",
+      options: {
+        filter: false,
+        display: false,
+        customBodyRenderLite: renderRASex,
+      },
+    },
+    {
+      name: "Dec (dd:mm:ss)",
+      options: {
+        filter: false,
+        display: false,
+        customBodyRenderLite: renderDecSex,
+      },
+    },
+    {
       name: "Redshift",
       options: {
         filter: false,
+        customBodyRenderLite: renderRedshift,
+      },
+    },
+    {
+      name: "Classification",
+      options: {
+        filter: true,
+        customBodyRenderLite: renderClassification,
       },
     },
     {
@@ -322,6 +424,13 @@ const GroupSourcesTable = ({ sources, title, sourceStatus, groupID }) => {
       options: {
         filter: false,
         customBodyRenderLite: renderGroups,
+      },
+    },
+    {
+      name: "Date Saved",
+      options: {
+        filter: false,
+        customBodyRenderLite: renderDateSaved,
       },
     },
     {
@@ -352,53 +461,48 @@ const GroupSourcesTable = ({ sources, title, sourceStatus, groupID }) => {
 
   const data = sources.map((source) => [
     source.id,
+    source.alias,
     source.ra,
     source.dec,
+    ra_to_hours(source.ra),
+    dec_to_dms(source.dec),
     source.redshift,
-    source.classifications,
-    source.groups,
-    source.recent_comments,
+    source.groups.map((group) => {
+      return group.name;
+    }),
   ]);
 
   return (
-    <div>
-      <Grid
-        container
-        direction="column"
-        alignItems="center"
-        justify="flex-start"
-        spacing={3}
-      >
-        <Grid item>
-          <div>
-            <Typography
-              variant="h5"
-              gutterBottom
-              color="textSecondary"
-              align="center"
-            >
-              <b>{title}</b>
-            </Typography>
-          </div>
+    <div className={classes.source}>
+      <div>
+        <Grid
+          container
+          direction="column"
+          alignItems="center"
+          justify="flex-start"
+          spacing={3}
+        >
+          <Grid item className={classes.tableGrid}>
+            <MUIDataTable
+              title={title}
+              columns={columns}
+              data={data}
+              options={options}
+            />
+          </Grid>
         </Grid>
-        <Grid item>
-          <MUIDataTable
-            title="Sources"
-            columns={columns}
-            data={data}
-            options={options}
-          />
-        </Grid>
-      </Grid>
+      </div>
     </div>
   );
 };
+
 GroupSourcesTable.propTypes = {
   sources: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.string,
       ra: PropTypes.number,
       dec: PropTypes.number,
+      alias: PropTypes.string,
       redshift: PropTypes.number,
       classifications: PropTypes.arrayOf(PropTypes.string),
       recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
@@ -438,13 +542,23 @@ const GroupSources = ({ route }) => {
       </div>
     );
   }
-  if (sources.length === 0) {
-    return "No sources have been saved to this group yet. ";
-  }
-
   const groupID = parseInt(route.id, 10);
 
   const groupName = groups.filter((g) => g.id === groupID)[0]?.name || "";
+
+  if (sources.length === 0) {
+    return (
+      <div className={classes.source}>
+        <Typography variant="h4" gutterBottom align="center">
+          {`${groupName} sources`}
+        </Typography>
+        <br />
+        <Typography align="center">
+          No sources have been saved to this group yet.
+        </Typography>
+      </div>
+    );
+  }
 
   const savedSources = sources.filter((source) => {
     const matchingGroup = source.groups.filter((g) => g.id === groupID)[0];

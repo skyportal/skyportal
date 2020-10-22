@@ -5,6 +5,9 @@ import numpy as np
 from skyportal.tests import api
 from skyportal.models import cosmo
 
+from datetime import datetime, timezone, timedelta
+from dateutil import parser
+
 
 def test_source_list(view_only_token):
     status, data = api('GET', 'sources', token=view_only_token)
@@ -16,8 +19,9 @@ def test_source_existence(view_only_token, public_source):
     status = api('HEAD', f'sources/{public_source.id}', token=view_only_token)
     assert status == 200
 
-    status = api('HEAD', f'sources/{public_source.id[:-1]}', token=view_only_token)
-    assert status == 400
+    status, _ = api('HEAD', f'sources/{public_source.id[:-1]}', token=view_only_token)
+
+    assert status == 404
 
 
 def test_token_user_retrieving_source(view_only_token, public_source):
@@ -165,6 +169,7 @@ def test_cannot_update_source_without_permission(view_only_token, public_source)
 
 def test_token_user_post_new_source(upload_data_token, view_only_token, public_group):
     obj_id = str(uuid.uuid4())
+    t0 = datetime.now(timezone.utc)
     status, data = api(
         'POST',
         'sources',
@@ -186,6 +191,9 @@ def test_token_user_post_new_source(upload_data_token, view_only_token, public_g
     assert status == 200
     assert data['data']['id'] == obj_id
     npt.assert_almost_equal(data['data']['ra'], 234.22)
+
+    saved_at = parser.parse(data['data']['groups'][0]['saved_at'] + " UTC")
+    assert abs(saved_at - t0) < timedelta(seconds=2)
 
 
 def test_add_source_without_group_id(upload_data_token, view_only_token, public_group):
