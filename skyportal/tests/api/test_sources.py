@@ -19,8 +19,9 @@ def test_source_existence(view_only_token, public_source):
     status = api('HEAD', f'sources/{public_source.id}', token=view_only_token)
     assert status == 200
 
-    status = api('HEAD', f'sources/{public_source.id[:-1]}', token=view_only_token)
-    assert status == 400
+    status, *_ = api('HEAD', f'sources/{public_source.id[:-1]}', token=view_only_token)
+
+    assert status == 404
 
 
 def test_token_user_retrieving_source(view_only_token, public_source):

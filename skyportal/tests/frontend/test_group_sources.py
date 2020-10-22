@@ -57,7 +57,7 @@ def test_add_new_source_renders_on_group_sources_page(
 
     # find the date it was saved
     driver.wait_for_xpath(
-        f"//*[text()[contains(., '{t0.strftime('%Y-%m-%dT%H:%M:%S')}')]]"
+        f"//*[text()[contains(., '{t0.strftime('%Y-%m-%dT%H:%M')}')]]"
     )
 
     # check the redshift shows up

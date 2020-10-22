@@ -13,10 +13,10 @@ def test_candidate_existence(view_only_token, public_candidate):
     status = api('HEAD', f'candidates/{public_candidate.id}', token=view_only_token)
     assert status == 200
 
-    status = api(
+    status, *_ = api(
         'HEAD', f'candidates/{public_candidate.id[:-1]}', token=view_only_token
     )
-    assert status == 400
+    assert status == 404
 
 
 def test_token_user_retrieving_candidate(view_only_token, public_candidate):
