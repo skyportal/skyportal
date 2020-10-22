@@ -689,6 +689,11 @@ class Filter(Base):
     )
 
 
+# Require that ra and dec be nonnull
+Obj.ra = sa.Column(sa.Float, nullable=False, doc="J2000 Right Ascension [deg].")
+Obj.dec = sa.Column(sa.Float, nullable=False, doc="J2000 Declination[deg].")
+
+
 Candidate = join_model("candidates", Filter, Obj)
 Candidate.__doc__ = (
     "An Obj that passed a Filter, becoming scannable on the " "Filter's scanning page."
