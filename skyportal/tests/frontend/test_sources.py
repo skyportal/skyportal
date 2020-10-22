@@ -205,12 +205,6 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     try_count = 1
     while not os.path.exists(fpath) and try_count <= 3:
         try_count += 1
-        driver.execute_script("arguments[0].scrollIntoView();", comment_div)
-        ActionChains(driver).move_to_element(comment_div).perform()
-        driver.click_xpath('//a[text()="spec.csv"]')
-        if os.path.exists(fpath):
-            break
-    else:
         assert os.path.exists(fpath)
 
     try:
