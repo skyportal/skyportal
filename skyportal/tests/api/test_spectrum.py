@@ -148,6 +148,91 @@ def test_token_user_update_spectrum(
     assert data['data']['fluxes'][0] == 222.2
 
 
+def test_token_user_cannot_update_unowned_spectrum(
+    upload_data_token, manage_sources_token, public_source, public_group, lris
+):
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    spectrum_id = data['data']['id']
+    status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['fluxes'][0] == 234.2
+
+    status, data = api(
+        'PUT',
+        f'spectrum/{spectrum_id}',
+        data={
+            'fluxes': [222.2, 232.1, 235.3],
+            'observed_at': str(datetime.datetime.now()),
+            'wavelengths': [664, 665, 666],
+        },
+        token=manage_sources_token,
+    )
+
+    assert status == 400
+    assert data['status'] == 'error'
+
+
+def test_admin_can_update_unowned_spectrum_data(
+    upload_data_token, super_admin_token, public_source, public_group, lris
+):
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    spectrum_id = data['data']['id']
+    status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['fluxes'][0] == 234.2
+
+    status, data = api(
+        'PUT',
+        f'spectrum/{spectrum_id}',
+        data={
+            'fluxes': [222.2, 232.1, 235.3],
+            'observed_at': str(datetime.datetime.now()),
+            'wavelengths': [664, 665, 666],
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['fluxes'][0] == 222.2
+
+
 def test_user_cannot_delete_unowned_spectrum_data(
     upload_data_token, manage_sources_token, public_source, public_group, lris
 ):
