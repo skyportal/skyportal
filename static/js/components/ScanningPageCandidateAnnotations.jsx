@@ -40,7 +40,7 @@ export const getAnnotationValueString = (value) => {
       valueString = value.toFixed(4);
       break;
     case "object":
-      valueString = JSON.stringify(value);
+      valueString = JSON.stringify(value, null, 2);
       break;
     default:
       valueString = value.toString();
