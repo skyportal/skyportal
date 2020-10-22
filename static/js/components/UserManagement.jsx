@@ -268,7 +268,7 @@ const UserManagement = () => {
             )}
             <Controller
               name="groups"
-              id="addUsersFromGroupsSelect"
+              id="addUserToGroupsSelect"
               as={
                 <Autocomplete
                   multiple
@@ -281,15 +281,15 @@ const UserManagement = () => {
                   )}
                   getOptionLabel={(group) => group.name}
                   filterSelectedOptions
-                  data-testid="addUsersFromGroupsSelect"
+                  data-testid="addUserToGroupsSelect"
                   renderInput={(params) => (
                     <TextField
                       // eslint-disable-next-line react/jsx-props-no-spreading
                       {...params}
                       error={!!errors.groups}
                       variant="outlined"
-                      label="Select Groups/Users"
-                      data-testid="addUsersFromGroupsTextField"
+                      label="Select Groups"
+                      data-testid="addUserToGroupsTextField"
                     />
                   )}
                 />
