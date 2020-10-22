@@ -199,6 +199,8 @@ candidates:
 
 sources:
   - id: 14gqr
+    ra: 353.36647
+    dec: 33.646149
     group_ids:
       # Adding the public_group_id is a hack until the admin token i
       # allowed to create sources outside of its own groups, as per
@@ -207,6 +209,8 @@ sources:
       - =program_A
       - =program_B
   - id: 16fil
+    ra: 322.718872
+    dec: 27.574113
     group_ids:
       - =public_group_id
       - =program_A
