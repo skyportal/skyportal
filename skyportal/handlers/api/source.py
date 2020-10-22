@@ -582,11 +582,11 @@ class SourceHandler(BaseHandler):
         ra = data.get('ra', None)
         dec = data.get('dec', None)
 
-        if ra is None:
-            return self.error("RA must not be null")
+        if ra is None and not obj_already_exists:
+            return self.error("RA must not be null for a new Obj")
 
-        if dec is None:
-            return self.error("Dec must not be null")
+        if dec is None and not obj_already_exists:
+            return self.error("Dec must not be null for a new Obj")
 
         user_group_ids = [g.id for g in self.current_user.groups]
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
