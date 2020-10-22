@@ -448,11 +448,11 @@ const GroupSources = ({ route }) => {
 
   const savedSources = sources.filter((source) => {
     const matchingGroup = source.groups.filter((g) => g.id === groupID)[0];
-    return matchingGroup.active;
+    return matchingGroup?.active;
   });
   const pendingSources = sources.filter((source) => {
     const matchingGroup = source.groups.filter((g) => g.id === groupID)[0];
-    return matchingGroup.requested;
+    return matchingGroup?.requested;
   });
 
   return (
