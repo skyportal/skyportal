@@ -68,7 +68,7 @@ def test_add_new_source_renders_on_group_sources_page(
     driver.scroll_to_element_and_click(expand_button)
 
     # make sure the div containing the individual source appears
-    driver.wait_for_xpath("//div[@class='MuiGrid-root MuiGrid-item']")
+    driver.wait_for_xpath("//tr[contains(@class, 'MuiTableRow-root')]")
 
     try:  # the vega plot may take some time to appear, and in the meanwhile the MUI drawer gets closed for some reason.
         # make sure the table row opens up and show the vega plot
