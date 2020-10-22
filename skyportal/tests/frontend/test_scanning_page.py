@@ -1,6 +1,7 @@
 import uuid
 import pytest
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.action_chains import ActionChains
 
 from skyportal.tests import api
 
@@ -395,7 +396,8 @@ def test_submit_annotations_filtering(
     # Filter by numeric_field < 1.5
     driver.click_xpath("//div[@id='root_origin']")
     driver.click_xpath(f'//li[@data-value="{origin}"]')
-    driver.click_xpath("//div[@id='root_key']")
+    key_select = driver.wait_for_xpath("//div[@id='root_key']")
+    ActionChains(driver).move_to_element(key_select).pause(0.1).click().perform()
     driver.click_xpath("//li[@data-value='numeric_field']")
     min_box = driver.wait_for_xpath("//input[@id='root_min']")
     min_text = "0"
