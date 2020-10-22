@@ -83,6 +83,7 @@ class SpectrumHandler(BaseHandler):
         spec = Spectrum(**data)
         spec.instrument = instrument
         spec.groups = groups
+        spec.owner = self.associated_user_object
         DBSession().add(spec)
         DBSession().commit()
 
@@ -118,7 +119,7 @@ class SpectrumHandler(BaseHandler):
         else:
             return self.error(f"Could not load spectrum with ID {spectrum_id}")
 
-    @permissions(['Manage sources'])
+    @permissions(['Upload data'])
     def put(self, spectrum_id):
         """
         ---
@@ -151,6 +152,13 @@ class SpectrumHandler(BaseHandler):
         spectrum = Spectrum.query.get(spectrum_id)
         # Permissions check
         _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
+
+        # Check that the requesting user owns the spectrum (or is an admin)
+        if not spectrum.is_modifiable_by(self.current_user):
+            return self.error(
+                f'Cannot delete spectrum that is owned by {spectrum.owner}.'
+            )
+
         data = self.get_json()
 
         try:
@@ -166,7 +174,7 @@ class SpectrumHandler(BaseHandler):
         DBSession().commit()
         return self.success()
 
-    @permissions(['Manage sources'])
+    @permissions(['Upload data'])
     def delete(self, spectrum_id):
         """
         ---
@@ -190,6 +198,13 @@ class SpectrumHandler(BaseHandler):
         spectrum = Spectrum.query.get(spectrum_id)
         # Permissions check
         _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
+
+        # Check that the requesting user owns the spectrum (or is an admin)
+        if not spectrum.is_modifiable_by(self.current_user):
+            return self.error(
+                f'Cannot delete spectrum that is owned by {spectrum.owner}.'
+            )
+
         DBSession().delete(spectrum)
         DBSession().commit()
 
@@ -237,7 +252,7 @@ class ASCIIHandler:
 
         spec.original_file_filename = Path(filename).name
         spec.original_file_string = ascii
-
+        spec.owner = self.associated_user_object
         spec.groups = groups
         return spec
 

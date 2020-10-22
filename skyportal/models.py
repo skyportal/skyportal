@@ -1707,7 +1707,7 @@ class Photometry(Base, ha.Point):
     )
     owner = relationship(
         'User',
-        back_populates='spectra',
+        back_populates='photometry',
         foreign_keys=[owner_id],
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
@@ -2072,6 +2072,29 @@ class Spectrum(Base):
             altdata=header,
             **spec_data,
         )
+
+    def is_modifiable_by(self, user_or_token):
+        """Return a boolean indicating whether a Spectrum can be modified by
+        a given user or token.
+
+        Parameters
+        ----------
+        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
+           The User or Token to check.
+
+        Returns
+        -------
+        owned: bool
+           Whether the Spectrum can be modified by the User or Token.
+        """
+
+        is_admin = "System admin" in [acl.id for acl in user_or_token.acls]
+        owns_spectrum = self.owner is (
+            user_or_token
+            if isinstance(user_or_token, User)
+            else user_or_token.created_by
+        )
+        return is_admin or owns_spectrum
 
 
 User.spectra = relationship(
