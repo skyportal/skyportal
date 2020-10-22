@@ -1700,6 +1700,20 @@ class Photometry(Base, ha.Point):
     )
     assignment = relationship('ClassicalAssignment', back_populates='photometry')
 
+    owner_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=True,
+        doc="ID of the User who uploaded the photometry.",
+    )
+    owner = relationship(
+        'User',
+        back_populates='spectra',
+        foreign_keys=[owner_id],
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        doc="The User who uploaded the photometry.",
+    )
+
     @hybrid_property
     def mag(self):
         """The magnitude of the photometry point in the AB system."""
@@ -1791,6 +1805,10 @@ Photometry.__table_args__ = (
 )
 
 
+User.photometry = relationship(
+    'Photometry', doc='Photometry uploaded by this User.', back_populates='owner'
+)
+
 GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 
@@ -1864,6 +1882,20 @@ class Spectrum(Base):
     )
     original_file_filename = sa.Column(
         sa.String, doc="Original file name that was passed to upload the spectrum."
+    )
+
+    owner_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=True,
+        doc="ID of the User who uploaded the spectrum.",
+    )
+    owner = relationship(
+        'User',
+        back_populates='spectra',
+        foreign_keys=[owner_id],
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        doc="The User who uploaded the spectrum.",
     )
 
     @classmethod
@@ -2040,6 +2072,11 @@ class Spectrum(Base):
             altdata=header,
             **spec_data,
         )
+
+
+User.spectra = relationship(
+    'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
+)
 
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
