@@ -95,9 +95,7 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath("//*[text()='Classification saved']")
 
     # Button at top of source page
-    driver.wait_for_xpath(
-        "//span[contains(@class, 'MuiButton-label') and text()='Symmetrical']"
-    )
+    driver.wait_for_xpath("//span[text()[contains(., 'Save')]]")
 
     # Scroll up to get entire classifications list component in view
     add_comments = driver.find_element_by_xpath("//h6[contains(text(), 'Add comment')]")
