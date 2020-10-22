@@ -28,7 +28,7 @@ const AddUsersFromGroupForm = ({ groupID }) => {
   let { all: groups } = useSelector((state) => state.groups);
   const { handleSubmit, errors, reset, control, getValues } = useForm();
   const classes = useStyles();
-  groups = groups?.filter((g) => g.id !== groupID);
+  groups = groups?.filter((g) => g.id !== groupID) || [];
 
   const validateGroups = () => {
     const formState = getValues({ nest: true });
@@ -60,13 +60,13 @@ const AddUsersFromGroupForm = ({ groupID }) => {
         <Controller
           name="groups"
           id="addUsersFromGroupsSelect"
-          data-testid="addUsersFromGroupsSelect"
           as={
             <Autocomplete
               multiple
               options={groups}
               getOptionLabel={(group) => group.name}
               filterSelectedOptions
+              data-testid="addUsersFromGroupsSelect"
               renderInput={(params) => (
                 <TextField
                   // eslint-disable-next-line react/jsx-props-no-spreading
@@ -75,6 +75,7 @@ const AddUsersFromGroupForm = ({ groupID }) => {
                   variant="outlined"
                   label="Select Groups/Users"
                   className={classes.groupSelect}
+                  data-testid="addUsersFromGroupsTextField"
                 />
               )}
             />
