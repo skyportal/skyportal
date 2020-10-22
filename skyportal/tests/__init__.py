@@ -48,7 +48,7 @@ def api(method, endpoint, data=None, host=None, token=None, raw_response=False):
     else:
         if response.status_code in (200, 400):
             if method == "HEAD":
-                return response.status_code
+                return response.status_code, None
             else:
                 return response.status_code, response.json()
         else:
