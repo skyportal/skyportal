@@ -16,6 +16,7 @@ import FormValidationError from "./FormValidationError";
 const useStyles = makeStyles(() => ({
   groupSelect: {
     width: "20rem",
+    marginBottom: "0.75rem",
   },
   heading: {
     fontSize: "1.0625rem",
@@ -74,6 +75,7 @@ const AddUsersFromGroupForm = ({ groupID }) => {
                   error={!!errors.groups}
                   variant="outlined"
                   label="Select Groups/Users"
+                  size="small"
                   className={classes.groupSelect}
                   data-testid="addUsersFromGroupsTextField"
                 />
@@ -91,8 +93,10 @@ const AddUsersFromGroupForm = ({ groupID }) => {
             type="submit"
             name="submitAddFromGroupsButton"
             data-testid="submitAddFromGroupsButton"
+            size="small"
+            disableElevation
           >
-            Submit
+            Add users
           </Button>
         </div>
       </form>

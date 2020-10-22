@@ -584,7 +584,7 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
             return self.error("Invalid group_id parameter: must be an integer")
 
         if not has_admin_access_for_group(self.associated_user_object, group_id):
-            return self.error("Inadequate permissions.")
+            return self.error("Requesting user is not an admin of this group.")
 
         data = self.get_json()
 

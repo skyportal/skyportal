@@ -139,7 +139,7 @@ def test_invite_all_users_from_other_group(
     driver.execute_script("arguments[0].click();", el)
     driver.click_xpath('//*[@id="addUsersFromGroupsSelect"]')
     driver.click_xpath(f'//li[text()="{public_group2.name}"]')
-    driver.click_xpath('//*[text()="Submit"]')
+    driver.click_xpath('//*[text()="Add users"]')
     driver.wait_for_xpath(
         "//*[text()='Successfully added users from specified group(s)']"
     )
