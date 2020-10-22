@@ -196,6 +196,27 @@ def test_token_user_post_new_source(upload_data_token, view_only_token, public_g
     assert abs(saved_at - t0) < timedelta(seconds=2)
 
 
+def test_cannot_post_source_with_null_radec(
+    upload_data_token, view_only_token, public_group
+):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'sources',
+        data={
+            'id': obj_id,
+            'ra': None,
+            'dec': None,
+            'redshift': 3,
+            'transient': False,
+            'ra_dis': 2.3,
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 400
+
+
 def test_add_source_without_group_id(upload_data_token, view_only_token, public_group):
     obj_id = str(uuid.uuid4())
     status, data = api(
