@@ -39,7 +39,7 @@ const UserManagement = () => {
   const { invitationsEnabled } = useSelector((state) => state.sysInfo);
   const currentUser = useSelector((state) => state.profile);
   const { allUsers } = useSelector((state) => state.users);
-  const { all: allGroups } = useSelector((state) => state.groups);
+  let { all: allGroups } = useSelector((state) => state.groups);
   const [csvData, setCsvData] = useState("");
   const [addUserGroupsDialogOpen, setAddUserGroupsDialogOpen] = useState(false);
   const [addGroupsFormUsername, setAddGroupsFormUsername] = useState("");
@@ -75,6 +75,7 @@ const UserManagement = () => {
   ) {
     return <div>Access denied: Insufficient permissions.</div>;
   }
+  allGroups = allGroups.filter((group) => !group.single_user_group);
 
   const validateGroups = () => {
     const formState = getValues({ nest: true });
@@ -299,6 +300,7 @@ const UserManagement = () => {
               rules={{ validate: validateGroups }}
               defaultValue={[]}
             />
+            <br />
             <div>
               <Button
                 variant="contained"
