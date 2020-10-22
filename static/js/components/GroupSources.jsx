@@ -461,20 +461,24 @@ const GroupSources = ({ route }) => {
         {`${groupName} sources`}
       </Typography>
       <br />
-      <GroupSourcesTable
-        sources={savedSources}
-        title="Saved"
-        sourceStatus="saved"
-        groupID={groupID}
-      />
+      {savedSources && (
+        <GroupSourcesTable
+          sources={savedSources}
+          title="Saved"
+          sourceStatus="saved"
+          groupID={groupID}
+        />
+      )}
       <br />
       <br />
-      <GroupSourcesTable
-        sources={pendingSources}
-        title="Requested to save"
-        sourceStatus="requested"
-        groupID={groupID}
-      />
+      {pendingSources && (
+        <GroupSourcesTable
+          sources={pendingSources}
+          title="Requested to save"
+          sourceStatus="requested"
+          groupID={groupID}
+        />
+      )}
     </div>
   );
 };
