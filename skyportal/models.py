@@ -17,12 +17,15 @@ from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
 from sqlalchemy_utils import URLType, EmailType
+from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy import func
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from twilio.rest import Client as TwilioClient
+
+from healpix_alchemy.math import sind, cosd
 
 from astropy import coordinates as ap_coord
 from astropy.io import fits, ascii
@@ -290,7 +293,7 @@ def token_groups(self):
 Token.groups = token_groups
 
 
-class Obj(Base, ha.Point):
+class Obj(Base):
     """A record of an astronomical Object and its metadata, such as position,
     positional uncertainties, name, and redshift. Permissioning rules,
     such as group ownership, user visibility, etc., are managed by other
@@ -298,6 +301,9 @@ class Obj(Base, ha.Point):
 
     id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
     # TODO should this column type be decimal? fixed-precison numeric
+
+    ra = sa.Column(sa.Float, nullable=False, doc="J2000 Right Ascension [deg].")
+    dec = sa.Column(sa.Float, nullable=False, doc="J2000 Declination[deg].")
 
     ra_dis = sa.Column(sa.Float, doc="J2000 Right Ascension at discovery time [deg].")
     dec_dis = sa.Column(sa.Float, doc="J2000 Declination at discovery time [deg].")
@@ -656,6 +662,57 @@ class Obj(Base, ha.Point):
 
         return telescope.observer.altaz(time, self.target).alt
 
+    @hybrid_property
+    def cartesian(self):
+        """Convert to Cartesian coordinates.
+
+        Returns
+        -------
+        x, y, z : float
+            A tuple of the x, y, and z coordinates.
+
+        """
+        return (
+            cosd(self.ra) * cosd(self.dec),
+            sind(self.ra) * cosd(self.dec),
+            sind(self.dec),
+        )
+
+    @hybrid_method
+    def within(self, other, radius):
+        """Test if this point is within a given radius of another point.
+
+        Parameters
+        ----------
+        other : Point
+            The other point.
+        radius : float
+            The match radius in degrees.
+
+        Returns
+        -------
+        bool
+
+        """
+        sin_radius = sind(radius)
+        cos_radius = cosd(radius)
+        carts = (obj.cartesian for obj in (self, other))
+        terms = (
+            (lhs.between(rhs - 2 * sin_radius, rhs + 2 * sin_radius), lhs * rhs)
+            for lhs, rhs in zip(*carts)
+        )
+        bounding_box_terms, dot_product_terms = zip(*terms)
+        return sa.and_(*bounding_box_terms, sum(dot_product_terms) >= cos_radius)
+
+    @declared_attr
+    def __table_args__(cls):
+        try:
+            args = super().__table_args__
+        except AttributeError:
+            args = ()
+        args += (sa.Index(f'ix_{cls.__tablename__}_point', *cls.cartesian),)
+        return args
+
 
 class Filter(Base):
     """An alert filter that operates on a Stream. A Filter is associated
@@ -687,11 +744,6 @@ class Filter(Base):
         back_populates="filters",
         doc="The Filter's Group.",
     )
-
-
-# Require that ra and dec be nonnull
-Obj.ra = sa.Column(sa.Float, nullable=False, doc="J2000 Right Ascension [deg].")
-Obj.dec = sa.Column(sa.Float, nullable=False, doc="J2000 Declination[deg].")
 
 
 Candidate = join_model("candidates", Filter, Obj)
