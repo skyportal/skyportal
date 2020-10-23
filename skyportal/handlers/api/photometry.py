@@ -791,7 +791,7 @@ class PhotometryHandler(BaseHandler):
         """
 
         photometry = Photometry.get_if_owned_by(photometry_id, self.current_user)
-        if not photometry.is_modifiable_by(self.current_user):
+        if not photometry.is_modifiable_by(self.associated_user_object):
             return self.error(
                 f'Cannot delete photometry point that is owned by {photometry.owner}.'
             )
@@ -857,7 +857,7 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
         photometry = Photometry.get_if_owned_by(photometry_id, self.current_user)
-        if not photometry.is_modifiable_by(self.current_user):
+        if not photometry.is_modifiable_by(self.associated_user_object):
             return self.error(
                 f'Cannot delete photometry point that is owned by {photometry.owner}.'
             )

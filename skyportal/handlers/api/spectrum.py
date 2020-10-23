@@ -165,7 +165,7 @@ class SpectrumHandler(BaseHandler):
         _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
 
         # Check that the requesting user owns the spectrum (or is an admin)
-        if not spectrum.is_modifiable_by(self.current_user):
+        if not spectrum.is_modifiable_by(self.associated_user_object):
             return self.error(
                 f'Cannot delete spectrum that is owned by {spectrum.owner}.'
             )
@@ -217,7 +217,7 @@ class SpectrumHandler(BaseHandler):
         _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
 
         # Check that the requesting user owns the spectrum (or is an admin)
-        if not spectrum.is_modifiable_by(self.current_user):
+        if not spectrum.is_modifiable_by(self.associated_user_object):
             return self.error(
                 f'Cannot delete spectrum that is owned by {spectrum.owner}.'
             )

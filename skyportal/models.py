@@ -103,19 +103,19 @@ def is_owned_by(self, user_or_token):
     raise NotImplementedError(f"{type(self).__name__} object has no owner")
 
 
-def is_modifiable_by(self, user_or_token):
+def is_modifiable_by(self, user):
     """Return a boolean indicating whether an object point can be modified or
-    deleted by a given user or token.
+    deleted by a given user.
 
     Parameters
     ----------
-    user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
+    user: `baselayer.app.models.User` or `baselayer.app.models.Token`
        The User or Token to check.
 
     Returns
     -------
     owned: bool
-       Whether the Object can be modified by the User or Token.
+       Whether the Object can be modified by the User.
     """
 
     if not hasattr(self, 'owner'):
@@ -125,10 +125,8 @@ def is_modifiable_by(self, user_or_token):
             f'to check for modification or deletion privileges.'
         )
 
-    is_admin = "System admin" in [acl.id for acl in user_or_token.acls]
-    owns_spectrum = self.owner is (
-        user_or_token if isinstance(user_or_token, User) else user_or_token.created_by
-    )
+    is_admin = "System admin" in user.permissions
+    owns_spectrum = self.owner is user
     return is_admin or owns_spectrum
 
 
