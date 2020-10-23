@@ -613,19 +613,15 @@ class PhotometryHandler(BaseHandler):
         except ValidationError as e:
             return self.error(e.args[0])
 
-        # The Repeatable Read isolation level only sees data committed before
-        # the transaction began; it never sees either uncommitted data or
-        # changes committed during transaction execution by concurrent
-        # transactions. (However, the query does see the effects of previous
-        # updates executed within its own transaction, even though they are
-        # not yet committed.) We use it here to ensure internally consistent
-        # deduplication queries (i.e., to ensure that SELECT queries against
-        # the photometry table do not return different results within this
-        # method's transaction due to concurrent inserts or updates.
-
-        DBSession().rollback()
-        DBSession().execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
-
+        # This lock ensures that the Photometry table data are not modified in any way
+        # between when the query for duplicate photometry is first executed and
+        # when the insert statement with the new photometry is performed.
+        # From the psql docs: This mode protects a table against concurrent
+        # data changes, and is self-exclusive so that only one session can
+        # hold it at a time.
+        DBSession().execute(
+            f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+        )
         try:
             ids, upload_id = self.insert_new_photometry_data(
                 df, instrument_cache, group_ids
@@ -683,20 +679,17 @@ class PhotometryHandler(BaseHandler):
         except ValidationError as e:
             return self.error(e.args[0])
 
-        # The Repeatable Read isolation level only sees data committed before
-        # the transaction began; it never sees either uncommitted data or
-        # changes committed during transaction execution by concurrent
-        # transactions. (However, the query does see the effects of previous
-        # updates executed within its own transaction, even though they are
-        # not yet committed.) We use it here to ensure internally consistent
-        # deduplication queries (i.e., to ensure that SELECT queries against
-        # the photometry table do not return different results within this
-        # method's transaction due to concurrent inserts or updates.
-
-        DBSession().rollback()
-        DBSession().execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
-
         values_table, condition = self.get_values_table_and_condition(df)
+
+        # This lock ensures that the Photometry table data are not modified
+        # in any way between when the query for duplicate photometry is first
+        # executed and when the insert statement with the new photometry is
+        # performed. From the psql docs: This mode protects a table against
+        # concurrent data changes, and is self-exclusive so that only one
+        # session can hold it at a time.
+        DBSession().execute(
+            f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+        )
 
         new_photometry_query = (
             DBSession()
@@ -747,10 +740,11 @@ class PhotometryHandler(BaseHandler):
             for (df_index, _), id in zip(new_photometry.iterrows(), ids):
                 id_map[df_index] = id
 
+        # release the lock
+        DBSession().commit()
+
         # get ids in the correct order
         ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
-
-        DBSession().commit()
         return self.success(data={'ids': ids})
 
     @auth_or_token

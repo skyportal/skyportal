@@ -1933,9 +1933,9 @@ class Spectrum(Base):
     def from_ascii(
         cls,
         file,
-        obj_id,
-        instrument_id,
-        observed_at,
+        obj_id=None,
+        instrument_id=None,
+        observed_at=None,
         wave_column=0,
         flux_column=1,
         fluxerr_column=None,

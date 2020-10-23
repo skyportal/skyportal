@@ -379,17 +379,12 @@ def test_jsonify_spectrum_header(
                 'POST',
                 'spectrum/parse/ascii',
                 data={
-                    'obj_id': str(public_source.id),
-                    'observed_at': str(datetime.datetime.now()),
-                    'instrument_id': lris.id,
-                    'group_ids': [public_group.id],
                     'fluxerr_column': 3
                     if 'ZTF20abpuxna_20200915_Keck1_v1.ascii' in filename
                     else 2
                     if 'P60' in filename
                     else None,
                     'ascii': f.read(),
-                    'filename': filename,
                 },
                 token=upload_data_token,
             )
@@ -427,17 +422,12 @@ def test_jsonify_spectrum_data(
                 'POST',
                 'spectrum/parse/ascii',
                 data={
-                    'obj_id': str(public_source.id),
-                    'observed_at': str(datetime.datetime.now()),
-                    'instrument_id': lris.id,
-                    'group_ids': [public_group.id],
                     'fluxerr_column': 3
                     if 'ZTF20abpuxna_20200915_Keck1_v1.ascii' in filename
                     else 2
                     if 'P60' in filename
                     else None,
                     'ascii': f.read(),
-                    'filename': filename,
                 },
                 token=upload_data_token,
             )
