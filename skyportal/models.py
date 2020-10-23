@@ -1730,6 +1730,7 @@ class Photometry(Base, ha.Point):
     owner_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
         nullable=False,
+        index=True,
         doc="ID of the User who uploaded the photometry.",
     )
     owner = relationship(
@@ -1916,6 +1917,7 @@ class Spectrum(Base):
     owner_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
         nullable=False,
+        index=True,
         doc="ID of the User who uploaded the spectrum.",
     )
     owner = relationship(
