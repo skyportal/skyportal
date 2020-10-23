@@ -428,8 +428,8 @@ def photometry_plot(obj_id, user, width=600, height=300):
     ymax = (
         np.nanmax(
             (
-                np.nanmax(data.loc[obsind, 'mag']),
-                np.nanmax(data.loc[~obsind, 'lim_mag']),
+                np.nanmax(data.loc[obsind, 'mag']) if any(obsind) else np.nan,
+                np.nanmax(data.loc[~obsind, 'lim_mag']) if any(~obsind) else np.nan,
             )
         )
         + 0.1
@@ -437,8 +437,8 @@ def photometry_plot(obj_id, user, width=600, height=300):
     ymin = (
         np.nanmin(
             (
-                np.nanmin(data.loc[obsind, 'mag']),
-                np.nanmin(data.loc[~obsind, 'lim_mag']),
+                np.nanmin(data.loc[obsind, 'mag']) if any(obsind) else np.nan,
+                np.nanmin(data.loc[~obsind, 'lim_mag']) if any(~obsind) else np.nan,
             )
         )
         - 0.1

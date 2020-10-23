@@ -29,6 +29,7 @@ class RecentSourcesHandler(BaseHandler):
                             [g.id for g in current_user.accessible_groups]
                         )
                     )
+                    .filter(Source.active.is_(True))
                 )
             )
             .order_by(desc('created_at'))
@@ -96,7 +97,7 @@ class RecentSourcesHandler(BaseHandler):
 
 
 def first_thumbnail_public_url(thumbnails):
-    urls = [t.public_url for t in sorted(thumbnails, key=lambda t: tIndex(t))]
+    urls = [t.public_url for t in sorted(thumbnails, key=lambda t: tIndex(t.type))]
     return urls[0] if urls else ""
 
 

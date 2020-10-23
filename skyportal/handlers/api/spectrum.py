@@ -9,13 +9,18 @@ from ...models import (
     DBSession,
     FollowupRequest,
     Group,
-    GroupUser,
     Instrument,
     Obj,
     Source,
+    GroupUser,
     Spectrum,
 )
-from ...schema import SpectrumAsciiFilePostJSON, SpectrumPost, GroupIDList
+from ...schema import (
+    SpectrumAsciiFilePostJSON,
+    SpectrumPost,
+    GroupIDList,
+    SpectrumAsciiFileParseJSON,
+)
 
 _, cfg = load_env()
 
@@ -87,6 +92,11 @@ class SpectrumHandler(BaseHandler):
         spec.groups = groups
         DBSession().add(spec)
         DBSession().commit()
+
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': spec.obj.internal_key},
+        )
 
         return self.success(data={"id": spec.id})
 
@@ -166,6 +176,12 @@ class SpectrumHandler(BaseHandler):
             setattr(spectrum, k, data[k])
 
         DBSession().commit()
+
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': spectrum.obj.internal_key},
+        )
+
         return self.success()
 
     @permissions(['Manage sources'])
@@ -195,16 +211,23 @@ class SpectrumHandler(BaseHandler):
         DBSession().delete(spectrum)
         DBSession().commit()
 
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': spectrum.obj.internal_key},
+        )
+
         return self.success()
 
 
 class ASCIIHandler:
-    def spec_from_ascii_request(self):
+    def spec_from_ascii_request(
+        self, validator=SpectrumAsciiFilePostJSON, return_json=False
+    ):
         """Helper method to read in Spectrum objects from ASCII POST."""
         json = self.get_json()
 
         try:
-            json = SpectrumAsciiFilePostJSON.load(json)
+            json = validator.load(json)
         except ValidationError as e:
             raise ValidationError(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
@@ -248,7 +271,6 @@ class ASCIIHandler:
             if single_user_group not in groups:
                 groups.append(single_user_group)
 
-        filename = json.pop('filename')
         ascii = json.pop('ascii')
 
         # maximum size 10MB - above this don't parse. Assuming ~1 byte / char
@@ -257,12 +279,19 @@ class ASCIIHandler:
 
         # pass ascii in as a file-like object
         file = io.BytesIO(ascii.encode('ascii'))
-        spec = Spectrum.from_ascii(file, **json)
-
-        spec.original_file_filename = Path(filename).name
+        spec = Spectrum.from_ascii(
+            file,
+            obj_id=json.get('obj_id', None),
+            instrument_id=json.get('instrument_id', None),
+            observed_at=json.get('observed_at', None),
+            wave_column=json.get('wave_column', None),
+            flux_column=json.get('flux_column', None),
+            fluxerr_column=json.get('fluxerr_column', None),
+        )
         spec.original_file_string = ascii
 
-        spec.groups = groups
+        if return_json:
+            return spec, json
         return spec
 
 
@@ -298,11 +327,55 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
         """
 
         try:
-            spec = self.spec_from_ascii_request()
+            spec, json = self.spec_from_ascii_request(return_json=True)
         except Exception as e:
             return self.error(f'Error parsing spectrum: {e.args[0]}')
+
+        filename = json.pop('filename')
+
+        obj = Source.get_obj_if_owned_by(json['obj_id'], self.current_user)
+        if obj is None:
+            raise ValidationError('Invalid Obj id.')
+
+        instrument = Instrument.query.get(json['instrument_id'])
+        if instrument is None:
+            raise ValidationError('Invalid instrument id.')
+
+        groups = []
+        group_ids = json.pop('group_ids', [])
+        for group_id in group_ids:
+            group = Group.query.get(group_id)
+            if group is None:
+                return self.error(f'Invalid group id: {group_id}.')
+            groups.append(group)
+
+        # always add the single user group
+        single_user_group = (
+            DBSession()
+            .query(Group)
+            .join(GroupUser)
+            .filter(
+                Group.single_user_group == True,  # noqa
+                GroupUser.user_id == self.associated_user_object.id,
+            )
+            .first()
+        )
+
+        if single_user_group is not None:
+            if single_user_group not in groups:
+                groups.append(single_user_group)
+
+        spec.original_file_filename = Path(filename).name
+        spec.groups = groups
+
         DBSession().add(spec)
         DBSession().commit()
+
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': spec.obj.internal_key},
+        )
+
         return self.success(data={'id': spec.id})
 
 
@@ -315,7 +388,7 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
         requestBody:
           content:
             application/json:
-              schema: SpectrumAsciiFilePostJSON
+              schema: SpectrumAsciiFileParseJSON
         responses:
           200:
             content:
@@ -327,7 +400,7 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
                 schema: Error
         """
 
-        spec = self.spec_from_ascii_request()
+        spec = self.spec_from_ascii_request(validator=SpectrumAsciiFileParseJSON)
         return self.success(data=spec)
 
 

@@ -95,9 +95,7 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath("//*[text()='Classification saved']")
 
     # Button at top of source page
-    driver.wait_for_xpath(
-        "//span[contains(@class, 'MuiButton-label') and text()='Symmetrical']"
-    )
+    driver.wait_for_xpath("//span[text()[contains(., 'Save')]]")
 
     # Scroll up to get entire classifications list component in view
     add_comments = driver.find_element_by_xpath("//h6[contains(text(), 'Add comment')]")
@@ -167,12 +165,11 @@ def test_comment_groups_validation(driver, user, public_source):
 
 @pytest.mark.flaky(reruns=2)
 def test_upload_download_comment_attachment(driver, user, public_source):
-    if "TRAVIS" in os.environ:
-        pytest.xfail("Xfailing this test on Travis builds.")
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     comment_box = driver.wait_for_xpath("//input[@name='text']")
+    driver.scroll_to_element(comment_box)
     comment_text = str(uuid.uuid4())
     comment_box.send_keys(comment_text)
     attachment_file = driver.find_element_by_css_selector('input[type=file]')
@@ -188,7 +185,20 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     comment_div = comment_text_div.find_element_by_xpath("..")
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
-    driver.click_xpath('//a[text()="spec.csv"]')
+
+    # Scroll up to top of comments list
+    comments = driver.wait_for_xpath("//p[text()='Comments']")
+    driver.scroll_to_element(comments)
+    ActionChains(driver).move_to_element(comments).perform()
+    attachment_div = driver.wait_for_xpath("//div[contains(text(), 'Attachment:')]")
+    attachment_button = driver.wait_for_xpath(
+        '//button[@data-testid="attachmentButton_spec"]'
+    )
+    ActionChains(driver).move_to_element(attachment_div).pause(0.1).perform()
+    ActionChains(driver).move_to_element(attachment_button).pause(0.1).click().perform()
+    # Preview dialog
+    driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
+
     fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'spec.csv')))
     try_count = 1
     while not os.path.exists(fpath) and try_count <= 3:
@@ -299,40 +309,35 @@ def test_super_user_can_delete_unowned_comment(
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     comment_box = driver.wait_for_xpath("//input[@name='text']")
     comment_text = str(uuid.uuid4())
+    driver.scroll_to_element_and_click(comment_box)
     comment_box.send_keys(comment_text)
     driver.scroll_to_element_and_click(
-        driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
+        driver.wait_for_xpath('//*[@name="submitCommentButton"]')
     )
-    try:
-        comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
-    except TimeoutException:
-        driver.refresh()
-        comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
+
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.refresh()
+
     comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
     comment_div = comment_text_div.find_element_by_xpath("..")
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
-    delete_button = comment_div.find_element_by_xpath(
+
+    # wait for delete button to become interactible - hence pause 0.1
+    ActionChains(driver).move_to_element(comment_text_div).pause(0.1).perform()
+
+    delete_button = driver.wait_for_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']"
     )
-    driver.execute_script("arguments[0].scrollIntoView();", comment_div)
-    ActionChains(driver).move_to_element(comment_div).perform()
-    driver.execute_script("arguments[0].click();", delete_button)
-    try:
-        driver.wait_for_xpath_to_disappear(f'//p[text()="{comment_text}"]')
-    except TimeoutException:
-        driver.refresh()
-        driver.wait_for_xpath_to_disappear(f'//p[text()="{comment_text}"]')
+    driver.scroll_to_element_and_click(delete_button)
+    driver.wait_for_xpath_to_disappear(f'//p[text()="{comment_text}"]')
 
 
 def test_show_starlist(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    button = driver.wait_for_xpath(f'//span[text()="Show Starlist"]')
+    button = driver.wait_for_xpath('//span[text()="Show Starlist"]')
     button.click()
-    driver.wait_for_xpath(f"//code/div[text()[contains(., '_off1')]]", timeout=20)
+    driver.wait_for_xpath("//code/div/pre[text()[contains(., '_o1')]]", timeout=45)
 
 
 @pytest.mark.flaky(reruns=2)
@@ -412,7 +417,7 @@ def test_dropdown_facility_change(driver, user, public_source):
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//span[text()="Show Starlist"]')
     )
-    driver.wait_for_xpath("//code/div[text()[contains(., 'raoffset')]]", timeout=20)
+    driver.wait_for_xpath("//code/div/pre[text()[contains(., 'raoffset')]]", timeout=45)
 
     xpath = '//*[@id="mui-component-select-StarListSelectElement"]'
     element = driver.wait_for_xpath(xpath)
@@ -420,7 +425,7 @@ def test_dropdown_facility_change(driver, user, public_source):
     xpath = '//li[@data-value="P200"]'
     element = driver.wait_for_xpath(xpath)
     ActionChains(driver).move_to_element(element).click_and_hold().perform()
-    driver.wait_for_xpath("//code/div[text()[contains(., 'dist')]]", timeout=20)
+    driver.wait_for_xpath("//code/div/pre[text()[contains(., 'dist')]]", timeout=45)
 
 
 @pytest.mark.flaky(reruns=2)
@@ -452,14 +457,38 @@ def test_source_notification(driver, user, public_group, public_source):
     driver.wait_for_xpath("//*[text()='Notification queued up sucessfully']")
 
 
-def test_add_group(driver, user_two_groups, public_source, public_group2):
+def test_unsave_from_group(
+    driver, user_two_groups, public_source_two_groups, public_group2
+):
+    public_source = public_source_two_groups
     driver.get(f"/become_user/{user_two_groups.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    driver.click_xpath(f'//button[@data-testid="addGroup_{public_source.id}"]')
-    driver.click_xpath(f'//span[@data-testid="addGroupSelect_{public_group2.id}"]')
-    driver.click_xpath(f'//button[@name="addSourceGroupButton_{public_source.id}"]')
-    driver.wait_for_xpath(f'//div[@data-testid="groupChip_{public_group2.id}"]')
+    driver.click_xpath(f'//*[@data-testid="editGroups_{public_source.id}"]')
+    driver.click_xpath(f'//*[@data-testid="unsaveGroupCheckbox_{public_group2.id}"]')
+    driver.click_xpath(f'//button[@name="editSourceGroupsButton_{public_source.id}"]')
+    driver.wait_for_xpath('//*[text()="Source groups updated successfully"]')
+    driver.wait_for_xpath_to_disappear(
+        f'//div[@data-testid="groupChip_{public_group2.id}"]'
+    )
+
+
+def test_request_group_to_save_then_save(
+    driver, user_two_groups, public_source, public_group2
+):
+    driver.get(f"/become_user/{user_two_groups.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.click_xpath(f'//*[@data-testid="editGroups_{public_source.id}"]')
+    driver.click_xpath(f'//*[@data-testid="inviteGroupCheckbox_{public_group2.id}"]')
+    driver.click_xpath(f'//button[@name="editSourceGroupsButton_{public_source.id}"]')
+    driver.wait_for_xpath('//*[text()="Source groups updated successfully"]')
+    driver.get(f"/group_sources/{public_group2.id}")
+    driver.click_xpath(f'//button[@data-testid="saveSourceButton_{public_source.id}"]')
+    driver.wait_for_xpath_to_disappear(
+        f'//button[@data-testid="saveSourceButton_{public_source.id}"]'
+    )
+    driver.wait_for_xpath(f"//a[contains(@href, '/source/{public_source.id}')]")
 
 
 def test_update_redshift_and_history(driver, user, public_source):

@@ -14,7 +14,6 @@ import InputLabel from "@material-ui/core/InputLabel";
 import TextField from "@material-ui/core/TextField";
 import Button from "@material-ui/core/Button";
 import MenuItem from "@material-ui/core/MenuItem";
-import Typography from "@material-ui/core/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
 import FormValidationError from "./FormValidationError";
@@ -83,7 +82,6 @@ const SourceNotification = ({ sourceId }) => {
 
   return (
     <div>
-      <Typography variant="h6">Send a Notification</Typography>
       <form onSubmit={handleSubmit(onSubmit)}>
         {errors.groupIds && (
           <FormValidationError message="No target group(s) selected for notification" />

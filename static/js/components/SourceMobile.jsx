@@ -7,6 +7,7 @@ import { makeStyles } from "@material-ui/core/styles";
 import useMediaQuery from "@material-ui/core/useMediaQuery";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
+import Tooltip from "@material-ui/core/Tooltip";
 import Accordion from "@material-ui/core/Accordion";
 import AccordionSummary from "@material-ui/core/AccordionSummary";
 import AccordionDetails from "@material-ui/core/AccordionDetails";
@@ -22,16 +23,18 @@ import ShowClassification from "./ShowClassification";
 import ThumbnailList from "./ThumbnailList";
 import SurveyLinkList from "./SurveyLinkList";
 import StarList from "./StarList";
-import { ra_to_hours, dec_to_hours } from "../units";
+import { ra_to_hours, dec_to_dms } from "../units";
 import FollowupRequestForm from "./FollowupRequestForm";
 import FollowupRequestLists from "./FollowupRequestLists";
 import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
-import AddSourceGroup from "./AddSourceGroup";
+import EditSourceGroups from "./EditSourceGroups";
 import SourceNotification from "./SourceNotification";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
+import ObjPageAnnotations from "./ObjPageAnnotations";
+import SourceSaveHistory from "./SourceSaveHistory";
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -172,7 +175,7 @@ const SourceMobile = ({ source }) => {
               &nbsp; &nbsp;
               <span className={classes.position}>
                 {ra_to_hours(source.ra)} &nbsp;
-                {dec_to_hours(source.dec)}
+                {dec_to_dms(source.dec)}
               </span>
               &nbsp; (&alpha;,&delta;= {source.ra}, &nbsp;
               {source.dec}; <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)},
@@ -218,18 +221,22 @@ const SourceMobile = ({ source }) => {
               <br />
               {showStarList && <StarList sourceId={source.id} />}
               {source.groups.map((group) => (
-                <Chip
-                  label={
-                    group.nickname
-                      ? group.nickname.substring(0, 15)
-                      : group.name.substring(0, 15)
-                  }
+                <Tooltip
+                  title={`Saved at ${group.saved_at} by ${group.saved_by?.username}`}
                   key={group.id}
-                  size="small"
-                  className={classes.chip}
-                />
+                >
+                  <Chip
+                    label={
+                      group.nickname
+                        ? group.nickname.substring(0, 15)
+                        : group.name.substring(0, 15)
+                    }
+                    size="small"
+                    className={classes.chip}
+                  />
+                </Tooltip>
               ))}
-              <AddSourceGroup
+              <EditSourceGroups
                 source={{
                   id: source.id,
                   currentGroupIds: source.groups.map((g) => g.id),
@@ -237,6 +244,7 @@ const SourceMobile = ({ source }) => {
                 userGroups={userAccessibleGroups}
                 icon
               />
+              <SourceSaveHistory groups={source.groups} />
             </div>
             <div className={classes.thumbnails}>
               <ThumbnailList
@@ -253,6 +261,38 @@ const SourceMobile = ({ source }) => {
             </Typography>
             <CommentListMobile />
           </Paper>
+        </div>
+        <div>
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="surveys-content"
+              id="surveys-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Surveys
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
+            </AccordionDetails>
+          </Accordion>
+        </div>
+        <div>
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="annotations-content"
+              id="annotations-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Auto-annotations
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <ObjPageAnnotations annotations={source.annotations} />
+            </AccordionDetails>
+          </Accordion>
         </div>
         <div>
           <Accordion defaultExpanded>
@@ -310,22 +350,6 @@ const SourceMobile = ({ source }) => {
           </Accordion>
         </div>
         {/* TODO 1) check for dead links; 2) simplify link formatting if possible */}
-        <div>
-          <Accordion defaultExpanded>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="surveys-content"
-              id="surveys-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Surveys
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
-            </AccordionDetails>
-          </Accordion>
-        </div>
         <div>
           <Accordion defaultExpanded>
             <AccordionSummary
@@ -436,6 +460,12 @@ SourceMobile.propTypes = {
     gal_lat: PropTypes.number,
     dm: PropTypes.number,
     luminosity_distance: PropTypes.number,
+    annotations: PropTypes.arrayOf(
+      PropTypes.shape({
+        origin: PropTypes.string.isRequired,
+        data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+      })
+    ),
     classifications: PropTypes.arrayOf(
       PropTypes.shape({
         author_name: PropTypes.string,

@@ -19,14 +19,16 @@ const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
     <div className={styles.starListDiv}>
       <code className={styles.starList}>
         <div className={styles.codeText}>
-          {starList &&
-            starList.map((item, idx) => (
-              // eslint-disable-next-line react/no-array-index-key
-              <React.Fragment key={idx}>
-                {item.str}
-                <br />
-              </React.Fragment>
-            ))}
+          <pre>
+            {starList &&
+              starList.map((item, idx) => (
+                // eslint-disable-next-line react/no-array-index-key
+                <React.Fragment key={idx}>
+                  {item.str}
+                  <br />
+                </React.Fragment>
+              ))}
+          </pre>
         </div>
       </code>
       <div className={styles.dropDown}>

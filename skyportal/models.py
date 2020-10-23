@@ -1,11 +1,12 @@
 import uuid
 import re
+import json
+import warnings
 from datetime import datetime, timezone
+import requests
 import arrow
 from astropy import units as u
 from astropy import time as ap_time
-
-import json
 
 import astroplan
 import numpy as np
@@ -30,7 +31,6 @@ import timezonefinder
 from .utils.cosmology import establish_cosmology
 
 import yaml
-import warnings
 from astropy.utils.exceptions import AstropyWarning
 
 from baselayer.app.models import (  # noqa
@@ -420,7 +420,6 @@ class Obj(Base, ha.Point):
     thumbnails = relationship(
         'Thumbnail',
         back_populates='obj',
-        secondary='photometry',
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
         doc="Thumbnails of the object.",
@@ -463,13 +462,14 @@ class Obj(Base, ha.Point):
     def add_linked_thumbnails(self):
         """Determine the URLs of the SDSS and DESI DR8 thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
-        sdss_thumb = Thumbnail(
-            photometry=self.photometry[0], public_url=self.sdss_url, type='sdss'
-        )
-        dr8_thumb = Thumbnail(
-            photometry=self.photometry[0], public_url=self.desi_dr8_url, type='dr8'
-        )
+        sdss_thumb = Thumbnail(obj=self, public_url=self.sdss_url, type='sdss')
+        dr8_thumb = Thumbnail(obj=self, public_url=self.desi_dr8_url, type='dr8')
         DBSession().add_all([sdss_thumb, dr8_thumb])
+        DBSession().commit()
+
+    def add_ps1_thumbnail(self):
+        ps1_thumb = Thumbnail(obj=self, public_url=self.panstarrs_url, type="ps1")
+        DBSession().add(ps1_thumb)
         DBSession().commit()
 
     @property
@@ -488,6 +488,28 @@ class Obj(Base, ha.Point):
             f"http://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
             f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz"
         )
+
+    @property
+    def panstarrs_url(self):
+        """Construct URL for public PanSTARRS-1 (PS1) cutout.
+
+        The cutout service doesn't allow directly querying for an image; the
+        best we can do is request a page that contains a link to the image we
+        want (in this case a combination of the g/r/i filters).
+        """
+        try:
+            ps_query_url = (
+                f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
+                f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
+                f"&filter=r&filter=i&filetypes=stack&size=250"
+            )
+            response = requests.get(ps_query_url)
+            match = re.search(
+                'src="//ps1images.stsci.edu.*?"', response.content.decode()
+            )
+            return match.group().replace('src="', 'http:').replace('"', '')
+        except (ValueError, ConnectionError):
+            return None
 
     @property
     def target(self):
@@ -791,6 +813,9 @@ Source.unsaved_by_id = sa.Column(
 )
 Source.unsaved_by = relationship(
     "User", foreign_keys=[Source.unsaved_by_id], doc="User who unsaved the Source."
+)
+Source.unsaved_at = sa.Column(
+    sa.DateTime, nullable=True, doc="ISO UTC time when the Obj was unsaved from Group.",
 )
 
 Obj.sources = relationship(
@@ -1375,7 +1400,11 @@ def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
 
     return (
         Taxonomy.query.filter(Taxonomy.id == taxonomy_id)
-        .filter(Taxonomy.groups.any(Group.id.in_([g.id for g in user_or_token.groups])))
+        .filter(
+            Taxonomy.groups.any(
+                Group.id.in_([g.id for g in user_or_token.accessible_groups])
+            )
+        )
         .all()
     )
 
@@ -1474,7 +1503,14 @@ class Annotation(Base):
         sa.String,
         index=True,
         nullable=False,
-        doc='What generated the annotation, e.g., `Kowalski`. One annotation with multiple fields from each origin is allowed.',
+        doc=(
+            'What generated the annotation. This should generally map to a '
+            'filter/group name. But since an annotation can be made accessible to multiple '
+            'groups, the origin name does not necessarily have to map to a single group name.'
+            ' The important thing is to make the origin distinct and descriptive such '
+            'that annotations from the same origin generally have the same metrics. One '
+            'annotation with multiple fields from each origin is allowed.'
+        ),
     )
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
@@ -1509,6 +1545,8 @@ class Annotation(Base):
         annotation.author_info = annotation.construct_author_info_dict()
 
         return annotation
+
+    __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
 
 GroupAnnotation = join_model("group_annotations", Group, Annotation)
@@ -1576,13 +1614,17 @@ class Photometry(Base, ha.Point):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
     __tablename__ = 'photometry'
-    mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.')
+
+    mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
     flux = sa.Column(
         sa.Float,
         doc='Flux of the observation in µJy. '
         'Corresponds to an AB Zeropoint of 23.9 in all '
         'filters.',
+        server_default='NaN',
+        nullable=False,
     )
+
     fluxerr = sa.Column(
         sa.Float, nullable=False, doc='Gaussian error on the flux in µJy.'
     )
@@ -1612,11 +1654,13 @@ class Photometry(Base, ha.Point):
         default=lambda: str(uuid.uuid4()),
         doc="ID of the batch in which this Photometry was uploaded (for bulk deletes).",
     )
-    alert_id = sa.Column(
-        sa.BigInteger,
-        nullable=True,
-        unique=True,
-        doc="ID of the alert from which this Photometry was extracted (if any).",
+    origin = sa.Column(
+        sa.String,
+        nullable=False,
+        unique=False,
+        index=True,
+        doc="Origin from which this Photometry was extracted (if any).",
+        server_default='',
     )
 
     obj_id = sa.Column(
@@ -1644,9 +1688,6 @@ class Photometry(Base, ha.Point):
         'Instrument',
         back_populates='photometry',
         doc="Instrument that took this Photometry.",
-    )
-    thumbnails = relationship(
-        'Thumbnail', passive_deletes=True, doc="Thumbnails for this Photometry."
     )
 
     followup_request_id = sa.Column(
@@ -1730,6 +1771,26 @@ class Photometry(Base, ha.Point):
         return self.flux / self.fluxerr
 
 
+# Deduplication index. This is a unique index that prevents any photometry
+# point that has the same obj_id, instrument_id, origin, mjd, flux error,
+# and flux as a photometry point that already exists within the table from
+# being inserted into the table. The index also allows fast lookups on this
+# set of columns, making the search for duplicates a O(log(n)) operation.
+
+Photometry.__table_args__ = (
+    sa.Index(
+        'deduplication_index',
+        Photometry.obj_id,
+        Photometry.instrument_id,
+        Photometry.origin,
+        Photometry.mjd,
+        Photometry.fluxerr,
+        Photometry.flux,
+        unique=True,
+    ),
+)
+
+
 GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 
@@ -1809,9 +1870,9 @@ class Spectrum(Base):
     def from_ascii(
         cls,
         file,
-        obj_id,
-        instrument_id,
-        observed_at,
+        obj_id=None,
+        instrument_id=None,
+        observed_at=None,
         wave_column=0,
         flux_column=1,
         fluxerr_column=None,
@@ -2154,7 +2215,7 @@ class Thumbnail(Base):
 
     # TODO delete file after deleting row
     type = sa.Column(
-        thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ...)'
+        thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ps1, ...)'
     )
     file_uri = sa.Column(
         sa.String(),
@@ -2171,24 +2232,14 @@ class Thumbnail(Base):
         doc="Publically accessible URL of the thumbnail.",
     )
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the Thumbnail.")
-    photometry_id = sa.Column(
-        sa.ForeignKey('photometry.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True,
-        doc="ID of the Thumbnail's corresponding Photometry point.",
-    )
-    photometry = relationship(
-        'Photometry',
-        back_populates='thumbnails',
-        doc="The Thumbnail's corresponding Photometry point.",
-    )
     obj = relationship(
-        'Obj',
-        back_populates='thumbnails',
-        uselist=False,
-        secondary='photometry',
-        passive_deletes=True,
-        doc="The Thumbnail's Obj.",
+        'Obj', back_populates='thumbnails', uselist=False, doc="The Thumbnail's Obj.",
+    )
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        index=True,
+        nullable=False,
+        doc="ID of the thumbnail's obj.",
     )
 
 

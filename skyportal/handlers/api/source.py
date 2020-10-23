@@ -8,7 +8,7 @@ import io
 import math
 from dateutil.parser import isoparse
 from sqlalchemy.orm import joinedload
-from sqlalchemy import func
+from sqlalchemy import func, or_
 import arrow
 from marshmallow.exceptions import ValidationError
 import functools
@@ -23,7 +23,6 @@ from ...models import (
     Photometry,
     Obj,
     Source,
-    Thumbnail,
     Token,
     Group,
     FollowupRequest,
@@ -41,12 +40,56 @@ from ...utils import (
 )
 from .candidate import grab_query_results_page, update_redshift_history_if_relevant
 
+
 SOURCES_PER_PAGE = 100
 
 _, cfg = load_env()
 
 
+def add_ps1_thumbnail_and_push_ws_msg(obj, request_handler):
+    obj.add_ps1_thumbnail()
+    request_handler.push_all(
+        action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+    )
+
+
 class SourceHandler(BaseHandler):
+    @auth_or_token
+    def head(self, obj_id=None):
+        """
+        ---
+        single:
+          description: Check if a Source exists
+          parameters:
+            - in: path
+              name: obj_id
+              required: true
+              schema:
+                type: string
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: Success
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+        user_group_ids = [g.id for g in self.associated_user_object.accessible_groups]
+        num_s = (
+            DBSession()
+            .query(Source)
+            .filter(Source.obj_id == obj_id)
+            .filter(Source.group_id.in_(user_group_ids))
+            .count()
+        )
+        if num_s > 0:
+            return self.success()
+        else:
+            self.set_status(404)
+            self.finish()
+
     @auth_or_token
     def get(self, obj_id=None):
         """
@@ -153,6 +196,22 @@ class SourceHandler(BaseHandler):
                 type: integer
             description: |
                If provided, filter only sources saved to one of these group IDs.
+          - in: query
+            name: includePhotometry
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include associated photometry. Defaults to
+              false.
+          - in: query
+            name: includeRequested
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include requested saves. Defaults to
+              false.
           responses:
             200:
               content:
@@ -194,6 +253,8 @@ class SourceHandler(BaseHandler):
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
+        include_photometry = self.get_query_argument("includePhotometry", False)
+        include_requested = self.get_query_argument("includeRequested", False)
 
         # parse the group ids:
         group_ids = self.get_query_argument('group_ids', None)
@@ -212,6 +273,31 @@ class SourceHandler(BaseHandler):
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
         if obj_id is not None:
+            query_options = [
+                joinedload(Source.obj)
+                .joinedload(Obj.followup_requests)
+                .joinedload(FollowupRequest.requester),
+                joinedload(Source.obj)
+                .joinedload(Obj.followup_requests)
+                .joinedload(FollowupRequest.allocation)
+                .joinedload(Allocation.instrument),
+                joinedload(Source.obj)
+                .joinedload(Obj.assignments)
+                .joinedload(ClassicalAssignment.run)
+                .joinedload(ObservingRun.instrument)
+                .joinedload(Instrument.telescope),
+                joinedload(Source.obj).joinedload(Obj.thumbnails),
+                joinedload(Source.obj)
+                .joinedload(Obj.followup_requests)
+                .joinedload(FollowupRequest.allocation)
+                .joinedload(Allocation.group),
+            ]
+            if include_photometry:
+                query_options.append(
+                    joinedload(Source.obj)
+                    .joinedload(Obj.photometry)
+                    .joinedload(Photometry.instrument)
+                )
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
                 register_source_view(
@@ -221,38 +307,26 @@ class SourceHandler(BaseHandler):
                 )
                 self.push_all(action="skyportal/FETCH_TOP_SOURCES")
             s = Source.get_obj_if_owned_by(
-                obj_id,
-                self.current_user,
-                options=[
-                    joinedload(Source.obj)
-                    .joinedload(Obj.followup_requests)
-                    .joinedload(FollowupRequest.requester),
-                    joinedload(Source.obj)
-                    .joinedload(Obj.followup_requests)
-                    .joinedload(FollowupRequest.allocation)
-                    .joinedload(Allocation.instrument),
-                    joinedload(Source.obj)
-                    .joinedload(Obj.assignments)
-                    .joinedload(ClassicalAssignment.run)
-                    .joinedload(ObservingRun.instrument)
-                    .joinedload(Instrument.telescope),
-                    joinedload(Source.obj)
-                    .joinedload(Obj.thumbnails)
-                    .joinedload(Thumbnail.photometry)
-                    .joinedload(Photometry.instrument)
-                    .joinedload(Instrument.telescope),
-                    joinedload(Source.obj)
-                    .joinedload(Obj.followup_requests)
-                    .joinedload(FollowupRequest.allocation)
-                    .joinedload(Allocation.group),
-                ],
+                obj_id, self.current_user, options=query_options,
             )
             if s is None:
                 return self.error("Invalid source ID.")
+            if "ps1" not in [thumb.type for thumb in s.thumbnails]:
+                IOLoop.current().add_callback(
+                    lambda: add_ps1_thumbnail_and_push_ws_msg(s, self)
+                )
             comments = s.get_comments_owned_by(self.current_user)
             source_info = s.to_dict()
             source_info["comments"] = sorted(
-                comments, key=lambda x: x.created_at, reverse=True
+                [c.to_dict() for c in comments],
+                key=lambda x: x["created_at"],
+                reverse=True,
+            )
+            for comment in source_info["comments"]:
+                comment["author"] = comment["author"].to_dict()
+                del comment["author"]["preferences"]
+            source_info["annotations"] = sorted(
+                s.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
             )
             source_info["classifications"] = s.get_classifications_owned_by(
                 self.current_user
@@ -267,7 +341,7 @@ class SourceHandler(BaseHandler):
             source_info["followup_requests"] = [
                 f for f in source_info['followup_requests'] if f.status != 'deleted'
             ]
-            source_info["groups"] = (
+            query = (
                 DBSession()
                 .query(Group)
                 .join(Source)
@@ -275,11 +349,48 @@ class SourceHandler(BaseHandler):
                     Source.obj_id == source_info["id"],
                     Group.id.in_(user_accessible_group_ids),
                 )
-                .all()
             )
+            if include_requested:
+                query = query.filter(
+                    or_(Source.requested.is_(True), Source.active.is_(True))
+                )
+            else:
+                query = query.filter(Source.active.is_(True))
+            source_info["groups"] = [g.to_dict() for g in query.all()]
+            for group in source_info["groups"]:
+                source_table_row = Source.query.filter(
+                    Source.obj_id == s.id, Source.group_id == group["id"]
+                ).first()
+                group["active"] = source_table_row.active
+                group["requested"] = source_table_row.requested
+                group["saved_at"] = source_table_row.saved_at
+                group["saved_by"] = (
+                    source_table_row.saved_by.to_dict()
+                    if source_table_row.saved_by is not None
+                    else None
+                )
+
+            # add the date(s) this source was saved to each of these groups
+            for i, g in enumerate(source_info["groups"]):
+                saved_at = (
+                    DBSession()
+                    .query(Source.saved_at)
+                    .filter(
+                        Source.obj_id == source_info["id"], Source.group_id == g["id"]
+                    )
+                    .first()
+                    .saved_at
+                )
+                source_info["groups"][i]['saved_at'] = saved_at
+
             return self.success(data=source_info)
 
         # Fetch multiple sources
+        query_options = [joinedload(Obj.thumbnails)]
+        if include_photometry:
+            query_options.append(
+                joinedload(Obj.photometry).joinedload(Photometry.instrument)
+            )
         q = (
             DBSession()
             .query(Obj)
@@ -289,12 +400,7 @@ class SourceHandler(BaseHandler):
                     user_accessible_group_ids
                 )  # only give sources the user has access to
             )
-            .options(
-                joinedload(Obj.thumbnails)
-                .joinedload(Thumbnail.photometry)
-                .joinedload(Photometry.instrument)
-                .joinedload(Instrument.telescope)
-            )
+            .options(query_options)
         )
 
         if sourceID:
@@ -334,6 +440,10 @@ class SourceHandler(BaseHandler):
                     f"One of the requested groups in '{group_ids}' is inaccessible to user."
                 )
             q = q.filter(Source.group_id.in_(group_ids))
+            if include_requested:
+                q = q.filter(or_(Source.requested.is_(True), Source.active.is_(True)))
+            else:
+                q = q.filter(Source.active.is_(True))
 
         if page_number:
             try:
@@ -342,7 +452,12 @@ class SourceHandler(BaseHandler):
                 return self.error("Invalid page number value.")
             try:
                 query_results = grab_query_results_page(
-                    q, total_matches, page, num_per_page, "sources"
+                    q,
+                    total_matches,
+                    page,
+                    num_per_page,
+                    "sources",
+                    include_photometry=include_photometry,
                 )
             except ValueError as e:
                 if "Page number out of range" in str(e):
@@ -355,10 +470,13 @@ class SourceHandler(BaseHandler):
         for source in query_results["sources"]:
             source_list.append(source.to_dict())
             source_list[-1]["comments"] = sorted(
-                source.get_comments_owned_by(self.current_user),
-                key=lambda x: x.created_at,
+                [s.to_dict() for s in source.get_comments_owned_by(self.current_user)],
+                key=lambda x: x["created_at"],
                 reverse=True,
             )
+            for comment in source_list[-1]["comments"]:
+                comment["author"] = comment["author"].to_dict()
+                del comment["author"]["preferences"]
             source_list[-1]["classifications"] = source.get_classifications_owned_by(
                 self.current_user
             )
@@ -371,16 +489,51 @@ class SourceHandler(BaseHandler):
                 "angular_diameter_distance"
             ] = source.angular_diameter_distance
 
-            source_list[-1]["groups"] = (
-                DBSession()
-                .query(Group)
-                .join(Source)
-                .filter(
-                    Source.obj_id == source_list[-1]["id"],
-                    Group.id.in_(user_accessible_group_ids),
-                )
-                .all()
+            source_filter_condition = (
+                or_(Source.requested.is_(True), Source.active.is_(True))
+                if include_requested
+                else Source.active.is_(True)
             )
+            source_list[-1]["groups"] = [
+                g.to_dict()
+                for g in (
+                    DBSession()
+                    .query(Group)
+                    .join(Source)
+                    .filter(
+                        Source.obj_id == source_list[-1]["id"],
+                        source_filter_condition,
+                        Group.id.in_(user_accessible_group_ids),
+                    )
+                    .all()
+                )
+            ]
+            for group in source_list[-1]["groups"]:
+                source_table_row = Source.query.filter(
+                    Source.obj_id == source.id, Source.group_id == group["id"]
+                ).first()
+                group["active"] = source_table_row.active
+                group["requested"] = source_table_row.requested
+                group["saved_at"] = source_table_row.saved_at
+                group["saved_by"] = (
+                    source_table_row.saved_by.to_dict()
+                    if source_table_row.saved_by is not None
+                    else None
+                )
+
+            # add the date(s) this source was saved to each of these groups
+            for i, g in enumerate(source_list[-1]["groups"]):
+                saved_at = (
+                    DBSession()
+                    .query(Source.saved_at)
+                    .filter(
+                        Source.obj_id == source_list[-1]["id"],
+                        Source.group_id == g["id"],
+                    )
+                    .first()
+                    .saved_at
+                )
+                source_list[-1]["groups"][i]['saved_at'] = saved_at
 
         query_results["sources"] = source_list
 
@@ -423,7 +576,18 @@ class SourceHandler(BaseHandler):
                               description: New source ID
         """
         data = self.get_json()
+        obj_already_exists = Obj.query.get(data["id"]) is not None
         schema = Obj.__schema__()
+
+        ra = data.get('ra', None)
+        dec = data.get('dec', None)
+
+        if ra is None and not obj_already_exists:
+            return self.error("RA must not be null for a new Obj")
+
+        if dec is None and not obj_already_exists:
+            return self.error("Dec must not be null for a new Obj")
+
         user_group_ids = [g.id for g in self.current_user.groups]
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         if not user_group_ids:
@@ -450,7 +614,7 @@ class SourceHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
 
-        previouslySaved = Source.query.filter(Source.obj_id == obj.id).first()
+        previously_saved = Source.query.filter(Source.obj_id == obj.id).first()
 
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
         if not groups:
@@ -462,12 +626,19 @@ class SourceHandler(BaseHandler):
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
 
         DBSession().add(obj)
-        DBSession().add_all([Source(obj=obj, group=group) for group in groups])
+        DBSession().add_all(
+            [
+                Source(obj=obj, group=group, saved_by_id=self.associated_user_object.id)
+                for group in groups
+            ]
+        )
         DBSession().commit()
+        if not obj_already_exists:
+            obj.add_linked_thumbnails()
 
         self.push_all(action="skyportal/FETCH_SOURCES")
         # If we're updating a source
-        if previouslySaved is not None:
+        if previously_saved is not None:
             self.push_all(
                 action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
             )
@@ -520,6 +691,7 @@ class SourceHandler(BaseHandler):
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key},
         )
+
         return self.success(action='skyportal/FETCH_SOURCES')
 
     @permissions(['Manage sources'])
@@ -736,6 +908,7 @@ class SourceOffsetsHandler(BaseHandler):
                 query_string,
                 queries_issued,
                 noffsets,
+                used_ztfref,
             ) = get_nearby_offset_stars(
                 best_ra,
                 best_dec,
@@ -750,13 +923,13 @@ class SourceOffsetsHandler(BaseHandler):
                 allowed_queries=2,
                 use_ztfref=use_ztfref,
             )
-
         except ValueError:
             return self.error('Error while querying for nearby offset stars')
 
         starlist_str = "\n".join(
             [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
         )
+
         return self.success(
             data={
                 'facility': facility,

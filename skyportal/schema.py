@@ -237,11 +237,12 @@ class PhotBaseFlexible(object):
         missing=None,
     )
 
-    alert_id = fields.Field(
-        description="Corresponding alert ID. If a record is "
-        "already present with identical alert ID, only the "
-        "groups list will be updated (other alert data assumed "
-        "identical). Defaults to None."
+    origin = fields.Field(
+        description="Provenance of the Photometry. If a record is "
+        "already present with identical origin, only the "
+        "groups list will be updated (other data assumed "
+        "identical). Defaults to None.",
+        missing=None,
     )
 
     group_ids = fields.Field(
@@ -790,20 +791,37 @@ class ObservingRunGetWithAssignments(ObservingRunGet):
     instrument = fields.Field()
 
 
-class SpectrumAsciiFilePostJSON(_Schema):
-    obj_id = fields.String(
-        description='The ID of the object that the spectrum is of.', required=True
-    )
-    instrument_id = fields.Integer(
-        description='The ID of the instrument that took the spectrum.', required=True
-    )
-    observed_at = fields.DateTime(
-        description='The ISO UTC time the spectrum was taken.', required=True
-    )
-    group_ids = fields.List(
+class PhotometryRangeQuery(_Schema):
+    instrument_ids = fields.List(
         fields.Integer,
-        description="The IDs of the groups to share this spectrum with.",
+        description="IDs of the instruments to query "
+        "for photometry from. If `None`, "
+        "queries all instruments.",
+        required=False,
+        missing=None,
+        default=None,
     )
+
+    min_date = fields.DateTime(
+        required=False,
+        description='Query for photometry taken after '
+        'this UT `DateTime`. For an '
+        'open-ended interval use `None`.',
+        missing=None,
+        default=None,
+    )
+
+    max_date = fields.DateTime(
+        required=False,
+        description='Query for photometry taken before '
+        'this UT `DateTime`. For an '
+        'open-ended interval use `None`.',
+        missing=None,
+        default=None,
+    )
+
+
+class SpectrumAsciiFileParseJSON(_Schema):
 
     wave_column = fields.Integer(
         missing=0,
@@ -822,12 +840,6 @@ class SpectrumAsciiFilePostJSON(_Schema):
         "columns in the input file this value will be ignored. If there are "
         "more than 2 columns in the input file, but none of them correspond to "
         "flux error values, set this parameter to `None`.",
-    )
-
-    followup_request_id = fields.Integer(
-        missing=None,
-        description="ID of the followup request this spectrum is associated "
-        "with, if any.",
     )
 
     ascii = fields.String(
@@ -956,6 +968,20 @@ Many-column ASCII:
         required=True,
     )
 
+
+class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
+    obj_id = fields.String(
+        description='The ID of the object that the spectrum is of.', required=True
+    )
+    instrument_id = fields.Integer(
+        description='The ID of the instrument that took the spectrum.', required=True
+    )
+    observed_at = fields.DateTime(
+        description='The ISO UTC time the spectrum was taken.', required=True
+    )
+    group_ids = fields.List(
+        fields.Integer, description="The IDs of the groups to share this spectrum with."
+    )
     filename = fields.String(
         description="The original filename (for bookkeeping purposes).", required=True,
     )
@@ -1058,7 +1084,9 @@ ObservingRunPost = ObservingRunPost()
 ObservingRunGet = ObservingRunGet()
 AssignmentSchema = AssignmentSchema()
 ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
+PhotometryRangeQuery = PhotometryRangeQuery()
 SpectrumAsciiFilePostJSON = SpectrumAsciiFilePostJSON()
 FollowupRequestPost = FollowupRequestPost()
+SpectrumAsciiFileParseJSON = SpectrumAsciiFileParseJSON()
 SpectrumPost = SpectrumPost()
 GroupIDList = GroupIDList()

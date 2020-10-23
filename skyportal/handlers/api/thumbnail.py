@@ -7,7 +7,7 @@ from sqlalchemy.exc import StatementError
 from PIL import Image, UnidentifiedImageError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Photometry, Obj, Source, Thumbnail
+from ...models import DBSession, Obj, Source, Thumbnail
 
 
 class ThumbnailHandler(BaseHandler):
@@ -24,10 +24,7 @@ class ThumbnailHandler(BaseHandler):
                 properties:
                   obj_id:
                     type: string
-                    description: ID of object associated with thumbnails. If specified, without `photometry_id`, the first photometry point associated with specified object will be associated with thumbnail(s).
-                  photometry_id:
-                    type: integer
-                    description: ID of photometry to be associated with thumbnails. If omitted, `obj_id` must be specified, in which case the first photometry entry associated with object will be used.
+                    description: ID of object associated with thumbnails.
                   data:
                     type: string
                     format: byte
@@ -59,32 +56,20 @@ class ThumbnailHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        if 'photometry_id' in data:
-            phot = Photometry.query.get(int(data['photometry_id']))
-            obj_id = phot.obj.id
-            obj = Obj.get_if_owned_by(obj_id, self.current_user)
-        elif 'obj_id' in data:
-            obj_id = data['obj_id']
-            obj = Obj.get_if_owned_by(obj_id, self.current_user)
-            if obj is None:
-                return self.error(f"Invalid obj_id: {obj_id}")
-            try:
-                phot = obj.photometry[0]
-            except IndexError:
-                return self.error(
-                    'Specified source does not yet have any photometry data.'
-                )
-        else:
-            return self.error('One of either obj_id or photometry_id are required.')
+        if 'obj_id' not in data:
+            return self.error("Missing required parameter: obj_id")
+        obj_id = data['obj_id']
+        obj = Obj.get_if_owned_by(obj_id, self.current_user)
+        if obj is None:
+            return self.error(f"Invalid obj_id: {obj_id}")
         try:
-            t = create_thumbnail(data['data'], data['ttype'], obj_id, phot)
+            t = create_thumbnail(data['data'], data['ttype'], obj_id)
         except ValueError as e:
             return self.error(f"Error in creating new thumbnail: invalid value(s): {e}")
         except (LookupError, StatementError) as e:
             if "enum" in str(e):
                 return self.error(f"Invalid ttype: {e}")
-            else:
-                return self.error(f"Error creating new thumbnail: {e}")
+            return self.error(f"Error creating new thumbnail: {e}")
         except UnidentifiedImageError as e:
             return self.error(f"Invalid file type: {e}")
         DBSession().commit()
@@ -198,7 +183,7 @@ class ThumbnailHandler(BaseHandler):
         return self.success()
 
 
-def create_thumbnail(thumbnail_data, thumbnail_type, obj_id, photometry_obj):
+def create_thumbnail(thumbnail_data, thumbnail_type, obj_id):
     basedir = Path(os.path.dirname(__file__)) / '..' / '..'
     if os.path.abspath(basedir).endswith('skyportal/skyportal'):
         basedir = basedir / '..'
@@ -217,8 +202,8 @@ def create_thumbnail(thumbnail_data, thumbnail_type, obj_id, photometry_obj):
             'between (16, 16) and (500, 500) allowed.'
         )
     t = Thumbnail(
+        obj_id=obj_id,
         type=thumbnail_type,
-        photometry=photometry_obj,
         file_uri=file_uri,
         public_url=f'/static/thumbnails/{obj_id}_{thumbnail_type}.png',
     )

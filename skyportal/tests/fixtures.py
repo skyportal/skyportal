@@ -109,7 +109,7 @@ class AnnotationFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Annotation
 
-    data = {'unique_id': {str(uuid.uuid4())}}
+    data = {'unique_id': str(uuid.uuid4())}
     author = factory.SubFactory(UserFactory)
 
 
@@ -137,8 +137,6 @@ class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
 class ThumbnailFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Thumbnail
-
-    type = 'new'
 
 
 class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -212,7 +210,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
                 instrument=instrument,
                 filter=filter,
                 groups=passed_groups,
-                alert_id=np.random.randint(100, 9223372036854775807),
+                origin=uuid.uuid4(),
             )
             DBSession().add(phot1)
             DBSession().add(
@@ -223,11 +221,12 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
                     instrument=instrument,
                     filter=filter,
                     groups=passed_groups,
-                    alert_id=np.random.randint(100, 9223372036854775807),
+                    origin=uuid.uuid4(),
                 )
             )
 
-            DBSession().add(ThumbnailFactory(photometry=phot1))
+            DBSession().add(ThumbnailFactory(obj_id=obj.id, type="new"))
+            DBSession().add(ThumbnailFactory(obj_id=obj.id, type="ps1"))
             DBSession().add(CommentFactory(obj_id=obj.id, groups=passed_groups))
         DBSession().add(SpectrumFactory(obj_id=obj.id, instrument=instruments[0]))
         DBSession().commit()

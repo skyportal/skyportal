@@ -15,7 +15,8 @@ import ThumbnailList from "./ThumbnailList";
 import SurveyLinkList from "./SurveyLinkList";
 import SharePage from "./SharePage";
 import { useSourceStyles } from "./SourceMobile";
-import { ra_to_hours, dec_to_hours } from "../units";
+import ObjPageAnnotations from "./ObjPageAnnotations";
+import { ra_to_hours, dec_to_dms } from "../units";
 
 import fetchCandidate from "../ducks/candidate";
 
@@ -85,7 +86,7 @@ const Candidate = ({ route }) => {
                 &nbsp; &nbsp;
                 <span className={classes.position}>
                   {ra_to_hours(candidate.ra)} &nbsp;
-                  {dec_to_hours(candidate.dec)}
+                  {dec_to_dms(candidate.dec)}
                 </span>
                 &nbsp; (&alpha;,&delta;= {candidate.ra}, &nbsp;
                 {candidate.dec}; <i>l</i>,<i>b</i>=
@@ -131,6 +132,22 @@ const Candidate = ({ route }) => {
               </Typography>
               <CommentList isCandidate />
             </Paper>
+          </div>
+          <div className={candidateStyles.accordionItem}>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="annotations-content"
+                id="annotations-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Auto-annotations
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <ObjPageAnnotations annotations={candidate.annotations} />
+              </AccordionDetails>
+            </Accordion>
           </div>
           <div className={candidateStyles.accordionItem}>
             <Accordion defaultExpanded>

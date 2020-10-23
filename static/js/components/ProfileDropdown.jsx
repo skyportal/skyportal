@@ -36,6 +36,13 @@ const useStyles = makeStyles((theme) => ({
   invisible: {
     display: "none",
   },
+  paddingSides: {
+    margin: `0 ${theme.spacing(2)}px 0 ${theme.spacing(2)}px`,
+  },
+  popoverMenu: {
+    minWidth: "10rem",
+    maxWidth: "20rem",
+  },
 }));
 
 const ProfileDropdown = () => {
@@ -89,6 +96,7 @@ const ProfileDropdown = () => {
           vertical: "top",
           horizontal: "right",
         }}
+        disableScrollLock
       >
         <Box
           display="flex"
@@ -115,14 +123,20 @@ const ProfileDropdown = () => {
             </Typography>
           )}
         </Box>
-        <Box display="flex" justifyContent="center" bgcolor="background.paper">
+        <Box
+          display="flex"
+          justifyContent="center"
+          bgcolor="background.paper"
+          className={classes.paddingSides}
+        >
           <Typography className={classes.typography} data-testid="username">
-            {profile.username}
+            {profile.username.substring(0, 15) +
+              (profile.username.length > 15 ? "..." : "")}
           </Typography>
         </Box>
         <Divider />
 
-        <MenuList>
+        <MenuList className={classes.popoverMenu}>
           <Link
             to="/profile"
             role="link"

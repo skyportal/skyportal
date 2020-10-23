@@ -1,6 +1,8 @@
 app:
   title: SkyPortal
-  logo: /static/images/skyportal_logo.png
+  logos: # Logos to place in the top-left of the header/login page (zero or more)
+    - src: /static/images/skyportal_logo_dark.png
+      alt_text: Skyportal logo
   login_message: |
     For more information about the project, see
     <a href="https://github.com/skyportal/skyportal">
@@ -52,11 +54,13 @@ app:
     - path: "/filter/:fid"
       component: Filter
     - path: "/runs"
-      component: ObservingRunList
+      component: ObservingRunPage
     - path: "/group_sources/:id"
       component: GroupSources
     - path: "/user_management"
       component: UserManagement
+    - path: "/upload_spectrum/:id"
+      component: UploadSpectrum
 
   sidebar:
     # See https://material-ui.com/components/material-icons/

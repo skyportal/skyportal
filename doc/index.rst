@@ -85,6 +85,7 @@ User Guide
    adding_features
    styling
    database
+   migrations
 
 Contributing
 ------------

@@ -2,6 +2,7 @@ import tornado.web
 
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app import model_util as baselayer_model_util
+from baselayer.log import make_log
 
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
@@ -27,11 +28,13 @@ from skyportal.handlers.api import (
     PhotometryHandler,
     BulkDeletePhotometryHandler,
     ObjPhotometryHandler,
+    PhotometryRangeHandler,
     SharingHandler,
     SourceHandler,
     SourceOffsetsHandler,
     SourceFinderHandler,
     SourceNotificationHandler,
+    SourceGroupsHandler,
     SpectrumHandler,
     SpectrumASCIIFileHandler,
     SpectrumASCIIFileParser,
@@ -57,9 +60,13 @@ from skyportal.handlers.api.internal import (
     LogHandler,
     RecentSourcesHandler,
     PlotAirmassHandler,
+    AnnotationsInfoHandler,
 )
 
 from . import models, model_util, openapi
+
+
+log = make_log('app_server')
 
 
 def make_app(cfg, baselayer_handlers, baselayer_settings):
@@ -91,6 +98,9 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/classification(/[0-9]+)?', ClassificationHandler),
         (r'/api/comment(/[0-9]+)?', CommentHandler),
         (r'/api/comment(/[0-9]+)/attachment', CommentAttachmentHandler),
+        # Allow the '.pdf' suffix for the attachment route, as the react-file-previewer
+        # package expects URLs ending with '.pdf' to load PDF files.
+        (r'/api/comment(/[0-9]+)/attachment.pdf', CommentAttachmentHandler),
         (r'/api/annotation(/[0-9]+)?', AnnotationHandler),
         (r'/api/facility', FacilityMessageHandler),
         (r'/api/filters(/.*)?', FilterHandler),
@@ -106,12 +116,14 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
         (r'/api/sharing', SharingHandler),
         (r'/api/photometry/bulk_delete/(.*)', BulkDeletePhotometryHandler),
+        (r'/api/photometry/range(/.*)?', PhotometryRangeHandler),
         (r'/api/sources(/[0-9A-Za-z-_]+)/photometry', ObjPhotometryHandler),
         (r'/api/sources(/[0-9A-Za-z-_]+)/spectra', ObjSpectraHandler),
         (r'/api/sources(/[0-9A-Za-z-_]+)/offsets', SourceOffsetsHandler),
         (r'/api/sources(/[0-9A-Za-z-_]+)/finder', SourceFinderHandler),
         (r'/api/sources(/.*)?', SourceHandler),
         (r'/api/source_notifications', SourceNotificationHandler),
+        (r'/api/source_groups(/.*)?', SourceGroupsHandler),
         (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
         (r'/api/spectrum/parse/ascii', SpectrumASCIIFileParser),
         (r'/api/spectrum/ascii(/[0-9]+)?', SpectrumASCIIFileHandler),
@@ -134,6 +146,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/internal/plot/airmass/(.*)', PlotAirmassHandler),
         (r'/api/internal/log', LogHandler),
         (r'/api/internal/recent_sources(/.*)?', RecentSourcesHandler),
+        (r'/api/internal/annotations_info', AnnotationsInfoHandler),
         (r'/api/.*', InvalidEndpointHandler),
         (r'/become_user(/.*)?', BecomeUserHandler),
         (r'/logout', LogoutHandler),

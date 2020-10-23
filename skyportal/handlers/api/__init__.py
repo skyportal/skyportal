@@ -16,6 +16,7 @@ from .photometry import (
     PhotometryHandler,
     ObjPhotometryHandler,
     BulkDeletePhotometryHandler,
+    PhotometryRangeHandler,
 )
 from .public_group import PublicGroupHandler
 from .sharing import SharingHandler
@@ -25,6 +26,7 @@ from .source import (
     SourceFinderHandler,
     SourceNotificationHandler,
 )
+from .source_groups import SourceGroupsHandler
 from .spectrum import (
     SpectrumHandler,
     ObjSpectraHandler,

@@ -27,6 +27,85 @@ def test_calculate_best_position_no_photometry():
 
 
 @pytest.mark.flaky(reruns=2)
+def test_calculate_position_with_evil_inputs(
+    upload_data_token, view_only_token, ztf_camera, public_group
+):
+    ra, dec = 10.5, -20.8
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'sources',
+        data={'id': obj_id, 'ra': ra, 'dec': dec, 'group_ids': [public_group.id]},
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['data']['id'] == obj_id
+
+    n_phot = 10
+    mjd = 58000.0 + np.arange(n_phot)
+    flux = np.zeros_like(mjd)
+    fluxerr = 1e-6 + np.random.random(n_phot)
+    filters = ['ztfg'] * n_phot
+    ras = ra + np.cos(np.radians(dec)) * np.random.randn(n_phot) / (10 * 3600)
+    decs = dec + np.random.randn(n_phot) / (10 * 3600)
+    dec_unc = np.zeros_like(mjd)
+
+    med_ra, med_dec = np.median(ras), np.median(decs)
+
+    # valid request with zero-flux sources and astrometry with zero uncertainty
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': list(mjd),
+            'instrument_id': ztf_camera.id,
+            'flux': list(flux),
+            'fluxerr': list(fluxerr),
+            'filter': list(filters),
+            'ra': list(ras),
+            'dec': list(decs),
+            'magsys': 'ab',
+            'zp': 25.0,
+            'dec_unc': list(dec_unc),
+            'ra_unc': 0.2,
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']['ids']) == n_phot
+
+    removed_kwargs = ["instrument_name", "groups", "magsys", "zp"]
+    phot_list = []
+    for photometry_id in data['data']['ids']:
+        status, data = api(
+            'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+        for key in removed_kwargs:
+            data['data'].pop(key)
+
+        phot_list.append(Photometry(**data['data']))
+
+    ra_calc_snr, dec_calc_snr = _calculate_best_position_for_offset_stars(
+        phot_list, fallback=(ra, dec), how="snr2", max_offset=0.5, sigma_clip=4.0
+    )
+    # make sure we get back a the median position
+    npt.assert_almost_equal(ra_calc_snr, med_ra, decimal=10)
+    npt.assert_almost_equal(dec_calc_snr, med_dec, decimal=10)
+
+    ra_calc_err, dec_calc_err = _calculate_best_position_for_offset_stars(
+        phot_list, fallback=(ra, dec), how="invvar", max_offset=0.5, sigma_clip=4.0
+    )
+    # make sure we get back a the median position
+    npt.assert_almost_equal(ra_calc_err, med_ra, decimal=10)
+    npt.assert_almost_equal(dec_calc_err, med_dec, decimal=10)
+
+
+@pytest.mark.flaky(reruns=2)
 def test_calculate_best_position_with_photometry(
     upload_data_token, view_only_token, ztf_camera, public_group
 ):
@@ -131,8 +210,13 @@ def test_get_nearby_offset_stars():
     rez = get_nearby_offset_stars(
         123.0, 33.3, "testSource", how_many=how_many, radius_degrees=3 / 60.0
     )
-
-    assert len(rez) == 4
+    # expecting 5 parameters:
+    #   a list of the source+offset stars,
+    #   What query was used against Gaia,
+    #   number of queries_issued,
+    #   number of offset stars
+    #   whether ZRF ref was used for astrometry
+    assert len(rez) == 5
     assert isinstance(rez[0], list)
     assert len(rez[0]) == how_many + 1
 

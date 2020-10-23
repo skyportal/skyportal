@@ -91,7 +91,10 @@ const SourceRedshiftHistory = ({ redshiftHistory }) => {
 };
 
 SourceRedshiftHistory.propTypes = {
-  redshiftHistory: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
+  redshiftHistory: PropTypes.arrayOf(PropTypes.shape({})),
+};
+SourceRedshiftHistory.defaultProps = {
+  redshiftHistory: null,
 };
 
 export default SourceRedshiftHistory;

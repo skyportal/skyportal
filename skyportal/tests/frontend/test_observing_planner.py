@@ -2,6 +2,10 @@ import uuid
 import pytest
 from ...models import DBSession, ObservingRun
 from .. import api
+import time
+
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 
 
 def post_assignment(obj, run, priority, comment, token):
@@ -46,7 +50,9 @@ def test_source_is_added_to_observing_run_via_frontend(
 
     driver.scroll_to_element_and_click(submit_button)
     driver.get(f"/run/{red_transients_run.id}")
-    driver.wait_for_xpath(f'//*[text()="{public_source.id}"]')
+
+    # 20 second timeout to give the backend time to perform ephemeris calcs
+    driver.wait_for_xpath(f'//*[text()="{public_source.id}"]', timeout=20)
     driver.wait_for_xpath(f'//*[text()="{comment_text}"]')
 
 
@@ -69,7 +75,9 @@ def test_assignment_posts_to_observing_run(
     assert data["status"] == "success"
 
     driver.get(f"/run/{red_transients_run.id}")
-    driver.wait_for_xpath(f'//*[text()="{public_source.id}"]')
+
+    # 20 second timeout to give the backend time to perform ephemeris calcs
+    driver.wait_for_xpath(f'//*[text()="{public_source.id}"]', timeout=20)
     for group in [s.group for s in public_source.sources]:
         driver.wait_for_xpath(f'//*[text()="{group.name[:15]}"]')
 
@@ -92,7 +100,9 @@ def test_observing_run_skycam_component(
     assert data["status"] == "success"
 
     driver.get(f"/run/{red_transients_run.id}")
-    driver.wait_for_xpath('//*[text()="Current Conditions"]')
+
+    # 20 second timeout to give the backend time to perform ephemeris calcs
+    driver.wait_for_xpath('//*[text()="Current Conditions"]', timeout=20)
     driver.wait_for_xpath(
         f'//img[contains(@src, "{red_transients_run.instrument.telescope.skycam_link}")]'
     )
@@ -116,8 +126,10 @@ def test_observing_run_skycam_component(
     DBSession().commit()
 
     driver.get(f"/run/{red_transients_run.id}")
+
+    # 20 second timeout to give the backend time to perform ephemeris calcs
     driver.wait_for_xpath(
-        f'//b[contains(text(), "{red_transients_run.instrument.name}")]'
+        f'//b[contains(text(), "{red_transients_run.instrument.name}")]', timeout=20
     )
     driver.wait_for_xpath_to_disappear('//*[text()="Current Conditions"]')
     driver.wait_for_xpath_to_disappear(
@@ -141,3 +153,68 @@ def test_observing_run_page(driver, view_only_user, red_transients_run):
         )
 
         driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]')
+
+
+@pytest.mark.flaky(reruns=2)
+def test_add_run_to_observing_run_page(
+    driver, user, lris, public_group, red_transients_run
+):
+    driver.get(f'/become_user/{user.id}')
+    driver.get(f'/runs')
+
+    driver.wait_for_xpath('//form')
+    observingrun_title = (
+        f"{red_transients_run.calendar_date} "
+        f"{red_transients_run.instrument.name}/"
+        f"{red_transients_run.instrument.telescope.nickname} "
+        f"(PI: {red_transients_run.pi} / "
+        f"Group: {red_transients_run.group.name})"
+    )
+
+    # long timeout as it can take a long time for the telescopelist,
+    # observingrun list, and instrumentlist to fully load on
+    # when these lists are long and the webserver is strained
+    driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]', timeout=15)
+
+    pi_element = driver.wait_for_xpath('//input[@id="root_pi"]')
+
+    calendar_keys = '02022021'
+    observer = uuid.uuid4().hex
+    pi_name = uuid.uuid4().hex
+
+    ActionChains(driver).click(pi_element).pause(1).send_keys(pi_name).pause(
+        1
+    ).send_keys(Keys.TAB).send_keys(calendar_keys).pause(1).send_keys(Keys.TAB).pause(
+        1
+    ).send_keys(
+        observer
+    ).pause(
+        1
+    ).perform()
+
+    instruments_element = driver.wait_for_xpath('//*[@id="root_instrument_id"]')
+
+    driver.scroll_to_element_and_click(instruments_element)
+
+    lris_element = driver.wait_for_xpath(f'//li[@data-value="{lris.id}"]')
+    driver.scroll_to_element_and_click(lris_element)
+
+    time.sleep(1)
+
+    groups_element = driver.wait_for_xpath('//*[@id="root_group_id"]')
+    driver.scroll_to_element_and_click(groups_element)
+
+    public_group_element = driver.wait_for_xpath(
+        f'//li[@data-value="{public_group.id}"]'
+    )
+    driver.scroll_to_element_and_click(public_group_element)
+    submit_button = driver.wait_for_xpath('//button[@type="submit"]')
+    driver.scroll_to_element_and_click(submit_button)
+
+    # long timeout as it can take a long time for the telescopelist,
+    # observingrun list, and instrumentlist to fully load on
+    # when these lists are long and the webserver is strained
+    driver.wait_for_xpath(
+        f'''//*[text()='2021-02-02 {lris.name}/{lris.telescope.nickname} (PI: {pi_name} / Group: {public_group.name})']''',
+        timeout=15,
+    )
