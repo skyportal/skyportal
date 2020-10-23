@@ -497,19 +497,14 @@ class Obj(Base, ha.Point):
         best we can do is request a page that contains a link to the image we
         want (in this case a combination of the g/r/i filters).
         """
-        try:
-            ps_query_url = (
-                f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
-                f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
-                f"&filter=r&filter=i&filetypes=stack&size=250"
-            )
-            response = requests.get(ps_query_url)
-            match = re.search(
-                'src="//ps1images.stsci.edu.*?"', response.content.decode()
-            )
-            return match.group().replace('src="', 'http:').replace('"', '')
-        except (ValueError, ConnectionError):
-            return None
+        ps_query_url = (
+            f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
+            f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
+            f"&filter=r&filter=i&filetypes=stack&size=250"
+        )
+        response = requests.get(ps_query_url)
+        match = re.search('src="//ps1images.stsci.edu.*?"', response.content.decode())
+        return match.group().replace('src="', 'http:').replace('"', '')
 
     @property
     def target(self):
