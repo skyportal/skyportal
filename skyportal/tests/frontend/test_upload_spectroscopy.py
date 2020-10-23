@@ -2,7 +2,7 @@ import os
 
 
 def test_upload_spectroscopy(
-    driver, sedm, super_admin_user, public_source, super_admin_token, public_group
+    driver, sedm, super_admin_user, public_source, super_admin_token
 ):
     inst_id = sedm.id
     driver.get(f"/become_user/{super_admin_user.id}")
@@ -14,8 +14,10 @@ def test_upload_spectroscopy(
             os.path.dirname(os.path.dirname(__file__)),
             'data',
             'ZTF20abucjsa_20200909_LT_v1.ascii',
-        )
+        ),
     )
+
+    driver.wait_for_xpath('//*[contains(., "application/octet-stream")]')
 
     mjd_element = driver.wait_for_xpath(f'//*[@id="root_mjd"]')
     driver.scroll_to_element_and_click(mjd_element)
