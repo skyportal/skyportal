@@ -308,6 +308,13 @@ def user(public_group):
 
 
 @pytest.fixture()
+def user_group2(public_group2):
+    return UserFactory(
+        groups=[public_group2], roles=[models.Role.query.get("Full user")]
+    )
+
+
+@pytest.fixture()
 def user_no_groups():
     return UserFactory(roles=[models.Role.query.get("Full user")])
 

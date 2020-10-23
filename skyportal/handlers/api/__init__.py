@@ -6,7 +6,12 @@ from .annotation import AnnotationHandler
 from .filter import FilterHandler
 from .followup_request import FollowupRequestHandler, AssignmentHandler
 from .facility_listener import FacilityMessageHandler
-from .group import GroupHandler, GroupUserHandler, GroupStreamHandler
+from .group import (
+    GroupHandler,
+    GroupUserHandler,
+    GroupStreamHandler,
+    GroupUsersFromOtherGroupsHandler,
+)
 from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
