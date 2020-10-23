@@ -86,8 +86,6 @@ class AssignmentHandler(BaseHandler):
 
         # calculate when the targets rise and set
         for json_obj, assignment in zip(out_json, assignments):
-            json_obj['rise_time_utc'] = assignment.rise_time.isot
-            json_obj['set_time_utc'] = assignment.set_time.isot
             json_obj['obj'] = assignment.obj
             json_obj['requester'] = assignment.requester
 

@@ -2288,6 +2288,10 @@ class ObservingRun(Base):
         doc="The ID of the User who created this ObservingRun.",
     )
 
+    ephemeris = sa.Column(
+        psql.JSONB, nullable=False, doc="Cached ephemerides of this run."
+    )
+
     assignments = relationship(
         'ClassicalAssignment',
         passive_deletes=True,
@@ -2352,6 +2356,24 @@ class ObservingRun(Base):
         return self.instrument.telescope.observer.twilight_morning_astronomical(
             self._calendar_noon, which='next'
         )
+
+    def recalculate_ephemerides(self):
+        """Calculate the ephemerides of this run and update the ephemeris
+        column of the database with the result."""
+        self.ephemeris['sunrise_utc'] = self.sunrise.isot
+        self.ephemeris['sunset_utc'] = self.sunset.isot
+        self.ephemeris[
+            'twilight_evening_nautical_utc'
+        ] = self.twilight_evening_nautical.isot
+        self.ephemeris[
+            'twilight_morning_nautical_utc'
+        ] = self.twilight_morning_nautical.isot
+        self.ephemeris[
+            'twilight_evening_astronomical_utc'
+        ] = self.twilight_evening_astronomical.isot
+        self.ephemeris[
+            'twilight_morning_astronomical_utc'
+        ] = self.twilight_morning_astronomical.isot
 
 
 User.observing_runs = relationship(
@@ -2433,6 +2455,17 @@ class ClassicalAssignment(Base):
         doc="ID of the ObservingRun this target was assigned to.",
     )
 
+    rise_time_utc = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        doc="UTC time at which the object rises 30 degrees above the horizon on this run.",
+    )
+    set_time_utc = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        doc="UTC time at which the object sets 30 degrees above the horizon on this run.",
+    )
+
     @hybrid_property
     def instrument(self):
         """The instrument in use on the assigned ObservingRun."""
@@ -2455,6 +2488,12 @@ class ClassicalAssignment(Base):
         return observer.target_set_time(
             self.rise_time, target, which='next', horizon=30 * u.degree
         )
+
+    def recalculate_ephemerides(self):
+        """Calculate the ephemerides of this assignment and update the ephemeris
+        column of the database with the result."""
+        self.rise_time_utc = self.rise_time.isot
+        self.set_time_utc = self.set_time.isot
 
 
 User.assignments = relationship(
@@ -2631,6 +2670,23 @@ def send_source_notification(mapper, connection, target):
             )
             sg = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
             sg.send(message)
+
+
+for ephemeris_class in [ObservingRun, ClassicalAssignment]:
+
+    @event.listens_for(ephemeris_class, 'after_insert')
+    def create_single_user_group(mapper, connection, target):
+        # Create single-user group
+
+        @event.listens_for(DBSession(), "after_flush", once=True)
+        def receive_after_flush(session, context):
+            target.recalculate_ephemerides()
+
+    @event.listens_for(ephemeris_class, 'after_update')
+    def update_single_user_group(mapper, connection, target):
+        @event.listens_for(DBSession(), "after_flush_postexec", once=True)
+        def receive_after_flush(session, context):
+            target.recaculate_ephemerides()
 
 
 schema.setup_schema()

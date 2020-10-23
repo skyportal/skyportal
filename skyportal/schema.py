@@ -15,7 +15,6 @@ from marshmallow import (
     Schema as _Schema,
     fields,
     post_load,
-    pre_dump,
     ValidationError,
 )
 from marshmallow_enum import EnumField
@@ -739,25 +738,6 @@ class ObservingRunGet(ObservingRunPost):
     owner_id = fields.Integer(description='The User ID of the owner of this run.')
     ephemeris = fields.Field(description='Observing run ephemeris data.')
     id = fields.Integer(description='Unique identifier for the run.')
-
-    @pre_dump
-    def serialize(self, data, **kwargs):
-        data.ephemeris = {}
-        data.ephemeris['sunrise_utc'] = data.sunrise.isot
-        data.ephemeris['sunset_utc'] = data.sunset.isot
-        data.ephemeris[
-            'twilight_evening_nautical_utc'
-        ] = data.twilight_evening_nautical.isot
-        data.ephemeris[
-            'twilight_morning_nautical_utc'
-        ] = data.twilight_morning_nautical.isot
-        data.ephemeris[
-            'twilight_evening_astronomical_utc'
-        ] = data.twilight_evening_astronomical.isot
-        data.ephemeris[
-            'twilight_morning_astronomical_utc'
-        ] = data.twilight_morning_astronomical.isot
-        return data
 
 
 class ObservingRunGetWithAssignments(ObservingRunGet):

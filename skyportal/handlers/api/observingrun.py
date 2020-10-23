@@ -152,11 +152,6 @@ class ObservingRunHandler(BaseHandler):
                     ]
                     del a['obj'].sources
 
-                # calculate when the targets rise and set
-                for d, a in zip(data["assignments"], run.assignments):
-                    d["rise_time_utc"] = a.rise_time.isot
-                    d["set_time_utc"] = a.set_time.isot
-
                 return self.success(data=data)
 
         runs = ObservingRun.query.order_by(ObservingRun.calendar_date.asc()).all()
