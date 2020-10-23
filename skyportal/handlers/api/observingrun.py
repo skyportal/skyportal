@@ -52,9 +52,17 @@ class ObservingRunHandler(BaseHandler):
                 f"Invalid/missing parameters: {exc.normalized_messages()}"
             )
 
-        run = ObservingRun(**rund)
-        run.owner_id = self.associated_user_object.id
+        owner_id = self.associated_user_object.id
 
+        instrument_id = rund['instrument_id']
+        instrument = Instrument.query.get(instrument_id)
+
+        if instrument is None:
+            return self.error(f"No instrument with ID {instrument_id}.")
+
+        run = ObservingRun(**rund)
+        run.instrument = instrument
+        run.owner_id = owner_id
         DBSession().add(run)
         DBSession().commit()
 
