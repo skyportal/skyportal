@@ -1738,7 +1738,6 @@ class Photometry(Base, ha.Point):
         back_populates='photometry',
         foreign_keys=[owner_id],
         cascade='save-update, merge, refresh-expire, expunge',
-        passive_deletes=True,
         doc="The User who uploaded the photometry.",
     )
 
@@ -1925,7 +1924,6 @@ class Spectrum(Base):
         back_populates='spectra',
         foreign_keys=[owner_id],
         cascade='save-update, merge, refresh-expire, expunge',
-        passive_deletes=True,
         doc="The User who uploaded the spectrum.",
     )
 

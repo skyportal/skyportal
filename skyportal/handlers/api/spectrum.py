@@ -86,10 +86,13 @@ class SpectrumHandler(BaseHandler):
         if instrument is None:
             return self.error('Invalid instrument id.')
 
+        # need to do this before the creation of Spectrum because this line flushes.
+        owner_id = self.associated_user_object.id
+
         spec = Spectrum(**data)
         spec.instrument = instrument
         spec.groups = groups
-        spec.owner_id = self.associated_user_object.id
+        spec.owner_id = owner_id
         DBSession().add(spec)
         DBSession().commit()
 
