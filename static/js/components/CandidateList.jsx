@@ -229,6 +229,7 @@ const CandidateList = () => {
   const history = useHistory();
   const [queryInProgress, setQueryInProgress] = useState(false);
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
+  const [filterGroups, setFilterGroups] = useState([]);
   // Maintain the three thumbnails in a row for larger screens
   const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("md"));
   const thumbnailsMinWidth = largeScreen ? "30rem" : 0;
@@ -257,6 +258,12 @@ const CandidateList = () => {
   const userAccessibleGroups = useSelector(
     (state) => state.groups.userAccessible
   );
+
+  useEffect(() => {
+    if (userAccessibleGroups?.length && filterGroups.length === 0) {
+      setFilterGroups([...userAccessibleGroups]);
+    }
+  }, [setFilterGroups, filterGroups, userAccessibleGroups]);
 
   const availableAnnotationsInfo = useSelector(
     (state) => state.candidates.annotationsInfo
@@ -471,6 +478,7 @@ const CandidateList = () => {
               <SaveCandidateButton
                 candidate={candidateObj}
                 userGroups={userAccessibleGroups}
+                filterGroups={filterGroups}
               />
             </div>
           </div>
@@ -822,6 +830,7 @@ const CandidateList = () => {
           lastPage={lastPage}
           totalMatches={totalMatches}
           setQueryInProgress={setQueryInProgress}
+          setFilterGroups={setFilterGroups}
         />
         <Box
           display={queryInProgress ? "block" : "none"}
