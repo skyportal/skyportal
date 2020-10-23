@@ -27,7 +27,9 @@ const ra_to_hours = (ra, sep = null) => {
 const dec_to_dms = (deci, sep = null) => {
   const dec = Math.abs(deci);
   const deg = Math.floor(dec);
+  const deg_padded = deg.toString().padStart(2, "0");
   const min = Math.floor((dec - deg) * 60);
+  const min_padded = min.toString().padStart(2, "0");
   const sec = (dec - deg - min / 60) * 3600;
   const sec_int = Math.floor(sec).toString().padStart(2, "0");
   const sec_decimal = Math.floor((sec - sec_int) * 100);
@@ -39,9 +41,9 @@ const dec_to_dms = (deci, sep = null) => {
   const secstr = `${sec_int}.${sec_decimal}`;
 
   if (!(sep == null)) {
-    return `${sign}${deg}${sep}${min}${sep}${secstr}`;
+    return `${sign}${deg_padded}${sep}${min_padded}${sep}${secstr}`;
   }
-  return `${sign}${deg}d${min}m${secstr}s`;
+  return `${sign}${deg_padded}d${min_padded}m${secstr}s`;
 };
 
 function time_relative_to_local(isostring) {
