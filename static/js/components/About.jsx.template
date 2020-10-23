@@ -1,0 +1,11 @@
+{# Projects extending Skyportal can modify various segments of the About page by
+  writing their own About.jsx.template which extends BaseAbout.jsx.template and
+  overwrites the Jinja template blocks they wish to customize. Here, we just
+  render the base template as is. This way, just the specific parts that need to
+  be customized/appended to can be overwritten without having to overwrite the
+  entire About.jsx component.
+
+  See https://jinja.palletsprojects.com/en/2.11.x/templates/ for documentation on
+  usage of Jinja templates.
+#}
+{% extends "BaseAbout.jsx.template" %}
