@@ -194,10 +194,21 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     attachment_button = driver.wait_for_xpath(
         '//button[@data-testid="attachmentButton_spec"]'
     )
-    ActionChains(driver).move_to_element(attachment_div).pause(0.1).perform()
-    ActionChains(driver).move_to_element(attachment_button).pause(0.1).click().perform()
-    # Preview dialog
-    driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
+    # Try to open the preview dialog twice before failing to make it more robust
+    try:
+        ActionChains(driver).move_to_element(attachment_div).pause(0.5).perform()
+        ActionChains(driver).move_to_element(attachment_button).pause(
+            0.5
+        ).click().perform()
+        # Preview dialog
+        driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
+    except TimeoutException:
+        ActionChains(driver).move_to_element(attachment_div).pause(0.5).perform()
+        ActionChains(driver).move_to_element(attachment_button).pause(
+            0.5
+        ).click().perform()
+        # Preview dialog
+        driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
 
     fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'spec.csv')))
     try_count = 1
