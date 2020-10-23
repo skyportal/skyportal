@@ -122,33 +122,38 @@ class AssignmentHandler(BaseHandler):
 
         data = self.get_json()
         try:
-            assignment = ClassicalAssignment(**AssignmentSchema.load(data=data))
+            assignment = AssignmentSchema.load(data=data)
         except ValidationError as e:
             return self.error(
                 'Error parsing followup request: ' f'"{e.normalized_messages()}"'
             )
 
-        run_id = assignment.run_id
-        data['priority'] = assignment.priority.name
+        run_id = assignment['run_id']
+        data['priority'] = assignment['priority'].name
         run = ObservingRun.query.get(run_id)
         if run is None:
             return self.error(f'Invalid observing run: "{run_id}"')
-
+        oid = assignment['obj_id']
         predecessor = ClassicalAssignment.query.filter(
-            ClassicalAssignment.obj_id == assignment.obj_id,
-            ClassicalAssignment.run_id == run_id,
+            ClassicalAssignment.obj_id == oid, ClassicalAssignment.run_id == run_id,
         ).first()
 
         if predecessor is not None:
             return self.error('Object is already assigned to this run.')
 
-        assignment = ClassicalAssignment(**data)
-        source = Source.get_obj_if_owned_by(assignment.obj_id, self.current_user)
+        source = Source.get_obj_if_owned_by(oid, self.current_user)
 
         if source is None:
-            return self.error(f'Invalid obj_id: "{assignment.obj_id}"')
+            return self.error(f'Invalid obj_id: "{oid}"')
+        requester_id = self.associated_user_object.id
 
-        assignment.requester_id = self.associated_user_object.id
+        assignment = ClassicalAssignment(**data)
+
+        # these are needed for ephemeris calc
+        assignment.obj = source
+        assignment.run = run
+
+        assignment.requester_id = requester_id
         DBSession().add(assignment)
         DBSession().commit()
         self.push_all(

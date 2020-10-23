@@ -2360,6 +2360,7 @@ class ObservingRun(Base):
     def recalculate_ephemerides(self):
         """Calculate the ephemerides of this run and update the ephemeris
         column of the database with the result."""
+        self.ephemeris = {}
         self.ephemeris['sunrise_utc'] = self.sunrise.isot
         self.ephemeris['sunset_utc'] = self.sunset.isot
         self.ephemeris[
@@ -2672,21 +2673,12 @@ def send_source_notification(mapper, connection, target):
             sg.send(message)
 
 
+def recalculate_ephemerides(mapper, connection, target):
+    target.recalculate_ephemerides()
+
+
 for ephemeris_class in [ObservingRun, ClassicalAssignment]:
-
-    @event.listens_for(ephemeris_class, 'after_insert')
-    def create_single_user_group(mapper, connection, target):
-        # Create single-user group
-
-        @event.listens_for(DBSession(), "after_flush", once=True)
-        def receive_after_flush(session, context):
-            target.recalculate_ephemerides()
-
-    @event.listens_for(ephemeris_class, 'after_update')
-    def update_single_user_group(mapper, connection, target):
-        @event.listens_for(DBSession(), "after_flush_postexec", once=True)
-        def receive_after_flush(session, context):
-            target.recaculate_ephemerides()
-
+    event.listens_for(ephemeris_class, 'before_insert')(recalculate_ephemerides)
+    event.listens_for(ephemeris_class, 'before_update')(recalculate_ephemerides)
 
 schema.setup_schema()
