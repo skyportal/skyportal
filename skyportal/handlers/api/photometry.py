@@ -370,6 +370,11 @@ class PhotometryHandler(BaseHandler):
 
             def coerced_value(elem, column):
                 literal_value = compiler.render_literal_value(elem, column.type)
+                if literal_value == 'inf':
+                    literal_value = '+infinity'
+                if literal_value == '-inf':
+                    literal_value = '-infinity'
+
                 cast_value = value_types[column.name]
                 return f'{literal_value}::{cast_value}'
 
