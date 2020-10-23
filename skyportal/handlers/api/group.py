@@ -549,7 +549,7 @@ class GroupUserHandler(BaseHandler):
 
 class GroupUsersFromOtherGroupsHandler(BaseHandler):
     @auth_or_token
-    def post(self, group_id, *ignored_args):
+    def post(self, group_id):
         """
         ---
         description: Add users from other group(s) to specified group
@@ -597,9 +597,13 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
                 "must be an array of integers."
             )
         group = DBSession().query(Group).get(group_id)
+        if group is None:
+            return self.error("Invalid group_id value")
         from_groups = (
             DBSession().query(Group).filter(Group.id.in_(from_group_ids)).all()
         )
+        if len(from_groups) != len(set(from_group_ids)):
+            return self.error("One or more invalid IDs in fromGroupIDs parameter.")
         user_ids = set()
         for group in from_groups:
             for user in group.users:
@@ -616,7 +620,7 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
                         [stream.id in user_stream_ids for stream in group.streams]
                     ):
                         return self.error(
-                            "All users do not have sufficient stream access "
+                            "Not all users have sufficient stream access "
                             "to be added to this group."
                         )
                 user_ids.add(user.id)
@@ -694,20 +698,16 @@ class GroupStreamHandler(BaseHandler):
         stream = Stream.query.filter(Stream.id == stream_id).first()
         if stream is None:
             return self.error("Specified stream_id does not exist.")
+        # TODO ensure all current group users have access to this stream
+        # TODO do the check
+        # Add new GroupStream
+        gs = GroupStream.query.filter(
+            GroupStream.group_id == group_id, GroupStream.stream_id == stream_id
+        ).first()
+        if gs is None:
+            DBSession.add(GroupStream(group_id=group_id, stream_id=stream_id))
         else:
-            # TODO ensure all current group users have access to this stream
-            # TODO do the check
-
-            # Add new GroupStream
-            gs = GroupStream.query.filter(
-                GroupStream.group_id == group_id, GroupStream.stream_id == stream_id
-            ).first()
-            if gs is None:
-                DBSession.add(GroupStream(group_id=group_id, stream_id=stream_id))
-            else:
-                return self.error(
-                    "Specified stream is already associated with this group."
-                )
+            return self.error("Specified stream is already associated with this group.")
         DBSession().commit()
 
         self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
