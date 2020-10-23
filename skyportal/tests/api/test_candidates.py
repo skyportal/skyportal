@@ -10,7 +10,7 @@ def test_candidate_list(view_only_token, public_candidate):
 
 
 def test_candidate_existence(view_only_token, public_candidate):
-    status = api('HEAD', f'candidates/{public_candidate.id}', token=view_only_token)
+    status, _ = api('HEAD', f'candidates/{public_candidate.id}', token=view_only_token)
     assert status == 200
 
     status, _ = api(
