@@ -89,7 +89,7 @@ class SpectrumHandler(BaseHandler):
         spec = Spectrum(**data)
         spec.instrument = instrument
         spec.groups = groups
-        spec.owner = self.associated_user_object
+        spec.owner_id = self.associated_user_object.id
         DBSession().add(spec)
         DBSession().commit()
 
