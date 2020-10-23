@@ -109,8 +109,8 @@ def is_modifiable_by(self, user):
 
     Parameters
     ----------
-    user: `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The User or Token to check.
+    user: `baselayer.app.models.User`
+       The User to check.
 
     Returns
     -------
