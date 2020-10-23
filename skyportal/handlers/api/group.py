@@ -549,7 +549,7 @@ class GroupUserHandler(BaseHandler):
 
 class GroupUsersFromOtherGroupsHandler(BaseHandler):
     @auth_or_token
-    def post(self, group_id):
+    def post(self, group_id, *ignored_args):
         """
         ---
         description: Add users from other group(s) to specified group
