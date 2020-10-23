@@ -15,6 +15,9 @@ export const DELETE_GROUP_OK = "skyportal/DELETE_GROUP_OK";
 export const ADD_GROUP_USER = "skyportal/ADD_GROUP_USER";
 export const ADD_GROUP_USER_OK = "skyportal/ADD_GROUP_USER_OK";
 
+export const ADD_GROUP_USERS = "skyportal/ADD_GROUP_USERS";
+export const ADD_GROUP_USERS_OK = "skyportal/ADD_GROUP_USERS_OK";
+
 export const UPDATE_GROUP_USER = "skyportal/UPDATE_GROUP_USER";
 export const UPDATE_GROUP_USER_OK = "skyportal/UPDATE_GROUP_USER_OK";
 
@@ -43,6 +46,11 @@ export function addGroupUser({ username, admin, group_id }) {
     group_id,
   });
 }
+
+export const addAllUsersFromGroups = ({ toGroupID, fromGroupIDs }) =>
+  API.POST(`/api/groups/${toGroupID}/usersFromGroups`, ADD_GROUP_USERS, {
+    fromGroupIDs,
+  });
 
 export const updateGroupUser = (groupID, params) =>
   API.PATCH(`/api/groups/${groupID}/users`, UPDATE_GROUP_USER, params);

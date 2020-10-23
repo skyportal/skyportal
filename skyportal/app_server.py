@@ -18,6 +18,7 @@ from skyportal.handlers.api import (
     FacilityMessageHandler,
     GroupHandler,
     GroupUserHandler,
+    GroupUsersFromOtherGroupsHandler,
     PublicGroupHandler,
     GroupStreamHandler,
     InstrumentHandler,
@@ -108,6 +109,10 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/groups/public', PublicGroupHandler),
         (r'/api/groups(/[0-9]+)/streams(/[0-9]+)?', GroupStreamHandler),
         (r'/api/groups(/[0-9]+)/users(/.*)?', GroupUserHandler),
+        (
+            r'/api/groups(/[0-9]+)/usersFromGroups(/.*)?',
+            GroupUsersFromOtherGroupsHandler,
+        ),
         (r'/api/groups(/[0-9]+)?', GroupHandler),
         (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
         (r'/api/invitations(/.*)?', InvitationHandler),
