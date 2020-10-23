@@ -795,19 +795,7 @@ class PhotometryRangeQuery(_Schema):
     )
 
 
-class SpectrumAsciiFilePostJSON(_Schema):
-    obj_id = fields.String(
-        description='The ID of the object that the spectrum is of.', required=True
-    )
-    instrument_id = fields.Integer(
-        description='The ID of the instrument that took the spectrum.', required=True
-    )
-    observed_at = fields.DateTime(
-        description='The ISO UTC time the spectrum was taken.', required=True
-    )
-    group_ids = fields.List(
-        fields.Integer, description="The IDs of the groups to share this spectrum with."
-    )
+class SpectrumAsciiFileParseJSON(_Schema):
 
     wave_column = fields.Integer(
         missing=0,
@@ -954,6 +942,20 @@ Many-column ASCII:
         required=True,
     )
 
+
+class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
+    obj_id = fields.String(
+        description='The ID of the object that the spectrum is of.', required=True
+    )
+    instrument_id = fields.Integer(
+        description='The ID of the instrument that took the spectrum.', required=True
+    )
+    observed_at = fields.DateTime(
+        description='The ISO UTC time the spectrum was taken.', required=True
+    )
+    group_ids = fields.List(
+        fields.Integer, description="The IDs of the groups to share this spectrum with."
+    )
     filename = fields.String(
         description="The original filename (for bookkeeping purposes).", required=True,
     )
@@ -1058,5 +1060,6 @@ AssignmentSchema = AssignmentSchema()
 ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
 PhotometryRangeQuery = PhotometryRangeQuery()
 SpectrumAsciiFilePostJSON = SpectrumAsciiFilePostJSON()
+SpectrumAsciiFileParseJSON = SpectrumAsciiFileParseJSON()
 SpectrumPost = SpectrumPost()
 GroupIDList = GroupIDList()

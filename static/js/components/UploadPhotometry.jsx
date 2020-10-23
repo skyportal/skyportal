@@ -33,7 +33,7 @@ const sampleMagSpaceText = `mjd,mag,magerr,limiting_mag,magsys,instrument_id,fil
 58002.,13.1,0.2,18.0,ab,1,ztfg,43.1
 58003.,12.9,0.3,18.0,ab,1,ztfg,42.5`;
 
-const HtmlTooltip = withStyles((theme) => ({
+export const HtmlTooltip = withStyles((theme) => ({
   tooltip: {
     backgroundColor: "#f9f9ff",
     color: "rgba(0, 0, 0, 0.87)",
