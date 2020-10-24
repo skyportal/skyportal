@@ -2,6 +2,7 @@ from baselayer.app.env import load_env
 from skyportal.tests import api
 import numpy as np
 import sncosmo
+import math
 
 
 _, cfg = load_env()
@@ -1253,3 +1254,107 @@ def test_token_user_get_range_photometry(
     assert status == 200
     assert data['status'] == 'success'
     assert len(data['data']) == 2
+
+
+def test_reject_photometry_inf(
+    upload_data_token, public_source, public_group, ztf_camera
+):
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': [58000.0, 58500.0, 59000.0],
+            'instrument_id': ztf_camera.id,
+            'flux': math.inf,
+            'fluxerr': math.inf,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+
+    assert status == 400
+    assert data['status'] == 'error'
+
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58000.0,
+            'instrument_id': ztf_camera.id,
+            'mag': math.inf,
+            'magerr': math.inf,
+            'limiting_mag': 22.3,
+            'magsys': 'vega',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+
+    assert status == 400
+    assert data['status'] == 'error'
+
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58000.0,
+            'instrument_id': ztf_camera.id,
+            'mag': 2.0,
+            'magerr': 23.0,
+            'limiting_mag': math.inf,
+            'magsys': 'vega',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+
+    assert status == 400
+    assert data['status'] == 'error'
+
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58000.0,
+            'instrument_id': ztf_camera.id,
+            'mag': None,
+            'magerr': None,
+            'limiting_mag': -math.inf,
+            'magsys': 'vega',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+
+    assert status == 400
+    assert data['status'] == 'error'
+
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': [58000.0, 58500.0, 59000.0],
+            'instrument_id': ztf_camera.id,
+            'flux': None,
+            'fluxerr': math.inf,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+
+    assert status == 400
+    assert data['status'] == 'error'
