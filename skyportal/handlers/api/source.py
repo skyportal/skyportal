@@ -426,6 +426,7 @@ class SourceHandler(BaseHandler):
             q = q.filter(Obj.within(other, radius))
         if start_date:
             start_date = arrow.get(start_date.strip())
+            print(start_date)
             q = q.filter(Obj.last_detected >= start_date)
         if end_date:
             end_date = arrow.get(end_date.strip())
