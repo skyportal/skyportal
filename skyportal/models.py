@@ -2647,8 +2647,8 @@ def send_source_notification(mapper, connection, target):
 
 @event.listens_for(User, 'after_insert')
 def create_single_user_group(mapper, connection, target):
-    # Create single-user group
 
+    # Create single-user group
     @event.listens_for(DBSession(), "after_flush", once=True)
     def receive_after_flush(session, context):
         session.add(
@@ -2658,16 +2658,17 @@ def create_single_user_group(mapper, connection, target):
 
 @event.listens_for(User, 'before_delete')
 def delete_single_user_group(mapper, connection, target):
+
     # Delete single-user group
     DBSession().delete(target.single_user_group)
 
 
 @event.listens_for(User, 'after_update')
 def update_single_user_group(mapper, connection, target):
+
+    # Update single user group name if needed
     @event.listens_for(DBSession(), "after_flush_postexec", once=True)
     def receive_after_flush(session, context):
-
-        # Update single user group name if needed
         single_user_group = target.single_user_group
         single_user_group.name = slugify(target.username)
         DBSession().add(single_user_group)
