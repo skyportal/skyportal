@@ -7,7 +7,7 @@ import arrow
 
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import case, func
-from sqlalchemy.types import Float
+from sqlalchemy.types import Float, Boolean
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
@@ -413,7 +413,7 @@ class CandidateHandler(BaseHandler):
                     return self.error(
                         "Could not parse JSON objects for annotation filtering"
                     )
-                print(new_filter)
+
                 if "origin" not in new_filter:
                     self.error(
                         f"Invalid annotation filter list item {item}: \"origin\" is required."
@@ -426,13 +426,17 @@ class CandidateHandler(BaseHandler):
 
                 if "value" in new_filter:
                     value = new_filter["value"]
-                    # Support True/False and true/false convention
-                    if value in ["True", "False"]:
-                        value = value.lower()
-                    q = q.filter(
-                        Annotation.origin == new_filter["origin"],
-                        Annotation.data[new_filter["key"]].astext == value,
-                    )
+                    if isinstance(value, bool):
+                        q = q.filter(
+                            Annotation.origin == new_filter["origin"],
+                            Annotation.data[new_filter["key"]].astext.cast(Boolean)
+                            == value,
+                        )
+                    else:
+                        q = q.filter(
+                            Annotation.origin == new_filter["origin"],
+                            Annotation.data[new_filter["key"]].astext == value,
+                        )
                 elif "min" in new_filter and "max" in new_filter:
                     try:
                         min_value = float(new_filter["min"])
