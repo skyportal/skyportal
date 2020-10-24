@@ -308,6 +308,13 @@ def user(public_group):
 
 
 @pytest.fixture()
+def user_group2(public_group2):
+    return UserFactory(
+        groups=[public_group2], roles=[models.Role.query.get("Full user")]
+    )
+
+
+@pytest.fixture()
 def user_no_groups():
     return UserFactory(roles=[models.Role.query.get("Full user")])
 
@@ -455,6 +462,14 @@ def annotation_token(user):
 @pytest.fixture()
 def classification_token(user):
     token_id = create_token(ACLs=["Classify"], user_id=user.id, name=str(uuid.uuid4()))
+    return token_id
+
+
+@pytest.fixture()
+def classification_token_two_groups(user_two_groups):
+    token_id = create_token(
+        ACLs=["Classify"], user_id=user_two_groups.id, name=str(uuid.uuid4())
+    )
     return token_id
 
 

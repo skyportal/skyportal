@@ -95,9 +95,7 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath("//*[text()='Classification saved']")
 
     # Button at top of source page
-    driver.wait_for_xpath(
-        "//span[contains(@class, 'MuiButton-label') and text()='Symmetrical']"
-    )
+    driver.wait_for_xpath("//span[text()[contains(., 'Save')]]")
 
     # Scroll up to get entire classifications list component in view
     add_comments = driver.find_element_by_xpath("//h6[contains(text(), 'Add comment')]")
@@ -167,8 +165,6 @@ def test_comment_groups_validation(driver, user, public_source):
 
 @pytest.mark.flaky(reruns=2)
 def test_upload_download_comment_attachment(driver, user, public_source):
-    if "TRAVIS" in os.environ:
-        pytest.xfail("Xfailing this test on Travis builds.")
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
@@ -193,12 +189,15 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     # Scroll up to top of comments list
     comments = driver.wait_for_xpath("//p[text()='Comments']")
     driver.scroll_to_element(comments)
+    ActionChains(driver).move_to_element(comments).perform()
+    attachment_div = driver.wait_for_xpath("//div[contains(text(), 'Attachment:')]")
     attachment_button = driver.wait_for_xpath(
         '//button[@data-testid="attachmentButton_spec"]'
     )
+    ActionChains(driver).move_to_element(attachment_div).pause(0.1).perform()
     ActionChains(driver).move_to_element(attachment_button).pause(0.1).click().perform()
     # Preview dialog
-    driver.click_xpath('//button[@data-testid="attachmentDownloadButton_spec"]')
+    driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
 
     fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'spec.csv')))
     try_count = 1
