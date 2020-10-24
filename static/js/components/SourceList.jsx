@@ -60,8 +60,6 @@ const SourceList = () => {
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
-  const groupID = 7; // need to get rid of this
-
   if (sourceTableEmpty) {
     return <UninitializedDBMessage />;
   }
@@ -224,11 +222,7 @@ const SourceList = () => {
       return (
         <Suspense fallback={<div>Loading classifications</div>}>
           <ShowClassification
-            classifications={source.classifications.filter((cls) => {
-              return cls.groups.find((g) => {
-                return g.id === groupID;
-              });
-            })}
+            classifications={source.classifications}
             taxonomyList={taxonomyList}
             shortened
           />
@@ -261,13 +255,15 @@ const SourceList = () => {
     // This is just passed to MUI datatables options -- not meant to be instantiated directly.
     const renderDateSaved = (dataIndex) => {
       const source = sources.latest[dataIndex];
+      const dates = source.groups
+        .map((g) => {
+          return g.saved_at;
+        })
+        .sort();
 
-      const group = source.groups.find((g) => {
-        return g.id === groupID;
-      });
       return (
         <div key={`${source.id}_date_saved`}>
-          {group.saved_at.substring(0, 19)}
+          {dates[dates.length - 1].substring(0, 19)}
         </div>
       );
     };
