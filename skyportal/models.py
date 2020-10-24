@@ -103,6 +103,33 @@ def is_owned_by(self, user_or_token):
     raise NotImplementedError(f"{type(self).__name__} object has no owner")
 
 
+def is_modifiable_by(self, user):
+    """Return a boolean indicating whether an object point can be modified or
+    deleted by a given user.
+
+    Parameters
+    ----------
+    user: `baselayer.app.models.User`
+       The User to check.
+
+    Returns
+    -------
+    owned: bool
+       Whether the Object can be modified by the User.
+    """
+
+    if not hasattr(self, 'owner'):
+        raise TypeError(
+            f'Object {self} does not have an `owner` attribute, '
+            f'and thus does not expose the interface that is needed '
+            f'to check for modification or deletion privileges.'
+        )
+
+    is_admin = "System admin" in user.permissions
+    owns_spectrum = self.owner is user
+    return is_admin or owns_spectrum
+
+
 Base.is_owned_by = is_owned_by
 
 
@@ -1695,6 +1722,20 @@ class Photometry(Base, ha.Point):
     )
     assignment = relationship('ClassicalAssignment', back_populates='photometry')
 
+    owner_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the User who uploaded the photometry.",
+    )
+    owner = relationship(
+        'User',
+        back_populates='photometry',
+        foreign_keys=[owner_id],
+        cascade='save-update, merge, refresh-expire, expunge',
+        doc="The User who uploaded the photometry.",
+    )
+
     @hybrid_property
     def mag(self):
         """The magnitude of the photometry point in the AB system."""
@@ -1766,6 +1807,8 @@ class Photometry(Base, ha.Point):
         return self.flux / self.fluxerr
 
 
+Photometry.is_modifiable_by = is_modifiable_by
+
 # Deduplication index. This is a unique index that prevents any photometry
 # point that has the same obj_id, instrument_id, origin, mjd, flux error,
 # and flux as a photometry point that already exists within the table from
@@ -1785,6 +1828,10 @@ Photometry.__table_args__ = (
     ),
 )
 
+
+User.photometry = relationship(
+    'Photometry', doc='Photometry uploaded by this User.', back_populates='owner'
+)
 
 GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
@@ -1859,6 +1906,20 @@ class Spectrum(Base):
     )
     original_file_filename = sa.Column(
         sa.String, doc="Original file name that was passed to upload the spectrum."
+    )
+
+    owner_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the User who uploaded the spectrum.",
+    )
+    owner = relationship(
+        'User',
+        back_populates='spectra',
+        foreign_keys=[owner_id],
+        cascade='save-update, merge, refresh-expire, expunge',
+        doc="The User who uploaded the spectrum.",
     )
 
     @classmethod
@@ -2035,6 +2096,12 @@ class Spectrum(Base):
             altdata=header,
             **spec_data,
         )
+
+
+Spectrum.is_modifiable_by = is_modifiable_by
+User.spectra = relationship(
+    'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
+)
 
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)

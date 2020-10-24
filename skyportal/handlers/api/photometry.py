@@ -513,6 +513,7 @@ class PhotometryHandler(BaseHandler):
                 ra=packet['ra'],
                 dec=packet['dec'],
                 origin=packet["origin"],
+                owner_id=self.associated_user_object.id,
             )
 
             params.append(phot)
@@ -760,7 +761,7 @@ class PhotometryHandler(BaseHandler):
         output = serialize(phot, outsys, format)
         return self.success(data=output)
 
-    @permissions(['Manage sources'])
+    @permissions(['Upload data'])
     def patch(self, photometry_id):
         """
         ---
@@ -789,19 +790,12 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
 
-        # The Repeatable Read isolation level only sees data committed before
-        # the transaction began; it never sees either uncommitted data or
-        # changes committed during transaction execution by concurrent
-        # transactions. (However, the query does see the effects of previous
-        # updates executed within its own transaction, even though they are
-        # not yet committed.) We use it here to ensure internally consistent
-        # deduplication queries (i.e., to ensure that SELECT queries against
-        # the photometry table do not return different results within this
-        # method's transaction due to concurrent inserts or updates.
-
-        DBSession().rollback()
-        DBSession().execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
         photometry = Photometry.get_if_owned_by(photometry_id, self.current_user)
+        if not photometry.is_modifiable_by(self.associated_user_object):
+            return self.error(
+                f'Cannot delete photometry point that is owned by {photometry.owner}.'
+            )
+
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
 
@@ -841,7 +835,7 @@ class PhotometryHandler(BaseHandler):
         DBSession().commit()
         return self.success()
 
-    @permissions(['Manage sources'])
+    @permissions(['Upload data'])
     def delete(self, photometry_id):
         """
         ---
@@ -862,7 +856,12 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        _ = Photometry.get_if_owned_by(photometry_id, self.current_user)
+        photometry = Photometry.get_if_owned_by(photometry_id, self.current_user)
+        if not photometry.is_modifiable_by(self.associated_user_object):
+            return self.error(
+                f'Cannot delete photometry point that is owned by {photometry.owner}.'
+            )
+
         DBSession().query(Photometry).filter(
             Photometry.id == int(photometry_id)
         ).delete()

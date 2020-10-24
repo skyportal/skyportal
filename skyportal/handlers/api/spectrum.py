@@ -86,9 +86,13 @@ class SpectrumHandler(BaseHandler):
         if instrument is None:
             return self.error('Invalid instrument id.')
 
+        # need to do this before the creation of Spectrum because this line flushes.
+        owner_id = self.associated_user_object.id
+
         spec = Spectrum(**data)
         spec.instrument = instrument
         spec.groups = groups
+        spec.owner_id = owner_id
         DBSession().add(spec)
         DBSession().commit()
 
@@ -129,7 +133,7 @@ class SpectrumHandler(BaseHandler):
         else:
             return self.error(f"Could not load spectrum with ID {spectrum_id}")
 
-    @permissions(['Manage sources'])
+    @permissions(['Upload data'])
     def put(self, spectrum_id):
         """
         ---
@@ -162,6 +166,13 @@ class SpectrumHandler(BaseHandler):
         spectrum = Spectrum.query.get(spectrum_id)
         # Permissions check
         _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
+
+        # Check that the requesting user owns the spectrum (or is an admin)
+        if not spectrum.is_modifiable_by(self.associated_user_object):
+            return self.error(
+                f'Cannot delete spectrum that is owned by {spectrum.owner}.'
+            )
+
         data = self.get_json()
 
         try:
@@ -183,7 +194,7 @@ class SpectrumHandler(BaseHandler):
 
         return self.success()
 
-    @permissions(['Manage sources'])
+    @permissions(['Upload data'])
     def delete(self, spectrum_id):
         """
         ---
@@ -207,6 +218,13 @@ class SpectrumHandler(BaseHandler):
         spectrum = Spectrum.query.get(spectrum_id)
         # Permissions check
         _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
+
+        # Check that the requesting user owns the spectrum (or is an admin)
+        if not spectrum.is_modifiable_by(self.associated_user_object):
+            return self.error(
+                f'Cannot delete spectrum that is owned by {spectrum.owner}.'
+            )
+
         DBSession().delete(spectrum)
         DBSession().commit()
 
@@ -250,7 +268,7 @@ class ASCIIHandler:
             fluxerr_column=json.get('fluxerr_column', None),
         )
         spec.original_file_string = ascii
-
+        spec.owner = self.associated_user_object
         if return_json:
             return spec, json
         return spec
