@@ -2348,6 +2348,20 @@ class ObservingRun(Base):
             self._calendar_noon, which='next'
         )
 
+    def rise_time(self, target_or_targets):
+        """The rise time of the specified targets as an astropy.time.Time."""
+        observer = self.instrument.telescope.observer
+        return observer.target_rise_time(
+            self.sunset, target_or_targets, which='next', horizon=30 * u.degree
+        )
+
+    def set_time(self, target_or_targets):
+        """The set time of the specified targets as an astropy.time.Time."""
+        observer = self.instrument.telescope.observer
+        return observer.target_set_time(
+            self.sunset, target_or_targets, which='next', horizon=30 * u.degree
+        )
+
 
 User.observing_runs = relationship(
     'ObservingRun',
@@ -2436,20 +2450,14 @@ class ClassicalAssignment(Base):
     @property
     def rise_time(self):
         """The UTC time at which the object rises on this run."""
-        observer = self.instrument.telescope.observer
         target = self.obj.target
-        return observer.target_rise_time(
-            self.run.sunset, target, which='next', horizon=30 * u.degree
-        )
+        return self.run.rise_time(target)
 
     @property
     def set_time(self):
         """The UTC time at which the object sets on this run."""
-        observer = self.instrument.telescope.observer
         target = self.obj.target
-        return observer.target_set_time(
-            self.rise_time, target, which='next', horizon=30 * u.degree
-        )
+        return self.run.set_time(target)
 
 
 User.assignments = relationship(
