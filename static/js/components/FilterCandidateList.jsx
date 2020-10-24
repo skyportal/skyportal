@@ -87,6 +87,7 @@ const FilterCandidateList = ({ userAccessibleGroups, setQueryInProgress }) => {
     if (data.endDate) {
       data.endDate = data.endDate.toISOString();
     }
+    await dispatch(candidatesActions.setFilterFormData(data));
     await dispatch(candidatesActions.fetchCandidates(data));
     setQueryInProgress(false);
   };

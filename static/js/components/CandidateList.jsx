@@ -153,6 +153,7 @@ const defaultNumPerPage = 25;
 const CustomSortToolbar = ({
   selectedAnnotationSortOptions,
   rowsPerPage,
+  filterFormData,
   setQueryInProgress,
   loaded,
 }) => {
@@ -169,13 +170,20 @@ const CustomSortToolbar = ({
     setSortOrder(newSortOrder);
 
     setQueryInProgress(true);
-    const data = {
+    let data = {
       pageNumber: 1,
       numPerPage: rowsPerPage,
       sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
       sortByAnnotationKey: selectedAnnotationSortOptions.key,
       sortByAnnotationOrder: newSortOrder,
     };
+
+    if (filterFormData !== null) {
+      data = {
+        ...data,
+        ...filterFormData,
+      };
+    }
 
     await dispatch(
       candidatesActions.setCandidatesAnnotationSortOptions({
@@ -218,6 +226,7 @@ CustomSortToolbar.propTypes = {
   }),
   setQueryInProgress: PropTypes.func.isRequired,
   rowsPerPage: PropTypes.number.isRequired,
+  filterFormData: PropTypes.shape({}).isRequired,
   loaded: PropTypes.bool.isRequired,
 };
 
@@ -260,6 +269,10 @@ const CandidateList = () => {
 
   const availableAnnotationsInfo = useSelector(
     (state) => state.candidates.annotationsInfo
+  );
+
+  const filterFormData = useSelector(
+    (state) => state.candidates.filterFormData
   );
 
   const dispatch = useDispatch();
@@ -365,6 +378,13 @@ const CandidateList = () => {
         sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
         sortByAnnotationKey: selectedAnnotationSortOptions.key,
         sortByAnnotationOrder: selectedAnnotationSortOptions.order,
+      };
+    }
+
+    if (filterFormData !== null) {
+      data = {
+        ...data,
+        ...filterFormData,
       };
     }
 
@@ -598,6 +618,13 @@ const CandidateList = () => {
       };
     }
 
+    if (filterFormData !== null) {
+      data = {
+        ...data,
+        ...filterFormData,
+      };
+    }
+
     await dispatch(candidatesActions.fetchCandidates(data));
     setQueryInProgress(false);
   };
@@ -801,6 +828,7 @@ const CandidateList = () => {
       <CustomSortToolbar
         selectedAnnotationSortOptions={selectedAnnotationSortOptions}
         rowsPerPage={rowsPerPage}
+        filterFormData={filterFormData}
         setQueryInProgress={setQueryInProgress}
         loaded={!queryInProgress}
       />
