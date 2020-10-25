@@ -47,7 +47,10 @@ _, cfg = load_env()
 
 
 def add_ps1_thumbnail_and_push_ws_msg(obj, request_handler):
-    obj.add_ps1_thumbnail()
+    try:
+        obj.add_ps1_thumbnail()
+    except (ValueError, ConnectionError) as e:
+        return request_handler.error(f"Unable to generate PS1 thumbnail URL: {e}")
     request_handler.push_all(
         action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
     )
@@ -310,7 +313,7 @@ class SourceHandler(BaseHandler):
                 obj_id, self.current_user, options=query_options,
             )
             if s is None:
-                return self.error("Invalid source ID.")
+                return self.error("Source not found", status=404)
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
                 IOLoop.current().add_callback(
                     lambda: add_ps1_thumbnail_and_push_ws_msg(s, self)
@@ -859,7 +862,7 @@ class SourceOffsetsHandler(BaseHandler):
             options=[joinedload(Source.obj).joinedload(Obj.photometry)],
         )
         if source is None:
-            return self.error('Invalid source ID.')
+            return self.error('Source not found', status=404)
 
         initial_pos = (source.ra, source.dec)
 
@@ -1009,7 +1012,7 @@ class SourceFinderHandler(BaseHandler):
             options=[joinedload(Source.obj).joinedload(Obj.photometry)],
         )
         if source is None:
-            return self.error('Invalid source ID.')
+            return self.error('Source not found', status=404)
 
         imsize = self.get_query_argument('imsize', '4.0')
         try:
@@ -1208,7 +1211,7 @@ class SourceNotificationHandler(BaseHandler):
 
         source = Source.get_obj_if_owned_by(data["sourceId"], self.current_user)
         if source is None:
-            return self.error("Invalid source ID.")
+            return self.error('Source not found', status=404)
 
         source_id = data["sourceId"]
 

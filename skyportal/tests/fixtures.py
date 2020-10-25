@@ -107,6 +107,7 @@ class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
     mjd = factory.LazyFunction(lambda: 58000.0 + np.random.random())
     flux = factory.LazyFunction(lambda: 20 + 10 * np.random.random())
     fluxerr = factory.LazyFunction(lambda: 2 * np.random.random())
+    owner_id = 1
 
 
 class ThumbnailFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -122,6 +123,7 @@ class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
     wavelengths = np.sort(1000 * np.random.random(20))
     fluxes = 1e-9 * np.random.random(len(wavelengths))
     observed_at = datetime.datetime.now()
+    owner_id = 1
 
 
 class StreamFactory(factory.alchemy.SQLAlchemyModelFactory):

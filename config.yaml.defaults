@@ -59,6 +59,8 @@ app:
       component: GroupSources
     - path: "/user_management"
       component: UserManagement
+    - path: "/upload_spectrum/:id"
+      component: UploadSpectrum
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
