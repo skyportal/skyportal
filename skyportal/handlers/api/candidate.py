@@ -433,6 +433,21 @@ class CandidateHandler(BaseHandler):
                             == value,
                         )
                     else:
+                        # Test if the value is a nested object
+                        try:
+                            value = json.loads(value)
+                            # If a nested object, we put the value through the
+                            # JSON loads/dumps pipeline to get a string formatted
+                            # like Postgres will for its JSONB ->> text operation
+                            # For some reason, for example, not doing this will
+                            # have value = { "key": "value" } (with the extra
+                            # spaces around the braces) and cause the filter to
+                            # fail.
+                            value = json.dumps(value)
+                        except json.decoder.JSONDecodeError:
+                            # If not, this is just a string field and we don't
+                            # need the string formatting above
+                            pass
                         q = q.filter(
                             Annotation.origin == new_filter["origin"],
                             Annotation.data[new_filter["key"]].astext == value,
