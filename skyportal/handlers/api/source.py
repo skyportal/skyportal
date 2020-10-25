@@ -47,7 +47,10 @@ _, cfg = load_env()
 
 
 def add_ps1_thumbnail_and_push_ws_msg(obj, request_handler):
-    obj.add_ps1_thumbnail()
+    try:
+        obj.add_ps1_thumbnail()
+    except (ValueError, ConnectionError) as e:
+        return request_handler.error(f"Unable to generate PS1 thumbnail URL: {e}")
     request_handler.push_all(
         action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
     )
