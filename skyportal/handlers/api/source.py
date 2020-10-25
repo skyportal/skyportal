@@ -952,7 +952,7 @@ class SourceFinderHandler(BaseHandler):
     async def get(self, obj_id):
         """
         ---
-        description: Generate a PDF finding chart to aid in spectroscopy
+        description: Generate a PDF/PNG finding chart to aid in spectroscopy
         parameters:
         - in: path
           name: obj_id
@@ -993,11 +993,23 @@ class SourceFinderHandler(BaseHandler):
             type: string
           description: |
             datetime of observation in isoformat (e.g. 2020-12-30T12:34:10)
+        - in: query
+          name: type
+          nullable: true
+          schema:
+            type: string
+            enum: [png, pdf]
+          description: |
+            output type
         responses:
           200:
-            description: A PDF finding chart file
+            description: A PDF/PNG finding chart file
             content:
               application/pdf:
+                schema:
+                  type: string
+                  format: binary
+              image/png:
                 schema:
                   type: string
                   format: binary
@@ -1013,6 +1025,10 @@ class SourceFinderHandler(BaseHandler):
         )
         if source is None:
             return self.error('Source not found', status=404)
+
+        output_type = self.get_query_argument('type', 'pdf')
+        if output_type not in ["png", "pdf"]:
+            return self.error(f'Invalid argument for `type`: {output_type}')
 
         imsize = self.get_query_argument('imsize', '4.0')
         try:
@@ -1068,7 +1084,7 @@ class SourceFinderHandler(BaseHandler):
             best_dec,
             obj_id,
             image_source=image_source,
-            output_format='pdf',
+            output_format=output_type,
             imsize=imsize,
             how_many=how_many,
             radius_degrees=radius_degrees,
@@ -1103,8 +1119,12 @@ class SourceFinderHandler(BaseHandler):
 
         # do not send result via `.success`, since that creates a JSON
         self.set_status(200)
-        self.set_header("Content-Type", "application/pdf; charset='utf-8'")
-        self.set_header("Content-Disposition", f"attachment; filename={filename}")
+        if output_type == "pdf":
+            self.set_header("Content-Type", "application/pdf; charset='utf-8'")
+            self.set_header("Content-Disposition", f"attachment; filename={filename}")
+        else:
+            self.set_header("Content-type", f"image/{output_type}")
+
         self.set_header(
             'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'
         )
