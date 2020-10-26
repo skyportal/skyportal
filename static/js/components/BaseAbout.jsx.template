@@ -1,3 +1,4 @@
+{% block imports -%}
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
@@ -14,16 +15,17 @@ import Paper from "@material-ui/core/Paper";
 
 import clsx from "clsx";
 import dayjs from "dayjs";
+{% endblock -%}
 
 const useStyles = makeStyles((theme) => ({
+  {% block styles -%}
   root: {
-    display: "inline-block",
-    padding: "1em",
-    maxWidth: "100rem",
+    padding: "1rem 2rem 2rem 2rem",
     fontSize: "1rem",
     "& .MuiTypography-h5": {
       margin: "1rem 0 0.83rem 0",
       fontWeight: 600,
+      wordBreak: "break-all"
     },
     "& .MuiTypography-body1": {
       margin: "1rem 0",
@@ -56,6 +58,7 @@ const useStyles = makeStyles((theme) => ({
   gitlogPR: {
     color: theme.palette.primary.dark,
   },
+  {% endblock -%}
 }));
 
 const BibLink = ({ bibtex, children }) => {
@@ -88,11 +91,13 @@ BibLink.propTypes = {
 };
 
 const About = () => {
+  {% block componentConsts -%}
   const classes = useStyles();
   const version = useSelector((state) => state.sysInfo.version);
   const cosmology = useSelector((state) => state.sysInfo.cosmology);
   const cosmoref = useSelector((state) => state.sysInfo.cosmoref);
   const gitlog = useSelector((state) => state.sysInfo.gitlog);
+  {% endblock -%}
 
   return (
     <Paper className={classes.root}>
@@ -102,7 +107,7 @@ const About = () => {
         <code>v{version}</code>.
       </Typography>
       {% endblock -%}
-      {% block projectHomePage -%}
+      {% block projectIntro -%}
       <Typography variant="body1">
         The project homepage is at&nbsp;
         <a href="https://skyportal.io">https://skyportal.io</a>
@@ -113,8 +118,6 @@ const About = () => {
         Documentation lives at&nbsp;
         <a href="https://skyportal.io">https://skyportal.io/docs/</a>
       </Typography>
-      {% endblock -%}
-      {% block apiDocumentation -%}
       <Typography variant="body1">
         You may also interact with {{ app.title }} through its API. Generate a token
         from your&nbsp;
@@ -134,9 +137,10 @@ const About = () => {
       <div>
         If you found SkyPortal useful, please consider citing our work:
         <BibLink
+          {% raw -%}
           bibtex={`@article{skyportal2019,
   author = {St\\'efan J. van der Walt and Arien Crellin-Quick and Joshua S. Bloom},
-  title = {%- raw -%} {{SkyPortal}: An Astronomical Data Platform},
+  title = {{SkyPortal}: An Astronomical Data Platform},
   journal = {Journal of Open Source Software},
   volume = {4},
   number = {37},
@@ -157,6 +161,7 @@ const About = () => {
         </BibLink>
       </div>
       {% endblock -%}
+      {% block acknowledgements -%}{% endblock -%}
       {% block gitlog -%}
       {gitlog && (
         <>
