@@ -123,7 +123,13 @@ const About = () => {
   // {% endblock -%}
 
   // {% block configVariables -%}
-  // Replace these with Jinja double-brace injection when extending
+  // Replace these with Jinja double-brace injection when extending if you just
+  // want to use a config file variable instead of this default appTitle without
+  // overwriting a render block that uses it below.
+  //
+  // This is done like this instead of just directly writing something like
+  // {{ app.title }} below because the actual double-brace injection syntax will
+  // not be valid JSX if not extending the About component.
   const appTitle = "SkyPortal";
   // {% endblock -%}
 
@@ -163,7 +169,7 @@ const About = () => {
       {/* {% endblock -%} */}
       {/* {% block citation -%} */}
       <div>
-        If you found SkyPortal useful, please consider citing our work:
+        If you found {appTitle} useful, please consider citing our work:
         {/* {% raw -%} */}
         <BibLink
           bibtex={`@article{skyportal2019,
