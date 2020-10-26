@@ -1001,6 +1001,14 @@ class SourceFinderHandler(BaseHandler):
             enum: [png, pdf]
           description: |
             output type
+        - in: query
+          name: how_many
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 5
+          description: |
+            output desired number of offset stars [0,5] (default: 3)
         responses:
           200:
             description: A PDF/PNG finding chart file
@@ -1060,7 +1068,13 @@ class SourceFinderHandler(BaseHandler):
         if isinstance(use_ztfref, str):
             use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
 
-        how_many = 3
+        how_many = self.get_query_argument('how_many', '3')
+        try:
+            how_many = int(how_many)
+        except ValueError:
+            # could not handle inputs
+            return self.error('Invalid argument for `how_many`')
+
         obstime = self.get_query_argument(
             'obstime', datetime.datetime.utcnow().isoformat()
         )
