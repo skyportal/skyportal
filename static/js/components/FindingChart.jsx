@@ -102,7 +102,7 @@ const FindingChart = () => {
       <div>
         <div>
           <Typography variant="h5" gutterBottom>
-            {`Finder for ${id}`}
+            {`Interactive Finder for ${id}`}
           </Typography>
         </div>
         <Grid

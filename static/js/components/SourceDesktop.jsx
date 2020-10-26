@@ -182,9 +182,16 @@ const SourceDesktop = ({ source }) => {
             </>
           )}
           {source.redshift != null && <>&nbsp;|&nbsp;</>}
-          <Button href={`/api/sources/${source.id}/finder`}>
-            PDF Finding Chart
+          Finding Chart:&nbsp;
+          <Button
+            href={`/api/sources/${source.id}/finder`}
+            download="finder-chart-pdf"
+          >
+            PDF
           </Button>
+          <Link to={`/finder/${source.id}`} role="link">
+            <Button>Interactive</Button>
+          </Link>
           &nbsp;|&nbsp;
           <Button onClick={() => setShowStarList(!showStarList)}>
             {showStarList ? "Hide Starlist" : "Show Starlist"}
