@@ -30,8 +30,6 @@ static/js/components/Main.jsx
 static/js/components/SidebarAndHeader.jsx
 static/js/components/HeaderContent.jsx
 static/js/components/HomePage.jsx
-static/js/components/About.jsx
-static/js/components/BaseAbout.jsx
 static/login.html
 static/loginerror.html
 static/index.html
