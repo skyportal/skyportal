@@ -1,13 +1,11 @@
 import React, { useRef, useState, Suspense } from "react";
 import { useParams } from "react-router-dom";
+import { makeStyles } from "@material-ui/core/styles";
 
 import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
 import InputLabel from "@material-ui/core/InputLabel";
-import { makeStyles } from "@material-ui/core/styles";
 import CircularProgress from "@material-ui/core/CircularProgress";
-import { useImage } from "react-image";
-import { useForm, Controller } from "react-hook-form";
 import FormControl from "@material-ui/core/FormControl";
 import Button from "@material-ui/core/Button";
 import Checkbox from "@material-ui/core/Checkbox";
@@ -15,18 +13,14 @@ import Input from "@material-ui/core/Input";
 import Grid from "@material-ui/core/Grid";
 import Card from "@material-ui/core/Card";
 import CardContent from "@material-ui/core/CardContent";
-
 import Typography from "@material-ui/core/Typography";
-import { useReactToPrint } from "react-to-print";
 import PrintIcon from "@material-ui/icons/Print";
 
+import { useImage } from "react-image";
+import { useForm, Controller } from "react-hook-form";
+import { useReactToPrint } from "react-to-print";
+
 const useStyles = makeStyles((theme) => ({
-  media: {
-    width: "100%",
-  },
-  slider: {
-    width: "5rem",
-  },
   button: {
     margin: theme.spacing(1),
   },
@@ -38,49 +32,15 @@ const useStyles = makeStyles((theme) => ({
   },
   items: {
     maxWidth: "100%",
+    width: "10rem",
     fullWidth: "true",
     display: "flex",
     wrap: "nowrap",
   },
-  nested: {
-    paddingLeft: theme.spacing(1),
-  },
-  heading: {
-    fontSize: "1.0625rem",
-    fontWeight: 500,
-  },
-  accordion_details: {
-    flexDirection: "column",
-  },
-  button_add: {
-    maxWidth: "8.75rem",
-  },
-  formControl: {
-    margin: theme.spacing(1),
-    minWidth: "12rem",
-  },
-  selectEmpty: {
-    marginTop: theme.spacing(2),
-  },
-  root: {
-    minWidth: "18rem",
-  },
-  bullet: {
-    display: "inline-block",
-    margin: "0 2px",
-    transform: "scale(0.8)",
-  },
-  title: {
-    fontSize: "0.875rem",
-  },
-  big_font: {
-    fontSize: "1rem",
-  },
-  pos: {
-    marginBottom: "0.75rem",
-  },
-  header: {
-    paddingBottom: 10,
+  spinner: {
+    position: "relative",
+    marginLeft: "50%",
+    width: "100%",
   },
 }));
 
@@ -89,24 +49,29 @@ const FindingChart = () => {
   const { handleSubmit, getValues, errors, control } = useForm();
   const { id } = useParams();
 
-  const [imagesource, setImageSource] = useState("desi");
-  const [useztfref, setUseztfref] = useState(true);
-  const [findersize, setFindersize] = useState(4.0);
-  const [howmany, setHowmany] = useState(3);
+  const [params, setParams] = useState({
+    imagesource: "desi",
+    useztfref: true,
+    findersize: 4.0,
+    howmany: 3,
+  });
 
   const componentRef = useRef();
 
   const initialFormState = {
-    imagesource,
-    useztfref,
-    findersize,
-    howmany,
+    ...params,
   };
 
-  const url = `/api/sources/${id}/finder?type=png&image_source=${imagesource}&use_ztfref=${useztfref}&imsize=${findersize}&how_many=${howmany}`;
+  const url = [
+    `/api/sources/${id}/finder?`,
+    `type=png&image_source=${params.imagesource}&`,
+    `use_ztfref=${params.useztfref}&`,
+    `imsize=${params.findersize}&`,
+    `how_many=${params.howmany}`,
+  ].join("");
 
   const placeholder = (
-    <CircularProgress className={classes.media} color="secondary" />
+    <CircularProgress className={classes.spinner} color="primary" />
   );
 
   function FinderImage() {
@@ -117,15 +82,11 @@ const FindingChart = () => {
   }
 
   const onSubmit = () => {
-    console.log(getValues());
     const formData = {
       ...initialFormState,
       ...getValues(),
     };
-    setImageSource(formData.imagesource);
-    setUseztfref(!formData.useztfref);
-    setFindersize(formData.findersize);
-    setHowmany(formData.howmany);
+    setParams(formData);
   };
 
   const rules = { required: true, min: 2, max: 15, type: "number", step: 0.5 };
@@ -164,7 +125,7 @@ const FindingChart = () => {
           </Grid>
           <Grid item xs={2}>
             <Card>
-              <CardContent>
+              <CardContent className={classes.items}>
                 <div>
                   <form onSubmit={handleSubmit(onSubmit)}>
                     <Grid
@@ -172,19 +133,24 @@ const FindingChart = () => {
                       direction="column"
                       justify="space-evenly"
                       alignItems="flex-start"
-                      spacing={4}
+                      spacing={2}
                     >
                       <Grid item xs={12}>
                         <FormControl>
-                          <InputLabel id="ImageSourceSelect">
+                          <InputLabel
+                            className={classes.items}
+                            id="ImageSourceSelect"
+                          >
                             Primary Image Source
                           </InputLabel>
+                          <p />
                           <Controller
                             as={Select}
-                            labelId="ImageSourceSelectLabel"
+                            labelid="ImageSourceSelectLabel"
                             name="imagesource"
                             control={control}
-                            defaultValue={imagesource}
+                            defaultValue={params.imagesource}
+                            className={classes.items}
                           >
                             <MenuItem value="desi">DESI DR8</MenuItem>
                             <MenuItem value="ztfref">ZTF Ref Image</MenuItem>
@@ -194,9 +160,13 @@ const FindingChart = () => {
                       </Grid>
                       <Grid item xs={12}>
                         <FormControl>
-                          <InputLabel id="PositionSelect">
+                          <InputLabel
+                            className={classes.items}
+                            id="PositionSelect"
+                          >
                             Use DR2 positions?
                           </InputLabel>
+                          <p />
                           <Controller
                             as={
                               <Checkbox
@@ -204,23 +174,23 @@ const FindingChart = () => {
                                 aria-labelledby="PositionSelect"
                               />
                             }
-                            labelId="PositionSelectLabel"
+                            labelid="PositionSelect"
                             name="useztfref"
                             control={control}
-                            defaultValue={!useztfref}
+                            defaultValue={!params.useztfref}
+                            className={classes.items}
                           />
                         </FormControl>
                       </Grid>
                       <Grid item xs={12}>
                         <FormControl>
-                          <InputLabel id="SizeSelect">
+                          <InputLabel className={classes.items} id="SizeSelect">
                             Image Size (arcmin)
                           </InputLabel>
                           <Controller
                             as={
                               <Input
                                 type="number"
-                                className={classes.slider}
                                 margin="dense"
                                 inputProps={{
                                   step: 0.5,
@@ -233,8 +203,9 @@ const FindingChart = () => {
                             }
                             name="findersize"
                             control={control}
-                            defaultValue={findersize}
+                            defaultValue={params.findersize}
                             rules={rules}
+                            className={classes.items}
                           />
                           {errors.findersize && (
                             <p>Enter a number between 2 and 15</p>
@@ -243,14 +214,13 @@ const FindingChart = () => {
                       </Grid>
                       <Grid item xs={12}>
                         <FormControl>
-                          <InputLabel id="HowMany">
+                          <InputLabel className={classes.items} id="HowMany">
                             # of Offset Stars
                           </InputLabel>
                           <Controller
                             as={
                               <Input
                                 type="number"
-                                className={classes.slider}
                                 margin="dense"
                                 inputProps={{
                                   step: 1,
@@ -263,28 +233,31 @@ const FindingChart = () => {
                             }
                             name="howmany"
                             control={control}
-                            defaultValue={howmany}
+                            defaultValue={params.howmany}
+                            className={classes.items}
                           />
                           {errors.howmany && (
                             <p>Enter an integer between 0 and 5</p>
                           )}
                         </FormControl>
                       </Grid>
-                      <Grid item xs={12}>
+                      <p />
+                      <Grid item xs={8}>
                         <Button
                           type="submit"
                           color="primary"
                           name="finderButton"
                           variant="contained"
-                          size="large"
+                          className={classes.button}
                         >
                           Update
                         </Button>
                       </Grid>
-                      <Grid item xs={12}>
+                      <p />
+                      <Grid item xs={8}>
                         <Button
                           variant="contained"
-                          color="secondary"
+                          color="default"
                           className={classes.button}
                           startIcon={<PrintIcon />}
                           onClick={handlePrint}
