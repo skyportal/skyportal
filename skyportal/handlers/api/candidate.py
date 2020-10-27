@@ -277,8 +277,18 @@ class CandidateHandler(BaseHandler):
             )
             filter_ids = [cand.filter_id for cand in accessible_candidates]
 
+            passing_alerts = [
+                {
+                    "filter_id": cand.filter_id,
+                    "passing_alert_id": cand.passing_alert_id,
+                    "passed_at": cand.passed_at,
+                }
+                for cand in accessible_candidates
+            ]
+
             candidate_info = c.to_dict()
             candidate_info["filter_ids"] = filter_ids
+            candidate_info["passing_alerts"] = passing_alerts
             candidate_info["comments"] = sorted(
                 [cmt.to_dict() for cmt in c.get_comments_owned_by(self.current_user)],
                 key=lambda x: x["created_at"],
