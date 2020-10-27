@@ -3,13 +3,14 @@ from slugify import slugify
 
 from .models import (
     DBSession,
+    ACL,
     User,
     Group,
     GroupUser,
     Invitation,
-    Role,
     StreamUser,
 )
+from .model_util import role_acls
 from baselayer.app.env import load_env
 
 
@@ -53,8 +54,8 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
             first_name=details["first_name"],
             last_name=details["last_name"],
             oauth_uid=uid,
+            acls=ACL.query.filter(ACL.id.in_(role_acls["Full user"])).all(),
         )
-        user.roles.append(Role.query.get("Full user"))
         DBSession().add(user)
         # Add single-user group
         DBSession().add(

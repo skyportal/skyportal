@@ -6,7 +6,8 @@ from slugify import slugify
 from ..base import BaseHandler
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
-from ...models import DBSession, User, Group, GroupUser, StreamUser
+from ...models import DBSession, User, Group, GroupUser, StreamUser, ACL
+from ...model_util import role_acls
 
 
 env, cfg = load_env()
@@ -22,15 +23,19 @@ def add_user_and_setup_groups(
     group_ids_and_admin=[],
     oauth_uid=None,
 ):
+    acls = []
+    for role in roles:
+        acls.extend(role_acls[role])
+    acls = list(set(acls))
     # Add user
     user = User(
         username=username.lower(),
-        role_ids=roles,
         first_name=first_name,
         last_name=last_name,
         contact_phone=contact_phone,
         contact_email=contact_email,
         oauth_uid=oauth_uid,
+        acls=ACL.query.filter(ACL.id.in_(acls)).all(),
     )
     DBSession().add(user)
     DBSession().flush()

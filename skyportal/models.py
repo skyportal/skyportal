@@ -39,7 +39,6 @@ from baselayer.app.models import (  # noqa
     Base,
     DBSession,
     ACL,
-    Role,
     User,
     Token,
 )

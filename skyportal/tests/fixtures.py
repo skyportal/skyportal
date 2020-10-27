@@ -19,7 +19,9 @@ from skyportal.models import (
     Thumbnail,
     Filter,
     ObservingRun,
+    ACL,
 )
+from skyportal.model_util import role_acls
 
 TMP_DIR = mkdtemp()
 
@@ -54,10 +56,14 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
             return
 
         if extracted:
+            acls = []
             for role in extracted:
-                obj.roles.append(role)
-                DBSession().add(obj)
-                DBSession().commit()
+                acls.extend(role_acls[role])
+            acls = list(set(acls))
+            acls = ACL.query.filter(ACL.id.in_(acls)).all()
+            obj.acls = acls
+            DBSession().add(obj)
+            DBSession().commit()
 
     @factory.post_generation
     def groups(obj, create, extracted, **kwargs):

@@ -482,8 +482,7 @@ class FollowupRequestHandler(BaseHandler):
             request_id, self.current_user
         )
         if not (
-            "Super admin" in [role.id for role in self.associated_user_object.roles]
-            or "Group admin" in [role.id for role in self.associated_user_object.roles]
+            "System admin" in self.associated_user_object.permissions
             or followup_request.requester.username
             == self.associated_user_object.username
         ):

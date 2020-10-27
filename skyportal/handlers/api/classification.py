@@ -267,14 +267,13 @@ class ClassificationHandler(BaseHandler):
                 schema: Success
         """
         user = self.associated_user_object
-        roles = self.current_user.roles if hasattr(self.current_user, 'roles') else []
         c = Classification.query.get(classification_id)
         if c is None:
             return self.error("Invalid classification ID")
         obj_id = c.obj_id
         obj_key = c.obj.internal_key
         author = c.author
-        if ("Super admin" in [role.id for role in roles]) or (user.id == author.id):
+        if ("System admin" in user.permissions) or (user.id == author.id):
             Classification.query.filter_by(id=classification_id).delete()
             DBSession().commit()
         else:

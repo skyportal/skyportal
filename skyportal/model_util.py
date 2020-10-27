@@ -1,5 +1,5 @@
 from social_tornado.models import TornadoStorage
-from skyportal.models import DBSession, ACL, Role, User, Group, Token
+from skyportal.models import DBSession, ACL, User, Group, Token
 from skyportal.enum_types import LISTENER_CLASSES
 from baselayer.app.env import load_env
 
@@ -36,20 +36,23 @@ role_acls = {
 env, cfg = load_env()
 
 
-def add_user(username, roles=[], auth=False):
+def add_user(username, roles=[], acls=[], oauth_uid=None, auth=False):
     user = User.query.filter(User.username == username).first()
     if user is None:
-        user = User(username=username)
+        user = User(username=username, oauth_uid=oauth_uid)
         if auth:
             TornadoStorage.user.create_social_auth(user, user.username, 'google-oauth2')
-
-    for rolename in roles:
-        role = Role.query.get(rolename)
-        if role not in user.roles:
-            user.roles.append(role)
+    if not acls:
+        for role in roles:
+            acls.extend(role_acls[role])
+    # Deduplicate
+    acls = list(set(acls))
+    acls = ACL.query.filter(ACL.id.in_(acls)).all()
 
     DBSession().add(user)
     DBSession().flush()
+
+    user.acls = acls
 
     # Add user to sitewide public group
     public_group = Group.query.filter(
@@ -63,7 +66,7 @@ def add_user(username, roles=[], auth=False):
     user.groups.append(public_group)
     DBSession().commit()
 
-    return User.query.filter(User.username == username).first()
+    return User.query.get(user.id)
 
 
 def make_super_user(username):
@@ -102,22 +105,17 @@ def provision_public_group():
 
 
 def setup_permissions():
-    """Create default ACLs/Roles needed by application.
+    """Create default ACLs needed by application.
 
-    If a given ACL or Role already exists, it will be skipped."""
+    If a given ACL already exists, it will be skipped."""
     all_acls = [ACL.create_or_get(a) for a in all_acl_ids]
     DBSession().add_all(all_acls)
     DBSession().commit()
 
-    for r, acl_ids in role_acls.items():
-        role = Role.create_or_get(r)
-        role.acls = [ACL.query.get(a) for a in acl_ids]
-        DBSession().add(role)
-    DBSession().commit()
-
 
 def create_token(ACLs, user_id, name):
-    t = Token(permissions=ACLs, name=name)
+    acls = ACL.query.filter(ACL.id.in_(ACLs)).all()
+    t = Token(acls=acls, name=name)
     u = User.query.get(user_id)
     u.tokens.append(t)
     t.created_by = u

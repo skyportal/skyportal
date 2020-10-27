@@ -25,15 +25,15 @@ from skyportal.tests.fixtures import (
     ObservingRunFactory,
     TelescopeFactory,
 )
-from skyportal.model_util import create_token
+from skyportal.model_util import create_token, role_acls
 from skyportal.models import (
     DBSession,
     Source,
     Candidate,
-    Role,
     User,
     Allocation,
     FollowupRequest,
+    ACL,
 )
 
 import astroplan
@@ -302,65 +302,47 @@ def private_source():
 
 @pytest.fixture()
 def user(public_group):
-    return UserFactory(
-        groups=[public_group], roles=[models.Role.query.get("Full user")]
-    )
+    return UserFactory(groups=[public_group], roles=["Full user"])
 
 
 @pytest.fixture()
 def user_group2(public_group2):
-    return UserFactory(
-        groups=[public_group2], roles=[models.Role.query.get("Full user")]
-    )
+    return UserFactory(groups=[public_group2], roles=["Full user"])
 
 
 @pytest.fixture()
 def user_no_groups():
-    return UserFactory(roles=[models.Role.query.get("Full user")])
+    return UserFactory(roles=["Full user"])
 
 
 @pytest.fixture()
 def user_two_groups(public_group, public_group2):
-    return UserFactory(
-        groups=[public_group, public_group2], roles=[models.Role.query.get("Full user")]
-    )
+    return UserFactory(groups=[public_group, public_group2], roles=["Full user"])
 
 
 @pytest.fixture()
 def view_only_user(public_group):
-    return UserFactory(
-        groups=[public_group], roles=[models.Role.query.get("View only")]
-    )
+    return UserFactory(groups=[public_group], roles=["View only"])
 
 
 @pytest.fixture()
 def group_admin_user(public_group):
-    return UserFactory(
-        groups=[public_group], roles=[models.Role.query.get("Group admin")]
-    )
+    return UserFactory(groups=[public_group], roles=["Group admin"])
 
 
 @pytest.fixture()
 def group_admin_user_two_groups(public_group, public_group2):
-    return UserFactory(
-        groups=[public_group, public_group2],
-        roles=[models.Role.query.get("Group admin")],
-    )
+    return UserFactory(groups=[public_group, public_group2], roles=["Group admin"],)
 
 
 @pytest.fixture()
 def super_admin_user(public_group):
-    return UserFactory(
-        groups=[public_group], roles=[models.Role.query.get("Super admin")]
-    )
+    return UserFactory(groups=[public_group], roles=["Super admin"])
 
 
 @pytest.fixture()
 def super_admin_user_two_groups(public_group, public_group2):
-    return UserFactory(
-        groups=[public_group, public_group2],
-        roles=[models.Role.query.get("Super admin")],
-    )
+    return UserFactory(groups=[public_group, public_group2], roles=["Super admin"],)
 
 
 @pytest.fixture()
@@ -427,22 +409,18 @@ def manage_users_token(super_admin_user):
 
 @pytest.fixture()
 def super_admin_token(super_admin_user):
-    role = Role.query.get("Super admin")
+    acls = role_acls["Super admin"]
     token_id = create_token(
-        ACLs=[a.id for a in role.acls],
-        user_id=super_admin_user.id,
-        name=str(uuid.uuid4()),
+        ACLs=acls, user_id=super_admin_user.id, name=str(uuid.uuid4()),
     )
     return token_id
 
 
 @pytest.fixture()
 def super_admin_token_two_groups(super_admin_user_two_groups):
-    role = Role.query.get("Super admin")
+    acls = role_acls["Super admin"]
     token_id = create_token(
-        ACLs=[a.id for a in role.acls],
-        user_id=super_admin_user_two_groups.id,
-        name=str(uuid.uuid4()),
+        ACLs=acls, user_id=super_admin_user_two_groups.id, name=str(uuid.uuid4()),
     )
     return token_id
 
@@ -593,12 +571,13 @@ def sedm_listener_token(sedm, group_admin_user):
 def source_notification_user(public_group):
     uid = str(uuid.uuid4())
     username = f"{uid}@cesium.ml.org"
+    acls = ACL.query.filter(ACL.id.in_(role_acls["Full user"])).all()
     user = User(
         username=username,
         contact_email=username,
         contact_phone="+12345678910",
         groups=[public_group],
-        roles=[models.Role.query.get("Full user")],
+        acls=acls,
         preferences={"allowEmailNotifications": True, "allowSMSNotifications": True},
     )
     DBSession().add(user)

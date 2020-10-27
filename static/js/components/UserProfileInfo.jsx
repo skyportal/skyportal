@@ -46,9 +46,9 @@ const UserProfileInfo = () => {
         <Typography component="div">
           <Box pb={1}>
             <Box fontWeight="fontWeightBold" component="span" mr={1}>
-              User roles:
+              User ACLs:
             </Box>
-            {profile.roles}
+            {profile.acls.join(", ")}
           </Box>
         </Typography>
       </CardContent>

@@ -46,10 +46,6 @@ class ProfileHandler(BaseHandler):
                               type: array
                               items:
                                 type: string
-                            roles:
-                              type: array
-                              items:
-                                type: string
                             tokens:
                               type: array
                               items:
@@ -69,7 +65,6 @@ class ProfileHandler(BaseHandler):
                               type: object
         """
         user = User.query.filter(User.username == self.current_user.username).first()
-        user_roles = sorted([role.id for role in user.roles])
         user_acls = sorted([acl.id for acl in user.acls])
         user_tokens = [
             {
@@ -81,7 +76,6 @@ class ProfileHandler(BaseHandler):
             for token in user.tokens
         ]
         user_info = user.to_dict()
-        user_info["roles"] = user_roles
         user_info["acls"] = user_acls
         user_info["tokens"] = user_tokens
         user_info["gravatar_url"] = user.gravatar_url or None

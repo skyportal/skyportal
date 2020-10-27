@@ -21,6 +21,11 @@ PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py  \
           --nodrop --user=<anotheremail>
 """
 
+import model_util
+from skyportal.models import init_db, Base, User, DBSession, ACL
+from social_tornado.models import TornadoStorage
+from baselayer.app.model_util import status, drop_tables, create_tables
+from baselayer.app.env import load_env
 import os
 from pathlib import Path
 import argparse
@@ -50,12 +55,6 @@ parser.add_argument(
 )
 
 results = parser.parse_args()
-from baselayer.app.env import load_env
-from baselayer.app.model_util import status, drop_tables, create_tables
-from social_tornado.models import TornadoStorage
-from skyportal.models import init_db, Base, User, DBSession
-
-import model_util
 
 
 if __name__ == "__main__":
@@ -94,7 +93,8 @@ if __name__ == "__main__":
     if adminuser != '':
         with status(f"Creating super admin ({adminuser})"):
             super_admin_user = User(
-                username=results.adminuser, role_ids=['Super admin']
+                username=results.adminuser,
+                acls=ACL.query.filter(ACL.id.in_(model_util.all_acl_ids)).all(),
             )
 
             DBSession().add_all([super_admin_user])
@@ -107,7 +107,12 @@ if __name__ == "__main__":
                 )
     if user != '':
         with status(f"Creating user ({user})"):
-            user = User(username=results.user, role_ids=['Full user'])
+            user = User(
+                username=results.user,
+                acls=ACL.query.filter(
+                    ACL.id.in_(model_util.role_acls["Full user"])
+                ).all(),
+            )
 
             DBSession().add_all([user])
 
