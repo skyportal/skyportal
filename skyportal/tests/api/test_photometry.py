@@ -3,6 +3,8 @@ from skyportal.tests import api
 import numpy as np
 import sncosmo
 
+from skyportal.models import DBSession, Token
+
 
 _, cfg = load_env()
 
@@ -158,7 +160,7 @@ def test_token_user_post_put_get_photometry_data(
     assert status == 200
     assert data['status'] == 'success'
     group_ids = [g["id"] for g in data['data']['groups']]
-    assert len(group_ids) == 1
+    assert len(group_ids) == 2
     assert group_ids[0] == public_group.id
 
     # PUTing photometry that contains
@@ -195,8 +197,20 @@ def test_token_user_post_put_get_photometry_data(
     assert status == 200
     assert data['status'] == 'success'
     group_ids = [g["id"] for g in data['data']['groups']]
-    assert len(group_ids) == 2
-    assert group_ids == [public_group.id, public_group2.id]
+    assert len(group_ids) == 3
+
+    token_object = (
+        DBSession()
+        .query(Token)
+        .filter(Token.id == upload_data_token_two_groups)
+        .first()
+    )
+
+    assert group_ids == [
+        public_group.id,
+        public_group2.id,
+        token_object.created_by.single_user_group.id,
+    ]
 
 
 def test_post_photometry_multiple_groups(
@@ -239,7 +253,7 @@ def test_post_photometry_multiple_groups(
     assert data['data']['ra_unc'] is None
     assert data['data']['dec_unc'] is None
 
-    assert len(data['data']['groups']) == 2
+    assert len(data['data']['groups']) == 3
 
     np.testing.assert_allclose(
         data['data']['flux'], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
@@ -287,7 +301,7 @@ def test_post_photometry_all_groups(
     assert data['data']['ra_unc'] is None
     assert data['data']['dec_unc'] is None
 
-    assert len(data['data']['groups']) == 1
+    assert len(data['data']['groups']) == 2
     assert data['data']['groups'][0]['name'] == cfg['misc']['public_group_name']
 
     np.testing.assert_allclose(
@@ -380,7 +394,7 @@ def test_retrieve_photometry_error_group_membership_posted_by_other(
     assert "Insufficient permissions" in data['message']
 
 
-def test_cannot_post_photometry_no_groups(
+def test_can_post_photometry_no_groups(
     upload_data_token, public_source, public_group, ztf_camera
 ):
     status, data = api(
@@ -398,12 +412,19 @@ def test_cannot_post_photometry_no_groups(
         },
         token=upload_data_token,
     )
-    assert status == 400
-    assert data['status'] == 'error'
-    assert "group_ids" in data["message"]
+    assert status == 200
+    assert data['status'] == 'success'
+
+    photometry_id = data['data']['ids'][0]
+    status, data = api(
+        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']['groups']) == 1
 
 
-def test_cannot_post_photometry_empty_groups_list(
+def test_can_post_photometry_empty_groups_list(
     upload_data_token, public_source, public_group, ztf_camera
 ):
     status, data = api(
@@ -422,9 +443,17 @@ def test_cannot_post_photometry_empty_groups_list(
         },
         token=upload_data_token,
     )
-    assert status == 400
-    assert data['status'] == 'error'
-    assert "Invalid group_ids field" in data["message"]
+
+    assert status == 200
+    assert data['status'] == 'success'
+
+    photometry_id = data['data']['ids'][0]
+    status, data = api(
+        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']['groups']) == 1
 
 
 def test_token_user_post_mag_photometry_data_and_convert(
@@ -1429,3 +1458,32 @@ def test_owner_id_is_not_modifiable(
     )
     assert status == 400
     assert data['status'] == 'error'
+
+
+def test_token_user_post_to_foreign_group_and_retrieve(
+    upload_data_token, public_source_two_groups, public_group2, ztf_camera
+):
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source_two_groups.id),
+            'mjd': [58000.0, 58500.0, 59000.0],
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group2.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    photometry_id = data['data']['ids'][0]
+    status, data = api(
+        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+    )
+    assert status == 200

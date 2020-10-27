@@ -79,8 +79,20 @@ class SpectrumHandler(BaseHandler):
                     "Invalid group_ids parameter value. Must be a list of IDs "
                     "(integers) or the string 'all'."
                 )
+
             group_ids = group_ids['group_ids']
-            groups = Group.query.filter(Group.id.in_(group_ids)).all()
+            groups = []
+            for group_id in group_ids:
+                try:
+                    group_id = int(group_id)
+                except TypeError:
+                    return self.error(
+                        f"Invalid format for group id {group_id}, must be an integer."
+                    )
+                group = Group.query.get(group_id)
+                if group is None:
+                    return self.error(f'No group with ID {group_id}')
+                groups.append(group)
 
         instrument = Instrument.query.get(data['instrument_id'])
         if instrument is None:

@@ -255,7 +255,8 @@ class PhotBaseFlexible(object):
         description="List of group IDs to which photometry points will be visible. "
         "If 'all', will be shared with site-wide public group (visible to all users "
         "who can view associated source).",
-        required=True,
+        required=False,
+        missing=[],
     )
 
     altdata = fields.Field(
