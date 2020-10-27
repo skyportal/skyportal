@@ -153,7 +153,7 @@ const About = () => {
         <a href="https://skyportal.io">https://skyportal.io/docs/</a>
       </Typography>
       <Typography variant="body1">
-        You may also interact with {appTitle} through its API. Generate a token
+        You may also interact with SkyPortal through its API. Generate a token
         from your&nbsp;
         <Link to="/profile">profile</Link>&nbsp; page, then refer to the&nbsp;
         <a href="https://skyportal.io/docs/api.html">API documentation</a>.
@@ -169,7 +169,7 @@ const About = () => {
       {/* {% endblock -%} */}
       {/* {% block citation -%} */}
       <div>
-        If you found {appTitle} useful, please consider citing our work:
+        If you found SkyPortal useful, please consider citing our work:
         {/* {% raw -%} */}
         <BibLink
           bibtex={`@article{skyportal2019,
