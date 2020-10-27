@@ -23,6 +23,7 @@ import UninitializedDBMessage from "./UninitializedDBMessage";
 import ShowClassification from "./ShowClassification";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
+import ScanningPageCandidateAnnotations from "./ScanningPageCandidateAnnotations";
 import { ra_to_hours, dec_to_dms } from "../units";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
@@ -158,6 +159,11 @@ const SourceList = () => {
                     )
                   )}
                 </div>
+              </Grid>
+              <Grid item>
+                <ScanningPageCandidateAnnotations
+                  annotations={source.annotations}
+                />
               </Grid>
             </Grid>
           </TableCell>
