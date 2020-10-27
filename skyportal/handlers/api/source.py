@@ -47,7 +47,10 @@ _, cfg = load_env()
 
 
 def add_ps1_thumbnail_and_push_ws_msg(obj, request_handler):
-    obj.add_ps1_thumbnail()
+    try:
+        obj.add_ps1_thumbnail()
+    except (ValueError, ConnectionError) as e:
+        return request_handler.error(f"Unable to generate PS1 thumbnail URL: {e}")
     request_handler.push_all(
         action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
     )
@@ -87,7 +90,8 @@ class SourceHandler(BaseHandler):
         if num_s > 0:
             return self.success()
         else:
-            return self.error()
+            self.set_status(404)
+            self.finish()
 
     @auth_or_token
     def get(self, obj_id=None):
@@ -309,7 +313,7 @@ class SourceHandler(BaseHandler):
                 obj_id, self.current_user, options=query_options,
             )
             if s is None:
-                return self.error("Invalid source ID.")
+                return self.error("Source not found", status=404)
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
                 IOLoop.current().add_callback(
                     lambda: add_ps1_thumbnail_and_push_ws_msg(s, self)
@@ -362,6 +366,25 @@ class SourceHandler(BaseHandler):
                 ).first()
                 group["active"] = source_table_row.active
                 group["requested"] = source_table_row.requested
+                group["saved_at"] = source_table_row.saved_at
+                group["saved_by"] = (
+                    source_table_row.saved_by.to_dict()
+                    if source_table_row.saved_by is not None
+                    else None
+                )
+
+            # add the date(s) this source was saved to each of these groups
+            for i, g in enumerate(source_info["groups"]):
+                saved_at = (
+                    DBSession()
+                    .query(Source.saved_at)
+                    .filter(
+                        Source.obj_id == source_info["id"], Source.group_id == g["id"]
+                    )
+                    .first()
+                    .saved_at
+                )
+                source_info["groups"][i]['saved_at'] = saved_at
 
             return self.success(data=source_info)
 
@@ -469,6 +492,11 @@ class SourceHandler(BaseHandler):
                 "angular_diameter_distance"
             ] = source.angular_diameter_distance
 
+            source_filter_condition = (
+                or_(Source.requested.is_(True), Source.active.is_(True))
+                if include_requested
+                else Source.active.is_(True)
+            )
             source_list[-1]["groups"] = [
                 g.to_dict()
                 for g in (
@@ -477,6 +505,7 @@ class SourceHandler(BaseHandler):
                     .join(Source)
                     .filter(
                         Source.obj_id == source_list[-1]["id"],
+                        source_filter_condition,
                         Group.id.in_(user_accessible_group_ids),
                     )
                     .all()
@@ -488,6 +517,26 @@ class SourceHandler(BaseHandler):
                 ).first()
                 group["active"] = source_table_row.active
                 group["requested"] = source_table_row.requested
+                group["saved_at"] = source_table_row.saved_at
+                group["saved_by"] = (
+                    source_table_row.saved_by.to_dict()
+                    if source_table_row.saved_by is not None
+                    else None
+                )
+
+            # add the date(s) this source was saved to each of these groups
+            for i, g in enumerate(source_list[-1]["groups"]):
+                saved_at = (
+                    DBSession()
+                    .query(Source.saved_at)
+                    .filter(
+                        Source.obj_id == source_list[-1]["id"],
+                        Source.group_id == g["id"],
+                    )
+                    .first()
+                    .saved_at
+                )
+                source_list[-1]["groups"][i]['saved_at'] = saved_at
 
         query_results["sources"] = source_list
 
@@ -532,6 +581,16 @@ class SourceHandler(BaseHandler):
         data = self.get_json()
         obj_already_exists = Obj.query.get(data["id"]) is not None
         schema = Obj.__schema__()
+
+        ra = data.get('ra', None)
+        dec = data.get('dec', None)
+
+        if ra is None and not obj_already_exists:
+            return self.error("RA must not be null for a new Obj")
+
+        if dec is None and not obj_already_exists:
+            return self.error("Dec must not be null for a new Obj")
+
         user_group_ids = [g.id for g in self.current_user.groups]
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         if not user_group_ids:
@@ -635,6 +694,7 @@ class SourceHandler(BaseHandler):
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key},
         )
+
         return self.success(action='skyportal/FETCH_SOURCES')
 
     @permissions(['Manage sources'])
@@ -802,7 +862,7 @@ class SourceOffsetsHandler(BaseHandler):
             options=[joinedload(Source.obj).joinedload(Obj.photometry)],
         )
         if source is None:
-            return self.error('Invalid source ID.')
+            return self.error('Source not found', status=404)
 
         initial_pos = (source.ra, source.dec)
 
@@ -952,7 +1012,7 @@ class SourceFinderHandler(BaseHandler):
             options=[joinedload(Source.obj).joinedload(Obj.photometry)],
         )
         if source is None:
-            return self.error('Invalid source ID.')
+            return self.error('Source not found', status=404)
 
         imsize = self.get_query_argument('imsize', '4.0')
         try:
@@ -1151,7 +1211,7 @@ class SourceNotificationHandler(BaseHandler):
 
         source = Source.get_obj_if_owned_by(data["sourceId"], self.current_user)
         if source is None:
-            return self.error("Invalid source ID.")
+            return self.error('Source not found', status=404)
 
         source_id = data["sourceId"]
 

@@ -20,7 +20,7 @@ import { useForm, Controller } from "react-hook-form";
 import * as sourceActions from "../ducks/source";
 import FormValidationError from "./FormValidationError";
 
-const SaveCandidateButton = ({ candidate, userGroups }) => {
+const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Dialog logic:
 
@@ -32,10 +32,10 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
   useEffect(() => {
     reset({
       group_ids: userGroups.map((userGroup) =>
-        candidate.passing_group_ids.includes(userGroup.id)
+        filterGroups.map((g) => g.id).includes(userGroup.id)
       ),
     });
-  }, [reset, userGroups, candidate]);
+  }, [reset, userGroups, filterGroups, candidate]);
 
   const handleClickOpenDialog = () => {
     setDialogOpen(true);
@@ -68,8 +68,7 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
   // Split button logic (largely copied from
   // https://material-ui.com/components/button-group/#split-button):
 
-  const passingGroupNames = userGroups
-    .filter((g) => candidate.passing_group_ids.includes(g.id))
+  const filteredGroupNames = filterGroups
     .map((g) => {
       let name = g.nickname
         ? g.nickname.substring(0, 15)
@@ -81,7 +80,7 @@ const SaveCandidateButton = ({ candidate, userGroups }) => {
     })
     .join(",");
 
-  const options = [`Save to ${passingGroupNames}`, "Select groups & save"];
+  const options = [`Save to ${filteredGroupNames}`, "Select groups & save"];
 
   const [splitButtonMenuOpen, setSplitButtonMenuOpen] = useState(false);
   const anchorRef = useRef(null);
@@ -233,6 +232,14 @@ SaveCandidateButton.propTypes = {
     PropTypes.shape({
       id: PropTypes.number,
       name: PropTypes.string,
+      nickname: PropTypes.string,
+    })
+  ).isRequired,
+  filterGroups: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number,
+      name: PropTypes.string,
+      nickname: PropTypes.string,
     })
   ).isRequired,
 };

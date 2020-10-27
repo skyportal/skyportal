@@ -1,10 +1,13 @@
 import datetime
 from copy import copy
+import re
+import json
 
 import arrow
 
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import case, func
+from sqlalchemy.types import Float
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
@@ -68,9 +71,11 @@ class CandidateHandler(BaseHandler):
             .filter(Candidate.obj_id == obj_id, Filter.group_id.in_(user_group_ids))
             .count()
         )
-        if num_c == 0:
-            return self.error()
-        return self.success()
+        if num_c > 0:
+            return self.success()
+        else:
+            self.set_status(404)
+            self.finish()
 
     @auth_or_token
     def get(self, obj_id=None):
@@ -185,6 +190,19 @@ class CandidateHandler(BaseHandler):
             description: |
               The sort order for annotations - either "asc" or "desc".
               Defaults to "asc".
+          - in: query
+            name: annotationFilterList
+            nullable: true
+            schema:
+              type: array
+              items:
+                type: string
+            explode: false
+            style: simple
+            description: |
+              Comma-separated string of JSON objects representing annotation filters.
+              Filter objects are expected to have keys { origin, key, value } for
+              non-numeric value types, or { origin, key, min, max } for numeric values.
           - in: query
             name: includePhotometry
             nullable: true
@@ -303,6 +321,7 @@ class CandidateHandler(BaseHandler):
         group_ids = self.get_query_argument("groupIDs", None)
         filter_ids = self.get_query_argument("filterIDs", None)
         sort_by_origin = self.get_query_argument("sortByAnnotationOrigin", None)
+        annotation_filter_list = self.get_query_argument("annotationFilterList", None)
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
             filtr.id
@@ -386,6 +405,55 @@ class CandidateHandler(BaseHandler):
         if end_date is not None and end_date.strip() not in ["", "null", "undefined"]:
             end_date = arrow.get(end_date).datetime
             q = q.filter(Obj.last_detected <= end_date)
+        if annotation_filter_list is not None:
+            # Parse annotation filter list objects from the query string
+            # and apply the filters to the query
+
+            for item in re.split(r",(?={)", annotation_filter_list):
+                try:
+                    new_filter = json.loads(item)
+                except json.decoder.JSONDecodeError:
+                    return self.error(
+                        "Could not parse JSON objects for annotation filtering"
+                    )
+                print(new_filter)
+                if "origin" not in new_filter:
+                    self.error(
+                        f"Invalid annotation filter list item {item}: \"origin\" is required."
+                    )
+
+                if "key" not in new_filter:
+                    self.error(
+                        f"Invalid annotation filter list item {item}: \"key\" is required."
+                    )
+
+                if "value" in new_filter:
+                    value = new_filter["value"]
+                    # Support True/False and true/false convention
+                    if value in ["True", "False"]:
+                        value = value.lower()
+                    q = q.filter(
+                        Annotation.origin == new_filter["origin"],
+                        Annotation.data[new_filter["key"]].astext == value,
+                    )
+                elif "min" in new_filter and "max" in new_filter:
+                    try:
+                        min_value = float(new_filter["min"])
+                        max_value = float(new_filter["max"])
+                        q = q.filter(
+                            Annotation.origin == new_filter["origin"],
+                            Annotation.data[new_filter["key"]].cast(Float) >= min_value,
+                            Annotation.data[new_filter["key"]].cast(Float) <= max_value,
+                        )
+                    except ValueError:
+                        return self.error(
+                            f"Invalid annotation filter list item: {item}. The min/max provided is not a valid number."
+                        )
+                else:
+                    return self.error(
+                        f"Invalid annotation filter list item: {item}. Should have either \"value\" or \"min\" and \"max\""
+                    )
+
         if sort_by_origin is not None:
             sort_by_key = self.get_query_argument("sortByAnnotationKey", None)
             sort_by_order = self.get_query_argument("sortByAnnotationOrder", None)
@@ -530,6 +598,15 @@ class CandidateHandler(BaseHandler):
         data = self.get_json()
         obj_already_exists = Obj.query.get(data["id"]) is not None
         schema = Obj.__schema__()
+
+        ra = data.get('ra', None)
+        dec = data.get('dec', None)
+
+        if ra is None and not obj_already_exists:
+            return self.error("RA must not be null for a new Obj")
+
+        if dec is None and not obj_already_exists:
+            return self.error("Dec must not be null for a new Obj")
 
         passing_alert_id = data.pop("passing_alert_id", None)
         passed_at = data.pop("passed_at", None)

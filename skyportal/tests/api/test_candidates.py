@@ -10,13 +10,13 @@ def test_candidate_list(view_only_token, public_candidate):
 
 
 def test_candidate_existence(view_only_token, public_candidate):
-    status = api('HEAD', f'candidates/{public_candidate.id}', token=view_only_token)
+    status, _ = api('HEAD', f'candidates/{public_candidate.id}', token=view_only_token)
     assert status == 200
 
-    status = api(
+    status, _ = api(
         'HEAD', f'candidates/{public_candidate.id[:-1]}', token=view_only_token
     )
-    assert status == 400
+    assert status == 404
 
 
 def test_token_user_retrieving_candidate(view_only_token, public_candidate):
@@ -290,3 +290,123 @@ def test_candidate_list_sorting_null_value(
     assert status == 200
     assert data["data"]["candidates"][0]["id"] == public_candidate.id
     assert data["data"]["candidates"][1]["id"] == public_candidate2.id
+
+
+def test_candidate_list_filtering_numeric(
+    annotation_token, view_only_token, public_candidate, public_candidate2
+):
+    origin = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "annotation",
+        data={
+            "obj_id": public_candidate.id,
+            "origin": origin,
+            "data": {"numeric_field": 1},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "POST",
+        "annotation",
+        data={
+            "obj_id": public_candidate2.id,
+            "origin": origin,
+            "data": {"numeric_field": 2},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    # Filter by the numeric field with max value 1.5 so that only public_candidate
+    # is returned
+    status, data = api(
+        "GET",
+        f'candidates/?annotationFilterList={{"origin":"{origin}","key":"numeric_field","min":0, "max":1.5}}',
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["candidates"]) == 1
+    assert data["data"]["candidates"][0]["id"] == public_candidate.id
+
+
+def test_candidate_list_filtering_boolean(
+    annotation_token, view_only_token, public_candidate, public_candidate2
+):
+    origin = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "annotation",
+        data={
+            "obj_id": public_candidate.id,
+            "origin": origin,
+            "data": {"bool_field": True},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "POST",
+        "annotation",
+        data={
+            "obj_id": public_candidate2.id,
+            "origin": origin,
+            "data": {"bool_field": False},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    # Filter by the numeric field with value == true so that only public_candidate
+    # is returned
+    status, data = api(
+        "GET",
+        f'candidates/?annotationFilterList={{"origin":"{origin}","key":"bool_field","value":"true"}}',
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["candidates"]) == 1
+    assert data["data"]["candidates"][0]["id"] == public_candidate.id
+
+
+def test_candidate_list_filtering_string(
+    annotation_token, view_only_token, public_candidate, public_candidate2
+):
+    origin = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "annotation",
+        data={
+            "obj_id": public_candidate.id,
+            "origin": origin,
+            "data": {"string_field": "a"},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "POST",
+        "annotation",
+        data={
+            "obj_id": public_candidate2.id,
+            "origin": origin,
+            "data": {"string_field": "b"},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    # Filter by the numeric field with value == "a" so that only public_candidate
+    # is returned
+    status, data = api(
+        "GET",
+        f'candidates/?annotationFilterList={{"origin":"{origin}","key":"string_field","value":"a"}}',
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["candidates"]) == 1
+    assert data["data"]["candidates"][0]["id"] == public_candidate.id

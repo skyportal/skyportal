@@ -18,6 +18,7 @@ from skyportal.handlers.api import (
     FacilityMessageHandler,
     GroupHandler,
     GroupUserHandler,
+    GroupUsersFromOtherGroupsHandler,
     PublicGroupHandler,
     GroupStreamHandler,
     InstrumentHandler,
@@ -60,6 +61,7 @@ from skyportal.handlers.api.internal import (
     LogHandler,
     RecentSourcesHandler,
     PlotAirmassHandler,
+    AnnotationsInfoHandler,
 )
 
 from . import models, model_util, openapi
@@ -97,6 +99,9 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/classification(/[0-9]+)?', ClassificationHandler),
         (r'/api/comment(/[0-9]+)?', CommentHandler),
         (r'/api/comment(/[0-9]+)/attachment', CommentAttachmentHandler),
+        # Allow the '.pdf' suffix for the attachment route, as the react-file-previewer
+        # package expects URLs ending with '.pdf' to load PDF files.
+        (r'/api/comment(/[0-9]+)/attachment.pdf', CommentAttachmentHandler),
         (r'/api/annotation(/[0-9]+)?', AnnotationHandler),
         (r'/api/facility', FacilityMessageHandler),
         (r'/api/filters(/.*)?', FilterHandler),
@@ -104,6 +109,10 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/groups/public', PublicGroupHandler),
         (r'/api/groups(/[0-9]+)/streams(/[0-9]+)?', GroupStreamHandler),
         (r'/api/groups(/[0-9]+)/users(/.*)?', GroupUserHandler),
+        (
+            r'/api/groups(/[0-9]+)/usersFromGroups(/.*)?',
+            GroupUsersFromOtherGroupsHandler,
+        ),
         (r'/api/groups(/[0-9]+)?', GroupHandler),
         (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
         (r'/api/invitations(/.*)?', InvitationHandler),
@@ -142,6 +151,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/internal/plot/airmass/(.*)', PlotAirmassHandler),
         (r'/api/internal/log', LogHandler),
         (r'/api/internal/recent_sources(/.*)?', RecentSourcesHandler),
+        (r'/api/internal/annotations_info', AnnotationsInfoHandler),
         (r'/api/.*', InvalidEndpointHandler),
         (r'/become_user(/.*)?', BecomeUserHandler),
         (r'/logout', LogoutHandler),

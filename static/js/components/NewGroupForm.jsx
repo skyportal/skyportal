@@ -50,6 +50,7 @@ const NewGroupForm = () => {
     if (result.status === "success") {
       setState({
         name: "",
+        nickname: "",
         group_admins: [],
       });
     }

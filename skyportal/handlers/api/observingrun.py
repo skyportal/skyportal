@@ -152,10 +152,17 @@ class ObservingRunHandler(BaseHandler):
                     ]
                     del a['obj'].sources
 
-                # calculate when the targets rise and set
-                for d, a in zip(data["assignments"], run.assignments):
-                    d["rise_time_utc"] = a.rise_time.isot
-                    d["set_time_utc"] = a.set_time.isot
+                # vectorized calculation of ephemerides
+
+                if len(run.assignments) > 0:
+                    targets = [a.obj.target for a in run.assignments]
+
+                    rise_times = run.rise_time(targets).isot
+                    set_times = run.set_time(targets).isot
+
+                    for d, rt, st in zip(data["assignments"], rise_times, set_times):
+                        d["rise_time_utc"] = rt
+                        d["set_time_utc"] = st
 
                 return self.success(data=data)
 

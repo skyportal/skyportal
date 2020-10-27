@@ -236,6 +236,21 @@ class PhotometryHandler(BaseHandler):
                     f'not null.'
                 )
 
+            for field in ['mag', 'magerr', 'limiting_mag']:
+                infinite = np.isinf(df[field].values)
+                if any(infinite):
+                    first_offender = np.argwhere(infinite)[0, 0]
+                    packet = df.iloc[first_offender].to_dict()
+
+                    # coerce nans to nones
+                    for key in packet:
+                        packet[key] = nan_to_none(packet[key])
+
+                    raise ValidationError(
+                        f'Error parsing packet "{packet}": '
+                        f'field {field} must be finite.'
+                    )
+
             # ensure nothing is null for the required fields
             for field in PhotMagFlexible.required_keys:
                 missing = df[field].isna()
@@ -284,6 +299,21 @@ class PhotometryHandler(BaseHandler):
                     raise ValidationError(
                         f'Error parsing packet "{packet}": '
                         f'missing required field {field}.'
+                    )
+
+            for field in ['flux', 'fluxerr']:
+                infinite = np.isinf(df[field].values)
+                if any(infinite):
+                    first_offender = np.argwhere(infinite)[0, 0]
+                    packet = df.iloc[first_offender].to_dict()
+
+                    # coerce nans to nones
+                    for key in packet:
+                        packet[key] = nan_to_none(packet[key])
+
+                    raise ValidationError(
+                        f'Error parsing packet "{packet}": '
+                        f'field {field} must be finite.'
                     )
 
             phot_table = Table.from_pandas(df[['mjd', 'magsys', 'filter', 'zp']])
@@ -513,6 +543,7 @@ class PhotometryHandler(BaseHandler):
                 ra=packet['ra'],
                 dec=packet['dec'],
                 origin=packet["origin"],
+                owner_id=self.associated_user_object.id,
             )
 
             params.append(phot)
@@ -602,18 +633,6 @@ class PhotometryHandler(BaseHandler):
                                 points in a single request.
         """
 
-        # The Repeatable Read isolation level only sees data committed before
-        # the transaction began; it never sees either uncommitted data or
-        # changes committed during transaction execution by concurrent
-        # transactions. (However, the query does see the effects of previous
-        # updates executed within its own transaction, even though they are
-        # not yet committed.) We use it here to ensure internally consistent
-        # deduplication queries (i.e., to ensure that SELECT queries against
-        # the photometry table do not return different results within this
-        # method's transaction due to concurrent inserts or updates.
-
-        DBSession().rollback()
-        DBSession().execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
         try:
             group_ids = self.get_group_ids()
         except ValidationError as e:
@@ -624,6 +643,15 @@ class PhotometryHandler(BaseHandler):
         except ValidationError as e:
             return self.error(e.args[0])
 
+        # This lock ensures that the Photometry table data are not modified in any way
+        # between when the query for duplicate photometry is first executed and
+        # when the insert statement with the new photometry is performed.
+        # From the psql docs: This mode protects a table against concurrent
+        # data changes, and is self-exclusive so that only one session can
+        # hold it at a time.
+        DBSession().execute(
+            f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+        )
         try:
             ids, upload_id = self.insert_new_photometry_data(
                 df, instrument_cache, group_ids
@@ -671,18 +699,6 @@ class PhotometryHandler(BaseHandler):
                                 points in a single request.
         """
 
-        # The Repeatable Read isolation level only sees data committed before
-        # the transaction began; it never sees either uncommitted data or
-        # changes committed during transaction execution by concurrent
-        # transactions. (However, the query does see the effects of previous
-        # updates executed within its own transaction, even though they are
-        # not yet committed.) We use it here to ensure internally consistent
-        # deduplication queries (i.e., to ensure that SELECT queries against
-        # the photometry table do not return different results within this
-        # method's transaction due to concurrent inserts or updates.
-
-        DBSession().rollback()
-        DBSession().execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
         try:
             group_ids = self.get_group_ids()
         except ValidationError as e:
@@ -694,6 +710,16 @@ class PhotometryHandler(BaseHandler):
             return self.error(e.args[0])
 
         values_table, condition = self.get_values_table_and_condition(df)
+
+        # This lock ensures that the Photometry table data are not modified
+        # in any way between when the query for duplicate photometry is first
+        # executed and when the insert statement with the new photometry is
+        # performed. From the psql docs: This mode protects a table against
+        # concurrent data changes, and is self-exclusive so that only one
+        # session can hold it at a time.
+        DBSession().execute(
+            f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+        )
 
         new_photometry_query = (
             DBSession()
@@ -744,10 +770,11 @@ class PhotometryHandler(BaseHandler):
             for (df_index, _), id in zip(new_photometry.iterrows(), ids):
                 id_map[df_index] = id
 
+        # release the lock
+        DBSession().commit()
+
         # get ids in the correct order
         ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
-
-        DBSession().commit()
         return self.success(data={'ids': ids})
 
     @auth_or_token
@@ -764,7 +791,7 @@ class PhotometryHandler(BaseHandler):
         output = serialize(phot, outsys, format)
         return self.success(data=output)
 
-    @permissions(['Manage sources'])
+    @permissions(['Upload data'])
     def patch(self, photometry_id):
         """
         ---
@@ -793,19 +820,12 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
 
-        # The Repeatable Read isolation level only sees data committed before
-        # the transaction began; it never sees either uncommitted data or
-        # changes committed during transaction execution by concurrent
-        # transactions. (However, the query does see the effects of previous
-        # updates executed within its own transaction, even though they are
-        # not yet committed.) We use it here to ensure internally consistent
-        # deduplication queries (i.e., to ensure that SELECT queries against
-        # the photometry table do not return different results within this
-        # method's transaction due to concurrent inserts or updates.
-
-        DBSession().rollback()
-        DBSession().execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
         photometry = Photometry.get_if_owned_by(photometry_id, self.current_user)
+        if not photometry.is_modifiable_by(self.associated_user_object):
+            return self.error(
+                f'Cannot delete photometry point that is owned by {photometry.owner}.'
+            )
+
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
 
@@ -845,7 +865,7 @@ class PhotometryHandler(BaseHandler):
         DBSession().commit()
         return self.success()
 
-    @permissions(['Manage sources'])
+    @permissions(['Upload data'])
     def delete(self, photometry_id):
         """
         ---
@@ -866,7 +886,12 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        _ = Photometry.get_if_owned_by(photometry_id, self.current_user)
+        photometry = Photometry.get_if_owned_by(photometry_id, self.current_user)
+        if not photometry.is_modifiable_by(self.associated_user_object):
+            return self.error(
+                f'Cannot delete photometry point that is owned by {photometry.owner}.'
+            )
+
         DBSession().query(Photometry).filter(
             Photometry.id == int(photometry_id)
         ).delete()

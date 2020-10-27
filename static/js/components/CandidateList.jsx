@@ -24,6 +24,7 @@ import Box from "@material-ui/core/Box";
 import Tooltip from "@material-ui/core/Tooltip";
 import Popover from "@material-ui/core/Popover";
 import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
+import Form from "@rjsf/material-ui";
 import MUIDataTable from "mui-datatables";
 
 import * as candidatesActions from "../ducks/candidates";
@@ -84,6 +85,8 @@ const useStyles = makeStyles((theme) => ({
   }),
   annotations: (props) => ({
     minWidth: props.annotationsMinWidth,
+    maxWidth: props.annotationsMaxWidth,
+    overflowWrap: "break-word",
   }),
   sortButtton: {
     verticalAlign: "top",
@@ -103,6 +106,15 @@ const useStyles = makeStyles((theme) => ({
   position: {
     fontWeight: "bold",
     fontSize: "110%",
+  },
+  formControl: {
+    margin: theme.spacing(1),
+    minWidth: 120,
+  },
+  formContainer: {
+    display: "flex",
+    flexFlow: "row wrap",
+    alignItems: "center",
   },
 }));
 
@@ -232,17 +244,20 @@ const CandidateList = () => {
   const history = useHistory();
   const [queryInProgress, setQueryInProgress] = useState(false);
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
+  const [filterGroups, setFilterGroups] = useState([]);
   // Maintain the three thumbnails in a row for larger screens
   const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("md"));
   const thumbnailsMinWidth = largeScreen ? "30rem" : 0;
   const infoMinWidth = largeScreen ? "7rem" : 0;
   const infoMaxWidth = "14rem";
   const annotationsMinWidth = largeScreen ? "10rem" : 0;
+  const annotationsMaxWidth = "25rem";
   const classes = useStyles({
     thumbnailsMinWidth,
     infoMinWidth,
     infoMaxWidth,
     annotationsMinWidth,
+    annotationsMaxWidth,
   });
   const theme = useTheme();
   const {
@@ -259,6 +274,16 @@ const CandidateList = () => {
     (state) => state.groups.userAccessible
   );
 
+  useEffect(() => {
+    if (userAccessibleGroups?.length && filterGroups.length === 0) {
+      setFilterGroups([...userAccessibleGroups]);
+    }
+  }, [setFilterGroups, filterGroups, userAccessibleGroups]);
+
+  const availableAnnotationsInfo = useSelector(
+    (state) => state.candidates.annotationsInfo
+  );
+
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -267,6 +292,8 @@ const CandidateList = () => {
       dispatch(
         candidatesActions.fetchCandidates({ numPerPage: defaultNumPerPage })
       );
+      // Grab the available annotation fields for filtering
+      dispatch(candidatesActions.fetchAnnotationsInfo());
     } else {
       setQueryInProgress(false);
     }
@@ -299,6 +326,86 @@ const CandidateList = () => {
     return getAnnotationValueString(
       annotation.data[selectedAnnotationSortOptions.key]
     );
+  };
+
+  // Annotations filtering
+  const [tableFilterList, setTableFilterList] = useState([]);
+  const [filterListQueryStrings, setFilterListQueryStrings] = useState([]);
+
+  const filterChipToAnnotationObj = (chip) => {
+    // Convert a MuiDataTable filter list chip-formatted string to an object.
+    // Returns null for improperly formatted strings
+    const tokens = chip.split(/\s\(|\):|-/);
+    let returnObject = null;
+    switch (tokens.length) {
+      case 3:
+        returnObject = {
+          origin: tokens[1].trim(),
+          key: tokens[0].trim(),
+          value: tokens[2].trim(),
+        };
+        break;
+      case 4:
+        returnObject = {
+          origin: tokens[1].trim(),
+          key: tokens[0].trim(),
+          min: tokens[2].trim(),
+          max: tokens[3].trim(),
+        };
+        break;
+      default:
+        break;
+    }
+    return returnObject;
+  };
+
+  const filterAnnotationObjToChip = (annotationObj) => {
+    // Convert an object representing an annotation filter to a formatted string
+    // to be displayed by the MuiDataTable
+    return "value" in annotationObj
+      ? `${annotationObj.key} (${annotationObj.origin}): ${annotationObj.value}`
+      : `${annotationObj.key} (${annotationObj.origin}): ${annotationObj.min} - ${annotationObj.max}`;
+  };
+
+  const handleFilterSubmit = async (filterListQueryString) => {
+    setQueryInProgress(true);
+
+    let data = {
+      pageNumber: 1,
+      numPerPage: rowsPerPage,
+    };
+    if (filterListQueryString !== null) {
+      data = {
+        ...data,
+        annotationFilterList: filterListQueryString,
+      };
+    }
+
+    if (selectedAnnotationSortOptions !== null) {
+      data = {
+        ...data,
+        sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
+        sortByAnnotationKey: selectedAnnotationSortOptions.key,
+        sortByAnnotationOrder: selectedAnnotationSortOptions.order,
+      };
+    }
+
+    await dispatch(candidatesActions.fetchCandidates(data));
+
+    setQueryInProgress(false);
+  };
+
+  const handleFilterAdd = ({ formData }) => {
+    const filterListChip = filterAnnotationObjToChip(formData);
+    const filterListQueryItem = JSON.stringify(formData);
+
+    setTableFilterList(tableFilterList.concat([filterListChip]));
+    const newFilterListQueryStrings = filterListQueryStrings.concat([
+      filterListQueryItem,
+    ]);
+    setFilterListQueryStrings(newFilterListQueryStrings);
+
+    handleFilterSubmit(newFilterListQueryStrings.join());
   };
 
   const renderThumbnails = (dataIndex) => {
@@ -386,6 +493,7 @@ const CandidateList = () => {
               <SaveCandidateButton
                 candidate={candidateObj}
                 userGroups={userAccessibleGroups}
+                filterGroups={filterGroups}
               />
             </div>
           </div>
@@ -518,6 +626,13 @@ const CandidateList = () => {
       };
     }
 
+    if (filterListQueryStrings.length !== 0) {
+      data = {
+        ...data,
+        annotationFilterList: filterListQueryStrings.join(),
+      };
+    }
+
     await dispatch(candidatesActions.fetchCandidates(data));
     setQueryInProgress(false);
   };
@@ -531,6 +646,125 @@ const CandidateList = () => {
         break;
       default:
     }
+  };
+
+  const handleTableFilterChipChange = (column, filterList, type) => {
+    if (type === "chip") {
+      const annotationsFilterList = filterList[3];
+      setTableFilterList(annotationsFilterList);
+      const newFilterListQueryStrings = annotationsFilterList.map((chip) => {
+        const annotationObject = filterChipToAnnotationObj(chip);
+        return JSON.stringify(annotationObject);
+      });
+      setFilterListQueryStrings(newFilterListQueryStrings);
+
+      handleFilterSubmit(
+        newFilterListQueryStrings.length === 0
+          ? null
+          : newFilterListQueryStrings.join()
+      );
+    }
+  };
+
+  // Assemble json form schema for possible annotation filtering values
+  const filterFormSchema = {
+    description: "Add an annotation filter field.",
+    type: "object",
+    properties: {
+      origin: {
+        type: "string",
+        title: "Origin",
+        enum: [],
+      },
+    },
+    required: ["origin", "key"],
+    dependencies: {
+      origin: {
+        oneOf: [],
+      },
+      key: {
+        oneOf: [],
+      },
+    },
+  };
+
+  if (availableAnnotationsInfo !== null) {
+    Object.entries(availableAnnotationsInfo).forEach(([origin, fields]) => {
+      // Add origin to the list selectable from
+      filterFormSchema.properties.origin.enum.push(origin);
+
+      // Make a list of keys to select from based on the origin
+      const keySelect = {
+        properties: {
+          origin: {
+            enum: [origin],
+          },
+          key: {
+            type: "string",
+            title: "Key",
+            enum: fields.map((field) => Object.keys(field)[0]),
+          },
+        },
+      };
+      filterFormSchema.dependencies.origin.oneOf.push(keySelect);
+
+      // Add filter value selection based on selected key type
+      fields.forEach((field) => {
+        const key = Object.keys(field)[0];
+        const keyType = field[key];
+        const valueSelect = {
+          properties: {
+            key: {
+              enum: [key],
+            },
+          },
+          required: [],
+        };
+        switch (keyType) {
+          case "string":
+          case "object":
+            valueSelect.properties.value = {
+              type: "string",
+              title: "Value (exact match)",
+            };
+            valueSelect.required.push("value");
+            break;
+          case "number":
+            valueSelect.properties.min = {
+              type: "number",
+              title: "Min",
+            };
+            valueSelect.properties.max = {
+              type: "number",
+              title: "Max",
+            };
+            valueSelect.required.push("min");
+            valueSelect.required.push("max");
+            break;
+          case "boolean":
+            valueSelect.properties.value = {
+              type: "boolean",
+              title: "Is True",
+              default: false,
+            };
+            valueSelect.required.push("value");
+            break;
+          default:
+            break;
+        }
+        filterFormSchema.dependencies.key.oneOf.push(valueSelect);
+      });
+    });
+  }
+
+  const annotationsFilterDisplay = () => {
+    return !queryInProgress ? (
+      <div>
+        <Form schema={filterFormSchema} onSubmit={handleFilterAdd} />
+      </div>
+    ) : (
+      <div />
+    );
   };
 
   const columns = [
@@ -566,7 +800,13 @@ const CandidateList = () => {
       options: {
         customBodyRenderLite: renderAutoannotations,
         sort: false,
-        filter: false,
+        filter: !queryInProgress,
+        filterType: "custom",
+        filterList: tableFilterList,
+        filterOptions: {
+          // eslint-disable-next-line react/display-name
+          display: annotationsFilterDisplay,
+        },
         customHeadLabelRender: renderAutoannotationsHeader,
       },
     },
@@ -578,7 +818,8 @@ const CandidateList = () => {
     print: false,
     download: false,
     sort: false,
-    filter: false,
+    filter: !queryInProgress,
+    filterType: "custom",
     count: totalMatches,
     selectableRows: "none",
     enableNestedDataAccess: ".",
@@ -599,6 +840,7 @@ const CandidateList = () => {
         loaded={!queryInProgress}
       />
     ),
+    onFilterChange: handleTableFilterChipChange,
   };
 
   return (
@@ -615,6 +857,7 @@ const CandidateList = () => {
           lastPage={lastPage}
           totalMatches={totalMatches}
           setQueryInProgress={setQueryInProgress}
+          setFilterGroups={setFilterGroups}
         />
         <Box
           display={queryInProgress ? "block" : "none"}

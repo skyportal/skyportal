@@ -15,26 +15,10 @@ import * as sourceActions from "../ducks/source";
 import styles from "./CommentList.css";
 import CommentEntry from "./CommentEntry";
 import UserAvatar from "./UserAvatar";
+import CommentAttachmentPreview from "./CommentAttachmentPreview";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
-
-export const shortenFilename = (filename) => {
-  if (filename.length <= 15) {
-    return filename;
-  }
-  if (filename.includes(".")) {
-    const extensionLength = filename.split(".", 2)[1].length;
-    // Where the ellipsis should start - either at character 12, or the extension
-    // plus an additional 5 characters into the basename (whichever is earlier)
-    const firstEnd = Math.min(12, filename.length - extensionLength - 5);
-    return `${filename.slice(0, firstEnd)}...${filename.slice(
-      -extensionLength - 5
-    )}`;
-  }
-
-  return `${filename.slice(0, 12)}...`;
-};
 
 const CommentList = ({ isCandidate }) => {
   const [hoverID, setHoverID] = useState(null);
@@ -154,14 +138,10 @@ const CommentList = ({ isCandidate }) => {
                 </div>
                 <span>
                   {attachment_name && (
-                    <Tooltip title={attachment_name}>
-                      <div>
-                        Attachment:&nbsp;
-                        <a href={`/api/comment/${id}/attachment`}>
-                          {shortenFilename(attachment_name)}
-                        </a>
-                      </div>
-                    </Tooltip>
+                    <CommentAttachmentPreview
+                      filename={attachment_name}
+                      commentId={id}
+                    />
                   )}
                 </span>
               </div>
