@@ -716,11 +716,13 @@ Candidate.__doc__ = (
     "An Obj that passed a Filter, becoming scannable on the " "Filter's scanning page."
 )
 Candidate.passed_at = sa.Column(
-    sa.DateTime, nullable=True, doc="ISO UTC time when the Candidate passed the Filter."
+    sa.DateTime,
+    nullable=True,
+    doc="ISO UTC time when the Candidate passed the Filter last time.",
 )
 
 Candidate.passing_alert_id = sa.Column(
-    sa.BigInteger, doc="ID of the Stream alert that passed the Filter."
+    sa.BigInteger, doc="ID of the latest Stream alert that passed the Filter."
 )
 
 

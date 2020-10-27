@@ -605,7 +605,7 @@ class CandidateHandler(BaseHandler):
         passing_alert_id = data.pop("passing_alert_id", None)
         passed_at = data.pop("passed_at", None)
         if passed_at is not None:
-            passed_at = arrow.get(passed_at)
+            passed_at = arrow.get(passed_at).datetime
         try:
             filter_ids = data.pop("filter_ids")
         except KeyError:
