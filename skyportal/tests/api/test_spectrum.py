@@ -413,6 +413,57 @@ def test_jsonify_spectrum_header(
                     np.testing.assert_allclose(value, answer[key])
 
 
+def test_can_post_spectrum_no_groups(
+    upload_data_token, public_source, public_group, lris
+):
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    spectrum_id = data['data']['id']
+    status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']['groups']) == 1
+
+
+def test_can_post_spectrum_empty_groups_list(
+    upload_data_token, public_source, public_group, lris
+):
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    spectrum_id = data['data']['id']
+    status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']['groups']) == 1
+
+
 def test_jsonify_spectrum_data(
     upload_data_token, manage_sources_token, public_source, public_group, lris
 ):
@@ -497,3 +548,27 @@ def test_upload_bad_spectrum_from_ascii_file(
 
             assert status == 400
             assert data['status'] == 'error'
+
+
+def test_token_user_post_to_foreign_group_and_retrieve(
+    upload_data_token, public_source_two_groups, public_group2, lris
+):
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source_two_groups.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group2.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    spectrum_id = data['data']['id']
+    status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
+    assert status == 200

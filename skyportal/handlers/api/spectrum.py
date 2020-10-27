@@ -1,6 +1,8 @@
 import io
 from pathlib import Path
 
+from sqlalchemy.orm import joinedload
+
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -94,6 +96,11 @@ class SpectrumHandler(BaseHandler):
                     return self.error(f'No group with ID {group_id}')
                 groups.append(group)
 
+        # always append the single user group
+        single_user_group = self.associated_user_object.single_user_group
+        if single_user_group not in groups:
+            groups.append(single_user_group)
+
         instrument = Instrument.query.get(data['instrument_id'])
         if instrument is None:
             return self.error('Invalid instrument id.')
@@ -136,7 +143,13 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        spectrum = Spectrum.query.get(spectrum_id)
+        spectrum = (
+            DBSession()
+            .query(Spectrum)
+            .filter(Spectrum.id == spectrum_id)
+            .options(joinedload(Spectrum.groups))
+            .first()
+        )
 
         if spectrum is not None:
             # Permissions check
@@ -422,7 +435,9 @@ class ObjSpectraHandler(BaseHandler):
         obj = Obj.query.get(obj_id)
         if obj is None:
             return self.error('Invalid object ID.')
-        spectra = Obj.get_spectra_owned_by(obj_id, self.current_user)
+        spectra = Obj.get_spectra_owned_by(
+            obj_id, self.current_user, options=[joinedload(Spectrum.groups)]
+        )
         return_values = []
         for spec in spectra:
             spec_dict = spec.to_dict()
