@@ -936,6 +936,8 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
 
     if Obj.query.get(obj_id) is None:
         return None
+    if "System admin" in user_or_token.permissions:
+        return Obj.query.options(options).get(obj_id)
     try:
         obj = Source.get_obj_if_owned_by(obj_id, user_or_token, options)
     except AccessError:  # They may still be able to view the associated Candidate
