@@ -53,7 +53,10 @@ def test_candidate_group_filtering(
     driver.get("/candidates")
     for i in range(5):
         driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
-    group_checkbox = driver.wait_for_xpath(f'//input[starts-with(@name,"groupIDs[0]")]')
+
+    group_checkbox = driver.wait_for_xpath(
+        f'//*[contains(@data-testid,"groupID-{public_group.id}")]'
+    )
     driver.scroll_to_element_and_click(group_checkbox)
     submit_button = driver.wait_for_xpath('//span[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
