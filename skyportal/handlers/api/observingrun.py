@@ -102,15 +102,9 @@ class ObservingRunHandler(BaseHandler):
                     joinedload(ObservingRun.assignments)
                     .joinedload(ClassicalAssignment.obj)
                     .joinedload(Obj.thumbnails),
-                    joinedload(ObservingRun.assignments)
-                    .joinedload(ClassicalAssignment.obj)
-                    .joinedload(Obj.photometry),
                     joinedload(ObservingRun.assignments).joinedload(
                         ClassicalAssignment.requester
                     ),
-                    joinedload(ObservingRun.assignments)
-                    .joinedload(ClassicalAssignment.obj)
-                    .joinedload(Obj.comments),
                     joinedload(ObservingRun.instrument).joinedload(
                         Instrument.telescope
                     ),
