@@ -1,5 +1,6 @@
 import io
 from pathlib import Path
+import numpy as np
 
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
@@ -396,6 +397,17 @@ class ObjSpectraHandler(BaseHandler):
             schema:
               type: string
             description: ID of the object to retrieve spectra for
+          - in: query
+            name: normalization
+            required: false
+            schema:
+              type: string
+            description: |
+                normalize all spectra to the same scale,
+                either setting to unity the "max", "mean"
+                or "median" of each spectrum.
+                The default is not to normalize.
+
         responses:
           200:
             content:
@@ -410,6 +422,9 @@ class ObjSpectraHandler(BaseHandler):
         obj = Obj.query.get(obj_id)
         if obj is None:
             return self.error('Invalid object ID.')
+
+        normalization = self.get_query_argument('normalization', None)
+
         spectra = Obj.get_spectra_owned_by(obj_id, self.current_user)
         return_values = []
         for spec in spectra:
@@ -417,4 +432,21 @@ class ObjSpectraHandler(BaseHandler):
             spec_dict["instrument_name"] = spec.instrument.name
             spec_dict["groups"] = spec.groups
             return_values.append(spec_dict)
+
+        # check if there is any request to normalize the spectra
+        if normalization == "max":
+            for s in return_values:
+                norm = np.max(s["fluxes"])
+                s["fluxes"] = s["fluxes"] / norm
+
+        if normalization == "mean":
+            for s in return_values:
+                norm = np.mean(s["fluxes"])
+                s["fluxes"] = s["fluxes"] / norm
+
+        if normalization == "median":
+            for s in return_values:
+                norm = np.median(s["fluxes"])
+                s["fluxes"] = s["fluxes"] / norm
+
         return self.success(data=return_values)

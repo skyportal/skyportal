@@ -46,17 +46,25 @@ const spec = (url) => ({
     x: {
       field: "wavelengths",
       type: "quantitative",
+      axis: {
+        title: "wavelength [Angstrom]",
+      },
     },
     y: {
       field: "fluxes",
       type: "quantitative",
-      axis: { format: ".2e" },
+      axis: {
+        title: "flux [normalized]",
+        format: ".2g",
+      },
     },
     color: {
       field: "observed_at",
       type: "nominal",
     },
   },
+  width: 400,
+  height: 200,
   background: "transparent",
 });
 
