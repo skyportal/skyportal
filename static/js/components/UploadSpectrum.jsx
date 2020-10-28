@@ -25,6 +25,7 @@ import { HtmlTooltip } from "./UploadPhotometry";
 
 import * as Actions from "../ducks/spectra";
 import { fetchSource } from "../ducks/source";
+import { fetchUsers } from "../ducks/users";
 import { RESET_PARSED_SPECTRUM } from "../ducks/spectra";
 
 dayjs.extend(utc);
@@ -120,6 +121,7 @@ const UploadSpectrumForm = ({ route }) => {
   useEffect(() => {
     const blockingFunc = async () => {
       dispatch({ type: Actions.RESET_PARSED_SPECTRUM });
+      dispatch(fetchUsers());
       const result = await dispatch(fetchSource(route.id));
       const defaultFormData = {
         file: undefined,
@@ -142,7 +144,7 @@ const UploadSpectrumForm = ({ route }) => {
     !groups ||
     !instrumentList ||
     !telescopes ||
-    !users ||
+    users.length === 0 ||
     source.id !== route.id
   ) {
     return <p>Loading...</p>;
