@@ -262,6 +262,7 @@ class ASCIIHandler:
         spec = Spectrum.from_ascii(
             file,
             obj_id=json.get('obj_id', None),
+            instrument_id=json.get('instrument_id', None),
             observed_at=json.get('observed_at', None),
             wave_column=json.get('wave_column', None),
             flux_column=json.get('flux_column', None),
