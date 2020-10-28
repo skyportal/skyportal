@@ -110,12 +110,13 @@ class UserHandler(BaseHandler):
             if user_info.get("contact_phone"):
                 user_info["contact_phone"] = user_info["contact_phone"].e164
 
-            user_info["acls"] = sorted(user.acls, key=lambda a: a.id)
+            user_info["permissions"] = sorted(user.permissions)
             return self.success(data=user_info)
 
         return_values = []
         for user in User.query.all():
             return_values.append(user.to_dict())
+            return_values[-1]["permissions"] = sorted(user.permissions)
             if user.contact_phone:
                 return_values[-1]["contact_phone"] = user.contact_phone.e164
             return_values[-1]["contact_email"] = user.contact_email

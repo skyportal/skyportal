@@ -5,5 +5,5 @@ def test_user_info(driver, super_admin_user):
     driver.wait_for_xpath(f'//div[contains(.,"{user.username}")]')
     pg_src = driver.page_source
     assert 'created_at:' in pg_src
-    for acl in user.acls:
+    for acl in user.permissions:
         assert acl.id in pg_src
