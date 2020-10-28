@@ -663,7 +663,7 @@ class CandidateHandler(BaseHandler):
         return self.success(data={"id": obj.id})
 
     @permissions(["Manage sources"])
-    def patch(self, obj_id):
+    def put(self, obj_id):
         """
         ---
         description: Update a candidate
@@ -676,7 +676,24 @@ class CandidateHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: ObjNoID
+              schema:
+                type: object
+                properties:
+                  filter_ids:
+                    type: array
+                    items:
+                      type: integer
+                    description: List of associated filter IDs
+                  passing_alert_id:
+                    type: integer
+                    description: ID of associated filter that created candidate
+                    nullable: true
+                  passed_at:
+                    type: string
+                    description: Arrow-parseable datetime string indicating when alert passed filter.
+                    nullable: true
+                required:
+                  - filter_ids
         responses:
           200:
             content:
@@ -687,21 +704,51 @@ class CandidateHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        # Ensure user has access to candidate
-        c = Candidate.get_obj_if_owned_by(obj_id, self.current_user)
-        if c is None:
-            return self.error("Invalid ID.")
         data = self.get_json()
-        data["id"] = obj_id
+        data["obj_id"] = obj_id
 
-        schema = Obj.__schema__()
+        # Ensure user has access to candidate
+        if (
+            DBSession().query(Candidate).filter(Candidate.obj_id == obj_id).first()
+            is None
+        ):
+            return self.error("Invalid ID.")
+
+        passing_alert_id = data.pop("passing_alert_id", None)
+        passed_at = data.pop("passed_at", None)
+        if passed_at is not None:
+            passed_at = arrow.get(passed_at).datetime
         try:
-            obj = schema.load(data, partial=True)
-        except ValidationError as e:
+            filter_ids = data.pop("filter_ids")
+        except KeyError:
+            return self.error("Missing required filter_ids parameter.")
+        user_accessible_filter_ids = [
+            filtr.id
+            for g in self.current_user.accessible_groups
+            for filtr in g.filters
+            if g.filters is not None
+        ]
+        if not all([fid in user_accessible_filter_ids for fid in filter_ids]):
             return self.error(
-                "Invalid/missing parameters: " f"{e.normalized_messages()}"
+                "Insufficient permissions - you must only specify "
+                "filters that you have access to."
             )
-        update_redshift_history_if_relevant(data, obj, self.associated_user_object)
+
+        filters = Filter.query.filter(Filter.id.in_(filter_ids)).all()
+        if not filters:
+            return self.error("At least one valid filter ID must be provided.")
+
+        candidates = (
+            DBSession()
+            .query(Candidate)
+            .filter(Candidate.obj_id == obj_id, Candidate.filter_id.in_(filter_ids))
+            .all()
+        )
+
+        for candidate in candidates:
+            candidate.passed_at = passed_at
+            candidate.passing_alert_id = passing_alert_id
+
         DBSession().commit()
 
         self.push_all(action="skyportal/FETCH_CANDIDATES")
