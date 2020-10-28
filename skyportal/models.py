@@ -103,6 +103,33 @@ def is_owned_by(self, user_or_token):
     raise NotImplementedError(f"{type(self).__name__} object has no owner")
 
 
+def is_modifiable_by(self, user):
+    """Return a boolean indicating whether an object point can be modified or
+    deleted by a given user.
+
+    Parameters
+    ----------
+    user: `baselayer.app.models.User`
+       The User to check.
+
+    Returns
+    -------
+    owned: bool
+       Whether the Object can be modified by the User.
+    """
+
+    if not hasattr(self, 'owner'):
+        raise TypeError(
+            f'Object {self} does not have an `owner` attribute, '
+            f'and thus does not expose the interface that is needed '
+            f'to check for modification or deletion privileges.'
+        )
+
+    is_admin = "System admin" in user.permissions
+    owns_spectrum = self.owner is user
+    return is_admin or owns_spectrum
+
+
 Base.is_owned_by = is_owned_by
 
 
@@ -497,19 +524,14 @@ class Obj(Base, ha.Point):
         best we can do is request a page that contains a link to the image we
         want (in this case a combination of the g/r/i filters).
         """
-        try:
-            ps_query_url = (
-                f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
-                f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
-                f"&filter=r&filter=i&filetypes=stack&size=250"
-            )
-            response = requests.get(ps_query_url)
-            match = re.search(
-                'src="//ps1images.stsci.edu.*?"', response.content.decode()
-            )
-            return match.group().replace('src="', 'http:').replace('"', '')
-        except (ValueError, ConnectionError):
-            return None
+        ps_query_url = (
+            f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
+            f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
+            f"&filter=r&filter=i&filetypes=stack&size=250"
+        )
+        response = requests.get(ps_query_url)
+        match = re.search('src="//ps1images.stsci.edu.*?"', response.content.decode())
+        return match.group().replace('src="', 'http:').replace('"', '')
 
     @property
     def target(self):
@@ -914,6 +936,8 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
 
     if Obj.query.get(obj_id) is None:
         return None
+    if "System admin" in user_or_token.permissions:
+        return Obj.query.options(options).get(obj_id)
     try:
         obj = Source.get_obj_if_owned_by(obj_id, user_or_token, options)
     except AccessError:  # They may still be able to view the associated Candidate
@@ -1700,6 +1724,20 @@ class Photometry(Base, ha.Point):
     )
     assignment = relationship('ClassicalAssignment', back_populates='photometry')
 
+    owner_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the User who uploaded the photometry.",
+    )
+    owner = relationship(
+        'User',
+        back_populates='photometry',
+        foreign_keys=[owner_id],
+        cascade='save-update, merge, refresh-expire, expunge',
+        doc="The User who uploaded the photometry.",
+    )
+
     @hybrid_property
     def mag(self):
         """The magnitude of the photometry point in the AB system."""
@@ -1771,6 +1809,8 @@ class Photometry(Base, ha.Point):
         return self.flux / self.fluxerr
 
 
+Photometry.is_modifiable_by = is_modifiable_by
+
 # Deduplication index. This is a unique index that prevents any photometry
 # point that has the same obj_id, instrument_id, origin, mjd, flux error,
 # and flux as a photometry point that already exists within the table from
@@ -1790,6 +1830,10 @@ Photometry.__table_args__ = (
     ),
 )
 
+
+User.photometry = relationship(
+    'Photometry', doc='Photometry uploaded by this User.', back_populates='owner'
+)
 
 GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
@@ -1864,6 +1908,20 @@ class Spectrum(Base):
     )
     original_file_filename = sa.Column(
         sa.String, doc="Original file name that was passed to upload the spectrum."
+    )
+
+    owner_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the User who uploaded the spectrum.",
+    )
+    owner = relationship(
+        'User',
+        back_populates='spectra',
+        foreign_keys=[owner_id],
+        cascade='save-update, merge, refresh-expire, expunge',
+        doc="The User who uploaded the spectrum.",
     )
 
     @classmethod
@@ -2040,6 +2098,12 @@ class Spectrum(Base):
             altdata=header,
             **spec_data,
         )
+
+
+Spectrum.is_modifiable_by = is_modifiable_by
+User.spectra = relationship(
+    'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
+)
 
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
@@ -2363,6 +2427,20 @@ class ObservingRun(Base):
             self._calendar_noon, which='next'
         )
 
+    def rise_time(self, target_or_targets):
+        """The rise time of the specified targets as an astropy.time.Time."""
+        observer = self.instrument.telescope.observer
+        return observer.target_rise_time(
+            self.sunset, target_or_targets, which='next', horizon=30 * u.degree
+        )
+
+    def set_time(self, target_or_targets):
+        """The set time of the specified targets as an astropy.time.Time."""
+        observer = self.instrument.telescope.observer
+        return observer.target_set_time(
+            self.sunset, target_or_targets, which='next', horizon=30 * u.degree
+        )
+
 
 User.observing_runs = relationship(
     'ObservingRun',
@@ -2451,20 +2529,14 @@ class ClassicalAssignment(Base):
     @property
     def rise_time(self):
         """The UTC time at which the object rises on this run."""
-        observer = self.instrument.telescope.observer
         target = self.obj.target
-        return observer.target_rise_time(
-            self.run.sunset, target, which='next', horizon=30 * u.degree
-        )
+        return self.run.rise_time(target)
 
     @property
     def set_time(self):
         """The UTC time at which the object sets on this run."""
-        observer = self.instrument.telescope.observer
         target = self.obj.target
-        return observer.target_set_time(
-            self.rise_time, target, which='next', horizon=30 * u.degree
-        )
+        return self.run.set_time(target)
 
 
 User.assignments = relationship(
@@ -2608,6 +2680,7 @@ def send_source_notification(mapper, connection, target):
             # If user has a phone number registered and opted into SMS notifications
             if (
                 user.contact_phone is not None
+                and user.preferences is not None
                 and "allowSMSAlerts" in user.preferences
                 and user.preferences.get("allowSMSAlerts")
             ):
@@ -2621,6 +2694,7 @@ def send_source_notification(mapper, connection, target):
         # If user has a contact email registered and opted into email notifications
         if (
             user.contact_email is not None
+            and user.preferences is not None
             and "allowEmailAlerts" in user.preferences
             and user.preferences.get("allowEmailAlerts")
         ):

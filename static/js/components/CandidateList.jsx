@@ -35,6 +35,7 @@ import ScanningPageCandidateAnnotations, {
   getAnnotationValueString,
 } from "./ScanningPageCandidateAnnotations";
 import EditSourceGroups from "./EditSourceGroups";
+import { ra_to_hours, dec_to_dms } from "../units";
 
 const VegaPlot = React.lazy(() =>
   import(/* webpackChunkName: "VegaPlot" */ "./VegaPlot")
@@ -102,6 +103,10 @@ const useStyles = makeStyles((theme) => ({
   helpButton: {
     display: "inline-block",
   },
+  position: {
+    fontWeight: "bold",
+    fontSize: "110%",
+  },
   formControl: {
     margin: theme.spacing(1),
     minWidth: 120,
@@ -136,6 +141,16 @@ const getMuiTheme = (theme) =>
       },
     },
   });
+
+const getMostRecentClassification = (classifications) => {
+  // Display the most recent non-zero probability class
+  const filteredClasses = classifications.filter((i) => i.probability > 0);
+  const sortedClasses = filteredClasses.sort((a, b) =>
+    a.modified < b.modified ? 1 : -1
+  );
+
+  return `${sortedClasses[0].classification}`;
+};
 
 const getMuiPopoverTheme = () =>
   createMuiTheme({
@@ -229,6 +244,7 @@ const CandidateList = () => {
   const history = useHistory();
   const [queryInProgress, setQueryInProgress] = useState(false);
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
+  const [filterGroups, setFilterGroups] = useState([]);
   // Maintain the three thumbnails in a row for larger screens
   const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("md"));
   const thumbnailsMinWidth = largeScreen ? "30rem" : 0;
@@ -257,6 +273,12 @@ const CandidateList = () => {
   const userAccessibleGroups = useSelector(
     (state) => state.groups.userAccessible
   );
+
+  useEffect(() => {
+    if (userAccessibleGroups?.length && filterGroups.length === 0) {
+      setFilterGroups([...userAccessibleGroups]);
+    }
+  }, [setFilterGroups, filterGroups, userAccessibleGroups]);
 
   const availableAnnotationsInfo = useSelector(
     (state) => state.candidates.annotationsInfo
@@ -471,6 +493,7 @@ const CandidateList = () => {
               <SaveCandidateButton
                 candidate={candidateObj}
                 userGroups={userAccessibleGroups}
+                filterGroups={filterGroups}
               />
             </div>
           </div>
@@ -487,9 +510,12 @@ const CandidateList = () => {
         )}
         <div className={classes.infoItem}>
           <b>Coordinates: </b>
-          <span>
-            {candidateObj.ra}&nbsp;&nbsp;{candidateObj.dec}
+          <span className={classes.position}>
+            {ra_to_hours(candidateObj.ra)} &nbsp;
+            {dec_to_dms(candidateObj.dec)}
           </span>
+          &nbsp; (&alpha;,&delta;= {candidateObj.ra.toFixed(3)}, &nbsp;
+          {candidateObj.dec.toFixed(3)})
         </div>
         <div className={classes.infoItem}>
           <b>Gal. Coords (l,b): </b>
@@ -498,6 +524,15 @@ const CandidateList = () => {
             {candidateObj.gal_lat.toFixed(3)}
           </span>
         </div>
+        {candidateObj.classifications &&
+          candidateObj.classifications.length > 0 && (
+            <div className={classes.infoItem}>
+              <b>Classification: </b>
+              <span>
+                {getMostRecentClassification(candidateObj.classifications)}
+              </span>
+            </div>
+          )}
         {selectedAnnotationSortOptions !== null &&
           candidateHasAnnotationWithSelectedKey(candidateObj) && (
             <div className={classes.infoItem}>
@@ -822,6 +857,7 @@ const CandidateList = () => {
           lastPage={lastPage}
           totalMatches={totalMatches}
           setQueryInProgress={setQueryInProgress}
+          setFilterGroups={setFilterGroups}
         />
         <Box
           display={queryInProgress ? "block" : "none"}
