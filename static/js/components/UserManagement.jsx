@@ -39,10 +39,15 @@ const UserManagement = () => {
   const { invitationsEnabled } = useSelector((state) => state.sysInfo);
   const currentUser = useSelector((state) => state.profile);
   const { allUsers } = useSelector((state) => state.users);
+  const streams = useSelector((state) => state.streams);
   let { all: allGroups } = useSelector((state) => state.groups);
   const [csvData, setCsvData] = useState("");
   const [addUserGroupsDialogOpen, setAddUserGroupsDialogOpen] = useState(false);
+  const [addUserStreamsDialogOpen, setAddUserStreamsDialogOpen] = useState(
+    false
+  );
   const [addGroupsFormUsername, setAddGroupsFormUsername] = useState("");
+  const [addStreamsFormUserID, setAddStreamsFormUserID] = useState(null);
 
   const { handleSubmit, errors, reset, control, getValues } = useForm();
 
@@ -55,10 +60,20 @@ const UserManagement = () => {
     }
   }, [allUsers, dispatch]);
 
+  useEffect(() => {
+    const fetchStreams = () => {
+      dispatch(streamsActions.fetchStreams());
+    };
+    if (!streams?.length) {
+      fetchStreams();
+    }
+  }, [streams, dispatch]);
+
   if (
     !allUsers?.length ||
     !currentUser?.username?.length ||
-    !allGroups?.length
+    !allGroups?.length ||
+    !streams?.length
   ) {
     return (
       <div>
@@ -82,6 +97,11 @@ const UserManagement = () => {
     return formState.groups.length >= 1;
   };
 
+  const validateStreams = () => {
+    const formState = getValues({ nest: true });
+    return formState.streams.length >= 1;
+  };
+
   const handleAddUserToGroups = async (formData) => {
     const groupIDs = formData.groups.map((g) => g.id);
     const promises = groupIDs.map((gid) =>
@@ -102,6 +122,28 @@ const UserManagement = () => {
       setAddUserGroupsDialogOpen(false);
       dispatch(usersActions.fetchUsers());
       setAddGroupsFormUsername("");
+    }
+  };
+
+  const handleAddUserToStreams = async (formData) => {
+    const streamIDs = formData.streams.map((g) => g.id);
+    const promises = streamIDs.map((sid) =>
+      dispatch(
+        streamsActions.addStreamUser({
+          user_id: addStreamsFormUserID,
+          stream_id: sid,
+        })
+      )
+    );
+    const results = await Promise.all(promises);
+    if (results.every((result) => result.status === "success")) {
+      dispatch(
+        showNotification("User successfully added to specified stream(s).")
+      );
+      reset({ streams: [] });
+      setAddUserStreamsDialogOpen(false);
+      dispatch(usersActions.fetchUsers());
+      setAddStreamsFormUserID(null);
     }
   };
 
@@ -208,6 +250,17 @@ const UserManagement = () => {
                     ))}
                 </TableCell>
                 <TableCell>
+                  <IconButton
+                    aria-label="add-stream"
+                    data-testid={`addUserStreamsButton${user.id}`}
+                    onClick={() => {
+                      setAddStreamsFormUserID(user.id);
+                      setAddUserStreamsDialogOpen(true);
+                    }}
+                    size="small"
+                  >
+                    <AddCircleIcon color="disabled" />
+                  </IconButton>
                   {user.streams.map((stream) => (
                     <Chip
                       label={stream.name}
@@ -307,6 +360,70 @@ const UserManagement = () => {
                 type="submit"
                 name="submitAddFromGroupsButton"
                 data-testid="submitAddFromGroupsButton"
+              >
+                Submit
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={addUserStreamsDialogOpen}
+        onClose={() => {
+          setAddUserStreamsDialogOpen(false);
+        }}
+        style={{ position: "fixed" }}
+      >
+        <DialogTitle>
+          {`Grant user ${
+            allUsers.filter((u) => u.id === addStreamsFormUserID)[0]?.username
+          } access to selected streams:`}
+        </DialogTitle>
+        <DialogContent>
+          <form onSubmit={handleSubmit(handleAddUserToStreams)}>
+            {!!errors.streams && (
+              <FormValidationError message="Please select at least one stream" />
+            )}
+            <Controller
+              name="streams"
+              id="addUserToStreamsSelect"
+              as={
+                <Autocomplete
+                  multiple
+                  options={streams.filter(
+                    (s) =>
+                      !allUsers
+                        .filter((u) => u.id === addStreamsFormUserID)[0]
+                        ?.streams?.map((strm) => strm.id)
+                        ?.includes(s.id)
+                  )}
+                  getOptionLabel={(stream) => stream.name}
+                  filterSelectedOptions
+                  data-testid="addUserToStreamsSelect"
+                  renderInput={(params) => (
+                    <TextField
+                      // eslint-disable-next-line react/jsx-props-no-spreading
+                      {...params}
+                      error={!!errors.streams}
+                      variant="outlined"
+                      label="Select Streams"
+                      data-testid="addUserToStreamsTextField"
+                    />
+                  )}
+                />
+              }
+              control={control}
+              onChange={([, data]) => data}
+              rules={{ validate: validateStreams }}
+              defaultValue={[]}
+            />
+            <br />
+            <div>
+              <Button
+                variant="contained"
+                type="submit"
+                name="submitAddStreamsButton"
+                data-testid="submitAddStreamsButton"
               >
                 Submit
               </Button>
