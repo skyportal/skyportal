@@ -251,10 +251,6 @@ class ASCIIHandler:
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
 
-        instrument = Instrument.query.get(json['instrument_id'])
-        if instrument is None:
-            raise ValidationError('Invalid instrument id.')
-
         ascii = json.pop('ascii')
 
         # maximum size 10MB - above this don't parse. Assuming ~1 byte / char
@@ -266,7 +262,6 @@ class ASCIIHandler:
         spec = Spectrum.from_ascii(
             file,
             obj_id=json.get('obj_id', None),
-            instrument_id=json.get('instrument_id', None),
             observed_at=json.get('observed_at', None),
             wave_column=json.get('wave_column', None),
             flux_column=json.get('flux_column', None),
