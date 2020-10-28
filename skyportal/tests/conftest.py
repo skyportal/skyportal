@@ -102,6 +102,11 @@ def public_stream():
 
 
 @pytest.fixture()
+def public_stream2():
+    return StreamFactory()
+
+
+@pytest.fixture()
 def stream_with_users(super_admin_user, group_admin_user, user, view_only_user):
     return StreamFactory(
         users=[super_admin_user, group_admin_user, user, view_only_user]
