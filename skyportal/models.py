@@ -1894,6 +1894,13 @@ class Spectrum(Base):
         doc='Groups that can view this spectrum.',
     )
 
+    reducers = relationship(
+        "User", secondary="spectrum_reducers", doc="Users that reduced this spectrum."
+    )
+    observers = relationship(
+        "User", secondary="spectrum_observers", doc="Users that observed this spectrum."
+    )
+
     followup_request_id = sa.Column(sa.ForeignKey('followuprequests.id'), nullable=True)
     followup_request = relationship('FollowupRequest', back_populates='spectra')
 
@@ -2107,6 +2114,8 @@ User.spectra = relationship(
     'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
 )
 
+SpectrumReducer = join_model("spectrum_reducers", Spectrum, User)
+SpectrumObserver = join_model("spectrum_observers", Spectrum, User)
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
