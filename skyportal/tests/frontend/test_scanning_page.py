@@ -287,6 +287,12 @@ def test_save_candidate_no_groups_error_message(
     assert group_checkbox.is_selected()
     group_checkbox.click()
     assert not group_checkbox.is_selected()
+
+    group_checkbox = driver.wait_for_xpath("//input[@name='group_ids[1]']")
+    assert group_checkbox.is_selected()
+    group_checkbox.click()
+    assert not group_checkbox.is_selected()
+
     second_save_button = driver.wait_for_xpath_to_be_clickable(
         f'//button[@name="finalSaveCandidateButton{public_candidate.id}"]'
     )
