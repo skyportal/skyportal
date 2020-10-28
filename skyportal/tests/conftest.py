@@ -65,6 +65,7 @@ def pytest_runtest_setup(item):
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     # execute all other hooks to obtain the report object
+
     outcome = yield
     rep = outcome.get_result()
 
@@ -77,9 +78,19 @@ def pytest_runtest_makereport(item, call):
 # check if a test has failed
 @pytest.fixture(scope="function", autouse=True)
 def test_failed_check(request):
+
+    # add a separator to the geckodriver logs
+    with open('geckodriver.log', 'a') as f:
+        f.write(f'BEGIN {request.node.nodeid}\n')
+
     yield
     # request.node is an "item" because we use the default
     # "function" scope
+
+    # add a separator to the geckodriver logs
+    with open('geckodriver.log', 'a') as f:
+        f.write(f'END {request.node.nodeid}\n')
+
     if request.node.rep_call.failed and 'driver' in request.node.funcargs:
         webdriver = request.node.funcargs['driver']
         take_screenshot_and_page_source(webdriver, request.node.nodeid)
@@ -93,13 +104,19 @@ def take_screenshot_and_page_source(webdriver, nodeid):
     ).replace(":", "_")
     file_name = os.path.join(os.path.dirname(__file__), '../../test-results', file_name)
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
+
     webdriver.save_screenshot(file_name)
     with open(file_name.replace('png', 'html'), 'w') as f:
         f.write(webdriver.page_source)
 
-    with open(file_name.replace('png', 'console.log'), 'w') as f:
-        entries = [e for e in driver.get_log('browser')]
-        f.write('\n'.join(entries))
+    with open(file_name.replace('png', 'console.log'), 'w') as f, open(
+        'geckodriver.log', 'r'
+    ) as gl:
+        lines = gl.readlines()
+        revlines = list(reversed(lines))
+        istart = revlines.index(f'BEGIN {nodeid}\n')
+        iend = revlines.index(f'END {nodeid}\n')
+        f.write('\n'.join(list(reversed(revlines[iend : (istart + 1)]))))  # noqa: E203
 
 
 @pytest.fixture(scope='session')
