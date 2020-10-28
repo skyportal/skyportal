@@ -13,6 +13,7 @@ from ...models import (
     Source,
     GroupUser,
     Spectrum,
+    User,
 )
 from ...schema import (
     SpectrumAsciiFilePostJSON,
@@ -89,7 +90,23 @@ class SpectrumHandler(BaseHandler):
         # need to do this before the creation of Spectrum because this line flushes.
         owner_id = self.associated_user_object.id
 
+        reducers = []
+        for reducer_id in data.pop('reduced_by', []):
+            reducer = User.query.get(reducer_id)
+            if reducer is None:
+                return self.error(f'Invalid reducer ID: {reducer_id}.')
+            reducers.append(reducer)
+
+        observers = []
+        for observer_id in data.pop('observed_by', []):
+            observer = User.query.get(observer_id)
+            if observer is None:
+                return self.error(f'Invalid observer ID: {observer_id}.')
+            observers.append(observer)
+
         spec = Spectrum(**data)
+        spec.observers = observers
+        spec.reducers = reducers
         spec.instrument = instrument
         spec.groups = groups
         spec.owner_id = owner_id
@@ -340,12 +357,28 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             .first()
         )
 
+        reducers = []
+        for reducer_id in json.get('reduced_by', []):
+            reducer = User.query.get(reducer_id)
+            if reducer is None:
+                raise ValidationError(f'Invalid reducer ID: {reducer_id}.')
+            reducers.append(reducer)
+
+        observers = []
+        for observer_id in json.get('observed_by', []):
+            observer = User.query.get(observer_id)
+            if observer is None:
+                raise ValidationError(f'Invalid observer ID: {observer_id}.')
+            observers.append(observer)
+
         if single_user_group is not None:
             if single_user_group not in groups:
                 groups.append(single_user_group)
 
         spec.original_file_filename = Path(filename).name
         spec.groups = groups
+        spec.reducers = reducers
+        spec.observers = observers
 
         DBSession().add(spec)
         DBSession().commit()
