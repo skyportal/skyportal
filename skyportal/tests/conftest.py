@@ -109,9 +109,17 @@ def take_screenshot_and_page_source(webdriver, nodeid):
     with open(file_name.replace('png', 'html'), 'w') as f:
         f.write(webdriver.page_source)
 
-    with open(file_name.replace('png', 'console.log'), 'w') as f, open(
-        'geckodriver.log', 'r'
-    ) as gl:
+    file_name = f'{nodeid}_{datetime.today().strftime("%Y-%m-%d_%H:%M")}.console.log'.replace(
+        "/", "_"
+    ).replace(
+        ":", "_"
+    )
+    file_name = os.path.join(
+        os.path.dirname(__file__), '../../webdriver-console', file_name
+    )
+    Path(file_name).parent.mkdir(parents=True, exist_ok=True)
+
+    with open(file_name, 'w') as f, open('geckodriver.log', 'r') as gl:
         lines = gl.readlines()
         revlines = list(reversed(lines))
         istart = revlines.index(f'BEGIN {nodeid}\n')
