@@ -64,7 +64,7 @@ const UserManagement = () => {
     const fetchStreams = () => {
       dispatch(streamsActions.fetchStreams());
     };
-    if (!streams?.length) {
+    if (streams === null) {
       fetchStreams();
     }
   }, [streams, dispatch]);
