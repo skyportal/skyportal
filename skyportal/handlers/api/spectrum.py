@@ -255,40 +255,6 @@ class ASCIIHandler:
         if instrument is None:
             raise ValidationError('Invalid instrument id.')
 
-        groups = []
-        group_ids = json.pop('group_ids', [])
-        for group_id in group_ids:
-            group = Group.query.get(group_id)
-            if group is None:
-                return self.error(f'Invalid group id: {group_id}.')
-            groups.append(group)
-
-        # will never KeyError as missing value is imputed
-        followup_request_id = json.pop('followup_request_id', None)
-        if followup_request_id is not None:
-            followup_request = FollowupRequest.query.get(followup_request_id)
-            if followup_request is None:
-                return self.error('Invalid followup request.')
-            for group in followup_request.target_groups:
-                if group not in groups:
-                    groups.append(group)
-
-        # always add the single user group
-        single_user_group_query = (
-            DBSession()
-            .query(Group)
-            .join(GroupUser)
-            .filter(
-                Group.single_user_group == True,  # noqa
-                GroupUser.user_id == self.associated_user_object.id,
-            )
-        )
-        single_user_group = single_user_group_query.first()
-
-        if single_user_group is not None:
-            if single_user_group not in groups:
-                groups.append(single_user_group)
-
         ascii = json.pop('ascii')
 
         # maximum size 10MB - above this don't parse. Assuming ~1 byte / char
@@ -382,6 +348,16 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
         if single_user_group is not None:
             if single_user_group not in groups:
                 groups.append(single_user_group)
+
+        # will never KeyError as missing value is imputed
+        followup_request_id = json.pop('followup_request_id', None)
+        if followup_request_id is not None:
+            followup_request = FollowupRequest.query.get(followup_request_id)
+            if followup_request is None:
+                return self.error('Invalid followup request.')
+            for group in followup_request.target_groups:
+                if group not in groups:
+                    groups.append(group)
 
         spec.original_file_filename = Path(filename).name
         spec.groups = groups

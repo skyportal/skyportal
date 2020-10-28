@@ -195,7 +195,7 @@ def test_delete_followup_request(
 def test_submit_new_followup_request_two_groups(
     driver,
     super_admin_user,
-    public_source,
+    public_source_two_groups,
     super_admin_token,
     public_group,
     public_group2,
@@ -208,7 +208,7 @@ def test_submit_new_followup_request_two_groups(
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_source.id}")
+    driver.get(f"/source/{public_source_two_groups.id}")
     # wait for the plots to load
     driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
     # this waits for the spectroscopy plot by looking for the element Mg
@@ -266,7 +266,9 @@ def test_submit_new_followup_request_two_groups(
     with open(filename, 'r') as f:
         ascii = f.read()
 
-    status, data = api('GET', f'sources/{public_source.id}', token=super_admin_token)
+    status, data = api(
+        'GET', f'sources/{public_source_two_groups.id}', token=super_admin_token
+    )
 
     assert status == 200
     assert data['status'] == 'success'
@@ -275,7 +277,7 @@ def test_submit_new_followup_request_two_groups(
         "POST",
         'spectrum/ascii',
         data={
-            'obj_id': str(public_source.id),
+            'obj_id': str(public_source_two_groups.id),
             'observed_at': '2020-01-01T00:00:00',
             'instrument_id': idata['id'],
             'fluxerr_column': 2,

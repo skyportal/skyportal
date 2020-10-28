@@ -979,17 +979,33 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
     obj_id = fields.String(
         description='The ID of the object that the spectrum is of.', required=True
     )
+
     instrument_id = fields.Integer(
         description='The ID of the instrument that took the spectrum.', required=True
     )
+
     observed_at = fields.DateTime(
         description='The ISO UTC time the spectrum was taken.', required=True
     )
+
     group_ids = fields.List(
         fields.Integer, description="The IDs of the groups to share this spectrum with."
     )
+
     filename = fields.String(
         description="The original filename (for bookkeeping purposes).", required=True,
+    )
+
+    followup_request_id = fields.Integer(
+        required=False,
+        description='ID of the Followup request that generated this spectrum, '
+        'if any.',
+    )
+
+    assignment_id = fields.Integer(
+        required=False,
+        description='ID of the classical assignment that generated this spectrum, '
+        'if any.',
     )
 
 
@@ -1017,15 +1033,6 @@ class SpectrumPost(_Schema):
     observed_at = fields.DateTime(
         description='The ISO UTC time the spectrum was taken.', required=True
     )
-
-    """
-    observed_at = fields.DateTime(
-        required=True,
-        description="Median UTC ISO time stamp of the exposure or "
-                    "exposures in which the Spectrum was acquired.",
-        format='iso'
-    )
-    """
 
     origin = fields.String(required=False, description="Origin of the spectrum.")
 
