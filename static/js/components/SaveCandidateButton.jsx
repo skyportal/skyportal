@@ -69,7 +69,15 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
   // https://material-ui.com/components/button-group/#split-button):
 
   const filteredGroupNames = filterGroups
-    .map((g) => g.name.substring(0, 15) + (g.name.length > 15 ? "..." : ""))
+    .map((g) => {
+      let name = g.nickname
+        ? g.nickname.substring(0, 15)
+        : g.name.substring(0, 15);
+      if (name.length > 15) {
+        name += "...";
+      }
+      return name;
+    })
     .join(",");
 
   const options = [`Save to ${filteredGroupNames}`, "Select groups & save"];
