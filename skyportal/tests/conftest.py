@@ -37,8 +37,6 @@ from skyportal.models import (
 )
 
 import astroplan
-import warnings
-from astroplan import utils as ap_utils
 
 
 print("Loading test configuration from _test_config.yaml")
@@ -96,20 +94,6 @@ def take_screenshot_and_page_source(webdriver, nodeid):
     webdriver.save_screenshot(file_name)
     with open(file_name.replace('png', 'html'), 'w') as f:
         f.write(webdriver.page_source)
-
-
-@pytest.fixture(scope='session')
-def iers_data():
-    # grab the latest earth orientation data for observatory calculations
-    if ap_utils.IERS_A_in_cache():
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "error", category=astroplan.OldEarthOrientationDataWarning
-            )
-            try:
-                ap_utils._get_IERS_A_table()
-            except astroplan.OldEarthOrientationDataWarning:
-                astroplan.download_IERS_A()
 
 
 @pytest.fixture()
