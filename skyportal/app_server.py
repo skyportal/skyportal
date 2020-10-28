@@ -6,6 +6,8 @@ from baselayer.log import make_log
 
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
+    ACLHandler,
+    UserACLHandler,
     AllocationHandler,
     AssignmentHandler,
     CandidateHandler,
@@ -93,6 +95,8 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
 
     handlers = baselayer_handlers + [
         # API endpoints
+        (r'/api/acls(/[0-9]+)/users(/.*)?', UserACLHandler),
+        (r'/api/acls', ACLHandler),
         (r'/api/allocation(/.*)?', AllocationHandler),
         (r'/api/assignment(/.*)?', AssignmentHandler),
         (r'/api/candidates(/.*)?', CandidateHandler),
