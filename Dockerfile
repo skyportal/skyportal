@@ -17,7 +17,7 @@ RUN apt-get update && \
 RUN python3 -m venv /skyportal_env && \
     \
     bash -c "source /skyportal_env/bin/activate && \
-    pip install --upgrade pip"
+    pip install --upgrade pip wheel"
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
