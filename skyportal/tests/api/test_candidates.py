@@ -53,7 +53,7 @@ def test_token_user_update_candidate(
         f"candidates/{public_candidate.id}",
         data={
             "filter_ids": [public_filter.id],
-            "passing_alert_id": 1234567890,
+            "passing_alert_id": passing_alert_id,
             "passed_at": passed_at,
         },
         token=manage_sources_token,
@@ -69,16 +69,19 @@ def test_token_user_update_candidate(
     assert data["data"]["passing_alerts"][0]["passing_alert_id"] == passing_alert_id
 
 
-def test_cannot_update_candidate_without_permission(view_only_token, public_candidate):
+def test_cannot_update_candidate_without_permission(
+    view_only_token, public_candidate, public_filter
+):
+    passing_alert_id = 1234567890
+    passed_at = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")
+
     status, data = api(
-        "PAT",
+        "PUT",
         f"candidates/{public_candidate.id}",
         data={
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passing_alert_id": passing_alert_id,
+            "passed_at": passed_at,
         },
         token=view_only_token,
     )
