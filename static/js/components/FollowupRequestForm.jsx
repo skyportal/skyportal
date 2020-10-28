@@ -37,11 +37,20 @@ const FollowupRequestForm = ({
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if allocationList is not
   // empty.
-  if (allocationList.length === 0 || !selectedAllocationId) {
+  if (
+    allocationList.length === 0 ||
+    !selectedAllocationId ||
+    Object.keys(instrumentFormParams).length === 0
+  ) {
     return <h3>No robotic instruments available...</h3>;
   }
 
-  if (!allGroups || allGroups.length === 0 || telescopeList.length === 0) {
+  if (
+    !allGroups ||
+    allGroups.length === 0 ||
+    telescopeList.length === 0 ||
+    instrumentList.length === 0
+  ) {
     return <h3>Loading...</h3>;
   }
 
