@@ -43,7 +43,11 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const FilterCandidateList = ({ userAccessibleGroups, setQueryInProgress }) => {
+const FilterCandidateList = ({
+  userAccessibleGroups,
+  setQueryInProgress,
+  setFilterGroups,
+}) => {
   const classes = useStyles();
 
   // const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
@@ -87,6 +91,10 @@ const FilterCandidateList = ({ userAccessibleGroups, setQueryInProgress }) => {
     if (data.endDate) {
       data.endDate = data.endDate.toISOString();
     }
+    setFilterGroups(
+      userAccessibleGroups.filter((g) => selectedGroupIDs.includes(g.id))
+    );
+    await dispatch(candidatesActions.setFilterFormData(data));
     await dispatch(candidatesActions.fetchCandidates(data));
     setQueryInProgress(false);
   };
@@ -188,6 +196,7 @@ const FilterCandidateList = ({ userAccessibleGroups, setQueryInProgress }) => {
 FilterCandidateList.propTypes = {
   userAccessibleGroups: PropTypes.arrayOf(PropTypes.object).isRequired,
   setQueryInProgress: PropTypes.func.isRequired,
+  setFilterGroups: PropTypes.func.isRequired,
 };
 
 export default FilterCandidateList;

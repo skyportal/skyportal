@@ -236,6 +236,21 @@ class PhotometryHandler(BaseHandler):
                     f'not null.'
                 )
 
+            for field in ['mag', 'magerr', 'limiting_mag']:
+                infinite = np.isinf(df[field].values)
+                if any(infinite):
+                    first_offender = np.argwhere(infinite)[0, 0]
+                    packet = df.iloc[first_offender].to_dict()
+
+                    # coerce nans to nones
+                    for key in packet:
+                        packet[key] = nan_to_none(packet[key])
+
+                    raise ValidationError(
+                        f'Error parsing packet "{packet}": '
+                        f'field {field} must be finite.'
+                    )
+
             # ensure nothing is null for the required fields
             for field in PhotMagFlexible.required_keys:
                 missing = df[field].isna()
@@ -284,6 +299,21 @@ class PhotometryHandler(BaseHandler):
                     raise ValidationError(
                         f'Error parsing packet "{packet}": '
                         f'missing required field {field}.'
+                    )
+
+            for field in ['flux', 'fluxerr']:
+                infinite = np.isinf(df[field].values)
+                if any(infinite):
+                    first_offender = np.argwhere(infinite)[0, 0]
+                    packet = df.iloc[first_offender].to_dict()
+
+                    # coerce nans to nones
+                    for key in packet:
+                        packet[key] = nan_to_none(packet[key])
+
+                    raise ValidationError(
+                        f'Error parsing packet "{packet}": '
+                        f'field {field} must be finite.'
                     )
 
             phot_table = Table.from_pandas(df[['mjd', 'magsys', 'filter', 'zp']])
