@@ -27,6 +27,7 @@ def test_delete_stream_user(driver, super_admin_user, user, stream_with_users):
     driver.wait_for_xpath(f"//div[text()='Stream access successfully revoked.']")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_user_to_group(driver, user, super_admin_user, public_group, public_group2):
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/user_management')
