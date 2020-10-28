@@ -146,7 +146,12 @@ class SpectrumHandler(BaseHandler):
         if spectrum is not None:
             # Permissions check
             _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
-            return self.success(data=spectrum)
+            spec_dict = spectrum.to_dict()
+            spec_dict["instrument_name"] = spectrum.instrument.name
+            spec_dict["groups"] = spectrum.groups
+            spec_dict["reducers"] = spectrum.reducers
+            spec_dict["observers"] = spectrum.observers
+            return self.success(data=spec_dict)
         else:
             return self.error(f"Could not load spectrum with ID {spectrum_id}")
 
@@ -449,5 +454,7 @@ class ObjSpectraHandler(BaseHandler):
             spec_dict = spec.to_dict()
             spec_dict["instrument_name"] = spec.instrument.name
             spec_dict["groups"] = spec.groups
+            spec_dict["reducers"] = spec.reducers
+            spec_dict["observers"] = spec.observers
             return_values.append(spec_dict)
         return self.success(data=return_values)
