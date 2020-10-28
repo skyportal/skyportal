@@ -397,16 +397,6 @@ class ObjSpectraHandler(BaseHandler):
             schema:
               type: string
             description: ID of the object to retrieve spectra for
-          - in: query
-            name: normalization
-            required: false
-            schema:
-              type: string
-            description: |
-                normalize all spectra to the same scale,
-                either setting to unity the "max", "mean"
-                or "median" of each spectrum.
-                The default is not to normalize.
 
         responses:
           200:
@@ -423,8 +413,6 @@ class ObjSpectraHandler(BaseHandler):
         if obj is None:
             return self.error('Invalid object ID.')
 
-        normalization = self.get_query_argument('normalization', None)
-
         spectra = Obj.get_spectra_owned_by(obj_id, self.current_user)
         return_values = []
         for spec in spectra:
@@ -433,20 +421,15 @@ class ObjSpectraHandler(BaseHandler):
             spec_dict["groups"] = spec.groups
             return_values.append(spec_dict)
 
-        # check if there is any request to normalize the spectra
-        if normalization == "max":
-            for s in return_values:
-                norm = np.max(s["fluxes"])
-                s["fluxes"] = s["fluxes"] / norm
+        for s in return_values:
+            norm = np.median(s["fluxes"])
+            if not (np.isfinite(norm) and norm > 0):
+                # otherwise normalize the value at the median wavelength to 1
+                median_wave_index = np.argmin(
+                    np.abs(s["wavelengths"] - np.median(s["wavelengths"]))
+                )
+                norm = s["fluxes"][median_wave_index]
 
-        if normalization == "mean":
-            for s in return_values:
-                norm = np.mean(s["fluxes"])
-                s["fluxes"] = s["fluxes"] / norm
-
-        if normalization == "median":
-            for s in return_values:
-                norm = np.median(s["fluxes"])
-                s["fluxes"] = s["fluxes"] / norm
+            s["fluxes"] = s["fluxes"] / norm
 
         return self.success(data=return_values)
