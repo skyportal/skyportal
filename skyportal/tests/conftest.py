@@ -97,6 +97,10 @@ def take_screenshot_and_page_source(webdriver, nodeid):
     with open(file_name.replace('png', 'html'), 'w') as f:
         f.write(webdriver.page_source)
 
+    with open(file_name.replace('png', 'console.log'), 'w') as f:
+        entries = [e for e in driver.get_log('browser')]
+        f.write('\n'.join(entries))
+
 
 @pytest.fixture(scope='session')
 def iers_data():
