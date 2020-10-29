@@ -1,6 +1,6 @@
 from marshmallow.exceptions import ValidationError
 
-from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Filter, Group, GroupUser, Stream
 
@@ -39,7 +39,7 @@ class FilterHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        acls = [acl.id for acl in self.current_user.acls]
+        acls = self.current_user.permissions
 
         if filter_id is not None:
             if "System admin" in acls or "Manage groups" in acls:
@@ -108,14 +108,14 @@ class FilterHandler(BaseHandler):
                 "Invalid/missing parameters: " f"{e.normalized_messages()}"
             )
 
-        acls = [acl.id for acl in self.current_user.acls]
+        acls = self.current_user.permissions
 
         # check that user is su or group admin
         if "System admin" not in acls and "Manage groups" not in acls:
             gu = GroupUser.query.filter(
                 GroupUser.group_id == fil.group_id,
                 GroupUser.user_id == self.associated_user_object.id,
-                GroupUser.admin == True,
+                GroupUser.admin.is_(True),
             ).first()
             if gu is None:
                 return self.error("Insufficient permissions.")
@@ -162,7 +162,7 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        acls = [acl.id for acl in self.current_user.acls]
+        acls = self.current_user.permissions
 
         if "System admin" in acls or "Manage groups" in acls:
             f = DBSession().query(Filter).get(filter_id)
@@ -215,7 +215,7 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        acls = [acl.id for acl in self.current_user.acls]
+        acls = self.current_user.permissions
 
         if "System admin" in acls or "Manage groups" in acls:
             f = DBSession().query(Filter).get(filter_id)
