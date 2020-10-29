@@ -25,6 +25,7 @@ import { HtmlTooltip } from "./UploadPhotometry";
 
 import * as Actions from "../ducks/spectra";
 import { fetchSource } from "../ducks/source";
+import { fetchUsers } from "../ducks/users";
 import { RESET_PARSED_SPECTRUM } from "../ducks/spectra";
 
 dayjs.extend(utc);
@@ -105,6 +106,7 @@ SpectrumPreview.propTypes = {
 const UploadSpectrumForm = ({ route }) => {
   const { parsed } = useSelector((state) => state.spectra);
   const groups = useSelector((state) => state.groups.all);
+  const users = useSelector((state) => state.users.allUsers);
   const instrumentList = useSelector(
     (state) => state.instruments.instrumentList
   );
@@ -119,6 +121,7 @@ const UploadSpectrumForm = ({ route }) => {
   useEffect(() => {
     const blockingFunc = async () => {
       dispatch({ type: Actions.RESET_PARSED_SPECTRUM });
+      dispatch(fetchUsers());
       const result = await dispatch(fetchSource(route.id));
       const defaultFormData = {
         file: undefined,
@@ -129,13 +132,21 @@ const UploadSpectrumForm = ({ route }) => {
         has_fluxerr: "No",
         instrument_id: undefined,
         fluxerr_column: undefined,
+        observed_by: undefined,
+        reduced_by: undefined,
       };
       setPersistentFormData(defaultFormData);
     };
     blockingFunc();
   }, [dispatch, route.id]);
 
-  if (!groups || !instrumentList || !telescopes || source.id !== route.id) {
+  if (
+    !groups ||
+    !instrumentList ||
+    !telescopes ||
+    users.length === 0 ||
+    source.id !== route.id
+  ) {
     return <p>Loading...</p>;
   }
 
@@ -258,6 +269,30 @@ const UploadSpectrumForm = ({ route }) => {
         },
         uniqueItems: true,
       },
+      reduced_by: {
+        type: "array",
+        title: "Reducers",
+        items: {
+          type: "integer",
+          anyOf: users.map((user) => ({
+            enum: [user.id],
+            title: user.username,
+          })),
+        },
+        uniqueItems: true,
+      },
+      observed_by: {
+        type: "array",
+        title: "Observers",
+        items: {
+          type: "integer",
+          anyOf: users.map((user) => ({
+            enum: [user.id],
+            title: user.username,
+          })),
+        },
+        uniqueItems: true,
+      },
       mjd: {
         type: "number",
         title: "Observation MJD",
@@ -366,6 +401,8 @@ const UploadSpectrumForm = ({ route }) => {
         .utc()
         .format(),
       filename,
+      observed_by: persistentFormData.observed_by,
+      reduced_by: persistentFormData.reduced_by,
     };
     const result = await dispatch(Actions.uploadASCIISpectrum(payload));
     if (result.status === "success") {
@@ -380,6 +417,8 @@ const UploadSpectrumForm = ({ route }) => {
         has_fluxerr: "No",
         instrument_id: undefined,
         fluxerr_column: undefined,
+        observed_by: undefined,
+        reduced_by: undefined,
       });
       setFormKey(Date.now());
     }
