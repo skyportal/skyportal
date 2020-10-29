@@ -1,5 +1,6 @@
 import io
 from pathlib import Path
+import numpy as np
 
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
@@ -434,6 +435,7 @@ class ObjSpectraHandler(BaseHandler):
             schema:
               type: string
             description: ID of the object to retrieve spectra for
+
         responses:
           200:
             content:
@@ -448,6 +450,7 @@ class ObjSpectraHandler(BaseHandler):
         obj = Obj.query.get(obj_id)
         if obj is None:
             return self.error('Invalid object ID.')
+
         spectra = Obj.get_spectra_owned_by(obj_id, self.current_user)
         return_values = []
         for spec in spectra:
@@ -457,4 +460,16 @@ class ObjSpectraHandler(BaseHandler):
             spec_dict["reducers"] = spec.reducers
             spec_dict["observers"] = spec.observers
             return_values.append(spec_dict)
+
+        for s in return_values:
+            norm = np.median(s["fluxes"])
+            if not (np.isfinite(norm) and norm > 0):
+                # otherwise normalize the value at the median wavelength to 1
+                median_wave_index = np.argmin(
+                    np.abs(s["wavelengths"] - np.median(s["wavelengths"]))
+                )
+                norm = s["fluxes"][median_wave_index]
+
+            s["fluxes"] = s["fluxes"] / norm
+
         return self.success(data=return_values)
