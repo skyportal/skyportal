@@ -218,7 +218,7 @@ const SourceMobile = ({ source }) => {
               >
                 PDF
               </Button>
-              <Link to={`/finder/${source.id}`} role="link">
+              <Link to={`/source/${source.id}/finder`} role="link">
                 <Button>Interactive</Button>
               </Link>
               &nbsp;|&nbsp;

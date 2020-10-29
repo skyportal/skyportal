@@ -22,6 +22,10 @@ import { useForm, Controller } from "react-hook-form";
 import { useReactToPrint } from "react-to-print";
 
 const useStyles = makeStyles((theme) => ({
+  media: {
+    maxWidth: "100%",
+    width: "95%",
+  },
   button: {
     margin: theme.spacing(1),
   },
@@ -143,7 +147,7 @@ const FindingChart = () => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={2}>
+          <Grid item xs={2} xm={2}>
             <Card>
               <CardContent className={classes.items}>
                 <div>
