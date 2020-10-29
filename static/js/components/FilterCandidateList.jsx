@@ -56,7 +56,7 @@ const FilterCandidateList = ({
 
   useEffect(() => {
     reset({
-      groupIDs: Array(userAccessibleGroups.length).fill(true),
+      groupIDs: Array(userAccessibleGroups.length).fill(false),
       startDate: null,
       endDate: null,
     });

@@ -5,12 +5,6 @@ from selenium.common.exceptions import TimeoutException
 from skyportal.tests import api
 
 
-def test_candidates_page_render(driver, user, public_candidate):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/candidates")
-    driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
-
-
 @pytest.mark.flaky(reruns=2)
 def test_candidate_group_filtering(
     driver,
@@ -51,21 +45,17 @@ def test_candidate_group_filtering(
 
     driver.get(f"/become_user/{user.id}")
     driver.get("/candidates")
-    for i in range(5):
-        driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
-
-    group_checkbox = driver.wait_for_xpath(
-        f'//*[contains(@data-testid,"groupID-{public_group.id}")]'
-    )
+    group_checkbox = driver.wait_for_xpath('//input[@name="groupIDs[0]"]')
     driver.scroll_to_element_and_click(group_checkbox)
     submit_button = driver.wait_for_xpath('//span[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
-        driver.wait_for_xpath_to_disappear(f'//a[text()="{candidate_id}_{i}"]')
+        driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
     driver.scroll_to_element_and_click(group_checkbox)
+    driver.click_xpath('//input[@name="groupIDs[1]"]', wait_clickable=False)
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
-        driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
+        driver.wait_for_xpath_to_disappear(f'//a[text()="{candidate_id}_{i}"]')
 
 
 @pytest.mark.flaky(reruns=2)
@@ -116,8 +106,7 @@ def test_candidate_unsaved_only_filtering(
 
     driver.get(f"/become_user/{user.id}")
     driver.get("/candidates")
-    for i in range(5):
-        driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
+    driver.click_xpath('//input[@name="groupIDs[0]"]', wait_clickable=False)
     unsaved_only_checkbox = driver.wait_for_xpath('//input[@name="unsavedOnly"]')
     driver.scroll_to_element_and_click(unsaved_only_checkbox)
     submit_button = driver.wait_for_xpath('//span[text()="Search"]')
@@ -180,8 +169,7 @@ def test_candidate_date_filtering(
 
     driver.get(f"/become_user/{user.id}")
     driver.get("/candidates")
-    for i in range(5):
-        driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
+    driver.click_xpath('//input[@name="groupIDs[0]"]', wait_clickable=False)
     start_date_input = driver.wait_for_xpath("//input[@name='startDate']")
     start_date_input.clear()
     start_date_input.send_keys("200012120000")
@@ -206,6 +194,8 @@ def test_save_candidate_quick_save(
 ):
     driver.get(f"/become_user/{group_admin_user.id}")
     driver.get("/candidates")
+    driver.click_xpath('//input[@name="groupIDs[0]"]', wait_clickable=False)
+    driver.click_xpath('//span[text()="Search"]', wait_clickable=False)
     driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
     save_button = driver.wait_for_xpath(
         f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
@@ -230,6 +220,8 @@ def test_save_candidate_select_groups(
 ):
     driver.get(f"/become_user/{group_admin_user.id}")
     driver.get("/candidates")
+    driver.click_xpath('//input[@name="groupIDs[0]"]', wait_clickable=False)
+    driver.click_xpath('//span[text()="Search"]')
     driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
     carat = driver.wait_for_xpath(
         f'//button[@name="saveCandidateButtonDropDownArrow{public_candidate.id}"]'
@@ -270,6 +262,8 @@ def test_save_candidate_no_groups_error_message(
 ):
     driver.get(f"/become_user/{group_admin_user.id}")
     driver.get("/candidates")
+    driver.click_xpath('//input[@name="groupIDs[0]"]', wait_clickable=False)
+    driver.click_xpath('//span[text()="Search"]')
     driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
     carat = driver.wait_for_xpath_to_be_clickable(
         f'//button[@name="saveCandidateButtonDropDownArrow{public_candidate.id}"]'
@@ -290,12 +284,6 @@ def test_save_candidate_no_groups_error_message(
     assert group_checkbox.is_selected()
     group_checkbox.click()
     assert not group_checkbox.is_selected()
-
-    group_checkbox = driver.wait_for_xpath("//input[@name='group_ids[1]']")
-    assert group_checkbox.is_selected()
-    group_checkbox.click()
-    assert not group_checkbox.is_selected()
-
     second_save_button = driver.wait_for_xpath_to_be_clickable(
         f'//button[@name="finalSaveCandidateButton{public_candidate.id}"]'
     )
@@ -338,6 +326,8 @@ def test_submit_annotations_sorting(
 
     driver.get(f"/become_user/{view_only_user.id}")
     driver.get("/candidates")
+    driver.click_xpath('//input[@name="groupIDs[0]"]', wait_clickable=False)
+    driver.click_xpath('//span[text()="Search"]')
     driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
 
     driver.click_xpath(f"//p[text()='numeric_field: 1.0000']")
@@ -398,6 +388,8 @@ def test_submit_annotations_filtering(
 
     driver.get(f"/become_user/{view_only_user.id}")
     driver.get("/candidates")
+    driver.click_xpath('//input[@name="groupIDs[0]"]', wait_clickable=False)
+    driver.click_xpath('//span[text()="Search"]')
     driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
 
     driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
