@@ -25,6 +25,7 @@ from .photometry import (
     PhotometryRangeHandler,
 )
 from .public_group import PublicGroupHandler
+from .roles import RoleHandler, UserRoleHandler
 from .sharing import SharingHandler
 from .source import (
     SourceHandler,
