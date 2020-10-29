@@ -16,10 +16,13 @@ import Autocomplete from "@material-ui/lab/Autocomplete";
 import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
 import AddCircleIcon from "@material-ui/icons/AddCircle";
+import HelpIcon from "@material-ui/icons/Help";
 import IconButton from "@material-ui/core/IconButton";
 import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogTitle from "@material-ui/core/DialogTitle";
+import Tooltip from "@material-ui/core/Tooltip";
+import { makeStyles } from "@material-ui/core/styles";
 import PapaParse from "papaparse";
 import { useForm, Controller } from "react-hook-form";
 
@@ -33,10 +36,20 @@ import * as inviteUsersActions from "../ducks/inviteUsers";
 import * as aclsActions from "../ducks/acls";
 import * as rolesActions from "../ducks/roles";
 
+const useStyles = makeStyles(() => ({
+  icon: {
+    height: "1rem",
+  },
+  headerCell: {
+    verticalAlign: "bottom",
+  },
+}));
+
 const sampleCSVText = `example1@gmail.com,1,3,false
 example2@gmail.com,1 2 3,2 5 9,false false true`;
 
 const UserManagement = () => {
+  const classes = useStyles();
   const dispatch = useDispatch();
   const { invitationsEnabled } = useSelector((state) => state.sysInfo);
   const currentUser = useSelector((state) => state.profile);
@@ -180,7 +193,7 @@ const UserManagement = () => {
     const result = await dispatch(
       rolesActions.addUserRoles({
         userID: clickedUser.id,
-        roleIds: formData.roles,
+        roleIds: formData.roles.map((role) => role.id),
       })
     );
     if (result.status === "success") {
@@ -272,8 +285,51 @@ const UserManagement = () => {
               <TableCell align="center">Name</TableCell>
               <TableCell align="center">Username</TableCell>
               <TableCell align="center">Email</TableCell>
-              <TableCell align="center">Roles</TableCell>
-              <TableCell align="center">Additional ACLs</TableCell>
+              <TableCell align="center" className={classes.headerCell}>
+                Roles&nbsp;
+                <Tooltip
+                  interactive
+                  title={
+                    <>
+                      <b>Each role is associated with the following ACLs:</b>
+                      <ul>
+                        {roles.map((role) => (
+                          <li key={role.id}>
+                            {role.id}: {role.acls.join(", ")}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  }
+                >
+                  <HelpIcon
+                    color="disabled"
+                    size="small"
+                    className={classes.icon}
+                  />
+                </Tooltip>
+              </TableCell>
+              <TableCell align="center" className={classes.headerCell}>
+                Additional ACLs&nbsp;
+                <Tooltip
+                  interactive
+                  title={
+                    <>
+                      <p>
+                        These are in addition to those ACLs associated with user
+                        role(s). See help icon tooltip in roles column header
+                        for those ACLs.
+                      </p>
+                    </>
+                  }
+                >
+                  <HelpIcon
+                    color="disabled"
+                    size="small"
+                    className={classes.icon}
+                  />
+                </Tooltip>
+              </TableCell>
               <TableCell align="center">Groups</TableCell>
               <TableCell align="center">Streams</TableCell>
             </TableRow>
@@ -617,10 +673,10 @@ const UserManagement = () => {
               as={
                 <Autocomplete
                   multiple
-                  options={roles.filter(
-                    (role) => !clickedUser?.roles?.includes(role)
+                  options={roles?.filter(
+                    (role) => !clickedUser?.roles?.includes(role.id)
                   )}
-                  getOptionLabel={(role) => role}
+                  getOptionLabel={(role) => role.id}
                   filterSelectedOptions
                   data-testid="addUserRolesSelect"
                   renderInput={(params) => (

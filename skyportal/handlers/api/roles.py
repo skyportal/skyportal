@@ -21,10 +21,14 @@ class RoleHandler(BaseHandler):
                         data:
                           type: array
                           items:
-                            type: string
-                          description: List of all Role IDs.
+                            - $ref: '#/components/schemas/Role'
+                          description: List of all Roles.
         """
-        return self.success(data=[role.id for role in Role.query.all()])
+        roles = Role.query.all()
+        for i, role in enumerate(roles):
+            roles[i] = role.to_dict()
+            roles[i]['acls'] = [acl.id for acl in role.acls]
+        return self.success(data=roles)
 
 
 class UserRoleHandler(BaseHandler):
