@@ -243,7 +243,7 @@ class AssignmentHandler(BaseHandler):
         assignment = ClassicalAssignment.query.get(int(assignment_id))
         user = self.associated_user_object
         delok = (
-            "System admin" in [a.id for a in user.acls]
+            "System admin" in user.permissions
             or assignment.requester.username == user.username
         )
         if not delok:

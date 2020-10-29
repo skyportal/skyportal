@@ -299,7 +299,7 @@ def user_or_token_accessible_groups(self):
     """Return the list of Groups a User or Token has access to. For non-admin
     Users or Token owners, this corresponds to the Groups they are a member of.
     For System Admins, this corresponds to all Groups."""
-    if "System admin" in [acl.id for acl in self.acls]:
+    if "System admin" in self.permissions:
         return Group.query.all()
     return self.groups
 
