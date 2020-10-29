@@ -43,6 +43,7 @@ from baselayer.app.models import (  # noqa
     User,
     Token,
     UserACL,
+    UserRole,
 )
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env

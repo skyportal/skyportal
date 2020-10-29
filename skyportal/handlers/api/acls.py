@@ -24,7 +24,7 @@ class ACLHandler(BaseHandler):
                             type: string
                           description: List of all ACL IDs.
         """
-        return self.success(data=ACL.query.all())
+        return self.success(data=[acl.id for acl in ACL.query.all()])
 
 
 class UserACLHandler(BaseHandler):
@@ -74,7 +74,6 @@ class UserACLHandler(BaseHandler):
         new_acls = ACL.query.filter(ACL.id.in_(new_acl_ids)).all()
         user.acls = list(set(user.acls).union(set(new_acls)))
         DBSession().commit()
-        self.push_all(action="skyportal/FETCH_USERS")
         return self.success()
 
     @permissions(["Manage users"])
@@ -102,7 +101,7 @@ class UserACLHandler(BaseHandler):
         user = User.query.get(user_id)
         if user is None:
             return self.error("Invalid user_id")
-        acl = ACL.query.get("acl_id")
+        acl = ACL.query.get(acl_id)
         if acl is None:
             return self.error("Invalid acl_id")
         (
@@ -111,5 +110,4 @@ class UserACLHandler(BaseHandler):
             .delete()
         )
         DBSession().commit()
-        self.push_all(action="skyportal/FETCH_USERS")
         return self.success()

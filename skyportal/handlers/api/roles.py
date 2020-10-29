@@ -98,7 +98,6 @@ class UserRoleHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        print(user_id, role_id)
         user = User.query.get(user_id)
         if user is None:
             return self.error("Invalid user_id")
