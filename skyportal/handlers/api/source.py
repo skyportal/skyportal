@@ -755,7 +755,7 @@ class SourceOffsetsHandler(BaseHandler):
             enum: [Keck, Shane, P200]
           description: Which facility to generate the starlist for
         - in: query
-          name: how_many
+          name: num_offset_stars
           nullable: true
           schema:
             type: integer
@@ -880,7 +880,7 @@ class SourceOffsetsHandler(BaseHandler):
             best_ra, best_dec = initial_pos[0], initial_pos[1]
 
         facility = self.get_query_argument('facility', 'Keck')
-        how_many = self.get_query_argument('how_many', '3')
+        num_offset_stars = self.get_query_argument('num_offset_stars', '3')
         use_ztfref = self.get_query_argument('use_ztfref', True)
         if isinstance(use_ztfref, str):
             use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
@@ -900,10 +900,10 @@ class SourceOffsetsHandler(BaseHandler):
         mag_min = facility_parameters[facility]["mag_min"]
 
         try:
-            how_many = int(how_many)
+            num_offset_stars = int(num_offset_stars)
         except ValueError:
             # could not handle inputs
-            return self.error('Invalid argument for `how_many`')
+            return self.error('Invalid argument for `num_offset_stars`')
 
         try:
             (
@@ -916,7 +916,7 @@ class SourceOffsetsHandler(BaseHandler):
                 best_ra,
                 best_dec,
                 obj_id,
-                how_many=how_many,
+                how_many=num_offset_stars,
                 radius_degrees=radius_degrees,
                 mag_limit=mag_limit,
                 min_sep_arcsec=min_sep_arcsec,
@@ -1002,11 +1002,11 @@ class SourceFinderHandler(BaseHandler):
           description: |
             output type
         - in: query
-          name: how_many
+          name: num_offset_stars
           schema:
             type: integer
             minimum: 0
-            maximum: 5
+            maximum: 4
           description: |
             output desired number of offset stars [0,5] (default: 3)
         responses:
@@ -1068,12 +1068,12 @@ class SourceFinderHandler(BaseHandler):
         if isinstance(use_ztfref, str):
             use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
 
-        how_many = self.get_query_argument('how_many', '3')
+        num_offset_stars = self.get_query_argument('num_offset_stars', '3')
         try:
-            how_many = int(how_many)
+            num_offset_stars = int(num_offset_stars)
         except ValueError:
             # could not handle inputs
-            return self.error('Invalid argument for `how_many`')
+            return self.error('Invalid argument for `num_offset_stars`')
 
         obstime = self.get_query_argument(
             'obstime', datetime.datetime.utcnow().isoformat()
@@ -1100,7 +1100,7 @@ class SourceFinderHandler(BaseHandler):
             image_source=image_source,
             output_format=output_type,
             imsize=imsize,
-            how_many=how_many,
+            how_many=num_offset_stars,
             radius_degrees=radius_degrees,
             mag_limit=mag_limit,
             mag_min=mag_min,

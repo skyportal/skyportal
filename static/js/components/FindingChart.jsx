@@ -1,14 +1,14 @@
 import React, { useRef, useState, Suspense } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { makeStyles } from "@material-ui/core/styles";
 
 import Select from "@material-ui/core/Select";
+import Switch from "@material-ui/core/Switch";
 import MenuItem from "@material-ui/core/MenuItem";
 import InputLabel from "@material-ui/core/InputLabel";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import FormControl from "@material-ui/core/FormControl";
 import Button from "@material-ui/core/Button";
-import Checkbox from "@material-ui/core/Checkbox";
 import Input from "@material-ui/core/Input";
 import Grid from "@material-ui/core/Grid";
 import Card from "@material-ui/core/Card";
@@ -16,6 +16,7 @@ import CardContent from "@material-ui/core/CardContent";
 import Typography from "@material-ui/core/Typography";
 import PrintIcon from "@material-ui/icons/Print";
 
+import TextLoop from "react-text-loop";
 import { useImage } from "react-image";
 import { useForm, Controller } from "react-hook-form";
 import { useReactToPrint } from "react-to-print";
@@ -39,8 +40,14 @@ const useStyles = makeStyles((theme) => ({
   },
   spinner: {
     position: "relative",
-    marginLeft: "50%",
-    width: "100%",
+    margin: "auto",
+    width: "50%",
+    fontWeight: "bold",
+    fontSize: "1.25rem",
+    textAlign: "center",
+  },
+  labels: {
+    fontSize: "0.75rem",
   },
 }));
 
@@ -53,7 +60,7 @@ const FindingChart = () => {
     imagesource: "desi",
     useztfref: true,
     findersize: 4.0,
-    howmany: 3,
+    numoffset: 3,
   });
 
   const componentRef = useRef();
@@ -62,16 +69,26 @@ const FindingChart = () => {
     ...params,
   };
 
-  const url = [
-    `/api/sources/${id}/finder?`,
-    `type=png&image_source=${params.imagesource}&`,
-    `use_ztfref=${params.useztfref}&`,
-    `imsize=${params.findersize}&`,
-    `how_many=${params.howmany}`,
-  ].join("");
+  const url = new URL(`/api/sources/${id}/finder`, window.location.href);
+  url.search = new URLSearchParams({
+    type: "png",
+    image_source: `${params.imagesource}`,
+    use_ztfref: `${params.useztfref}`,
+    imsize: `${params.findersize}`,
+    num_offset_stars: `${params.numoffset}`,
+  });
 
   const placeholder = (
-    <CircularProgress className={classes.spinner} color="primary" />
+    <div className={classes.spinner}>
+      <TextLoop>
+        <span>Downloading image</span>
+        <span>Querying for offset stars</span>
+        <span>Reprojecting Image</span>
+        <span>Rendering finder</span>
+      </TextLoop>{" "}
+      <br /> <br />
+      <CircularProgress color="primary" />
+    </div>
   );
 
   function FinderImage() {
@@ -102,7 +119,10 @@ const FindingChart = () => {
       <div>
         <div>
           <Typography variant="h5" gutterBottom>
-            {`Interactive Finder for ${id}`}
+            Interactive Finder for{" "}
+            <Link to={`/source/${id}`} role="link">
+              {id}
+            </Link>
           </Typography>
         </div>
         <Grid
@@ -112,9 +132,9 @@ const FindingChart = () => {
           alignItems="flex-start"
           spacing={1}
         >
-          <Grid item xs={10} ref={componentRef}>
+          <Grid item xs={10}>
             <Card>
-              <CardContent>
+              <CardContent ref={componentRef}>
                 <div>
                   <Suspense fallback={placeholder}>
                     <FinderImage />
@@ -159,28 +179,45 @@ const FindingChart = () => {
                         </FormControl>
                       </Grid>
                       <Grid item xs={12}>
-                        <FormControl>
-                          <InputLabel
-                            className={classes.items}
-                            id="PositionSelect"
-                          >
-                            Use DR2 positions?
-                          </InputLabel>
-                          <p />
-                          <Controller
-                            as={
-                              <Checkbox
-                                value={false}
-                                aria-labelledby="PositionSelect"
-                              />
-                            }
-                            labelid="PositionSelect"
-                            name="useztfref"
-                            control={control}
-                            defaultValue={!params.useztfref}
-                            className={classes.items}
-                          />
-                        </FormControl>
+                        <InputLabel
+                          id="PositionLabel"
+                          className={classes.labels}
+                        >
+                          Offset Position Origin
+                        </InputLabel>
+                        <Grid
+                          container
+                          direction="row"
+                          justify="flex-start"
+                          alignItems="center"
+                          spacing={1}
+                        >
+                          <Grid item>
+                            <InputLabel
+                              id="PositionLabell"
+                              className={classes.labels}
+                            >
+                              Gaia DR2
+                            </InputLabel>
+                          </Grid>
+                          <Grid item>
+                            <Controller
+                              as={<Switch size="small" color="default" />}
+                              name="useztfref"
+                              labelid="OffsetTypeSelect"
+                              defaultValue={params.useztfref}
+                              control={control}
+                            />
+                          </Grid>
+                          <Grid item>
+                            <InputLabel
+                              id="PositionLabelr"
+                              className={classes.labels}
+                            >
+                              ZTF Ref
+                            </InputLabel>
+                          </Grid>
+                        </Grid>
                       </Grid>
                       <Grid item xs={12}>
                         <FormControl>
@@ -231,12 +268,12 @@ const FindingChart = () => {
                                 }}
                               />
                             }
-                            name="howmany"
+                            name="numoffset"
                             control={control}
-                            defaultValue={params.howmany}
+                            defaultValue={params.numoffset}
                             className={classes.items}
                           />
-                          {errors.howmany && (
+                          {errors.numoffset && (
                             <p>Enter an integer between 0 and 5</p>
                           )}
                         </FormControl>
