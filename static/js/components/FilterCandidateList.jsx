@@ -94,6 +94,7 @@ const FilterCandidateList = ({
     setFilterGroups(
       userAccessibleGroups.filter((g) => selectedGroupIDs.includes(g.id))
     );
+    await dispatch(candidatesActions.setFilterFormData(data));
     await dispatch(candidatesActions.fetchCandidates(data));
     setQueryInProgress(false);
   };
