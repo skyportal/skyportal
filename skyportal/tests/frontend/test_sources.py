@@ -28,7 +28,7 @@ def test_public_source_page(driver, user, public_source, public_group):
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
-@pytest.mark.flaky(reruns=3)
+# @pytest.mark.flaky(reruns=3)
 def test_classifications(driver, user, taxonomy_token, public_group, public_source):
     if IS_CI_BUILD:
         pytest.xfail("Xfailing this test on CI builds.")
@@ -84,7 +84,9 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.click_xpath('//div[@id="tax-select"]')
     driver.click_xpath(
-        f'//*[text()="{tax_name} ({tax_version})"]', wait_clickable=False
+        f'//*[text()="{tax_name} ({tax_version})"]',
+        wait_clickable=False,
+        scroll_parent=True,
     )
     driver.click_xpath('//*[@id="classification"]')
     driver.wait_for_xpath('//*[@id="classification"]').send_keys(
@@ -98,13 +100,17 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath("//span[text()[contains(., 'Save')]]")
 
     # Scroll up to get entire classifications list component in view
-    add_comments = driver.find_element_by_xpath("//h6[contains(text(), 'Add comment')]")
-    driver.scroll_to_element(add_comments)
+    classifications = driver.find_element_by_xpath(
+        "//div[@id='classifications-header']"
+    )
+    driver.scroll_to_element(classifications)
 
+    # Move to classification div first to make sure delete button comes into focus
+    # classification_div = driver.wait_for_xpath(
+    #     f'//div[starts-with(@data-testid, "classificationDiv_")]'
+    # )
+    # ActionChains(driver).move_to_element(classification_div).perform()
     del_button_xpath = "//button[starts-with(@name, 'deleteClassificationButton')]"
-    ActionChains(driver).move_to_element(
-        driver.wait_for_xpath(del_button_xpath)
-    ).perform()
     driver.click_xpath(del_button_xpath, wait_clickable=False)
     driver.wait_for_xpath_to_disappear("//*[contains(text(), '(P=1)')]")
     driver.wait_for_xpath_to_disappear(f"//i[text()='{tax_name}']")
@@ -442,17 +448,14 @@ def test_source_notification(driver, user, public_group, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    # Choose a group and click outside of the multi-select popup to close
-    group_select = driver.wait_for_xpath(
-        "//div[@data-testid='sourceNotification_groupSelect']"
+    # Choose a group and click something outside/not covered by the multi-select
+    # popup to close it
+    driver.click_xpath("//div[@data-testid='sourceNotification_groupSelect']")
+    driver.click_xpath(
+        f'//li[@data-testid="notificationGroupSelect_{public_group.id}"]',
+        scroll_parent=True,
     )
-    driver.scroll_to_element_and_click(group_select)
-    group_option = driver.wait_for_xpath(
-        f'//li[@data-testid="notificationGroupSelect_{public_group.id}"]'
-    )
-    ActionChains(driver).click(group_option).perform()
-    textbox = driver.wait_for_xpath("//*[@id='sourcenotification-textarea']")
-    driver.scroll_to_element_and_click(textbox)
+    driver.click_xpath("//*[@id='followup-header']")
     driver.click_xpath("//button[@data-testid='sendNotificationButton']")
     driver.wait_for_xpath("//*[text()='Notification queued up sucessfully']")
 

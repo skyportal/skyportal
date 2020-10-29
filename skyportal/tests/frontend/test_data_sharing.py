@@ -20,7 +20,7 @@ def test_share_data(
     driver.wait_for_xpath(f"//div[text()='{public_group.name}']", 15)
     driver.click_xpath('//*[@id="MUIDataTableSelectCell-0"]', wait_clickable=False)
     driver.click_xpath('//*[@id="dataSharingFormGroupsSelect"]')
-    driver.click_xpath(f'//li[text()="{public_group2.name}"]')
+    driver.click_xpath(f'//li[text()="{public_group2.name}"]', scroll_parent=True)
     driver.click_xpath('//*[text()="Submit"]')
     driver.wait_for_xpath('//*[text()="Data successfully shared"]', 15)
     groups_str = ", ".join([public_group.name, public_group2.name])

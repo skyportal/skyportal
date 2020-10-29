@@ -394,9 +394,9 @@ def test_submit_annotations_filtering(
     driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
     # Filter by numeric_field < 1.5
     driver.click_xpath("//div[@id='root_origin']")
-    driver.click_xpath(f'//li[@data-value="{origin}"]')
+    driver.click_xpath(f'//li[@data-value="{origin}"]', scroll_parent=True)
     driver.click_xpath("//div[@id='root_key']")
-    driver.click_xpath("//li[@data-value='numeric_field']")
+    driver.click_xpath("//li[@data-value='numeric_field']", scroll_parent=True)
     min_box = driver.wait_for_xpath("//input[@id='root_min']")
     min_text = "0"
     min_box.send_keys(min_text)
