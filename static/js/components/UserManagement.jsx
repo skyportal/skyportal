@@ -48,6 +48,7 @@ const UserManagement = () => {
   );
   const [addGroupsFormUsername, setAddGroupsFormUsername] = useState("");
   const [addStreamsFormUserID, setAddStreamsFormUserID] = useState(null);
+  const [streamsFetched, setStreamsFetched] = useState(false);
 
   const { handleSubmit, errors, reset, control, getValues } = useForm();
 
@@ -64,10 +65,11 @@ const UserManagement = () => {
     const fetchStreams = () => {
       dispatch(streamsActions.fetchStreams());
     };
-    if (streams === null) {
+    if (streams === null && !streamsFetched) {
       fetchStreams();
+      setStreamsFetched(true);
     }
-  }, [streams, dispatch]);
+  }, [streams, streamsFetched, setStreamsFetched, dispatch]);
 
   if (
     !allUsers?.length ||
