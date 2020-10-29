@@ -66,7 +66,7 @@ class UserACLHandler(BaseHandler):
             not all([ACL.query.get(acl_id) is not None for acl_id in new_acl_ids])
         ):
             return self.error(
-                "Improperly formatted parameter aclIds; " "must be an array of strings."
+                "Improperly formatted parameter aclIds; must be an array of strings."
             )
         user = User.query.get(user_id)
         if user is None:
