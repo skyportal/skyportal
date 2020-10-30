@@ -73,17 +73,6 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
                 DBSession().add(obj)
                 DBSession().commit()
 
-        # always add the single user group
-        single_user_group = Group(
-            users=[obj],
-            single_user_group=True,
-            streams=obj.streams,
-            name=obj.username,
-            nickname=obj.username[:15],
-        )
-        DBSession().add(single_user_group)
-        DBSession().commit()
-
         # always add the sitewide group
         sitewide_group = (
             DBSession()
