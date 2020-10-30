@@ -79,6 +79,9 @@ def pytest_runtest_makereport(item, call):
 @pytest.fixture(scope="function", autouse=True)
 def test_failed_check(request):
 
+    # get the number of bytes in the file currently
+    log_bytes = os.path.getsize('geckodriver.log')
+
     # add a separator to the geckodriver logs
     with open('geckodriver.log', 'a') as f:
         f.write(f'BEGIN {request.node.nodeid}\n')
@@ -94,6 +97,11 @@ def test_failed_check(request):
     if request.node.rep_call.failed and 'driver' in request.node.funcargs:
         webdriver = request.node.funcargs['driver']
         take_screenshot_and_page_source(webdriver, request.node.nodeid)
+
+    # delete the interstitial data from the geckodriver log by
+    # truncating the file back to its original number of bytes
+    with open('geckodriver.log', 'a') as f:
+        f.truncate(log_bytes)
 
 
 # make a screenshot with a name of the test, date and time.
