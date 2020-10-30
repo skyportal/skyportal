@@ -77,11 +77,14 @@ def pytest_runtest_makereport(item, call):
 @pytest.fixture(scope="function", autouse=True)
 def test_failed_check(request):
 
+    gecko = Path('geckodriver.log')
+    gecko.touch(exist_ok=True)
+
     # get the number of bytes in the file currently
-    log_bytes = os.path.getsize('geckodriver.log')
+    log_bytes = os.path.getsize(gecko)
 
     # add a separator to the geckodriver logs
-    with open('geckodriver.log', 'a') as f:
+    with open(gecko, 'a') as f:
         f.write(f'BEGIN {request.node.nodeid}\n')
 
     yield
@@ -89,7 +92,7 @@ def test_failed_check(request):
     # "function" scope
 
     # add a separator to the geckodriver logs
-    with open('geckodriver.log', 'a') as f:
+    with open(gecko, 'a') as f:
         f.write(f'END {request.node.nodeid}\n')
 
     if request.node.rep_call.failed and 'driver' in request.node.funcargs:
@@ -98,7 +101,7 @@ def test_failed_check(request):
 
     # delete the interstitial data from the geckodriver log by
     # truncating the file back to its original number of bytes
-    with open('geckodriver.log', 'a') as f:
+    with open(gecko, 'a') as f:
         f.truncate(log_bytes)
 
 
