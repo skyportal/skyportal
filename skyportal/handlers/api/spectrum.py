@@ -8,6 +8,7 @@ from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    FollowupRequest,
     Group,
     Instrument,
     Obj,
@@ -142,8 +143,8 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        spectrum = Spectrum.query.get(spectrum_id)
 
+        spectrum = Spectrum.query.get(spectrum_id)
         if spectrum is not None:
             # Permissions check
             _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
@@ -277,7 +278,7 @@ class ASCIIHandler:
 
         # maximum size 10MB - above this don't parse. Assuming ~1 byte / char
         if len(ascii) > 1e7:
-            raise ValueError('File must be smaller than 10,000,000 characters.')
+            raise ValueError('File must be smaller than 10MB.')
 
         # pass ascii in as a file-like object
         file = io.BytesIO(ascii.encode('ascii'))
@@ -380,6 +381,16 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
         if single_user_group is not None:
             if single_user_group not in groups:
                 groups.append(single_user_group)
+
+        # will never KeyError as missing value is imputed
+        followup_request_id = json.pop('followup_request_id', None)
+        if followup_request_id is not None:
+            followup_request = FollowupRequest.query.get(followup_request_id)
+            if followup_request is None:
+                return self.error('Invalid followup request.')
+            for group in followup_request.target_groups:
+                if group not in groups:
+                    groups.append(group)
 
         spec.original_file_filename = Path(filename).name
         spec.groups = groups

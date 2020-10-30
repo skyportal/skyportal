@@ -2195,6 +2195,13 @@ class FollowupRequest(Base):
         order_by="FacilityTransaction.created_at.desc()",
     )
 
+    target_groups = relationship(
+        'Group',
+        secondary='request_groups',
+        passive_deletes=True,
+        doc='Groups to share the resulting data from this request with.',
+    )
+
     photometry = relationship('Photometry', back_populates='followup_request')
     spectra = relationship('Spectrum', back_populates='followup_request')
 
@@ -2220,6 +2227,9 @@ class FollowupRequest(Base):
 
         user_or_token_group_ids = [g.id for g in user_or_token.accessible_groups]
         return self.allocation.group_id in user_or_token_group_ids
+
+
+FollowupRequestTargetGroup = join_model('request_groups', FollowupRequest, Group)
 
 
 class FacilityTransaction(Base):
