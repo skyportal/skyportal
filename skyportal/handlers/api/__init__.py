@@ -1,3 +1,4 @@
+from .acls import ACLHandler, UserACLHandler
 from .allocation import AllocationHandler
 from .candidate import CandidateHandler
 from .classification import ClassificationHandler
@@ -24,6 +25,7 @@ from .photometry import (
     PhotometryRangeHandler,
 )
 from .public_group import PublicGroupHandler
+from .roles import RoleHandler, UserRoleHandler
 from .sharing import SharingHandler
 from .source import (
     SourceHandler,
