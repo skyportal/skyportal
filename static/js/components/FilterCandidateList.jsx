@@ -166,7 +166,7 @@ const FilterCandidateList = ({
                     <Controller
                       as={Checkbox}
                       name={`groupIDs[${idx}]`}
-                      data-testid={`groupID-${group.id}`}
+                      data-testid={`filteringFormGroupCheckbox-${group.id}`}
                       control={control}
                       rules={{ validate: validateGroups }}
                       defaultValue
