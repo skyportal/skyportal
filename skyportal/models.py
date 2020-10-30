@@ -2028,7 +2028,7 @@ class Spectrum(Base):
                         f'index {name} ({index}) is greater than the '
                         f'maximum allowed value ({ncol - 1})'
                     )
-                spec_data[dbcol] = tabledata[colnames[index]]
+                spec_data[dbcol] = tabledata[colnames[index]].astype(float)
 
         # parse the header
         if 'comments' in table.meta:
