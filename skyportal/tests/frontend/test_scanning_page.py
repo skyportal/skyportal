@@ -1,4 +1,5 @@
 import uuid
+import datetime
 import pytest
 from selenium.common.exceptions import TimeoutException
 
@@ -28,6 +29,7 @@ def test_candidate_group_filtering(
                 "altdata": {"simbad": {"class": "RRLyr"}},
                 "transient": False,
                 "ra_dis": 2.3,
+                "passed_at": datetime.datetime.utcnow(),
                 "filter_ids": [public_filter.id],
             },
             token=upload_data_token,
@@ -98,6 +100,7 @@ def test_candidate_unsaved_only_filtering(
                 "transient": False,
                 "ra_dis": 2.3,
                 "filter_ids": [public_filter.id],
+                "passed_at": datetime.datetime.utcnow(),
             },
             token=upload_data_token,
         )
@@ -143,6 +146,7 @@ def test_candidate_date_filtering(
                 "transient": False,
                 "ra_dis": 2.3,
                 "filter_ids": [public_filter.id],
+                "passed_at": datetime.datetime.utcnow(),
             },
             token=upload_data_token,
         )
