@@ -37,8 +37,6 @@ from skyportal.models import (
 )
 
 import astroplan
-import warnings
-from astroplan import utils as ap_utils
 
 
 print("Loading test configuration from _test_config.yaml")
@@ -138,22 +136,13 @@ def take_screenshot_and_page_source(webdriver, nodeid):
         f.write('\n'.join(list(reversed(revlines[iend : (istart + 1)]))))  # noqa: E203
 
 
-@pytest.fixture(scope='session')
-def iers_data():
-    # grab the latest earth orientation data for observatory calculations
-    if ap_utils.IERS_A_in_cache():
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "error", category=astroplan.OldEarthOrientationDataWarning
-            )
-            try:
-                ap_utils._get_IERS_A_table()
-            except astroplan.OldEarthOrientationDataWarning:
-                astroplan.download_IERS_A()
+@pytest.fixture()
+def public_stream():
+    return StreamFactory()
 
 
 @pytest.fixture()
-def public_stream():
+def public_stream2():
     return StreamFactory()
 
 
@@ -406,6 +395,12 @@ def super_admin_user_two_groups(public_group, public_group2):
 @pytest.fixture()
 def view_only_token(user):
     token_id = create_token(ACLs=[], user_id=user.id, name=str(uuid.uuid4()))
+    return token_id
+
+
+@pytest.fixture()
+def view_only_token_group2(user_group2):
+    token_id = create_token(ACLs=[], user_id=user_group2.id, name=str(uuid.uuid4()))
     return token_id
 
 

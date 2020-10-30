@@ -7,12 +7,17 @@ import MenuItem from "@material-ui/core/MenuItem";
 import Form from "@rjsf/material-ui";
 import { makeStyles } from "@material-ui/core/styles";
 import * as Actions from "../ducks/source";
+import GroupShareSelect from "./GroupShareSelect";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 
 const useStyles = makeStyles(() => ({
-  allocationSelect: {
-    maxWidth: "100%",
+  chips: {
+    display: "flex",
+    flexWrap: "wrap",
+  },
+  chip: {
+    margin: 2,
   },
 }));
 
@@ -27,21 +32,32 @@ const FollowupRequestForm = ({
   const { allocationList } = useSelector((state) => state.allocations);
   const allGroups = useSelector((state) => state.groups.all);
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
+  const [selectedGroupIds, setSelectedGroupIds] = useState([]);
 
   useEffect(() => {
     // Initialize the select
     setSelectedAllocationId(allocationList[0]?.id);
-  }, [setSelectedAllocationId, allocationList]);
+    setSelectedGroupIds([allocationList[0]?.group_id]);
+  }, [setSelectedAllocationId, allocationList, setSelectedGroupIds]);
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if allocationList is not
   // empty.
-  if (allocationList.length === 0 || !selectedAllocationId) {
+  if (
+    allocationList.length === 0 ||
+    !selectedAllocationId ||
+    Object.keys(instrumentFormParams).length === 0
+  ) {
     return <h3>No robotic instruments available...</h3>;
   }
 
-  if (!allGroups || allGroups.length === 0 || telescopeList.length === 0) {
+  if (
+    !allGroups ||
+    allGroups.length === 0 ||
+    telescopeList.length === 0 ||
+    instrumentList.length === 0
+  ) {
     return <h3>Loading...</h3>;
   }
 
@@ -73,6 +89,7 @@ const FollowupRequestForm = ({
     const json = {
       obj_id,
       allocation_id: selectedAllocationId,
+      target_group_ids: selectedGroupIds,
       payload: formData,
     };
     dispatch(Actions.submitFollowupRequest(json));
@@ -98,6 +115,12 @@ const FollowupRequestForm = ({
           </MenuItem>
         ))}
       </Select>
+      <br />
+      <GroupShareSelect
+        groupList={allGroups}
+        setGroupIDs={setSelectedGroupIds}
+        groupIDs={selectedGroupIds}
+      />
       <Form
         schema={
           instrumentFormParams[

@@ -94,6 +94,7 @@ const FilterCandidateList = ({
     setFilterGroups(
       userAccessibleGroups.filter((g) => selectedGroupIDs.includes(g.id))
     );
+    await dispatch(candidatesActions.setFilterFormData(data));
     await dispatch(candidatesActions.fetchCandidates(data));
     setQueryInProgress(false);
   };
@@ -158,13 +159,13 @@ const FilterCandidateList = ({
               {errors.groupIDs && (
                 <FormValidationError message="Select at least one group." />
               )}
-              {userAccessibleGroups.map((group, idx) => (
+              {userAccessibleGroups.map((group) => (
                 <FormControlLabel
                   key={group.id}
                   control={
                     <Controller
                       as={Checkbox}
-                      name={`groupIDs[${idx}]`}
+                      data-testid={`groupID-${group.id}`}
                       control={control}
                       rules={{ validate: validateGroups }}
                       defaultValue

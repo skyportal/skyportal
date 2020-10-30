@@ -1,5 +1,7 @@
-import uuid
+import datetime
 import numpy.testing as npt
+import uuid
+
 from skyportal.tests import api
 
 
@@ -40,11 +42,20 @@ def test_token_user_retrieving_candidate_with_phot(view_only_token, public_candi
     assert all(k in data["data"] for k in ["ra", "dec", "redshift", "dm", "photometry"])
 
 
-def test_token_user_update_candidate(manage_sources_token, public_candidate):
+def test_token_user_update_candidate(
+    manage_sources_token, public_candidate, public_filter
+):
+    passing_alert_id = 1234567890
+    passed_at = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")
+
     status, data = api(
-        "PATCH",
+        "PUT",
         f"candidates/{public_candidate.id}",
-        data={"ra": 234.22, "redshift": 3, "transient": False, "ra_dis": 2.3},
+        data={
+            "filter_ids": [public_filter.id],
+            "passing_alert_id": passing_alert_id,
+            "passed_at": passed_at,
+        },
         token=manage_sources_token,
     )
     assert status == 200
@@ -55,20 +66,22 @@ def test_token_user_update_candidate(manage_sources_token, public_candidate):
     )
     assert status == 200
     assert data["status"] == "success"
-    npt.assert_almost_equal(data["data"]["ra"], 234.22)
-    npt.assert_almost_equal(data["data"]["redshift"], 3.0)
+    assert data["data"]["passing_alerts"][0]["passing_alert_id"] == passing_alert_id
 
 
-def test_cannot_update_candidate_without_permission(view_only_token, public_candidate):
+def test_cannot_update_candidate_without_permission(
+    view_only_token, public_candidate, public_filter
+):
+    passing_alert_id = 1234567890
+    passed_at = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")
+
     status, data = api(
-        "PATCH",
+        "PUT",
         f"candidates/{public_candidate.id}",
         data={
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passing_alert_id": passing_alert_id,
+            "passed_at": passed_at,
         },
         token=view_only_token,
     )

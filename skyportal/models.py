@@ -299,7 +299,7 @@ def user_or_token_accessible_groups(self):
     """Return the list of Groups a User or Token has access to. For non-admin
     Users or Token owners, this corresponds to the Groups they are a member of.
     For System Admins, this corresponds to all Groups."""
-    if "System admin" in [acl.id for acl in self.acls]:
+    if "System admin" in self.permissions:
         return Group.query.all()
     return self.groups
 
@@ -716,11 +716,13 @@ Candidate.__doc__ = (
     "An Obj that passed a Filter, becoming scannable on the " "Filter's scanning page."
 )
 Candidate.passed_at = sa.Column(
-    sa.DateTime, nullable=True, doc="ISO UTC time when the Candidate passed the Filter."
+    sa.DateTime,
+    nullable=True,
+    doc="ISO UTC time when the Candidate passed the Filter last time.",
 )
 
 Candidate.passing_alert_id = sa.Column(
-    sa.BigInteger, doc="ID of the Stream alert that passed the Filter."
+    sa.BigInteger, doc="ID of the latest Stream alert that passed the Filter."
 )
 
 
@@ -1892,6 +1894,13 @@ class Spectrum(Base):
         doc='Groups that can view this spectrum.',
     )
 
+    reducers = relationship(
+        "User", secondary="spectrum_reducers", doc="Users that reduced this spectrum."
+    )
+    observers = relationship(
+        "User", secondary="spectrum_observers", doc="Users that observed this spectrum."
+    )
+
     followup_request_id = sa.Column(sa.ForeignKey('followuprequests.id'), nullable=True)
     followup_request = relationship('FollowupRequest', back_populates='spectra')
 
@@ -2105,6 +2114,8 @@ User.spectra = relationship(
     'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
 )
 
+SpectrumReducer = join_model("spectrum_reducers", Spectrum, User)
+SpectrumObserver = join_model("spectrum_observers", Spectrum, User)
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
@@ -2184,6 +2195,13 @@ class FollowupRequest(Base):
         order_by="FacilityTransaction.created_at.desc()",
     )
 
+    target_groups = relationship(
+        'Group',
+        secondary='request_groups',
+        passive_deletes=True,
+        doc='Groups to share the resulting data from this request with.',
+    )
+
     photometry = relationship('Photometry', back_populates='followup_request')
     spectra = relationship('Spectrum', back_populates='followup_request')
 
@@ -2209,6 +2227,9 @@ class FollowupRequest(Base):
 
         user_or_token_group_ids = [g.id for g in user_or_token.accessible_groups]
         return self.allocation.group_id in user_or_token_group_ids
+
+
+FollowupRequestTargetGroup = join_model('request_groups', FollowupRequest, Group)
 
 
 class FacilityTransaction(Base):
