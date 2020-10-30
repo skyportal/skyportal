@@ -27,10 +27,11 @@ import * as sourcesActions from "../ducks/sources";
 import styles from "./CommentList.css";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
-import ShowClassification from "./ShowClassification";
+import ShowClassification, { getLatestClassName } from "./ShowClassification";
 import * as sourceActions from "../ducks/source";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
+const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
 
 const useStyles = makeStyles((theme) => ({
   chip: {
@@ -47,6 +48,8 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+// MUI data table with pull out rows containing a summary of each source.
+// This component is used in GroupSources and SourceList.
 const SourceTable = ({ sources, title, sourceStatus = "saved", groupID }) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
@@ -147,6 +150,11 @@ const SourceTable = ({ sources, title, sourceStatus = "saved", groupID }) => {
             <Grid item>
               <Suspense fallback={<div>Loading plot...</div>}>
                 <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
+              </Suspense>
+            </Grid>
+            <Grid item>
+              <Suspense fallback={<div>Loading spectra...</div>}>
+                <VegaSpectrum dataUrl={`/api/sources/${source.id}/spectra`} />
               </Suspense>
             </Grid>
             <Grid item>
@@ -267,24 +275,25 @@ const SourceTable = ({ sources, title, sourceStatus = "saved", groupID }) => {
     return <div key={`${source.id}_redshift`}>{source.redshift}</div>;
   };
 
-  const renderClassification = (dataIndex) => {
-    const source = sources[dataIndex];
-    let classifications;
-
+  // helper function to get the classifications
+  const getClassifications = (source) => {
     if (groupID !== undefined) {
-      classifications = source.classifications.filter((cls) => {
+      return source.classifications.filter((cls) => {
         return cls.groups.find((g) => {
           return g.id === groupID;
         });
       });
-    } else {
-      classifications = source.classifications;
     }
+    return source.classifications;
+  };
+
+  const renderClassification = (dataIndex) => {
+    const source = sources[dataIndex];
 
     return (
       <Suspense fallback={<div>Loading classifications</div>}>
         <ShowClassification
-          classifications={classifications}
+          classifications={getClassifications(source)}
           taxonomyList={taxonomyList}
           shortened
         />
@@ -292,47 +301,53 @@ const SourceTable = ({ sources, title, sourceStatus = "saved", groupID }) => {
     );
   };
 
+  // helper function to get the source groups
+  const getGroups = (source) => {
+    return source.groups.filter((group) => group.active);
+  };
+
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderGroups = (dataIndex) => {
     const source = sources[dataIndex];
     return (
       <div key={`${source.id}_groups`}>
-        {source.groups
-          .filter((group) => group.active)
-          .map((group) => (
-            <div key={group.name}>
-              <Chip
-                label={group.name.substring(0, 15)}
-                key={group.id}
-                size="small"
-                className={classes.chip}
-              />
-              <br />
-            </div>
-          ))}
+        {getGroups(source).map((group) => (
+          <div key={group.name}>
+            <Chip
+              label={group.name.substring(0, 15)}
+              key={group.id}
+              size="small"
+              className={classes.chip}
+            />
+            <br />
+          </div>
+        ))}
       </div>
     );
   };
 
-  const renderDateSaved = (dataIndex) => {
-    const source = sources[dataIndex];
-    let dates;
-
+  // helper function to get the source saved_at date
+  const getDate = (source) => {
     if (groupID !== undefined) {
       const group = source.groups.find((g) => {
         return g.id === groupID;
       });
-      dates = group.saved_at;
-    } else {
-      dates = source.groups
-        .map((g) => {
-          return g.saved_at;
-        })
-        .sort();
+      return group.saved_at;
     }
+    const dates = source.groups
+      .map((g) => {
+        return g.saved_at;
+      })
+      .sort();
+    return dates[dates.length - 1];
+  };
+
+  const renderDateSaved = (dataIndex) => {
+    const source = sources[dataIndex];
+
     return (
       <div key={`${source.id}_date_saved`}>
-        {dates[dates.length - 1].substring(0, 19)}
+        {getDate(source).substring(0, 19)}
       </div>
     );
   };
@@ -479,6 +494,7 @@ const SourceTable = ({ sources, title, sourceStatus = "saved", groupID }) => {
     });
   }
 
+  // the data here is not rendered on screen, but used in sorting / producing CSV files
   const data = sources.map((source) => [
     source.id,
     source.alias,
@@ -487,9 +503,11 @@ const SourceTable = ({ sources, title, sourceStatus = "saved", groupID }) => {
     ra_to_hours(source.ra),
     dec_to_dms(source.dec),
     source.redshift,
-    source.groups.map((group) => {
+    getLatestClassName(getClassifications(source)),
+    getGroups(source).map((group) => {
       return group.name;
     }),
+    getDate(source),
   ]);
 
   return (
