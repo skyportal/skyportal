@@ -612,6 +612,7 @@ class CandidateHandler(BaseHandler):
                         nullable: true
                     required:
                       - filter_ids
+                      - passed_at
         responses:
           200:
             content:
@@ -644,9 +645,8 @@ class CandidateHandler(BaseHandler):
         passing_alert_id = data.pop("passing_alert_id", None)
         passed_at = data.pop("passed_at", None)
         if passed_at is None:
-            passed_at = datetime.datetime.utcnow()
-        else:
-            passed_at = arrow.get(passed_at).datetime
+            return self.error("Missing required parameter: `passed_at`.")
+        passed_at = arrow.get(passed_at).datetime
         try:
             filter_ids = data.pop("filter_ids")
         except KeyError:

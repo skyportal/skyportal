@@ -104,6 +104,7 @@ def test_token_user_post_new_candidate(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
+            "passed_at": datetime.datetime.utcnow(),
         },
         token=upload_data_token,
     )
@@ -128,6 +129,7 @@ def test_cannot_add_candidate_without_filter_id(upload_data_token):
             "redshift": 3,
             "transient": False,
             "ra_dis": 2.3,
+            "passed_at": datetime.datetime.utcnow(),
         },
         token=upload_data_token,
     )
