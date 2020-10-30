@@ -41,7 +41,7 @@ const CommentList = ({ isCandidate }) => {
   const candidate = useSelector((state) => state.candidate);
   const obj = isCandidate ? candidate : source;
   const userProfile = useSelector((state) => state.profile);
-  const acls = useSelector((state) => state.profile.acls);
+  const permissions = useSelector((state) => state.profile.permissions);
 
   // Color styling
   const userColorTheme = useSelector(
@@ -150,7 +150,7 @@ const CommentList = ({ isCandidate }) => {
         )}
       </div>
       <br />
-      {!isCandidate && acls.indexOf("Comment") >= 0 && (
+      {!isCandidate && permissions.indexOf("Comment") >= 0 && (
         <CommentEntry addComment={addComment} />
       )}
     </div>

@@ -1,5 +1,6 @@
 import io
 from pathlib import Path
+import numpy as np
 
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
@@ -7,6 +8,7 @@ from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    FollowupRequest,
     Group,
     Instrument,
     Obj,
@@ -141,8 +143,8 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        spectrum = Spectrum.query.get(spectrum_id)
 
+        spectrum = Spectrum.query.get(spectrum_id)
         if spectrum is not None:
             # Permissions check
             _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
@@ -276,7 +278,7 @@ class ASCIIHandler:
 
         # maximum size 10MB - above this don't parse. Assuming ~1 byte / char
         if len(ascii) > 1e7:
-            raise ValueError('File must be smaller than 10,000,000 characters.')
+            raise ValueError('File must be smaller than 10MB.')
 
         # pass ascii in as a file-like object
         file = io.BytesIO(ascii.encode('ascii'))
@@ -380,6 +382,16 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             if single_user_group not in groups:
                 groups.append(single_user_group)
 
+        # will never KeyError as missing value is imputed
+        followup_request_id = json.pop('followup_request_id', None)
+        if followup_request_id is not None:
+            followup_request = FollowupRequest.query.get(followup_request_id)
+            if followup_request is None:
+                return self.error('Invalid followup request.')
+            for group in followup_request.target_groups:
+                if group not in groups:
+                    groups.append(group)
+
         spec.original_file_filename = Path(filename).name
         spec.groups = groups
         spec.reducers = reducers
@@ -434,6 +446,7 @@ class ObjSpectraHandler(BaseHandler):
             schema:
               type: string
             description: ID of the object to retrieve spectra for
+
         responses:
           200:
             content:
@@ -448,6 +461,7 @@ class ObjSpectraHandler(BaseHandler):
         obj = Obj.query.get(obj_id)
         if obj is None:
             return self.error('Invalid object ID.')
+
         spectra = Obj.get_spectra_owned_by(obj_id, self.current_user)
         return_values = []
         for spec in spectra:
@@ -457,4 +471,16 @@ class ObjSpectraHandler(BaseHandler):
             spec_dict["reducers"] = spec.reducers
             spec_dict["observers"] = spec.observers
             return_values.append(spec_dict)
+
+        for s in return_values:
+            norm = np.median(s["fluxes"])
+            if not (np.isfinite(norm) and norm > 0):
+                # otherwise normalize the value at the median wavelength to 1
+                median_wave_index = np.argmin(
+                    np.abs(s["wavelengths"] - np.median(s["wavelengths"]))
+                )
+                norm = s["fluxes"][median_wave_index]
+
+            s["fluxes"] = s["fluxes"] / norm
+
         return self.success(data=return_values)

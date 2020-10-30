@@ -58,7 +58,7 @@ def test_token_user_request_all_groups(manage_groups_token, super_admin_user):
     assert any(
         [user_group["name"] == group_name for user_group in data["data"]["user_groups"]]
     )
-    assert not any(
+    assert any(
         [
             group["single_user_group"] is True
             and group["name"] == super_admin_user.username

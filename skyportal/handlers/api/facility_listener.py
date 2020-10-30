@@ -29,9 +29,8 @@ class FacilityMessageHandler(BaseHandler):
             )
 
         acl_id = instrument.listener_class.get_acl_id()
-        user_acls = [a.id for a in user.acls]
 
-        if acl_id not in user_acls and acl_id is not None:
+        if acl_id not in user.permissions and acl_id is not None:
             return self.error('Insufficient permissions.')
 
         jsonschema.validate(data, instrument.listener_class.complete_schema())
