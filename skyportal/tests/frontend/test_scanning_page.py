@@ -400,10 +400,6 @@ def test_submit_annotations_filtering(
     driver.get("/candidates")
     driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
 
-    import pdb
-
-    pdb.set_trace()
-
     # scroll to top of page so dialog doesn't get cut off
     element = driver.wait_for_xpath("//button[@data-testid='Filter Table-iconButton']")
     scroll_element_to_top = '''
