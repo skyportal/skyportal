@@ -70,7 +70,7 @@ class LTRequest:
 
         altdata = request.allocation.load_altdata()
 
-        project = etree.Element('Project', ProjectID=request.payload["LT_proposalID"])
+        project = etree.Element('Project', ProjectID=request.allocation.proposal_id)
         contact = etree.SubElement(project, 'Contact')
 
         etree.SubElement(contact, 'Username').text = altdata["username"]
@@ -431,7 +431,7 @@ class LTAPI(FollowUpAPI):
             nsmap=namespaces,
         )
         project = etree.SubElement(
-            cancel_payload, 'Project', ProjectID=request.payload["LT_proposalID"]
+            cancel_payload, 'Project', ProjectID=request.allocation.proposal_id
         )
         contact = etree.SubElement(project, 'Contact')
         etree.SubElement(contact, 'Username').text = altdata["username"]
@@ -533,7 +533,6 @@ class IOOAPI(LTAPI):
                 "default": '1x120s',
             },
             "priority": {"type": "string", "enum": ["1", "5"], "default": "1"},
-            "LT_proposalID": {"type": "string"},
             "start_date": {
                 "type": "string",
                 "format": "date",
@@ -656,7 +655,6 @@ class IOIAPI(LTAPI):
                 "default": '1x120s',
             },
             "priority": {"type": "string", "enum": ["1", "5"], "default": "1"},
-            "LT_proposalID": {"type": "string"},
             "start_date": {
                 "type": "string",
                 "format": "date",
@@ -798,7 +796,6 @@ class SPRATAPI(LTAPI):
                 "default": "blue",
             },
             "priority": {"type": "string", "enum": ["1", "5"], "default": "1"},
-            "LT_proposalID": {"type": "string"},
             "start_date": {
                 "type": "string",
                 "format": "date",
