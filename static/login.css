@@ -5,7 +5,6 @@ body {
 .loginBox {
   border: solid 1px darkgray;
   width: 50%;
-  padding: 2em;
   display: block;
   margin-left: auto;
   margin-right: auto;
@@ -18,19 +17,45 @@ body {
   font-weight: bold;
 }
 
+.loginHeader {
+  background-color: #38b0de; /* Header bar color */
+  padding: 1em 2em 1em 2em;
+}
+
+.loginText {
+  padding: 1em 2em 2em 2em;
+}
+
 .loginButton {
   padding-top: 1em;
 }
 
 .logo {
   height: 50px;
-  display: inline-block;
-  vertical-align: middle;
-  padding-right: 1em;
+  padding: 0 0.5em;
 }
 
 .title {
   font-size: 200%;
   line-height: 50px;
   vertical-align: middle;
+  color: white;
+  font-weight: bold;
+}
+
+.logos {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.logoContainer {
+  height: 50px;
+  border-right: 1px solid white;
+}
+
+.logoContainer:last-of-type {
+  border-right: none;
+  padding-right: 0;
 }

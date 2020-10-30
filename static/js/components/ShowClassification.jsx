@@ -1,7 +1,15 @@
 import React from "react";
 import PropTypes from "prop-types";
-import Button from "@material-ui/core/Button";
 import Tooltip from "@material-ui/core/Tooltip";
+import Chip from "@material-ui/core/Chip";
+
+import { makeStyles } from "@material-ui/core/styles";
+
+export const useStyles = makeStyles((theme) => ({
+  chip: {
+    margin: theme.spacing(0.5),
+  },
+}));
 
 const groupBy = (array, key) =>
   array.reduce((result, cv) => {
@@ -11,12 +19,15 @@ const groupBy = (array, key) =>
     return result;
   }, {});
 
-function ShowClassification({ classifications, taxonomyList }) {
-  // Here we compute the most recent non-zero probability class for each taxonomy
+function ShowClassification({ classifications, taxonomyList, shortened }) {
+  const classes = useStyles();
 
+  // Here we compute the most recent non-zero probability class for each taxonomy
   const filteredClasses = classifications.filter((i) => i.probability > 0);
   const groupedClasses = groupBy(filteredClasses, "taxonomy_id");
   const sortedClasses = [];
+
+  const title = shortened ? "" : <b>Classification: </b>;
 
   Object.keys(groupedClasses).forEach((item) =>
     sortedClasses.push(
@@ -27,7 +38,7 @@ function ShowClassification({ classifications, taxonomyList }) {
   if (sortedClasses.length > 0) {
     return (
       <div>
-        <b>Classification: </b>
+        {title}
         {sortedClasses.map((c) => {
           let name = taxonomyList.filter((i) => i.id === c[0].taxonomy_id);
           if (name.length > 0) {
@@ -50,13 +61,12 @@ function ShowClassification({ classifications, taxonomyList }) {
                 </>
               }
             >
-              <Button
+              <Chip
+                label={c[0].classification}
                 key={`${c[0].modified}tb`}
-                style={{ cursor: "default" }}
-                disableRipple
-              >
-                {c[0].classification}
-              </Button>
+                size="small"
+                className={classes.chip}
+              />
             </Tooltip>
           );
         })}
@@ -69,6 +79,10 @@ function ShowClassification({ classifications, taxonomyList }) {
 ShowClassification.propTypes = {
   classifications: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
   taxonomyList: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
+  shortened: PropTypes.bool,
+};
+ShowClassification.defaultProps = {
+  shortened: false,
 };
 
 export default ShowClassification;

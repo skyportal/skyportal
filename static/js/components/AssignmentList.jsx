@@ -4,6 +4,8 @@ import { useSelector, useDispatch } from "react-redux";
 import { makeStyles } from "@material-ui/core/styles";
 import IconButton from "@material-ui/core/IconButton";
 import DeleteIcon from "@material-ui/icons/Delete";
+import dayjs from "dayjs";
+
 import * as Actions from "../ducks/source";
 import * as UserActions from "../ducks/users";
 
@@ -62,8 +64,8 @@ const AssignmentList = ({ assignments }) => {
 
   assignments.sort(
     (a, b) =>
-      observingRunDict[a.run_id].ephemeris.sunrise_unix -
-      observingRunDict[b.run_id].ephemeris.sunrise_unix
+      dayjs(observingRunDict[a.run_id].calendar_date).unix() -
+      dayjs(observingRunDict[b.run_id].calendar_date).unix()
   );
 
   return (

@@ -1,18 +1,20 @@
 import datetime
 from json.decoder import JSONDecodeError
-
+import python_http_client.exceptions
+from twilio.base.exceptions import TwilioException
 import tornado
 from tornado.ioloop import IOLoop
 import io
 import math
 from dateutil.parser import isoparse
 from sqlalchemy.orm import joinedload
-from sqlalchemy import func
+from sqlalchemy import func, or_
 import arrow
 from marshmallow.exceptions import ValidationError
 import functools
 import healpix_alchemy as ha
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -21,12 +23,12 @@ from ...models import (
     Photometry,
     Obj,
     Source,
-    Thumbnail,
     Token,
     Group,
     FollowupRequest,
     ClassicalAssignment,
     ObservingRun,
+    SourceNotification,
 )
 from .internal.source_views import register_source_view
 from ...utils import (
@@ -36,12 +38,61 @@ from ...utils import (
     get_finding_chart,
     _calculate_best_position_for_offset_stars,
 )
-from .candidate import grab_query_results_page
+from .candidate import grab_query_results_page, update_redshift_history_if_relevant
+
 
 SOURCES_PER_PAGE = 100
 
+_, cfg = load_env()
+
+
+def add_ps1_thumbnail_and_push_ws_msg(obj, request_handler):
+    try:
+        obj.add_ps1_thumbnail()
+    except (ValueError, ConnectionError) as e:
+        return request_handler.error(f"Unable to generate PS1 thumbnail URL: {e}")
+    request_handler.push_all(
+        action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+    )
+
 
 class SourceHandler(BaseHandler):
+    @auth_or_token
+    def head(self, obj_id=None):
+        """
+        ---
+        single:
+          description: Check if a Source exists
+          parameters:
+            - in: path
+              name: obj_id
+              required: true
+              schema:
+                type: string
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: Success
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+        user_group_ids = [g.id for g in self.associated_user_object.accessible_groups]
+        num_s = (
+            DBSession()
+            .query(Source)
+            .filter(Source.obj_id == obj_id)
+            .filter(Source.group_id.in_(user_group_ids))
+            .count()
+        )
+        if num_s > 0:
+            return self.success()
+        else:
+            self.set_status(404)
+            self.finish()
+
     @auth_or_token
     def get(self, obj_id=None):
         """
@@ -148,6 +199,22 @@ class SourceHandler(BaseHandler):
                 type: integer
             description: |
                If provided, filter only sources saved to one of these group IDs.
+          - in: query
+            name: includePhotometry
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include associated photometry. Defaults to
+              false.
+          - in: query
+            name: includeRequested
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include requested saves. Defaults to
+              false.
           responses:
             200:
               content:
@@ -189,6 +256,8 @@ class SourceHandler(BaseHandler):
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
+        include_photometry = self.get_query_argument("includePhotometry", False)
+        include_requested = self.get_query_argument("includeRequested", False)
 
         # parse the group ids:
         group_ids = self.get_query_argument('group_ids', None)
@@ -207,6 +276,31 @@ class SourceHandler(BaseHandler):
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
         if obj_id is not None:
+            query_options = [
+                joinedload(Source.obj)
+                .joinedload(Obj.followup_requests)
+                .joinedload(FollowupRequest.requester),
+                joinedload(Source.obj)
+                .joinedload(Obj.followup_requests)
+                .joinedload(FollowupRequest.allocation)
+                .joinedload(Allocation.instrument),
+                joinedload(Source.obj)
+                .joinedload(Obj.assignments)
+                .joinedload(ClassicalAssignment.run)
+                .joinedload(ObservingRun.instrument)
+                .joinedload(Instrument.telescope),
+                joinedload(Source.obj).joinedload(Obj.thumbnails),
+                joinedload(Source.obj)
+                .joinedload(Obj.followup_requests)
+                .joinedload(FollowupRequest.allocation)
+                .joinedload(Allocation.group),
+            ]
+            if include_photometry:
+                query_options.append(
+                    joinedload(Source.obj)
+                    .joinedload(Obj.photometry)
+                    .joinedload(Photometry.instrument)
+                )
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
                 register_source_view(
@@ -216,38 +310,26 @@ class SourceHandler(BaseHandler):
                 )
                 self.push_all(action="skyportal/FETCH_TOP_SOURCES")
             s = Source.get_obj_if_owned_by(
-                obj_id,
-                self.current_user,
-                options=[
-                    joinedload(Source.obj)
-                    .joinedload(Obj.followup_requests)
-                    .joinedload(FollowupRequest.requester),
-                    joinedload(Source.obj)
-                    .joinedload(Obj.followup_requests)
-                    .joinedload(FollowupRequest.allocation)
-                    .joinedload(Allocation.instrument),
-                    joinedload(Source.obj)
-                    .joinedload(Obj.assignments)
-                    .joinedload(ClassicalAssignment.run)
-                    .joinedload(ObservingRun.instrument)
-                    .joinedload(Instrument.telescope),
-                    joinedload(Source.obj)
-                    .joinedload(Obj.thumbnails)
-                    .joinedload(Thumbnail.photometry)
-                    .joinedload(Photometry.instrument)
-                    .joinedload(Instrument.telescope),
-                    joinedload(Source.obj)
-                    .joinedload(Obj.followup_requests)
-                    .joinedload(FollowupRequest.allocation)
-                    .joinedload(Allocation.group),
-                ],
+                obj_id, self.current_user, options=query_options,
             )
             if s is None:
-                return self.error("Invalid source ID.")
+                return self.error("Source not found", status=404)
+            if "ps1" not in [thumb.type for thumb in s.thumbnails]:
+                IOLoop.current().add_callback(
+                    lambda: add_ps1_thumbnail_and_push_ws_msg(s, self)
+                )
             comments = s.get_comments_owned_by(self.current_user)
             source_info = s.to_dict()
             source_info["comments"] = sorted(
-                comments, key=lambda x: x.created_at, reverse=True
+                [c.to_dict() for c in comments],
+                key=lambda x: x["created_at"],
+                reverse=True,
+            )
+            for comment in source_info["comments"]:
+                comment["author"] = comment["author"].to_dict()
+                del comment["author"]["preferences"]
+            source_info["annotations"] = sorted(
+                s.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
             )
             source_info["classifications"] = s.get_classifications_owned_by(
                 self.current_user
@@ -262,7 +344,7 @@ class SourceHandler(BaseHandler):
             source_info["followup_requests"] = [
                 f for f in source_info['followup_requests'] if f.status != 'deleted'
             ]
-            source_info["groups"] = (
+            query = (
                 DBSession()
                 .query(Group)
                 .join(Source)
@@ -270,11 +352,48 @@ class SourceHandler(BaseHandler):
                     Source.obj_id == source_info["id"],
                     Group.id.in_(user_accessible_group_ids),
                 )
-                .all()
             )
+            if include_requested:
+                query = query.filter(
+                    or_(Source.requested.is_(True), Source.active.is_(True))
+                )
+            else:
+                query = query.filter(Source.active.is_(True))
+            source_info["groups"] = [g.to_dict() for g in query.all()]
+            for group in source_info["groups"]:
+                source_table_row = Source.query.filter(
+                    Source.obj_id == s.id, Source.group_id == group["id"]
+                ).first()
+                group["active"] = source_table_row.active
+                group["requested"] = source_table_row.requested
+                group["saved_at"] = source_table_row.saved_at
+                group["saved_by"] = (
+                    source_table_row.saved_by.to_dict()
+                    if source_table_row.saved_by is not None
+                    else None
+                )
+
+            # add the date(s) this source was saved to each of these groups
+            for i, g in enumerate(source_info["groups"]):
+                saved_at = (
+                    DBSession()
+                    .query(Source.saved_at)
+                    .filter(
+                        Source.obj_id == source_info["id"], Source.group_id == g["id"]
+                    )
+                    .first()
+                    .saved_at
+                )
+                source_info["groups"][i]['saved_at'] = saved_at
+
             return self.success(data=source_info)
 
         # Fetch multiple sources
+        query_options = [joinedload(Obj.thumbnails)]
+        if include_photometry:
+            query_options.append(
+                joinedload(Obj.photometry).joinedload(Photometry.instrument)
+            )
         q = (
             DBSession()
             .query(Obj)
@@ -284,12 +403,7 @@ class SourceHandler(BaseHandler):
                     user_accessible_group_ids
                 )  # only give sources the user has access to
             )
-            .options(
-                joinedload(Obj.thumbnails)
-                .joinedload(Thumbnail.photometry)
-                .joinedload(Photometry.instrument)
-                .joinedload(Instrument.telescope)
-            )
+            .options(query_options)
         )
 
         if sourceID:
@@ -329,6 +443,10 @@ class SourceHandler(BaseHandler):
                     f"One of the requested groups in '{group_ids}' is inaccessible to user."
                 )
             q = q.filter(Source.group_id.in_(group_ids))
+            if include_requested:
+                q = q.filter(or_(Source.requested.is_(True), Source.active.is_(True)))
+            else:
+                q = q.filter(Source.active.is_(True))
 
         if page_number:
             try:
@@ -337,7 +455,12 @@ class SourceHandler(BaseHandler):
                 return self.error("Invalid page number value.")
             try:
                 query_results = grab_query_results_page(
-                    q, total_matches, page, num_per_page, "sources"
+                    q,
+                    total_matches,
+                    page,
+                    num_per_page,
+                    "sources",
+                    include_photometry=include_photometry,
                 )
             except ValueError as e:
                 if "Page number out of range" in str(e):
@@ -350,10 +473,13 @@ class SourceHandler(BaseHandler):
         for source in query_results["sources"]:
             source_list.append(source.to_dict())
             source_list[-1]["comments"] = sorted(
-                source.get_comments_owned_by(self.current_user),
-                key=lambda x: x.created_at,
+                [s.to_dict() for s in source.get_comments_owned_by(self.current_user)],
+                key=lambda x: x["created_at"],
                 reverse=True,
             )
+            for comment in source_list[-1]["comments"]:
+                comment["author"] = comment["author"].to_dict()
+                del comment["author"]["preferences"]
             source_list[-1]["classifications"] = source.get_classifications_owned_by(
                 self.current_user
             )
@@ -366,16 +492,51 @@ class SourceHandler(BaseHandler):
                 "angular_diameter_distance"
             ] = source.angular_diameter_distance
 
-            source_list[-1]["groups"] = (
-                DBSession()
-                .query(Group)
-                .join(Source)
-                .filter(
-                    Source.obj_id == source_list[-1]["id"],
-                    Group.id.in_(user_accessible_group_ids),
-                )
-                .all()
+            source_filter_condition = (
+                or_(Source.requested.is_(True), Source.active.is_(True))
+                if include_requested
+                else Source.active.is_(True)
             )
+            source_list[-1]["groups"] = [
+                g.to_dict()
+                for g in (
+                    DBSession()
+                    .query(Group)
+                    .join(Source)
+                    .filter(
+                        Source.obj_id == source_list[-1]["id"],
+                        source_filter_condition,
+                        Group.id.in_(user_accessible_group_ids),
+                    )
+                    .all()
+                )
+            ]
+            for group in source_list[-1]["groups"]:
+                source_table_row = Source.query.filter(
+                    Source.obj_id == source.id, Source.group_id == group["id"]
+                ).first()
+                group["active"] = source_table_row.active
+                group["requested"] = source_table_row.requested
+                group["saved_at"] = source_table_row.saved_at
+                group["saved_by"] = (
+                    source_table_row.saved_by.to_dict()
+                    if source_table_row.saved_by is not None
+                    else None
+                )
+
+            # add the date(s) this source was saved to each of these groups
+            for i, g in enumerate(source_list[-1]["groups"]):
+                saved_at = (
+                    DBSession()
+                    .query(Source.saved_at)
+                    .filter(
+                        Source.obj_id == source_list[-1]["id"],
+                        Source.group_id == g["id"],
+                    )
+                    .first()
+                    .saved_at
+                )
+                source_list[-1]["groups"][i]['saved_at'] = saved_at
 
         query_results["sources"] = source_list
 
@@ -418,7 +579,18 @@ class SourceHandler(BaseHandler):
                               description: New source ID
         """
         data = self.get_json()
+        obj_already_exists = Obj.query.get(data["id"]) is not None
         schema = Obj.__schema__()
+
+        ra = data.get('ra', None)
+        dec = data.get('dec', None)
+
+        if ra is None and not obj_already_exists:
+            return self.error("RA must not be null for a new Obj")
+
+        if dec is None and not obj_already_exists:
+            return self.error("Dec must not be null for a new Obj")
+
         user_group_ids = [g.id for g in self.current_user.groups]
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         if not user_group_ids:
@@ -444,6 +616,9 @@ class SourceHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
+
+        previously_saved = Source.query.filter(Source.obj_id == obj.id).first()
+
         groups = Group.query.filter(Group.id.in_(group_ids)).all()
         if not groups:
             return self.error(
@@ -451,19 +626,34 @@ class SourceHandler(BaseHandler):
                 "one valid group ID that you belong to."
             )
 
+        update_redshift_history_if_relevant(data, obj, self.associated_user_object)
+
         DBSession().add(obj)
-        DBSession().add_all([Source(obj=obj, group=group) for group in groups])
+        DBSession().add_all(
+            [
+                Source(obj=obj, group=group, saved_by_id=self.associated_user_object.id)
+                for group in groups
+            ]
+        )
         DBSession().commit()
+        if not obj_already_exists:
+            obj.add_linked_thumbnails()
 
         self.push_all(action="skyportal/FETCH_SOURCES")
+        # If we're updating a source
+        if previously_saved is not None:
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+            )
+
         self.push_all(
             action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
         )
         self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
         return self.success(data={"id": obj.id})
 
-    @permissions(['Manage sources'])
-    def put(self, obj_id):
+    @permissions(['Upload data'])
+    def patch(self, obj_id):
         """
         ---
         description: Update a source
@@ -494,12 +684,16 @@ class SourceHandler(BaseHandler):
 
         schema = Obj.__schema__()
         try:
-            schema.load(data)
+            obj = schema.load(data)
         except ValidationError as e:
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
+        update_redshift_history_if_relevant(data, obj, self.associated_user_object)
         DBSession().commit()
+        self.push_all(
+            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key},
+        )
 
         return self.success(action='skyportal/FETCH_SOURCES')
 
@@ -668,7 +862,7 @@ class SourceOffsetsHandler(BaseHandler):
             options=[joinedload(Source.obj).joinedload(Obj.photometry)],
         )
         if source is None:
-            return self.error('Invalid source ID.')
+            return self.error('Source not found', status=404)
 
         initial_pos = (source.ra, source.dec)
 
@@ -717,6 +911,7 @@ class SourceOffsetsHandler(BaseHandler):
                 query_string,
                 queries_issued,
                 noffsets,
+                used_ztfref,
             ) = get_nearby_offset_stars(
                 best_ra,
                 best_dec,
@@ -731,13 +926,13 @@ class SourceOffsetsHandler(BaseHandler):
                 allowed_queries=2,
                 use_ztfref=use_ztfref,
             )
-
         except ValueError:
             return self.error('Error while querying for nearby offset stars')
 
         starlist_str = "\n".join(
             [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
         )
+
         return self.success(
             data={
                 'facility': facility,
@@ -817,7 +1012,7 @@ class SourceFinderHandler(BaseHandler):
             options=[joinedload(Source.obj).joinedload(Obj.photometry)],
         )
         if source is None:
-            return self.error('Invalid source ID.')
+            return self.error('Source not found', status=404)
 
         imsize = self.get_query_argument('imsize', '4.0')
         try:
@@ -934,3 +1129,136 @@ class SourceFinderHandler(BaseHandler):
 
                 # pause the coroutine so other handlers can run
                 await tornado.gen.sleep(1e-9)  # 1 ns
+
+
+class SourceNotificationHandler(BaseHandler):
+    @auth_or_token
+    def post(self):
+        """
+        ---
+        description: Send out a new source notification
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  additionalNotes:
+                    type: string
+                    description: |
+                      Notes to append to the message sent out
+                  groupIds:
+                    type: array
+                    items:
+                      type: integer
+                    description: |
+                      List of IDs of groups whose members should get the notification (if they've opted in)
+                  sourceId:
+                    type: string
+                    description: |
+                      The ID of the Source's Obj the notification is being sent about
+                  level:
+                    type: string
+                    description: |
+                      Either 'soft' or 'hard', determines whether to send an email or email+SMS notification
+                required:
+                  - groupIds
+                  - sourceId
+                  - level
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: New SourceNotification ID
+        """
+        if not cfg["notifications.enabled"]:
+            return self.error("Notifications are not enabled in current deployment.")
+        data = self.get_json()
+
+        additional_notes = data.get("additionalNotes")
+        if isinstance(additional_notes, str):
+            additional_notes = data["additionalNotes"].strip()
+        else:
+            if additional_notes is not None:
+                return self.error(
+                    "Invalid parameter `additionalNotes`: should be a string"
+                )
+
+        if data.get("groupIds") is None:
+            return self.error("Missing required parameter `groupIds`")
+        try:
+            group_ids = [int(gid) for gid in data["groupIds"]]
+        except ValueError:
+            return self.error(
+                "Invalid value provided for `groupIDs`; unable to parse "
+                "all list items to integers."
+            )
+
+        groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
+
+        if data.get("sourceId") is None:
+            return self.error("Missing required parameter `sourceId`")
+
+        source = Source.get_obj_if_owned_by(data["sourceId"], self.current_user)
+        if source is None:
+            return self.error('Source not found', status=404)
+
+        source_id = data["sourceId"]
+
+        source_group_ids = [
+            row[0]
+            for row in DBSession()
+            .query(Source.group_id)
+            .filter(Source.obj_id == source_id)
+            .all()
+        ]
+
+        if bool(set(group_ids).difference(set(source_group_ids))):
+            forbidden_groups = list(set(group_ids) - set(source_group_ids))
+            return self.error(
+                "Insufficient recipient group access permissions. Not a member of "
+                f"group IDs: {forbidden_groups}."
+            )
+
+        if data.get("level") is None:
+            return self.error("Missing required parameter `level`")
+        if data["level"] not in ["soft", "hard"]:
+            return self.error(
+                "Invalid value provided for `level`: should be either 'soft' or 'hard'"
+            )
+        level = data["level"]
+
+        new_notification = SourceNotification(
+            source_id=source_id,
+            groups=groups,
+            additional_notes=additional_notes,
+            sent_by=self.associated_user_object,
+            level=level,
+        )
+        DBSession().add(new_notification)
+        try:
+            DBSession().commit()
+        except python_http_client.exceptions.UnauthorizedError:
+            return self.error(
+                "Twilio Sendgrid authorization error. Please ensure "
+                "valid Sendgrid API key is set in server environment as "
+                "per their setup docs."
+            )
+        except TwilioException:
+            return self.error(
+                "Twilio Communication SMS API authorization error. Please ensure "
+                "valid Twilio API key is set in server environment as "
+                "per their setup docs."
+            )
+
+        return self.success(data={'id': new_notification.id})

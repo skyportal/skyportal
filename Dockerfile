@@ -9,7 +9,7 @@ RUN apt-get update && \
     apt-get -y upgrade && \
     apt-get install -y python3 python3-venv python3-dev \
                        libpq-dev supervisor \
-                       git nginx nodejs postgresql-client && \
+                       git nginx nodejs postgresql-client vim && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
     useradd --create-home --shell /bin/bash skyportal
@@ -17,7 +17,7 @@ RUN apt-get update && \
 RUN python3 -m venv /skyportal_env && \
     \
     bash -c "source /skyportal_env/bin/activate && \
-    pip install --upgrade pip"
+    pip install --upgrade pip wheel"
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
@@ -27,12 +27,7 @@ WORKDIR /skyportal
 
 RUN bash -c "\
     source /skyportal_env/bin/activate && \
-    \
-    make -C baselayer paths && \
-    (make -f baselayer/Makefile baselayer dependencies || make -C baselayer dependencies) && \
-    (make -f baselayer/Makefile baselayer fill_conf_values || make -C baselayer fill_conf_values)"
-
-RUN bash -c "\
+    make system_setup && \
     \
     ./node_modules/.bin/webpack --mode=production --devtool none && \
     rm -rf node_modules && \

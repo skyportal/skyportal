@@ -27,7 +27,7 @@ def has_admin_access_for_group(user, group_id):
     )
     return {"System admin", "Manage users", "Manage groups"}.intersection(
         set(user.permissions)
-    ) or groupuser.admin
+    ) or (groupuser is not None and groupuser.admin)
 
 
 class GroupHandler(BaseHandler):
@@ -190,7 +190,7 @@ class GroupHandler(BaseHandler):
         info["all_groups"] = all_groups_query.all()
         return self.success(data=info)
 
-    @permissions(['Manage groups'])
+    @auth_or_token
     def post(self):
         """
         ---
@@ -227,6 +227,8 @@ class GroupHandler(BaseHandler):
                               description: New group ID
         """
         data = self.get_json()
+        if data.get("name") is None:
+            return self.error("Missing required parameter: `name`")
 
         try:
             group_admin_ids = [int(e) for e in data.get('group_admins', [])]
@@ -240,7 +242,7 @@ class GroupHandler(BaseHandler):
         ):
             group_admins.append(self.current_user)
 
-        g = Group(name=data['name'])
+        g = Group(name=data["name"], nickname=data.get("nickname") or None)
         DBSession().add(g)
         DBSession().flush()
         DBSession().add_all(
@@ -251,7 +253,7 @@ class GroupHandler(BaseHandler):
         self.push_all(action='skyportal/FETCH_GROUPS')
         return self.success(data={"id": g.id})
 
-    @permissions(['Manage groups'])
+    @auth_or_token
     def put(self, group_id):
         """
         ---
@@ -275,6 +277,21 @@ class GroupHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        groupuser = (
+            DBSession()
+            .query(GroupUser)
+            .filter(GroupUser.group_id == group_id)
+            .filter(GroupUser.user_id == self.associated_user_object.id)
+            .first()
+        )
+        if (
+            "Manage groups" not in self.associated_user_object.permissions
+            and not groupuser.admin
+        ):
+            return self.error(
+                "Insufficient permissions. You must either be a group admin or have higher site-wide permissions."
+            )
+
         data = self.get_json()
         data['id'] = group_id
 
@@ -289,7 +306,7 @@ class GroupHandler(BaseHandler):
 
         return self.success(action='skyportal/FETCH_GROUPS')
 
-    @permissions(['Manage groups'])
+    @auth_or_token
     def delete(self, group_id):
         """
         ---
@@ -309,6 +326,20 @@ class GroupHandler(BaseHandler):
         g = Group.query.get(group_id)
         if g.name == cfg["misc"]["public_group_name"]:
             return self.error("Cannot delete site-wide public group.")
+        groupuser = (
+            DBSession()
+            .query(GroupUser)
+            .filter(GroupUser.group_id == group_id)
+            .filter(GroupUser.user_id == self.associated_user_object.id)
+            .first()
+        )
+        if (
+            "Manage groups" not in self.associated_user_object.permissions
+            and not groupuser.admin
+        ):
+            return self.error(
+                "Insufficient permissions. You must either be a group admin or have higher site-wide permissions."
+            )
         DBSession().delete(g)
         DBSession().commit()
 
@@ -420,6 +451,62 @@ class GroupUserHandler(BaseHandler):
         )
 
     @permissions(["Manage users"])
+    def patch(self, group_id, *ignored_args):
+        """
+        ---
+        description: Update a group user's admin status
+        parameters:
+          - in: path
+            name: group_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userID:
+                    type: integer
+                  admin:
+                    type: boolean
+                required:
+                  - username
+                  - admin
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        data = self.get_json()
+        try:
+            group_id = int(group_id)
+        except ValueError:
+            return self.error("Invalid group ID")
+        user_id = data.get("userID")
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return self.error("Invalid userID parameter")
+        groupuser = (
+            DBSession()
+            .query(GroupUser)
+            .filter(GroupUser.group_id == group_id)
+            .filter(GroupUser.user_id == user_id)
+            .first()
+        )
+        if groupuser is None:
+            return self.error("Specified user is not a member of specified group.")
+        if data.get("admin") is None:
+            return self.error("Missing required parameter: `admin`")
+        admin = data.get("admin") in [True, "true", "True", "t", "T"]
+        groupuser.admin = admin
+        DBSession().commit()
+        return self.success()
+
+    @permissions(["Manage users"])
     def delete(self, group_id, username):
         """
         ---
@@ -457,6 +544,102 @@ class GroupUserHandler(BaseHandler):
         self.push_all(
             action='skyportal/REFRESH_GROUP', payload={'group_id': int(group_id)}
         )
+        return self.success()
+
+
+class GroupUsersFromOtherGroupsHandler(BaseHandler):
+    @auth_or_token
+    def post(self, group_id, *ignored_args):
+        """
+        ---
+        description: Add users from other group(s) to specified group
+        parameters:
+          - in: path
+            name: group_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fromGroupIDs:
+                    type: array
+                    items:
+                      type: integer
+                    type: boolean
+                required:
+                  - fromGroupIDs
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        try:
+            group_id = int(group_id)
+        except (TypeError, ValueError):
+            return self.error("Invalid group_id parameter: must be an integer")
+
+        if not has_admin_access_for_group(self.associated_user_object, group_id):
+            return self.error("Requesting user is not an admin of this group.")
+
+        data = self.get_json()
+
+        from_group_ids = data.get("fromGroupIDs")
+        if from_group_ids is None:
+            return self.error("Missing required parameter: fromGroupIDs")
+        if not isinstance(from_group_ids, (list, tuple)):
+            return self.error(
+                "Improperly formatted fromGroupIDs parameter; "
+                "must be an array of integers."
+            )
+        group = DBSession().query(Group).get(group_id)
+        if group is None:
+            return self.error("Invalid group_id value")
+        from_groups = (
+            DBSession().query(Group).filter(Group.id.in_(from_group_ids)).all()
+        )
+        if len(from_groups) != len(set(from_group_ids)):
+            return self.error("One or more invalid IDs in fromGroupIDs parameter.")
+        user_ids = set()
+        for group in from_groups:
+            for user in group.users:
+                # Ensure user has sufficient stream access to be added to group
+                if group.streams and "System admin" not in user.permissions:
+                    user_stream_ids = [
+                        su.stream_id
+                        for su in DBSession()
+                        .query(StreamUser)
+                        .filter(StreamUser.user_id == user.id)
+                        .all()
+                    ]
+                    if not all(
+                        [stream.id in user_stream_ids for stream in group.streams]
+                    ):
+                        return self.error(
+                            "Not all users have sufficient stream access "
+                            "to be added to this group."
+                        )
+                user_ids.add(user.id)
+
+        for user_id in user_ids:
+            # Add user to group
+            gu = (
+                GroupUser.query.filter(GroupUser.group_id == group_id)
+                .filter(GroupUser.user_id == user_id)
+                .first()
+            )
+            if gu is None:
+                DBSession.add(
+                    GroupUser(group_id=group_id, user_id=user_id, admin=False)
+                )
+
+        DBSession().commit()
+
+        self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
         return self.success()
 
 
@@ -515,20 +698,16 @@ class GroupStreamHandler(BaseHandler):
         stream = Stream.query.filter(Stream.id == stream_id).first()
         if stream is None:
             return self.error("Specified stream_id does not exist.")
+        # TODO ensure all current group users have access to this stream
+        # TODO do the check
+        # Add new GroupStream
+        gs = GroupStream.query.filter(
+            GroupStream.group_id == group_id, GroupStream.stream_id == stream_id
+        ).first()
+        if gs is None:
+            DBSession.add(GroupStream(group_id=group_id, stream_id=stream_id))
         else:
-            # TODO ensure all current group users have access to this stream
-            # TODO do the check
-
-            # Add new GroupStream
-            gs = GroupStream.query.filter(
-                GroupStream.group_id == group_id, GroupStream.stream_id == stream_id
-            ).first()
-            if gs is None:
-                DBSession.add(GroupStream(group_id=group_id, stream_id=stream_id))
-            else:
-                return self.error(
-                    "Specified stream is already associated with this group."
-                )
+            return self.error("Specified stream is already associated with this group.")
         DBSession().commit()
 
         self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})

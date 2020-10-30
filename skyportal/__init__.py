@@ -4,12 +4,14 @@ if 'dev' in __version__:
     # Append last commit date and hash to dev version information, if available
 
     import subprocess
+    import os.path
 
     try:
         p = subprocess.Popen(
             ['git', 'log', '-1', '--format="%h %aI"'],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            cwd=os.path.dirname(__file__),
         )
     except FileNotFoundError:
         pass

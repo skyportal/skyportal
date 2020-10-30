@@ -15,12 +15,16 @@ from skyportal.models import (
     Telescope,
     Obj,
     Comment,
+    Annotation,
     Thumbnail,
     Filter,
     ObservingRun,
 )
 
+from baselayer.app.env import load_env
+
 TMP_DIR = mkdtemp()
+env, cfg = load_env()
 
 
 class BaseMeta:
@@ -45,7 +49,7 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = User
 
-    username = factory.LazyFunction(lambda: f'{uuid.uuid4()}@cesium-ml.org')
+    username = factory.LazyFunction(lambda: str(uuid.uuid4()))
 
     @factory.post_generation
     def roles(obj, create, extracted, **kwargs):
@@ -69,6 +73,28 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
                 DBSession().add(obj)
                 DBSession().commit()
 
+        # always add the single user group
+        single_user_group = Group(
+            users=[obj],
+            single_user_group=True,
+            streams=obj.streams,
+            name=obj.username,
+            nickname=obj.username[:15],
+        )
+        DBSession().add(single_user_group)
+        DBSession().commit()
+
+        # always add the sitewide group
+        sitewide_group = (
+            DBSession()
+            .query(Group)
+            .filter(Group.name == cfg['misc']['public_group_name'])
+            .first()
+        )
+
+        obj.groups.append(sitewide_group)
+        DBSession().commit()
+
 
 class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
@@ -76,6 +102,14 @@ class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     text = f'Test comment {str(uuid.uuid4())}'
     ctype = 'text'
+    author = factory.SubFactory(UserFactory)
+
+
+class AnnotationFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Annotation
+
+    data = {'unique_id': str(uuid.uuid4())}
     author = factory.SubFactory(UserFactory)
 
 
@@ -98,13 +132,12 @@ class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
     mjd = factory.LazyFunction(lambda: 58000.0 + np.random.random())
     flux = factory.LazyFunction(lambda: 20 + 10 * np.random.random())
     fluxerr = factory.LazyFunction(lambda: 2 * np.random.random())
+    owner_id = 1
 
 
 class ThumbnailFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Thumbnail
-
-    type = 'new'
 
 
 class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -115,6 +148,7 @@ class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
     wavelengths = np.sort(1000 * np.random.random(20))
     fluxes = 1e-9 * np.random.random(len(wavelengths))
     observed_at = datetime.datetime.now()
+    owner_id = 1
 
 
 class StreamFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -178,7 +212,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
                 instrument=instrument,
                 filter=filter,
                 groups=passed_groups,
-                alert_id=np.random.randint(100, 9223372036854775807),
+                origin=uuid.uuid4(),
             )
             DBSession().add(phot1)
             DBSession().add(
@@ -189,11 +223,12 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
                     instrument=instrument,
                     filter=filter,
                     groups=passed_groups,
-                    alert_id=np.random.randint(100, 9223372036854775807),
+                    origin=uuid.uuid4(),
                 )
             )
 
-            DBSession().add(ThumbnailFactory(photometry=phot1))
+            DBSession().add(ThumbnailFactory(obj_id=obj.id, type="new"))
+            DBSession().add(ThumbnailFactory(obj_id=obj.id, type="ps1"))
             DBSession().add(CommentFactory(obj_id=obj.id, groups=passed_groups))
         DBSession().add(SpectrumFactory(obj_id=obj.id, instrument=instruments[0]))
         DBSession().commit()

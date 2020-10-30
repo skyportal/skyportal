@@ -57,10 +57,6 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
 
-  const upcomingRuns = observingRunList.filter(
-    (observingrun) => dayjs.utc(observingrun.ephemeris.sunrise_utc) >= dayjs()
-  );
-
   const { handleSubmit, getValues, reset, register, control } = useForm();
 
   const useStyles = makeStyles((theme) => ({
@@ -76,13 +72,13 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   }));
   const classes = useStyles();
 
-  if (upcomingRuns.length === 0) {
+  if (observingRunList.length === 0) {
     return <b>No upcoming observing runs to assign target to...</b>;
   }
 
   const initialFormState = {
     comment: "",
-    run_id: upcomingRuns.length > 0 ? upcomingRuns[0].id : null,
+    run_id: observingRunList.length > 0 ? observingRunList[0].id : null,
     priority: "1",
     obj_id,
   };
@@ -110,9 +106,11 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
               name="run_id"
               control={control}
               rules={{ required: true }}
-              defaultValue={upcomingRuns.length > 0 ? upcomingRuns[0].id : null}
+              defaultValue={
+                observingRunList.length > 0 ? observingRunList[0].id : null
+              }
             >
-              {upcomingRuns.map((observingRun) => (
+              {observingRunList.map((observingRun) => (
                 <MenuItem
                   value={observingRun.id}
                   key={observingRun.id.toString()}

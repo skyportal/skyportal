@@ -29,6 +29,7 @@ const NewGroupForm = () => {
 
   const [formState, setState] = useState({
     name: "",
+    nickname: "",
     group_admins: [],
   });
 
@@ -49,6 +50,7 @@ const NewGroupForm = () => {
     if (result.status === "success") {
       setState({
         name: "",
+        nickname: "",
         group_admins: [],
       });
     }
@@ -97,6 +99,14 @@ const NewGroupForm = () => {
             label="Group Name"
             name="name"
             value={formState.name}
+            onChange={handleChange}
+          />
+        </Box>
+        <Box>
+          <TextField
+            label="Nickname"
+            name="nickname"
+            value={formState.nickname}
             onChange={handleChange}
           />
         </Box>

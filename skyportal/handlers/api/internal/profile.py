@@ -4,6 +4,7 @@ import phonenumbers
 from phonenumbers.phonenumberutil import NumberParseException
 from validate_email import validate_email
 from sqlalchemy.exc import IntegrityError
+from slugify import slugify
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
@@ -45,6 +46,10 @@ class ProfileHandler(BaseHandler):
                               type: array
                               items:
                                 type: string
+                            permissions:
+                              type: array
+                              items:
+                                type: string
                             roles:
                               type: array
                               items:
@@ -70,6 +75,7 @@ class ProfileHandler(BaseHandler):
         user = User.query.filter(User.username == self.current_user.username).first()
         user_roles = sorted([role.id for role in user.roles])
         user_acls = sorted([acl.id for acl in user.acls])
+        user_permissions = sorted(user.permissions)
         user_tokens = [
             {
                 "id": token.id,
@@ -81,6 +87,7 @@ class ProfileHandler(BaseHandler):
         ]
         user_info = user.to_dict()
         user_info["roles"] = user_roles
+        user_info["permissions"] = user_permissions
         user_info["acls"] = user_acls
         user_info["tokens"] = user_tokens
         user_info["gravatar_url"] = user.gravatar_url or None
@@ -151,7 +158,7 @@ class ProfileHandler(BaseHandler):
                     .first()
                 )
                 if user_group is not None:
-                    user_group.name = username
+                    user_group.name = slugify(username)
                 username_updated = True
 
         if data.get("first_name") is not None:
@@ -218,6 +225,9 @@ class ProfileHandler(BaseHandler):
             self.push(action="skyportal/FETCH_RECENT_SOURCES")
         if "sourceCounts" in preferences:
             self.push(action="skyportal/FETCH_SOURCE_COUNTS")
+        if "weather" in preferences:
+            self.push(action="skyportal/FETCH_WEATHER")
+
         if username_updated:
             self.push_all(action="skyportal/FETCH_GROUPS")
             self.push_all(action="skyportal/FETCH_USERS")

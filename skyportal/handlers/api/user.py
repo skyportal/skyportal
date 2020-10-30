@@ -1,6 +1,7 @@
 import phonenumbers
 from phonenumbers.phonenumberutil import NumberParseException
 from validate_email import validate_email
+from slugify import slugify
 
 from ..base import BaseHandler
 from baselayer.app.access import permissions, auth_or_token
@@ -43,7 +44,9 @@ def add_user_and_setup_groups(
                 DBSession().add(StreamUser(user_id=user.id, stream_id=stream.id))
 
     # Create single-user group
-    DBSession().add(Group(name=user.username, users=[user], single_user_group=True))
+    DBSession().add(
+        Group(name=slugify(user.username), users=[user], single_user_group=True)
+    )
 
     # Add user to sitewide public group
     public_group = Group.query.filter(
@@ -107,12 +110,13 @@ class UserHandler(BaseHandler):
             if user_info.get("contact_phone"):
                 user_info["contact_phone"] = user_info["contact_phone"].e164
 
-            user_info["acls"] = sorted(user.acls, key=lambda a: a.id)
+            user_info["permissions"] = sorted(user.permissions)
             return self.success(data=user_info)
 
         return_values = []
         for user in User.query.all():
             return_values.append(user.to_dict())
+            return_values[-1]["permissions"] = sorted(user.permissions)
             if user.contact_phone:
                 return_values[-1]["contact_phone"] = user.contact_phone.e164
             return_values[-1]["contact_email"] = user.contact_email
@@ -135,7 +139,6 @@ class UserHandler(BaseHandler):
                 properties:
                   username:
                     type: string
-                    description: User's email address
                   first_name:
                     type: string
                   last_name:

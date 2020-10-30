@@ -15,6 +15,7 @@ import * as sourceActions from "../ducks/source";
 import styles from "./CommentList.css";
 import CommentEntry from "./CommentEntry";
 import UserAvatar from "./UserAvatar";
+import CommentAttachmentPreview from "./CommentAttachmentPreview";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -40,7 +41,7 @@ const CommentList = ({ isCandidate }) => {
   const candidate = useSelector((state) => state.candidate);
   const obj = isCandidate ? candidate : source;
   const userProfile = useSelector((state) => state.profile);
-  const acls = useSelector((state) => state.profile.acls);
+  const permissions = useSelector((state) => state.profile.permissions);
 
   // Color styling
   const userColorTheme = useSelector(
@@ -137,12 +138,10 @@ const CommentList = ({ isCandidate }) => {
                 </div>
                 <span>
                   {attachment_name && (
-                    <div>
-                      Attachment:&nbsp;
-                      <a href={`/api/comment/${id}/attachment`}>
-                        {attachment_name}
-                      </a>
-                    </div>
+                    <CommentAttachmentPreview
+                      filename={attachment_name}
+                      commentId={id}
+                    />
                   )}
                 </span>
               </div>
@@ -151,7 +150,7 @@ const CommentList = ({ isCandidate }) => {
         )}
       </div>
       <br />
-      {!isCandidate && acls.indexOf("Comment") >= 0 && (
+      {!isCandidate && permissions.indexOf("Comment") >= 0 && (
         <CommentEntry addComment={addComment} />
       )}
     </div>

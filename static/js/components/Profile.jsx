@@ -22,7 +22,7 @@ const Profile = () => {
       &nbsp;
       <br />
       <div>
-        <NewTokenForm acls={profile.acls} groups={groups} />
+        <NewTokenForm availableAcls={profile.permissions} groups={groups} />
       </div>
       &nbsp;
       <br />

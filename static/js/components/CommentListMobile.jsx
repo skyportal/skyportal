@@ -22,6 +22,7 @@ import emoji from "emoji-dictionary";
 
 import * as sourceActions from "../ducks/source";
 import CommentList from "./CommentList";
+import CommmentAttachmentPreview from "./CommentAttachmentPreview";
 import styles from "./CommentList.css";
 import UserAvatar from "./UserAvatar";
 
@@ -201,12 +202,10 @@ const CommentListMobile = ({ isCandidate }) => {
                   </div>
                   <span>
                     {attachment_name && (
-                      <div>
-                        Attachment:&nbsp;
-                        <a href={`/api/comment/${id}/attachment`}>
-                          {attachment_name}
-                        </a>
-                      </div>
+                      <CommmentAttachmentPreview
+                        filename={attachment_name}
+                        commentId={id}
+                      />
                     )}
                   </span>
                 </div>

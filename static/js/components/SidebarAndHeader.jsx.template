@@ -49,8 +49,10 @@ const useStyles = makeStyles((theme) => ({
     }),
   },
   menuButton: {
-    marginRight: theme.spacing(2),
     marginTop: "0.8em",
+    [theme.breakpoints.up('sm')]: {
+      marginRight: theme.spacing(2),
+    }
   },
   hide: {
     display: 'none',
@@ -187,7 +189,7 @@ const SidebarAndHeader = () => {
           {%- endif -%}
 
           {%- endfor %}
-          {(currentUser.acls?.includes("System admin") || currentUser.acls?.includes("Manage users")) && (
+          {(currentUser.permissions?.includes("System admin") || currentUser.permissions?.includes("Manage users")) && (
             <Link to="/user_management" className={classes.link} onClick={() => setSelected("/user_management")}>
               <ListItem button name="userManagementButton">
                 <ListItemIcon>

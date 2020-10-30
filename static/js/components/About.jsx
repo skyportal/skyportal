@@ -10,15 +10,17 @@ import CardActions from "@material-ui/core/CardActions";
 import Button from "@material-ui/core/Button";
 import Typography from "@material-ui/core/Typography";
 import Box from "@material-ui/core/Box";
+import Paper from "@material-ui/core/Paper";
 
 import clsx from "clsx";
+import dayjs from "dayjs";
 
 const useStyles = makeStyles((theme) => ({
   root: {
     display: "inline-block",
     paddingLeft: "1em",
     paddingRight: "1em",
-    maxWidth: "50rem",
+    maxWidth: "100rem",
     fontSize: "1rem",
   },
   bibcard: {
@@ -31,6 +33,19 @@ const useStyles = makeStyles((theme) => ({
   },
   hidden: {
     display: "none",
+  },
+  gitlogPaper: {
+    maxHeight: "30rem",
+    overflow: "auto",
+  },
+  gitlogList: {
+    fontFamily: "monospace",
+  },
+  gitlogSHA: {
+    color: `${theme.palette.secondary.dark} !important`,
+  },
+  gitlogPR: {
+    color: theme.palette.primary.dark,
   },
 }));
 
@@ -68,6 +83,7 @@ const About = () => {
   const version = useSelector((state) => state.sysInfo.version);
   const cosmology = useSelector((state) => state.sysInfo.cosmology);
   const cosmoref = useSelector((state) => state.sysInfo.cosmoref);
+  const gitlog = useSelector((state) => state.sysInfo.gitlog);
 
   return (
     <Box className={classes.root}>
@@ -120,20 +136,57 @@ const About = () => {
           .
         </BibLink>
       </div>
+      {gitlog && (
+        <>
+          <h2>Recent Changelog</h2>
+          <Paper mt={1} className={classes.gitlogPaper}>
+            <Box p={1}>
+              <div>
+                See all pull requests at{" "}
+                <a href="https://github.com/skyportal/skyportal/pulls?q=is%3Apr+">
+                  https://github.com/skyportal/skyportal/pulls
+                </a>
+              </div>
+              <ul className={classes.gitlogList}>
+                {gitlog.map(
+                  ({ time, sha, description, pr_nr, pr_url, commit_url }) => (
+                    <li key={sha}>
+                      [{dayjs(time).format("YYYY-MM-DD")}
+                      <a className={classes.gitlogSHA} href={commit_url}>
+                        &nbsp;{sha}
+                      </a>
+                      ] {description}
+                      {pr_nr && (
+                        <a href={pr_url}>
+                          &nbsp;(
+                          <span className={classes.gitlogPR}>#{pr_nr}</span>)
+                        </a>
+                      )}
+                    </li>
+                  )
+                )}
+              </ul>
+            </Box>
+          </Paper>
+        </>
+      )}
       <h2>Cosmology</h2>
-      <p>
+      <span>
         The cosmology currently used here is an instance of{" "}
         <code>astropy.cosmology</code> with the parameters (see{" "}
         <a href="https://github.com/astropy/astropy/blob/master/astropy/cosmology/parameters.py">
-          this link
-        </a>{" "}
-        for parameters definitions): <br />
-        <blockquote>{cosmology}</blockquote>
-        <b>Reference</b>: {cosmoref}
-        <br />
-        If you&apos;d like to change the cosmology, please do so in the{" "}
-        <code>config.yaml</code> under <code>misc.cosmology</code>.
-      </p>
+          this link for parameters definitions): <br />
+        </a>
+        {cosmology && (
+          <>
+            <blockquote>{cosmology}</blockquote>
+            <b>Reference</b>: {cosmoref}
+            <br />
+            If you&apos;d like to change the cosmology, please do so in the{" "}
+            <code>config.yaml</code> under <code>misc.cosmology</code>.
+          </>
+        )}
+      </span>
     </Box>
   );
 };

@@ -33,7 +33,7 @@ const sampleMagSpaceText = `mjd,mag,magerr,limiting_mag,magsys,instrument_id,fil
 58002.,13.1,0.2,18.0,ab,1,ztfg,43.1
 58003.,12.9,0.3,18.0,ab,1,ztfg,42.5`;
 
-const HtmlTooltip = withStyles((theme) => ({
+export const HtmlTooltip = withStyles((theme) => ({
   tooltip: {
     backgroundColor: "#f9f9ff",
     color: "rgba(0, 0, 0, 0.87)",
@@ -67,6 +67,20 @@ const UploadPhotometryForm = () => {
     setValue,
   } = useForm();
   let formState = getValues();
+
+  // only show instruments that have an imaging mode
+  const sortedInstrumentList = [...instrumentList].filter((instrument) =>
+    instrument.type.includes("imag")
+  );
+  sortedInstrumentList.sort((i1, i2) => {
+    if (i1.name > i2.name) {
+      return 1;
+    }
+    if (i2.name > i1.name) {
+      return -1;
+    }
+    return 0;
+  });
 
   const parseOptions = {
     skipEmptyLines: "greedy",
@@ -241,7 +255,7 @@ const UploadPhotometryForm = () => {
     },
   };
 
-  if (!instrumentList || !userGroups) {
+  if (!sortedInstrumentList || !userGroups) {
     return <div>Loading...</div>;
   }
 
@@ -317,7 +331,7 @@ const UploadPhotometryForm = () => {
                           <MenuItem value="multiple" key={0}>
                             Multiple (requires instrument_id column below)
                           </MenuItem>
-                          {instrumentList.map((instrument) => (
+                          {sortedInstrumentList.map((instrument) => (
                             <MenuItem value={instrument.id} key={instrument.id}>
                               <Tooltip
                                 title={`Filters: ${instrument.filters.join(

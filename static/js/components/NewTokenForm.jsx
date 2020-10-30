@@ -21,19 +21,19 @@ import { useForm, Controller } from "react-hook-form";
 import * as ProfileActions from "../ducks/profile";
 
 // const NewTokenForm = ({ acls, groups }) => {
-const NewTokenForm = ({ acls }) => {
+const NewTokenForm = ({ availableAcls }) => {
   const dispatch = useDispatch();
 
   const { handleSubmit, register, errors, reset, control } = useForm();
 
   useEffect(() => {
     reset({
-      acls: Array(acls.length).fill(false),
+      acls: Array(availableAcls.length).fill(false),
     });
-  }, [reset, acls]);
+  }, [reset, availableAcls]);
 
   const onSubmit = async (data) => {
-    const selectedACLs = acls.filter((include, idx) => data.acls[idx]);
+    const selectedACLs = availableAcls.filter((include, idx) => data.acls[idx]);
     data.acls = selectedACLs;
 
     // Token groups are not currently supported
@@ -71,7 +71,7 @@ const NewTokenForm = ({ acls }) => {
               <Box component="span" mr={1} fontWeight="bold">
                 ACLs:
               </Box>
-              {acls.map((acl, idx) => (
+              {availableAcls.map((acl, idx) => (
                 <FormControlLabel
                   key={acl}
                   control={
@@ -116,7 +116,7 @@ const NewTokenForm = ({ acls }) => {
   );
 };
 NewTokenForm.propTypes = {
-  acls: PropTypes.arrayOf(PropTypes.string).isRequired,
+  availableAcls: PropTypes.arrayOf(PropTypes.string).isRequired,
   //  groups: PropTypes.arrayOf(PropTypes.object).isRequired
 };
 

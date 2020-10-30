@@ -7,10 +7,10 @@ from ...models import (
     ObservingRun,
     ClassicalAssignment,
     Obj,
-    Thumbnail,
     Instrument,
+    Source,
 )
-from ...schema import ObservingRunPost, ObservingRunGet, ObservingRunGetWithAssignments
+from ...schema import ObservingRunPost, ObservingRunGetWithAssignments
 
 
 class ObservingRunHandler(BaseHandler):
@@ -58,6 +58,7 @@ class ObservingRunHandler(BaseHandler):
         DBSession().add(run)
         DBSession().commit()
 
+        self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
         return self.success(data={"id": run.id})
 
     @auth_or_token
@@ -87,7 +88,7 @@ class ObservingRunHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfObservingRunGets
+                  schema: ArrayOfObservingRuns
             400:
               content:
                 application/json:
@@ -100,17 +101,17 @@ class ObservingRunHandler(BaseHandler):
                 .options(
                     joinedload(ObservingRun.assignments)
                     .joinedload(ClassicalAssignment.obj)
-                    .joinedload(Obj.thumbnails)
-                    .joinedload(Thumbnail.photometry),
+                    .joinedload(Obj.thumbnails),
                     joinedload(ObservingRun.assignments).joinedload(
                         ClassicalAssignment.requester
                     ),
-                    joinedload(ObservingRun.assignments)
-                    .joinedload(ClassicalAssignment.obj)
-                    .joinedload(Obj.comments),
                     joinedload(ObservingRun.instrument).joinedload(
                         Instrument.telescope
                     ),
+                    joinedload(ObservingRun.assignments)
+                    .joinedload(ClassicalAssignment.obj)
+                    .joinedload(Obj.sources)
+                    .joinedload(Source.group),
                 )
                 .filter(ObservingRun.id == run_id)
                 .first()
@@ -138,17 +139,29 @@ class ObservingRunHandler(BaseHandler):
                 data = ObservingRunGetWithAssignments.dump(run)
                 data["assignments"] = [a.to_dict() for a in data["assignments"]]
 
-                # calculate when the targets rise and set
-                for d, a in zip(data["assignments"], run.assignments):
-                    d["rise_time_utc"] = a.rise_time.isot
-                    d["set_time_utc"] = a.set_time.isot
+                gids = [g.id for g in self.current_user.accessible_groups]
+                for a in data["assignments"]:
+                    a['accessible_group_names'] = [
+                        s.group.name for s in a['obj'].sources if s.group_id in gids
+                    ]
+                    del a['obj'].sources
+
+                # vectorized calculation of ephemerides
+
+                if len(run.assignments) > 0:
+                    targets = [a.obj.target for a in run.assignments]
+
+                    rise_times = run.rise_time(targets).isot
+                    set_times = run.set_time(targets).isot
+
+                    for d, rt, st in zip(data["assignments"], rise_times, set_times):
+                        d["rise_time_utc"] = rt
+                        d["set_time_utc"] = st
 
                 return self.success(data=data)
 
-        runs = ObservingRun.query.all()
-        data = ObservingRunGet.dump(runs, many=True)
-        out = sorted(data, key=lambda d: d["ephemeris"]["sunrise_utc"])
-        return self.success(data=out)
+        runs = ObservingRun.query.order_by(ObservingRun.calendar_date.asc()).all()
+        return self.success(data=runs)
 
     @permissions(["Upload data"])
     def put(self, run_id):
@@ -178,7 +191,7 @@ class ObservingRunHandler(BaseHandler):
 
         data = self.get_json()
         run_id = int(run_id)
-        is_superadmin = "System admin" in [a.id for a in self.current_user.acls]
+        is_superadmin = "System admin" in self.current_user.permissions
 
         orun = ObservingRun.query.get(run_id)
 
@@ -198,6 +211,8 @@ class ObservingRunHandler(BaseHandler):
 
         DBSession().add(orun)
         DBSession().commit()
+
+        self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
         return self.success()
 
     @permissions(["Upload data"])
@@ -222,7 +237,7 @@ class ObservingRunHandler(BaseHandler):
                 schema: Error
         """
         run_id = int(run_id)
-        is_superadmin = "System admin" in [a.id for a in self.current_user.acls]
+        is_superadmin = "System admin" in self.current_user.permissions
 
         run = ObservingRun.query.get(run_id)
 
@@ -234,4 +249,5 @@ class ObservingRunHandler(BaseHandler):
         DBSession().query(ObservingRun).filter(ObservingRun.id == run_id).delete()
         DBSession().commit()
 
+        self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
         return self.success()

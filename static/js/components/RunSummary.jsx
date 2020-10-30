@@ -8,6 +8,7 @@ import TableRow from "@material-ui/core/TableRow";
 import Typography from "@material-ui/core/Typography";
 import IconButton from "@material-ui/core/IconButton";
 import Grid from "@material-ui/core/Grid";
+import Chip from "@material-ui/core/Chip";
 import BuildIcon from "@material-ui/icons/Build";
 
 import Link from "@material-ui/core/Link";
@@ -16,6 +17,8 @@ import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
 import Menu from "@material-ui/core/Menu";
 import MenuItem from "@material-ui/core/MenuItem";
 
+import { makeStyles } from "@material-ui/core/styles";
+
 import MUIDataTable from "mui-datatables";
 import ThumbnailList from "./ThumbnailList";
 import styles from "./RunSummary.css";
@@ -23,12 +26,18 @@ import { observingRunTitle } from "./AssignmentForm";
 import { ObservingRunStarList } from "./StarList";
 import * as SourceAction from "../ducks/source";
 import * as Action from "../ducks/observingRun";
-import { ra_to_hours, dec_to_hours } from "../units";
+import { ra_to_hours, dec_to_dms } from "../units";
 
 import SkyCam from "./SkyCam";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const AirmassPlot = React.lazy(() => import("./AirmassPlot"));
+
+const useStyles = makeStyles((theme) => ({
+  chip: {
+    margin: theme.spacing(0.5),
+  },
+}));
 
 const SimpleMenu = ({ assignment }) => {
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -157,7 +166,7 @@ const RunSummary = ({ route }) => {
     }
 
     const colSpan = rowData.length + 1;
-    const assignment = assignments[rowMeta.rowIndex];
+    const assignment = assignments[rowMeta.dataIndex];
 
     return (
       <TableRow>
@@ -228,7 +237,7 @@ const RunSummary = ({ route }) => {
       <div key={`${assignment.id}_dec`}>
         {assignment.obj.dec}
         <br />
-        {dec_to_hours(assignment.obj.dec)}
+        {dec_to_dms(assignment.obj.dec)}
       </div>
     );
   };
@@ -242,6 +251,27 @@ const RunSummary = ({ route }) => {
           <PictureAsPdfIcon />
         </Link>
       </IconButton>
+    );
+  };
+
+  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
+  const RenderGroups = (dataIndex) => {
+    const classes = useStyles();
+    const assignment = assignments[dataIndex];
+    return (
+      <div key={`${assignment.obj.id}_groups`}>
+        {assignment.accessible_group_names.map((name) => (
+          <div key={name}>
+            <Chip
+              label={name.substring(0, 15)}
+              key={name}
+              size="small"
+              className={classes.chip}
+            />
+            <br />
+          </div>
+        ))}
+      </div>
     );
   };
 
@@ -320,6 +350,13 @@ const RunSummary = ({ route }) => {
       },
     },
     {
+      name: "Groups",
+      options: {
+        filter: false,
+        customBodyRenderLite: RenderGroups,
+      },
+    },
+    {
       name: "Finder",
       options: {
         filter: false,
@@ -353,6 +390,7 @@ const RunSummary = ({ route }) => {
     assignment.priority,
     assignment.rise_time_utc,
     assignment.set_time_utc,
+    assignment.accessible_group_names,
     null,
     null,
   ]);

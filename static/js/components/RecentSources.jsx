@@ -12,7 +12,7 @@ import Paper from "@material-ui/core/Paper";
 import { makeStyles } from "@material-ui/core/styles";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
 
-import { ra_to_hours, dec_to_hours } from "../units";
+import { ra_to_hours, dec_to_dms } from "../units";
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import SourceQuickView from "./SourceQuickView";
@@ -118,9 +118,9 @@ const RecentSourcesList = ({ sources, styles }) => {
           }
 
           return (
-            <li key={`recentSources_${source.obj_id}`}>
+            <li key={`recentSources_${source.obj_id}_${source.created_at}`}>
               <div
-                data-testid={`recentSourceItem_${source.obj_id}`}
+                data-testid={`recentSourceItem_${source.obj_id}_${source.created_at}`}
                 className={styles.sourceItemWithButton}
               >
                 <div className={styles.sourceItem}>
@@ -132,6 +132,7 @@ const RecentSourcesList = ({ sources, styles }) => {
                       className={styles.stamp}
                       src={source.public_url}
                       alt={source.obj_id}
+                      loading="lazy"
                     />
                   </Link>
                   <div className={styles.sourceInfo}>
@@ -141,10 +142,11 @@ const RecentSourcesList = ({ sources, styles }) => {
                       </Link>
                     </span>
                     <span>
-                      {`\u03B1, \u03B4: ${ra_to_hours(
-                        source.ra
-                      )} ${dec_to_hours(source.dec)}`}
+                      {`\u03B1, \u03B4: ${ra_to_hours(source.ra)} ${dec_to_dms(
+                        source.dec
+                      )}`}
                     </span>
+                    {source.resaved && <span>(Source was re-saved)</span>}
                   </div>
                   <div className={styles.sourceTime}>
                     <span>
@@ -173,6 +175,7 @@ RecentSourcesList.propTypes = {
       dec: PropTypes.number,
       created_at: PropTypes.string.isRequired,
       public_url: PropTypes.string,
+      resaved: PropTypes.bool,
       classifications: PropTypes.arrayOf(
         PropTypes.shape({
           author_name: PropTypes.string,
@@ -207,7 +210,7 @@ const RecentSources = ({ classes }) => {
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <Typography variant="h6" display="inline">
-          Recently Added Sources
+          Recently Saved Sources
         </Typography>
         <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
         <div className={classes.widgetIcon}>

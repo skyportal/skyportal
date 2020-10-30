@@ -1,6 +1,8 @@
 import uuid
 import re
+import warnings
 from datetime import datetime, timezone
+import requests
 import arrow
 from astropy import units as u
 from astropy import time as ap_time
@@ -13,18 +15,25 @@ from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
+from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import URLType, EmailType
+from sqlalchemy import func
 from sqlalchemy_utils.types import JSONType
 from sqlalchemy_utils.types.encrypted.encrypted_type import EncryptedType, AesEngine
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
+from twilio.rest import Client as TwilioClient
 
 from astropy import coordinates as ap_coord
+from astropy.io import fits, ascii
 import healpix_alchemy as ha
 import timezonefinder
 from .utils.cosmology import establish_cosmology
+
+import yaml
+from astropy.utils.exceptions import AstropyWarning
 
 from baselayer.app.models import (  # noqa
     init_db,
@@ -38,6 +47,7 @@ from baselayer.app.models import (  # noqa
 )
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
+from baselayer.app.json_util import to_json
 
 from . import schema
 from .enum_types import (
@@ -58,8 +68,22 @@ env, cfg = load_env()
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
 
+utcnow = func.timezone('UTC', func.current_timestamp())
+
 _, cfg = load_env()
 cosmo = establish_cosmology(cfg)
+
+
+def get_app_base_url():
+    ports_to_ignore = {True: 443, False: 80}  # True/False <-> server.ssl=True/False
+    return f"{'https' if cfg['server.ssl'] else 'http'}:" f"//{cfg['server.host']}" + (
+        f":{cfg['server.port']}"
+        if (
+            cfg["server.port"] is not None
+            and cfg["server.port"] != ports_to_ignore[cfg["server.ssl"]]
+        )
+        else ""
+    )
 
 
 def is_owned_by(self, user_or_token):
@@ -81,6 +105,33 @@ def is_owned_by(self, user_or_token):
         return user_or_token in self.users
 
     raise NotImplementedError(f"{type(self).__name__} object has no owner")
+
+
+def is_modifiable_by(self, user):
+    """Return a boolean indicating whether an object point can be modified or
+    deleted by a given user.
+
+    Parameters
+    ----------
+    user: `baselayer.app.models.User`
+       The User to check.
+
+    Returns
+    -------
+    owned: bool
+       Whether the Object can be modified by the User.
+    """
+
+    if not hasattr(self, 'owner'):
+        raise TypeError(
+            f'Object {self} does not have an `owner` attribute, '
+            f'and thus does not expose the interface that is needed '
+            f'to check for modification or deletion privileges.'
+        )
+
+    is_admin = "System admin" in user.permissions
+    owns_spectrum = self.owner is user
+    return is_admin or owns_spectrum
 
 
 Base.is_owned_by = is_owned_by
@@ -105,6 +156,9 @@ class Group(Base):
 
     name = sa.Column(
         sa.String, unique=True, nullable=False, index=True, doc='Name of the group.'
+    )
+    nickname = sa.Column(
+        sa.String, unique=True, nullable=True, index=True, doc='Short group nickname.'
     )
 
     streams = relationship(
@@ -249,7 +303,7 @@ def user_or_token_accessible_groups(self):
     """Return the list of Groups a User or Token has access to. For non-admin
     Users or Token owners, this corresponds to the Groups they are a member of.
     For System Admins, this corresponds to all Groups."""
-    if "System admin" in [acl.id for acl in self.acls]:
+    if "System admin" in self.permissions:
         return Group.query.all()
     return self.groups
 
@@ -294,6 +348,9 @@ class Obj(Base, ha.Point):
         sa.Float, default=0.0, doc="Offset from nearest static object [arcsec]."
     )
     redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.")
+    redshift_history = sa.Column(
+        JSONB, nullable=True, doc="Record of who set which redshift values and when.",
+    )
 
     # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
     altdata = sa.Column(
@@ -348,6 +405,14 @@ class Obj(Base, ha.Point):
         order_by="Comment.created_at",
         doc="Comments posted about the object.",
     )
+    annotations = relationship(
+        'Annotation',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        order_by="Annotation.created_at",
+        doc="Auto-annotations posted about the object.",
+    )
 
     classifications = relationship(
         'Classification',
@@ -386,7 +451,6 @@ class Obj(Base, ha.Point):
     thumbnails = relationship(
         'Thumbnail',
         back_populates='obj',
-        secondary='photometry',
         cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
         doc="Thumbnails of the object.",
@@ -401,6 +465,12 @@ class Obj(Base, ha.Point):
         'ClassicalAssignment',
         back_populates='obj',
         doc="Assignments of the object to classical observing runs.",
+    )
+
+    obj_notifications = relationship(
+        "SourceNotification",
+        back_populates="source",
+        doc="Notifications regarding the object sent out by users",
     )
 
     @hybrid_property
@@ -423,13 +493,14 @@ class Obj(Base, ha.Point):
     def add_linked_thumbnails(self):
         """Determine the URLs of the SDSS and DESI DR8 thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
-        sdss_thumb = Thumbnail(
-            photometry=self.photometry[0], public_url=self.sdss_url, type='sdss'
-        )
-        dr8_thumb = Thumbnail(
-            photometry=self.photometry[0], public_url=self.desi_dr8_url, type='dr8'
-        )
+        sdss_thumb = Thumbnail(obj=self, public_url=self.sdss_url, type='sdss')
+        dr8_thumb = Thumbnail(obj=self, public_url=self.desi_dr8_url, type='dr8')
         DBSession().add_all([sdss_thumb, dr8_thumb])
+        DBSession().commit()
+
+    def add_ps1_thumbnail(self):
+        ps1_thumb = Thumbnail(obj=self, public_url=self.panstarrs_url, type="ps1")
+        DBSession().add(ps1_thumb)
         DBSession().commit()
 
     @property
@@ -448,6 +519,23 @@ class Obj(Base, ha.Point):
             f"http://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
             f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz"
         )
+
+    @property
+    def panstarrs_url(self):
+        """Construct URL for public PanSTARRS-1 (PS1) cutout.
+
+        The cutout service doesn't allow directly querying for an image; the
+        best we can do is request a page that contains a link to the image we
+        want (in this case a combination of the g/r/i filters).
+        """
+        ps_query_url = (
+            f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
+            f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
+            f"&filter=r&filter=i&filetypes=stack&size=250"
+        )
+        response = requests.get(ps_query_url)
+        match = re.search('src="//ps1images.stsci.edu.*?"', response.content.decode())
+        return match.group().replace('src="', 'http:').replace('"', '')
 
     @property
     def target(self):
@@ -632,11 +720,13 @@ Candidate.__doc__ = (
     "An Obj that passed a Filter, becoming scannable on the " "Filter's scanning page."
 )
 Candidate.passed_at = sa.Column(
-    sa.DateTime, nullable=True, doc="ISO UTC time when the Candidate passed the Filter."
+    sa.DateTime,
+    nullable=True,
+    doc="ISO UTC time when the Candidate passed the Filter last time.",
 )
 
 Candidate.passing_alert_id = sa.Column(
-    sa.BigInteger, doc="ID of the Stream alert that passed the Filter."
+    sa.BigInteger, doc="ID of the latest Stream alert that passed the Filter."
 )
 
 
@@ -723,7 +813,10 @@ Source.saved_by = relationship(
     doc="User that saved the Obj to its Group.",
 )
 Source.saved_at = sa.Column(
-    sa.DateTime, nullable=True, doc="ISO UTC time when the Obj was saved to its Group."
+    sa.DateTime,
+    nullable=False,
+    default=utcnow,
+    doc="ISO UTC time when the Obj was saved to its Group.",
 )
 Source.active = sa.Column(
     sa.Boolean,
@@ -748,6 +841,9 @@ Source.unsaved_by_id = sa.Column(
 )
 Source.unsaved_by = relationship(
     "User", foreign_keys=[Source.unsaved_by_id], doc="User who unsaved the Source."
+)
+Source.unsaved_at = sa.Column(
+    sa.DateTime, nullable=True, doc="ISO UTC time when the Obj was unsaved from Group.",
 )
 
 Obj.sources = relationship(
@@ -846,6 +942,8 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
 
     if Obj.query.get(obj_id) is None:
         return None
+    if "System admin" in user_or_token.permissions:
+        return Obj.query.options(options).get(obj_id)
     try:
         obj = Source.get_obj_if_owned_by(obj_id, user_or_token, options)
     except AccessError:  # They may still be able to view the associated Candidate
@@ -891,6 +989,36 @@ def get_obj_comments_owned_by(self, user_or_token):
 
 
 Obj.get_comments_owned_by = get_obj_comments_owned_by
+
+
+def get_obj_annotations_owned_by(self, user_or_token):
+    """Query the database and return the Annotations on this Obj that are accessible
+    to any of the User or Token owner's accessible Groups.
+
+    Parameters
+    ----------
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    annotation_list : list of `skyportal.models.Annotation`
+       The accessible annotations attached to this Obj.
+    """
+    owned_annotations = [
+        annotation
+        for annotation in self.annotations
+        if annotation.is_owned_by(user_or_token)
+    ]
+
+    # Grab basic author info for the annotations
+    for annotation in owned_annotations:
+        annotation.author_info = annotation.construct_author_info_dict()
+
+    return owned_annotations
+
+
+Obj.get_annotations_owned_by = get_obj_annotations_owned_by
 
 
 def get_obj_classifications_owned_by(self, user_or_token):
@@ -1022,8 +1150,7 @@ class SourceView(Base):
 
 
 class Telescope(Base):
-    """A ground or space-based observational facility that can host Instruments.
-    """
+    """A ground or space-based observational facility that can host Instruments."""
 
     name = sa.Column(
         sa.String,
@@ -1043,6 +1170,14 @@ class Telescope(Base):
     )
     robotic = sa.Column(
         sa.Boolean, default=False, nullable=False, doc="Is this telescope robotic?"
+    )
+
+    weather = sa.Column(JSONB, nullable=True, doc='Latest weather information')
+    weather_retrieved_at = sa.Column(
+        sa.DateTime, nullable=True, doc="When was the weather last retrieved?"
+    )
+    weather_link = sa.Column(
+        URLType, nullable=True, doc="Link to the preferred weather site."
     )
 
     instruments = relationship(
@@ -1305,7 +1440,11 @@ def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
 
     return (
         Taxonomy.query.filter(Taxonomy.id == taxonomy_id)
-        .filter(Taxonomy.groups.any(Group.id.in_([g.id for g in user_or_token.groups])))
+        .filter(
+            Taxonomy.groups.any(
+                Group.id.in_([g.id for g in user_or_token.accessible_groups])
+            )
+        )
         .all()
     )
 
@@ -1384,6 +1523,78 @@ GroupComment.__doc__ = "Join table mapping Groups to Comments."
 User.comments = relationship("Comment", back_populates="author")
 
 
+class Annotation(Base):
+    """A sortable/searchable Annotation made by a filter or other robot, with a set of data as JSON """
+
+    __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
+
+    data = sa.Column(JSONB, default=None, doc="Searchable data in JSON format")
+    author = relationship(
+        "User", back_populates="annotations", doc="Annotation's author.", uselist=False,
+    )
+    author_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Annotation author's User instance.",
+    )
+
+    origin = sa.Column(
+        sa.String,
+        index=True,
+        nullable=False,
+        doc=(
+            'What generated the annotation. This should generally map to a '
+            'filter/group name. But since an annotation can be made accessible to multiple '
+            'groups, the origin name does not necessarily have to map to a single group name.'
+            ' The important thing is to make the origin distinct and descriptive such '
+            'that annotations from the same origin generally have the same metrics. One '
+            'annotation with multiple fields from each origin is allowed.'
+        ),
+    )
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Annotation's Obj.",
+    )
+
+    obj = relationship('Obj', back_populates='annotations', doc="The Annotation's Obj.")
+    groups = relationship(
+        "Group",
+        secondary="group_annotations",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="Groups that can see the annotation.",
+    )
+
+    def construct_author_info_dict(self):
+        return {
+            field: getattr(self.author, field)
+            for field in ('username', 'first_name', 'last_name', 'gravatar_url')
+        }
+
+    @classmethod
+    def get_if_owned_by(cls, ident, user, options=[]):
+        annotation = cls.query.options(options).get(ident)
+
+        if annotation is not None and not annotation.is_owned_by(user):
+            raise AccessError('Insufficient permissions.')
+
+        # Grab basic author info for the annotation
+        annotation.author_info = annotation.construct_author_info_dict()
+
+        return annotation
+
+    __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
+
+
+GroupAnnotation = join_model("group_annotations", Group, Annotation)
+GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
+
+User.annotations = relationship("Annotation", back_populates="author")
+
+
 class Classification(Base):
     """Classification of an Obj."""
 
@@ -1443,13 +1654,17 @@ class Photometry(Base, ha.Point):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
     __tablename__ = 'photometry'
-    mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.')
+
+    mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
     flux = sa.Column(
         sa.Float,
         doc='Flux of the observation in µJy. '
         'Corresponds to an AB Zeropoint of 23.9 in all '
         'filters.',
+        server_default='NaN',
+        nullable=False,
     )
+
     fluxerr = sa.Column(
         sa.Float, nullable=False, doc='Gaussian error on the flux in µJy.'
     )
@@ -1479,11 +1694,13 @@ class Photometry(Base, ha.Point):
         default=lambda: str(uuid.uuid4()),
         doc="ID of the batch in which this Photometry was uploaded (for bulk deletes).",
     )
-    alert_id = sa.Column(
-        sa.BigInteger,
-        nullable=True,
-        unique=True,
-        doc="ID of the alert from which this Photometry was extracted (if any).",
+    origin = sa.Column(
+        sa.String,
+        nullable=False,
+        unique=False,
+        index=True,
+        doc="Origin from which this Photometry was extracted (if any).",
+        server_default='',
     )
 
     obj_id = sa.Column(
@@ -1512,9 +1729,6 @@ class Photometry(Base, ha.Point):
         back_populates='photometry',
         doc="Instrument that took this Photometry.",
     )
-    thumbnails = relationship(
-        'Thumbnail', passive_deletes=True, doc="Thumbnails for this Photometry."
-    )
 
     followup_request_id = sa.Column(
         sa.ForeignKey('followuprequests.id'), nullable=True, index=True
@@ -1525,6 +1739,20 @@ class Photometry(Base, ha.Point):
         sa.ForeignKey('classicalassignments.id'), nullable=True, index=True
     )
     assignment = relationship('ClassicalAssignment', back_populates='photometry')
+
+    owner_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the User who uploaded the photometry.",
+    )
+    owner = relationship(
+        'User',
+        back_populates='photometry',
+        foreign_keys=[owner_id],
+        cascade='save-update, merge, refresh-expire, expunge',
+        doc="The User who uploaded the photometry.",
+    )
 
     @hybrid_property
     def mag(self):
@@ -1597,6 +1825,32 @@ class Photometry(Base, ha.Point):
         return self.flux / self.fluxerr
 
 
+Photometry.is_modifiable_by = is_modifiable_by
+
+# Deduplication index. This is a unique index that prevents any photometry
+# point that has the same obj_id, instrument_id, origin, mjd, flux error,
+# and flux as a photometry point that already exists within the table from
+# being inserted into the table. The index also allows fast lookups on this
+# set of columns, making the search for duplicates a O(log(n)) operation.
+
+Photometry.__table_args__ = (
+    sa.Index(
+        'deduplication_index',
+        Photometry.obj_id,
+        Photometry.instrument_id,
+        Photometry.origin,
+        Photometry.mjd,
+        Photometry.fluxerr,
+        Photometry.flux,
+        unique=True,
+    ),
+)
+
+
+User.photometry = relationship(
+    'Photometry', doc='Photometry uploaded by this User.', back_populates='owner'
+)
+
 GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 
@@ -1654,47 +1908,228 @@ class Spectrum(Base):
         doc='Groups that can view this spectrum.',
     )
 
+    reducers = relationship(
+        "User", secondary="spectrum_reducers", doc="Users that reduced this spectrum."
+    )
+    observers = relationship(
+        "User", secondary="spectrum_observers", doc="Users that observed this spectrum."
+    )
+
     followup_request_id = sa.Column(sa.ForeignKey('followuprequests.id'), nullable=True)
     followup_request = relationship('FollowupRequest', back_populates='spectra')
 
     assignment_id = sa.Column(sa.ForeignKey('classicalassignments.id'), nullable=True)
     assignment = relationship('ClassicalAssignment', back_populates='spectra')
 
+    altdata = sa.Column(
+        psql.JSONB, doc="Miscellaneous alternative metadata.", nullable=True
+    )
+
+    original_file_string = sa.Column(
+        sa.String,
+        doc="Content of original file that was passed to upload the spectrum.",
+    )
+    original_file_filename = sa.Column(
+        sa.String, doc="Original file name that was passed to upload the spectrum."
+    )
+
+    owner_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the User who uploaded the spectrum.",
+    )
+    owner = relationship(
+        'User',
+        back_populates='spectra',
+        foreign_keys=[owner_id],
+        cascade='save-update, merge, refresh-expire, expunge',
+        doc="The User who uploaded the spectrum.",
+    )
+
     @classmethod
-    def from_ascii(cls, filename, obj_id, instrument_id, observed_at):
+    def from_ascii(
+        cls,
+        file,
+        obj_id=None,
+        instrument_id=None,
+        observed_at=None,
+        wave_column=0,
+        flux_column=1,
+        fluxerr_column=None,
+    ):
         """Generate a `Spectrum` from an ascii file.
 
         Parameters
         ----------
-
-        filename : str
-           The name of the ASCII file containing the spectrum.
+        file : str or file-like object
+           Name or handle of the ASCII file containing the spectrum.
         obj_id : str
-           The name of the Spectrum's Obj.
+           The id of the Obj that this Spectrum is of, if not present
+           in the ASCII header.
         instrument_id : int
-           ID of the Instrument with which this Spectrum was acquired.
+           ID of the Instrument with which this Spectrum was acquired,
+           if not present in the ASCII header.
         observed_at : string or datetime
-           Median UTC ISO time stamp of the exposure or exposures in which the Spectrum was acquired."
-
+           Median UTC ISO time stamp of the exposure or exposures in which
+           the Spectrum was acquired, if not present in the ASCII header.
+        wave_column: integer, optional
+           The 0-based index of the ASCII column corresponding to the wavelength
+           values of the spectrum (default 0).
+        flux_column: integer, optional
+           The 0-based index of the ASCII column corresponding to the flux
+           values of the spectrum (default 1).
+        fluxerr_column: integer or None, optional
+           The 0-based index of the ASCII column corresponding to the flux error
+           values of the spectrum (default None).
         Returns
         -------
-
         spec : `skyportal.models.Spectrum`
            The Spectrum generated from the ASCII file.
 
         """
-        data = np.loadtxt(filename)
-        if data.shape[1] != 2:  # TODO support other formats
-            raise ValueError(f"Expected 2 columns, got {data.shape[1]}")
+
+        try:
+            f = open(file, 'rb')  # read as ascii
+        except TypeError:
+            # it's already a stream
+            f = file
+
+        try:
+            table = ascii.read(f, comment='#', header_start=None)
+        except Exception as e:
+            e.args = (f'Error parsing ASCII file: {e.args[0]}',)
+            raise
+        finally:
+            f.close()
+
+        tabledata = np.asarray(table)
+        colnames = table.colnames
+
+        # validate the table and some of the input parameters
+
+        # require at least 2 columns (wavelength, flux)
+        ncol = len(colnames)
+        if ncol < 2:
+            raise ValueError(
+                'Input data must have at least 2 columns (wavelength, '
+                'flux, and optionally flux error).'
+            )
+
+        spec_data = {}
+        # validate the column indices
+        for index, name, dbcol in zip(
+            [wave_column, flux_column, fluxerr_column],
+            ['wave_column', 'flux_column', 'fluxerr_column'],
+            ['wavelengths', 'fluxes', 'errors'],
+        ):
+
+            # index format / type validation:
+            if dbcol in ['wavelengths', 'fluxes']:
+                if not isinstance(index, int):
+                    raise ValueError(f'{name} must be an int')
+            else:
+                if index is not None and not isinstance(index, int):
+                    # The only other allowed value is that fluxerr_column can be
+                    # None. If the value of index is not None, raise.
+                    raise ValueError(f'invalid type for {name}')
+
+            # after validating the indices, ensure that the columns they
+            # point to exist
+            if isinstance(index, int):
+                if index >= ncol:
+                    raise ValueError(
+                        f'index {name} ({index}) is greater than the '
+                        f'maximum allowed value ({ncol - 1})'
+                    )
+                spec_data[dbcol] = tabledata[colnames[index]]
+
+        # parse the header
+        if 'comments' in table.meta:
+
+            # this section matches lines like:
+            # XTENSION: IMAGE
+            # BITPIX: -32
+            # NAXIS: 2
+            # NAXIS1: 433
+            # NAXIS2: 1
+
+            header = {}
+            for line in table.meta['comments']:
+                try:
+                    result = yaml.load(line, Loader=yaml.FullLoader)
+                except yaml.YAMLError:
+                    continue
+                if isinstance(result, dict):
+                    header.update(result)
+
+            # this section matches lines like:
+            # FILTER  = 'clear   '           / Filter
+            # EXPTIME =              600.003 / Total exposure time (sec); avg. of R&B
+            # OBJECT  = 'ZTF20abpuxna'       / User-specified object name
+            # TARGNAME= 'ZTF20abpuxna_S1'    / Target name (from starlist)
+            # DICHNAME= '560     '           / Dichroic
+
+            cards = []
+            with warnings.catch_warnings():
+                warnings.simplefilter('error', AstropyWarning)
+                for line in table.meta['comments']:
+                    # this line does not raise a warning
+                    card = fits.Card.fromstring(line)
+                    try:
+                        # this line warns (exception in this context)
+                        card.verify()
+                    except AstropyWarning:
+                        continue
+                    cards.append(card)
+
+            # this ensures lines like COMMENT and HISTORY are properly dealt
+            # with by using the astropy.header machinery to coerce them to
+            # single strings
+
+            fits_header = fits.Header(cards=cards)
+            serialized = dict(fits_header)
+
+            commentary_keywords = ['', 'COMMENT', 'HISTORY', 'END']
+
+            for key in serialized:
+                # coerce things to serializable JSON
+                if key in commentary_keywords:
+                    # serialize as a string - otherwise it returns a
+                    # funky astropy type that is not json serializable
+                    serialized[key] = str(serialized[key])
+
+                if len(fits_header.comments[key]) > 0:
+                    header[key] = {
+                        'value': serialized[key],
+                        'comment': fits_header.comments[key],
+                    }
+                else:
+                    header[key] = serialized[key]
+
+            # this ensures that the spectra are properly serialized to the
+            # database JSONB (database JSONB cant handle datetime/date values)
+            header = json.loads(to_json(header))
+
+        else:
+            header = None
 
         return cls(
-            wavelengths=data[:, 0],
-            fluxes=data[:, 1],
             obj_id=obj_id,
             instrument_id=instrument_id,
             observed_at=observed_at,
+            altdata=header,
+            **spec_data,
         )
 
+
+Spectrum.is_modifiable_by = is_modifiable_by
+User.spectra = relationship(
+    'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
+)
+
+SpectrumReducer = join_model("spectrum_reducers", Spectrum, User)
+SpectrumObserver = join_model("spectrum_observers", Spectrum, User)
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
@@ -1720,8 +2155,7 @@ class FollowupRequest(Base):
     requester_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
         nullable=False,
-        index=True,
-        doc="ID of the User who requested the follow-up.",
+        doc="The ID of the User who last modified the request.",
     )
 
     requester = relationship(
@@ -1774,6 +2208,13 @@ class FollowupRequest(Base):
         order_by="FacilityTransaction.created_at.desc()",
     )
 
+    target_groups = relationship(
+        'Group',
+        secondary='request_groups',
+        passive_deletes=True,
+        doc='Groups to share the resulting data from this request with.',
+    )
+
     photometry = relationship('Photometry', back_populates='followup_request')
     spectra = relationship('Spectrum', back_populates='followup_request')
 
@@ -1799,6 +2240,9 @@ class FollowupRequest(Base):
 
         user_or_token_group_ids = [g.id for g in user_or_token.accessible_groups]
         return self.allocation.group_id in user_or_token_group_ids
+
+
+FollowupRequestTargetGroup = join_model('request_groups', FollowupRequest, Group)
 
 
 class FacilityTransaction(Base):
@@ -1859,7 +2303,7 @@ class Thumbnail(Base):
 
     # TODO delete file after deleting row
     type = sa.Column(
-        thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ...)'
+        thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ps1, ...)'
     )
     file_uri = sa.Column(
         sa.String(),
@@ -1876,24 +2320,14 @@ class Thumbnail(Base):
         doc="Publically accessible URL of the thumbnail.",
     )
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the Thumbnail.")
-    photometry_id = sa.Column(
-        sa.ForeignKey('photometry.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True,
-        doc="ID of the Thumbnail's corresponding Photometry point.",
-    )
-    photometry = relationship(
-        'Photometry',
-        back_populates='thumbnails',
-        doc="The Thumbnail's corresponding Photometry point.",
-    )
     obj = relationship(
-        'Obj',
-        back_populates='thumbnails',
-        uselist=False,
-        secondary='photometry',
-        passive_deletes=True,
-        doc="The Thumbnail's Obj.",
+        'Obj', back_populates='thumbnails', uselist=False, doc="The Thumbnail's Obj.",
+    )
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        index=True,
+        nullable=False,
+        doc="ID of the thumbnail's obj.",
     )
 
 
@@ -2017,6 +2451,20 @@ class ObservingRun(Base):
             self._calendar_noon, which='next'
         )
 
+    def rise_time(self, target_or_targets):
+        """The rise time of the specified targets as an astropy.time.Time."""
+        observer = self.instrument.telescope.observer
+        return observer.target_rise_time(
+            self.sunset, target_or_targets, which='next', horizon=30 * u.degree
+        )
+
+    def set_time(self, target_or_targets):
+        """The set time of the specified targets as an astropy.time.Time."""
+        observer = self.instrument.telescope.observer
+        return observer.target_set_time(
+            self.sunset, target_or_targets, which='next', horizon=30 * u.degree
+        )
+
 
 User.observing_runs = relationship(
     'ObservingRun',
@@ -2105,20 +2553,14 @@ class ClassicalAssignment(Base):
     @property
     def rise_time(self):
         """The UTC time at which the object rises on this run."""
-        observer = self.instrument.telescope.observer
         target = self.obj.target
-        return observer.target_rise_time(
-            self.run.sunset, target, which='next', horizon=30 * u.degree
-        )
+        return self.run.rise_time(target)
 
     @property
     def set_time(self):
         """The UTC time at which the object sets on this run."""
-        observer = self.instrument.telescope.observer
         target = self.obj.target
-        return observer.target_set_time(
-            self.rise_time, target, which='next', horizon=30 * u.degree
-        )
+        return self.run.set_time(target)
 
 
 User.assignments = relationship(
@@ -2162,23 +2604,10 @@ UserInvitation = join_model("user_invitations", User, Invitation)
 
 @event.listens_for(Invitation, 'after_insert')
 def send_user_invite_email(mapper, connection, target):
-    _, cfg = load_env()
-    ports_to_ignore = {True: 443, False: 80}  # True/False <-> server.ssl=True/False
-    app_base_url = (
-        f"{'https' if cfg['server.ssl'] else 'http'}:"
-        f"//{cfg['server.host']}"
-        + (
-            f":{cfg['server.port']}"
-            if (
-                cfg["server.port"] is not None
-                and cfg["server.port"] != ports_to_ignore[cfg["server.ssl"]]
-            )
-            else ""
-        )
-    )
+    app_base_url = get_app_base_url()
     link_location = f'{app_base_url}/login/google-oauth2/?invite_token={target.token}'
     message = Mail(
-        from_email=cfg["invitations.from_email"],
+        from_email=cfg["twilio.from_email"],
         to_emails=target.user_email,
         subject=cfg["invitations.email_subject"],
         html_content=(
@@ -2186,8 +2615,130 @@ def send_user_invite_email(mapper, connection, target):
             f'Please click <a href="{link_location}">here</a> to join.'
         ),
     )
-    sg = SendGridAPIClient(cfg["invitations.sendgrid_api_key"])
+    sg = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
     sg.send(message)
+
+
+class SourceNotification(Base):
+    groups = relationship(
+        "Group",
+        secondary="group_notifications",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
+    sent_by_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who sent this notification.",
+    )
+    sent_by = relationship(
+        "User",
+        back_populates="source_notifications",
+        foreign_keys=[sent_by_id],
+        doc="The User who sent this notification.",
+    )
+    source_id = sa.Column(
+        sa.ForeignKey("objs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the target Obj.",
+    )
+    source = relationship(
+        'Obj', back_populates='obj_notifications', doc='The target Obj.'
+    )
+
+    additional_notes = sa.Column(sa.String(), nullable=True)
+    level = sa.Column(sa.String(), nullable=False)
+
+
+GroupSourceNotification = join_model('group_notifications', Group, SourceNotification)
+User.source_notifications = relationship(
+    'SourceNotification',
+    back_populates='sent_by',
+    doc="Source notifications the User has sent out.",
+    foreign_keys="SourceNotification.sent_by_id",
+)
+
+
+@event.listens_for(SourceNotification, 'after_insert')
+def send_source_notification(mapper, connection, target):
+    app_base_url = get_app_base_url()
+
+    link_location = f'{app_base_url}/source/{target.source_id}'
+    if target.sent_by.first_name is not None and target.sent_by.last_name is not None:
+        sent_by_name = f'{target.sent_by.first_name} {target.sent_by.last_name}'
+    else:
+        sent_by_name = target.sent_by.username
+
+    group_ids = map(lambda group: group.id, target.groups)
+    groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
+
+    target_users = set()
+    for group in groups:
+        # Use a set to get unique iterable of users
+        target_users.update(group.users)
+
+    source = DBSession().query(Obj).get(target.source_id)
+    source_info = ""
+    if source.ra is not None:
+        source_info += f'RA={source.ra} '
+    if source.dec is not None:
+        source_info += f'Dec={source.dec}'
+    source_info = source_info.strip()
+
+    # Send SMS messages to opted-in users if desired
+    if target.level == "hard":
+        message_text = (
+            f'{cfg["app.title"]}: {sent_by_name} would like to call your immediate'
+            f' attention to a source at {link_location} ({source_info}).'
+        )
+        if target.additional_notes != "" and target.additional_notes is not None:
+            message_text += f' Addtional notes: {target.additional_notes}'
+
+        account_sid = cfg["twilio.sms_account_sid"]
+        auth_token = cfg["twilio.sms_auth_token"]
+        from_number = cfg["twilio.from_number"]
+        client = TwilioClient(account_sid, auth_token)
+        for user in target_users:
+            # If user has a phone number registered and opted into SMS notifications
+            if (
+                user.contact_phone is not None
+                and user.preferences is not None
+                and "allowSMSAlerts" in user.preferences
+                and user.preferences.get("allowSMSAlerts")
+            ):
+                client.messages.create(
+                    body=message_text, from_=from_number, to=user.contact_phone.e164
+                )
+
+    # Send email notifications
+    for user in target_users:
+        descriptor = "immediate" if target.level == "hard" else ""
+        # If user has a contact email registered and opted into email notifications
+        if (
+            user.contact_email is not None
+            and user.preferences is not None
+            and "allowEmailAlerts" in user.preferences
+            and user.preferences.get("allowEmailAlerts")
+        ):
+            html_content = (
+                f'{sent_by_name} would like to call your {descriptor} attention to'
+                f' <a href="{link_location}">{target.source_id}</a> ({source_info})'
+            )
+            if target.additional_notes != "" and target.additional_notes is not None:
+                html_content += (
+                    f'<br /><br />Additional notes: {target.additional_notes}'
+                )
+
+            message = Mail(
+                from_email=cfg["twilio.from_email"],
+                to_emails=user.contact_email,
+                subject=f'{cfg["app.title"]}: Source Alert',
+                html_content=html_content,
+            )
+            sg = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
+            sg.send(message)
 
 
 schema.setup_schema()

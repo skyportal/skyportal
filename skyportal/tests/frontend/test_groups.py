@@ -128,6 +128,25 @@ def test_add_new_group_user_new_username(driver, super_admin_user, user, public_
 
 
 @pytest.mark.flaky(reruns=2)
+def test_invite_all_users_from_other_group(
+    driver, super_admin_user, public_group, public_group2, user, user_group2
+):
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/groups')
+    driver.wait_for_xpath('//h6[text()="All Groups"]')
+    el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
+    driver.wait_for_xpath_to_disappear(f'//a[contains(.,"{user_group2.username}")]')
+    driver.execute_script("arguments[0].click();", el)
+    driver.click_xpath('//*[@id="addUsersFromGroupsSelect"]')
+    driver.click_xpath(f'//li[text()="{public_group2.name}"]')
+    driver.click_xpath('//*[text()="Add users"]')
+    driver.wait_for_xpath(
+        "//*[text()='Successfully added users from specified group(s)']"
+    )
+    driver.wait_for_xpath(f'//*[text()="{user_group2.username}"]')
+
+
+@pytest.mark.flaky(reruns=2)
 def test_delete_group_user(driver, super_admin_user, user, public_group):
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/groups')
@@ -135,8 +154,8 @@ def test_delete_group_user(driver, super_admin_user, user, public_group):
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.execute_script("arguments[0].click();", el)
     username_link = driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
-    delete_button = username_link.find_elements_by_xpath("../../*/button")
-    delete_button[0].click()
+    delete_button = username_link.find_elements_by_xpath("../../*//button")
+    delete_button[-1].click()
     driver.wait_for_xpath_to_disappear(f'//a[contains(.,"{user.username}")]')
 
 

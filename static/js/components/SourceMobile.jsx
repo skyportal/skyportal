@@ -7,6 +7,7 @@ import { makeStyles } from "@material-ui/core/styles";
 import useMediaQuery from "@material-ui/core/useMediaQuery";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
+import Tooltip from "@material-ui/core/Tooltip";
 import Accordion from "@material-ui/core/Accordion";
 import AccordionSummary from "@material-ui/core/AccordionSummary";
 import AccordionDetails from "@material-ui/core/AccordionDetails";
@@ -22,12 +23,18 @@ import ShowClassification from "./ShowClassification";
 import ThumbnailList from "./ThumbnailList";
 import SurveyLinkList from "./SurveyLinkList";
 import StarList from "./StarList";
-import { ra_to_hours, dec_to_hours } from "../units";
+import { ra_to_hours, dec_to_dms } from "../units";
 import FollowupRequestForm from "./FollowupRequestForm";
 import FollowupRequestLists from "./FollowupRequestLists";
 import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
+import EditSourceGroups from "./EditSourceGroups";
+import SourceNotification from "./SourceNotification";
+import UpdateSourceRedshift from "./UpdateSourceRedshift";
+import SourceRedshiftHistory from "./SourceRedshiftHistory";
+import ObjPageAnnotations from "./ObjPageAnnotations";
+import SourceSaveHistory from "./SourceSaveHistory";
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -122,6 +129,13 @@ export const useSourceStyles = makeStyles((theme) => ({
     flexDirection: "column",
     minWidth: 0,
   },
+  sendAlert: {
+    margin: "auto",
+  },
+  position: {
+    fontWeight: "bold",
+    fontSize: "110%",
+  },
 }));
 
 const SourceMobile = ({ source }) => {
@@ -137,6 +151,9 @@ const SourceMobile = ({ source }) => {
   );
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
+  const userAccessibleGroups = useSelector(
+    (state) => state.groups.userAccessible
+  );
 
   return (
     <div className={classes.source}>
@@ -155,22 +172,25 @@ const SourceMobile = ({ source }) => {
                 taxonomyList={taxonomyList}
               />
               <b>Position (J2000):</b>
+              &nbsp; &nbsp;
+              <span className={classes.position}>
+                {ra_to_hours(source.ra)} &nbsp;
+                {dec_to_dms(source.dec)}
+              </span>
+              &nbsp; (&alpha;,&delta;= {source.ra}, &nbsp;
+              {source.dec}; <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)},
               &nbsp;
-              {source.ra}, &nbsp;
-              {source.dec}
-              &nbsp; (&alpha;,&delta;=
-              {ra_to_hours(source.ra)}, &nbsp;
-              {dec_to_hours(source.dec)}) &nbsp; (l,b=
-              {source.gal_lon.toFixed(1)}, &nbsp;
-              {source.gal_lat.toFixed(1)}
+              {source.gal_lat.toFixed(6)}
               )
               <br />
-              {source.redshift != null && (
-                <>
-                  <b>Redshift: &nbsp;</b>
-                  {source.redshift?.toFixed(4)}
-                </>
-              )}
+              <>
+                <b>Redshift: &nbsp;</b>
+                {source.redshift && source.redshift.toFixed(4)}
+                <UpdateSourceRedshift source={source} />
+                <SourceRedshiftHistory
+                  redshiftHistory={source.redshift_history}
+                />
+              </>
               {source.dm && (
                 <>
                   &nbsp;|&nbsp;
@@ -201,13 +221,30 @@ const SourceMobile = ({ source }) => {
               <br />
               {showStarList && <StarList sourceId={source.id} />}
               {source.groups.map((group) => (
-                <Chip
-                  label={group.name.substring(0, 15)}
+                <Tooltip
+                  title={`Saved at ${group.saved_at} by ${group.saved_by?.username}`}
                   key={group.id}
-                  size="small"
-                  className={classes.chip}
-                />
+                >
+                  <Chip
+                    label={
+                      group.nickname
+                        ? group.nickname.substring(0, 15)
+                        : group.name.substring(0, 15)
+                    }
+                    size="small"
+                    className={classes.chip}
+                  />
+                </Tooltip>
               ))}
+              <EditSourceGroups
+                source={{
+                  id: source.id,
+                  currentGroupIds: source.groups.map((g) => g.id),
+                }}
+                userGroups={userAccessibleGroups}
+                icon
+              />
+              <SourceSaveHistory groups={source.groups} />
             </div>
             <div className={classes.thumbnails}>
               <ThumbnailList
@@ -224,6 +261,38 @@ const SourceMobile = ({ source }) => {
             </Typography>
             <CommentListMobile />
           </Paper>
+        </div>
+        <div>
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="surveys-content"
+              id="surveys-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Surveys
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
+            </AccordionDetails>
+          </Accordion>
+        </div>
+        <div>
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="annotations-content"
+              id="annotations-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Auto-annotations
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <ObjPageAnnotations annotations={source.annotations} />
+            </AccordionDetails>
+          </Accordion>
         </div>
         <div>
           <Accordion defaultExpanded>
@@ -281,22 +350,6 @@ const SourceMobile = ({ source }) => {
           </Accordion>
         </div>
         {/* TODO 1) check for dead links; 2) simplify link formatting if possible */}
-        <div>
-          <Accordion defaultExpanded>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="surveys-content"
-              id="surveys-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Surveys
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
-            </AccordionDetails>
-          </Accordion>
-        </div>
         <div>
           <Accordion defaultExpanded>
             <AccordionSummary
@@ -373,6 +426,22 @@ const SourceMobile = ({ source }) => {
             </div>
           </AccordionDetails>
         </Accordion>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="notifications-content"
+            id="notifications-header"
+          >
+            <Typography className={classes.accordionHeading}>
+              Source Notification
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div className={classes.sendAlert}>
+              <SourceNotification sourceId={source.id} />
+            </div>
+          </AccordionDetails>
+        </Accordion>
       </div>
     </div>
   );
@@ -391,6 +460,12 @@ SourceMobile.propTypes = {
     gal_lat: PropTypes.number,
     dm: PropTypes.number,
     luminosity_distance: PropTypes.number,
+    annotations: PropTypes.arrayOf(
+      PropTypes.shape({
+        origin: PropTypes.string.isRequired,
+        data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+      })
+    ),
     classifications: PropTypes.arrayOf(
       PropTypes.shape({
         author_name: PropTypes.string,
@@ -406,6 +481,7 @@ SourceMobile.propTypes = {
     ),
     followup_requests: PropTypes.arrayOf(PropTypes.any),
     assignments: PropTypes.arrayOf(PropTypes.any),
+    redshift_history: PropTypes.arrayOf(PropTypes.any),
   }).isRequired,
 };
 

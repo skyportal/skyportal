@@ -74,7 +74,7 @@ class AllocationHandler(BaseHandler):
         allocations = allocations.all()
         return self.success(data=allocations)
 
-    @permissions(['System admin'])
+    @permissions(['Manage allocations'])
     def post(self):
         """
         ---
@@ -120,7 +120,7 @@ class AllocationHandler(BaseHandler):
         DBSession().commit()
         return self.success(data={"id": allocation.id})
 
-    @permissions(['System admin'])
+    @permissions(['Manage allocations'])
     def put(self, allocation_id):
         """
         ---
@@ -163,7 +163,7 @@ class AllocationHandler(BaseHandler):
         DBSession().commit()
         return self.success()
 
-    @permissions(['System admin'])
+    @permissions(['Manage allocations'])
     def delete(self, allocation_id):
         """
         ---

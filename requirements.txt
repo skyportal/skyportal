@@ -8,7 +8,7 @@ seaborn>=0.10.0
 bokeh==0.12.9
 pytest-randomly>=2.1.1
 factory-boy==2.11.1
-astropy>=4.0
+astropy==4.0.1.post1
 aplpy>=1.1.1
 reproject>=0.7
 avro-python3==1.8.2
@@ -23,7 +23,7 @@ marshmallow-sqlalchemy>=0.21.0
 marshmallow-enum>=1.5.1
 Pillow>=6
 sncosmo>=2.1.0
-tdtax>=0.1.1
+tdtax>=0.1.2
 healpix-alchemy>=0.1.2
 jsonschema
 jsonpath_ng>=1.5.1
@@ -33,7 +33,10 @@ timezonefinder>=4.4.0
 astroplan>=0.6
 phonenumbers>=8.12.7
 py3-validate-email>=0.2.9
+alembic>=1.4.2
 marshmallow-jsonschema>=0.10.0
 requests_toolbelt>=0.9.1
 sendgrid>=6.4.6
+twilio>=6.45.3
 jsonschema-to-openapi>=0.2.1
+responses>=0.12.0

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
 import PropTypes from "prop-types";
@@ -6,8 +6,7 @@ import PropTypes from "prop-types";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Checkbox from "@material-ui/core/Checkbox";
 import Button from "@material-ui/core/Button";
-import TextField from "@material-ui/core/TextField";
-import { KeyboardDatePicker } from "@material-ui/pickers";
+import { KeyboardDateTimePicker } from "@material-ui/pickers";
 import Paper from "@material-ui/core/Paper";
 import SearchIcon from "@material-ui/icons/Search";
 import { makeStyles } from "@material-ui/core/styles";
@@ -46,18 +45,12 @@ const useStyles = makeStyles(() => ({
 
 const FilterCandidateList = ({
   userAccessibleGroups,
-  handleClickNextPage,
-  handleClickPreviousPage,
-  pageNumber,
-  numberingStart,
-  numberingEnd,
-  totalMatches,
-  lastPage,
   setQueryInProgress,
+  setFilterGroups,
 }) => {
   const classes = useStyles();
 
-  const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
+  // const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
 
   const { handleSubmit, getValues, control, errors, reset } = useForm();
 
@@ -98,19 +91,11 @@ const FilterCandidateList = ({
     if (data.endDate) {
       data.endDate = data.endDate.toISOString();
     }
-    await dispatch(candidatesActions.fetchCandidates(data));
-    setQueryInProgress(false);
-  };
-
-  const handleJumpToPageInputChange = (e) => {
-    setJumpToPageInputValue(e.target.value);
-  };
-
-  const handleClickJumpToPage = async () => {
-    setQueryInProgress(true);
-    await dispatch(
-      candidatesActions.fetchCandidates({ pageNumber: jumpToPageInputValue })
+    setFilterGroups(
+      userAccessibleGroups.filter((g) => selectedGroupIDs.includes(g.id))
     );
+    await dispatch(candidatesActions.setFilterFormData(data));
+    await dispatch(candidatesActions.fetchCandidates(data));
     setQueryInProgress(false);
   };
 
@@ -124,28 +109,32 @@ const FilterCandidateList = ({
             )}
             <Controller
               as={
-                <KeyboardDatePicker
-                  format="YYYY-MM-DD"
+                <KeyboardDateTimePicker
                   value={formState.startDate}
-                  emptyLabel="Start Date"
+                  label="Start (browser local time)"
+                  format="YYYY/MM/DD HH:mm"
+                  ampm={false}
+                  showTodayButton
                 />
               }
               rules={{ validate: validateDates }}
               name="startDate"
               control={control}
             />
+            &nbsp;
             <Controller
               as={
-                <KeyboardDatePicker
-                  format="YYYY-MM-DD"
+                <KeyboardDateTimePicker
                   value={formState.endDate}
-                  emptyLabel="End Date"
+                  label="End (browser local time)"
+                  format="YYYY/MM/DD HH:mm"
+                  ampm={false}
+                  showTodayButton
                 />
               }
               rules={{ validate: validateDates }}
               name="endDate"
               control={control}
-              onChange={([selected]) => selected}
             />
           </div>
           <div>
@@ -170,13 +159,13 @@ const FilterCandidateList = ({
               {errors.groupIDs && (
                 <FormValidationError message="Select at least one group." />
               )}
-              {userAccessibleGroups.map((group, idx) => (
+              {userAccessibleGroups.map((group) => (
                 <FormControlLabel
                   key={group.id}
                   control={
                     <Controller
                       as={Checkbox}
-                      name={`groupIDs[${idx}]`}
+                      data-testid={`groupID-${group.id}`}
                       control={control}
                       rules={{ validate: validateGroups }}
                       defaultValue
@@ -198,53 +187,6 @@ const FilterCandidateList = ({
             </Button>
           </div>
         </form>
-        <div className={classes.pages}>
-          <div>
-            <Button
-              variant="contained"
-              onClick={handleClickPreviousPage}
-              disabled={pageNumber === 1}
-              size="small"
-            >
-              Previous Page
-            </Button>
-          </div>
-          <div>
-            <i>
-              Displaying&nbsp;
-              {numberingStart}-{numberingEnd}
-              &nbsp; of&nbsp;
-              {totalMatches}
-              &nbsp; candidates.
-            </i>
-          </div>
-          <div>
-            <Button
-              variant="contained"
-              onClick={handleClickNextPage}
-              disabled={lastPage}
-              size="small"
-            >
-              Next Page
-            </Button>
-          </div>
-        </div>
-        <div className={classes.jumpToPage}>
-          <TextField
-            label="Jump to Page Number"
-            type="number"
-            onChange={handleJumpToPageInputChange}
-            value={jumpToPageInputValue}
-            name="jumpToPageInputField"
-          />
-          <Button
-            variant="contained"
-            onClick={handleClickJumpToPage}
-            size="small"
-          >
-            Jump to Page
-          </Button>
-        </div>
         <br />
         <br />
       </div>
@@ -253,14 +195,8 @@ const FilterCandidateList = ({
 };
 FilterCandidateList.propTypes = {
   userAccessibleGroups: PropTypes.arrayOf(PropTypes.object).isRequired,
-  handleClickNextPage: PropTypes.func.isRequired,
-  handleClickPreviousPage: PropTypes.func.isRequired,
-  pageNumber: PropTypes.number.isRequired,
-  numberingStart: PropTypes.number.isRequired,
-  numberingEnd: PropTypes.number.isRequired,
-  totalMatches: PropTypes.number.isRequired,
-  lastPage: PropTypes.bool.isRequired,
   setQueryInProgress: PropTypes.func.isRequired,
+  setFilterGroups: PropTypes.func.isRequired,
 };
 
 export default FilterCandidateList;
