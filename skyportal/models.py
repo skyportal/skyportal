@@ -717,7 +717,8 @@ Candidate.__doc__ = (
 )
 Candidate.passed_at = sa.Column(
     sa.DateTime,
-    nullable=True,
+    nullable=False,
+    index=True,
     doc="ISO UTC time when the Candidate passed the Filter last time.",
 )
 
