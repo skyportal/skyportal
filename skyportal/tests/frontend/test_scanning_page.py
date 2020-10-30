@@ -372,7 +372,7 @@ def test_submit_annotations_filtering(
     public_candidate2,
     annotation_token,
 ):
-    origin = str(uuid.uuid4())
+    origin = str(uuid.uuid4())[:5]
     status, data = api(
         "POST",
         "annotation",
@@ -400,7 +400,20 @@ def test_submit_annotations_filtering(
     driver.get("/candidates")
     driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
 
-    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    import pdb
+
+    pdb.set_trace()
+
+    # scroll to top of page so dialog doesn't get cut off
+    element = driver.wait_for_xpath("//button[@data-testid='Filter Table-iconButton']")
+    scroll_element_to_top = '''
+        const viewPortHeight = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+        const elementTop = arguments[0].getBoundingClientRect().top;
+        window.scrollBy(0, viewPortHeight - elementTop);
+    '''
+    driver.execute_script(scroll_element_to_top, element)
+    element.click()
+
     # Filter by numeric_field < 1.5
     driver.click_xpath("//div[@id='root_origin']")
     driver.click_xpath(f'//li[@data-value="{origin}"]')
