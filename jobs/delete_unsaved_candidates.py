@@ -24,10 +24,12 @@ if not 1 <= n_days <= 30:
 cutoff_datetime = datetime.datetime.now() - datetime.timedelta(days=n_days)
 
 n_deleted = (
-    Obj.query.filter(Obj.id.in_(DBSession.query(Candidate.obj_id)))
+    DBSession()
+    .query(Obj)
+    .filter(Obj.id.in_(DBSession.query(Candidate.obj_id)))
     .filter(Obj.id.notin_(DBSession.query(Source.obj_id)))
     .filter(Obj.created_at <= cutoff_datetime)
-    .delete()
+    .delete(synchronize_session='fetch')
 )
 
 DBSession.commit()
