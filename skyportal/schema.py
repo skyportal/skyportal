@@ -741,6 +741,32 @@ class ObservingRunPost(_Schema):
     )
 
 
+class FollowupRequestPost(_Schema):
+
+    obj_id = fields.String(required=True, description="ID of the target Obj.",)
+
+    payload = fields.Field(
+        required=False, description="Content of the followup request."
+    )
+
+    status = fields.String(
+        missing="pending submission",
+        description="The status of the request.",
+        required=False,
+    )
+
+    allocation_id = fields.Integer(
+        required=True, description="Followup request allocation ID."
+    )
+
+    target_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        description='IDs of groups to share the results of the f'
+        'ollowup request with.',
+    )
+
+
 class ObservingRunGet(ObservingRunPost):
     owner_id = fields.Integer(description='The User ID of the owner of this run.')
     ephemeris = fields.Field(description='Observing run ephemeris data.')
@@ -953,15 +979,19 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
     obj_id = fields.String(
         description='The ID of the object that the spectrum is of.', required=True
     )
+
     instrument_id = fields.Integer(
         description='The ID of the instrument that took the spectrum.', required=True
     )
+
     observed_at = fields.DateTime(
         description='The ISO UTC time the spectrum was taken.', required=True
     )
+
     group_ids = fields.List(
         fields.Integer, description="The IDs of the groups to share this spectrum with."
     )
+
     filename = fields.String(
         description="The original filename (for bookkeeping purposes).", required=True,
     )
@@ -974,6 +1004,18 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
         fields.Integer,
         description="IDs of the Users who observed this Spectrum.",
         missing=[],
+    )
+
+    followup_request_id = fields.Integer(
+        required=False,
+        description='ID of the Followup request that generated this spectrum, '
+        'if any.',
+    )
+
+    assignment_id = fields.Integer(
+        required=False,
+        description='ID of the classical assignment that generated this spectrum, '
+        'if any.',
     )
 
 
@@ -1079,6 +1121,7 @@ AssignmentSchema = AssignmentSchema()
 ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
 PhotometryRangeQuery = PhotometryRangeQuery()
 SpectrumAsciiFilePostJSON = SpectrumAsciiFilePostJSON()
+FollowupRequestPost = FollowupRequestPost()
 SpectrumAsciiFileParseJSON = SpectrumAsciiFileParseJSON()
 SpectrumPost = SpectrumPost()
 GroupIDList = GroupIDList()

@@ -181,7 +181,7 @@ def public_source_group2(public_group2):
 @pytest.fixture()
 def public_candidate(public_filter):
     obj = ObjFactory(groups=[public_filter.group])
-    DBSession.add(Candidate(obj=obj, filter=public_filter))
+    DBSession.add(Candidate(obj=obj, filter=public_filter, passed_at=datetime.utcnow()))
     DBSession.commit()
     return obj
 
@@ -191,8 +191,10 @@ def public_candidate_two_groups(
     public_filter, public_filter2, public_group, public_group2
 ):
     obj = ObjFactory(groups=[public_group, public_group2])
-    DBSession.add(Candidate(obj=obj, filter=public_filter))
-    DBSession.add(Candidate(obj=obj, filter=public_filter2))
+    DBSession.add(Candidate(obj=obj, filter=public_filter, passed_at=datetime.utcnow()))
+    DBSession.add(
+        Candidate(obj=obj, filter=public_filter2, passed_at=datetime.utcnow())
+    )
     DBSession.commit()
     return obj
 
@@ -200,7 +202,7 @@ def public_candidate_two_groups(
 @pytest.fixture()
 def public_candidate2(public_filter):
     obj = ObjFactory(groups=[public_filter.group])
-    DBSession.add(Candidate(obj=obj, filter=public_filter))
+    DBSession.add(Candidate(obj=obj, filter=public_filter, passed_at=datetime.utcnow()))
     DBSession.commit()
     return obj
 
@@ -355,6 +357,12 @@ def super_admin_user_two_groups(public_group, public_group2):
 @pytest.fixture()
 def view_only_token(user):
     token_id = create_token(ACLs=[], user_id=user.id, name=str(uuid.uuid4()))
+    return token_id
+
+
+@pytest.fixture()
+def view_only_token_group2(user_group2):
+    token_id = create_token(ACLs=[], user_id=user_group2.id, name=str(uuid.uuid4()))
     return token_id
 
 
