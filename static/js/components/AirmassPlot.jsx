@@ -3,15 +3,7 @@ import PropTypes from "prop-types";
 import embed from "vega-embed";
 import VegaPlot from "./VegaPlot";
 
-function isPromise(promise) {
-  return !!promise && typeof promise.then === "function";
-}
-
 const airmass_spec = (url, ephemeris) => {
-  const fulfilledEphem = isPromise(ephemeris)
-    ? ephemeris.then((response) => response.json())
-    : ephemeris;
-
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v4.json",
     background: "transparent",
@@ -32,8 +24,8 @@ const airmass_spec = (url, ephemeris) => {
             title: "time (UT)",
             scale: {
               domain: [
-                fulfilledEphem.twilight_evening_astronomical_utc,
-                fulfilledEphem.twilight_morning_astronomical_utc,
+                ephemeris.twilight_evening_astronomical_utc,
+                ephemeris.twilight_morning_astronomical_utc,
               ],
             },
           },
