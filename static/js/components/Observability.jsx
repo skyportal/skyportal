@@ -7,12 +7,9 @@ import Paper from "@material-ui/core/Paper";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { AirMassPlotFromPromise } from "./AirmassPlot";
 
 dayjs.extend(utc);
-
-const AirmassPlot = React.lazy(() =>
-  import(/* webpackChunkName: "AirmassPlot" */ "./AirmassPlot")
-);
 
 const ObservabilityPage = ({ route }) => {
   const { telescopeList } = useSelector((state) => state.telescopes);
@@ -29,7 +26,7 @@ const ObservabilityPage = ({ route }) => {
             <Paper>
               <Typography variant="h6">{telescope.name}</Typography>
               <Suspense fallback={<div>Loading plot...</div>}>
-                <AirmassPlot
+                <AirMassPlotFromPromise
                   dataUrl={`/api/internal/plot/airmass/objtel/${route.id}/${telescope.id}?time=${time}`}
                   ephemerisPromise={ephemerisPromise}
                 />
