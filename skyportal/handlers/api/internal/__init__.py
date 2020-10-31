@@ -1,7 +1,8 @@
 from .plot import (
     PlotPhotometryHandler,
     PlotSpectroscopyHandler,
-    PlotAirmassHandler,
+    PlotAssignmentAirmassHandler,
+    PlotObjTelAirmassHandler,
 )
 from .token import TokenHandler
 from .dbinfo import DBInfoHandler

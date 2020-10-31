@@ -1213,6 +1213,18 @@ class Telescope(Base):
             timezone=local_tz,
         )
 
+    def next_sunset(self, time=None):
+        if time is None:
+            time = ap_time.Time.now()
+        observer = self.observer
+        return observer.sun_set_time(time, which='next')
+
+    def next_sunrise(self, time=None):
+        if time is None:
+            time = ap_time.Time.now()
+        observer = self.observer
+        return observer.sun_rise_time(time, which='next')
+
 
 class ArrayOfEnum(ARRAY):
     def bind_expression(self, bindvalue):
