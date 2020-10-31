@@ -67,6 +67,7 @@ from skyportal.handlers.api.internal import (
     PlotAssignmentAirmassHandler,
     PlotObjTelAirmassHandler,
     AnnotationsInfoHandler,
+    EphemerisHandler,
 )
 
 from . import models, model_util, openapi
@@ -162,6 +163,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
             r'/api/internal/plot/airmass/objtel/([0-9]+)/([0-9]+)',
             PlotObjTelAirmassHandler,
         ),
+        (r'/api/internal/ephemeris/([0-9]+)/([0-9]+)', EphemerisHandler),
         (r'/api/internal/log', LogHandler),
         (r'/api/internal/recent_sources(/.*)?', RecentSourcesHandler),
         (r'/api/internal/annotations_info', AnnotationsInfoHandler),

@@ -190,7 +190,7 @@ const RunSummary = ({ route }) => {
             <Grid item>
               <Suspense fallback={<div>Loading plot...</div>}>
                 <AirmassPlot
-                  dataUrl={`/api/internal/plot/airmass/${assignment.id}`}
+                  dataUrl={`/api/internal/plot/airmass/assignment/${assignment.id}`}
                   ephemeris={observingRun.ephemeris}
                 />
               </Suspense>

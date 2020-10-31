@@ -84,6 +84,13 @@ class PlotObjTelAirmassHandler(AirmassHandler):
     @auth_or_token
     def get(self, obj_id, telescope_id):
 
+        time = self.get_query_argument('time')
+        if time is not None:
+            try:
+                time = ap_time.Time(time, format='iso')
+            except ValueError as e:
+                return self.error(f'Invalid time format: {e.args[0]}')
+
         obj = Source.get_obj_if_owned_by(obj_id, self.current_user)
         if obj is None:
             return self.error('Invalid assignment id.')
@@ -99,7 +106,7 @@ class PlotObjTelAirmassHandler(AirmassHandler):
                 f'Invalid telescope id: {telescope_id}, record does not exist.'
             )
 
-        sunrise = telescope.next_sunrise()
-        sunset = telescope.next_sunset()
+        sunrise = telescope.next_sunrise(time=time)
+        sunset = telescope.next_sunset(time=time)
         json = self.calculate_airmass(obj, telescope, sunrise, sunset)
         return self.success(data=json)
