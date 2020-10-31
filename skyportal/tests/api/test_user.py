@@ -114,3 +114,45 @@ def test_add_delete_user_adds_deletes_single_user_group(
             for group in data["data"]["all_groups"]
         ]
     )
+
+
+def test_add_modify_user_adds_modifies_single_user_group(
+    manage_groups_token, super_admin_user_two_groups, manage_users_token
+):
+    username = str(uuid.uuid4())
+    token_name = str(uuid.uuid4())
+    status, data = api(
+        "POST", "user", data={"username": username}, token=manage_users_token
+    )
+    assert status == 200
+    new_user_id = data["data"]["id"]
+
+    status, data = api(
+        "GET", "groups?includeSingleUserGroups=true", token=manage_groups_token
+    )
+    assert data["status"] == "success"
+    assert any(
+        [
+            group["single_user_group"] and group["name"] == username
+            for group in data["data"]["all_groups"]
+        ]
+    )
+
+    token_id = create_token(ACLs=[], user_id=new_user_id, name=token_name)
+    new_username = str(uuid.uuid4())
+
+    status, data = api(
+        'PATCH', f'internal/profile', data={'username': new_username}, token=token_id
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET", "groups?includeSingleUserGroups=true", token=manage_groups_token
+    )
+    assert data["status"] == "success"
+    assert any(
+        [
+            group["single_user_group"] and group["name"] == new_username
+            for group in data["data"]["all_groups"]
+        ]
+    )

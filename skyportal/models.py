@@ -1,3 +1,4 @@
+import yaml
 import uuid
 import re
 import json
@@ -5,11 +6,12 @@ import warnings
 from datetime import datetime, timezone
 import requests
 import arrow
-from astropy import units as u
-from astropy import time as ap_time
 
 import astroplan
 import numpy as np
+import timezonefinder
+from slugify import slugify
+
 import sqlalchemy as sa
 from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -20,19 +22,19 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy import func
+
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from twilio.rest import Client as TwilioClient
 
+from astropy import units as u
+from astropy import time as ap_time
+from astropy.utils.exceptions import AstropyWarning
 from astropy import coordinates as ap_coord
 from astropy.io import fits, ascii
 import healpix_alchemy as ha
-import timezonefinder
+
 from .utils.cosmology import establish_cosmology
-
-import yaml
-from astropy.utils.exceptions import AstropyWarning
-
 from baselayer.app.models import (  # noqa
     init_db,
     join_model,
@@ -214,6 +216,7 @@ class Group(Base):
     single_user_group = sa.Column(
         sa.Boolean,
         default=False,
+        index=True,
         doc='Flag indicating whether this group '
         'is a singleton group for one user only.',
     )
@@ -293,6 +296,15 @@ User.streams = relationship(
     back_populates='users',
     passive_deletes=True,
     doc="The Streams this User has access to.",
+)
+
+
+User.single_user_group = property(
+    lambda self: DBSession()
+    .query(Group)
+    .join(GroupUser)
+    .filter(Group.single_user_group.is_(True), GroupUser.user_id == self.id)
+    .first()
 )
 
 
@@ -2729,6 +2741,35 @@ def send_source_notification(mapper, connection, target):
             )
             sg = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
             sg.send(message)
+
+
+@event.listens_for(User, 'after_insert')
+def create_single_user_group(mapper, connection, target):
+
+    # Create single-user group
+    @event.listens_for(DBSession(), "after_flush", once=True)
+    def receive_after_flush(session, context):
+        session.add(
+            Group(name=slugify(target.username), users=[target], single_user_group=True)
+        )
+
+
+@event.listens_for(User, 'before_delete')
+def delete_single_user_group(mapper, connection, target):
+
+    # Delete single-user group
+    DBSession().delete(target.single_user_group)
+
+
+@event.listens_for(User, 'after_update')
+def update_single_user_group(mapper, connection, target):
+
+    # Update single user group name if needed
+    @event.listens_for(DBSession(), "after_flush_postexec", once=True)
+    def receive_after_flush(session, context):
+        single_user_group = target.single_user_group
+        single_user_group.name = slugify(target.username)
+        DBSession().add(single_user_group)
 
 
 schema.setup_schema()
