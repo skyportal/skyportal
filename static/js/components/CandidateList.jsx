@@ -300,17 +300,9 @@ const CandidateList = () => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    if (candidates === null) {
-      setQueryInProgress(true);
-      dispatch(
-        candidatesActions.fetchCandidates({ numPerPage: defaultNumPerPage })
-      );
-      // Grab the available annotation fields for filtering
-      dispatch(candidatesActions.fetchAnnotationsInfo());
-    } else {
-      setQueryInProgress(false);
-    }
-  }, [candidates, dispatch]);
+    // Grab the available annotation fields for filtering
+    dispatch(candidatesActions.fetchAnnotationsInfo());
+  }, [dispatch]);
 
   const [annotationsHeaderAnchor, setAnnotationsHeaderAnchor] = useState(null);
   const annotationsHelpOpen = Boolean(annotationsHeaderAnchor);

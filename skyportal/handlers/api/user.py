@@ -1,7 +1,7 @@
 import phonenumbers
 from phonenumbers.phonenumberutil import NumberParseException
 from validate_email import validate_email
-from slugify import slugify
+
 
 from ..base import BaseHandler
 from baselayer.app.access import permissions, auth_or_token
@@ -42,11 +42,6 @@ def add_user_and_setup_groups(
         if group.streams:
             for stream in group.streams:
                 DBSession().add(StreamUser(user_id=user.id, stream_id=stream.id))
-
-    # Create single-user group
-    DBSession().add(
-        Group(name=slugify(user.username), users=[user], single_user_group=True)
-    )
 
     # Add user to sitewide public group
     public_group = Group.query.filter(
@@ -111,12 +106,17 @@ class UserHandler(BaseHandler):
                 user_info["contact_phone"] = user_info["contact_phone"].e164
 
             user_info["permissions"] = sorted(user.permissions)
+            user_info["roles"] = sorted([role.id for role in user.roles])
+            user_info["acls"] = sorted([acl.id for acl in user.acls])
             return self.success(data=user_info)
 
         return_values = []
         for user in User.query.all():
             return_values.append(user.to_dict())
+            del return_values[-1]["preferences"]
             return_values[-1]["permissions"] = sorted(user.permissions)
+            return_values[-1]["roles"] = sorted([role.id for role in user.roles])
+            return_values[-1]["acls"] = sorted([acl.id for acl in user.acls])
             if user.contact_phone:
                 return_values[-1]["contact_phone"] = user.contact_phone.e164
             return_values[-1]["contact_email"] = user.contact_email
@@ -249,8 +249,5 @@ class UserHandler(BaseHandler):
         """
         user = User.query.get(user_id)
         DBSession().delete(user)
-        single_user_group = Group.query.filter(Group.name == user.username).first()
-        if single_user_group is not None:
-            DBSession().delete(single_user_group)
         DBSession().commit()
         return self.success()

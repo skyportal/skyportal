@@ -135,7 +135,7 @@ class CandidateHandler(BaseHandler):
               type: string
             description: |
               Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-              last_detected >= startDate
+              Candidate.passed_at >= startDate
           - in: query
             name: endDate
             nullable: true
@@ -143,7 +143,7 @@ class CandidateHandler(BaseHandler):
               type: string
             description: |
               Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-              last_detected <= endDate
+              Candidate.passed_at <= endDate
           - in: query
             name: groupIDs
             nullable: true
@@ -383,14 +383,18 @@ class CandidateHandler(BaseHandler):
             return self.error("Invalid numPerPage value.")
 
         # We'll join in the nested data for Obj (like photometry) later
-        q = Obj.query.filter(
-            Obj.id.in_(
-                DBSession()
-                .query(Candidate.obj_id)
-                .filter(Candidate.filter_id.in_(filter_ids))
+        q = (
+            DBSession()
+            .query(Obj)
+            .join(Candidate)
+            .filter(
+                Obj.id.in_(
+                    DBSession()
+                    .query(Candidate.obj_id)
+                    .filter(Candidate.filter_id.in_(filter_ids))
+                )
             )
-        ).outerjoin(
-            Annotation
+            .outerjoin(Annotation)
         )  # Join in annotations info for sort/filter
         if sort_by_origin is None:
             # Don't apply the order by just yet. Save it so we can pass it to
@@ -411,10 +415,10 @@ class CandidateHandler(BaseHandler):
             "undefined",
         ]:
             start_date = arrow.get(start_date).datetime
-            q = q.filter(Obj.last_detected >= start_date)
+            q = q.filter(Candidate.passed_at >= start_date)
         if end_date is not None and end_date.strip() not in ["", "null", "undefined"]:
             end_date = arrow.get(end_date).datetime
-            q = q.filter(Obj.last_detected <= end_date)
+            q = q.filter(Candidate.passed_at <= end_date)
         if annotation_filter_list is not None:
             # Parse annotation filter list objects from the query string
             # and apply the filters to the query
@@ -608,6 +612,7 @@ class CandidateHandler(BaseHandler):
                         nullable: true
                     required:
                       - filter_ids
+                      - passed_at
         responses:
           200:
             content:
@@ -639,8 +644,9 @@ class CandidateHandler(BaseHandler):
 
         passing_alert_id = data.pop("passing_alert_id", None)
         passed_at = data.pop("passed_at", None)
-        if passed_at is not None:
-            passed_at = arrow.get(passed_at).datetime
+        if passed_at is None:
+            return self.error("Missing required parameter: `passed_at`.")
+        passed_at = arrow.get(passed_at).datetime
         try:
             filter_ids = data.pop("filter_ids")
         except KeyError:

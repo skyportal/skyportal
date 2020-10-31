@@ -56,7 +56,7 @@ const FilterCandidateList = ({
 
   useEffect(() => {
     reset({
-      groupIDs: Array(userAccessibleGroups.length).fill(true),
+      groupIDs: Array(userAccessibleGroups.length).fill(false),
       startDate: null,
       endDate: null,
     });
@@ -159,13 +159,14 @@ const FilterCandidateList = ({
               {errors.groupIDs && (
                 <FormValidationError message="Select at least one group." />
               )}
-              {userAccessibleGroups.map((group) => (
+              {userAccessibleGroups.map((group, idx) => (
                 <FormControlLabel
                   key={group.id}
                   control={
                     <Controller
                       as={Checkbox}
-                      data-testid={`groupID-${group.id}`}
+                      name={`groupIDs[${idx}]`}
+                      data-testid={`filteringFormGroupCheckbox-${group.id}`}
                       control={control}
                       rules={{ validate: validateGroups }}
                       defaultValue
