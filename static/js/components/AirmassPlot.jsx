@@ -1,7 +1,10 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
 import VegaPlot from "./VegaPlot";
+
+import fetchEphemeris from "../ducks/ephemeris";
 
 const airmass_spec = (url, ephemeris) => {
   return {
@@ -58,17 +61,29 @@ const AirmassPlot = React.memo((props) => {
   );
 });
 
-export const AirMassPlotFromPromise = (dataUrl, ephemerisPromise) => {
-  const ephemeris = ephemerisPromise.then((response) => response.json());
-  return <AirmassPlot dataUrl={dataUrl} ephemeris={ephemeris} />;
+export const AirMassPlotWithEphemURL = ({ dataUrl, ephemerisUrl }) => {
+  const dispatch = useDispatch();
+  const [ephemeris, setEphemeris] = useState(null);
+  useEffect(() => {
+    const getEphem = async () => {
+      const result = await dispatch(fetchEphemeris(ephemerisUrl));
+      if (result.status === "success") {
+        setEphemeris(result.data);
+      }
+    };
+    getEphem();
+  }, [dispatch, ephemerisUrl]);
+
+  if (ephemeris) {
+    return <AirmassPlot dataUrl={dataUrl} ephemeris={ephemeris} />;
+  }
+
+  return <p>Loading plot...</p>;
 };
 
-AirMassPlotFromPromise.propTypes = {
+AirMassPlotWithEphemURL.propTypes = {
   ...VegaPlot.propTypes,
-  ephemerisPromise: PropTypes.shape({
-    then: PropTypes.func.isRequired,
-    catch: PropTypes.func.isRequired,
-  }).isRequired,
+  ephemerisUrl: PropTypes.string.isRequired,
 };
 
 AirmassPlot.propTypes = {
@@ -83,7 +98,7 @@ AirmassPlot.propTypes = {
   }).isRequired,
 };
 
-AirMassPlotFromPromise.dispayName = "AirmassPlotFromPromise";
+AirMassPlotWithEphemURL.dispayName = "AirmassPlotFromPromise";
 AirmassPlot.displayName = "AirmassPlot";
 
 export default AirmassPlot;

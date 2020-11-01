@@ -8,12 +8,14 @@ class EphemerisHandler(BaseHandler):
     @auth_or_token
     def get(self, telescope_id):
 
-        time = self.get_query_argument('time')
+        time = self.get_query_argument('time', None)
         if time is not None:
             try:
                 time = ap_time.Time(time, format='iso')
             except ValueError as e:
                 return self.error(f'Invalid time format: {e.args[0]}')
+        else:
+            time = ap_time.Time.now()
 
         try:
             telescope_id = int(telescope_id)

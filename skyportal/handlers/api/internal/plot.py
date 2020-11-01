@@ -84,12 +84,14 @@ class PlotObjTelAirmassHandler(AirmassHandler):
     @auth_or_token
     def get(self, obj_id, telescope_id):
 
-        time = self.get_query_argument('time')
+        time = self.get_query_argument('time', None)
         if time is not None:
             try:
                 time = ap_time.Time(time, format='iso')
             except ValueError as e:
                 return self.error(f'Invalid time format: {e.args[0]}')
+        else:
+            time = ap_time.Time.now()
 
         obj = Source.get_obj_if_owned_by(obj_id, self.current_user)
         if obj is None:

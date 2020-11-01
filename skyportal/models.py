@@ -1272,7 +1272,7 @@ class Telescope(Base):
 
         if sunset > sunrise:
             sunset = self.observer.sun_set_time(time, which='previous')
-            time = sunset - ap_time.TimeDelta(30, format='seconds')
+            time = sunset - ap_time.TimeDelta(30, format='sec')
 
         twilight_morning_astronomical = self.next_twilight_morning_astronomical(
             time=time

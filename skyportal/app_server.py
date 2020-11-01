@@ -159,11 +159,8 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
         (r'/api/internal/instrument_forms', RoboticInstrumentsHandler),
         (r'/api/internal/plot/airmass/assignment/(.*)', PlotAssignmentAirmassHandler),
-        (
-            r'/api/internal/plot/airmass/objtel/([0-9]+)/([0-9]+)',
-            PlotObjTelAirmassHandler,
-        ),
-        (r'/api/internal/ephemeris/([0-9]+)/([0-9]+)', EphemerisHandler),
+        (r'/api/internal/plot/airmass/objtel/(.*)/([0-9]+)', PlotObjTelAirmassHandler,),
+        (r'/api/internal/ephemeris/([0-9]+)', EphemerisHandler),
         (r'/api/internal/log', LogHandler),
         (r'/api/internal/recent_sources(/.*)?', RecentSourcesHandler),
         (r'/api/internal/annotations_info', AnnotationsInfoHandler),
