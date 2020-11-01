@@ -131,7 +131,7 @@ const airmass_spec = (url, ephemeris) => {
         },
       },
       {
-        mark: { type: "rule", strokeWidth: 2 },
+        mark: { type: "rule", strokeWidth: 2, clip: true },
         encoding: {
           x: {
             datum: dayjs().unix() * 1000,
