@@ -2504,15 +2504,17 @@ class ObservingRun(Base):
     def rise_time(self, target_or_targets):
         """The rise time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
+        sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
         return observer.target_rise_time(
-            self.sunset, target_or_targets, which='next', horizon=30 * u.degree
+            sunset, target_or_targets, which='next', horizon=30 * u.degree
         )
 
     def set_time(self, target_or_targets):
         """The set time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
+        sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
         return observer.target_set_time(
-            self.sunset, target_or_targets, which='next', horizon=30 * u.degree
+            sunset, target_or_targets, which='next', horizon=30 * u.degree
         )
 
 

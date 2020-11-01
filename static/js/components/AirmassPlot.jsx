@@ -196,7 +196,7 @@ AirmassPlot.propTypes = {
   }).isRequired,
 };
 
-AirMassPlotWithEphemURL.dispayName = "AirmassPlotFromPromise";
+AirMassPlotWithEphemURL.dispayName = "AirmassPlotWithEphemURL";
 AirmassPlot.displayName = "AirmassPlot";
 
 export default AirmassPlot;

@@ -73,9 +73,15 @@ class PlotAssignmentAirmassHandler(AirmassHandler):
         if assignment is None:
             return self.error('Invalid assignment id.')
         obj = assignment.obj
-        telescope = assignment.run.telescope
-        sunrise = assignment.run.sunrise
-        sunset = assignment.run.sunset
+        telescope = assignment.run.instrument.telescope
+        time = assignment.run.calendar_noon
+
+        sunrise = telescope.next_sunrise(time=time)
+        sunset = telescope.next_sunset(time=time)
+
+        if sunset > sunrise:
+            sunset = telescope.observer.sun_set_time(time, which='previous')
+
         json = self.calculate_airmass(obj, telescope, sunrise, sunset)
         return self.success(data=json)
 
