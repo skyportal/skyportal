@@ -189,6 +189,10 @@ const SourceDesktop = ({ source }) => {
           <Button onClick={() => setShowStarList(!showStarList)}>
             {showStarList ? "Hide Starlist" : "Show Starlist"}
           </Button>
+          &nbsp;|&nbsp;
+          <Link to={`/observability/${source.id}`} role="link">
+            <Button>Observability</Button>
+          </Link>
           <br />
           {showStarList && <StarList sourceId={source.id} />}
           {source.groups.map((group) => (

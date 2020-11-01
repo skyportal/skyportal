@@ -5,6 +5,7 @@ import Grid from "@material-ui/core/Grid";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 import { makeStyles } from "@material-ui/core/styles";
+import { Link } from "react-router-dom";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -19,25 +20,30 @@ const ObservabilityPage = ({ route }) => {
   const classes = useStyles();
 
   return (
-    <Grid container spacing={3}>
-      {telescopeList.map((telescope) => {
-        return (
-          <Grid item md={3} sm={6} xs={12} key={telescope.id}>
-            <Paper>
-              <div className={classes.inner}>
-                <Typography variant="h6">{telescope.name}</Typography>
-                <Suspense fallback={<div>Loading plot...</div>}>
-                  <AirMassPlotWithEphemURL
-                    dataUrl={`/api/internal/plot/airmass/objtel/${route.id}/${telescope.id}`}
-                    ephemerisUrl={`/api/internal/ephemeris/${telescope.id}`}
-                  />
-                </Suspense>
-              </div>
-            </Paper>
-          </Grid>
-        );
-      })}
-    </Grid>
+    <div>
+      <Typography variant="h4">
+        Observability of <Link to={`/source/${route.id}`}>{route.id}</Link>
+      </Typography>
+      <Grid container spacing={3}>
+        {telescopeList.map((telescope) => {
+          return (
+            <Grid item md={3} sm={6} xs={12} key={telescope.id}>
+              <Paper>
+                <div className={classes.inner}>
+                  <Typography variant="h6">{telescope.name}</Typography>
+                  <Suspense fallback={<div>Loading plot...</div>}>
+                    <AirMassPlotWithEphemURL
+                      dataUrl={`/api/internal/plot/airmass/objtel/${route.id}/${telescope.id}`}
+                      ephemerisUrl={`/api/internal/ephemeris/${telescope.id}`}
+                    />
+                  </Suspense>
+                </div>
+              </Paper>
+            </Grid>
+          );
+        })}
+      </Grid>
+    </div>
   );
 };
 
