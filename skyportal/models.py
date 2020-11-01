@@ -3,7 +3,7 @@ import uuid
 import re
 import json
 import warnings
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import requests
 import arrow
 
@@ -1291,6 +1291,16 @@ class Telescope(Base):
             'twilight_evening_astronomical_utc': twilight_evening_astronomical.isot,
             'twilight_morning_nautical_utc': twilight_morning_nautical.isot,
             'twilight_evening_nautical_utc': twilight_evening_nautical.isot,
+            'utc_offset_hours': self.observer.timezone.utcoffset(time.datetime)
+            / timedelta(hours=1),
+            'sunset_unix_ms': sunset.unix * 1000,
+            'sunrise_unix_ms': sunrise.unix * 1000,
+            'twilight_morning_astronomical_unix_ms': twilight_morning_astronomical.unix
+            * 1000,
+            'twilight_evening_astronomical_unix_ms': twilight_evening_astronomical.unix
+            * 1000,
+            'twilight_morning_nautical_unix_ms': twilight_morning_nautical.unix * 1000,
+            'twilight_evening_nautical_unix_ms': twilight_evening_nautical.unix * 1000,
         }
 
 

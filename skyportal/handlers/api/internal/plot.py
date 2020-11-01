@@ -60,7 +60,7 @@ class AirmassHandler(BaseHandler):
         time = ap_time.Time(time, format='unix')
 
         airmass = obj.airmass(telescope, time)
-        time = time.isot
+        time = time.unix * 1000
         df = pd.DataFrame({'time': time, 'airmass': airmass})
         json = df.to_dict(orient='records')
         return json
@@ -110,5 +110,9 @@ class PlotObjTelAirmassHandler(AirmassHandler):
 
         sunrise = telescope.next_sunrise(time=time)
         sunset = telescope.next_sunset(time=time)
+
+        if sunset > sunrise:
+            sunset = telescope.observer.sun_set_time(time, which='previous')
+
         json = self.calculate_airmass(obj, telescope, sunrise, sunset)
         return self.success(data=json)
