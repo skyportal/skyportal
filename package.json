@@ -47,7 +47,7 @@
     "react-responsive": "8.1.0",
     "react-router-dom": "5.2.0",
     "react-simple-dropdown": "3.2.3",
-    "react-window": "1.8.5",
+    "react-window": "1.8.6",
     "redoc": "2.0.0-rc.31",
     "redoc-cli": "0.9.8",
     "redux": "4.0.5",
