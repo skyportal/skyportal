@@ -200,6 +200,7 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
                   <Controller
                     as={Checkbox}
                     name={`group_ids[${idx}]`}
+                    data-testid={`saveCandGroupCheckbox-${userGroup.id}`}
                     control={control}
                     rules={{ validate: validateGroups }}
                   />

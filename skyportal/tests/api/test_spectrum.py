@@ -572,3 +572,19 @@ def test_token_user_post_to_foreign_group_and_retrieve(
     spectrum_id = data['data']['id']
     status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
     assert status == 200
+
+
+def test_parse_integer_spectrum_ascii(upload_data_token):
+
+    status, data = api(
+        'POST',
+        'spectrum/parse/ascii',
+        data={'ascii': '4000 0.01\n4500 0.02\n5000 0.005\n5500 0.006\n6000 0.01\n'},
+        token=upload_data_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+
+    for wave in data['data']['wavelengths']:
+        assert isinstance(wave, float)

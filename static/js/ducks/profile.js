@@ -57,6 +57,7 @@ const initialState = {
   gravatar_url: "",
   roles: [],
   acls: [],
+  permissions: [],
   tokens: [],
   preferences: {},
 };

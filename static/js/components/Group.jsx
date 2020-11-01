@@ -312,8 +312,8 @@ const Group = () => {
         group.group_users.filter(
           (group_user) => group_user.user_id === currentGroupUser.id
         )[0].admin) ||
-      aUser.acls?.includes("System admin") ||
-      aUser.acls?.includes("Manage groups")
+      aUser.permissions?.includes("System admin") ||
+      aUser.permissions?.includes("Manage groups")
     );
   };
 
@@ -381,7 +381,7 @@ const Group = () => {
                   </div>
                 )}
                 &nbsp;
-                {currentUser.acls?.includes("Manage users") && (
+                {currentUser.permissions?.includes("Manage users") && (
                   <ListItemSecondaryAction>
                     {mobile ? (
                       <div>
