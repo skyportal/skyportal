@@ -4,13 +4,13 @@ import PropTypes from "prop-types";
 import Grid from "@material-ui/core/Grid";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
-import ReactJson from "react-json-view";
 import { Link } from "react-router-dom";
 
-import { makeStyles, useTheme } from "@material-ui/core/styles";
+import { makeStyles } from "@material-ui/core/styles";
 import dayjs from "dayjs";
 
 import Plot from "./Plot";
+import { UserContactCard } from "./UserProfileInfo";
 import { fetchSourceSpectra } from "../ducks/spectra";
 
 const useStyles = makeStyles({
@@ -18,34 +18,24 @@ const useStyles = makeStyles({
     width: "900px",
     overflow: "auto",
   },
-  inner: { margin: "1rem" },
+  inner: { padding: "1rem" },
+  margined: { margin: "1rem" },
 });
 
 const DetailedSpectrumView = ({ spectrum }) => {
-  const theme = useTheme();
   const classes = useStyles();
-  const darkTheme = theme.palette.type === "dark";
-
   return (
     <div>
-      <Typography variant="h6">Uploader</Typography>
-      <ReactJson
-        src={spectrum.owner}
-        name={false}
-        theme={darkTheme ? "monokai" : "rjv-default"}
-      />
-      <Typography variant="h6">Reducers</Typography>
-      <ReactJson
-        src={spectrum.reducers}
-        name={false}
-        theme={darkTheme ? "monokai" : "rjv-default"}
-      />
-      <Typography variant="h6">Observers</Typography>
-      <ReactJson
-        src={spectrum.observers}
-        name={false}
-        theme={darkTheme ? "monokai" : "rjv-default"}
-      />
+      <Typography variant="h6">Uploaded by</Typography>
+      <UserContactCard user={spectrum.owner} />
+      <Typography variant="h6">Reduced by</Typography>
+      {spectrum.reducers.map((reducer) => (
+        <UserContactCard user={reducer} key={reducer.id} />
+      ))}
+      <Typography variant="h6">Observed by</Typography>
+      {spectrum.observers.map((observer) => (
+        <UserContactCard user={observer} key={observer.id} />
+      ))}
       <Plot
         className={classes.plot}
         url={`/api/internal/plot/spectroscopy/${spectrum.obj_id}?spectrumID=${spectrum.id}`}
@@ -110,8 +100,8 @@ const SpectrumPage = ({ route }) => {
           const specname = `${telescope?.nickname}/${instrument?.name}: ${spectrum.observed_at}`;
 
           return (
-            <Grid item lg={12} xl={6} key={spectrum.id}>
-              <Paper>
+            <Grid item md={12} lg={6} xl={4} key={spectrum.id}>
+              <Paper className={classes.margined}>
                 <div className={classes.inner}>
                   <Typography variant="h6">{specname}</Typography>
                   <DetailedSpectrumView spectrum={spectrum} />

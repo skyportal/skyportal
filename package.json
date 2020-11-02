@@ -28,6 +28,7 @@
     "exports-loader": "0.7.0",
     "imports-loader": "0.8.0",
     "material-ui-phone-number": "2.2.6",
+    "md5": "2.3.0",
     "mobx": "5.15.7",
     "mui-datatables": "3.3.1",
     "npm-check": "5.9.2",
