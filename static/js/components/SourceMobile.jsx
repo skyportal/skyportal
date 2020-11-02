@@ -419,7 +419,7 @@ const SourceMobile = ({ source }) => {
               <Suspense fallback={<div>Loading centroid plot...</div>}>
                 <CentroidPlot
                   className={classes.smallPlot}
-                  sourceId={source.id}
+                  source={source}
                   size={centroidPlotSize}
                 />
               </Suspense>

@@ -268,7 +268,7 @@ const spec = (inputData) => ({
   ],
 });
 
-const processData = (photometry) => {
+const processData = (photometry, nearbySource) => {
   // Only take points with a non-null RA and Dec
   const filteredPhotometry = photometry.filter(
     (point) => point.ra && point.dec
@@ -309,8 +309,12 @@ const processData = (photometry) => {
 
   // Text notifications
   const messages = getMessages(delRaGroup, delDecGroup);
-
-  const centerPoint = relativeCoord(refRA, refDec, refRA, refDec);
+  const centerPoint = relativeCoord(
+    nearbySource.ra,
+    nearbySource.dec,
+    refRA,
+    refDec
+  );
 
   return {
     photometryData: photometryAsArray,
@@ -320,7 +324,7 @@ const processData = (photometry) => {
   };
 };
 
-const CentroidPlot = ({ sourceId, size }) => {
+const CentroidPlot = ({ source, size }) => {
   // Add some extra height for the legend
   const theme = useTheme();
   const rootFont = theme.typography.htmlFontSize;
@@ -329,15 +333,21 @@ const CentroidPlot = ({ sourceId, size }) => {
   const classes = useStyles({ width: size, height: `${newHeight}px` });
 
   const dispatch = useDispatch();
-  const photometry = useSelector((state) => state.photometry[sourceId]);
+  const photometry = useSelector((state) => state.photometry[source.id]);
 
   useEffect(() => {
     if (!photometry) {
-      dispatch(photometryActions.fetchSourcePhotometry(sourceId));
+      dispatch(photometryActions.fetchSourcePhotometry(source.id));
     }
-  }, [sourceId, photometry, dispatch]);
+  }, [source.id, photometry, dispatch]);
 
-  const plotData = photometry ? processData(photometry) : null;
+  const plotData = photometry
+    ? processData(photometry, source.ps1_neighbor)
+    : null;
+
+  if (source.dec < -30) {
+    return <div>No offset catalog coverage below dec=-30.</div>;
+  }
 
   if (plotData) {
     if (plotData.photometryData.length > 0) {
@@ -363,7 +373,14 @@ const CentroidPlot = ({ sourceId, size }) => {
 };
 
 CentroidPlot.propTypes = {
-  sourceId: PropTypes.string.isRequired,
+  source: PropTypes.shape({
+    id: PropTypes.number,
+    ps1_neighbor: PropTypes.shape({
+      ra: PropTypes.number,
+      dec: PropTypes.number,
+    }),
+    dec: PropTypes.number,
+  }).isRequired,
   size: PropTypes.string,
 };
 

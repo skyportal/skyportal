@@ -410,7 +410,7 @@ const SourceDesktop = ({ source }) => {
               <Suspense fallback={<div>Loading centroid plot...</div>}>
                 <CentroidPlot
                   className={classes.smallPlot}
-                  sourceId={source.id}
+                  source={source}
                   size="21.875rem"
                 />
               </Suspense>

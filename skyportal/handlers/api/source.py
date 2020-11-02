@@ -12,6 +12,10 @@ from sqlalchemy import func, or_
 import arrow
 from marshmallow.exceptions import ValidationError
 import functools
+from astropy import coordinates as ap_coord
+from astropy import units as u
+from astroquery.mast import Catalogs
+
 import healpix_alchemy as ha
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -372,6 +376,21 @@ class SourceHandler(BaseHandler):
                     if source_table_row.saved_by is not None
                     else None
                 )
+
+            # get nearest object from PS1
+            co = ap_coord.SkyCoord(
+                ra=source_info["ra"], dec=source_info["dec"], unit='deg'
+            )
+            catalog_data = Catalogs.query_region(
+                co, radius=50 * u.arcsec, catalog="PANSTARRS", data_release="DR2"
+            )
+            nearest_ps1_idx = catalog_data['distance'].argmin()
+            nearest_ps1 = catalog_data[nearest_ps1_idx]
+
+            source_info["ps1_neighbor"] = {
+                'ra': float(nearest_ps1['raMean']),
+                'dec': float(nearest_ps1['decMean']),
+            }
 
             # add the date(s) this source was saved to each of these groups
             for i, g in enumerate(source_info["groups"]):
