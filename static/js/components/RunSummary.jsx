@@ -104,11 +104,14 @@ const SimpleMenu = ({ assignment }) => {
           </MenuItem>
         )}
         {assignment.status === "complete" && (
-          <MenuItem
-            key={`${assignment.id}_upload_spec (Coming Soon)`}
-            onClick={handleClose}
-          >
-            Upload Spectrum
+          <MenuItem key={`${assignment.id}_upload_spec`} onClick={handleClose}>
+            <Link
+              href={`/upload_spectrum/${assignment.obj.id}`}
+              underline="none"
+              color="textPrimary"
+            >
+              Upload Spectrum
+            </Link>
           </MenuItem>
         )}
         {assignment.status === "complete" && (
