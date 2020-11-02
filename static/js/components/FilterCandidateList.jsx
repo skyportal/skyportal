@@ -47,6 +47,7 @@ const FilterCandidateList = ({
   userAccessibleGroups,
   setQueryInProgress,
   setFilterGroups,
+  numPerPage,
 }) => {
   const classes = useStyles();
 
@@ -79,23 +80,30 @@ const FilterCandidateList = ({
     return true;
   };
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (formData) => {
     setQueryInProgress(true);
     const groupIDs = userAccessibleGroups.map((g) => g.id);
-    const selectedGroupIDs = groupIDs.filter((ID, idx) => data.groupIDs[idx]);
-    data.groupIDs = selectedGroupIDs;
+    const selectedGroupIDs = groupIDs.filter(
+      (ID, idx) => formData.groupIDs[idx]
+    );
+
+    const data = { groupIDs: selectedGroupIDs };
     // Convert dates to ISO for parsing on back-end
-    if (data.startDate) {
-      data.startDate = data.startDate.toISOString();
+    if (formData.startDate) {
+      data.startDate = formData.startDate.toISOString();
     }
-    if (data.endDate) {
-      data.endDate = data.endDate.toISOString();
+    if (formData.endDate) {
+      data.endDate = formData.endDate.toISOString();
     }
     setFilterGroups(
       userAccessibleGroups.filter((g) => selectedGroupIDs.includes(g.id))
     );
+    // Save form-specific data, formatted for the API query
     await dispatch(candidatesActions.setFilterFormData(data));
-    await dispatch(candidatesActions.fetchCandidates(data));
+
+    await dispatch(
+      candidatesActions.fetchCandidates({ pageNumber: 1, numPerPage, ...data })
+    );
     setQueryInProgress(false);
   };
 
@@ -198,6 +206,7 @@ FilterCandidateList.propTypes = {
   userAccessibleGroups: PropTypes.arrayOf(PropTypes.object).isRequired,
   setQueryInProgress: PropTypes.func.isRequired,
   setFilterGroups: PropTypes.func.isRequired,
+  numPerPage: PropTypes.number.isRequired,
 };
 
 export default FilterCandidateList;
