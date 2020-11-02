@@ -69,7 +69,7 @@ def test_add_new_source_renders_on_group_sources_page(
     driver.wait_for_xpath(f'//tr[@data-testid="groupSourceExpand_{obj_id}"]')
 
     # Check for vega plot
-    driver.wait_for_xpath("//*[@class='vega-embed']", timeout=10)
+    driver.wait_for_xpath("//*[@class='vega-embed']", timeout=20)
 
     # post a taxonomy and classification
     status, data = api(
