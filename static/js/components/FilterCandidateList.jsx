@@ -51,8 +51,6 @@ const FilterCandidateList = ({
 }) => {
   const classes = useStyles();
 
-  // const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
-
   const { handleSubmit, getValues, control, errors, reset } = useForm();
 
   useEffect(() => {
@@ -87,7 +85,10 @@ const FilterCandidateList = ({
       (ID, idx) => formData.groupIDs[idx]
     );
 
-    const data = { groupIDs: selectedGroupIDs };
+    const data = {
+      groupIDs: selectedGroupIDs,
+      unsavedOnly: formData.unsavedOnly,
+    };
     // Convert dates to ISO for parsing on back-end
     if (formData.startDate) {
       data.startDate = formData.startDate.toISOString();
