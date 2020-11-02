@@ -10,7 +10,7 @@ from PIL import Image, ImageChops
 import responses
 
 from baselayer.app.config import load_config
-from skyportal.tests import api, IS_CI_BUILD
+from skyportal.tests import api
 
 
 cfg = load_config()
@@ -28,11 +28,8 @@ def test_public_source_page(driver, user, public_source, public_group):
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
-# @pytest.mark.flaky(reruns=3)
+@pytest.mark.flaky(reruns=3)
 def test_classifications(driver, user, taxonomy_token, public_group, public_source):
-    if IS_CI_BUILD:
-        pytest.xfail("Xfailing this test on CI builds.")
-
     simple = {
         'class': 'Cepheid',
         'tags': ['giant/supergiant', 'instability strip', 'standard candle'],
@@ -99,17 +96,12 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     # Button at top of source page
     driver.wait_for_xpath("//span[text()[contains(., 'Save')]]")
 
-    # Scroll up to get entire classifications list component in view
+    # Scroll up to get top of classifications list component in view
     classifications = driver.find_element_by_xpath(
         "//div[@id='classifications-header']"
     )
     driver.scroll_to_element(classifications)
 
-    # Move to classification div first to make sure delete button comes into focus
-    # classification_div = driver.wait_for_xpath(
-    #     f'//div[starts-with(@data-testid, "classificationDiv_")]'
-    # )
-    # ActionChains(driver).move_to_element(classification_div).perform()
     del_button_xpath = "//button[starts-with(@name, 'deleteClassificationButton')]"
     driver.click_xpath(del_button_xpath, wait_clickable=False)
     driver.wait_for_xpath_to_disappear("//*[contains(text(), '(P=1)')]")
@@ -462,7 +454,8 @@ def test_source_notification(driver, user, public_group, public_source):
         f'//li[@data-testid="notificationGroupSelect_{public_group.id}"]',
         scroll_parent=True,
     )
-    driver.click_xpath("//*[@id='followup-header']")
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
     driver.click_xpath("//button[@data-testid='sendNotificationButton']")
     driver.wait_for_xpath("//*[text()='Notification queued up sucessfully']")
 
