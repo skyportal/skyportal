@@ -153,6 +153,7 @@ class SpectrumHandler(BaseHandler):
             spec_dict["groups"] = spectrum.groups
             spec_dict["reducers"] = spectrum.reducers
             spec_dict["observers"] = spectrum.observers
+            spec_dict["owner"] = spectrum.owner
             return self.success(data=spec_dict)
         else:
             return self.error(f"Could not load spectrum with ID {spectrum_id}")
@@ -470,6 +471,7 @@ class ObjSpectraHandler(BaseHandler):
             spec_dict["groups"] = spec.groups
             spec_dict["reducers"] = spec.reducers
             spec_dict["observers"] = spec.observers
+            spec_dict["owner"] = spec.owner
             return_values.append(spec_dict)
 
         for s in return_values:
