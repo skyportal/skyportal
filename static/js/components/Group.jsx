@@ -46,6 +46,7 @@ import * as groupsActions from "../ducks/groups";
 import * as streamsActions from "../ducks/streams";
 import * as filterActions from "../ducks/filter";
 import NewGroupUserForm from "./NewGroupUserForm";
+import AddUsersFromGroupForm from "./AddUsersFromGroupForm";
 
 const useStyles = makeStyles((theme) => ({
   padding_bottom: {
@@ -311,8 +312,8 @@ const Group = () => {
         group.group_users.filter(
           (group_user) => group_user.user_id === currentGroupUser.id
         )[0].admin) ||
-      aUser.acls?.includes("System admin") ||
-      aUser.acls?.includes("Manage groups")
+      aUser.permissions?.includes("System admin") ||
+      aUser.permissions?.includes("Manage groups")
     );
   };
 
@@ -380,7 +381,7 @@ const Group = () => {
                   </div>
                 )}
                 &nbsp;
-                {currentUser.acls?.includes("Manage users") && (
+                {currentUser.permissions?.includes("Manage users") && (
                   <ListItemSecondaryAction>
                     {mobile ? (
                       <div>
@@ -430,9 +431,14 @@ const Group = () => {
           </List>
           <Divider />
           <div className={classes.paper}>
-            {/*eslint-disable */}
-            {isAdmin(currentUser) && <NewGroupUserForm group_id={group.id} />}
-            {/* eslint-enable */}
+            {isAdmin(currentUser) && (
+              <>
+                <br />
+                <NewGroupUserForm group_id={group.id} />
+                <br />
+                <AddUsersFromGroupForm groupID={group.id} />
+              </>
+            )}
           </div>
         </AccordionDetails>
       </Accordion>

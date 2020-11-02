@@ -1,3 +1,4 @@
+from .acls import ACLHandler, UserACLHandler
 from .allocation import AllocationHandler
 from .candidate import CandidateHandler
 from .classification import ClassificationHandler
@@ -6,7 +7,12 @@ from .annotation import AnnotationHandler
 from .filter import FilterHandler
 from .followup_request import FollowupRequestHandler, AssignmentHandler
 from .facility_listener import FacilityMessageHandler
-from .group import GroupHandler, GroupUserHandler, GroupStreamHandler
+from .group import (
+    GroupHandler,
+    GroupUserHandler,
+    GroupStreamHandler,
+    GroupUsersFromOtherGroupsHandler,
+)
 from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
@@ -19,6 +25,7 @@ from .photometry import (
     PhotometryRangeHandler,
 )
 from .public_group import PublicGroupHandler
+from .roles import RoleHandler, UserRoleHandler
 from .sharing import SharingHandler
 from .source import (
     SourceHandler,

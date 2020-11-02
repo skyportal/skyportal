@@ -707,7 +707,6 @@ def photometry_plot(obj_id, user, width=600, height=300):
 
 # TODO make async so that thread isn't blocked
 def spectroscopy_plot(obj_id, spec_id=None):
-    """TODO normalization? should this be handled at data ingestion or plot-time?"""
     obj = Obj.query.get(obj_id)
     spectra = Obj.query.get(obj_id).spectra
     if spec_id is not None:
@@ -717,22 +716,33 @@ def spectroscopy_plot(obj_id, spec_id=None):
 
     color_map = dict(zip([s.id for s in spectra], viridis(len(spectra))))
 
-    data = pd.concat(
-        [
-            pd.DataFrame(
-                {
-                    'wavelength': s.wavelengths,
-                    'flux': s.fluxes,
-                    'id': s.id,
-                    'telescope': s.instrument.telescope.name,
-                    'instrument': s.instrument.name,
-                    'date_observed': s.observed_at.date().isoformat(),
-                    'pi': s.assignment.run.pi if s.assignment is not None else "",
-                }
+    data = []
+    for i, s in enumerate(spectra):
+
+        # normalize spectra to a common average flux per resolving
+        # element of 1 (facilitates easy visual comparison)
+        normfac = np.sum(np.gradient(s.wavelengths) * s.fluxes) / len(s.fluxes)
+
+        if not (np.isfinite(normfac) and normfac > 0):
+            # otherwise normalize the value at the median wavelength to 1
+            median_wave_index = np.argmin(
+                np.abs(s.wavelengths - np.median(s.wavelengths))
             )
-            for i, s in enumerate(spectra)
-        ]
-    )
+            normfac = s.fluxes[median_wave_index]
+
+        df = pd.DataFrame(
+            {
+                'wavelength': s.wavelengths,
+                'flux': s.fluxes / normfac,
+                'id': s.id,
+                'telescope': s.instrument.telescope.name,
+                'instrument': s.instrument.name,
+                'date_observed': s.observed_at.date().isoformat(),
+                'pi': s.assignment.run.pi if s.assignment is not None else "",
+            }
+        )
+        data.append(df)
+    data = pd.concat(data)
 
     dfs = []
     for i, s in enumerate(spectra):

@@ -43,7 +43,11 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const FilterCandidateList = ({ userAccessibleGroups, setQueryInProgress }) => {
+const FilterCandidateList = ({
+  userAccessibleGroups,
+  setQueryInProgress,
+  setFilterGroups,
+}) => {
   const classes = useStyles();
 
   // const [jumpToPageInputValue, setJumpToPageInputValue] = useState("");
@@ -52,7 +56,7 @@ const FilterCandidateList = ({ userAccessibleGroups, setQueryInProgress }) => {
 
   useEffect(() => {
     reset({
-      groupIDs: Array(userAccessibleGroups.length).fill(true),
+      groupIDs: Array(userAccessibleGroups.length).fill(false),
       startDate: null,
       endDate: null,
     });
@@ -87,6 +91,10 @@ const FilterCandidateList = ({ userAccessibleGroups, setQueryInProgress }) => {
     if (data.endDate) {
       data.endDate = data.endDate.toISOString();
     }
+    setFilterGroups(
+      userAccessibleGroups.filter((g) => selectedGroupIDs.includes(g.id))
+    );
+    await dispatch(candidatesActions.setFilterFormData(data));
     await dispatch(candidatesActions.fetchCandidates(data));
     setQueryInProgress(false);
   };
@@ -158,6 +166,7 @@ const FilterCandidateList = ({ userAccessibleGroups, setQueryInProgress }) => {
                     <Controller
                       as={Checkbox}
                       name={`groupIDs[${idx}]`}
+                      data-testid={`filteringFormGroupCheckbox-${group.id}`}
                       control={control}
                       rules={{ validate: validateGroups }}
                       defaultValue
@@ -188,6 +197,7 @@ const FilterCandidateList = ({ userAccessibleGroups, setQueryInProgress }) => {
 FilterCandidateList.propTypes = {
   userAccessibleGroups: PropTypes.arrayOf(PropTypes.object).isRequired,
   setQueryInProgress: PropTypes.func.isRequired,
+  setFilterGroups: PropTypes.func.isRequired,
 };
 
 export default FilterCandidateList;

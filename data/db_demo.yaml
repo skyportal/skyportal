@@ -167,6 +167,7 @@ candidates:
     altdata:
       simbad:
         class: RRLyr
+    passed_at: "2020-10-30 21:17:06.475748"
   - id: 14gqr
     filter_ids:
       - =example_filter
@@ -177,7 +178,7 @@ candidates:
     altdata:
       simbad:
         class: RRLyr
-
+    passed_at: "2020-10-30 21:18:06.475748"
   - id: 16fil_unsaved_copy
     filter_ids:
       - =example_filter
@@ -187,6 +188,7 @@ candidates:
     altdata:
       simbad:
         class: RRLyr
+    passed_at: "2020-10-30 21:19:06.475748"
   - id: 16fil
     filter_ids:
       - =example_filter
@@ -196,6 +198,7 @@ candidates:
     altdata:
       simbad:
         class: RRLyr
+    passed_at: "2020-10-30 21:13:06.475748"
 
 sources:
   - id: 14gqr

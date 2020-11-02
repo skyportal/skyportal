@@ -1,3 +1,4 @@
+import yaml
 import uuid
 import re
 import json
@@ -5,11 +6,12 @@ import warnings
 from datetime import datetime, timezone
 import requests
 import arrow
-from astropy import units as u
-from astropy import time as ap_time
 
 import astroplan
 import numpy as np
+import timezonefinder
+from slugify import slugify
+
 import sqlalchemy as sa
 from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -20,19 +22,19 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy import func
+
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from twilio.rest import Client as TwilioClient
 
+from astropy import units as u
+from astropy import time as ap_time
+from astropy.utils.exceptions import AstropyWarning
 from astropy import coordinates as ap_coord
 from astropy.io import fits, ascii
 import healpix_alchemy as ha
-import timezonefinder
+
 from .utils.cosmology import establish_cosmology
-
-import yaml
-from astropy.utils.exceptions import AstropyWarning
-
 from baselayer.app.models import (  # noqa
     init_db,
     join_model,
@@ -42,6 +44,8 @@ from baselayer.app.models import (  # noqa
     Role,
     User,
     Token,
+    UserACL,
+    UserRole,
 )
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
@@ -101,6 +105,33 @@ def is_owned_by(self, user_or_token):
         return user_or_token in self.users
 
     raise NotImplementedError(f"{type(self).__name__} object has no owner")
+
+
+def is_modifiable_by(self, user):
+    """Return a boolean indicating whether an object point can be modified or
+    deleted by a given user.
+
+    Parameters
+    ----------
+    user: `baselayer.app.models.User`
+       The User to check.
+
+    Returns
+    -------
+    owned: bool
+       Whether the Object can be modified by the User.
+    """
+
+    if not hasattr(self, 'owner'):
+        raise TypeError(
+            f'Object {self} does not have an `owner` attribute, '
+            f'and thus does not expose the interface that is needed '
+            f'to check for modification or deletion privileges.'
+        )
+
+    is_admin = "System admin" in user.permissions
+    owns_spectrum = self.owner is user
+    return is_admin or owns_spectrum
 
 
 Base.is_owned_by = is_owned_by
@@ -185,6 +216,7 @@ class Group(Base):
     single_user_group = sa.Column(
         sa.Boolean,
         default=False,
+        index=True,
         doc='Flag indicating whether this group '
         'is a singleton group for one user only.',
     )
@@ -267,12 +299,21 @@ User.streams = relationship(
 )
 
 
+User.single_user_group = property(
+    lambda self: DBSession()
+    .query(Group)
+    .join(GroupUser)
+    .filter(Group.single_user_group.is_(True), GroupUser.user_id == self.id)
+    .first()
+)
+
+
 @property
 def user_or_token_accessible_groups(self):
     """Return the list of Groups a User or Token has access to. For non-admin
     Users or Token owners, this corresponds to the Groups they are a member of.
     For System Admins, this corresponds to all Groups."""
-    if "System admin" in [acl.id for acl in self.acls]:
+    if "System admin" in self.permissions:
         return Group.query.all()
     return self.groups
 
@@ -497,19 +538,14 @@ class Obj(Base, ha.Point):
         best we can do is request a page that contains a link to the image we
         want (in this case a combination of the g/r/i filters).
         """
-        try:
-            ps_query_url = (
-                f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
-                f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
-                f"&filter=r&filter=i&filetypes=stack&size=250"
-            )
-            response = requests.get(ps_query_url)
-            match = re.search(
-                'src="//ps1images.stsci.edu.*?"', response.content.decode()
-            )
-            return match.group().replace('src="', 'http:').replace('"', '')
-        except (ValueError, ConnectionError):
-            return None
+        ps_query_url = (
+            f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
+            f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
+            f"&filter=r&filter=i&filetypes=stack&size=250"
+        )
+        response = requests.get(ps_query_url)
+        match = re.search('src="//ps1images.stsci.edu.*?"', response.content.decode())
+        return match.group().replace('src="', 'http:').replace('"', '')
 
     @property
     def target(self):
@@ -694,11 +730,14 @@ Candidate.__doc__ = (
     "An Obj that passed a Filter, becoming scannable on the " "Filter's scanning page."
 )
 Candidate.passed_at = sa.Column(
-    sa.DateTime, nullable=True, doc="ISO UTC time when the Candidate passed the Filter."
+    sa.DateTime,
+    nullable=False,
+    index=True,
+    doc="ISO UTC time when the Candidate passed the Filter last time.",
 )
 
 Candidate.passing_alert_id = sa.Column(
-    sa.BigInteger, doc="ID of the Stream alert that passed the Filter."
+    sa.BigInteger, doc="ID of the latest Stream alert that passed the Filter."
 )
 
 
@@ -914,6 +953,8 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
 
     if Obj.query.get(obj_id) is None:
         return None
+    if "System admin" in user_or_token.permissions:
+        return Obj.query.options(options).get(obj_id)
     try:
         obj = Source.get_obj_if_owned_by(obj_id, user_or_token, options)
     except AccessError:  # They may still be able to view the associated Candidate
@@ -1700,6 +1741,20 @@ class Photometry(Base, ha.Point):
     )
     assignment = relationship('ClassicalAssignment', back_populates='photometry')
 
+    owner_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the User who uploaded the photometry.",
+    )
+    owner = relationship(
+        'User',
+        back_populates='photometry',
+        foreign_keys=[owner_id],
+        cascade='save-update, merge, refresh-expire, expunge',
+        doc="The User who uploaded the photometry.",
+    )
+
     @hybrid_property
     def mag(self):
         """The magnitude of the photometry point in the AB system."""
@@ -1771,6 +1826,8 @@ class Photometry(Base, ha.Point):
         return self.flux / self.fluxerr
 
 
+Photometry.is_modifiable_by = is_modifiable_by
+
 # Deduplication index. This is a unique index that prevents any photometry
 # point that has the same obj_id, instrument_id, origin, mjd, flux error,
 # and flux as a photometry point that already exists within the table from
@@ -1790,6 +1847,10 @@ Photometry.__table_args__ = (
     ),
 )
 
+
+User.photometry = relationship(
+    'Photometry', doc='Photometry uploaded by this User.', back_populates='owner'
+)
 
 GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
@@ -1848,6 +1909,13 @@ class Spectrum(Base):
         doc='Groups that can view this spectrum.',
     )
 
+    reducers = relationship(
+        "User", secondary="spectrum_reducers", doc="Users that reduced this spectrum."
+    )
+    observers = relationship(
+        "User", secondary="spectrum_observers", doc="Users that observed this spectrum."
+    )
+
     followup_request_id = sa.Column(sa.ForeignKey('followuprequests.id'), nullable=True)
     followup_request = relationship('FollowupRequest', back_populates='spectra')
 
@@ -1864,6 +1932,20 @@ class Spectrum(Base):
     )
     original_file_filename = sa.Column(
         sa.String, doc="Original file name that was passed to upload the spectrum."
+    )
+
+    owner_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the User who uploaded the spectrum.",
+    )
+    owner = relationship(
+        'User',
+        back_populates='spectra',
+        foreign_keys=[owner_id],
+        cascade='save-update, merge, refresh-expire, expunge',
+        doc="The User who uploaded the spectrum.",
     )
 
     @classmethod
@@ -1961,7 +2043,7 @@ class Spectrum(Base):
                         f'index {name} ({index}) is greater than the '
                         f'maximum allowed value ({ncol - 1})'
                     )
-                spec_data[dbcol] = tabledata[colnames[index]]
+                spec_data[dbcol] = tabledata[colnames[index]].astype(float)
 
         # parse the header
         if 'comments' in table.meta:
@@ -2042,6 +2124,14 @@ class Spectrum(Base):
         )
 
 
+Spectrum.is_modifiable_by = is_modifiable_by
+User.spectra = relationship(
+    'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
+)
+
+SpectrumReducer = join_model("spectrum_reducers", Spectrum, User)
+SpectrumObserver = join_model("spectrum_observers", Spectrum, User)
+
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
 
@@ -2120,6 +2210,13 @@ class FollowupRequest(Base):
         order_by="FacilityTransaction.created_at.desc()",
     )
 
+    target_groups = relationship(
+        'Group',
+        secondary='request_groups',
+        passive_deletes=True,
+        doc='Groups to share the resulting data from this request with.',
+    )
+
     photometry = relationship('Photometry', back_populates='followup_request')
     spectra = relationship('Spectrum', back_populates='followup_request')
 
@@ -2145,6 +2242,9 @@ class FollowupRequest(Base):
 
         user_or_token_group_ids = [g.id for g in user_or_token.accessible_groups]
         return self.allocation.group_id in user_or_token_group_ids
+
+
+FollowupRequestTargetGroup = join_model('request_groups', FollowupRequest, Group)
 
 
 class FacilityTransaction(Base):
@@ -2353,6 +2453,20 @@ class ObservingRun(Base):
             self._calendar_noon, which='next'
         )
 
+    def rise_time(self, target_or_targets):
+        """The rise time of the specified targets as an astropy.time.Time."""
+        observer = self.instrument.telescope.observer
+        return observer.target_rise_time(
+            self.sunset, target_or_targets, which='next', horizon=30 * u.degree
+        )
+
+    def set_time(self, target_or_targets):
+        """The set time of the specified targets as an astropy.time.Time."""
+        observer = self.instrument.telescope.observer
+        return observer.target_set_time(
+            self.sunset, target_or_targets, which='next', horizon=30 * u.degree
+        )
+
 
 User.observing_runs = relationship(
     'ObservingRun',
@@ -2441,20 +2555,14 @@ class ClassicalAssignment(Base):
     @property
     def rise_time(self):
         """The UTC time at which the object rises on this run."""
-        observer = self.instrument.telescope.observer
         target = self.obj.target
-        return observer.target_rise_time(
-            self.run.sunset, target, which='next', horizon=30 * u.degree
-        )
+        return self.run.rise_time(target)
 
     @property
     def set_time(self):
         """The UTC time at which the object sets on this run."""
-        observer = self.instrument.telescope.observer
         target = self.obj.target
-        return observer.target_set_time(
-            self.rise_time, target, which='next', horizon=30 * u.degree
-        )
+        return self.run.set_time(target)
 
 
 User.assignments = relationship(
@@ -2598,6 +2706,7 @@ def send_source_notification(mapper, connection, target):
             # If user has a phone number registered and opted into SMS notifications
             if (
                 user.contact_phone is not None
+                and user.preferences is not None
                 and "allowSMSAlerts" in user.preferences
                 and user.preferences.get("allowSMSAlerts")
             ):
@@ -2611,6 +2720,7 @@ def send_source_notification(mapper, connection, target):
         # If user has a contact email registered and opted into email notifications
         if (
             user.contact_email is not None
+            and user.preferences is not None
             and "allowEmailAlerts" in user.preferences
             and user.preferences.get("allowEmailAlerts")
         ):
@@ -2631,6 +2741,35 @@ def send_source_notification(mapper, connection, target):
             )
             sg = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
             sg.send(message)
+
+
+@event.listens_for(User, 'after_insert')
+def create_single_user_group(mapper, connection, target):
+
+    # Create single-user group
+    @event.listens_for(DBSession(), "after_flush", once=True)
+    def receive_after_flush(session, context):
+        session.add(
+            Group(name=slugify(target.username), users=[target], single_user_group=True)
+        )
+
+
+@event.listens_for(User, 'before_delete')
+def delete_single_user_group(mapper, connection, target):
+
+    # Delete single-user group
+    DBSession().delete(target.single_user_group)
+
+
+@event.listens_for(User, 'after_update')
+def update_single_user_group(mapper, connection, target):
+
+    # Update single user group name if needed
+    @event.listens_for(DBSession(), "after_flush_postexec", once=True)
+    def receive_after_flush(session, context):
+        single_user_group = target.single_user_group
+        single_user_group.name = slugify(target.username)
+        DBSession().add(single_user_group)
 
 
 schema.setup_schema()

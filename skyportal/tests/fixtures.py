@@ -21,7 +21,10 @@ from skyportal.models import (
     ObservingRun,
 )
 
+from baselayer.app.env import load_env
+
 TMP_DIR = mkdtemp()
+env, cfg = load_env()
 
 
 class BaseMeta:
@@ -70,6 +73,17 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
                 DBSession().add(obj)
                 DBSession().commit()
 
+        # always add the sitewide group
+        sitewide_group = (
+            DBSession()
+            .query(Group)
+            .filter(Group.name == cfg['misc']['public_group_name'])
+            .first()
+        )
+
+        obj.groups.append(sitewide_group)
+        DBSession().commit()
+
 
 class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
@@ -107,6 +121,7 @@ class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
     mjd = factory.LazyFunction(lambda: 58000.0 + np.random.random())
     flux = factory.LazyFunction(lambda: 20 + 10 * np.random.random())
     fluxerr = factory.LazyFunction(lambda: 2 * np.random.random())
+    owner_id = 1
 
 
 class ThumbnailFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -122,6 +137,7 @@ class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
     wavelengths = np.sort(1000 * np.random.random(20))
     fluxes = 1e-9 * np.random.random(len(wavelengths))
     observed_at = datetime.datetime.now()
+    owner_id = 1
 
 
 class StreamFactory(factory.alchemy.SQLAlchemyModelFactory):

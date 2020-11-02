@@ -38,6 +38,8 @@ def test_upload_spectroscopy(
     driver.wait_for_xpath('//*[contains(.,"successful")]')
 
     driver.get(f"/source/{public_source.id}")
-    spectroscopy = driver.wait_for_xpath("//div[@id='spectroscopy-header']")
-    driver.scroll_to_element(spectroscopy)
+
+    # wait for the spectrum plot to load
+    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
+
     driver.wait_for_xpath(f'//*[contains(.,"{sedm.telescope.nickname}/{sedm.name}")]')

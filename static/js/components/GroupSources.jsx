@@ -31,6 +31,7 @@ import ShowClassification from "./ShowClassification";
 import * as sourceActions from "../ducks/source";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
+const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
 
 const useStyles = makeStyles((theme) => ({
   chip: {
@@ -145,6 +146,11 @@ const GroupSourcesTable = ({ sources, title, sourceStatus, groupID }) => {
             <Grid item>
               <Suspense fallback={<div>Loading plot...</div>}>
                 <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
+              </Suspense>
+            </Grid>
+            <Grid item>
+              <Suspense fallback={<div>Loading spectra...</div>}>
+                <VegaSpectrum dataUrl={`/api/sources/${source.id}/spectra`} />
               </Suspense>
             </Grid>
             <Grid item>
@@ -504,7 +510,19 @@ GroupSourcesTable.propTypes = {
       dec: PropTypes.number,
       alias: PropTypes.string,
       redshift: PropTypes.number,
-      classifications: PropTypes.arrayOf(PropTypes.string),
+      classifications: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          classification: PropTypes.string,
+          created_at: PropTypes.string,
+          groups: PropTypes.arrayOf(
+            PropTypes.shape({
+              id: PropTypes.number,
+              name: PropTypes.string,
+            })
+          ),
+        })
+      ),
       recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
       groups: PropTypes.arrayOf(
         PropTypes.shape({

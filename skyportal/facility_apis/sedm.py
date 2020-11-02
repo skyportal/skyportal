@@ -63,7 +63,7 @@ def convert_request_to_sedm(request, method_value='new'):
     for p in photometry:
         if (
             p.filter.startswith('ztf')
-            and p.filter not in photometry_payload
+            and p.filter[-1] not in photometry_payload
             and p.mag is not None
         ):
             # using filter[-1] as SEDM expects the bandpass name without "ZTF"

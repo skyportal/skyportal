@@ -171,6 +171,11 @@ class ClassificationHandler(BaseHandler):
         ):
             self.push_all(action='skyportal/FETCH_TOP_SOURCES')
 
+        self.push_all(
+            action='skyportal/REFRESH_CANDIDATE',
+            payload={'id': classification.obj.internal_key},
+        )
+
         return self.success(data={'classification_id': classification.id})
 
     @permissions(['Classify'])
@@ -244,6 +249,9 @@ class ClassificationHandler(BaseHandler):
         self.push_all(
             action='skyportal/REFRESH_SOURCE', payload={'obj_key': c.obj.internal_key},
         )
+        self.push_all(
+            action='skyportal/REFRESH_CANDIDATE', payload={'id': c.obj.internal_key},
+        )
         if c.obj_id in RecentSourcesHandler.get_recent_source_ids(self.current_user):
             self.push_all(action='skyportal/FETCH_RECENT_SOURCES')
 
@@ -282,7 +290,9 @@ class ClassificationHandler(BaseHandler):
         self.push_all(
             action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key},
         )
-
+        self.push_all(
+            action='skyportal/REFRESH_CANDIDATE', payload={'id': obj_key},
+        )
         if obj_id in RecentSourcesHandler.get_recent_source_ids(self.current_user):
             self.push_all(action='skyportal/FETCH_RECENT_SOURCES')
 

@@ -10,7 +10,7 @@ from PIL import Image, ImageChops
 import responses
 
 from baselayer.app.config import load_config
-from skyportal.tests import api, IS_CI_BUILD
+from skyportal.tests import api
 
 
 cfg = load_config()
@@ -30,9 +30,6 @@ def test_public_source_page(driver, user, public_source, public_group):
 
 @pytest.mark.flaky(reruns=3)
 def test_classifications(driver, user, taxonomy_token, public_group, public_source):
-    if IS_CI_BUILD:
-        pytest.xfail("Xfailing this test on CI builds.")
-
     simple = {
         'class': 'Cepheid',
         'tags': ['giant/supergiant', 'instability strip', 'standard candle'],
@@ -84,7 +81,9 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.click_xpath('//div[@id="tax-select"]')
     driver.click_xpath(
-        f'//*[text()="{tax_name} ({tax_version})"]', wait_clickable=False
+        f'//*[text()="{tax_name} ({tax_version})"]',
+        wait_clickable=False,
+        scroll_parent=True,
     )
     driver.click_xpath('//*[@id="classification"]')
     driver.wait_for_xpath('//*[@id="classification"]').send_keys(
@@ -97,14 +96,13 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     # Button at top of source page
     driver.wait_for_xpath("//span[text()[contains(., 'Save')]]")
 
-    # Scroll up to get entire classifications list component in view
-    add_comments = driver.find_element_by_xpath("//h6[contains(text(), 'Add comment')]")
-    driver.scroll_to_element(add_comments)
+    # Scroll up to get top of classifications list component in view
+    classifications = driver.find_element_by_xpath(
+        "//div[@id='classifications-header']"
+    )
+    driver.scroll_to_element(classifications)
 
     del_button_xpath = "//button[starts-with(@name, 'deleteClassificationButton')]"
-    ActionChains(driver).move_to_element(
-        driver.wait_for_xpath(del_button_xpath)
-    ).perform()
     driver.click_xpath(del_button_xpath, wait_clickable=False)
     driver.wait_for_xpath_to_disappear("//*[contains(text(), '(P=1)')]")
     driver.wait_for_xpath_to_disappear(f"//i[text()='{tax_name}']")
@@ -145,15 +143,22 @@ def test_comment_groups_validation(driver, user, public_source):
     comment_box = driver.wait_for_xpath("//input[@name='text']")
     comment_text = str(uuid.uuid4())
     comment_box.send_keys(comment_text)
-    driver.wait_for_xpath("//*[text()='Customize Group Access']").click()
+    driver.click_xpath("//*[text()='Customize Group Access']")
+
+    # sitewide group
     group_checkbox_xpath = "//input[@name='group_ids[0]']"
+    assert driver.wait_for_xpath(group_checkbox_xpath).is_selected()
+    driver.click_xpath(group_checkbox_xpath, wait_clickable=False)
+
+    # user group
+    group_checkbox_xpath = "//input[@name='group_ids[1]']"
     assert driver.wait_for_xpath(group_checkbox_xpath).is_selected()
     driver.click_xpath(group_checkbox_xpath, wait_clickable=False)
     driver.click_xpath('//*[@name="submitCommentButton"]')
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
     driver.click_xpath(group_checkbox_xpath, wait_clickable=False)
-    driver.wait_for_xpath_to_disappear('//div[contains(.,"Select at least one group")]')
     driver.click_xpath('//*[@name="submitCommentButton"]')
+    driver.wait_for_xpath_to_disappear('//div[contains(.,"Select at least one group")]')
     try:
         driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
@@ -448,17 +453,15 @@ def test_source_notification(driver, user, public_group, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    # Choose a group and click outside of the multi-select popup to close
-    group_select = driver.wait_for_xpath(
-        "//div[@data-testid='sourceNotification_groupSelect']"
+    # Choose a group and click something outside/not covered by the multi-select
+    # popup to close it
+    driver.click_xpath("//div[@data-testid='sourceNotification_groupSelect']")
+    driver.click_xpath(
+        f'//li[@data-testid="notificationGroupSelect_{public_group.id}"]',
+        scroll_parent=True,
     )
-    driver.scroll_to_element_and_click(group_select)
-    group_option = driver.wait_for_xpath(
-        f'//li[@data-testid="notificationGroupSelect_{public_group.id}"]'
-    )
-    ActionChains(driver).click(group_option).perform()
-    textbox = driver.wait_for_xpath("//*[@id='sourcenotification-textarea']")
-    driver.scroll_to_element_and_click(textbox)
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
     driver.click_xpath("//button[@data-testid='sendNotificationButton']")
     driver.wait_for_xpath("//*[text()='Notification queued up sucessfully']")
 

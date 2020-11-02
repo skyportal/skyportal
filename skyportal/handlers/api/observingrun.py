@@ -102,15 +102,9 @@ class ObservingRunHandler(BaseHandler):
                     joinedload(ObservingRun.assignments)
                     .joinedload(ClassicalAssignment.obj)
                     .joinedload(Obj.thumbnails),
-                    joinedload(ObservingRun.assignments)
-                    .joinedload(ClassicalAssignment.obj)
-                    .joinedload(Obj.photometry),
                     joinedload(ObservingRun.assignments).joinedload(
                         ClassicalAssignment.requester
                     ),
-                    joinedload(ObservingRun.assignments)
-                    .joinedload(ClassicalAssignment.obj)
-                    .joinedload(Obj.comments),
                     joinedload(ObservingRun.instrument).joinedload(
                         Instrument.telescope
                     ),
@@ -152,10 +146,17 @@ class ObservingRunHandler(BaseHandler):
                     ]
                     del a['obj'].sources
 
-                # calculate when the targets rise and set
-                for d, a in zip(data["assignments"], run.assignments):
-                    d["rise_time_utc"] = a.rise_time.isot
-                    d["set_time_utc"] = a.set_time.isot
+                # vectorized calculation of ephemerides
+
+                if len(run.assignments) > 0:
+                    targets = [a.obj.target for a in run.assignments]
+
+                    rise_times = run.rise_time(targets).isot
+                    set_times = run.set_time(targets).isot
+
+                    for d, rt, st in zip(data["assignments"], rise_times, set_times):
+                        d["rise_time_utc"] = rt
+                        d["set_time_utc"] = st
 
                 return self.success(data=data)
 
@@ -190,7 +191,7 @@ class ObservingRunHandler(BaseHandler):
 
         data = self.get_json()
         run_id = int(run_id)
-        is_superadmin = "System admin" in [a.id for a in self.current_user.acls]
+        is_superadmin = "System admin" in self.current_user.permissions
 
         orun = ObservingRun.query.get(run_id)
 
@@ -236,7 +237,7 @@ class ObservingRunHandler(BaseHandler):
                 schema: Error
         """
         run_id = int(run_id)
-        is_superadmin = "System admin" in [a.id for a in self.current_user.acls]
+        is_superadmin = "System admin" in self.current_user.permissions
 
         run = ObservingRun.query.get(run_id)
 

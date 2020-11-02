@@ -20,6 +20,9 @@ export const SET_CANDIDATES_ANNOTATION_SORT_OPTIONS =
 export const FETCH_ANNOTATIONS_INFO = "skyportal/FETCH_ANNOTATIONS_INFO";
 export const FETCH_ANNOTATIONS_INFO_OK = "skyportal/FETCH_ANNOTATIONS_INFO_OK";
 
+export const SET_CANDIDATES_FILTER_FORM_DATA =
+  "skyportal/SET_CANDIDATES_FILTER_FORM_DATA";
+
 export const fetchCandidates = (filterParams = {}) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
     filterParams.pageNumber = 1;
@@ -38,6 +41,13 @@ export const setCandidatesAnnotationSortOptions = (item) => {
 
 export const fetchAnnotationsInfo = () => {
   return API.GET(`/api/internal/annotations_info`, FETCH_ANNOTATIONS_INFO);
+};
+
+export const setFilterFormData = (formData) => {
+  return {
+    type: SET_CANDIDATES_FILTER_FORM_DATA,
+    formData,
+  };
 };
 
 // Websocket message handler
@@ -69,6 +79,7 @@ const initialState = {
   numberingEnd: 0,
   selectedAnnotationSortOptions: null,
   annotationsInfo: null,
+  filterFormData: null,
 };
 
 const reducer = (state = initialState, action) => {
@@ -106,6 +117,13 @@ const reducer = (state = initialState, action) => {
       return {
         ...state,
         annotationsInfo,
+      };
+    }
+    case SET_CANDIDATES_FILTER_FORM_DATA: {
+      const { formData } = action;
+      return {
+        ...state,
+        filterFormData: formData,
       };
     }
     default:

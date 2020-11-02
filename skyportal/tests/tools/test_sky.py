@@ -40,7 +40,7 @@ if not ads_down:
 
 @pytest.mark.skipif(ads_down, reason='Star data server is down.')
 @pytest.mark.parametrize('star', ['polaris', 'skat'])
-def test_airmass(ztf_camera, star, iers_data):
+def test_airmass(ztf_camera, star):
     star_obj = star_dict[star]['target']
     star_obj = Obj(ra=star_obj.ra.deg, dec=star_obj.dec.deg)
     telescope = ztf_camera.telescope
@@ -67,7 +67,7 @@ def test_airmass(ztf_camera, star, iers_data):
 
 
 @pytest.mark.skipif(ads_down, reason='Star data server is down.')
-def test_airmass_single(ztf_camera, public_source, iers_data):
+def test_airmass_single(ztf_camera, public_source):
     telescope = ztf_camera.telescope
     time = night_times[-1]
     airmass_calc = public_source.airmass(telescope, time)

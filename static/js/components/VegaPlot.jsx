@@ -2,6 +2,8 @@ import React from "react";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
 
+const mjdNow = Math.floor(Date.now() / 86400000.0 + 40587.5);
+
 const spec = (url) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
   data: {
@@ -37,13 +39,18 @@ const spec = (url) => ({
             "join([format(datum.mag, '.2f'), ' ± ', format(datum.magerr, '.2f'), ' (', datum.magsys, ')'], '')",
           as: "magAndErr",
         },
+        { calculate: `${mjdNow} - datum.mjd`, as: "daysAgo" },
       ],
       encoding: {
         x: {
-          field: "mjd",
+          field: "daysAgo",
           type: "quantitative",
           scale: {
             zero: false,
+            reverse: true,
+          },
+          axis: {
+            title: "days ago",
           },
         },
         y: {
@@ -65,6 +72,7 @@ const spec = (url) => ({
           { field: "magAndErr", title: "mag", type: "nominal" },
           { field: "filter", type: "ordinal" },
           { field: "mjd", type: "quantitative" },
+          { field: "daysAgo", type: "quantitative" },
           { field: "limiting_mag", type: "quantitative", format: ".2f" },
         ],
         opacity: {
@@ -87,6 +95,7 @@ const spec = (url) => ({
         { filter: "datum.mag != null && datum.magerr != null" },
         { calculate: "datum.mag - datum.magerr", as: "magMin" },
         { calculate: "datum.mag + datum.magerr", as: "magMax" },
+        { calculate: `${mjdNow} - datum.mjd`, as: "daysAgo" },
       ],
       mark: {
         type: "rule",
@@ -94,10 +103,14 @@ const spec = (url) => ({
       },
       encoding: {
         x: {
-          field: "mjd",
+          field: "daysAgo",
           type: "quantitative",
           scale: {
             zero: false,
+            reverse: true,
+          },
+          axis: {
+            title: "days ago",
           },
         },
         y: {
@@ -129,7 +142,10 @@ const spec = (url) => ({
 
     // Render limiting mags
     {
-      transform: [{ filter: "datum.mag == null" }],
+      transform: [
+        { filter: "datum.mag == null" },
+        { calculate: `${mjdNow} - datum.mjd`, as: "daysAgo" },
+      ],
       selection: {
         filterLimitingMags: {
           type: "multi",
@@ -143,10 +159,14 @@ const spec = (url) => ({
       },
       encoding: {
         x: {
-          field: "mjd",
+          field: "daysAgo",
           type: "quantitative",
           scale: {
             zero: false,
+            reverse: true,
+          },
+          axis: {
+            title: "days ago",
           },
         },
         y: {
