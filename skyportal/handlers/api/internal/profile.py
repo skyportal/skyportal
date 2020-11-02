@@ -4,12 +4,11 @@ import phonenumbers
 from phonenumbers.phonenumberutil import NumberParseException
 from validate_email import validate_email
 from sqlalchemy.exc import IntegrityError
-from slugify import slugify
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
 from ...base import BaseHandler
-from ....models import User, DBSession, Group
+from ....models import User, DBSession
 
 
 class ProfileHandler(BaseHandler):
@@ -46,6 +45,10 @@ class ProfileHandler(BaseHandler):
                               type: array
                               items:
                                 type: string
+                            permissions:
+                              type: array
+                              items:
+                                type: string
                             roles:
                               type: array
                               items:
@@ -71,6 +74,7 @@ class ProfileHandler(BaseHandler):
         user = User.query.filter(User.username == self.current_user.username).first()
         user_roles = sorted([role.id for role in user.roles])
         user_acls = sorted([acl.id for acl in user.acls])
+        user_permissions = sorted(user.permissions)
         user_tokens = [
             {
                 "id": token.id,
@@ -82,6 +86,7 @@ class ProfileHandler(BaseHandler):
         ]
         user_info = user.to_dict()
         user_info["roles"] = user_roles
+        user_info["permissions"] = user_permissions
         user_info["acls"] = user_acls
         user_info["tokens"] = user_tokens
         user_info["gravatar_url"] = user.gravatar_url or None
@@ -133,8 +138,7 @@ class ProfileHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        user = User.query.get(self.current_user.id)
-        current_username = self.current_user.username
+        user = User.query.get(self.associated_user_object.id)
         username_updated = False
 
         if data.get("username") is not None:
@@ -144,16 +148,6 @@ class ProfileHandler(BaseHandler):
             if len(username) < 5:
                 return self.error("Username must be at least five characters long.")
             user.username = username
-            if current_username != username:
-                user_group = (
-                    DBSession()
-                    .query(Group)
-                    .filter(Group.name == current_username)
-                    .first()
-                )
-                if user_group is not None:
-                    user_group.name = slugify(username)
-                username_updated = True
 
         if data.get("first_name") is not None:
             user.first_name = data.pop("first_name")

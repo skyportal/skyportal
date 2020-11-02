@@ -48,8 +48,16 @@ const UserProfileInfo = () => {
             <Box fontWeight="fontWeightBold" component="span" mr={1}>
               User roles:
             </Box>
-            {profile.roles}
+            {profile.roles.join(", ")}
           </Box>
+          {profile.acls?.length && (
+            <Box pb={1}>
+              <Box fontWeight="fontWeightBold" component="span" mr={1}>
+                Additional user ACLs (separate from role-level ACLs):
+              </Box>
+              {profile.acls.join(", ")}
+            </Box>
+          )}
         </Typography>
       </CardContent>
     </Card>

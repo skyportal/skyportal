@@ -4,6 +4,9 @@ import requests
 from selenium.webdriver.common.action_chains import ActionChains
 from baselayer.app.env import load_env
 from skyportal.tests import api
+import glob
+import os
+
 
 env, cfg = load_env()
 endpoint = cfg['app.sedm_endpoint']
@@ -184,3 +187,111 @@ def test_delete_followup_request(
     driver.wait_for_xpath_to_disappear(
         '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
+
+
+@pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
+def test_submit_new_followup_request_two_groups(
+    driver,
+    super_admin_user,
+    public_source_two_groups,
+    super_admin_token,
+    public_group,
+    public_group2,
+    view_only_token_group2,
+    user_group2,
+):
+
+    idata = add_telescope_and_instrument("SEDM", super_admin_token)
+    add_allocation(idata['id'], public_group.id, super_admin_token)
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    driver.get(f"/source/{public_source_two_groups.id}")
+    # wait for the plots to load
+    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
+    # this waits for the spectroscopy plot by looking for the element Mg
+    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
+
+    submit_button = driver.wait_for_xpath(
+        '//form[@class="rjsf"]//button[@type="submit"]'
+    )
+
+    group_select = driver.wait_for_xpath('//*[@id="selectGroups"]')
+    driver.scroll_to_element_and_click(group_select)
+
+    group1 = driver.wait_for_xpath(f'//*[@data-testid="group_{public_group.id}"]')
+    driver.scroll_to_element_and_click(group1)
+
+    group2 = driver.wait_for_xpath(f'//*[@data-testid="group_{public_group2.id}"]')
+    driver.scroll_to_element_and_click(group2)
+
+    body = driver.wait_for_xpath('//body')
+    driver.scroll_to_element_and_click(body)
+
+    mode_select = driver.wait_for_xpath('//*[@id="root_observation_type"]')
+    driver.scroll_to_element(mode_select)
+    ActionChains(driver).move_to_element(mode_select).pause(1).click().perform()
+
+    mix_n_match_option = driver.wait_for_xpath('''//li[@data-value="Mix 'n Match"]''')
+    driver.scroll_to_element_and_click(mix_n_match_option)
+
+    u_band_option = driver.wait_for_xpath('//input[@id="root_observation_choices_0"]')
+
+    driver.scroll_to_element_and_click(u_band_option)
+
+    ifu_option = driver.wait_for_xpath('//input[@id="root_observation_choices_4"]')
+
+    driver.scroll_to_element_and_click(ifu_option)
+
+    driver.scroll_to_element_and_click(submit_button)
+
+    driver.wait_for_xpath(
+        f'//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "Mix \'n Match")]'
+    )
+    driver.wait_for_xpath(
+        f'''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "u,IFU")]'''
+    )
+    driver.wait_for_xpath(
+        f'''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "1")]'''
+    )
+    driver.wait_for_xpath(
+        f'''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
+    )
+
+    filename = glob.glob(
+        f'{os.path.dirname(__file__)}/../data/ZTF20abwdwoa_20200902_P60_v1.ascii'
+    )[0]
+    with open(filename, 'r') as f:
+        ascii = f.read()
+
+    status, data = api(
+        'GET', f'sources/{public_source_two_groups.id}', token=super_admin_token
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        "POST",
+        'spectrum/ascii',
+        data={
+            'obj_id': str(public_source_two_groups.id),
+            'observed_at': '2020-01-01T00:00:00',
+            'instrument_id': idata['id'],
+            'fluxerr_column': 2,
+            'followup_request_id': data['data']['followup_requests'][0]['id'],
+            'ascii': ascii,
+            'filename': os.path.basename(filename),
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+
+    sid = data['data']['id']
+    status, data = api('GET', f'spectrum/{sid}', token=view_only_token_group2)
+
+    assert status == 200
+    assert data['status'] == 'success'

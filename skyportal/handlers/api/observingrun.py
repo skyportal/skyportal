@@ -191,7 +191,7 @@ class ObservingRunHandler(BaseHandler):
 
         data = self.get_json()
         run_id = int(run_id)
-        is_superadmin = "System admin" in [a.id for a in self.current_user.acls]
+        is_superadmin = "System admin" in self.current_user.permissions
 
         orun = ObservingRun.query.get(run_id)
 
@@ -237,7 +237,7 @@ class ObservingRunHandler(BaseHandler):
                 schema: Error
         """
         run_id = int(run_id)
-        is_superadmin = "System admin" in [a.id for a in self.current_user.acls]
+        is_superadmin = "System admin" in self.current_user.permissions
 
         run = ObservingRun.query.get(run_id)
 

@@ -1,3 +1,4 @@
+import yaml
 import uuid
 import re
 import json
@@ -5,11 +6,12 @@ import warnings
 from datetime import datetime, timezone
 import requests
 import arrow
-from astropy import units as u
-from astropy import time as ap_time
 
 import astroplan
 import numpy as np
+import timezonefinder
+from slugify import slugify
+
 import sqlalchemy as sa
 from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -20,19 +22,19 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy import func
+
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from twilio.rest import Client as TwilioClient
 
+from astropy import units as u
+from astropy import time as ap_time
+from astropy.utils.exceptions import AstropyWarning
 from astropy import coordinates as ap_coord
 from astropy.io import fits, ascii
 import healpix_alchemy as ha
-import timezonefinder
+
 from .utils.cosmology import establish_cosmology
-
-import yaml
-from astropy.utils.exceptions import AstropyWarning
-
 from baselayer.app.models import (  # noqa
     init_db,
     join_model,
@@ -42,6 +44,8 @@ from baselayer.app.models import (  # noqa
     Role,
     User,
     Token,
+    UserACL,
+    UserRole,
 )
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
@@ -212,6 +216,7 @@ class Group(Base):
     single_user_group = sa.Column(
         sa.Boolean,
         default=False,
+        index=True,
         doc='Flag indicating whether this group '
         'is a singleton group for one user only.',
     )
@@ -294,12 +299,21 @@ User.streams = relationship(
 )
 
 
+User.single_user_group = property(
+    lambda self: DBSession()
+    .query(Group)
+    .join(GroupUser)
+    .filter(Group.single_user_group.is_(True), GroupUser.user_id == self.id)
+    .first()
+)
+
+
 @property
 def user_or_token_accessible_groups(self):
     """Return the list of Groups a User or Token has access to. For non-admin
     Users or Token owners, this corresponds to the Groups they are a member of.
     For System Admins, this corresponds to all Groups."""
-    if "System admin" in [acl.id for acl in self.acls]:
+    if "System admin" in self.permissions:
         return Group.query.all()
     return self.groups
 
@@ -717,7 +731,8 @@ Candidate.__doc__ = (
 )
 Candidate.passed_at = sa.Column(
     sa.DateTime,
-    nullable=True,
+    nullable=False,
+    index=True,
     doc="ISO UTC time when the Candidate passed the Filter last time.",
 )
 
@@ -2028,7 +2043,7 @@ class Spectrum(Base):
                         f'index {name} ({index}) is greater than the '
                         f'maximum allowed value ({ncol - 1})'
                     )
-                spec_data[dbcol] = tabledata[colnames[index]]
+                spec_data[dbcol] = tabledata[colnames[index]].astype(float)
 
         # parse the header
         if 'comments' in table.meta:
@@ -2195,6 +2210,13 @@ class FollowupRequest(Base):
         order_by="FacilityTransaction.created_at.desc()",
     )
 
+    target_groups = relationship(
+        'Group',
+        secondary='request_groups',
+        passive_deletes=True,
+        doc='Groups to share the resulting data from this request with.',
+    )
+
     photometry = relationship('Photometry', back_populates='followup_request')
     spectra = relationship('Spectrum', back_populates='followup_request')
 
@@ -2220,6 +2242,9 @@ class FollowupRequest(Base):
 
         user_or_token_group_ids = [g.id for g in user_or_token.accessible_groups]
         return self.allocation.group_id in user_or_token_group_ids
+
+
+FollowupRequestTargetGroup = join_model('request_groups', FollowupRequest, Group)
 
 
 class FacilityTransaction(Base):
@@ -2716,6 +2741,35 @@ def send_source_notification(mapper, connection, target):
             )
             sg = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
             sg.send(message)
+
+
+@event.listens_for(User, 'after_insert')
+def create_single_user_group(mapper, connection, target):
+
+    # Create single-user group
+    @event.listens_for(DBSession(), "after_flush", once=True)
+    def receive_after_flush(session, context):
+        session.add(
+            Group(name=slugify(target.username), users=[target], single_user_group=True)
+        )
+
+
+@event.listens_for(User, 'before_delete')
+def delete_single_user_group(mapper, connection, target):
+
+    # Delete single-user group
+    DBSession().delete(target.single_user_group)
+
+
+@event.listens_for(User, 'after_update')
+def update_single_user_group(mapper, connection, target):
+
+    # Update single user group name if needed
+    @event.listens_for(DBSession(), "after_flush_postexec", once=True)
+    def receive_after_flush(session, context):
+        single_user_group = target.single_user_group
+        single_user_group.name = slugify(target.username)
+        DBSession().add(single_user_group)
 
 
 schema.setup_schema()
