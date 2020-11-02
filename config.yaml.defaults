@@ -61,6 +61,8 @@ app:
       component: UserManagement
     - path: "/upload_spectrum/:id"
       component: UploadSpectrum
+    - path: "/spectra/:id"
+      component: Spectrum
 
   sidebar:
     # See https://material-ui.com/components/material-icons/

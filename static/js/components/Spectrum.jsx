@@ -48,7 +48,7 @@ const DetailedSpectrumView = ({ spectrum }) => {
       />
       <Plot
         className={classes.plot}
-        url={`/api/internal/plot/spectrum/${spectrum.obj_id}?spectrumID=${spectrum.id}`}
+        url={`/api/internal/plot/spectroscopy/${spectrum.obj_id}?spectrumID=${spectrum.id}`}
       />
     </div>
   );
@@ -91,7 +91,7 @@ const SpectrumPage = ({ route }) => {
     return <p>Loading...</p>;
   }
 
-  const sortedSpectra = spectra.sort(
+  const sortedSpectra = spectra[route.id].sort(
     (a, b) => dayjs(a).unix() - dayjs(b).unix()
   );
   return (
@@ -130,3 +130,5 @@ SpectrumPage.propTypes = {
     id: PropTypes.number.isRequired,
   }).isRequired,
 };
+
+export default SpectrumPage;
