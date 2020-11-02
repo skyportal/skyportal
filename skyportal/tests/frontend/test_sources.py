@@ -194,26 +194,31 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     # Scroll up to top of comments list
     comments = driver.wait_for_xpath("//p[text()='Comments']")
     driver.scroll_to_element(comments)
-    ActionChains(driver).move_to_element(comments).perform()
+
     attachment_div = driver.wait_for_xpath("//div[contains(text(), 'Attachment:')]")
     attachment_button = driver.wait_for_xpath(
         '//button[@data-testid="attachmentButton_spec"]'
     )
-    ActionChains(driver).move_to_element(attachment_div).pause(0.1).perform()
-    ActionChains(driver).move_to_element(attachment_button).pause(0.1).click().perform()
-    # Preview dialog
-    driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
+    # Try to open the preview dialog twice before failing to make it more robust
+    try:
+        ActionChains(driver).move_to_element(attachment_div).pause(0.5).perform()
+        ActionChains(driver).move_to_element(attachment_button).pause(
+            0.5
+        ).click().perform()
+        # Preview dialog
+        driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
+    except TimeoutException:
+        ActionChains(driver).move_to_element(attachment_div).pause(0.5).perform()
+        ActionChains(driver).move_to_element(attachment_button).pause(
+            0.5
+        ).click().perform()
+        # Preview dialog
+        driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
 
     fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'spec.csv')))
     try_count = 1
     while not os.path.exists(fpath) and try_count <= 3:
         try_count += 1
-        driver.execute_script("arguments[0].scrollIntoView();", comment_div)
-        ActionChains(driver).move_to_element(comment_div).perform()
-        driver.click_xpath('//a[text()="spec.csv"]')
-        if os.path.exists(fpath):
-            break
-    else:
         assert os.path.exists(fpath)
 
     try:
@@ -328,12 +333,13 @@ def test_super_user_can_delete_unowned_comment(
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
 
     # wait for delete button to become interactible - hence pause 0.1
+    driver.scroll_to_element(comment_text_div)
     ActionChains(driver).move_to_element(comment_text_div).pause(0.1).perform()
 
     delete_button = driver.wait_for_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']"
     )
-    driver.scroll_to_element_and_click(delete_button)
+    ActionChains(driver).move_to_element(delete_button).pause(0.1).click().perform()
     driver.wait_for_xpath_to_disappear(f'//p[text()="{comment_text}"]')
 
 

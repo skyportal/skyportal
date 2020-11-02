@@ -66,7 +66,7 @@ def test_add_new_source_renders_on_group_sources_page(
     driver.click_xpath("//*[@id='expandable-button']")
 
     # make sure the div containing the individual source appears
-    driver.wait_for_xpath("//tr[contains(@class, 'MuiTableRow-root')]")
+    driver.wait_for_xpath(f'//tr[@data-testid="groupSourceExpand_{obj_id}"]')
 
     # Check for vega plot
     driver.wait_for_xpath("//*[@class='vega-embed']", timeout=10)
