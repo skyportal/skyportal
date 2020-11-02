@@ -1,5 +1,5 @@
 import uuid
-
+import pytest
 from .. import api
 
 from tdtax import taxonomy, __version__
@@ -7,6 +7,7 @@ from tdtax import taxonomy, __version__
 from datetime import datetime, timezone
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_new_source_renders_on_group_sources_page(
     driver,
     super_admin_user_two_groups,
