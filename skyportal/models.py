@@ -1126,6 +1126,10 @@ User.sources = relationship(
     doc='The Sources accessible to this User.',
 )
 
+isadmin = property(lambda self: "System admin" in self.permissions)
+User.is_system_admin = isadmin
+Token.is_system_admin = isadmin
+
 
 class SourceView(Base):
     """Record of an instance in which a Source was viewed via the frontend or
