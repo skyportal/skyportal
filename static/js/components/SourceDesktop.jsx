@@ -298,6 +298,9 @@ const SourceDesktop = ({ source }) => {
                   <Link to={`/share_data/${source.id}`} role="link">
                     <Button variant="contained">Share data</Button>
                   </Link>
+                  <Link to={`/spectra/${source.id}`} role="link">
+                    <Button variant="contained">View Spectra</Button>
+                  </Link>
                 </div>
               </div>
             </AccordionDetails>
