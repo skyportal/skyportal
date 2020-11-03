@@ -131,7 +131,7 @@ class ObservingRunHandler(BaseHandler):
             )
 
             data = ObservingRunGetWithAssignments.dump(run)
-            data["assignments"] = [a.to_dict() for a in data["assignments"]]
+            data["assignments"] = [a.to_dict() for a in assignments]
 
             gids = [g.id for g in self.current_user.accessible_groups]
             for a in data["assignments"]:
@@ -142,8 +142,8 @@ class ObservingRunHandler(BaseHandler):
 
             # vectorized calculation of ephemerides
 
-            if len(assignments) > 0:
-                targets = [a.obj.target for a in assignments]
+            if len(data["assignments"]) > 0:
+                targets = [a['obj'].target for a in data["assignments"]]
 
                 rise_times = run.rise_time(targets).isot
                 set_times = run.set_time(targets).isot
