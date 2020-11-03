@@ -53,7 +53,7 @@ def add_telescope_and_instrument(instrument_name, token):
             "band": "Optical",
             "telescope_id": telescope_id,
             "filters": ["ztfg"],
-            "api_classname": "SEDMAPI",
+            "api_classname": f"{instrument_name.upper()}API",
         },
         token=token,
     )
@@ -79,7 +79,7 @@ def add_allocation(instrument_id, group_id, token):
     return data["data"]
 
 
-def add_followup_request_using_frontend_and_verify(
+def add_followup_request_using_frontend_and_verify_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
@@ -96,6 +96,18 @@ def add_followup_request_using_frontend_and_verify(
 
     submit_button_xpath = '//form[@class="rjsf"]//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.wait_for_xpath('//li[@data-value="1"]')
+    for ii in range(1, 10):
+        allocation = driver.wait_for_xpath('//li[@data-value="%d"]' % ii)
+        if "SEDM" in allocation.text:
+            allocation.click()
+            break
 
     # mode select
     driver.click_xpath('//*[@id="root_observation_type"]')
@@ -127,14 +139,96 @@ def add_followup_request_using_frontend_and_verify(
         f'''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
 
+def add_followup_request_using_frontend_and_verify_IOO(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    """Adds a new followup request and makes sure it renders properly."""
+
+    idata = add_telescope_and_instrument("IOO", super_admin_token)
+    add_allocation(idata['id'], public_group.id, super_admin_token)
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    driver.get(f"/source/{public_source.id}")
+    # wait for the plots to load
+    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
+    # this waits for the spectroscopy plot by looking for the element Mg
+    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
+
+    submit_button = driver.wait_for_xpath(
+        '//form[@class="rjsf"]//button[@type="submit"]'
+    )
+
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.wait_for_xpath('//li[@data-value="1"]')
+    for ii in range(1, 10):
+        allocation = driver.wait_for_xpath('//li[@data-value="%d"]' % ii)
+        if "IOO" in allocation.text:
+            allocation.click()
+            break
+
+    photometric_option = driver.wait_for_xpath('//input[@id="root_photometric"]')
+    driver.scroll_to_element_and_click(photometric_option)
+
+    mode_select = driver.wait_for_xpath('//div[@id="root_exposure_type"]')
+    driver.scroll_to_element(mode_select)
+
+    mode_select = driver.wait_for_xpath('//div[@id="root_observation_type"]')
+    driver.scroll_to_element(mode_select)
+    ActionChains(driver).move_to_element(mode_select).pause(1).click().perform()
+
+    gri_option = driver.wait_for_xpath('''//li[@data-value="gri"]''')
+    driver.scroll_to_element_and_click(gri_option)
+
+    mode_select = driver.wait_for_xpath('//div[@id="root_exposure_type"]')
+    driver.scroll_to_element(mode_select)
+    ActionChains(driver).move_to_element(mode_select).pause(1).click().perform()
+
+    exp_option = driver.wait_for_xpath('''//li[@data-value="2x150s"]''')
+    driver.scroll_to_element_and_click(exp_option)
+
+    proposal_option = driver.wait_for_xpath('//input[@id="root_LT_proposalID"]')
+    proposal_option.send_keys('GrowthTest')
+
+    driver.scroll_to_element_and_click(submit_button)
+
+    driver.wait_for_xpath(
+        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "gri")]'
+    )
+    driver.wait_for_xpath(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "2x150s")]'''
+    )
+    driver.wait_for_xpath(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "GrowthTest")]'''
+    )
+    driver.wait_for_xpath(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submission")]'''
+    )
+
+
+
 
 @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
-def test_submit_new_followup_request(
+def test_submit_new_followup_request_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
 
-    add_followup_request_using_frontend_and_verify(
+    add_followup_request_using_frontend_and_verify_SEDM(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+
+@pytest.mark.flaky(reruns=2)
+def test_submit_new_followup_request_IOO(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+
+    add_followup_request_using_frontend_and_verify_IOO(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
@@ -144,7 +238,7 @@ def test_submit_new_followup_request(
 def test_edit_existing_followup_request(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    add_followup_request_using_frontend_and_verify(
+    add_followup_request_using_frontend_and_verify_SEDM(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
     edit_button = driver.wait_for_xpath(f'//button[contains(@name, "editRequest")]')
@@ -176,10 +270,10 @@ def test_edit_existing_followup_request(
 
 @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason='SEDM server down')
-def test_delete_followup_request(
+def test_delete_followup_request_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    add_followup_request_using_frontend_and_verify(
+    add_followup_request_using_frontend_and_verify_SEDM(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
     delete_button = driver.wait_for_xpath(f'//button[contains(@name, "deleteRequest")]')
@@ -196,7 +290,33 @@ def test_delete_followup_request(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
+def test_delete_followup_request_IOO(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    add_followup_request_using_frontend_and_verify_IOO(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+    delete_button = driver.wait_for_xpath(f'//button[contains(@name, "deleteRequest")]')
+    driver.scroll_to_element(delete_button)
+    last_height = driver.execute_script("return document.body.scrollHeight")
+    driver.execute_script("window.scrollTo(200, document.body.scrollHeight);")
+    ActionChains(driver).pause(1).click().perform()
+    driver.refresh()
+
+    driver.wait_for_xpath_to_disappear(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "2x150s")]'''
+    )
+    driver.wait_for_xpath_to_disappear(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "gri")]'''
+    )
+    driver.wait_for_xpath_to_disappear(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submission")]'''
+    )
+
+
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_submit_new_followup_request_two_groups(
     driver,
@@ -223,8 +343,20 @@ def test_submit_new_followup_request_two_groups(
     submit_button_xpath = '//form[@class="rjsf"]//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
 
-    group_select = '//*[@id="selectGroups"]'
-    driver.click_xpath(group_select)
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.wait_for_xpath('//li[@data-value="1"]')
+    for ii in range(1, 10):
+        allocation = driver.wait_for_xpath('//li[@data-value="%d"]' % ii)
+        if "SEDM" in allocation.text:
+            allocation.click()
+            break
+
+    group_select = driver.wait_for_xpath('//*[@id="selectGroups"]')
+    driver.scroll_to_element_and_click(group_select)
 
     group1 = f'//*[@data-testid="group_{public_group.id}"]'
     driver.click_xpath(group1, scroll_parent=True)
