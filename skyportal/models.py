@@ -21,6 +21,8 @@ from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import URLType, EmailType
+from sqlalchemy_utils.types import JSONType
+from sqlalchemy_utils.types.encrypted.encrypted_type import EncryptedType, AesEngine
 from sqlalchemy import func
 
 from twilio.rest import Client as TwilioClient
@@ -1642,6 +1644,15 @@ class Allocation(Base):
         doc="The Instrument the allocation is associated with.",
     )
 
+    altdata = sa.Column(
+        EncryptedType(JSONType, cfg['app.secret_key'], AesEngine, 'pkcs5')
+    )
+
+    def load_altdata(self):
+        if self.altdata is None:
+            return {}
+        else:
+            return json.loads(self.altdata)
 
 class Taxonomy(Base):
     """An ontology within which Objs can be classified."""

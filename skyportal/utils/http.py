@@ -6,6 +6,8 @@ def serialize_requests_request(request):
         'method': request.method,
     }
 
+def serialize_requests_request_xml(payload):
+    return {'payload': payload}
 
 def serialize_requests_response(response):
     return {
@@ -17,6 +19,8 @@ def serialize_requests_response(response):
         'ok': response.ok,
     }
 
+def serialize_requests_response_xml(response):
+    return {'response': response}
 
 def serialize_tornado_request(handler):
     return {

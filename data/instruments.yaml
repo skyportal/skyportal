@@ -150,15 +150,18 @@
   telescope_id: =Magellan_Baade
   type: spectrograph
 - band: optical
-  name: Frodospec
-  telescope_id: =LT
-  type: spectrograph
-- band: optical
   name: IOO
   telescope_id: =LT
   type: imager
   filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
             'bessellb', 'bessellv']
+  api_classname: IOOAPI
+- band: optical
+  name: IOI
+  telescope_id: =LT
+  type: imager
+  filters: ['csphs']
+  api_classname: IOIAPI
 - band: optical
   name: RATCam
   telescope_id: =LT
@@ -169,6 +172,7 @@
   name: SPRAT
   telescope_id: =LT
   type: spectrograph
+  api_classname: SPRATAPI
 - band: optical
   name: DIS
   telescope_id: =APO
