@@ -23,17 +23,17 @@ def test_upload_spectroscopy(
     driver.scroll_to_element_and_click(mjd_element)
     mjd_element.send_keys('51232.')
 
-    instrument_id_element = driver.wait_for_xpath(f'//*[@id="root_instrument_id"]')
-    driver.scroll_to_element_and_click(instrument_id_element)
+    instrument_id_element = f'//*[@id="root_instrument_id"]'
+    driver.click_xpath(instrument_id_element)
 
-    sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
-    driver.scroll_to_element_and_click(sedm_element)
+    sedm_element = f'//li[@data-value="{inst_id}"]'
+    driver.click_xpath(sedm_element, scroll_parent=True)
 
-    preview_button = driver.wait_for_xpath(f'//button[contains(.,"Preview")]')
-    driver.scroll_to_element_and_click(preview_button)
+    preview_button = f'//button[contains(.,"Preview")]'
+    driver.click_xpath(preview_button)
 
-    submit_button = driver.wait_for_xpath(f'//button[contains(.,"Upload Spectrum")]')
-    driver.scroll_to_element_and_click(submit_button)
+    submit_button = f'//button[contains(.,"Upload Spectrum")]'
+    driver.click_xpath(submit_button)
 
     driver.wait_for_xpath('//*[contains(.,"successful")]')
 
