@@ -32,7 +32,7 @@ import FormValidationError from "./FormValidationError";
 import * as groupsActions from "../ducks/groups";
 import * as usersActions from "../ducks/users";
 import * as streamsActions from "../ducks/streams";
-import * as inviteUsersActions from "../ducks/inviteUsers";
+import * as invitationsActions from "../ducks/invitations";
 import * as aclsActions from "../ducks/acls";
 import * as rolesActions from "../ducks/roles";
 
@@ -260,7 +260,7 @@ const UserManagement = () => {
     ]);
     const promises = rows.map((row) =>
       dispatch(
-        inviteUsersActions.inviteUser({
+        invitationsActions.inviteUser({
           userEmail: row[0],
           streamIDs: row[1],
           groupIDs: row[2],
