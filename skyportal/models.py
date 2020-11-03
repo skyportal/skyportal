@@ -1654,6 +1654,7 @@ class Allocation(Base):
         else:
             return json.loads(self.altdata)
 
+
 class Taxonomy(Base):
     """An ontology within which Objs can be classified."""
 

@@ -139,6 +139,7 @@ def add_followup_request_using_frontend_and_verify_SEDM(
         f'''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
 
+
 def add_followup_request_using_frontend_and_verify_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -208,8 +209,6 @@ def add_followup_request_using_frontend_and_verify_IOO(
     driver.wait_for_xpath(
         '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submission")]'''
     )
-
-
 
 
 @pytest.mark.flaky(reruns=2)
@@ -300,7 +299,6 @@ def test_delete_followup_request_IOO(
 
     delete_button = driver.wait_for_xpath(f'//button[contains(@name, "deleteRequest")]')
     driver.scroll_to_element(delete_button)
-    last_height = driver.execute_script("return document.body.scrollHeight")
     driver.execute_script("window.scrollTo(200, document.body.scrollHeight);")
     ActionChains(driver).pause(1).click().perform()
     driver.refresh()
