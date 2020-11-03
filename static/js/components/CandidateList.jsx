@@ -168,6 +168,7 @@ const defaultNumPerPage = 25;
 const CustomSortToolbar = ({
   selectedAnnotationSortOptions,
   rowsPerPage,
+  filterGroups,
   filterFormData,
   setQueryInProgress,
   loaded,
@@ -188,6 +189,7 @@ const CustomSortToolbar = ({
     let data = {
       pageNumber: 1,
       numPerPage: rowsPerPage,
+      groupIDs: filterGroups.map((g) => g.id).join(),
       sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
       sortByAnnotationKey: selectedAnnotationSortOptions.key,
       sortByAnnotationOrder: newSortOrder,
@@ -241,12 +243,14 @@ CustomSortToolbar.propTypes = {
   }),
   setQueryInProgress: PropTypes.func.isRequired,
   rowsPerPage: PropTypes.number.isRequired,
-  filterFormData: PropTypes.shape({}).isRequired,
+  filterGroups: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
+  filterFormData: PropTypes.shape({}),
   loaded: PropTypes.bool.isRequired,
 };
 
 CustomSortToolbar.defaultProps = {
   selectedAnnotationSortOptions: null,
+  filterFormData: null,
 };
 
 const CandidateList = () => {
@@ -272,10 +276,7 @@ const CandidateList = () => {
   const {
     candidates,
     pageNumber,
-    lastPage,
     totalMatches,
-    numberingStart,
-    numberingEnd,
     selectedAnnotationSortOptions,
   } = useSelector((state) => state.candidates);
 
@@ -378,6 +379,7 @@ const CandidateList = () => {
     let data = {
       pageNumber: 1,
       numPerPage: rowsPerPage,
+      groupIDs: filterGroups.map((g) => g.id).join(),
     };
     if (filterListQueryString !== null) {
       data = {
@@ -628,7 +630,11 @@ const CandidateList = () => {
   const handlePageChange = async (page, numPerPage) => {
     setQueryInProgress(true);
     // API takes 1-indexed page number
-    let data = { pageNumber: page + 1, numPerPage };
+    let data = {
+      pageNumber: page + 1,
+      numPerPage,
+      groupIDs: filterGroups.map((g) => g.id).join(),
+    };
     if (selectedAnnotationSortOptions !== null) {
       data = {
         ...data,
@@ -855,6 +861,7 @@ const CandidateList = () => {
       <CustomSortToolbar
         selectedAnnotationSortOptions={selectedAnnotationSortOptions}
         rowsPerPage={rowsPerPage}
+        filterGroups={filterGroups}
         filterFormData={filterFormData}
         setQueryInProgress={setQueryInProgress}
         loaded={!queryInProgress}
@@ -871,13 +878,9 @@ const CandidateList = () => {
         </Typography>
         <FilterCandidateList
           userAccessibleGroups={userAccessibleGroups}
-          pageNumber={pageNumber}
-          numberingStart={numberingStart}
-          numberingEnd={numberingEnd}
-          lastPage={lastPage}
-          totalMatches={totalMatches}
           setQueryInProgress={setQueryInProgress}
           setFilterGroups={setFilterGroups}
+          numPerPage={rowsPerPage}
         />
         <Box
           display={queryInProgress ? "block" : "none"}

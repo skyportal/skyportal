@@ -129,7 +129,7 @@ const SourceTable = ({ sources, title, sourceStatus = "saved", groupID }) => {
     const comments = source.comments || [];
 
     return (
-      <TableRow>
+      <TableRow data-testid={`groupSourceExpand_${source.id}`}>
         <TableCell
           style={{ paddingBottom: 0, paddingTop: 0 }}
           colSpan={colSpan}

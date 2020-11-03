@@ -76,7 +76,6 @@ def add_followup_request_using_frontend_and_verify(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
-
     idata = add_telescope_and_instrument("SEDM", super_admin_token)
     add_allocation(idata['id'], public_group.id, super_admin_token)
 
@@ -88,25 +87,25 @@ def add_followup_request_using_frontend_and_verify(
     # this waits for the spectroscopy plot by looking for the element Mg
     driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
 
-    submit_button = driver.wait_for_xpath(
-        '//form[@class="rjsf"]//button[@type="submit"]'
+    submit_button_xpath = '//form[@class="rjsf"]//button[@type="submit"]'
+    driver.wait_for_xpath(submit_button_xpath)
+
+    # mode select
+    driver.click_xpath('//*[@id="root_observation_type"]')
+
+    # mix n match option
+    driver.click_xpath('''//li[@data-value="Mix 'n Match"]''')
+
+    # u band option
+    driver.click_xpath(
+        '//input[@id="root_observation_choices_0"]', wait_clickable=False
     )
 
-    mode_select = driver.wait_for_xpath('//*[@id="root_observation_type"]')
-    driver.scroll_to_element(mode_select)
-    ActionChains(driver).move_to_element(mode_select).pause(1).click().perform()
-
-    mix_n_match_option = driver.wait_for_xpath('''//li[@data-value="Mix 'n Match"]''')
-    driver.scroll_to_element_and_click(mix_n_match_option)
-
-    u_band_option = driver.wait_for_xpath('//input[@id="root_observation_choices_0"]')
-
-    driver.scroll_to_element_and_click(u_band_option)
-
-    ifu_option = driver.wait_for_xpath('//input[@id="root_observation_choices_4"]')
-
-    driver.scroll_to_element_and_click(ifu_option)
-    driver.scroll_to_element_and_click(submit_button)
+    # ifu option
+    driver.click_xpath(
+        '//input[@id="root_observation_choices_4"]', wait_clickable=False
+    )
+    driver.click_xpath(submit_button_xpath)
 
     driver.wait_for_xpath(
         f'//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "Mix \'n Match")]'
@@ -190,7 +189,7 @@ def test_delete_followup_request(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_submit_new_followup_request_two_groups(
     driver,
@@ -214,38 +213,38 @@ def test_submit_new_followup_request_two_groups(
     # this waits for the spectroscopy plot by looking for the element Mg
     driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
 
-    submit_button = driver.wait_for_xpath(
-        '//form[@class="rjsf"]//button[@type="submit"]'
+    submit_button_xpath = '//form[@class="rjsf"]//button[@type="submit"]'
+    driver.wait_for_xpath(submit_button_xpath)
+
+    group_select = '//*[@id="selectGroups"]'
+    driver.click_xpath(group_select)
+
+    group1 = f'//*[@data-testid="group_{public_group.id}"]'
+    driver.click_xpath(group1, scroll_parent=True)
+
+    group2 = f'//*[@data-testid="group_{public_group2.id}"]'
+    driver.click_xpath(group2, scroll_parent=True)
+
+    # Click somewhere definitely outside the select list to remove focus from select
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().pause(0.1).perform()
+
+    # mode select
+    driver.click_xpath('//*[@id="root_observation_type"]')
+
+    # mix n match option
+    driver.click_xpath('''//li[@data-value="Mix 'n Match"]''')
+
+    # u band option
+    driver.click_xpath(
+        '//input[@id="root_observation_choices_0"]', wait_clickable=False
     )
 
-    group_select = driver.wait_for_xpath('//*[@id="selectGroups"]')
-    driver.scroll_to_element_and_click(group_select)
-
-    group1 = driver.wait_for_xpath(f'//*[@data-testid="group_{public_group.id}"]')
-    driver.scroll_to_element_and_click(group1)
-
-    group2 = driver.wait_for_xpath(f'//*[@data-testid="group_{public_group2.id}"]')
-    driver.scroll_to_element_and_click(group2)
-
-    body = driver.wait_for_xpath('//body')
-    driver.scroll_to_element_and_click(body)
-
-    mode_select = driver.wait_for_xpath('//*[@id="root_observation_type"]')
-    driver.scroll_to_element(mode_select)
-    ActionChains(driver).move_to_element(mode_select).pause(1).click().perform()
-
-    mix_n_match_option = driver.wait_for_xpath('''//li[@data-value="Mix 'n Match"]''')
-    driver.scroll_to_element_and_click(mix_n_match_option)
-
-    u_band_option = driver.wait_for_xpath('//input[@id="root_observation_choices_0"]')
-
-    driver.scroll_to_element_and_click(u_band_option)
-
-    ifu_option = driver.wait_for_xpath('//input[@id="root_observation_choices_4"]')
-
-    driver.scroll_to_element_and_click(ifu_option)
-
-    driver.scroll_to_element_and_click(submit_button)
+    # ifu option
+    driver.click_xpath(
+        '//input[@id="root_observation_choices_4"]', wait_clickable=False
+    )
+    driver.click_xpath(submit_button_xpath)
 
     driver.wait_for_xpath(
         f'//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "Mix \'n Match")]'
