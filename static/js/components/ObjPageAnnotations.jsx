@@ -21,6 +21,7 @@ dayjs.extend(utc);
 const useStyles = makeStyles((theme) => ({
   container: {
     width: "100%",
+    margin: "auto",
     [theme.breakpoints.up("md")]: {
       width: "27.5rem",
     },
