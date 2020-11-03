@@ -6,7 +6,7 @@ from ...models import DBSession, Telescope
 
 
 class TelescopeHandler(BaseHandler):
-    @permissions(['Upload data'])
+    @permissions(['Upload telescopes'])
     def post(self):
         """
         ---
@@ -99,7 +99,7 @@ class TelescopeHandler(BaseHandler):
             query = query.filter(Telescope.name == tel_name)
         return self.success(data=query.all())
 
-    @permissions(['Manage sources'])
+    @permissions(['Manage telescopes'])
     def put(self, telescope_id):
         """
         ---
@@ -141,7 +141,7 @@ class TelescopeHandler(BaseHandler):
 
         return self.success()
 
-    @permissions(['Manage sources'])
+    @permissions(['Manage telescopes'])
     def delete(self, telescope_id):
         """
         ---

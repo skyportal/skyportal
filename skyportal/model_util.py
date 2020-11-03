@@ -16,6 +16,7 @@ all_acl_ids = [
     'Post taxonomy',
     'Delete taxonomy',
     'Classify',
+    'Manage telescopes',
 ] + [c.get_acl_id() for c in LISTENER_CLASSES]
 
 
