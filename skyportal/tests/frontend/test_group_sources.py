@@ -1,13 +1,13 @@
 import uuid
-
+import pytest
 from .. import api
-from selenium.common.exceptions import TimeoutException
 
 from tdtax import taxonomy, __version__
 
 from datetime import datetime, timezone
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_new_source_renders_on_group_sources_page(
     driver,
     super_admin_user_two_groups,
@@ -64,24 +64,13 @@ def test_add_new_source_renders_on_group_sources_page(
     driver.wait_for_xpath(f"//*[text()[contains(., '{'0.153'}')]]")
 
     # little triangle you push to expand the table
-    expand_button = driver.wait_for_xpath("//*[@id='expandable-button']")
-    driver.scroll_to_element_and_click(expand_button)
+    driver.click_xpath("//*[@id='expandable-button']")
 
     # make sure the div containing the individual source appears
-    driver.wait_for_xpath("//tr[contains(@class, 'MuiTableRow-root')]")
+    driver.wait_for_xpath(f'//tr[@data-testid="groupSourceExpand_{obj_id}"]')
 
-    try:  # the vega plot may take some time to appear, and in the meanwhile the MUI drawer gets closed for some reason.
-        # make sure the table row opens up and show the vega plot
-        driver.wait_for_xpath("//*[@class='vega-embed']", timeout=2)
-    except TimeoutException:
-        # try again to click this triangle thingy to open the drawer
-        expand_button = driver.wait_for_xpath("//*[@id='expandable-button']")
-        driver.scroll_to_element_and_click(expand_button)
-
-        # with the drawer opened again, it should now work...
-        driver.wait_for_xpath(
-            "//*[@class='vega-embed']"
-        )  # make sure the table row opens up and show the vega plot
+    # Check for vega plot
+    driver.wait_for_xpath("//*[@class='vega-embed']", timeout=20)
 
     # post a taxonomy and classification
     status, data = api(
@@ -113,16 +102,6 @@ def test_add_new_source_renders_on_group_sources_page(
         token=classification_token_two_groups,
     )
     assert status == 200
-
-    # check the classification shows up (it should not show up without a page refresh!)
-    try:
-        driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]", timeout=1)
-
-    except TimeoutException:
-        pass  # the classification should not appear on its own, so we ignore this error
-
-    # making sure the drawer is still open even after posting a classification!
-    driver.wait_for_xpath("//*[@class='vega-embed']")
 
     # need to reload the page to see changes!
     driver.get(f"/group_sources/{public_group.id}")

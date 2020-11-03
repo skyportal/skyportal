@@ -2,6 +2,8 @@ import io
 from pathlib import Path
 import numpy as np
 
+from sqlalchemy.orm import joinedload
+
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -82,8 +84,25 @@ class SpectrumHandler(BaseHandler):
                     "Invalid group_ids parameter value. Must be a list of IDs "
                     "(integers) or the string 'all'."
                 )
+
             group_ids = group_ids['group_ids']
-            groups = Group.query.filter(Group.id.in_(group_ids)).all()
+            groups = []
+            for group_id in group_ids:
+                try:
+                    group_id = int(group_id)
+                except TypeError:
+                    return self.error(
+                        f"Invalid format for group id {group_id}, must be an integer."
+                    )
+                group = Group.query.get(group_id)
+                if group is None:
+                    return self.error(f'No group with ID {group_id}')
+                groups.append(group)
+
+        # always append the single user group
+        single_user_group = self.associated_user_object.single_user_group
+        if single_user_group not in groups:
+            groups.append(single_user_group)
 
         instrument = Instrument.query.get(data['instrument_id'])
         if instrument is None:
@@ -143,8 +162,14 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        spectrum = (
+            DBSession()
+            .query(Spectrum)
+            .filter(Spectrum.id == spectrum_id)
+            .options(joinedload(Spectrum.groups))
+            .first()
+        )
 
-        spectrum = Spectrum.query.get(spectrum_id)
         if spectrum is not None:
             # Permissions check
             _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
@@ -461,8 +486,9 @@ class ObjSpectraHandler(BaseHandler):
         obj = Obj.query.get(obj_id)
         if obj is None:
             return self.error('Invalid object ID.')
-
-        spectra = Obj.get_spectra_owned_by(obj_id, self.current_user)
+        spectra = Obj.get_spectra_owned_by(
+            obj_id, self.current_user, options=[joinedload(Spectrum.groups)]
+        )
         return_values = []
         for spec in spectra:
             spec_dict = spec.to_dict()
