@@ -100,10 +100,10 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
     <>
       <div className={classes.editIcon}>
         {icon ? (
-          <Tooltip title="Edit source groups">
+          <Tooltip title="Manage source groups">
             <span>
               <IconButton
-                aria-label="add-group"
+                aria-label="manage-groups"
                 data-testid={`editGroups_${source.id}`}
                 onClick={openDialog}
                 size="small"
@@ -123,7 +123,7 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
             onClick={openDialog}
             disabled={isSubmitting}
           >
-            Edit groups
+            Manage groups
           </Button>
         )}
       </div>
@@ -133,8 +133,12 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
         onClose={closeDialog}
         style={{ position: "fixed" }}
       >
-        <DialogTitle>Edit source groups:</DialogTitle>
+        <DialogTitle>Unsave or save to new groups:</DialogTitle>
         <DialogContent>
+          <p>
+            You can save to groups you belong to or request group admins of
+            groups you are not a member of to save this source to their group.
+          </p>
           <form onSubmit={handleSubmit(onSubmit)}>
             {(errors.inviteGroupIds || errors.unsaveGroupIds) && (
               <FormValidationError message="Select at least one group." />
@@ -142,7 +146,8 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
             {!!unsavedGroups.length && (
               <>
                 <div>
-                  Request selected group(s) to <b>save</b> source:
+                  <b>Save</b> (or request save, for groups you do not belong to)
+                  to selected groups:
                 </div>
                 {unsavedGroups.map((unsavedGroup, idx) => (
                   <FormControlLabel
@@ -165,7 +170,7 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
             {!!savedGroups.length && (
               <>
                 <div>
-                  Select groups from which to <b>unsave</b> source:
+                  <b>Unsave</b> source from selected groups:
                 </div>
                 <div>
                   <em>
