@@ -135,6 +135,7 @@ def test_request_source(
     super_admin_user_two_groups,
     public_group,
     public_group2,
+    upload_data_token,
     upload_data_token_two_groups,
 ):
 
@@ -178,7 +179,7 @@ def test_request_source(
         'POST',
         'source_groups',
         data={'objId': f'{obj_id}', 'inviteGroupIds': [public_group.id]},
-        token=upload_data_token_two_groups,
+        token=upload_data_token,
     )
     assert status == 200
 
