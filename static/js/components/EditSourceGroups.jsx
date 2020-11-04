@@ -27,7 +27,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const EditSourceGroups = ({ source, userGroups, icon }) => {
+const EditSourceGroups = ({ source, groups, icon }) => {
   const classes = useStyles();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -35,23 +35,23 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
 
   const { handleSubmit, errors, reset, control, getValues } = useForm();
 
-  const unsavedGroups = userGroups.filter(
+  const unsavedGroups = groups.filter(
     (g) => !source.currentGroupIds.includes(g.id)
   );
-  const savedGroups = userGroups.filter((g) =>
+  const savedGroups = groups.filter((g) =>
     source.currentGroupIds.includes(g.id)
   );
 
   useEffect(() => {
     reset({
       inviteGroupIds: Array(
-        userGroups.filter((g) => !source.currentGroupIds.includes(g.id)).length
+        groups.filter((g) => !source.currentGroupIds.includes(g.id)).length
       ).fill(false),
       unsaveGroupIds: Array(
-        userGroups.filter((g) => source.currentGroupIds.includes(g.id)).length
+        groups.filter((g) => source.currentGroupIds.includes(g.id)).length
       ).fill(false),
     });
-  }, [reset, userGroups, source]);
+  }, [reset, groups, source]);
 
   const openDialog = () => {
     setDialogOpen(true);
@@ -215,7 +215,7 @@ EditSourceGroups.propTypes = {
     id: PropTypes.string,
     currentGroupIds: PropTypes.arrayOf(PropTypes.number),
   }).isRequired,
-  userGroups: PropTypes.arrayOf(
+  groups: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number,
       name: PropTypes.string,
