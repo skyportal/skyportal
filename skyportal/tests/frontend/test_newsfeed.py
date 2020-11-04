@@ -92,9 +92,6 @@ def test_news_feed_prefs_widget(
         # Comment item
         driver.wait_for_xpath(f'//p[contains(text(),"comment_text_{i}")]')
 
-    # Wait for weather widget to finish loading
-    driver.wait_for_xpath(f'//h6[contains(text(), "Palomar 48")]')
-
     driver.click_xpath('//*[@id="newsFeedSettingsIcon"]')
     n_items_input = driver.wait_for_xpath('//input[@id="numItems"]')
     n_items_input.clear()
