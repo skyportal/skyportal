@@ -537,7 +537,7 @@ class CandidateHandler(BaseHandler):
                     DBSession()
                     .query(Group)
                     .join(Source)
-                    .filter(Source.obj_id == obj_id)
+                    .filter(Source.obj_id == obj.id)
                     .filter(Group.id.in_(user_accessible_group_ids))
                     .all()
                 )
