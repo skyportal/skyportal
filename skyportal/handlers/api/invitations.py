@@ -169,9 +169,10 @@ class InvitationHandler(BaseHandler):
             query = query.filter(Invitation.used.is_(False))
         invitations = query.all()
         return_data = [invitation.to_dict() for invitation in invitations]
-        for idx, invite_dict in return_data:
+        for idx, invite_dict in enumerate(return_data):
             invite_dict["streams"] = invitations[idx].streams
             invite_dict["groups"] = invitations[idx].groups
+            invite_dict["invited_by"] = invitations[idx].invited_by
 
         return self.success(data=return_data)
 
@@ -239,5 +240,29 @@ class InvitationHandler(BaseHandler):
         if stream_ids is not None:
             invitation.streams = streams
 
+        DBSession().commit()
+        return self.success()
+
+    @permissions(["Manage users"])
+    def delete(self, invitation_id):
+        """
+        ---
+        description: Delete an invitation
+        parameters:
+          - in: path
+            name: invitation_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        invitation = DBSession().query(Invitation).get(invitation_id)
+        if invitation is None:
+            return self.error("Invalid invitation ID")
+        DBSession().delete(invitation)
         DBSession().commit()
         return self.success()
