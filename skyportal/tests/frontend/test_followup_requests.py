@@ -103,7 +103,7 @@ def add_followup_request_using_frontend_and_verify_SEDM(
     select_box.click()
 
     driver.wait_for_xpath('//li[@data-value="1"]')
-    for ii in range(1, 10):
+    for ii in range(1, 100):
         allocation = driver.wait_for_xpath('//li[@data-value="%d"]' % ii)
         if "SEDM" in allocation.text:
             allocation.click()
@@ -166,7 +166,7 @@ def add_followup_request_using_frontend_and_verify_IOO(
     select_box.click()
 
     driver.wait_for_xpath('//li[@data-value="1"]')
-    for ii in range(1, 10):
+    for ii in range(1, 100):
         allocation = driver.wait_for_xpath('//li[@data-value="%d"]' % ii)
         if "IOO" in allocation.text:
             allocation.click()
@@ -347,7 +347,7 @@ def test_submit_new_followup_request_two_groups(
     select_box.click()
 
     driver.wait_for_xpath('//li[@data-value="1"]')
-    for ii in range(1, 10):
+    for ii in range(1, 100):
         allocation = driver.wait_for_xpath('//li[@data-value="%d"]' % ii)
         if "SEDM" in allocation.text:
             allocation.click()
