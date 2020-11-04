@@ -29,7 +29,7 @@ class SourceGroupsHandler(BaseHandler):
                     items:
                       type: integer
                     description: |
-                      List of group IDs to invite to save specified source.
+                      List of group IDs to save or invite to save specified source.
                   unsaveGroupIds:
                     type: array
                     items:
@@ -52,35 +52,44 @@ class SourceGroupsHandler(BaseHandler):
         obj = Obj.get_if_owned_by(obj_id, self.associated_user_object)
         if obj is None:
             return self.error("Invalid objId")
-        invite_group_ids = data.get("inviteGroupIds", [])
+        save_or_invite_group_ids = data.get("inviteGroupIds", [])
         unsave_group_ids = data.get("unsaveGroupIds", [])
-        if not invite_group_ids and not unsave_group_ids:
+        if not save_or_invite_group_ids and not unsave_group_ids:
             return self.error(
                 "Missing required parameter: one of either unsaveGroupIds or inviteGroupIds must be provided"
             )
-        for invite_group_id in invite_group_ids:
+        for save_or_invite_group_id in save_or_invite_group_ids:
+            if int(save_or_invite_group_id) in [
+                g.id for g in self.current_user.accessible_groups
+            ]:
+                active = True
+                requested = False
+            else:
+                active = False
+                requested = True
             source = (
                 DBSession()
                 .query(Source)
                 .filter(Source.obj_id == obj_id)
-                .filter(Source.group_id == invite_group_id)
+                .filter(Source.group_id == save_or_invite_group_id)
                 .first()
             )
             if source is None:
                 DBSession().add(
                     Source(
                         obj_id=obj_id,
-                        group_id=invite_group_id,
-                        active=False,
-                        requested=True,
+                        group_id=save_or_invite_group_id,
+                        active=active,
+                        requested=requested,
                         saved_by_id=self.associated_user_object.id,
                     )
                 )
             elif not source.active:
-                source.requested = True
+                source.active = active
+                source.requested = requested
             else:
                 return self.error(
-                    f"Source already saved to group w/ ID {invite_group_id}"
+                    f"Source already saved to group w/ ID {save_or_invite_group_id}"
                 )
         for unsave_group_id in unsave_group_ids:
             source = (
