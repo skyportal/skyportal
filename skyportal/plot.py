@@ -1,16 +1,16 @@
 import numpy as np
 import pandas as pd
 
-from bokeh.core.json_encoder import serialize_json
 from bokeh.core.properties import List, String
-from bokeh.document import Document
 from bokeh.layouts import row, column
 from bokeh.models import CustomJS, HoverTool, Range1d, Slider, Button, LinearAxis
 from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
 from bokeh.palettes import viridis
 from bokeh.plotting import figure, ColumnDataSource
-from bokeh.util.compiler import bundle_all_models
-from bokeh.util.serialization import make_id
+from bokeh.util.compiler import bundle_models
+
+import bokeh.embed as bokeh_embed
+
 
 from astropy.time import Time
 
@@ -104,65 +104,64 @@ SPEC_LINES = {
 
 class CheckboxWithLegendGroup(CheckboxGroup):
     colors = List(String, help="List of legend colors")
+
     __implementation__ = """
-import {empty, input, label, div} from "core/dom"
-import * as p from "core/properties"
-import {CheckboxGroup, CheckboxGroupView} from "models/widgets/checkbox_group"
-export class CheckboxWithLegendGroupView extends CheckboxGroupView
-  render: () ->
-    super()
-    empty(@el)
-    active = @model.active
-    colors = @model.colors
-    for text, i in @model.labels
-      inputEl = input({type: "checkbox", value: "#{i}"})
-      inputEl.addEventListener("change", () => @change_input())
-      if @model.disabled then inputEl.disabled = true
-      if i in active then inputEl.checked = true
-      attrs = {
-        style: "border-left: 12px solid #{colors[i]}; padding-left: 0.3em;"
-      }
-      labelEl = label(attrs, inputEl, text)
-      if @model.inline
-        labelEl.classList.add("bk-bs-checkbox-inline")
-        @el.appendChild(labelEl)
-      else
-        divEl = div({class: "bk-bs-checkbox"}, labelEl)
-        @el.appendChild(divEl)
-    return @
-export class CheckboxWithLegendGroup extends CheckboxGroup
-  type: "CheckboxWithLegendGroup"
-  default_view: CheckboxWithLegendGroupView
-  @define {
-    colors:   [ p.Array, []    ]
+// Based on @bokeh/bokehjs/build/js/lib/models/widgets/abstract_button.js
+
+import {input, label, div, span} from "core/dom";
+import { includes } from "core/util/array";
+import * as p from "core/properties";
+import { bk_inline } from "styles/mixins";
+import { bk_input_group } from "styles/widgets/inputs";
+import {CheckboxGroup, CheckboxGroupView} from "models/widgets/checkbox_group";
+
+export class CheckboxWithLegendGroupView extends CheckboxGroupView {
+  model: CheckboxWithLegendGroup
+
+  render() {
+    const group = div({ class: [bk_input_group, this.model.inline ? bk_inline : null] });
+    this.el.appendChild(group);
+    const { active, colors, labels } = this.model;
+    this._inputs = [];
+    for (let i = 0; i < labels.length; i++) {
+      const checkbox = input({type: "checkbox", value: `${i}`});
+      checkbox.addEventListener("change", () => this.change_active(i));
+      this._inputs.push(checkbox);
+      if (this.model.disabled)
+        checkbox.disabled = true;
+      if (includes(active, i))
+        checkbox.checked = true;
+      const attrs = {
+        style: `border-left: 12px solid ${colors[i]}; padding-left: 0.3em;`
+      };
+      const label_el = label(attrs, checkbox, span({}, labels[i]));
+      group.appendChild(label_el);
+    }
   }
+}
+
+export namespace CheckboxWithLegendGroup {
+    export type Attrs = p.AttrsOf<Props>
+    export type Props = CheckboxGroup.Props & {
+        colors: p.Array
+    }
+}
+
+export interface CheckboxWithLegendGroup extends CheckboxWithLegendGroup.Attrs { }
+
+export class CheckboxWithLegendGroup extends CheckboxGroup {
+  static __name__ = "CheckboxWithLegendGroup";
+  //properties = CheckboxWithLegendGroup.Props
+
+  static init_CheckboxWithLegendGroup() {
+    this.prototype.default_view = CheckboxWithLegendGroupView;
+    this.define<CheckboxWithLegendGroup.Props>({
+      colors: [p.Array, []]
+    });
+  }
+}
+CheckboxWithLegendGroup.init_CheckboxWithLegendGroup();
 """
-
-
-# TODO replace with (script, div) method
-def _plot_to_json(plot):
-    """Convert plot to JSON objects necessary for rendering with `bokehJS`.
-    Parameters
-    ----------
-    plot : bokeh.plotting.figure.Figure
-        Bokeh plot object to be rendered.
-    Returns
-    -------
-    (str, str)
-        Returns (docs_json, render_items) json for the desired plot.
-    """
-    render_items = [{'docid': plot._id, 'elementid': make_id()}]
-
-    doc = Document()
-    doc.add_root(plot)
-    docs_json_inner = doc.to_json()
-    docs_json = {render_items[0]['docid']: docs_json_inner}
-
-    docs_json = serialize_json(docs_json)
-    render_items = serialize_json(render_items)
-    custom_model_js = bundle_all_models()
-
-    return docs_json, render_items, custom_model_js
 
 
 tooltip_format = [
@@ -295,7 +294,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
             source=ColumnDataSource(df),
         )
 
-        imhover.renderers.append(model_dict[key])
+        # imhover.renderers.append(model_dict[key])
 
         key = f'bin{i}'
         model_dict[key] = plot.scatter(
@@ -320,7 +319,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
             ),
         )
 
-        imhover.renderers.append(model_dict[key])
+        # imhover.renderers.append(model_dict[key])
 
         key = 'obserr' + str(i)
         y_err_x = []
@@ -366,11 +365,15 @@ def photometry_plot(obj_id, user, width=600, height=300):
 
     # TODO replace `eval` with Namespaces
     # https://github.com/bokeh/bokeh/pull/6340
-    toggle.callback = CustomJS(
-        args={'toggle': toggle, **model_dict},
-        code=open(
-            os.path.join(os.path.dirname(__file__), '../static/js/plotjs', 'togglef.js')
-        ).read(),
+    toggle.js_on_click(
+        CustomJS(
+            args={'toggle': toggle, **model_dict},
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__), '../static/js/plotjs', 'togglef.js'
+                )
+            ).read(),
+        )
     )
 
     slider = Slider(start=0.0, end=15.0, value=0.0, step=1.0, title='Binsize (days)')
@@ -392,8 +395,8 @@ def photometry_plot(obj_id, user, width=600, height=300):
     if len(detection_dates) > 0:
         first = round(detection_dates.min(), 6)
         last = round(detection_dates.max(), 6)
-        first_color = "#34b4eb"
-        last_color = "#8992f5"
+        first_color = "blue"  # "#34b4eb"
+        last_color = "green"  # "#8992f5"
         midpoint = (upper + lower) / 2
         line_top = 5 * upper - 4 * midpoint
         line_bottom = 5 * lower - 4 * midpoint
@@ -511,7 +514,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
             source=ColumnDataSource(df[df['obs']]),
         )
 
-        imhover.renderers.append(model_dict[key])
+        # imhover.renderers.append(model_dict[key])
 
         unobs_source = df[~df['obs']].copy()
         unobs_source.loc[:, 'alpha'] = 0.8
@@ -523,12 +526,12 @@ def photometry_plot(obj_id, user, width=600, height=300):
             color='color',
             marker='inverted_triangle',
             fill_color='white',
-            line_color='color',
+            #            line_color='color',
             alpha='alpha',
             source=ColumnDataSource(unobs_source),
         )
 
-        imhover.renderers.append(model_dict[key])
+        # imhover.renderers.append(model_dict[key])
 
         key = f'bin{i}'
         model_dict[key] = plot.scatter(
@@ -553,7 +556,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
             ),
         )
 
-        imhover.renderers.append(model_dict[key])
+        # imhover.renderers.append(model_dict[key])
 
         key = 'obserr' + str(i)
         y_err_x = []
@@ -597,7 +600,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
             color='color',
             marker='inverted_triangle',
             fill_color='white',
-            line_color='color',
+            #            line_color='color',
             alpha=0.8,
             source=ColumnDataSource(
                 data=dict(
@@ -614,7 +617,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
                 )
             ),
         )
-        imhover.renderers.append(model_dict[key])
+        # imhover.renderers.append(model_dict[key])
 
         key = f'all{i}'
         model_dict[key] = ColumnDataSource(df)
@@ -662,26 +665,32 @@ def photometry_plot(obj_id, user, width=600, height=300):
 
     # TODO replace `eval` with Namespaces
     # https://github.com/bokeh/bokeh/pull/6340
-    toggle.callback = CustomJS(
-        args={'toggle': toggle, **model_dict},
-        code=open(
-            os.path.join(os.path.dirname(__file__), '../static/js/plotjs', 'togglem.js')
-        ).read(),
+    toggle.js_on_click(
+        CustomJS(
+            args={'toggle': toggle, **model_dict},
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__), '../static/js/plotjs', 'togglem.js'
+                )
+            ).read(),
+        )
     )
 
     slider = Slider(start=0.0, end=15.0, value=0.0, step=1.0, title='Binsize (days)')
 
     button = Button(label="Export Bold Light Curve to CSV")
-    button.callback = CustomJS(
-        args={'slider': slider, 'toggle': toggle, **model_dict},
-        code=open(
-            os.path.join(
-                os.path.dirname(__file__), '../static/js/plotjs', "download.js"
+    button.js_on_click(
+        CustomJS(
+            args={'slider': slider, 'toggle': toggle, **model_dict},
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__), '../static/js/plotjs', "download.js"
+                )
             )
+            .read()
+            .replace('objname', obj_id)
+            .replace('default_zp', str(PHOT_ZP)),
         )
-        .read()
-        .replace('objname', obj_id)
-        .replace('default_zp', str(PHOT_ZP)),
     )
 
     toplay = row(slider, button)
@@ -702,7 +711,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
     p2 = Panel(child=layout, title='Mag')
 
     tabs = Tabs(tabs=[p2, p1])
-    return _plot_to_json(tabs)
+    return bokeh_embed.json_item(tabs), bundle_models([CheckboxWithLegendGroup])
 
 
 # TODO make async so that thread isn't blocked
@@ -804,13 +813,15 @@ def spectroscopy_plot(obj_id, spec_id=None):
         active=list(range(len(spectra))),
         colors=[color_map[k] for k, df in split],
     )
-    toggle.callback = CustomJS(
-        args={'toggle': toggle, **model_dict},
-        code="""
+    toggle.js_on_click(
+        CustomJS(
+            args={'toggle': toggle, **model_dict},
+            code="""
           for (let i = 0; i < toggle.labels.length; i++) {
               eval("s" + i).visible = (toggle.active.includes(i))
           }
     """,
+        )
     )
 
     z_title = Div(text="Redshift (<i>z</i>): ")
@@ -825,24 +836,30 @@ def spectroscopy_plot(obj_id, spec_id=None):
     z_textinput = TextInput(
         value=str(obj.redshift if obj.redshift is not None else 0.0)
     )
-    z_slider.callback = CustomJS(
-        args={'slider': z_slider, 'textinput': z_textinput},
-        code="""
+    z_slider.js_on_change(
+        'value',
+        CustomJS(
+            args={'slider': z_slider, 'textinput': z_textinput},
+            code="""
             textinput.value = slider.value.toFixed(3).toString();
             textinput.change.emit();
         """,
+        ),
     )
     z = column(z_title, z_slider, z_textinput)
 
     v_title = Div(text="<i>V</i><sub>expansion</sub> (km/s): ")
     v_exp_slider = Slider(value=0.0, start=0.0, end=3e4, step=10.0, show_value=False,)
     v_exp_textinput = TextInput(value='0')
-    v_exp_slider.callback = CustomJS(
-        args={'slider': v_exp_slider, 'textinput': v_exp_textinput},
-        code="""
+    v_exp_slider.js_on_change(
+        'value',
+        CustomJS(
+            args={'slider': v_exp_slider, 'textinput': v_exp_textinput},
+            code="""
             textinput.value = slider.value.toFixed(0).toString();
             textinput.change.emit();
         """,
+        ),
     )
     v_exp = column(v_title, v_exp_slider, v_exp_textinput)
 
@@ -872,14 +889,15 @@ def spectroscopy_plot(obj_id, spec_id=None):
         elements_groups.append(elements)
 
         # TODO callback policy: don't require submit for text changes?
-        elements.callback = CustomJS(
-            args={
-                'elements': elements,
-                'z': z_textinput,
-                'v_exp': v_exp_textinput,
-                **model_dict,
-            },
-            code=f"""
+        elements.js_on_click(
+            CustomJS(
+                args={
+                    'elements': elements,
+                    'z': z_textinput,
+                    'v_exp': v_exp_textinput,
+                    **model_dict,
+                },
+                code=f"""
             let c = 299792.458; // speed of light in km / s
             const i_max = {col_offset} + elements.labels.length;
             let local_i = 0;
@@ -894,6 +912,7 @@ def spectroscopy_plot(obj_id, spec_id=None):
                 local_i++;
             }}
         """,
+            )
         )
 
         col_offset += len(labels)
@@ -979,4 +998,4 @@ def spectroscopy_plot(obj_id, spec_id=None):
     row2 = row(elements_groups)
     row3 = row(z, v_exp)
     layout = column(row1, row2, row3)
-    return _plot_to_json(layout)
+    return bokeh_embed.json_item(layout), bundle_models([CheckboxWithLegendGroup])

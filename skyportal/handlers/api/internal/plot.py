@@ -14,40 +14,22 @@ class PlotPhotometryHandler(BaseHandler):
     def get(self, obj_id):
         height = self.get_query_argument("plotHeight", 300)
         width = self.get_query_argument("plotWidth", 600)
-        docs_json, render_items, custom_model_js = plot.photometry_plot(
+        json, model_code = plot.photometry_plot(
             obj_id, self.current_user, height=int(height), width=int(width),
         )
-        if docs_json is None:
-            self.success(data={'docs_json': None, 'url': self.request.path})
-        else:
-            self.success(
-                data={
-                    'docs_json': docs_json,
-                    'render_items': render_items,
-                    'custom_model_js': custom_model_js,
-                    'url': self.request.uri,
-                }
-            )
+        self.success(
+            data={'bokehJSON': json, 'modelJS': model_code, 'url': self.request.uri}
+        )
 
 
 class PlotSpectroscopyHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
         spec_id = self.get_query_argument("spectrumID", None)
-        docs_json, render_items, custom_model_js = plot.spectroscopy_plot(
-            obj_id, spec_id
+        json, model_code = plot.spectroscopy_plot(obj_id, spec_id)
+        self.success(
+            data={'bokehJSON': json, 'modelJS': model_code, 'url': self.request.uri}
         )
-        if docs_json is None:
-            self.success(data={'docs_json': None, 'url': self.request.path})
-        else:
-            self.success(
-                data={
-                    'docs_json': docs_json,
-                    'render_items': render_items,
-                    'custom_model_js': custom_model_js,
-                    'url': self.request.uri,
-                }
-            )
 
 
 class AirmassHandler(BaseHandler):
