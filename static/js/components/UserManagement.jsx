@@ -43,6 +43,7 @@ const useStyles = makeStyles(() => ({
   headerCell: {
     verticalAlign: "bottom",
   },
+  invitations: { marginBottom: "1rem" },
 }));
 
 const sampleCSVText = `example1@gmail.com,1,3,false
@@ -550,7 +551,7 @@ const UserManagement = () => {
           {!!invitations?.length && (
             <>
               <Typography variant="h5">Pending Invitations</Typography>
-              <Paper elevation={1}>
+              <Paper elevation={1} className={classes.invitations}>
                 <Table>
                   <TableHead>
                     <TableRow>

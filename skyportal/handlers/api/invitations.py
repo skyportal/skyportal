@@ -210,20 +210,22 @@ class InvitationHandler(BaseHandler):
                 "At least one of either groupIDs or streamIDs are requried."
             )
         if group_ids is not None:
+            group_ids = [int(gid) for gid in group_ids]
             groups = Group.query.filter(Group.id.in_(group_ids)).all()
-            if len(groups) != len(group_ids):
+            if set(group_ids).difference({g.id for g in groups}):
                 return self.error(
-                    "Invalid groupIDs paramter: at least one "
-                    "invalid group ID provided."
+                    "The following groupIDs elements are invalid: "
+                    f"{set(group_ids).difference({g.id for g in groups})}"
                 )
         else:
             groups = invitation.groups
         if stream_ids is not None:
+            stream_ids = [int(sid) for sid in stream_ids]
             streams = Stream.query.filter(Stream.id.in_(stream_ids)).all()
-            if len(streams) != len(stream_ids):
+            if set(stream_ids).difference({s.id for s in streams}):
                 return self.error(
-                    "Invalid streamIDs paramter: at least one "
-                    "invalid stream ID provided."
+                    "The following streamIDs elements are invalid: "
+                    f"{set(stream_ids).difference({s.id for s in streams})}"
                 )
         else:
             streams = invitation.streams
