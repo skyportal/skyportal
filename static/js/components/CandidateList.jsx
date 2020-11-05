@@ -285,6 +285,9 @@ const CandidateList = () => {
   const userAccessibleGroups = useSelector(
     (state) => state.groups.userAccessible
   );
+  const allGroups = (useSelector((state) => state.groups.all) || []).filter(
+    (g) => !g.single_user_group
+  );
 
   useEffect(() => {
     if (userAccessibleGroups?.length && filterGroups.length === 0) {
@@ -481,7 +484,7 @@ const CandidateList = () => {
                   id: candidateObj.id,
                   currentGroupIds: candidateObj.saved_groups.map((g) => g.id),
                 }}
-                userGroups={userAccessibleGroups}
+                groups={allGroups}
               />
             </div>
             <div className={classes.infoItem}>
