@@ -78,6 +78,11 @@ class InvitationHandler(BaseHandler):
                 "all list items to integers."
             )
         groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
+        if set(group_ids).difference({g.id for g in groups}):
+            return self.error(
+                "The following groupIDs elements are invalid: "
+                f"{set(group_ids).difference({g.id for g in groups})}"
+            )
 
         if data.get("streamIDs") not in [None, "", "null", "None"]:
             try:
@@ -88,6 +93,11 @@ class InvitationHandler(BaseHandler):
                     "all list items to integers."
                 )
             streams = DBSession().query(Stream).filter(Stream.id.in_(stream_ids)).all()
+            if set(stream_ids).difference({s.id for s in streams}):
+                return self.error(
+                    "The following streamIDs elements are invalid: "
+                    f"{set(stream_ids).difference({s.id for s in streams})}"
+                )
 
             # Ensure specified groups are covered by specified streams
             if not all(
