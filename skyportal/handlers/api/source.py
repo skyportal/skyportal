@@ -483,6 +483,10 @@ class SourceHandler(BaseHandler):
             source_list[-1]["classifications"] = source.get_classifications_owned_by(
                 self.current_user
             )
+            source_list[-1]["annotations"] = sorted(
+                source.get_annotations_owned_by(self.current_user),
+                key=lambda x: x.origin,
+            )
             source_list[-1]["last_detected"] = source.last_detected
             source_list[-1]["gal_lon"] = source.gal_lon_deg
             source_list[-1]["gal_lat"] = source.gal_lat_deg
