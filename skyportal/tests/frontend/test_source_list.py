@@ -1,5 +1,4 @@
 import uuid
-from selenium.common.exceptions import TimeoutException
 
 from skyportal.tests import api
 from tdtax import taxonomy, __version__
@@ -108,7 +107,9 @@ def test_add_sources_two_groups(
     assert status == 200
 
     # check the classification doesn't shows up (it should not show up without a page refresh!)
-    driver.wait_for_xpath_to_disappear(f"//*[text()[contains(., '{'Algol'}')]]", timeout=1)
+    driver.wait_for_xpath_to_disappear(
+        f"//*[text()[contains(., '{'Algol'}')]]", timeout=1
+    )
 
     # making sure the drawer is still open even after posting a classification!
     driver.wait_for_xpath("//*[@class='vega-embed']")
