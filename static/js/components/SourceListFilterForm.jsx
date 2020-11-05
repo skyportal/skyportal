@@ -17,7 +17,7 @@ import { useForm, Controller } from "react-hook-form";
 
 import * as Actions from "../ducks/sources";
 
-const SearchBox = ({ sources }) => {
+const SourceListFilterForm = ({ sources }) => {
   const dispatch = useDispatch();
 
   const { handleSubmit, register, getValues, control, reset } = useForm();
@@ -275,7 +275,7 @@ const SearchBox = ({ sources }) => {
   );
 };
 
-SearchBox.propTypes = {
+SourceListFilterForm.propTypes = {
   sources: PropTypes.shape({
     lastPage: PropTypes.bool,
     pageNumber: PropTypes.number,
@@ -286,4 +286,4 @@ SearchBox.propTypes = {
   }).isRequired,
 };
 
-export default SearchBox;
+export default SourceListFilterForm;
