@@ -135,20 +135,20 @@ const EditSourceGroups = ({ source, groups, icon }) => {
       >
         <DialogTitle>Unsave or save to new groups:</DialogTitle>
         <DialogContent>
-          <p>
-            You can save to groups you belong to or request group admins of
-            groups you are not a member of to save this source to their group.
-          </p>
           <form onSubmit={handleSubmit(onSubmit)}>
             {(errors.inviteGroupIds || errors.unsaveGroupIds) && (
               <FormValidationError message="Select at least one group." />
             )}
             {!!unsavedGroups.length && (
               <>
-                <div>
+                <>
+                  You can save to groups you belong to or request group admins
+                  of groups you are not a member of to save this source to their
+                  group.
+                  <br />
                   <b>Save</b> (or request save, for groups you do not belong to)
                   to selected groups:
-                </div>
+                </>
                 {unsavedGroups.map((unsavedGroup, idx) => (
                   <FormControlLabel
                     key={unsavedGroup.id}
