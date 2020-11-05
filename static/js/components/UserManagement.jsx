@@ -1,11 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import Table from "@material-ui/core/Table";
-import TableBody from "@material-ui/core/TableBody";
-import TableCell from "@material-ui/core/TableCell";
-import TableHead from "@material-ui/core/TableHead";
-import TableRow from "@material-ui/core/TableRow";
+import MUIDataTable from "mui-datatables";
 import Paper from "@material-ui/core/Paper";
 import Chip from "@material-ui/core/Chip";
 import CircularProgress from "@material-ui/core/CircularProgress";
@@ -43,17 +39,24 @@ const useStyles = makeStyles(() => ({
   headerCell: {
     verticalAlign: "bottom",
   },
+  spinnerDiv: {
+    paddingTop: "2rem",
+  },
 }));
 
 const sampleCSVText = `example1@gmail.com,1,3,false
 example2@gmail.com,1 2 3,2 5 9,false false true`;
 
+const defaultNumPerPage = 25;
+
 const UserManagement = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
+  const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
+  const [queryInProgress, setQueryInProgress] = useState(false);
   const { invitationsEnabled } = useSelector((state) => state.sysInfo);
   const currentUser = useSelector((state) => state.profile);
-  const { allUsers } = useSelector((state) => state.users);
+  const { users, totalMatches } = useSelector((state) => state.users);
   const streams = useSelector((state) => state.streams);
   let { all: allGroups } = useSelector((state) => state.groups);
   const acls = useSelector((state) => state.acls);
@@ -84,7 +87,7 @@ const UserManagement = () => {
   }, [dataFetched, dispatch]);
 
   if (
-    !allUsers?.length ||
+    !users?.length ||
     !currentUser?.username?.length ||
     !allGroups?.length ||
     !streams?.length ||
@@ -92,9 +95,12 @@ const UserManagement = () => {
     !roles?.length
   ) {
     return (
-      <div>
+      <Box
+        display={queryInProgress ? "block" : "none"}
+        className={classes.spinnerDiv}
+      >
         <CircularProgress />
-      </div>
+      </Box>
     );
   }
 
@@ -275,176 +281,267 @@ const UserManagement = () => {
     }
   };
 
+  // MUI DataTable functions
+  const renderName = (dataIndex) => {
+    const user = users[dataIndex];
+    return (
+      <div>
+        {`${user.first_name ? user.first_name : ""} ${
+          user.last_name ? user.last_name : ""
+        }`}
+      </div>
+    );
+  };
+
+  const renderRoles = (dataIndex) => {
+    const user = users[dataIndex];
+    return (
+      <div>
+        <IconButton
+          aria-label="add-role"
+          data-testid={`addUserRolesButton${user.id}`}
+          onClick={() => {
+            setClickedUser(user);
+            setAddUserRolesDialogOpen(true);
+          }}
+          size="small"
+        >
+          <AddCircleIcon color="disabled" />
+        </IconButton>
+        {user.roles.map((role) => (
+          <Chip
+            label={role}
+            onDelete={() => {
+              handleClickDeleteUserRole(user.id, role);
+            }}
+            key={role}
+            id={`deleteUserRoleButton_${user.id}_${role}`}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const renderRolesHeader = () => (
+    <Tooltip
+      interactive
+      title={
+        <>
+          <b>Each role is associated with the following ACLs:</b>
+          <ul>
+            {roles.map((role) => (
+              <li key={role.id}>
+                {role.id}: {role.acls.join(", ")}
+              </li>
+            ))}
+          </ul>
+        </>
+      }
+    >
+      <HelpIcon color="disabled" size="small" className={classes.icon} />
+    </Tooltip>
+  );
+
+  const renderACLs = (dataIndex) => {
+    const user = users[dataIndex];
+    return (
+      <div>
+        <IconButton
+          aria-label="add-acl"
+          data-testid={`addUserACLsButton${user.id}`}
+          onClick={() => {
+            setClickedUser(user);
+            setAddUserACLsDialogOpen(true);
+          }}
+          size="small"
+        >
+          <AddCircleIcon color="disabled" />
+        </IconButton>
+        {user.acls.map((acl) => (
+          <Chip
+            label={acl}
+            onDelete={() => {
+              handleClickDeleteUserACL(user.id, acl);
+            }}
+            key={acl}
+            id={`deleteUserACLButton_${user.id}_${acl}`}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const renderACLsHeader = () => (
+    <Tooltip
+      interactive
+      title={
+        <>
+          <p>
+            These are in addition to those ACLs associated with user role(s).
+            See help icon tooltip in roles column header for those ACLs.
+          </p>
+        </>
+      }
+    >
+      <HelpIcon color="disabled" size="small" className={classes.icon} />
+    </Tooltip>
+  );
+
+  const renderGroups = (dataIndex) => {
+    const user = users[dataIndex];
+    return (
+      <div>
+        <IconButton
+          aria-label="add-group"
+          data-testid={`addUserGroupsButton${user.id}`}
+          onClick={() => {
+            setClickedUser(user);
+            setAddUserGroupsDialogOpen(true);
+          }}
+          size="small"
+        >
+          <AddCircleIcon color="disabled" />
+        </IconButton>
+        {user.groups
+          .filter((group) => !group.single_user_group)
+          .map((group) => (
+            <Chip
+              label={group.name}
+              onDelete={() => {
+                handleClickRemoveUserFromGroup(user.username, group.id);
+              }}
+              key={group.id}
+              id={`deleteGroupUserButton_${user.id}_${group.id}`}
+            />
+          ))}
+      </div>
+    );
+  };
+
+  const renderStreams = (dataIndex) => {
+    const user = users[dataIndex];
+    return (
+      <div>
+        <IconButton
+          aria-label="add-stream"
+          data-testid={`addUserStreamsButton${user.id}`}
+          onClick={() => {
+            setClickedUser(user);
+            setAddUserStreamsDialogOpen(true);
+          }}
+          size="small"
+        >
+          <AddCircleIcon color="disabled" />
+        </IconButton>
+        {user.streams.map((stream) => (
+          <Chip
+            label={stream.name}
+            onDelete={() => {
+              handleClickRemoveUserStreamAccess(user.id, stream.id);
+            }}
+            key={stream.id}
+            id={`deleteStreamUserButton_${user.id}_${stream.id}`}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const handlePageChange = async (page, numPerPage) => {
+    setQueryInProgress(true);
+    const params = { pageNumber: page + 1, numPerPage };
+    await dispatch(usersActions.fetchUsers(params));
+    setQueryInProgress(false);
+  };
+
+  const handleTableChange = (action, tableState) => {
+    setRowsPerPage(tableState.rowsPerPage);
+    switch (action) {
+      case "changePage":
+      case "changeRowsPerPage":
+        handlePageChange(tableState.page, tableState.rowsPerPage);
+        break;
+      default:
+    }
+  };
+
+  const columns = [
+    {
+      name: "first_name",
+      label: "Name",
+      options: {
+        customBodyRenderLite: renderName,
+      },
+    },
+    {
+      name: "username",
+      label: "Username",
+    },
+    {
+      name: "contact_email",
+      label: "Email",
+    },
+    {
+      name: "roles",
+      label: "Roles",
+      options: {
+        sort: false,
+        customBodyRenderLite: renderRoles,
+        customHeadLabelRender: renderRolesHeader,
+      },
+    },
+    {
+      name: "addition",
+      label: "Additional ACLS",
+      options: {
+        sort: false,
+        customBodyRenderLite: renderACLs,
+        customHeadLabelRender: renderACLsHeader,
+      },
+    },
+    {
+      name: "groups",
+      label: "Groups",
+      options: {
+        sort: false,
+        customBodyRenderLite: renderGroups,
+      },
+    },
+    {
+      name: "streams",
+      label: "Streams",
+      options: {
+        sort: false,
+        customBodyRenderLite: renderStreams,
+      },
+    },
+  ];
+
+  const options = {
+    responsive: "standard",
+    print: true,
+    download: true,
+    search: false,
+    selectableRows: "none",
+    enableNestedDataAccess: ".",
+    elevation: 2,
+    rowsPerPage,
+    rowsPerPageOptions: [1, 10, 25, 50],
+    filter: !queryInProgress,
+    filterType: "custom",
+    jumpToPage: true,
+    serverSide: true,
+    pagination: true,
+    rowHover: false,
+    count: totalMatches,
+    onTableChange: handleTableChange,
+  };
+
   return (
     <>
       <Typography variant="h5">Manage users</Typography>
       <Paper elevation={1}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell align="center">Name</TableCell>
-              <TableCell align="center">Username</TableCell>
-              <TableCell align="center">Email</TableCell>
-              <TableCell align="center" className={classes.headerCell}>
-                Roles&nbsp;
-                <Tooltip
-                  interactive
-                  title={
-                    <>
-                      <b>Each role is associated with the following ACLs:</b>
-                      <ul>
-                        {roles.map((role) => (
-                          <li key={role.id}>
-                            {role.id}: {role.acls.join(", ")}
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  }
-                >
-                  <HelpIcon
-                    color="disabled"
-                    size="small"
-                    className={classes.icon}
-                  />
-                </Tooltip>
-              </TableCell>
-              <TableCell align="center" className={classes.headerCell}>
-                Additional ACLs&nbsp;
-                <Tooltip
-                  interactive
-                  title={
-                    <>
-                      <p>
-                        These are in addition to those ACLs associated with user
-                        role(s). See help icon tooltip in roles column header
-                        for those ACLs.
-                      </p>
-                    </>
-                  }
-                >
-                  <HelpIcon
-                    color="disabled"
-                    size="small"
-                    className={classes.icon}
-                  />
-                </Tooltip>
-              </TableCell>
-              <TableCell align="center">Groups</TableCell>
-              <TableCell align="center">Streams</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {allUsers.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>
-                  {`${user.first_name ? user.first_name : ""} ${
-                    user.last_name ? user.last_name : ""
-                  }`}
-                </TableCell>
-                <TableCell>{user.username}</TableCell>
-                <TableCell>{user.contact_email}</TableCell>
-                <TableCell>
-                  <IconButton
-                    aria-label="add-role"
-                    data-testid={`addUserRolesButton${user.id}`}
-                    onClick={() => {
-                      setClickedUser(user);
-                      setAddUserRolesDialogOpen(true);
-                    }}
-                    size="small"
-                  >
-                    <AddCircleIcon color="disabled" />
-                  </IconButton>
-                  {user.roles.map((role) => (
-                    <Chip
-                      label={role}
-                      onDelete={() => {
-                        handleClickDeleteUserRole(user.id, role);
-                      }}
-                      key={role}
-                      id={`deleteUserRoleButton_${user.id}_${role}`}
-                    />
-                  ))}
-                </TableCell>
-                <TableCell>
-                  <IconButton
-                    aria-label="add-acl"
-                    data-testid={`addUserACLsButton${user.id}`}
-                    onClick={() => {
-                      setClickedUser(user);
-                      setAddUserACLsDialogOpen(true);
-                    }}
-                    size="small"
-                  >
-                    <AddCircleIcon color="disabled" />
-                  </IconButton>
-                  {user.acls.map((acl) => (
-                    <Chip
-                      label={acl}
-                      onDelete={() => {
-                        handleClickDeleteUserACL(user.id, acl);
-                      }}
-                      key={acl}
-                      id={`deleteUserACLButton_${user.id}_${acl}`}
-                    />
-                  ))}
-                </TableCell>
-                <TableCell>
-                  <IconButton
-                    aria-label="add-group"
-                    data-testid={`addUserGroupsButton${user.id}`}
-                    onClick={() => {
-                      setClickedUser(user);
-                      setAddUserGroupsDialogOpen(true);
-                    }}
-                    size="small"
-                  >
-                    <AddCircleIcon color="disabled" />
-                  </IconButton>
-                  {user.groups
-                    .filter((group) => !group.single_user_group)
-                    .map((group) => (
-                      <Chip
-                        label={group.name}
-                        onDelete={() => {
-                          handleClickRemoveUserFromGroup(
-                            user.username,
-                            group.id
-                          );
-                        }}
-                        key={group.id}
-                        id={`deleteGroupUserButton_${user.id}_${group.id}`}
-                      />
-                    ))}
-                </TableCell>
-                <TableCell>
-                  <IconButton
-                    aria-label="add-stream"
-                    data-testid={`addUserStreamsButton${user.id}`}
-                    onClick={() => {
-                      setClickedUser(user);
-                      setAddUserStreamsDialogOpen(true);
-                    }}
-                    size="small"
-                  >
-                    <AddCircleIcon color="disabled" />
-                  </IconButton>
-                  {user.streams.map((stream) => (
-                    <Chip
-                      label={stream.name}
-                      onDelete={() => {
-                        handleClickRemoveUserStreamAccess(user.id, stream.id);
-                      }}
-                      key={stream.id}
-                      id={`deleteStreamUserButton_${user.id}_${stream.id}`}
-                    />
-                  ))}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <MUIDataTable columns={columns} data={users} options={options} />
       </Paper>
       <br />
       {invitationsEnabled && (

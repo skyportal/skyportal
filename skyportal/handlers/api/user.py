@@ -76,6 +76,20 @@ class UserHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all users
+          parameters:
+          - in: query
+            name: numPerPage
+            nullable: true
+            schema:
+              type: integer
+            description: |
+              Number of candidates to return per paginated request. Defaults to 25
+          - in: query
+            name: pageNumber
+            nullable: true
+            schema:
+              type: integer
+            description: Page number for paginated query results. Defaults to 1
           responses:
             200:
               content:
@@ -110,8 +124,26 @@ class UserHandler(BaseHandler):
             user_info["acls"] = sorted([acl.id for acl in user.acls])
             return self.success(data=user_info)
 
+        page_number = self.get_query_argument("pageNumber", None) or 1
+        n_per_page = self.get_query_argument("numPerPage", None) or 25
+        try:
+            page_number = int(page_number)
+        except ValueError:
+            return self.error("Invalid page number value.")
+        try:
+            n_per_page = int(n_per_page)
+        except ValueError:
+            return self.error("Invalid numPerPage value.")
+
+        query = (
+            User.query.order_by(User.username)
+            .limit(n_per_page)
+            .offset((page_number - 1) * n_per_page)
+        )
+        total_matches = User.query.count()
+        info = {}
         return_values = []
-        for user in sorted(User.query.all(), key=lambda u: u.username):
+        for user in query.all():
             return_values.append(user.to_dict())
             del return_values[-1]["preferences"]
             return_values[-1]["permissions"] = sorted(user.permissions)
@@ -124,7 +156,10 @@ class UserHandler(BaseHandler):
             if "System admin" in self.associated_user_object.permissions:
                 return_values[-1]["groups"] = user.groups
                 return_values[-1]["streams"] = user.streams
-        return self.success(data=return_values)
+
+        info["users"] = return_values
+        info["totalMatches"] = int(total_matches)
+        return self.success(data=info)
 
     @permissions(["Manage users"])
     def post(self):
