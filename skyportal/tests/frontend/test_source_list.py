@@ -107,12 +107,8 @@ def test_add_sources_two_groups(
     )
     assert status == 200
 
-    # check the classification shows up (it should not show up without a page refresh!)
-    try:
-        driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]", timeout=1)
-
-    except TimeoutException:
-        pass  # the classification should not appear on its own, so we ignore this error
+    # check the classification doesn't shows up (it should not show up without a page refresh!)
+    driver.wait_for_xpath_to_disappear(f"//*[text()[contains(., '{'Algol'}')]]", timeout=1)
 
     # making sure the drawer is still open even after posting a classification!
     driver.wait_for_xpath("//*[@class='vega-embed']")
