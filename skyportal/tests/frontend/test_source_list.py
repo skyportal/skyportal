@@ -69,24 +69,12 @@ def test_add_sources_two_groups(
     driver.wait_for_xpath(f"//*[text()[contains(., '{'0.153'}')]]")
 
     # little triangle you push to expand the table
-    expand_button = driver.wait_for_xpath("//*[@id='expandable-button']")
-    driver.scroll_to_element_and_click(expand_button)
+    driver.click_xpath("//*[@id='expandable-button']")
 
     # make sure the div containing the individual source appears
-    driver.wait_for_xpath("//tr[contains(@class, 'MuiTableRow-root')]")
+    driver.wait_for_xpath(f'//tr[@data-testid="groupSourceExpand_{obj_id}"]')
 
-    try:  # the vega plot may take some time to appear, and in the meanwhile the MUI drawer gets closed for some reason.
-        # make sure the table row opens up and show the vega plot
-        driver.wait_for_xpath("//*[@class='vega-embed']", timeout=2)
-    except TimeoutException:
-        # try again to click this triangle thingy to open the drawer
-        expand_button = driver.wait_for_xpath("//*[@id='expandable-button']")
-        driver.scroll_to_element_and_click(expand_button)
-
-        # with the drawer opened again, it should now work...
-        driver.wait_for_xpath(
-            "//*[@class='vega-embed']"
-        )  # make sure the table row opens up and show the vega plot
+    driver.wait_for_xpath("//*[@class='vega-embed']")
 
     # post a taxonomy and classification
     status, data = api(
