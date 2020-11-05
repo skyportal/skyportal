@@ -75,6 +75,7 @@ jobs:
         run: |
           curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -
 
+          sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6B05F25D762E3157
           sudo apt install -y wget nodejs unzip firefox nginx
 
           pip install --upgrade pip

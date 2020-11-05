@@ -63,6 +63,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6B05F25D762E3157
           python -m pip install --upgrade pip
           pip install numpy wheel
           pip install -r baselayer/requirements.txt
