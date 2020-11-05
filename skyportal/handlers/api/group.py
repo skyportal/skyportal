@@ -175,10 +175,13 @@ class GroupHandler(BaseHandler):
             "includeSingleUserGroups", False
         )
         info = {}
-        info['user_groups'] = list(self.current_user.groups)
-        info['user_accessible_groups'] = [
-            g for g in self.current_user.accessible_groups if not g.single_user_group
-        ]
+        info['user_groups'] = sorted(
+            list(self.current_user.groups), key=lambda g: g.name.lower()
+        )
+        info['user_accessible_groups'] = sorted(
+            [g for g in self.current_user.accessible_groups if not g.single_user_group],
+            key=lambda g: g.name.lower(),
+        )
         all_groups_query = Group.query
         if (not include_single_user_groups) or (
             isinstance(include_single_user_groups, str)
@@ -187,7 +190,9 @@ class GroupHandler(BaseHandler):
             all_groups_query = all_groups_query.filter(
                 Group.single_user_group.is_(False)
             )
-        info["all_groups"] = all_groups_query.all()
+        info["all_groups"] = sorted(
+            all_groups_query.all(), key=lambda g: g.name.lower()
+        )
         return self.success(data=info)
 
     @auth_or_token
