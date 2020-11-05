@@ -19,6 +19,9 @@ export function fetchSources(filterParams = {}) {
 }
 
 export function fetchGroupSources(filterParams = {}) {
+  if (!Object.keys(filterParams).includes("pageNumber")) {
+    filterParams.pageNumber = 1;
+  }
   const params = new URLSearchParams(filterParams);
   const queryString = params.toString();
   return API.GET(`/api/sources?${queryString}`, FETCH_GROUP_SOURCES);
