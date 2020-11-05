@@ -324,7 +324,7 @@ class CommentAttachmentHandler(BaseHandler):
                               description: The attachment file contents decoded as a string
 
         """
-        download = strtobool(self.get_query_argument('download', True).lower())
+        download = strtobool(self.get_query_argument('download', "True").lower())
 
         comment = Comment.get_if_owned_by(comment_id, self.current_user)
         if comment is None:
