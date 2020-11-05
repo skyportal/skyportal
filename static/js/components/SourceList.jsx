@@ -6,7 +6,7 @@ import Paper from "@material-ui/core/Paper";
 import Grid from "@material-ui/core/Grid";
 import { makeStyles } from "@material-ui/core/styles";
 
-import SearchBox from "./SearchBox";
+import SourceListFilterForm from "./SourceListFilterForm";
 import * as sourcesActions from "../ducks/sources";
 import UninitializedDBMessage from "./UninitializedDBMessage";
 import SourceTable from "./SourceTable";
@@ -46,7 +46,7 @@ const SourceList = () => {
           <Typography variant="h6" display="inline">
             Sources
           </Typography>
-          <SearchBox sources={sources} />
+          <SourceListFilterForm sources={sources} />
           {!sources.queryInProgress && (
             <Grid item className={classes.tableGrid}>
               <SourceTable sources={sources.latest} />
