@@ -58,7 +58,7 @@ class CandidateHandler(BaseHandler):
               content:
                 application/json:
                   schema: Success
-            400:
+            404:
               content:
                 application/json:
                   schema: Error
