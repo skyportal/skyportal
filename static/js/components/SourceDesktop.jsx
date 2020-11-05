@@ -223,6 +223,7 @@ const SourceDesktop = ({ source }) => {
             ra={source.ra}
             dec={source.dec}
             thumbnails={source.thumbnails}
+            size="12.875rem"
           />
         </div>
         <div className={classes.columnItem}>
