@@ -34,16 +34,10 @@ export function fetchSources(filterParams = {}) {
   return API.GET(`/api/sources?${queryString}`, FETCH_SOURCES);
 }
 
-export function fetchSavedGroupSources(filterParams = {}) {
-  addFilterParamDefaults(filterParams);
-  const params = new URLSearchParams(filterParams);
-  const queryString = params.toString();
-  return API.GET(`/api/sources?${queryString}`, FETCH_SAVED_GROUP_SOURCES);
-}
-
-export function fetchPendingGroupSources(filterParams = {}) {
-  addFilterParamDefaults(filterParams);
-  filterParams.pendingOnly = true;
+export function fetchGroupSources(filterParams = {}) {
+  if (!Object.keys(filterParams).includes("pageNumber")) {
+    filterParams.pageNumber = 1;
+  }
   const params = new URLSearchParams(filterParams);
   const queryString = params.toString();
   return API.GET(`/api/sources?${queryString}`, FETCH_PENDING_GROUP_SOURCES);
