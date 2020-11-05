@@ -74,7 +74,7 @@ class SourceHandler(BaseHandler):
               content:
                 application/json:
                   schema: Success
-            400:
+            404:
               content:
                 application/json:
                   schema: Error
@@ -483,6 +483,10 @@ class SourceHandler(BaseHandler):
             source_list[-1]["classifications"] = source.get_classifications_owned_by(
                 self.current_user
             )
+            source_list[-1]["annotations"] = sorted(
+                source.get_annotations_owned_by(self.current_user),
+                key=lambda x: x.origin,
+            )
             source_list[-1]["last_detected"] = source.last_detected
             source_list[-1]["gal_lon"] = source.gal_lon_deg
             source_list[-1]["gal_lat"] = source.gal_lat_deg
@@ -755,7 +759,7 @@ class SourceOffsetsHandler(BaseHandler):
             enum: [Keck, Shane, P200]
           description: Which facility to generate the starlist for
         - in: query
-          name: how_many
+          name: num_offset_stars
           nullable: true
           schema:
             type: integer
@@ -880,7 +884,7 @@ class SourceOffsetsHandler(BaseHandler):
             best_ra, best_dec = initial_pos[0], initial_pos[1]
 
         facility = self.get_query_argument('facility', 'Keck')
-        how_many = self.get_query_argument('how_many', '3')
+        num_offset_stars = self.get_query_argument('num_offset_stars', '3')
         use_ztfref = self.get_query_argument('use_ztfref', True)
         if isinstance(use_ztfref, str):
             use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
@@ -900,10 +904,10 @@ class SourceOffsetsHandler(BaseHandler):
         mag_min = facility_parameters[facility]["mag_min"]
 
         try:
-            how_many = int(how_many)
+            num_offset_stars = int(num_offset_stars)
         except ValueError:
             # could not handle inputs
-            return self.error('Invalid argument for `how_many`')
+            return self.error('Invalid argument for `num_offset_stars`')
 
         try:
             (
@@ -916,7 +920,7 @@ class SourceOffsetsHandler(BaseHandler):
                 best_ra,
                 best_dec,
                 obj_id,
-                how_many=how_many,
+                how_many=num_offset_stars,
                 radius_degrees=radius_degrees,
                 mag_limit=mag_limit,
                 min_sep_arcsec=min_sep_arcsec,
@@ -952,7 +956,7 @@ class SourceFinderHandler(BaseHandler):
     async def get(self, obj_id):
         """
         ---
-        description: Generate a PDF finding chart to aid in spectroscopy
+        description: Generate a PDF/PNG finding chart to aid in spectroscopy
         parameters:
         - in: path
           name: obj_id
@@ -993,11 +997,31 @@ class SourceFinderHandler(BaseHandler):
             type: string
           description: |
             datetime of observation in isoformat (e.g. 2020-12-30T12:34:10)
+        - in: query
+          name: type
+          nullable: true
+          schema:
+            type: string
+            enum: [png, pdf]
+          description: |
+            output type
+        - in: query
+          name: num_offset_stars
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 4
+          description: |
+            output desired number of offset stars [0,5] (default: 3)
         responses:
           200:
-            description: A PDF finding chart file
+            description: A PDF/PNG finding chart file
             content:
               application/pdf:
+                schema:
+                  type: string
+                  format: binary
+              image/png:
                 schema:
                   type: string
                   format: binary
@@ -1013,6 +1037,10 @@ class SourceFinderHandler(BaseHandler):
         )
         if source is None:
             return self.error('Source not found', status=404)
+
+        output_type = self.get_query_argument('type', 'pdf')
+        if output_type not in ["png", "pdf"]:
+            return self.error(f'Invalid argument for `type`: {output_type}')
 
         imsize = self.get_query_argument('imsize', '4.0')
         try:
@@ -1044,7 +1072,13 @@ class SourceFinderHandler(BaseHandler):
         if isinstance(use_ztfref, str):
             use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
 
-        how_many = 3
+        num_offset_stars = self.get_query_argument('num_offset_stars', '3')
+        try:
+            num_offset_stars = int(num_offset_stars)
+        except ValueError:
+            # could not handle inputs
+            return self.error('Invalid argument for `num_offset_stars`')
+
         obstime = self.get_query_argument(
             'obstime', datetime.datetime.utcnow().isoformat()
         )
@@ -1068,9 +1102,9 @@ class SourceFinderHandler(BaseHandler):
             best_dec,
             obj_id,
             image_source=image_source,
-            output_format='pdf',
+            output_format=output_type,
             imsize=imsize,
-            how_many=how_many,
+            how_many=num_offset_stars,
             radius_degrees=radius_degrees,
             mag_limit=mag_limit,
             mag_min=mag_min,
@@ -1103,8 +1137,12 @@ class SourceFinderHandler(BaseHandler):
 
         # do not send result via `.success`, since that creates a JSON
         self.set_status(200)
-        self.set_header("Content-Type", "application/pdf; charset='utf-8'")
-        self.set_header("Content-Disposition", f"attachment; filename={filename}")
+        if output_type == "pdf":
+            self.set_header("Content-Type", "application/pdf; charset='utf-8'")
+            self.set_header("Content-Disposition", f"attachment; filename={filename}")
+        else:
+            self.set_header("Content-type", f"image/{output_type}")
+
         self.set_header(
             'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'
         )
