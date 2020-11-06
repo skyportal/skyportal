@@ -86,52 +86,16 @@ const reducer = (
         latest: { ...state.latest, queryInProgress: false },
       };
     }
-    case FETCH_SAVED_GROUP_SOURCES: {
-      return {
-        ...state,
-        savedGroupSources: {
-          ...state.savedGroupSources,
-          queryInProgress: action.parameters.body.pageNumber === undefined,
-        },
-      };
-    }
     case FETCH_SAVED_GROUP_SOURCES_OK: {
       return {
         ...state,
-        savedGroupSources: { ...action.data, queryInProgress: false },
-      };
-    }
-    case FETCH_SAVED_GROUP_SOURCES_FAIL: {
-      return {
-        ...state,
-        savedGroupSources: {
-          ...state.savedGroupSources,
-          queryInProgress: false,
-        },
-      };
-    }
-    case FETCH_PENDING_GROUP_SOURCES: {
-      return {
-        ...state,
-        pendingGroupSources: {
-          ...state.pendingGroupSources,
-          queryInProgress: action.parameters.body.pageNumber === undefined,
-        },
+        savedGroupSources: action.data,
       };
     }
     case FETCH_PENDING_GROUP_SOURCES_OK: {
       return {
         ...state,
-        pendingGroupSources: { ...action.data, queryInProgress: false },
-      };
-    }
-    case FETCH_PENDING_GROUP_SOURCES_FAIL: {
-      return {
-        ...state,
-        pendingGroupSources: {
-          ...state.pendingGroupSources,
-          queryInProgress: false,
-        },
+        pendingGroupSources: action.data,
       };
     }
     default:
