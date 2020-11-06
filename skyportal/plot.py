@@ -338,8 +338,8 @@ def photometry_plot(obj_id, user, width=600, height=300):
     if len(detection_dates) > 0:
         first = round(detection_dates.min(), 6)
         last = round(detection_dates.max(), 6)
-        first_color = "blue"  # "#34b4eb"
-        last_color = "green"  # "#8992f5"
+        first_color = "#34b4eb"
+        last_color = "#8992f5"
         midpoint = (upper + lower) / 2
         line_top = 5 * upper - 4 * midpoint
         line_bottom = 5 * lower - 4 * midpoint
@@ -470,7 +470,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
             color='color',
             marker='inverted_triangle',
             fill_color='white',
-            #            line_color='color',
+            line_color='color',
             alpha='alpha',
             source=ColumnDataSource(unobs_source),
         )
