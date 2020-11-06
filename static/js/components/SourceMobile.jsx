@@ -15,7 +15,6 @@ import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 
-import Plot from "./Plot";
 import CommentListMobile from "./CommentListMobile";
 import ClassificationList from "./ClassificationList";
 import ClassificationForm from "./ClassificationForm";
@@ -318,10 +317,12 @@ const SourceMobile = ({ source }) => {
             </AccordionSummary>
             <AccordionDetails>
               <div className={classes.photometryContainer}>
-                <Plot
-                  className={classes.plot}
-                  url={`/api/internal/plot/photometry/${source.id}`}
-                />
+                <Suspense fallback={<div>Loading photometry plot...</div>}>
+                  <Plot
+                    className={classes.plot}
+                    url={`/api/internal/plot/photometry/${source.id}`}
+                  />
+                </Suspense>
                 <div>
                   <Link to={`/upload_photometry/${source.id}`} role="link">
                     <Button variant="contained">
@@ -349,10 +350,12 @@ const SourceMobile = ({ source }) => {
             </AccordionSummary>
             <AccordionDetails>
               <div className={classes.photometryContainer}>
-                <Plot
-                  className={classes.plot}
-                  url={`/api/internal/plot/spectroscopy/${source.id}`}
-                />
+                <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
+                  <Plot
+                    className={classes.plot}
+                    url={`/api/internal/plot/spectroscopy/${source.id}`}
+                  />
+                </Suspense>
                 <Link to={`/upload_spectrum/${source.id}`} role="link">
                   <Button variant="contained">
                     Upload additional spectroscopy
