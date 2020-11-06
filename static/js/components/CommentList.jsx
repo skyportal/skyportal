@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Button } from "@material-ui/core";
 import Tooltip from "@material-ui/core/Tooltip";
@@ -20,7 +19,7 @@ import CommentAttachmentPreview from "./CommentAttachmentPreview";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const CommentList = ({ isCandidate }) => {
+const CommentList = () => {
   const [hoverID, setHoverID] = useState(null);
 
   const handleMouseHover = (id, userProfile, author) => {
@@ -37,9 +36,7 @@ const CommentList = ({ isCandidate }) => {
   };
 
   const dispatch = useDispatch();
-  const source = useSelector((state) => state.source);
-  const candidate = useSelector((state) => state.candidate);
-  const obj = isCandidate ? candidate : source;
+  const obj = useSelector((state) => state.source);
   const userProfile = useSelector((state) => state.profile);
   const permissions = useSelector((state) => state.profile.permissions);
 
@@ -150,19 +147,11 @@ const CommentList = ({ isCandidate }) => {
         )}
       </div>
       <br />
-      {!isCandidate && permissions.indexOf("Comment") >= 0 && (
+      {permissions.indexOf("Comment") >= 0 && (
         <CommentEntry addComment={addComment} />
       )}
     </div>
   );
-};
-
-CommentList.propTypes = {
-  isCandidate: PropTypes.bool,
-};
-
-CommentList.defaultProps = {
-  isCandidate: false,
 };
 
 export default CommentList;
