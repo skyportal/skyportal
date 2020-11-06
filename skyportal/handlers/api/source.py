@@ -256,7 +256,7 @@ class SourceHandler(BaseHandler):
         """
         page_number = self.get_query_argument('pageNumber', None)
         num_per_page = min(
-            int(self.get_query_argument("numPerPage", SOURCES_PER_PAGE)), 1000
+            int(self.get_query_argument("numPerPage", SOURCES_PER_PAGE)), 100
         )
         ra = self.get_query_argument('ra', None)
         dec = self.get_query_argument('dec', None)
