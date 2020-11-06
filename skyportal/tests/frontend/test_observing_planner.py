@@ -79,7 +79,11 @@ def test_assignment_posts_to_observing_run(
     # 20 second timeout to give the backend time to perform ephemeris calcs
     driver.wait_for_xpath(f'//*[text()="{public_source.id}"]', timeout=20)
     for group in [s.group for s in public_source.sources]:
-        driver.wait_for_xpath(f'//*[text()="{group.name[:15]}"]')
+        if group.single_user_group:
+            func = driver.wait_for_xpath_to_disappear
+        else:
+            func = driver.wait_for_xpath
+        func(f'//span[text()="{group.name[:15]}"]')
 
 
 @pytest.mark.flaky(reruns=2)

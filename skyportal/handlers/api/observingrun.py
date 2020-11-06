@@ -133,10 +133,16 @@ class ObservingRunHandler(BaseHandler):
             data = ObservingRunGetWithAssignments.dump(run)
             data["assignments"] = [a.to_dict() for a in assignments]
 
-            gids = [g.id for g in self.current_user.accessible_groups]
+            gids = [
+                g.id
+                for g in self.current_user.accessible_groups
+                if not g.single_user_group
+            ]
             for a in data["assignments"]:
                 a['accessible_group_names'] = [
-                    s.group.name for s in a['obj'].sources if s.group_id in gids
+                    (s.group.nickname if s.group.nickname is not None else s.group.name)
+                    for s in a['obj'].sources
+                    if s.group_id in gids
                 ]
                 del a['obj'].sources
 
