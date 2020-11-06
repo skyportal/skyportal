@@ -236,7 +236,11 @@ class CandidateHandler(BaseHandler):
                                 type: integer
                               pageNumber:
                                 type: integer
-                              numPerPage:
+                              lastPage:
+                                type: boolean
+                              numberingStart:
+                                type: integer
+                              numberingEnd:
                                 type: integer
             400:
               content:
@@ -290,6 +294,9 @@ class CandidateHandler(BaseHandler):
                 key=lambda x: x["created_at"],
                 reverse=True,
             )
+            for comment in candidate_info["comments"]:
+                comment["author"] = comment["author"].to_dict()
+                del comment["author"]["preferences"]
             candidate_info["annotations"] = sorted(
                 c.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
             )
@@ -300,7 +307,6 @@ class CandidateHandler(BaseHandler):
                     .query(Group)
                     .join(Source)
                     .filter(Source.obj_id == obj_id)
-                    .filter(Source.active.is_(True))
                     .filter(Group.id.in_(user_accessible_group_ids))
                     .all()
                 )
@@ -503,7 +509,7 @@ class CandidateHandler(BaseHandler):
                 Obj.id,
             ]
         try:
-            query_results = grab_query_results(
+            query_results = grab_query_results_page(
                 q,
                 total_matches,
                 page,
@@ -525,58 +531,55 @@ class CandidateHandler(BaseHandler):
         )
         candidate_list = []
         for obj in query_results["candidates"]:
-            with DBSession().no_autoflush:
-                obj.is_source = (obj.id,) in matching_source_ids
-                if obj.is_source:
-                    obj.saved_groups = (
-                        DBSession()
-                        .query(Group)
-                        .join(Source)
-                        .filter(Source.obj_id == obj.id)
-                        .filter(Source.active.is_(True))
-                        .filter(Group.id.in_(user_accessible_group_ids))
-                        .all()
-                    )
-                    obj.classifications = obj.get_classifications_owned_by(
-                        self.current_user
-                    )
-                obj.passing_group_ids = [
-                    f.group_id
-                    for f in (
-                        DBSession()
-                        .query(Filter)
-                        .filter(Filter.id.in_(user_accessible_filter_ids))
-                        .filter(
-                            Filter.id.in_(
-                                DBSession()
-                                .query(Candidate.filter_id)
-                                .filter(Candidate.obj_id == obj.id)
-                            )
+            obj.is_source = (obj.id,) in matching_source_ids
+            if obj.is_source:
+                obj.saved_groups = (
+                    DBSession()
+                    .query(Group)
+                    .join(Source)
+                    .filter(Source.obj_id == obj.id)
+                    .filter(Group.id.in_(user_accessible_group_ids))
+                    .all()
+                )
+                obj.classifications = obj.get_classifications_owned_by(
+                    self.current_user
+                )
+            obj.passing_group_ids = [
+                f.group_id
+                for f in (
+                    DBSession()
+                    .query(Filter)
+                    .filter(Filter.id.in_(user_accessible_filter_ids))
+                    .filter(
+                        Filter.id.in_(
+                            DBSession()
+                            .query(Candidate.filter_id)
+                            .filter(Candidate.obj_id == obj.id)
                         )
-                        .all()
                     )
-                ]
-                candidate_list.append(obj.to_dict())
-                candidate_list[-1]["comments"] = sorted(
-                    [
-                        cmt.to_dict()
-                        for cmt in obj.get_comments_owned_by(self.current_user)
-                    ],
-                    key=lambda x: x["created_at"],
-                    reverse=True,
+                    .all()
                 )
-                candidate_list[-1]["annotations"] = sorted(
-                    obj.get_annotations_owned_by(self.current_user),
-                    key=lambda x: x.origin,
-                )
-                candidate_list[-1]["last_detected"] = obj.last_detected
-                candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
-                candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
-                candidate_list[-1]["luminosity_distance"] = obj.luminosity_distance
-                candidate_list[-1]["dm"] = obj.dm
-                candidate_list[-1][
-                    "angular_diameter_distance"
-                ] = obj.angular_diameter_distance
+            ]
+            candidate_list.append(obj.to_dict())
+            candidate_list[-1]["comments"] = sorted(
+                [cmt.to_dict() for cmt in obj.get_comments_owned_by(self.current_user)],
+                key=lambda x: x["created_at"],
+                reverse=True,
+            )
+            for comment in candidate_list[-1]["comments"]:
+                comment["author"] = comment["author"].to_dict()
+                del comment["author"]["preferences"]
+            candidate_list[-1]["annotations"] = sorted(
+                obj.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
+            )
+            candidate_list[-1]["last_detected"] = obj.last_detected
+            candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
+            candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
+            candidate_list[-1]["luminosity_distance"] = obj.luminosity_distance
+            candidate_list[-1]["dm"] = obj.dm
+            candidate_list[-1][
+                "angular_diameter_distance"
+            ] = obj.angular_diameter_distance
 
         query_results["candidates"] = candidate_list
         return self.success(data=query_results)
@@ -585,7 +588,7 @@ class CandidateHandler(BaseHandler):
     def post(self):
         """
         ---
-        description: Create new candidate(s) (one per filter).
+        description: Create a new candidate.
         requestBody:
           content:
             application/json:
@@ -622,11 +625,9 @@ class CandidateHandler(BaseHandler):
                         data:
                           type: object
                           properties:
-                            ids:
-                              type: array
-                              items:
-                                type: integer
-                              description: List of new candidate IDs
+                            id:
+                              type: string
+                              description: New candidate ID
         """
         data = self.get_json()
         obj_already_exists = Obj.query.get(data["id"]) is not None
@@ -675,53 +676,120 @@ class CandidateHandler(BaseHandler):
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
 
         DBSession().add(obj)
-        candidates = [
-            Candidate(
-                obj=obj,
-                filter=filter,
-                passing_alert_id=passing_alert_id,
-                passed_at=passed_at,
-                uploader_id=self.associated_user_object.id,
-            )
-            for filter in filters
-        ]
-        DBSession().add_all(candidates)
+        DBSession().add_all(
+            [
+                Candidate(
+                    obj=obj,
+                    filter=filter,
+                    passing_alert_id=passing_alert_id,
+                    passed_at=passed_at,
+                )
+                for filter in filters
+            ]
+        )
         DBSession().commit()
         if not obj_already_exists:
             obj.add_linked_thumbnails()
 
-        return self.success(data={"ids": [c.id for c in candidates]})
+        return self.success(data={"id": obj.id})
 
-    @auth_or_token
-    def delete(self, candidate_id):
+    @permissions(["Manage sources"])
+    def put(self, obj_id):
         """
         ---
-        description: Delete a candidate
+        description: Update a candidate
         parameters:
           - in: path
-            name: candidate_id
-            required: true
+            name: obj_id
+            required: True
             schema:
-              type: integer
+              type: string
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  filter_ids:
+                    type: array
+                    items:
+                      type: integer
+                    description: List of associated filter IDs
+                  passing_alert_id:
+                    type: integer
+                    description: ID of associated filter that created candidate
+                    nullable: true
+                  passed_at:
+                    type: string
+                    description: Arrow-parseable datetime string indicating when alert passed filter.
+                    nullable: true
+                required:
+                  - filter_ids
         responses:
           200:
             content:
               application/json:
                 schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
         """
-        c = Candidate.query.get(candidate_id)
-        if not (
-            self.associated_user_object.is_system_admin
-            or c.uploader_id == self.associated_user_object.id
+        data = self.get_json()
+        data["obj_id"] = obj_id
+
+        # Ensure user has access to candidate
+        if (
+            DBSession().query(Candidate).filter(Candidate.obj_id == obj_id).first()
+            is None
         ):
-            return self.error("Insufficient permissions.")
-        DBSession().delete(c)
+            return self.error("Invalid ID.")
+
+        passing_alert_id = data.pop("passing_alert_id", None)
+        passed_at = data.pop("passed_at", None)
+        if passed_at is not None:
+            passed_at = arrow.get(passed_at).datetime
+        try:
+            filter_ids = data.pop("filter_ids")
+        except KeyError:
+            return self.error("Missing required filter_ids parameter.")
+        user_accessible_filter_ids = [
+            filtr.id
+            for g in self.current_user.accessible_groups
+            for filtr in g.filters
+            if g.filters is not None
+        ]
+        if not all([fid in user_accessible_filter_ids for fid in filter_ids]):
+            return self.error(
+                "Insufficient permissions - you must only specify "
+                "filters that you have access to."
+            )
+
+        filters = Filter.query.filter(Filter.id.in_(filter_ids)).all()
+        if not filters:
+            return self.error("At least one valid filter ID must be provided.")
+
+        candidates = (
+            DBSession()
+            .query(Candidate)
+            .filter(Candidate.obj_id == obj_id, Candidate.filter_id.in_(filter_ids))
+            .all()
+        )
+
+        for candidate in candidates:
+            candidate.passed_at = passed_at
+            candidate.passing_alert_id = passing_alert_id
+
         DBSession().commit()
 
+        self.push_all(action="skyportal/FETCH_CANDIDATES")
         return self.success()
 
+    # TODO Do we need a delete handler? If so, what should it do? Old, unsaved
+    # candidates will automatically be deleted by cron job.
 
-def grab_query_results(
+
+def grab_query_results_page(
     q,
     total_matches,
     page,
@@ -777,36 +845,27 @@ def grab_query_results(
         info["totalMatches"] = int(total_matches)
     else:
         info["totalMatches"] = ordered_ids.count()
-
-    if page:
-        if (
+    if (
+        (
             (
-                (
-                    info["totalMatches"] < (page - 1) * n_items_per_page
-                    and info["totalMatches"] % n_items_per_page != 0
-                )
-                or (
-                    info["totalMatches"] < page * n_items_per_page
-                    and info["totalMatches"] % n_items_per_page == 0
-                )
-                and info["totalMatches"] != 0
+                info["totalMatches"] < (page - 1) * n_items_per_page
+                and info["totalMatches"] % n_items_per_page != 0
             )
-            or page <= 0
-            or (info["totalMatches"] == 0 and page != 1)
-        ):
-            raise ValueError("Page number out of range.")
-
-        # Now bring in the full Obj info for the candidates
-        page_ids = (
-            ordered_ids.limit(n_items_per_page)
-            .offset((page - 1) * n_items_per_page)
-            .all()
+            or (
+                info["totalMatches"] < page * n_items_per_page
+                and info["totalMatches"] % n_items_per_page == 0
+            )
+            and info["totalMatches"] != 0
         )
-        info["pageNumber"] = page
-        info["numPerPage"] = n_items_per_page
-    else:
-        page_ids = ordered_ids.all()
+        or page <= 0
+        or (info["totalMatches"] == 0 and page != 1)
+    ):
+        raise ValueError("Page number out of range.")
 
+    # Now bring in the full Obj info for the candidates
+    page_ids = (
+        ordered_ids.limit(n_items_per_page).offset((page - 1) * n_items_per_page).all()
+    )
     items = []
     query_options = [joinedload(Obj.thumbnails)]
     if include_photometry:
@@ -816,4 +875,11 @@ def grab_query_results(
     for item_id in page_ids:
         items.append(Obj.query.options(query_options).get(item_id))
     info[items_name] = items
+    info["pageNumber"] = page
+    info["numPerPage"] = n_items_per_page
+    info["lastPage"] = info["totalMatches"] <= page * n_items_per_page
+    info["numberingStart"] = (page - 1) * n_items_per_page + 1
+    info["numberingEnd"] = min(info["totalMatches"], page * n_items_per_page)
+    if info["totalMatches"] == 0:
+        info["numberingStart"] = 0
     return info

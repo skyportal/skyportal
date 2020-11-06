@@ -18,117 +18,123 @@ export const FETCH_PENDING_GROUP_SOURCES_OK =
 export const FETCH_PENDING_GROUP_SOURCES_FAIL =
   "skyportal/FETCH_PENDING_GROUP_SOURCES_FAIL";
 
-export function fetchSources(filterParams = {}) {
+const addFilterParamDefaults = (filterParams) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
     filterParams.pageNumber = 1;
   }
+  if (!Object.keys(filterParams).includes("numPerPage")) {
+    filterParams.numPerPage = 10;
+  }
+};
+
+export function fetchSources(filterParams = {}) {
+  addFilterParamDefaults(filterParams);
   const params = new URLSearchParams(filterParams);
   const queryString = params.toString();
   return API.GET(`/api/sources?${queryString}`, FETCH_SOURCES);
 }
 
 export function fetchSavedGroupSources(filterParams = {}) {
-  if (!Object.keys(filterParams).includes("pageNumber")) {
-    filterParams.pageNumber = 1;
-  }
+  addFilterParamDefaults(filterParams);
   const params = new URLSearchParams(filterParams);
   const queryString = params.toString();
   return API.GET(`/api/sources?${queryString}`, FETCH_SAVED_GROUP_SOURCES);
 }
 
 export function fetchPendingGroupSources(filterParams = {}) {
-  if (!Object.keys(filterParams).includes("pageNumber")) {
-    filterParams.pageNumber = 1;
-  }
+  addFilterParamDefaults(filterParams);
   filterParams.pendingOnly = true;
   const params = new URLSearchParams(filterParams);
   const queryString = params.toString();
-  return API.GET(`/api/sources?${queryString}`, FETCH_SAVED_GROUP_SOURCES);
+  return API.GET(`/api/sources?${queryString}`, FETCH_PENDING_GROUP_SOURCES);
 }
 
 const initialState = {
-  latest: null,
-  savedGroupSources: null,
-  pendingGroupSources: null,
+  sources: null,
   pageNumber: 1,
   lastPage: false,
   totalMatches: 0,
   numberingStart: 0,
   numberingEnd: 0,
+  numPerPage: 10,
 };
 
-const reducer = (state = initialState, action) => {
+const reducer = (
+  state = {
+    latest: initialState,
+    savedGroupSources: initialState,
+    pendingGroupSources: initialState,
+  },
+  action
+) => {
   switch (action.type) {
     case FETCH_SOURCES: {
       return {
         ...state,
-        queryInProgress: action.parameters.body.pageNumber === undefined,
+        latest: {
+          ...state.latest,
+          queryInProgress: action.parameters.body.pageNumber === undefined,
+        },
       };
     }
     case FETCH_SOURCES_OK: {
-      const {
-        sources,
-        pageNumber,
-        lastPage,
-        totalMatches,
-        numberingStart,
-        numberingEnd,
-      } = action.data;
       return {
         ...state,
-        latest: sources,
-        queryInProgress: false,
-        pageNumber,
-        lastPage,
-        totalMatches,
-        numberingStart,
-        numberingEnd,
+        latest: { ...action.data, queryInProgress: false },
       };
     }
     case FETCH_SOURCES_FAIL: {
       return {
         ...state,
-        queryInProgress: false,
+        latest: { ...state.latest, queryInProgress: false },
       };
     }
     case FETCH_SAVED_GROUP_SOURCES: {
       return {
         ...state,
-        queryInProgress: action.parameters.body.pageNumber === undefined,
+        savedGroupSources: {
+          ...state.savedGroupSources,
+          queryInProgress: action.parameters.body.pageNumber === undefined,
+        },
       };
     }
     case FETCH_SAVED_GROUP_SOURCES_OK: {
-      const { sources } = action.data;
       return {
         ...state,
-        savedGroupSources: sources,
-        queryInProgress: false,
+        savedGroupSources: { ...action.data, queryInProgress: false },
       };
     }
     case FETCH_SAVED_GROUP_SOURCES_FAIL: {
       return {
         ...state,
-        queryInProgress: false,
+        savedGroupSources: {
+          ...state.savedGroupSources,
+          queryInProgress: false,
+        },
       };
     }
     case FETCH_PENDING_GROUP_SOURCES: {
       return {
         ...state,
-        queryInProgress: action.parameters.body.pageNumber === undefined,
+        pendingGroupSources: {
+          ...state.pendingGroupSources,
+          queryInProgress: action.parameters.body.pageNumber === undefined,
+        },
       };
     }
     case FETCH_PENDING_GROUP_SOURCES_OK: {
-      const { sources } = action.data;
       return {
         ...state,
-        pendingGroupSources: sources,
-        queryInProgress: false,
+        pendingGroupSources: { ...action.data, queryInProgress: false },
       };
     }
     case FETCH_PENDING_GROUP_SOURCES_FAIL: {
       return {
         ...state,
-        queryInProgress: false,
+        pendingGroupSources: {
+          ...state.pendingGroupSources,
+          queryInProgress: false,
+        },
       };
     }
     default:
