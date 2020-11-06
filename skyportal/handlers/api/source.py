@@ -215,6 +215,14 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to include requested saves. Defaults to
               false.
+          - in: query
+            name: pendingOnly
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to only include requested/pending saves.
+              Defaults to false.
           responses:
             200:
               content:
@@ -357,8 +365,12 @@ class SourceHandler(BaseHandler):
                 query = query.filter(
                     or_(Source.requested.is_(True), Source.active.is_(True))
                 )
-            else:
+            elif not requested_only:
                 query = query.filter(Source.active.is_(True))
+            if requested_only:
+                query = query.filter(Source.active.is_(False)).filter(
+                    Source.requested.is_(True)
+                )
             source_info["groups"] = [g.to_dict() for g in query.all()]
             for group in source_info["groups"]:
                 source_table_row = Source.query.filter(
@@ -449,6 +461,14 @@ class SourceHandler(BaseHandler):
                     f"One of the requested groups in '{group_ids}' is inaccessible to user."
                 )
             q = q.filter(Source.group_id.in_(group_ids))
+            if include_requested:
+                q = q.filter(or_(Source.requested.is_(True), Source.active.is_(True)))
+            elif not requested_only:
+                q = q.filter(Source.active.is_(True))
+            if requested_only:
+                q = q.filter(Source.active.is_(False)).filter(
+                    Source.requested.is_(True)
+                )
 
         if page_number:
             try:
