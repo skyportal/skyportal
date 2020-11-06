@@ -27,8 +27,10 @@ const useStyles = makeStyles((theme) => ({
 
 const GroupSources = ({ route }) => {
   const dispatch = useDispatch();
-  const savedSources = useSelector((state) => state.sources.savedGroupSources);
-  const pendingSources = useSelector(
+  const savedSourcesState = useSelector(
+    (state) => state.sources.savedGroupSources
+  );
+  const pendingSourcesState = useSelector(
     (state) => state.sources.pendingGroupSources
   );
   const groups = useSelector((state) => state.groups.userAccessible);
@@ -52,7 +54,7 @@ const GroupSources = ({ route }) => {
     );
   }, [route.id, dispatch]);
 
-  if (!savedSources && !pendingSources) {
+  if (!savedSourcesState.sources && !pendingSourcesState.sources) {
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -83,14 +85,17 @@ const GroupSources = ({ route }) => {
     );
   };
 
-  if (savedSources.length === 0 && pendingSources.length === 0) {
+  if (
+    savedSourcesState.sources?.length === 0 &&
+    pendingSourcesState.sources?.length === 0
+  ) {
     return (
       <div className={classes.source}>
         <Typography variant="h4" gutterBottom align="center">
           {`${groupName} sources`}
         </Typography>
         <br />
-        <Typography align="center">
+        <Typography variant="h5" align="center">
           No sources have been saved to this group yet.
         </Typography>
       </div>
@@ -103,24 +108,30 @@ const GroupSources = ({ route }) => {
         {`${groupName} sources`}
       </Typography>
       <br />
-      {savedSources && (
+      {!!savedSourcesState.sources && (
         <SourceTable
-          sources={savedSources}
+          sources={savedSourcesState.sources}
           title="Saved"
           sourceStatus="saved"
           groupID={groupID}
           paginateCallback={handleSavedSourcesTablePagination}
+          pageNumber={savedSourcesState.pageNumber}
+          totalMatches={savedSourcesState.totalMatches}
+          numPerPage={savedSourcesState.numPerPage}
         />
       )}
       <br />
       <br />
-      {pendingSources && (
+      {!!pendingSourcesState.sources && (
         <SourceTable
-          sources={pendingSources}
+          sources={pendingSourcesState.sources}
           title="Requested to save"
           sourceStatus="requested"
           groupID={groupID}
           paginateCallback={handlePendingSourcesTablePagination}
+          pageNumber={pendingSourcesState.pageNumber}
+          totalMatches={pendingSourcesState.totalMatches}
+          numPerPage={pendingSourcesState.numPerPage}
         />
       )}
     </div>

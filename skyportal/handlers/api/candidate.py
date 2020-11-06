@@ -876,6 +876,7 @@ def grab_query_results_page(
         items.append(Obj.query.options(query_options).get(item_id))
     info[items_name] = items
     info["pageNumber"] = page
+    info["numPerPage"] = n_items_per_page
     info["lastPage"] = info["totalMatches"] <= page * n_items_per_page
     info["numberingStart"] = (page - 1) * n_items_per_page + 1
     info["numberingEnd"] = min(info["totalMatches"], page * n_items_per_page)
