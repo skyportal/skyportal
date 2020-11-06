@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 
 import Paper from "@material-ui/core/Paper";
@@ -11,6 +10,7 @@ import TextField from "@material-ui/core/TextField";
 import { makeStyles } from "@material-ui/core/styles";
 import Grid from "@material-ui/core/Grid";
 import Typography from "@material-ui/core/Typography";
+import CircularProgress from "@material-ui/core/CircularProgress";
 import { useForm, Controller } from "react-hook-form";
 
 import * as sourcesActions from "../ducks/sources";
@@ -47,22 +47,23 @@ const useStyles = makeStyles((theme) => ({
   title: {
     margin: "1rem 0rem 0rem 0rem",
   },
+  spinner: {
+    marginTop: "1rem",
+  },
 }));
 
 const SourceList = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
-  const sources = useSelector((state) => state.sources);
+  const sourcesState = useSelector((state) => state.sources.latest);
   const sourceTableEmpty = useSelector(
     (state) => state.dbInfo.source_table_empty
   );
 
   useEffect(() => {
-    if (!sources.latest) {
-      dispatch(sourcesActions.fetchSources());
-    }
-  }, [sources.latest, dispatch]);
+    dispatch(sourcesActions.fetchSources());
+  }, [dispatch]);
 
   const { handleSubmit, register, getValues, control, reset } = useForm();
 
@@ -80,7 +81,7 @@ const SourceList = () => {
       ...getValues(),
       pageNumber,
       numPerPage,
-      totalMatches: sources.totalMatches,
+      totalMatches: sourcesState.totalMatches,
     };
     dispatch(sourcesActions.fetchSources(data));
   };
@@ -88,8 +89,8 @@ const SourceList = () => {
   if (sourceTableEmpty) {
     return <UninitializedDBMessage />;
   }
-  if (!sources.latest) {
-    return <div>Loading sources...</div>;
+  if (!sourcesState.sources) {
+    return <CircularProgress />;
   }
 
   return (
@@ -193,7 +194,7 @@ const SourceList = () => {
                   variant="contained"
                   color="primary"
                   type="submit"
-                  disabled={sources.queryInProgress}
+                  disabled={sourcesState.queryInProgress}
                 >
                   Submit
                 </Button>
@@ -208,35 +209,23 @@ const SourceList = () => {
             </div>
           </form>
         </Paper>
-        {!sources.queryInProgress && (
+        {!sourcesState.queryInProgress && (
           <Grid item className={classes.tableGrid}>
             <SourceTable
-              sources={sources.latest}
+              sources={sourcesState.sources}
               paginateCallback={handleSourceTablePagination}
+              totalMatches={sourcesState.totalMatches}
+              pageNumber={sourcesState.pageNumber}
+              numPerPage={sourcesState.numPerPage}
             />
           </Grid>
         )}
-        {sources.queryInProgress && (
-          <div>
-            <br />
-            <br />
-            <i>Query in progress...</i>
-          </div>
+        {sourcesState.queryInProgress && (
+          <CircularProgress className={classes.spinner} />
         )}
       </div>
     </Paper>
   );
-};
-
-SourceList.propTypes = {
-  sources: PropTypes.shape({
-    lastPage: PropTypes.bool,
-    pageNumber: PropTypes.number,
-    numberingStart: PropTypes.number,
-    totalMatches: PropTypes.number,
-    queryInProgress: PropTypes.bool,
-    numberingEnd: PropTypes.number,
-  }).isRequired,
 };
 
 export default SourceList;

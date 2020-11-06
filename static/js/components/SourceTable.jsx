@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from "react";
+import React, { Suspense } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 
@@ -23,12 +23,12 @@ import GroupIcon from "@material-ui/icons/Group";
 import dayjs from "dayjs";
 
 import { ra_to_hours, dec_to_dms } from "../units";
-import * as sourcesActions from "../ducks/sources";
 import styles from "./CommentList.css";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
 import ShowClassification, { getLatestClassName } from "./ShowClassification";
 import * as sourceActions from "../ducks/source";
+import * as sourcesActions from "../ducks/sources";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
@@ -56,7 +56,9 @@ const SourceTable = ({
   sourceStatus = "saved",
   groupID,
   paginateCallback,
-  pageNumber = 1,
+  pageNumber,
+  totalMatches,
+  numPerPage,
 }) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
@@ -64,7 +66,6 @@ const SourceTable = ({
   const dispatch = useDispatch();
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const classes = useStyles();
-  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   // Color styling
   const userColorTheme = useSelector(
@@ -82,11 +83,10 @@ const SourceTable = ({
   }
 
   const handleTableChange = (action, tableState) => {
-    setRowsPerPage(tableState.rowsPerPage);
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
-        paginateCallback(tableState.page, tableState.rowsPerPage);
+        paginateCallback(tableState.page + 1, tableState.rowsPerPage);
         break;
       default:
     }
@@ -98,9 +98,17 @@ const SourceTable = ({
     );
     if (result.status === "success") {
       dispatch(
-        sourcesActions.fetchGroupSources({
+        sourcesActions.fetchPendingGroupSources({
           group_ids: [groupID],
-          includeRequested: true,
+          pageNumber: 1,
+          numPerPage: 10,
+        })
+      );
+      dispatch(
+        sourcesActions.fetchSavedGroupSources({
+          group_ids: [groupID],
+          pageNumber: 1,
+          numPerPage: 10,
         })
       );
     }
@@ -112,9 +120,10 @@ const SourceTable = ({
     );
     if (result.status === "success") {
       dispatch(
-        sourcesActions.fetchGroupSources({
+        sourcesActions.fetchPendingGroupSources({
           group_ids: [groupID],
-          includeRequested: true,
+          pageNumber: 1,
+          numPerPage: 10,
         })
       );
     }
@@ -351,7 +360,7 @@ const SourceTable = ({
       const group = source.groups.find((g) => {
         return g.id === groupID;
       });
-      return group.saved_at;
+      return group?.saved_at;
     }
     const dates = source.groups
       .map((g) => {
@@ -366,7 +375,7 @@ const SourceTable = ({
 
     return (
       <div key={`${source.id}_date_saved`}>
-        {getDate(source).substring(0, 19)}
+        {getDate(source)?.substring(0, 19)}
       </div>
     );
   };
@@ -503,11 +512,12 @@ const SourceTable = ({
     selectableRows: "none",
     onTableChange: handleTableChange,
     serverSide: true,
-    rowsPerPage,
+    rowsPerPage: numPerPage,
     page: pageNumber - 1,
     rowsPerPageOptions: [10, 25, 50, 75, 100, 200],
     jumpToPage: true,
     pagination: true,
+    count: totalMatches,
   };
 
   if (sourceStatus === "requested") {
@@ -595,6 +605,8 @@ SourceTable.propTypes = {
   title: PropTypes.string,
   paginateCallback: PropTypes.func.isRequired,
   pageNumber: PropTypes.number,
+  totalMatches: PropTypes.number,
+  numPerPage: PropTypes.number,
 };
 
 SourceTable.defaultProps = {
@@ -602,6 +614,8 @@ SourceTable.defaultProps = {
   groupID: undefined,
   title: "",
   pageNumber: 1,
+  totalMatches: 0,
+  numPerPage: 10,
 };
 
 export default SourceTable;
