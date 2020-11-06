@@ -394,14 +394,20 @@ class SourceHandler(BaseHandler):
             query_options.append(
                 joinedload(Obj.photometry).joinedload(Photometry.instrument)
             )
+        source_filter_condition = (
+            or_(Source.requested.is_(True), Source.active.is_(True))
+            if include_requested
+            else Source.active.is_(True)
+        )
         q = (
             DBSession()
             .query(Obj)
             .join(Source)
             .filter(
+                source_filter_condition,
                 Source.group_id.in_(
                     user_accessible_group_ids
-                )  # only give sources the user has access to
+                ),  # only give sources the user has access to
             )
             .options(query_options)
         )
@@ -443,10 +449,6 @@ class SourceHandler(BaseHandler):
                     f"One of the requested groups in '{group_ids}' is inaccessible to user."
                 )
             q = q.filter(Source.group_id.in_(group_ids))
-            if include_requested:
-                q = q.filter(or_(Source.requested.is_(True), Source.active.is_(True)))
-            else:
-                q = q.filter(Source.active.is_(True))
 
         if page_number:
             try:
@@ -495,12 +497,6 @@ class SourceHandler(BaseHandler):
             source_list[-1][
                 "angular_diameter_distance"
             ] = source.angular_diameter_distance
-
-            source_filter_condition = (
-                or_(Source.requested.is_(True), Source.active.is_(True))
-                if include_requested
-                else Source.active.is_(True)
-            )
             source_list[-1]["groups"] = [
                 g.to_dict()
                 for g in (
