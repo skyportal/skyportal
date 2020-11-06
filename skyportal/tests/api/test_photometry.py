@@ -1540,12 +1540,12 @@ def test_token_user_post_to_foreign_group_and_retrieve(
 
 
 def test_problematic_photometry_1263(
-    upload_data_token, public_source, public_group, ztf_camera
+    upload_data_token, public_source, public_group, ztf_camera, public_group2
 ):
 
-    payload_1 = {
+    payload = {
         "obj_id": public_source.id,
-        "group_ids": "all",
+        "group_ids": [public_group.id, public_group2.id],
         "magsys": "ab",
         "zp": 23.9,
         "instrument_id": ztf_camera.id,
@@ -1723,7 +1723,7 @@ def test_problematic_photometry_1263(
         ],
     }
 
-    status, data = api('POST', 'photometry', data=payload_1, token=upload_data_token,)
+    status, data = api('POST', 'photometry', data=payload, token=upload_data_token,)
     assert status == 200
     assert data['status'] == 'success'
 
@@ -1908,6 +1908,12 @@ def test_problematic_photometry_1263(
             15.0412605,
         ],
     }
+
+    status, data = api('POST', 'photometry', data=payload, token=upload_data_token,)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    payload['group_ids'] = 'all'
 
     status, data = api('PUT', 'photometry', data=payload, token=upload_data_token,)
     assert status == 200
