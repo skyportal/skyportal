@@ -510,6 +510,7 @@ const SourceTable = ({
     expandableRows: true,
     renderExpandableRow: renderPullOutRow,
     selectableRows: "none",
+    sort: false,
     onTableChange: handleTableChange,
     serverSide: true,
     rowsPerPage: numPerPage,
