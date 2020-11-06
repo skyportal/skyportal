@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import React, { useState, Suspense } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 
@@ -50,13 +50,21 @@ const useStyles = makeStyles((theme) => ({
 
 // MUI data table with pull out rows containing a summary of each source.
 // This component is used in GroupSources and SourceList.
-const SourceTable = ({ sources, title, sourceStatus = "saved", groupID }) => {
+const SourceTable = ({
+  sources,
+  title,
+  sourceStatus = "saved",
+  groupID,
+  paginateCallback,
+  pageNumber = 1,
+}) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
 
   const dispatch = useDispatch();
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const classes = useStyles();
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   // Color styling
   const userColorTheme = useSelector(
@@ -72,6 +80,17 @@ const SourceTable = ({ sources, title, sourceStatus = "saved", groupID }) => {
       </div>
     );
   }
+
+  const handleTableChange = (action, tableState) => {
+    setRowsPerPage(tableState.rowsPerPage);
+    switch (action) {
+      case "changePage":
+      case "changeRowsPerPage":
+        paginateCallback(tableState.page, tableState.rowsPerPage);
+        break;
+      default:
+    }
+  };
 
   const handleSaveSource = async (sourceID) => {
     const result = await dispatch(
@@ -482,6 +501,13 @@ const SourceTable = ({ sources, title, sourceStatus = "saved", groupID }) => {
     expandableRows: true,
     renderExpandableRow: renderPullOutRow,
     selectableRows: "none",
+    onTableChange: handleTableChange,
+    serverSide: true,
+    rowsPerPage,
+    page: pageNumber - 1,
+    rowsPerPageOptions: [10, 25, 50, 75, 100, 200],
+    jumpToPage: true,
+    pagination: true,
   };
 
   if (sourceStatus === "requested") {
@@ -567,12 +593,15 @@ SourceTable.propTypes = {
   sourceStatus: PropTypes.string,
   groupID: PropTypes.number,
   title: PropTypes.string,
+  paginateCallback: PropTypes.func.isRequired,
+  pageNumber: PropTypes.number,
 };
 
 SourceTable.defaultProps = {
   sourceStatus: "saved",
   groupID: undefined,
   title: "",
+  pageNumber: 1,
 };
 
 export default SourceTable;
