@@ -1468,9 +1468,7 @@ class Comment(Base):
     attachment_name = sa.Column(
         sa.String, nullable=True, doc="Filename of the attachment."
     )
-    attachment_type = sa.Column(
-        sa.String, nullable=True, doc="Attachment extension, (e.g., pdf, png)."
-    )
+
     attachment_bytes = sa.Column(
         sa.types.LargeBinary,
         nullable=True,
