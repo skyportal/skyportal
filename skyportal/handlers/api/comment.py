@@ -220,12 +220,28 @@ class CommentHandler(BaseHandler):
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
         data['id'] = comment_id
+        attachment_bytes = data.pop('attachment_bytes', None)
 
         schema = Comment.__schema__()
         try:
             schema.load(data, partial=True)
         except ValidationError as e:
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
+
+        if attachment_bytes is not None:
+            attachment_bytes = str.encode(attachment_bytes.split('base64,')[-1])
+            c.attachment_bytes = attachment_bytes
+
+        bytes_is_none = c.attachment_bytes is None
+        name_is_none = c.attachment_name is None
+
+        if bytes_is_none ^ name_is_none:
+            return self.error(
+                'This update leaves one of attachment name or '
+                'attachment bytes null. Both fields must be '
+                'filled, or both must be null.'
+            )
+
         DBSession().flush()
         if group_ids is not None:
             c = Comment.get_if_owned_by(comment_id, self.current_user)
