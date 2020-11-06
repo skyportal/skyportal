@@ -78,6 +78,11 @@ class InvitationHandler(BaseHandler):
                 "all list items to integers."
             )
         groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
+        if set(group_ids).difference({g.id for g in groups}):
+            return self.error(
+                "The following groupIDs elements are invalid: "
+                f"{set(group_ids).difference({g.id for g in groups})}"
+            )
 
         if data.get("streamIDs") not in [None, "", "null", "None"]:
             try:
@@ -88,6 +93,11 @@ class InvitationHandler(BaseHandler):
                     "all list items to integers."
                 )
             streams = DBSession().query(Stream).filter(Stream.id.in_(stream_ids)).all()
+            if set(stream_ids).difference({s.id for s in streams}):
+                return self.error(
+                    "The following streamIDs elements are invalid: "
+                    f"{set(stream_ids).difference({s.id for s in streams})}"
+                )
 
             # Ensure specified groups are covered by specified streams
             if not all(
@@ -132,4 +142,139 @@ class InvitationHandler(BaseHandler):
                 "valid Sendgrid API key is set in server environment as "
                 "per their setup docs."
             )
+        return self.success()
+
+    @permissions(["Manage users"])
+    def get(self):
+        """
+        ---
+        description: Retrieve invitations
+        parameters:
+          - in: query
+            name: includeUsed
+            schema:
+              type: boolean
+            description: |
+              Bool indicating whether to include used invitations.
+              Defaults to false.
+        responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/Invitation'
+        """
+        include_used = self.get_query_argument("includeUsed", False)
+        query = Invitation.query
+        if not include_used:
+            query = query.filter(Invitation.used.is_(False))
+        invitations = query.all()
+        return_data = [invitation.to_dict() for invitation in invitations]
+        for idx, invite_dict in enumerate(return_data):
+            invite_dict["streams"] = invitations[idx].streams
+            invite_dict["groups"] = invitations[idx].groups
+            invite_dict["invited_by"] = invitations[idx].invited_by
+
+        return self.success(data=return_data)
+
+    @permissions(["Manage users"])
+    def patch(self, invitation_id):
+        """
+        ---
+        description: Update a pending invitation
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groupIDs:
+                    type: array
+                    items:
+                      type: integer
+                  streamIDs:
+                    type: array
+                    items:
+                      type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        data = self.get_json()
+        invitation = Invitation.query.get(invitation_id)
+        group_ids = data.get("groupIDs")
+        stream_ids = data.get("streamIDs")
+        if group_ids is None and stream_ids is None:
+            return self.error(
+                "At least one of either groupIDs or streamIDs are requried."
+            )
+        if group_ids is not None:
+            group_ids = [int(gid) for gid in group_ids]
+            groups = Group.query.filter(Group.id.in_(group_ids)).all()
+            if set(group_ids).difference({g.id for g in groups}):
+                return self.error(
+                    "The following groupIDs elements are invalid: "
+                    f"{set(group_ids).difference({g.id for g in groups})}"
+                )
+        else:
+            groups = invitation.groups
+        if stream_ids is not None:
+            stream_ids = [int(sid) for sid in stream_ids]
+            streams = Stream.query.filter(Stream.id.in_(stream_ids)).all()
+            if set(stream_ids).difference({s.id for s in streams}):
+                return self.error(
+                    "The following streamIDs elements are invalid: "
+                    f"{set(stream_ids).difference({s.id for s in streams})}"
+                )
+        else:
+            streams = invitation.streams
+
+        # Ensure specified groups are covered by specified streams
+        if not all([stream in streams for group in groups for stream in group.streams]):
+            return self.error(
+                "You have attempted to invite user to group(s) that "
+                "access streams that were not specified in provided "
+                "stream IDs list. Please try again."
+            )
+        if group_ids is not None:
+            invitation.groups = groups
+        if stream_ids is not None:
+            invitation.streams = streams
+
+        DBSession().commit()
+        return self.success()
+
+    @permissions(["Manage users"])
+    def delete(self, invitation_id):
+        """
+        ---
+        description: Delete an invitation
+        parameters:
+          - in: path
+            name: invitation_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        invitation = DBSession().query(Invitation).get(invitation_id)
+        if invitation is None:
+            return self.error("Invalid invitation ID")
+        DBSession().delete(invitation)
+        DBSession().commit()
         return self.success()
