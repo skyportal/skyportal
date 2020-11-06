@@ -398,6 +398,7 @@ class SourceHandler(BaseHandler):
             DBSession()
             .query(Obj)
             .join(Source)
+            .filter(Source.unsaved_at.is_(None))
             .filter(
                 Source.group_id.in_(
                     user_accessible_group_ids
