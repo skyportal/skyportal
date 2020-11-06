@@ -215,8 +215,8 @@ def photometry_plot(obj_id, user, width=600, height=300):
         tools='box_zoom,wheel_zoom,pan,reset,save',
         y_range=(lower, upper),
     )
-
     imhover = HoverTool(tooltips=tooltip_format)
+    imhover.renderers = []
     plot.add_tools(imhover)
 
     model_dict = {}
@@ -237,7 +237,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
             source=ColumnDataSource(df),
         )
 
-        # imhover.renderers.append(model_dict[key])
+        imhover.renderers.append(model_dict[key])
 
         key = f'bin{i}'
         model_dict[key] = plot.scatter(
@@ -262,7 +262,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
             ),
         )
 
-        # imhover.renderers.append(model_dict[key])
+        imhover.renderers.append(model_dict[key])
 
         key = 'obserr' + str(i)
         y_err_x = []
@@ -440,6 +440,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         )
 
     imhover = HoverTool(tooltips=tooltip_format)
+    imhover.renderers = []
     plot.add_tools(imhover)
 
     model_dict = {}
@@ -457,7 +458,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
             source=ColumnDataSource(df[df['obs']]),
         )
 
-        # imhover.renderers.append(model_dict[key])
+        imhover.renderers.append(model_dict[key])
 
         unobs_source = df[~df['obs']].copy()
         unobs_source.loc[:, 'alpha'] = 0.8
@@ -474,7 +475,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
             source=ColumnDataSource(unobs_source),
         )
 
-        # imhover.renderers.append(model_dict[key])
+        imhover.renderers.append(model_dict[key])
 
         key = f'bin{i}'
         model_dict[key] = plot.scatter(
@@ -499,7 +500,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
             ),
         )
 
-        # imhover.renderers.append(model_dict[key])
+        imhover.renderers.append(model_dict[key])
 
         key = 'obserr' + str(i)
         y_err_x = []
@@ -560,7 +561,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
                 )
             ),
         )
-        # imhover.renderers.append(model_dict[key])
+        imhover.renderers.append(model_dict[key])
 
         key = f'all{i}'
         model_dict[key] = ColumnDataSource(df)
