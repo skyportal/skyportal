@@ -785,7 +785,7 @@ def spectroscopy_plot(obj_id, spec_id=None):
         CustomJS(
             args={'slider': z_slider, 'textinput': z_textinput},
             code="""
-            textinput.value = slider.value.toFixed(3).toString();
+            textinput.value = parseFloat(slider.value).toFixed(3);
             textinput.change.emit();
         """,
         ),
@@ -800,7 +800,7 @@ def spectroscopy_plot(obj_id, spec_id=None):
         CustomJS(
             args={'slider': v_exp_slider, 'textinput': v_exp_textinput},
             code="""
-            textinput.value = slider.value.toFixed(0).toString();
+            textinput.value = parseFloat(slider.value).toFixed(0);
             textinput.change.emit();
         """,
         ),
