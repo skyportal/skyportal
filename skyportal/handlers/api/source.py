@@ -262,6 +262,7 @@ class SourceHandler(BaseHandler):
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_requested = self.get_query_argument("includeRequested", False)
+        requested_only = self.get_query_argument("pendingOnly", False)
 
         # parse the group ids:
         group_ids = self.get_query_argument('group_ids', None)
