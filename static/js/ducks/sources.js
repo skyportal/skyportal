@@ -52,10 +52,7 @@ export function fetchPendingGroupSources(filterParams = {}) {
 const initialState = {
   sources: null,
   pageNumber: 1,
-  lastPage: false,
   totalMatches: 0,
-  numberingStart: 0,
-  numberingEnd: 0,
   numPerPage: 10,
 };
 

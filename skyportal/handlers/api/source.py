@@ -243,11 +243,7 @@ class SourceHandler(BaseHandler):
                                 type: integer
                               pageNumber:
                                 type: integer
-                              lastPage:
-                                type: boolean
-                              numberingStart:
-                                type: integer
-                              numberingEnd:
+                              numPerPage:
                                 type: integer
             400:
               content:
