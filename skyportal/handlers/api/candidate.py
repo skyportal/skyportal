@@ -236,11 +236,7 @@ class CandidateHandler(BaseHandler):
                                 type: integer
                               pageNumber:
                                 type: integer
-                              lastPage:
-                                type: boolean
-                              numberingStart:
-                                type: integer
-                              numberingEnd:
+                              numPerPage:
                                 type: integer
             400:
               content:
@@ -876,9 +872,5 @@ def grab_query_results_page(
         items.append(Obj.query.options(query_options).get(item_id))
     info[items_name] = items
     info["pageNumber"] = page
-    info["lastPage"] = info["totalMatches"] <= page * n_items_per_page
-    info["numberingStart"] = (page - 1) * n_items_per_page + 1
-    info["numberingEnd"] = min(info["totalMatches"], page * n_items_per_page)
-    if info["totalMatches"] == 0:
-        info["numberingStart"] = 0
+    info["numPerPage"] = n_items_per_page
     return info

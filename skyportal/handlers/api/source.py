@@ -46,6 +46,18 @@ SOURCES_PER_PAGE = 100
 _, cfg = load_env()
 
 
+def apply_active_or_requested_filtering(query, include_requested, requested_only):
+    if include_requested:
+        query = query.filter(or_(Source.requested.is_(True), Source.active.is_(True)))
+    elif not requested_only:
+        query = query.filter(Source.active.is_(True))
+    if requested_only:
+        query = query.filter(Source.active.is_(False)).filter(
+            Source.requested.is_(True)
+        )
+    return query
+
+
 def add_ps1_thumbnail_and_push_ws_msg(obj, request_handler):
     try:
         obj.add_ps1_thumbnail()
@@ -215,6 +227,14 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to include requested saves. Defaults to
               false.
+          - in: query
+            name: pendingOnly
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to only include requested/pending saves.
+              Defaults to false.
           responses:
             200:
               content:
@@ -235,11 +255,7 @@ class SourceHandler(BaseHandler):
                                 type: integer
                               pageNumber:
                                 type: integer
-                              lastPage:
-                                type: boolean
-                              numberingStart:
-                                type: integer
-                              numberingEnd:
+                              numPerPage:
                                 type: integer
             400:
               content:
@@ -248,7 +264,7 @@ class SourceHandler(BaseHandler):
         """
         page_number = self.get_query_argument('pageNumber', None)
         num_per_page = min(
-            int(self.get_query_argument("numPerPage", SOURCES_PER_PAGE)), 1000
+            int(self.get_query_argument("numPerPage", SOURCES_PER_PAGE)), 100
         )
         ra = self.get_query_argument('ra', None)
         dec = self.get_query_argument('dec', None)
@@ -258,6 +274,7 @@ class SourceHandler(BaseHandler):
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_requested = self.get_query_argument("includeRequested", False)
+        requested_only = self.get_query_argument("pendingOnly", False)
 
         # parse the group ids:
         group_ids = self.get_query_argument('group_ids', None)
@@ -353,12 +370,9 @@ class SourceHandler(BaseHandler):
                     Group.id.in_(user_accessible_group_ids),
                 )
             )
-            if include_requested:
-                query = query.filter(
-                    or_(Source.requested.is_(True), Source.active.is_(True))
-                )
-            else:
-                query = query.filter(Source.active.is_(True))
+            query = apply_active_or_requested_filtering(
+                query, include_requested, requested_only
+            )
             source_info["groups"] = [g.to_dict() for g in query.all()]
             for group in source_info["groups"]:
                 source_table_row = Source.query.filter(
@@ -394,20 +408,14 @@ class SourceHandler(BaseHandler):
             query_options.append(
                 joinedload(Obj.photometry).joinedload(Photometry.instrument)
             )
-        source_filter_condition = (
-            or_(Source.requested.is_(True), Source.active.is_(True))
-            if include_requested
-            else Source.active.is_(True)
-        )
         q = (
             DBSession()
             .query(Obj)
             .join(Source)
             .filter(
-                source_filter_condition,
                 Source.group_id.in_(
                     user_accessible_group_ids
-                ),  # only give sources the user has access to
+                )  # only give sources the user has access to
             )
             .options(query_options)
         )
@@ -443,6 +451,7 @@ class SourceHandler(BaseHandler):
             )
         if has_tns_name in ['true', True]:
             q = q.filter(Obj.altdata['tns']['name'].isnot(None))
+        q = apply_active_or_requested_filtering(q, include_requested, requested_only)
         if group_ids is not None:
             if not all(gid in user_accessible_group_ids for gid in group_ids):
                 return self.error(
@@ -497,20 +506,20 @@ class SourceHandler(BaseHandler):
             source_list[-1][
                 "angular_diameter_distance"
             ] = source.angular_diameter_distance
-            source_list[-1]["groups"] = [
-                g.to_dict()
-                for g in (
-                    DBSession()
-                    .query(Group)
-                    .join(Source)
-                    .filter(
-                        Source.obj_id == source_list[-1]["id"],
-                        source_filter_condition,
-                        Group.id.in_(user_accessible_group_ids),
-                    )
-                    .all()
+            groups_query = (
+                DBSession()
+                .query(Group)
+                .join(Source)
+                .filter(
+                    Source.obj_id == source_list[-1]["id"],
+                    Group.id.in_(user_accessible_group_ids),
                 )
-            ]
+            )
+            groups_query = apply_active_or_requested_filtering(
+                groups_query, include_requested, requested_only
+            )
+            groups = groups_query.all()
+            source_list[-1]["groups"] = [g.to_dict() for g in groups]
             for group in source_list[-1]["groups"]:
                 source_table_row = Source.query.filter(
                     Source.obj_id == source.id, Source.group_id == group["id"]

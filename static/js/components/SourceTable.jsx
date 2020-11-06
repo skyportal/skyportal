@@ -23,12 +23,12 @@ import GroupIcon from "@material-ui/icons/Group";
 import dayjs from "dayjs";
 
 import { ra_to_hours, dec_to_dms } from "../units";
-import * as sourcesActions from "../ducks/sources";
 import styles from "./CommentList.css";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
 import ShowClassification, { getLatestClassName } from "./ShowClassification";
 import * as sourceActions from "../ducks/source";
+import * as sourcesActions from "../ducks/sources";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
@@ -50,7 +50,16 @@ const useStyles = makeStyles((theme) => ({
 
 // MUI data table with pull out rows containing a summary of each source.
 // This component is used in GroupSources and SourceList.
-const SourceTable = ({ sources, title, sourceStatus = "saved", groupID }) => {
+const SourceTable = ({
+  sources,
+  title,
+  sourceStatus = "saved",
+  groupID,
+  paginateCallback,
+  pageNumber,
+  totalMatches,
+  numPerPage,
+}) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
 
@@ -73,15 +82,33 @@ const SourceTable = ({ sources, title, sourceStatus = "saved", groupID }) => {
     );
   }
 
+  const handleTableChange = (action, tableState) => {
+    switch (action) {
+      case "changePage":
+      case "changeRowsPerPage":
+        paginateCallback(tableState.page + 1, tableState.rowsPerPage);
+        break;
+      default:
+    }
+  };
+
   const handleSaveSource = async (sourceID) => {
     const result = await dispatch(
       sourceActions.acceptSaveRequest({ sourceID, groupID })
     );
     if (result.status === "success") {
       dispatch(
-        sourcesActions.fetchGroupSources({
+        sourcesActions.fetchPendingGroupSources({
           group_ids: [groupID],
-          includeRequested: true,
+          pageNumber: 1,
+          numPerPage: 10,
+        })
+      );
+      dispatch(
+        sourcesActions.fetchSavedGroupSources({
+          group_ids: [groupID],
+          pageNumber: 1,
+          numPerPage: 10,
         })
       );
     }
@@ -93,9 +120,10 @@ const SourceTable = ({ sources, title, sourceStatus = "saved", groupID }) => {
     );
     if (result.status === "success") {
       dispatch(
-        sourcesActions.fetchGroupSources({
+        sourcesActions.fetchPendingGroupSources({
           group_ids: [groupID],
-          includeRequested: true,
+          pageNumber: 1,
+          numPerPage: 10,
         })
       );
     }
@@ -332,7 +360,7 @@ const SourceTable = ({ sources, title, sourceStatus = "saved", groupID }) => {
       const group = source.groups.find((g) => {
         return g.id === groupID;
       });
-      return group.saved_at;
+      return group?.saved_at;
     }
     const dates = source.groups
       .map((g) => {
@@ -347,7 +375,7 @@ const SourceTable = ({ sources, title, sourceStatus = "saved", groupID }) => {
 
     return (
       <div key={`${source.id}_date_saved`}>
-        {getDate(source).substring(0, 19)}
+        {getDate(source)?.substring(0, 19)}
       </div>
     );
   };
@@ -482,6 +510,17 @@ const SourceTable = ({ sources, title, sourceStatus = "saved", groupID }) => {
     expandableRows: true,
     renderExpandableRow: renderPullOutRow,
     selectableRows: "none",
+    sort: false,
+    onTableChange: handleTableChange,
+    serverSide: true,
+    rowsPerPage: numPerPage,
+    page: pageNumber - 1,
+    rowsPerPageOptions: [10, 25, 50, 75, 100, 200],
+    jumpToPage: true,
+    pagination: true,
+    count: totalMatches,
+    filter: false,
+    search: false,
   };
 
   if (sourceStatus === "requested") {
@@ -567,12 +606,19 @@ SourceTable.propTypes = {
   sourceStatus: PropTypes.string,
   groupID: PropTypes.number,
   title: PropTypes.string,
+  paginateCallback: PropTypes.func.isRequired,
+  pageNumber: PropTypes.number,
+  totalMatches: PropTypes.number,
+  numPerPage: PropTypes.number,
 };
 
 SourceTable.defaultProps = {
   sourceStatus: "saved",
   groupID: undefined,
   title: "",
+  pageNumber: 1,
+  totalMatches: 0,
+  numPerPage: 10,
 };
 
 export default SourceTable;
