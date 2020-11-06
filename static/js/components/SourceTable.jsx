@@ -519,6 +519,8 @@ const SourceTable = ({
     jumpToPage: true,
     pagination: true,
     count: totalMatches,
+    filter: false,
+    search: false,
   };
 
   if (sourceStatus === "requested") {
