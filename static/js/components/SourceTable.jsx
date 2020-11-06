@@ -1,4 +1,4 @@
-import React, { Suspense, useState } from "react";
+import React, { useState, Suspense } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 
@@ -13,25 +13,22 @@ import Chip from "@material-ui/core/Chip";
 import Link from "@material-ui/core/Link";
 import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
 import CircularProgress from "@material-ui/core/CircularProgress";
-import Popover from "@material-ui/core/Popover";
-import SortIcon from "@material-ui/icons/Sort";
-import ArrowUpward from "@material-ui/icons/ArrowUpward";
-import ArrowDownward from "@material-ui/icons/ArrowDownward";
-import Form from "@rjsf/material-ui";
+
 import MUIDataTable from "mui-datatables";
 import { makeStyles } from "@material-ui/core/styles";
+
 import Tooltip from "@material-ui/core/Tooltip";
 import GroupIcon from "@material-ui/icons/Group";
 
 import dayjs from "dayjs";
 
 import { ra_to_hours, dec_to_dms } from "../units";
+import * as sourcesActions from "../ducks/sources";
 import styles from "./CommentList.css";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
-import ShowClassification from "./ShowClassification";
+import ShowClassification, { getLatestClassName } from "./ShowClassification";
 import * as sourceActions from "../ducks/source";
-import * as sourcesActions from "../ducks/sources";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
@@ -49,17 +46,6 @@ const useStyles = makeStyles((theme) => ({
   tableGrid: {
     width: "100%",
   },
-  sortButtton: {
-    "&:hover": {
-      color: theme.palette.primary.main,
-    },
-  },
-  icon: {
-    verticalAlign: "top",
-  },
-  sortFormContainer: {
-    padding: "1rem",
-  },
 }));
 
 // MUI data table with pull out rows containing a summary of each source.
@@ -70,10 +56,7 @@ const SourceTable = ({
   sourceStatus = "saved",
   groupID,
   paginateCallback,
-  pageNumber,
-  totalMatches,
-  numPerPage,
-  sortingCallback,
+  pageNumber = 1,
 }) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
@@ -81,17 +64,7 @@ const SourceTable = ({
   const dispatch = useDispatch();
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const classes = useStyles();
-
-  const [sortAnchorEl, setSortAnchorEl] = useState(null);
-  const handleSortClick = (event) => {
-    setSortAnchorEl(event.currentTarget);
-  };
-  const handleSortClose = () => {
-    setSortAnchorEl(null);
-  };
-  const sortOpen = Boolean(sortAnchorEl);
-  const sortId = sortOpen ? "sort-popover" : undefined;
-  const [currentSortColumn, setCurrentSortColumn] = useState(null);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   // Color styling
   const userColorTheme = useSelector(
@@ -109,10 +82,11 @@ const SourceTable = ({
   }
 
   const handleTableChange = (action, tableState) => {
+    setRowsPerPage(tableState.rowsPerPage);
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
-        paginateCallback(tableState.page + 1, tableState.rowsPerPage);
+        paginateCallback(tableState.page, tableState.rowsPerPage);
         break;
       default:
     }
@@ -124,17 +98,9 @@ const SourceTable = ({
     );
     if (result.status === "success") {
       dispatch(
-        sourcesActions.fetchPendingGroupSources({
+        sourcesActions.fetchGroupSources({
           group_ids: [groupID],
-          pageNumber: 1,
-          numPerPage: 10,
-        })
-      );
-      dispatch(
-        sourcesActions.fetchSavedGroupSources({
-          group_ids: [groupID],
-          pageNumber: 1,
-          numPerPage: 10,
+          includeRequested: true,
         })
       );
     }
@@ -146,10 +112,9 @@ const SourceTable = ({
     );
     if (result.status === "success") {
       dispatch(
-        sourcesActions.fetchPendingGroupSources({
+        sourcesActions.fetchGroupSources({
           group_ids: [groupID],
-          pageNumber: 1,
-          numPerPage: 10,
+          includeRequested: true,
         })
       );
     }
@@ -324,6 +289,11 @@ const SourceTable = ({
     return <div key={`${source.id}_dec_sex`}>{dec_to_dms(source.dec)}</div>;
   };
 
+  const renderRedshift = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div key={`${source.id}_redshift`}>{source.redshift}</div>;
+  };
+
   // helper function to get the classifications
   const getClassifications = (source) => {
     if (groupID !== undefined) {
@@ -381,7 +351,7 @@ const SourceTable = ({
       const group = source.groups.find((g) => {
         return g.id === groupID;
       });
-      return group?.saved_at;
+      return group.saved_at;
     }
     const dates = source.groups
       .map((g) => {
@@ -396,7 +366,7 @@ const SourceTable = ({
 
     return (
       <div key={`${source.id}_date_saved`}>
-        {getDate(source)?.substring(0, 19)}
+        {getDate(source).substring(0, 19)}
       </div>
     );
   };
@@ -443,100 +413,12 @@ const SourceTable = ({
     );
   };
 
-  const renderHeader = (name, label) => {
-    const sortedOn = currentSortColumn && currentSortColumn.column === name;
-    return (
-      <div>
-        {label}
-        {sortedOn && currentSortColumn.ascending && (
-          <ArrowUpward fontSize="small" className={classes.icon} />
-        )}
-        {sortedOn && !currentSortColumn.ascending && (
-          <ArrowDownward fontSize="small" className={classes.icon} />
-        )}
-      </div>
-    );
-  };
-
-  const handleSortSubmit = ({ formData }) => {
-    setCurrentSortColumn(formData);
-    handleSortClose();
-    sortingCallback(formData);
-  };
-  const sortingFormSchema = {
-    description: "Sort by column",
-    type: "object",
-    properties: {
-      column: {
-        type: "string",
-        title: "Column",
-        enum: ["id", "ra", "dec", "redshift", "saved_at"],
-        enumNames: ["Source ID", "RA", "Dec", "Redshift", "Date Saved"],
-      },
-      ascending: {
-        title: "Order",
-        type: "boolean",
-        enumNames: ["Ascending", "Descending"],
-      },
-    },
-  };
-
-  const sortingFormUISchema = {
-    ascending: {
-      "ui:widget": "radio",
-    },
-  };
-
-  const renderSortForm = () => {
-    return (
-      <>
-        <Tooltip title="Sort">
-          <span>
-            <IconButton
-              aria-describedby={sortId}
-              onClick={handleSortClick}
-              className={classes.sortButtton}
-              data-testid="sortButton"
-            >
-              <SortIcon />
-            </IconButton>
-          </span>
-        </Tooltip>
-
-        <Popover
-          id={sortId}
-          open={sortOpen}
-          onClose={handleSortClose}
-          anchorEl={sortAnchorEl}
-          anchorOrigin={{
-            vertical: "center",
-            horizontal: "left",
-          }}
-          transformOrigin={{
-            vertical: "top",
-            horizontal: "right",
-          }}
-        >
-          <div className={classes.sortFormContainer}>
-            <Form
-              schema={sortingFormSchema}
-              onSubmit={handleSortSubmit}
-              uiSchema={sortingFormUISchema}
-            />
-          </div>
-        </Popover>
-      </>
-    );
-  };
-
   const columns = [
     {
-      name: "id",
-      label: "Source ID",
+      name: "Source ID",
       options: {
         filter: true,
         customBodyRenderLite: renderObjId,
-        customHeadLabelRender: () => renderHeader("id", "Source ID"),
       },
     },
     {
@@ -548,76 +430,61 @@ const SourceTable = ({
       },
     },
     {
-      name: "ra",
-      label: "RA (deg)",
+      name: "RA (deg)",
       options: {
         filter: false,
         customBodyRenderLite: renderRA,
-        customHeadLabelRender: () => renderHeader("ra", "RA (deg)"),
       },
     },
     {
-      name: "dec",
-      label: "Dec (deg)",
+      name: "Dec (deg)",
       options: {
         filter: false,
         customBodyRenderLite: renderDec,
-        customHeadLabelRender: () => renderHeader("dec", "Dec (deg)"),
       },
     },
     {
-      name: "ra",
-      label: "RA (hh:mm:ss)",
+      name: "RA (hh:mm:ss)",
       options: {
         filter: false,
         display: false,
         customBodyRenderLite: renderRASex,
-        customHeadLabelRender: () => renderHeader("ra", "RA (hh:mm:ss)"),
       },
     },
     {
-      name: "dec",
-      label: "Dec (dd:mm:ss)",
+      name: "Dec (dd:mm:ss)",
       options: {
         filter: false,
         display: false,
         customBodyRenderLite: renderDecSex,
-        customHeadLabelRender: () => renderHeader("dec", "Dec (dd:mm:ss)"),
       },
     },
     {
-      name: "redshift",
-      label: "Redshift",
+      name: "Redshift",
       options: {
         filter: false,
-        customHeadLabelRender: () => renderHeader("redshift", "Redshift"),
+        customBodyRenderLite: renderRedshift,
       },
     },
     {
-      name: "classification",
-      label: "Classification",
+      name: "Classification",
       options: {
         filter: true,
         customBodyRenderLite: renderClassification,
-        customHeadLabelRender: () =>
-          renderHeader("classification", "Classification"),
       },
     },
     {
-      name: "groups",
-      label: "Groups",
+      name: "Groups",
       options: {
         filter: false,
         customBodyRenderLite: renderGroups,
       },
     },
     {
-      name: "saved_at",
-      label: "Date Saved",
+      name: "Date Saved",
       options: {
         filter: false,
         customBodyRenderLite: renderDateSaved,
-        customHeadLabelRender: () => renderHeader("saved_at", "Date Saved"),
       },
     },
     {
@@ -634,18 +501,13 @@ const SourceTable = ({
     expandableRows: true,
     renderExpandableRow: renderPullOutRow,
     selectableRows: "none",
-    sort: false,
-    customToolbar: renderSortForm,
     onTableChange: handleTableChange,
     serverSide: true,
-    rowsPerPage: numPerPage,
+    rowsPerPage,
     page: pageNumber - 1,
     rowsPerPageOptions: [10, 25, 50, 75, 100, 200],
     jumpToPage: true,
     pagination: true,
-    count: totalMatches,
-    filter: false,
-    search: false,
   };
 
   if (sourceStatus === "requested") {
@@ -657,6 +519,22 @@ const SourceTable = ({
       },
     });
   }
+
+  // the data here is not rendered on screen, but used in sorting / producing CSV files
+  const data = sources.map((source) => [
+    source.id,
+    source.alias,
+    source.ra,
+    source.dec,
+    ra_to_hours(source.ra),
+    dec_to_dms(source.dec),
+    source.redshift,
+    getLatestClassName(getClassifications(source)),
+    getGroups(source).map((group) => {
+      return group.name;
+    }),
+    getDate(source),
+  ]);
 
   return (
     <div className={classes.source}>
@@ -672,7 +550,7 @@ const SourceTable = ({
             <MUIDataTable
               title={title}
               columns={columns}
-              data={sources}
+              data={data}
               options={options}
             />
           </Grid>
@@ -717,9 +595,6 @@ SourceTable.propTypes = {
   title: PropTypes.string,
   paginateCallback: PropTypes.func.isRequired,
   pageNumber: PropTypes.number,
-  totalMatches: PropTypes.number,
-  numPerPage: PropTypes.number,
-  sortingCallback: PropTypes.func,
 };
 
 SourceTable.defaultProps = {
@@ -727,9 +602,6 @@ SourceTable.defaultProps = {
   groupID: undefined,
   title: "",
   pageNumber: 1,
-  totalMatches: 0,
-  numPerPage: 10,
-  sortingCallback: null,
 };
 
 export default SourceTable;
