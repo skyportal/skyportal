@@ -1767,9 +1767,5 @@ def test_problematic_photometry_1276(
     }
 
     status, data = api('PUT', 'photometry', data=payload, token=super_admin_token,)
-    assert status == 200
-    assert data['status'] == 'success'
-
-    status, data = api('PUT', 'photometry', data=payload, token=super_admin_token,)
-    assert status == 200
-    assert data['status'] == 'success'
+    assert status == 400
+    assert data['status'] == 'error'
