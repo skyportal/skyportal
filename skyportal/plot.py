@@ -7,7 +7,6 @@ from bokeh.models import CustomJS, HoverTool, Range1d, Slider, Button, LinearAxi
 from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
 from bokeh.palettes import viridis
 from bokeh.plotting import figure, ColumnDataSource
-from bokeh.util.compiler import bundle_models
 
 import bokeh.embed as bokeh_embed
 
@@ -105,63 +104,7 @@ SPEC_LINES = {
 class CheckboxWithLegendGroup(CheckboxGroup):
     colors = List(String, help="List of legend colors")
 
-    __implementation__ = """
-// Based on @bokeh/bokehjs/build/js/lib/models/widgets/abstract_button.js
-
-import {input, label, div, span} from "core/dom";
-import { includes } from "core/util/array";
-import * as p from "core/properties";
-import { bk_inline } from "styles/mixins";
-import { bk_input_group } from "styles/widgets/inputs";
-import {CheckboxGroup, CheckboxGroupView} from "models/widgets/checkbox_group";
-
-export class CheckboxWithLegendGroupView extends CheckboxGroupView {
-  model: CheckboxWithLegendGroup
-
-  render() {
-    const group = div({ class: [bk_input_group, this.model.inline ? bk_inline : null] });
-    this.el.appendChild(group);
-    const { active, colors, labels } = this.model;
-    this._inputs = [];
-    for (let i = 0; i < labels.length; i++) {
-      const checkbox = input({type: "checkbox", value: `${i}`});
-      checkbox.addEventListener("change", () => this.change_active(i));
-      this._inputs.push(checkbox);
-      if (this.model.disabled)
-        checkbox.disabled = true;
-      if (includes(active, i))
-        checkbox.checked = true;
-      const attrs = {
-        style: `border-left: 12px solid ${colors[i]}; padding-left: 0.3em;`
-      };
-      const label_el = label(attrs, checkbox, span({}, labels[i]));
-      group.appendChild(label_el);
-    }
-  }
-}
-
-export namespace CheckboxWithLegendGroup {
-    export type Attrs = p.AttrsOf<Props>
-    export type Props = CheckboxGroup.Props & {
-        colors: p.Array
-    }
-}
-
-export interface CheckboxWithLegendGroup extends CheckboxWithLegendGroup.Attrs { }
-
-export class CheckboxWithLegendGroup extends CheckboxGroup {
-  static __name__ = "CheckboxWithLegendGroup";
-  //properties = CheckboxWithLegendGroup.Props
-
-  static init_CheckboxWithLegendGroup() {
-    this.prototype.default_view = CheckboxWithLegendGroupView;
-    this.define<CheckboxWithLegendGroup.Props>({
-      colors: [p.Array, []]
-    });
-  }
-}
-CheckboxWithLegendGroup.init_CheckboxWithLegendGroup();
-"""
+    __implementation__ = ""
 
 
 tooltip_format = [
@@ -711,7 +654,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
     p2 = Panel(child=layout, title='Mag')
 
     tabs = Tabs(tabs=[p2, p1])
-    return bokeh_embed.json_item(tabs), bundle_models([CheckboxWithLegendGroup])
+    return bokeh_embed.json_item(tabs)
 
 
 # TODO make async so that thread isn't blocked
@@ -998,4 +941,4 @@ def spectroscopy_plot(obj_id, spec_id=None):
     row2 = row(elements_groups)
     row3 = row(z, v_exp)
     layout = column(row1, row2, row3)
-    return bokeh_embed.json_item(layout), bundle_models([CheckboxWithLegendGroup])
+    return bokeh_embed.json_item(layout)

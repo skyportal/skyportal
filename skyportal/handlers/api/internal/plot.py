@@ -14,22 +14,18 @@ class PlotPhotometryHandler(BaseHandler):
     def get(self, obj_id):
         height = self.get_query_argument("plotHeight", 300)
         width = self.get_query_argument("plotWidth", 600)
-        json, model_code = plot.photometry_plot(
+        json = plot.photometry_plot(
             obj_id, self.current_user, height=int(height), width=int(width),
         )
-        self.success(
-            data={'bokehJSON': json, 'modelJS': model_code, 'url': self.request.uri}
-        )
+        self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
 
 class PlotSpectroscopyHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
         spec_id = self.get_query_argument("spectrumID", None)
-        json, model_code = plot.spectroscopy_plot(obj_id, spec_id)
-        self.success(
-            data={'bokehJSON': json, 'modelJS': model_code, 'url': self.request.uri}
-        )
+        json = plot.spectroscopy_plot(obj_id, spec_id)
+        self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
 
 class AirmassHandler(BaseHandler):

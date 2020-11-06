@@ -93,6 +93,10 @@ const config = {
         __dirname,
         "node_modules/react-resizable/css"
       ),
+      bokehjs: path.resolve(
+        __dirname,
+        "node_modules/@bokeh/bokehjs/build/js/lib"
+      ),
     },
     extensions: [".js", ".jsx", ".json"],
   },

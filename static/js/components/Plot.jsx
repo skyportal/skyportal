@@ -4,7 +4,10 @@ import { useSelector, useDispatch } from "react-redux";
 
 import * as Bokeh from "@bokeh/bokehjs";
 
+import * as Models from "./BokehModels";
 import * as Actions from "../ducks/plots";
+
+Bokeh.Models.register_models(Models);
 
 const Plot = (props) => {
   const { url, className } = props;
@@ -16,10 +19,9 @@ const Plot = (props) => {
     if (plotData === undefined) {
       dispatch(Actions.fetchPlotData(url, Actions.FETCH_SOURCE_PLOT));
     } else {
-      const { bokehJSON, modelJS } = plotData;
+      const { bokehJSON } = plotData;
       window.Bokeh = Bokeh;
       // eslint-disable-next-line no-new-func
-      Function(modelJS).bind(window)();
       Bokeh.embed.embed_item(bokehJSON, `bokeh-${bokehJSON.root_id}`);
     }
   }, [plotData, dispatch, url]);
