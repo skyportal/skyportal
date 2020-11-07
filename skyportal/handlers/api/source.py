@@ -277,29 +277,22 @@ class SourceHandler(BaseHandler):
         is_token_request = isinstance(self.current_user, Token)
         if obj_id is not None:
             query_options = [
-                joinedload(Source.obj)
-                .joinedload(Obj.followup_requests)
-                .joinedload(FollowupRequest.requester),
-                joinedload(Source.obj)
-                .joinedload(Obj.followup_requests)
+                joinedload(Obj.followup_requests).joinedload(FollowupRequest.requester),
+                joinedload(Obj.followup_requests)
                 .joinedload(FollowupRequest.allocation)
                 .joinedload(Allocation.instrument),
-                joinedload(Source.obj)
-                .joinedload(Obj.assignments)
+                joinedload(Obj.assignments)
                 .joinedload(ClassicalAssignment.run)
                 .joinedload(ObservingRun.instrument)
                 .joinedload(Instrument.telescope),
-                joinedload(Source.obj).joinedload(Obj.thumbnails),
-                joinedload(Source.obj)
-                .joinedload(Obj.followup_requests)
+                joinedload(Obj.thumbnails),
+                joinedload(Obj.followup_requests)
                 .joinedload(FollowupRequest.allocation)
                 .joinedload(Allocation.group),
             ]
             if include_photometry:
                 query_options.append(
-                    joinedload(Source.obj)
-                    .joinedload(Obj.photometry)
-                    .joinedload(Photometry.instrument)
+                    joinedload(Obj.photometry).joinedload(Photometry.instrument)
                 )
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
@@ -309,9 +302,9 @@ class SourceHandler(BaseHandler):
                     is_token=True,
                 )
                 self.push_all(action="skyportal/FETCH_TOP_SOURCES")
-            s = Source.get_obj_if_owned_by(
-                obj_id, self.current_user, options=query_options,
-            )
+
+            s = Obj.get_if_visible_to(obj_id, self.current_user, options=query_options,)
+
             if s is None:
                 return self.error("Source not found", status=404)
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
@@ -678,7 +671,7 @@ class SourceHandler(BaseHandler):
                 schema: Error
         """
         # Permissions check
-        _ = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        _ = Obj.get_if_visible_to(obj_id, self.current_user)
         data = self.get_json()
         data['id'] = obj_id
 
@@ -856,10 +849,8 @@ class SourceOffsetsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_obj_if_owned_by(
-            obj_id,
-            self.current_user,
-            options=[joinedload(Source.obj).joinedload(Obj.photometry)],
+        source = Obj.get_if_visible_to(
+            obj_id, self.current_user, options=[joinedload(Obj.photometry)],
         )
         if source is None:
             return self.error('Source not found', status=404)
@@ -1026,10 +1017,8 @@ class SourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Source.get_obj_if_owned_by(
-            obj_id,
-            self.current_user,
-            options=[joinedload(Source.obj).joinedload(Obj.photometry)],
+        source = Obj.get_if_visible_to(
+            obj_id, self.current_user, options=[joinedload(Obj.photometry)],
         )
         if source is None:
             return self.error('Source not found', status=404)
@@ -1243,7 +1232,7 @@ class SourceNotificationHandler(BaseHandler):
         if data.get("sourceId") is None:
             return self.error("Missing required parameter `sourceId`")
 
-        source = Source.get_obj_if_owned_by(data["sourceId"], self.current_user)
+        source = Obj.get_if_visible_to(data["sourceId"], self.current_user)
         if source is None:
             return self.error('Source not found', status=404)
 

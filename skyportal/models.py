@@ -971,7 +971,40 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
     return obj
 
 
+def get_obj_if_visible_to(obj_id, user_or_token, options=[]):
+    """Return an Obj from the database if the Obj has at least one Photometry point
+    visible to the User. If the Obj is not a Source or a Candidate in one of the
+    User or Token owner's accessible Groups, raise an AccessError. If the Obj
+    does not exist, return `None`.
+
+    Parameters
+    ----------
+    obj_id : integer or string
+       Primary key of the Obj.
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+    options : list of `sqlalchemy.orm.MapperOption`s
+       Options that wil be passed to `options()` in the loader query.
+
+    Returns
+    -------
+    obj : `skyportal.models.Obj`
+       The requested Obj.
+    """
+
+    if Obj.query.get(obj_id) is None:
+        return None
+    elif (
+        "System admin" in user_or_token.permissions
+        or Obj.get_photometry_owned_by_user(obj_id, user_or_token)
+    ):
+        return Obj.query.options(options).get(obj_id)
+    else:
+        raise AccessError("Insufficient permissions.")
+
+
 Obj.get_if_owned_by = get_obj_if_owned_by
+Obj.get_if_visible_to = get_obj_if_visible_to
 
 
 def get_obj_comments_owned_by(self, user_or_token):
