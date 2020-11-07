@@ -56,12 +56,6 @@ export const useSourceStyles = makeStyles((theme) => ({
     "& div button": {
       margin: "0.5rem",
     },
-    "& .bk-bs-nav": {
-      marginTop: "0px",
-    },
-    "& .bk-plotdiv > .bk-widget": {
-      marginTop: "0px",
-    },
   },
   source: {
     padding: "1rem",
@@ -91,10 +85,6 @@ export const useSourceStyles = makeStyles((theme) => ({
     color: "darkgray",
     paddingBottom: "0.25em",
     display: "inline-block",
-  },
-  plot: {
-    width: "900px",
-    overflow: "auto",
   },
   smallPlot: {
     width: "350px",
@@ -269,8 +259,7 @@ const SourceDesktop = ({ source }) => {
               <div className={classes.photometryContainer}>
                 <Suspense fallback={<div>Loading photometry plot...</div>}>
                   <Plot
-                    className={classes.plot}
-                    url={`/api/internal/plot/photometry/${source.id}`}
+                    url={`/api/internal/plot/photometry/${source.id}?width=800&height=500`}
                   />
                 </Suspense>
                 <div>
@@ -302,8 +291,7 @@ const SourceDesktop = ({ source }) => {
               <div className={classes.photometryContainer}>
                 <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
                   <Plot
-                    className={classes.plot}
-                    url={`/api/internal/plot/spectroscopy/${source.id}`}
+                    url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=500`}
                   />
                 </Suspense>
                 <div>

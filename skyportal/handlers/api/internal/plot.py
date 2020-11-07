@@ -8,12 +8,11 @@ from astropy import time as ap_time
 import pandas as pd
 
 
-# TODO this should distinguish between "no data to plot" and "plot failed"
 class PlotPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
-        height = self.get_query_argument("plotHeight", 300)
-        width = self.get_query_argument("plotWidth", 600)
+        height = self.get_query_argument("height", 300)
+        width = self.get_query_argument("width", 600)
         json = plot.photometry_plot(
             obj_id, self.current_user, height=int(height), width=int(width),
         )
@@ -23,8 +22,12 @@ class PlotPhotometryHandler(BaseHandler):
 class PlotSpectroscopyHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
+        height = self.get_query_argument("height", 300)
+        width = self.get_query_argument("width", 600)
         spec_id = self.get_query_argument("spectrumID", None)
-        json = plot.spectroscopy_plot(obj_id, spec_id)
+        json = plot.spectroscopy_plot(
+            obj_id, spec_id, height=int(height), width=int(width)
+        )
         self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
 

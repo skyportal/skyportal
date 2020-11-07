@@ -17,7 +17,7 @@ const Plot = (props) => {
 
   useEffect(() => {
     if (plotData === undefined) {
-      dispatch(Actions.fetchPlotData(url, Actions.FETCH_SOURCE_PLOT));
+      dispatch(Actions.fetchPlotData(url));
     } else {
       const { bokehJSON } = plotData;
       window.Bokeh = Bokeh;

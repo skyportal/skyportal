@@ -1,3 +1,5 @@
+import itertools
+
 import numpy as np
 import pandas as pd
 
@@ -133,7 +135,6 @@ def get_color(bandpass_name, cmap_limits=(3000.0, 10000.0)):
         return bandcolor
 
 
-# TODO make async so that thread isn't blocked
 def photometry_plot(obj_id, user, width=600, height=300):
     """Create scatter plot of photometry for object.
     Parameters
@@ -209,8 +210,8 @@ def photometry_plot(obj_id, user, width=600, height=300):
     upper = np.max(fdata['flux']) * 1.05
 
     plot = figure(
-        plot_width=width,
-        plot_height=height,
+        aspect_ratio=1.7,
+        sizing_mode='scale_both',
         active_drag='box_zoom',
         tools='box_zoom,wheel_zoom,pan,reset,save',
         y_range=(lower, upper),
@@ -304,6 +305,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         labels=list(data.label.unique()),
         active=list(range(len(data.label.unique()))),
         colors=list(data.color.unique()),
+        width=width // 5,
     )
 
     # TODO replace `eval` with Namespaces
@@ -365,8 +367,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
             HoverTool(tooltips=[("Last detection", f'{last}')], renderers=[last_r],)
         )
 
-    layout = row(plot, toggle)
-    layout = column(slider, layout)
+    layout = column(slider, row(plot, toggle), sizing_mode='scale_width', width=width)
 
     p1 = Panel(child=layout, title='Flux')
 
@@ -394,13 +395,13 @@ def photometry_plot(obj_id, user, width=600, height=300):
     xmax = data['mjd'].max() + 2
 
     plot = figure(
-        plot_width=width,
-        plot_height=height + 100,
+        aspect_ratio=1.5,
+        sizing_mode='scale_both',
         active_drag='box_zoom',
         tools='box_zoom,wheel_zoom,pan,reset,save',
         y_range=(ymax, ymin),
         x_range=(xmin, xmax),
-        toolbar_location='above',
+        #        toolbar_location='above',
         toolbar_sticky=False,
         x_axis_location='above',
     )
@@ -605,6 +606,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         labels=list(data.label.unique()),
         active=list(range(len(data.label.unique()))),
         colors=list(data.color.unique()),
+        width=width // 5,
     )
 
     # TODO replace `eval` with Namespaces
@@ -649,17 +651,15 @@ def photometry_plot(obj_id, user, width=600, height=300):
     )
     slider.js_on_change('value', callback)
 
-    layout = row(plot, toggle)
-    layout = column(toplay, layout)
+    layout = column(toplay, row(plot, toggle), sizing_mode='scale_width', width=width)
 
     p2 = Panel(child=layout, title='Mag')
 
-    tabs = Tabs(tabs=[p2, p1])
+    tabs = Tabs(tabs=[p2, p1], width=width, height=height, sizing_mode='fixed')
     return bokeh_embed.json_item(tabs)
 
 
-# TODO make async so that thread isn't blocked
-def spectroscopy_plot(obj_id, spec_id=None):
+def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
     obj = Obj.query.get(obj_id)
     spectra = Obj.query.get(obj_id).spectra
     if spec_id is not None:
@@ -728,11 +728,10 @@ def spectroscopy_plot(obj_id, spec_id=None):
     xmin = np.min(data['wavelength']) - 100
     xmax = np.max(data['wavelength']) + 100
     plot = figure(
-        plot_width=600,
-        plot_height=300,
+        aspect_ratio=2,
+        sizing_mode='scale_width',
         y_range=(ymin, ymax),
         x_range=(xmin, xmax),
-        sizing_mode='scale_both',
         tools='box_zoom,wheel_zoom,pan,reset',
         active_drag='box_zoom',
     )
@@ -756,6 +755,7 @@ def spectroscopy_plot(obj_id, spec_id=None):
         ],
         active=list(range(len(spectra))),
         colors=[color_map[k] for k, df in split],
+        width=width // 5,
     )
     toggle.js_on_click(
         CustomJS(
@@ -765,7 +765,7 @@ def spectroscopy_plot(obj_id, spec_id=None):
               eval("s" + i).visible = (toggle.active.includes(i))
           }
     """,
-        )
+        ),
     )
 
     z_title = Div(text="Redshift (<i>z</i>): ")
@@ -822,14 +822,19 @@ def spectroscopy_plot(obj_id, spec_id=None):
         )
         model_dict[f'el{i}'].visible = False
 
-    # Split spectral lines into 3 columns
-    element_dicts = np.array_split(np.array(list(SPEC_LINES.items()), dtype=object), 3)
+    # Split spectral line legend into columns
+    columns = 7
+    element_dicts = zip(*itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns))
+
     elements_groups = []
     col_offset = 0
     for element_dict in element_dicts:
+        element_dict = [e for e in element_dict if e is not None]
         labels = [key for key, value in element_dict]
         colors = [c for key, (w, c) in element_dict]
-        elements = CheckboxWithLegendGroup(labels=labels, active=[], colors=colors,)
+        elements = CheckboxWithLegendGroup(
+            labels=labels, active=[], colors=colors, width=width // (columns + 1)
+        )
         elements_groups.append(elements)
 
         # TODO callback policy: don't require submit for text changes?
@@ -941,5 +946,5 @@ def spectroscopy_plot(obj_id, spec_id=None):
     row1 = row(plot, toggle)
     row2 = row(elements_groups)
     row3 = row(z, v_exp)
-    layout = column(row1, row2, row3)
+    layout = column(row1, row2, row3, width=width)
     return bokeh_embed.json_item(layout)
