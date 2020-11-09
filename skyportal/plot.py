@@ -809,22 +809,7 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
     )
     v_exp = column(v_title, v_exp_slider, v_exp_textinput)
 
-    # Split spectral line legend into columns
-    columns = 7
-    element_dicts_with_nones = zip(
-        *itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns)
-    )
-    # The itertools method used to split the elements takes them in round-robin order
-    # (and not the order of SPEC_LINES.items()) so we retrieve a list in that round-robin
-    # order for the plotting/model_dict adding below
-    ordered_elements = []
-    element_dicts = []
-    for element_dict in element_dicts_with_nones:
-        element_dict = [e for e in element_dict if e is not None]
-        element_dicts.append(element_dict)
-        ordered_elements.extend(element_dict)
-
-    for i, (_, (wavelengths, color)) in enumerate(ordered_elements):
+    for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
         el_data = pd.DataFrame({'wavelength': wavelengths})
         obj_redshift = 0 if obj.redshift is None else obj.redshift
         el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
@@ -839,10 +824,14 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
         )
         model_dict[f'el{i}'].visible = False
 
+    # Split spectral line legend into columns
+    columns = 7
+    element_dicts = zip(*itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns))
+
     elements_groups = []  # The Bokeh checkbox groups
-    col_offset = 0
     callbacks = []  # The checkbox callbacks for each element
-    for element_dict in element_dicts:
+    for column_idx, element_dict in enumerate(element_dicts):
+        element_dict = [e for e in element_dict if e is not None]
         labels = [key for key, value in element_dict]
         colors = [c for key, (w, c) in element_dict]
         elements = CheckboxWithLegendGroup(
@@ -859,9 +848,9 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
             },
             code=f"""
             let c = 299792.458; // speed of light in km / s
-            const i_max = {col_offset} + elements.labels.length;
+            const i_max = {column_idx} +  {columns} * elements.labels.length;
             let local_i = 0;
-            for (let i = {col_offset}; i < i_max; i++) {{
+            for (let i = {column_idx}; i < i_max; i = i + {columns}) {{
                 let el = eval("el" + i);
                 el.visible = (elements.active.includes(local_i))
                 el.data_source.data.x = el.data_source.data.wavelength.map(
@@ -875,8 +864,6 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
         )
         elements.js_on_click(callback)
         callbacks.append(callback)
-
-        col_offset += len(labels)
 
     z_textinput.js_on_change(
         'value',
