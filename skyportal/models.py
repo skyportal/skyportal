@@ -16,7 +16,7 @@ import sqlalchemy as sa
 from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -930,6 +930,13 @@ Source.is_owned_by = source_is_owned_by
 Source.get_obj_if_owned_by = get_source_if_owned_by
 
 
+def construct_joinedload(base, additional_attrs):
+    jl = joinedload(base)
+    for attr in additional_attrs:
+        jl = jl.joinedload(attr)
+    return jl
+
+
 def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
     """Return an Obj from the database if the Obj is either a Source or a Candidate in at least
     one of the requesting User or Token owner's accessible Groups. If the Obj is not a
@@ -956,55 +963,27 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
     if "System admin" in user_or_token.permissions:
         return Obj.query.options(options).get(obj_id)
     try:
-        obj = Source.get_obj_if_owned_by(obj_id, user_or_token, options)
+        source_opts = [construct_joinedload(Source.obj, o.path) for o in options]
+        obj = Source.get_obj_if_owned_by(obj_id, user_or_token, source_opts)
     except AccessError:  # They may still be able to view the associated Candidate
-        obj = Candidate.get_obj_if_owned_by(obj_id, user_or_token, options)
-        if obj is None:
-            # If user can't view associated Source, and there's no Candidate they can
-            # view, raise AccessError
-            raise
-    if obj is None:  # There is no associated Source/Cand, so check based on photometry
-        if Obj.get_photometry_owned_by_user(obj_id, user_or_token):
-            return Obj.query.options(options).get(obj_id)
-        raise AccessError("Insufficient permissions.")
+        try:
+            cand_opts = [construct_joinedload(Candidate.obj, o.path) for o in options]
+            obj = Candidate.get_obj_if_owned_by(obj_id, user_or_token, cand_opts)
+        except AccessError:
+            if Obj.get_photometry_owned_by_user(obj_id, user_or_token):
+                return Obj.query.options(options).get(obj_id)
+            raise AccessError("Insufficient permissions.")
+        else:
+            if obj is None:
+                # If user can't view associated Source, and there's no Candidate they can
+                # view, raise AccessError
+                raise
+
     # If we get here, the user has access to either the associated Source or Candidate
     return obj
 
 
-def get_obj_if_visible_to(obj_id, user_or_token, options=[]):
-    """Return an Obj from the database if the Obj has at least one Photometry point
-    visible to the User. If the Obj is not a Source or a Candidate in one of the
-    User or Token owner's accessible Groups, raise an AccessError. If the Obj
-    does not exist, return `None`.
-
-    Parameters
-    ----------
-    obj_id : integer or string
-       Primary key of the Obj.
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-    options : list of `sqlalchemy.orm.MapperOption`s
-       Options that wil be passed to `options()` in the loader query.
-
-    Returns
-    -------
-    obj : `skyportal.models.Obj`
-       The requested Obj.
-    """
-
-    if Obj.query.get(obj_id) is None:
-        return None
-    elif (
-        "System admin" in user_or_token.permissions
-        or Obj.get_photometry_owned_by_user(obj_id, user_or_token)
-    ):
-        return Obj.query.options(options).get(obj_id)
-    else:
-        raise AccessError("Insufficient permissions.")
-
-
 Obj.get_if_owned_by = get_obj_if_owned_by
-Obj.get_if_visible_to = get_obj_if_visible_to
 
 
 def get_obj_comments_owned_by(self, user_or_token):
