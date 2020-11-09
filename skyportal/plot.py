@@ -807,7 +807,22 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
     )
     v_exp = column(v_title, v_exp_slider, v_exp_textinput)
 
-    for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
+    # Split spectral line legend into columns
+    columns = 7
+    element_dicts_with_nones = zip(
+        *itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns)
+    )
+    # The itertools method used to split the elements takes them in round-robin order
+    # (and not the order of SPEC_LINES.items()) so we retrieve a list in that round-robin
+    # order for the plotting/model_dict adding below
+    ordered_elements = []
+    element_dicts = []
+    for element_dict in element_dicts_with_nones:
+        element_dict = [e for e in element_dict if e is not None]
+        element_dicts.append(element_dict)
+        ordered_elements.extend(element_dict)
+
+    for i, (_, (wavelengths, color)) in enumerate(ordered_elements):
         el_data = pd.DataFrame({'wavelength': wavelengths})
         obj_redshift = 0 if obj.redshift is None else obj.redshift
         el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
@@ -822,14 +837,10 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
         )
         model_dict[f'el{i}'].visible = False
 
-    # Split spectral line legend into columns
-    columns = 7
-    element_dicts = zip(*itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns))
-
-    elements_groups = []
+    elements_groups = []  # The Bokeh checkbox groups
     col_offset = 0
+    callbacks = []  # The checkbox callbacks for each element
     for element_dict in element_dicts:
-        element_dict = [e for e in element_dict if e is not None]
         labels = [key for key, value in element_dict]
         colors = [c for key, (w, c) in element_dict]
         elements = CheckboxWithLegendGroup(
@@ -837,16 +848,14 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
         )
         elements_groups.append(elements)
 
-        # TODO callback policy: don't require submit for text changes?
-        elements.js_on_click(
-            CustomJS(
-                args={
-                    'elements': elements,
-                    'z': z_textinput,
-                    'v_exp': v_exp_textinput,
-                    **model_dict,
-                },
-                code=f"""
+        callback = CustomJS(
+            args={
+                'elements': elements,
+                'z': z_textinput,
+                'v_exp': v_exp_textinput,
+                **model_dict,
+            },
+            code=f"""
             let c = 299792.458; // speed of light in km / s
             const i_max = {col_offset} + elements.labels.length;
             let local_i = 0;
@@ -861,21 +870,16 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
                 local_i++;
             }}
         """,
-            )
         )
+        elements.js_on_click(callback)
+        callbacks.append(callback)
 
         col_offset += len(labels)
 
-    # Our current version of Bokeh doesn't properly execute multiple callbacks
-    # https://github.com/bokeh/bokeh/issues/6508
-    # Workaround is to manually put the code snippets together
     z_textinput.js_on_change(
         'value',
         CustomJS(
             args={
-                'elements0': elements_groups[0],
-                'elements1': elements_groups[1],
-                'elements2': elements_groups[2],
                 'z': z_textinput,
                 'slider': z_slider,
                 'v_exp': v_exp_textinput,
@@ -884,24 +888,6 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
             code="""
             // Update slider value to match text input
             slider.value = parseFloat(z.value).toFixed(3);
-
-            // Update plot data for each element
-            let c = 299792.458; // speed of light in km / s
-            const offset_col_1 = elements0.labels.length;
-            const offset_col_2 = offset_col_1 + elements1.labels.length;
-            const i_max = offset_col_2 + elements2.labels.length;
-            for (let i = 0; i < i_max; i++) {{
-                let el = eval("el" + i);
-                el.visible =
-                    elements0.active.includes(i) ||
-                    elements1.active.includes(i - offset_col_1) ||
-                    elements2.active.includes(i - offset_col_2);
-                el.data_source.data.x = el.data_source.data.wavelength.map(
-                    x_i => (x_i * (1 + parseFloat(z.value)) /
-                                    (1 + parseFloat(v_exp.value) / c))
-                );
-                el.data_source.change.emit();
-            }}
         """,
         ),
     )
@@ -910,9 +896,6 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
         'value',
         CustomJS(
             args={
-                'elements0': elements_groups[0],
-                'elements1': elements_groups[1],
-                'elements2': elements_groups[2],
                 'z': z_textinput,
                 'slider': v_exp_slider,
                 'v_exp': v_exp_textinput,
@@ -921,27 +904,14 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
             code="""
             // Update slider value to match text input
             slider.value = parseFloat(v_exp.value).toFixed(3);
-
-            // Update plot data for each element
-            let c = 299792.458; // speed of light in km / s
-            const offset_col_1 = elements0.labels.length;
-            const offset_col_2 = offset_col_1 + elements1.labels.length;
-            const i_max = offset_col_2 + elements2.labels.length;
-            for (let i = 0; i < i_max; i++) {{
-                let el = eval("el" + i);
-                el.visible =
-                    elements0.active.includes(i) ||
-                    elements1.active.includes(i - offset_col_1) ||
-                    elements2.active.includes(i - offset_col_2);
-                el.data_source.data.x = el.data_source.data.wavelength.map(
-                    x_i => (x_i * (1 + parseFloat(z.value)) /
-                                    (1 + parseFloat(v_exp.value) / c))
-                );
-                el.data_source.change.emit();
-            }}
         """,
         ),
     )
+
+    # Update the element spectral lines as well
+    for callback in callbacks:
+        z_textinput.js_on_change('value', callback)
+        v_exp_textinput.js_on_change('value', callback)
 
     row1 = row(plot, toggle)
     row2 = row(elements_groups)
