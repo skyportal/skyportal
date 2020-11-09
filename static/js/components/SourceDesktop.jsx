@@ -52,7 +52,7 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "flex",
     overflowX: "scroll",
     flexDirection: "column",
-    paddingBottom: "0.5rem",
+    padding: "0.5rem",
     "& div button": {
       margin: "0.5rem",
     },
