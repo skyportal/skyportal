@@ -930,13 +930,6 @@ Source.is_owned_by = source_is_owned_by
 Source.get_obj_if_owned_by = get_source_if_owned_by
 
 
-def construct_joinedload(base, additional_attrs):
-    jl = joinedload(base)
-    for attr in additional_attrs:
-        jl = jl.joinedload(attr)
-    return jl
-
-
 def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
     """Return an Obj from the database if the Obj is either a Source or a Candidate in at least
     one of the requesting User or Token owner's accessible Groups. If the Obj is not a
@@ -957,6 +950,12 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
     obj : `skyportal.models.Obj`
        The requested Obj.
     """
+
+    def construct_joinedload(base, additional_attrs):
+        jl = joinedload(base)
+        for attr in additional_attrs:
+            jl = jl.joinedload(attr)
+        return jl
 
     if Obj.query.get(obj_id) is None:
         return None
