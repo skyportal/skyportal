@@ -1043,7 +1043,7 @@ def get_obj_classifications_owned_by(self, user_or_token):
 
     Returns
     -------
-    comment_list : list of `skyportal.models.Classification`
+    classification_list : list of `skyportal.models.Classification`
        The accessible classifications attached to this Obj.
     """
     return [
@@ -1468,9 +1468,7 @@ class Comment(Base):
     attachment_name = sa.Column(
         sa.String, nullable=True, doc="Filename of the attachment."
     )
-    attachment_type = sa.Column(
-        sa.String, nullable=True, doc="Attachment extension, (e.g., pdf, png)."
-    )
+
     attachment_bytes = sa.Column(
         sa.types.LargeBinary,
         nullable=True,

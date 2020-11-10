@@ -270,6 +270,7 @@ const RunSummary = ({ route }) => {
               key={name}
               size="small"
               className={classes.chip}
+              data-testid={`chip-assignment_${assignment.id}-group_${name}`}
             />
             <br />
           </div>

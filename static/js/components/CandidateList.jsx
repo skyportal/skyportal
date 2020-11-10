@@ -148,8 +148,10 @@ const getMostRecentClassification = (classifications) => {
   const sortedClasses = filteredClasses.sort((a, b) =>
     a.modified < b.modified ? 1 : -1
   );
+  const recentClassification =
+    sortedClasses.length > 0 ? `${sortedClasses[0].classification}` : null;
 
-  return `${sortedClasses[0].classification}`;
+  return recentClassification;
 };
 
 const getMuiPopoverTheme = () =>
@@ -439,6 +441,11 @@ const CandidateList = () => {
 
   const renderInfo = (dataIndex) => {
     const candidateObj = candidates[dataIndex];
+    const recentClassification =
+      candidateObj.classifications && candidateObj.classifications.length > 0
+        ? getMostRecentClassification(candidateObj.classifications)
+        : null;
+
     return (
       <div className={classes.info}>
         <span className={classes.itemPaddingBottom}>
@@ -538,15 +545,12 @@ const CandidateList = () => {
             {candidateObj.gal_lat.toFixed(3)}
           </span>
         </div>
-        {candidateObj.classifications &&
-          candidateObj.classifications.length > 0 && (
-            <div className={classes.infoItem}>
-              <b>Classification: </b>
-              <span>
-                {getMostRecentClassification(candidateObj.classifications)}
-              </span>
-            </div>
-          )}
+        {candidateObj.classifications && recentClassification && (
+          <div className={classes.infoItem}>
+            <b>Classification: </b>
+            <span>{recentClassification}</span>
+          </div>
+        )}
         {selectedAnnotationSortOptions !== null &&
           candidateHasAnnotationWithSelectedKey(candidateObj) && (
             <div className={classes.infoItem}>
