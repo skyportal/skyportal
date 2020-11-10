@@ -248,6 +248,11 @@ def public_candidate2(public_filter):
 
 
 @pytest.fixture()
+def public_obj(public_group):
+    return ObjFactory(groups=[public_group])
+
+
+@pytest.fixture()
 def red_transients_group(group_admin_user, view_only_user):
     return GroupFactory(
         name=f'red transients-{uuid.uuid4().hex}',
