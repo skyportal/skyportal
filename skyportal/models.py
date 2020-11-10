@@ -16,7 +16,7 @@ import sqlalchemy as sa
 from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -951,22 +951,33 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
        The requested Obj.
     """
 
+    def construct_joinedload(base, additional_attrs):
+        jl = joinedload(base)
+        for attr in additional_attrs:
+            jl = jl.joinedload(attr)
+        return jl
+
     if Obj.query.get(obj_id) is None:
         return None
     if "System admin" in user_or_token.permissions:
         return Obj.query.options(options).get(obj_id)
     try:
-        obj = Source.get_obj_if_owned_by(obj_id, user_or_token, options)
+        source_opts = [construct_joinedload(Source.obj, o.path) for o in options]
+        obj = Source.get_obj_if_owned_by(obj_id, user_or_token, source_opts)
     except AccessError:  # They may still be able to view the associated Candidate
-        obj = Candidate.get_obj_if_owned_by(obj_id, user_or_token, options)
-        if obj is None:
-            # If user can't view associated Source, and there's no Candidate they can
-            # view, raise AccessError
-            raise
-    if obj is None:  # There is no associated Source/Cand, so check based on photometry
-        if Obj.get_photometry_owned_by_user(obj_id, user_or_token):
-            return Obj.query.options(options).get(obj_id)
-        raise AccessError("Insufficient permissions.")
+        try:
+            cand_opts = [construct_joinedload(Candidate.obj, o.path) for o in options]
+            obj = Candidate.get_obj_if_owned_by(obj_id, user_or_token, cand_opts)
+        except AccessError:
+            if Obj.get_photometry_owned_by_user(obj_id, user_or_token):
+                return Obj.query.options(options).get(obj_id)
+            raise AccessError("Insufficient permissions.")
+        else:
+            if obj is None:
+                # If user can't view associated Source, and there's no Candidate they can
+                # view, raise AccessError
+                raise
+
     # If we get here, the user has access to either the associated Source or Candidate
     return obj
 

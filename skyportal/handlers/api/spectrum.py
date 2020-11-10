@@ -14,7 +14,6 @@ from ...models import (
     Group,
     Instrument,
     Obj,
-    Source,
     GroupUser,
     Spectrum,
     User,
@@ -172,7 +171,7 @@ class SpectrumHandler(BaseHandler):
 
         if spectrum is not None:
             # Permissions check
-            _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
+            _ = Obj.get_if_owned_by(spectrum.obj_id, self.current_user)
             spec_dict = spectrum.to_dict()
             spec_dict["instrument_name"] = spectrum.instrument.name
             spec_dict["groups"] = spectrum.groups
@@ -214,7 +213,7 @@ class SpectrumHandler(BaseHandler):
 
         spectrum = Spectrum.query.get(spectrum_id)
         # Permissions check
-        _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
+        _ = Obj.get_if_owned_by(spectrum.obj_id, self.current_user)
 
         # Check that the requesting user owns the spectrum (or is an admin)
         if not spectrum.is_modifiable_by(self.associated_user_object):
@@ -266,7 +265,7 @@ class SpectrumHandler(BaseHandler):
         """
         spectrum = Spectrum.query.get(spectrum_id)
         # Permissions check
-        _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
+        _ = Obj.get_if_owned_by(spectrum.obj_id, self.current_user)
 
         # Check that the requesting user owns the spectrum (or is an admin)
         if not spectrum.is_modifiable_by(self.associated_user_object):
@@ -361,7 +360,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
         filename = json.pop('filename')
 
-        obj = Source.get_obj_if_owned_by(json['obj_id'], self.current_user)
+        obj = Obj.get_if_owned_by(json['obj_id'], self.current_user)
         if obj is None:
             raise ValidationError('Invalid Obj id.')
 

@@ -451,7 +451,7 @@ const CandidateList = () => {
         <span className={classes.itemPaddingBottom}>
           <b>ID:</b>&nbsp;
           <a
-            href={`/candidate/${candidateObj.id}`}
+            href={`/source/${candidateObj.id}`}
             target="_blank"
             rel="noreferrer"
           >
