@@ -156,7 +156,7 @@ def test_sharing_photometry_shares_source(
             "zp": 25.0,
             "magsys": "ab",
             "filter": "ztfg",
-            "group_ids": [public_group2.id],
+            "group_ids": [public_group.id],
         },
         token=upload_data_token,
     )
@@ -173,7 +173,7 @@ def test_sharing_photometry_shares_source(
     status, data = api(
         "POST",
         "sharing",
-        data={"photometryIDs": [photometry_id], "groupIDs": [public_group.id]},
+        data={"photometryIDs": [photometry_id], "groupIDs": [public_group2.id]},
         token=upload_data_token,
     )
 
