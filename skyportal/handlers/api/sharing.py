@@ -75,7 +75,10 @@ class SharingHandler(BaseHandler):
 
             for phot in ok_phot:
                 # Ensure user has access to data being shared
-                if not phot.owner_id == self.associated_user_object.id:
+                if (
+                    phot.owner_id != self.associated_user_object.id
+                    and "System admin" not in self.current_user.permissions
+                ):
                     return self.error(
                         f"Cannot share photometry id {phot.id}: you are not the owner of this point."
                     )
@@ -94,7 +97,10 @@ class SharingHandler(BaseHandler):
 
             for spec in ok_spec:
                 # Ensure user has access to data being shared
-                if not spec.owner_id == self.associated_user_object.id:
+                if (
+                    spec.owner_id != self.associated_user_object.id
+                    and "System admin" not in self.current_user.permissions
+                ):
                     return self.error(
                         f"Cannot share spectrum id {phot.id}: you are not the owner of this spectrum."
                     )
