@@ -191,6 +191,7 @@ const WeatherWidget = ({ classes }) => {
           <div className={`${classes.widgetIcon} ${styles.selector}`}>
             <IconButton
               aria-controls="tel-list"
+              data-testid="tel-list-button"
               aria-haspopup="true"
               onClick={handleClickListItem}
             >

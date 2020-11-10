@@ -30,4 +30,4 @@ def test_weather_widget(driver, user, public_group, upload_data_token):
     weather_text = weather.text
     assert weather_text.find("No weather information available") != -1
 
-    driver.click_xpath('//*[@aria-controls="tel-list"]')
+    driver.click_xpath('//*[@data-testid="tel-list-button"]')
