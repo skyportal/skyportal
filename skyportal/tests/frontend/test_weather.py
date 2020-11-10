@@ -1,10 +1,10 @@
 import uuid
-
+import pytest
 from skyportal.tests import api
 
 
+@pytest.mark.flaky(reruns=2)
 def test_weather_widget(driver, user, public_group, upload_data_token):
-
     name = str(uuid.uuid4())
     post_data = {
         'name': name,
