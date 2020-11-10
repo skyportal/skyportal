@@ -4,7 +4,7 @@ from skyportal.tests import api
 
 
 @pytest.mark.flaky(reruns=2)
-def test_weather_widget(driver, user, public_group, upload_data_token):
+def test_weather_widget(driver, user, public_group, upload_data_token, p60_telescope):
     name = str(uuid.uuid4())
     post_data = {
         'name': name,
@@ -25,9 +25,6 @@ def test_weather_widget(driver, user, public_group, upload_data_token):
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
 
-    weather = driver.wait_for_xpath('//*[@id="weatherWidget"]')
-
-    weather_text = weather.text
-    assert weather_text.find("No weather information available") != -1
-
     driver.click_xpath('//*[@data-testid="tel-list-button"]')
+    driver.click_xpath(f'//*[text()="{p60_telescope.name}"]')
+    driver.wait_for_xpath(f'//h6[text()="{p60_telescope.name}"]')

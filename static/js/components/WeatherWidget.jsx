@@ -171,16 +171,12 @@ const WeatherWidget = ({ classes }) => {
     setAnchorEl(null);
   };
 
-  const handleClickListItem = (event) => {
+  const handleClickDropdownIcon = (event) => {
     setAnchorEl(event.currentTarget);
   };
 
   return (
-    <Paper
-      id="weatherWidget"
-      elevation={1}
-      className={classes.widgetPaperFillSpace}
-    >
+    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <Typography variant="h6" display="inline">
           {weather?.name}
@@ -193,7 +189,7 @@ const WeatherWidget = ({ classes }) => {
               aria-controls="tel-list"
               data-testid="tel-list-button"
               aria-haspopup="true"
-              onClick={handleClickListItem}
+              onClick={handleClickDropdownIcon}
             >
               <MoreVertIcon />
             </IconButton>
