@@ -961,22 +961,21 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
         return None
     if "System admin" in user_or_token.permissions:
         return Obj.query.options(options).get(obj_id)
+
+    # the order of the following attempts is important -
+    # this one should come first
+    if Obj.get_photometry_owned_by_user(obj_id, user_or_token):
+        return Obj.query.options(options).get(obj_id)
+
     try:
         source_opts = [construct_joinedload(Source.obj, o.path) for o in options]
         obj = Source.get_obj_if_owned_by(obj_id, user_or_token, source_opts)
     except AccessError:  # They may still be able to view the associated Candidate
-        try:
-            cand_opts = [construct_joinedload(Candidate.obj, o.path) for o in options]
-            obj = Candidate.get_obj_if_owned_by(obj_id, user_or_token, cand_opts)
-        except AccessError:
-            if Obj.get_photometry_owned_by_user(obj_id, user_or_token):
-                return Obj.query.options(options).get(obj_id)
-            raise AccessError("Insufficient permissions.")
-        else:
-            if obj is None:
-                # If user can't view associated Source, and there's no Candidate they can
-                # view, raise AccessError
-                raise
+        cand_opts = [construct_joinedload(Candidate.obj, o.path) for o in options]
+        obj = Candidate.get_obj_if_owned_by(obj_id, user_or_token, cand_opts)
+
+    if obj is None:
+        raise AccessError('Insufficient permissions.')
 
     # If we get here, the user has access to either the associated Source or Candidate
     return obj
