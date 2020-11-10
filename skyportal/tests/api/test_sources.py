@@ -346,32 +346,3 @@ def test_source_notifications_unauthorized(
     assert data["message"].startswith(
         "Twilio Communication SMS API authorization error"
     )
-
-
-def test_obj_visibility_source(
-    public_source, upload_data_token, view_only_token_group2, public_group2
-):
-    # try getting a source that I dont have access to
-    status, data = api(
-        'GET', f'sources/{public_source.id}', token=view_only_token_group2,
-    )
-    assert status == 400
-
-    status, data = api(
-        "POST",
-        "sharing",
-        data={
-            "photometryIDs": [public_source.photometry[0].id],
-            "groupIDs": [public_group2.id],
-        },
-        token=upload_data_token,
-    )
-
-    assert status == 200
-    assert data['status'] == 'success'
-
-    # I should now have access via the photometry share
-    status, data = api(
-        'GET', f'sources/{public_source.id}', token=view_only_token_group2,
-    )
-    assert status == 200
