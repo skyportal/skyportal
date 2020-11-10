@@ -27,21 +27,34 @@ const useStyles = makeStyles((theme) => ({
 
 const GroupSources = ({ route }) => {
   const dispatch = useDispatch();
-  const sources = useSelector((state) => state.sources.groupSources);
+  const savedSourcesState = useSelector(
+    (state) => state.sources.savedGroupSources
+  );
+  const pendingSourcesState = useSelector(
+    (state) => state.sources.pendingGroupSources
+  );
   const groups = useSelector((state) => state.groups.userAccessible);
   const classes = useStyles();
 
   // Load the group sources
   useEffect(() => {
     dispatch(
-      sourcesActions.fetchGroupSources({
+      sourcesActions.fetchSavedGroupSources({
         group_ids: [route.id],
-        includeRequested: true,
+        pageNumber: 1,
+        numPerPage: 10,
+      })
+    );
+    dispatch(
+      sourcesActions.fetchPendingGroupSources({
+        group_ids: [route.id],
+        pageNumber: 1,
+        numPerPage: 10,
       })
     );
   }, [route.id, dispatch]);
 
-  if (!sources) {
+  if (!savedSourcesState.sources && !pendingSourcesState.sources) {
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -52,28 +65,42 @@ const GroupSources = ({ route }) => {
 
   const groupName = groups.filter((g) => g.id === groupID)[0]?.name || "";
 
-  if (sources.length === 0) {
+  const handleSavedSourcesTablePagination = (pageNumber, numPerPage) => {
+    dispatch(
+      sourcesActions.fetchSavedGroupSources({
+        group_ids: [route.id],
+        pageNumber,
+        numPerPage,
+      })
+    );
+  };
+
+  const handlePendingSourcesTablePagination = (pageNumber, numPerPage) => {
+    dispatch(
+      sourcesActions.fetchPendingGroupSources({
+        group_ids: [route.id],
+        pageNumber,
+        numPerPage,
+      })
+    );
+  };
+
+  if (
+    savedSourcesState.sources?.length === 0 &&
+    pendingSourcesState.sources?.length === 0
+  ) {
     return (
       <div className={classes.source}>
         <Typography variant="h4" gutterBottom align="center">
           {`${groupName} sources`}
         </Typography>
         <br />
-        <Typography align="center">
+        <Typography variant="h5" align="center">
           No sources have been saved to this group yet.
         </Typography>
       </div>
     );
   }
-
-  const savedSources = sources.filter((source) => {
-    const matchingGroup = source.groups.filter((g) => g.id === groupID)[0];
-    return matchingGroup?.active;
-  });
-  const pendingSources = sources.filter((source) => {
-    const matchingGroup = source.groups.filter((g) => g.id === groupID)[0];
-    return matchingGroup?.requested;
-  });
 
   return (
     <div className={classes.source}>
@@ -81,22 +108,30 @@ const GroupSources = ({ route }) => {
         {`${groupName} sources`}
       </Typography>
       <br />
-      {savedSources && (
+      {!!savedSourcesState.sources && (
         <SourceTable
-          sources={savedSources}
+          sources={savedSourcesState.sources}
           title="Saved"
           sourceStatus="saved"
           groupID={groupID}
+          paginateCallback={handleSavedSourcesTablePagination}
+          pageNumber={savedSourcesState.pageNumber}
+          totalMatches={savedSourcesState.totalMatches}
+          numPerPage={savedSourcesState.numPerPage}
         />
       )}
       <br />
       <br />
-      {pendingSources && (
+      {!!pendingSourcesState.sources && (
         <SourceTable
-          sources={pendingSources}
+          sources={pendingSourcesState.sources}
           title="Requested to save"
           sourceStatus="requested"
           groupID={groupID}
+          paginateCallback={handlePendingSourcesTablePagination}
+          pageNumber={pendingSourcesState.pageNumber}
+          totalMatches={pendingSourcesState.totalMatches}
+          numPerPage={pendingSourcesState.numPerPage}
         />
       )}
     </div>
