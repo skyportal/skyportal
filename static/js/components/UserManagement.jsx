@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useForm, Controller } from "react-hook-form";
 
 import MUIDataTable from "mui-datatables";
 import Paper from "@material-ui/core/Paper";
@@ -19,8 +20,8 @@ import DialogContent from "@material-ui/core/DialogContent";
 import DialogTitle from "@material-ui/core/DialogTitle";
 import Tooltip from "@material-ui/core/Tooltip";
 import { makeStyles } from "@material-ui/core/styles";
+import Form from "@rjsf/material-ui";
 import PapaParse from "papaparse";
-import { useForm, Controller } from "react-hook-form";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -42,6 +43,9 @@ const useStyles = makeStyles(() => ({
   spinnerDiv: {
     paddingTop: "2rem",
   },
+  submitFilterButton: {
+    marginTop: "1rem",
+  },
 }));
 
 const sampleCSVText = `example1@gmail.com,1,3,false
@@ -57,6 +61,11 @@ const UserManagement = () => {
   const { invitationsEnabled } = useSelector((state) => state.sysInfo);
   const currentUser = useSelector((state) => state.profile);
   const { users, totalMatches } = useSelector((state) => state.users);
+  const [fetchParams, setFetchParams] = useState({
+    pageNumber: 1,
+    numPerPage: defaultNumPerPage,
+  });
+  const [tableFilterList, setTableFilterList] = useState([]);
   const streams = useSelector((state) => state.streams);
   let { all: allGroups } = useSelector((state) => state.groups);
   const acls = useSelector((state) => state.acls);
@@ -87,7 +96,6 @@ const UserManagement = () => {
   }, [dataFetched, dispatch]);
 
   if (
-    !users?.length ||
     !currentUser?.username?.length ||
     !allGroups?.length ||
     !streams?.length ||
@@ -403,7 +411,7 @@ const UserManagement = () => {
           <AddCircleIcon color="disabled" />
         </IconButton>
         {user.groups
-          .filter((group) => !group.single_user_group)
+          ?.filter((group) => !group.single_user_group)
           .map((group) => (
             <Chip
               label={group.name}
@@ -433,7 +441,7 @@ const UserManagement = () => {
         >
           <AddCircleIcon color="disabled" />
         </IconButton>
-        {user.streams.map((stream) => (
+        {user.streams?.map((stream) => (
           <Chip
             label={stream.name}
             onDelete={() => {
@@ -447,9 +455,42 @@ const UserManagement = () => {
     );
   };
 
+  const handleFilterSubmit = async (formData) => {
+    setQueryInProgress(true);
+    Object.keys(formData).forEach(
+      (key) => !formData[key] && delete formData[key]
+    );
+    setTableFilterList(
+      Object.entries(formData).map(([key, value]) => `${key}: ${value}`)
+    );
+    const params = {
+      pageNumber: 1,
+      numPerPage: fetchParams.numPerPage,
+      ...formData,
+    };
+    setFetchParams(params);
+    await dispatch(usersActions.fetchUsers(params));
+    setQueryInProgress(false);
+  };
+
+  const handleTableFilterChipChange = (column, filterList, type) => {
+    if (type === "chip") {
+      const nameFilterList = filterList[0];
+      // Convert chip filter list to filter form data
+      const data = {};
+      nameFilterList.forEach((filterChip) => {
+        const [key, value] = filterChip.split(": ");
+        data[key] = value;
+      });
+      handleFilterSubmit(data);
+    }
+  };
+
   const handlePageChange = async (page, numPerPage) => {
     setQueryInProgress(true);
-    const params = { pageNumber: page + 1, numPerPage };
+    const params = { ...fetchParams, numPerPage, pageNumber: page + 1 };
+    // Save state for future
+    setFetchParams(params);
     await dispatch(usersActions.fetchUsers(params));
     setQueryInProgress(false);
   };
@@ -465,21 +506,97 @@ const UserManagement = () => {
     }
   };
 
+  const customFilterDisplay = () => {
+    // Assemble json form schema for possible server-side filtering values
+    const filterFormSchema = {
+      type: "object",
+      properties: {
+        firstName: {
+          type: "string",
+          title: "First name",
+        },
+        lastName: {
+          type: "string",
+          title: "Last name",
+        },
+        username: {
+          type: "string",
+          title: "Username",
+        },
+        email: {
+          type: "string",
+          title: "Email",
+        },
+        role: {
+          title: "Role",
+          type: "string",
+          enum: roles.map((role) => role.id),
+        },
+        acl: {
+          title: "Additional ACL",
+          type: "string",
+          enum: acls,
+        },
+        group: {
+          title: "Group",
+          type: "string",
+          enum: allGroups.map((group) => group.name),
+        },
+        stream: {
+          title: "Stream",
+          type: "string",
+          enum: streams.map((stream) => stream.name),
+        },
+      },
+    };
+
+    return !queryInProgress ? (
+      <div>
+        <Form
+          schema={filterFormSchema}
+          onSubmit={({ formData }) => {
+            handleFilterSubmit(formData);
+          }}
+        />
+      </div>
+    ) : (
+      <div />
+    );
+  };
+
   const columns = [
     {
       name: "first_name",
       label: "Name",
       options: {
         customBodyRenderLite: renderName,
+        // Hijack custom filtering for this column to use for the entire form
+        // Individually using custom filter renders on each column led to issues
+        // with the form RESET button not being hooked up properly when combined
+        // with server-side pagination/filter confirmation
+        filter: !queryInProgress,
+        filterType: "custom",
+        filterList: tableFilterList,
+        filterOptions: {
+          // eslint-disable-next-line react/display-name
+          display: () => <div />,
+        },
       },
     },
     {
       name: "username",
       label: "Username",
+      options: {
+        // Turn off default filtering for custom form
+        filter: false,
+      },
     },
     {
       name: "contact_email",
       label: "Email",
+      options: {
+        filter: false,
+      },
     },
     {
       name: "roles",
@@ -488,6 +605,7 @@ const UserManagement = () => {
         sort: false,
         customBodyRenderLite: renderRoles,
         customHeadLabelRender: renderRolesHeader,
+        filter: false,
       },
     },
     {
@@ -497,6 +615,7 @@ const UserManagement = () => {
         sort: false,
         customBodyRenderLite: renderACLs,
         customHeadLabelRender: renderACLsHeader,
+        filter: false,
       },
     },
     {
@@ -505,6 +624,7 @@ const UserManagement = () => {
       options: {
         sort: false,
         customBodyRenderLite: renderGroups,
+        filter: false,
       },
     },
     {
@@ -513,6 +633,7 @@ const UserManagement = () => {
       options: {
         sort: false,
         customBodyRenderLite: renderStreams,
+        filter: false,
       },
     },
   ];
@@ -525,10 +646,12 @@ const UserManagement = () => {
     selectableRows: "none",
     enableNestedDataAccess: ".",
     elevation: 2,
+    sort: false,
     rowsPerPage,
-    rowsPerPageOptions: [1, 10, 25, 50],
+    rowsPerPageOptions: [10, 25, 50, 100, 200],
     filter: !queryInProgress,
-    filterType: "custom",
+    customFilterDialogFooter: customFilterDisplay,
+    onFilterChange: handleTableFilterChipChange,
     jumpToPage: true,
     serverSide: true,
     pagination: true,

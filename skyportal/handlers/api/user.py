@@ -6,7 +6,18 @@ from validate_email import validate_email
 from ..base import BaseHandler
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
-from ...models import DBSession, User, Group, GroupUser, StreamUser
+from ...models import (
+    DBSession,
+    User,
+    Group,
+    GroupUser,
+    StreamUser,
+    UserRole,
+    Role,
+    UserACL,
+    ACL,
+    Stream,
+)
 
 
 env, cfg = load_env()
@@ -90,6 +101,54 @@ class UserHandler(BaseHandler):
             schema:
               type: integer
             description: Page number for paginated query results. Defaults to 1
+          - in: query
+            name: firstName
+            nullable: true
+            schema:
+              type: string
+            description: Get users whose first name contains this string.
+          - in: query
+            name: lastName
+            nullable: true
+            schema:
+              type: string
+            description: Get users whose last name contains this string.
+          - in: query
+            name: username
+            nullable: true
+            schema:
+              type: string
+            description: Get users whose username contains this string.
+          - in: query
+            name: email
+            nullable: true
+            schema:
+              type: string
+            description: Get users whose email contains this string.
+          - in: query
+            name: role
+            nullable: true
+            schema:
+              type: string
+            description: Get users with the role.
+          - in: query
+            name: acl
+            nullable: true
+            schema:
+              type: string
+            description: Get users with this ACL.
+          - in: query
+            name: group
+            nullable: true
+            schema:
+              type: string
+            description: Get users part of the group with name given by this parameter.
+          - in: query
+            name: stream
+            nullable: true
+            schema:
+              type: string
+            description: Get users with access to the stream with name given by this parameter.
           responses:
             200:
               content:
@@ -126,6 +185,15 @@ class UserHandler(BaseHandler):
 
         page_number = self.get_query_argument("pageNumber", None) or 1
         n_per_page = self.get_query_argument("numPerPage", None) or 25
+        first_name = self.get_query_argument("firstName", None)
+        last_name = self.get_query_argument("lastName", None)
+        username = self.get_query_argument("username", None)
+        email_address = self.get_query_argument("email", None)
+        role = self.get_query_argument("role", None)
+        acl = self.get_query_argument("acl", None)
+        group = self.get_query_argument("group", None)
+        stream = self.get_query_argument("stream", None)
+
         try:
             page_number = int(page_number)
         except ValueError:
@@ -135,12 +203,27 @@ class UserHandler(BaseHandler):
         except ValueError:
             return self.error("Invalid numPerPage value.")
 
-        query = (
-            User.query.order_by(User.username)
-            .limit(n_per_page)
-            .offset((page_number - 1) * n_per_page)
-        )
-        total_matches = User.query.count()
+        query = User.query.order_by(User.username)
+
+        if first_name is not None:
+            query = query.filter(User.first_name.contains(first_name))
+        if last_name is not None:
+            query = query.filter(User.last_name.contains(last_name))
+        if username is not None:
+            query = query.filter(User.username.contains(username))
+        if email_address is not None:
+            query = query.filter(User.contact_email.contains(email_address))
+        if role is not None:
+            query = query.join(UserRole).join(Role).filter(Role.id == role)
+        if acl is not None:
+            query = query.join(UserACL).join(ACL).filter(ACL.id == acl)
+        if group is not None:
+            query = query.join(GroupUser).join(Group).filter(Group.name == group)
+        if stream is not None:
+            query = query.join(StreamUser).join(Stream).filter(Stream.name == stream)
+
+        total_matches = query.count()
+        query = query.limit(n_per_page).offset((page_number - 1) * n_per_page)
         info = {}
         return_values = []
         for user in query.all():
