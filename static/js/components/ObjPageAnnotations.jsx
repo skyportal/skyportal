@@ -20,10 +20,11 @@ dayjs.extend(utc);
 
 const useStyles = makeStyles((theme) => ({
   container: {
-    [theme.breakpoints.up("sm")]: {
-      minWidth: 350,
-    },
     width: "100%",
+    margin: "auto",
+    [theme.breakpoints.up("md")]: {
+      width: "27.5rem",
+    },
   },
 }));
 

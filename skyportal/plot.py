@@ -855,7 +855,7 @@ def spectroscopy_plot(obj_id, spec_id=None):
             x1='x',
             # TODO change limits
             y0=0,
-            y1=1e-13,
+            y1=1e4,
             color=color,
             source=ColumnDataSource(el_data),
         )

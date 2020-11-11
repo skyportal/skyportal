@@ -10,7 +10,7 @@ from PIL import Image, ImageChops
 import responses
 
 from baselayer.app.config import load_config
-from skyportal.tests import api, IS_CI_BUILD
+from skyportal.tests import api
 from skyportal.models import DBSession
 
 
@@ -47,9 +47,6 @@ def test_public_source_page_null_z(driver, user, public_source, public_group):
 
 @pytest.mark.flaky(reruns=3)
 def test_classifications(driver, user, taxonomy_token, public_group, public_source):
-    if IS_CI_BUILD:
-        pytest.xfail("Xfailing this test on CI builds.")
-
     simple = {
         'class': 'Cepheid',
         'tags': ['giant/supergiant', 'instability strip', 'standard candle'],
@@ -101,7 +98,9 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.click_xpath('//div[@id="tax-select"]')
     driver.click_xpath(
-        f'//*[text()="{tax_name} ({tax_version})"]', wait_clickable=False
+        f'//*[text()="{tax_name} ({tax_version})"]',
+        wait_clickable=False,
+        scroll_parent=True,
     )
     driver.click_xpath('//*[@id="classification"]')
     driver.wait_for_xpath('//*[@id="classification"]').send_keys(
@@ -114,14 +113,13 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     # Button at top of source page
     driver.wait_for_xpath("//span[text()[contains(., 'Save')]]")
 
-    # Scroll up to get entire classifications list component in view
-    add_comments = driver.find_element_by_xpath("//h6[contains(text(), 'Add comment')]")
-    driver.scroll_to_element(add_comments)
+    # Scroll up to get top of classifications list component in view
+    classifications = driver.find_element_by_xpath(
+        "//div[@id='classifications-header']"
+    )
+    driver.scroll_to_element(classifications)
 
     del_button_xpath = "//button[starts-with(@name, 'deleteClassificationButton')]"
-    ActionChains(driver).move_to_element(
-        driver.wait_for_xpath(del_button_xpath)
-    ).perform()
     driver.click_xpath(del_button_xpath, wait_clickable=False)
     driver.wait_for_xpath_to_disappear("//*[contains(text(), '(P=1)')]")
     driver.wait_for_xpath_to_disappear(f"//i[text()='{tax_name}']")
@@ -155,7 +153,11 @@ def test_comments(driver, user, public_source):
 
 
 @pytest.mark.flaky(reruns=2)
-def test_comment_groups_validation(driver, user, public_source):
+def test_comment_groups_validation(
+    driver, user, super_admin_token, public_source, public_group
+):
+    _, data = api("GET", "groups/public", token=super_admin_token)
+    sitewide_group_id = data["data"]["id"]
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
@@ -164,14 +166,14 @@ def test_comment_groups_validation(driver, user, public_source):
     comment_box.send_keys(comment_text)
     driver.click_xpath("//*[text()='Customize Group Access']")
 
-    # sitewide group
-    group_checkbox_xpath = "//input[@name='group_ids[0]']"
-    assert driver.wait_for_xpath(group_checkbox_xpath).is_selected()
+    # sitewide_group
+    group_checkbox_xpath = (
+        f"//*[@data-testid='commentGroupCheckBox{sitewide_group_id}']"
+    )
     driver.click_xpath(group_checkbox_xpath, wait_clickable=False)
 
-    # user group
-    group_checkbox_xpath = "//input[@name='group_ids[1]']"
-    assert driver.wait_for_xpath(group_checkbox_xpath).is_selected()
+    # public_group that user belongs to
+    group_checkbox_xpath = f"//*[@data-testid='commentGroupCheckBox{public_group.id}']"
     driver.click_xpath(group_checkbox_xpath, wait_clickable=False)
     driver.click_xpath('//*[@name="submitCommentButton"]')
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
@@ -213,26 +215,31 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     # Scroll up to top of comments list
     comments = driver.wait_for_xpath("//p[text()='Comments']")
     driver.scroll_to_element(comments)
-    ActionChains(driver).move_to_element(comments).perform()
+
     attachment_div = driver.wait_for_xpath("//div[contains(text(), 'Attachment:')]")
     attachment_button = driver.wait_for_xpath(
         '//button[@data-testid="attachmentButton_spec"]'
     )
-    ActionChains(driver).move_to_element(attachment_div).pause(0.1).perform()
-    ActionChains(driver).move_to_element(attachment_button).pause(0.1).click().perform()
-    # Preview dialog
-    driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
+    # Try to open the preview dialog twice before failing to make it more robust
+    try:
+        ActionChains(driver).move_to_element(attachment_div).pause(0.5).perform()
+        ActionChains(driver).move_to_element(attachment_button).pause(
+            0.5
+        ).click().perform()
+        # Preview dialog
+        driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
+    except TimeoutException:
+        ActionChains(driver).move_to_element(attachment_div).pause(0.5).perform()
+        ActionChains(driver).move_to_element(attachment_button).pause(
+            0.5
+        ).click().perform()
+        # Preview dialog
+        driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
 
     fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'spec.csv')))
     try_count = 1
     while not os.path.exists(fpath) and try_count <= 3:
         try_count += 1
-        driver.execute_script("arguments[0].scrollIntoView();", comment_div)
-        ActionChains(driver).move_to_element(comment_div).perform()
-        driver.click_xpath('//a[text()="spec.csv"]')
-        if os.path.exists(fpath):
-            break
-    else:
         assert os.path.exists(fpath)
 
     try:
@@ -347,12 +354,13 @@ def test_super_user_can_delete_unowned_comment(
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
 
     # wait for delete button to become interactible - hence pause 0.1
+    driver.scroll_to_element(comment_text_div)
     ActionChains(driver).move_to_element(comment_text_div).pause(0.1).perform()
 
     delete_button = driver.wait_for_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']"
     )
-    driver.scroll_to_element_and_click(delete_button)
+    ActionChains(driver).move_to_element(delete_button).pause(0.1).click().perform()
     driver.wait_for_xpath_to_disappear(f'//p[text()="{comment_text}"]')
 
 
@@ -466,17 +474,15 @@ def test_source_notification(driver, user, public_group, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    # Choose a group and click outside of the multi-select popup to close
-    group_select = driver.wait_for_xpath(
-        "//div[@data-testid='sourceNotification_groupSelect']"
+    # Choose a group and click something outside/not covered by the multi-select
+    # popup to close it
+    driver.click_xpath("//div[@data-testid='sourceNotification_groupSelect']")
+    driver.click_xpath(
+        f'//li[@data-testid="notificationGroupSelect_{public_group.id}"]',
+        scroll_parent=True,
     )
-    driver.scroll_to_element_and_click(group_select)
-    group_option = driver.wait_for_xpath(
-        f'//li[@data-testid="notificationGroupSelect_{public_group.id}"]'
-    )
-    ActionChains(driver).click(group_option).perform()
-    textbox = driver.wait_for_xpath("//*[@id='sourcenotification-textarea']")
-    driver.scroll_to_element_and_click(textbox)
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
     driver.click_xpath("//button[@data-testid='sendNotificationButton']")
     driver.wait_for_xpath("//*[text()='Notification queued up sucessfully']")
 

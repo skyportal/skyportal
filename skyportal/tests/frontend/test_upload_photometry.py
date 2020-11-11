@@ -1,9 +1,8 @@
 import pytest
-from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.webdriver import ActionChains
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_upload_photometry(
     driver, sedm, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -17,40 +16,21 @@ def test_upload_photometry(
         "58002,53,1,25,ab,sdssg"
     )
 
-    inst_select = driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]')
-    driver.scroll_to_element(inst_select)
-    ActionChains(driver).move_to_element(inst_select).click().pause(2).perform()
+    # instrument select
+    driver.click_xpath('//*[@id="mui-component-select-instrumentID"]')
+    driver.click_xpath(f'//li[@data-value="{inst_id}"]', scroll_parent=True)
 
-    sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
+    # Click somewhere outside to remove focus from instrument select
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
 
-    driver.scroll_to_element(sedm_element)
+    # group select
+    driver.click_xpath('//div[@id="selectGroups"]')
+    driver.click_xpath(f'//li[text()="{public_group.name}"]', scroll_parent=True)
 
-    # wait for the little animation - 2 seconds is plenty
-    ActionChains(driver).pause(2).perform()
-
-    # wait for the second little animation - 2 seconds is plenty
-    driver.scroll_to_element_and_click(sedm_element)
-    ActionChains(driver).pause(2).perform()
-
-    driver.wait_for_xpath_to_be_clickable('//body').click()
-    try:
-        driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
-    except ElementClickInterceptedException:
-        # time.sleep(3)
-        try:
-            driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
-        except ElementClickInterceptedException:
-            raise
-    driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
-    driver.execute_script(
-        "arguments[0].click();",
-        driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]'),
-    )
+    driver.click_xpath('//*[text()="Preview in Tabular Form"]')
     driver.wait_for_xpath('//div[text()="58001"]')
-    driver.execute_script(
-        "arguments[0].click();",
-        driver.wait_for_xpath('//*[text()="Upload Photometry"]'),
-    )
+    driver.click_xpath('//*[text()="Upload Photometry"]')
     driver.wait_for_xpath('//*[contains(.,"Upload successful. Your upload ID is")]')
 
 
@@ -75,43 +55,22 @@ def test_upload_photometry_multiple_groups(
         "58001,55,1,25,ab,sdssg\n"
         "58002,53,1,25,ab,sdssg"
     )
-    inst_select = driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]')
-    driver.scroll_to_element(inst_select)
-    ActionChains(driver).move_to_element(inst_select).click().pause(2).perform()
+    # instrument select
+    driver.click_xpath('//*[@id="mui-component-select-instrumentID"]')
+    driver.click_xpath(f'//li[@data-value="{inst_id}"]', scroll_parent=True)
 
-    sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
+    # Click somewhere outside to remove focus from instrument select
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
 
-    driver.scroll_to_element(sedm_element)
+    # group select
+    driver.click_xpath('//div[@id="selectGroups"]')
+    driver.click_xpath(f'//li[text()="{public_group.name}"]', scroll_parent=True)
+    driver.click_xpath(f'//li[text()="{public_group2.name}"]', scroll_parent=True)
 
-    # wait for the little animation - 2 seconds is plenty
-    ActionChains(driver).pause(2).perform()
-    driver.scroll_to_element_and_click(sedm_element)
-
-    # wait for the second little animation - 2 seconds is plenty
-    ActionChains(driver).pause(2).perform()
-    driver.wait_for_xpath_to_be_clickable('//body').click()
-
-    try:
-        driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
-    except ElementClickInterceptedException:
-        # time.sleep(3)
-        try:
-            driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
-        except ElementClickInterceptedException:
-            raise
-    driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
-    driver.wait_for_xpath_to_be_clickable(
-        f'//li[text()="{public_group2.name}"]'
-    ).click()
-    driver.execute_script(
-        "arguments[0].click();",
-        driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]'),
-    )
+    driver.click_xpath('//*[text()="Preview in Tabular Form"]')
     driver.wait_for_xpath('//div[text()="58001"]')
-    driver.execute_script(
-        "arguments[0].click();",
-        driver.wait_for_xpath('//*[text()="Upload Photometry"]'),
-    )
+    driver.click_xpath('//*[text()="Upload Photometry"]')
     driver.wait_for_xpath('//*[contains(.,"Upload successful. Your upload ID is")]')
 
 
@@ -128,41 +87,21 @@ def test_upload_photometry_with_altdata(
         "58001,55,1,25,ab,sdssg,44.4,\"abc,abc\"\n"
         "58002,53,1,25,ab,sdssg,44.2,\"edf,edf\""
     )
-    inst_select = driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]')
-    driver.scroll_to_element(inst_select)
-    ActionChains(driver).move_to_element(inst_select).click().pause(2).perform()
+    # instrument select
+    driver.click_xpath('//*[@id="mui-component-select-instrumentID"]')
+    driver.click_xpath(f'//li[@data-value="{inst_id}"]', scroll_parent=True)
 
-    sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
+    # Click somewhere outside to remove focus from instrument select
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
 
-    driver.scroll_to_element(sedm_element)
+    # group select
+    driver.click_xpath('//div[@id="selectGroups"]')
+    driver.click_xpath(f'//li[text()="{public_group.name}"]', scroll_parent=True)
 
-    # wait for the little animation - 2 seconds is plenty
-    ActionChains(driver).pause(2).perform()
-    driver.scroll_to_element_and_click(sedm_element)
-
-    # wait for the second little animation - 2 seconds is plenty
-    ActionChains(driver).pause(2).perform()
-
-    driver.wait_for_xpath_to_be_clickable('//body').click()
-
-    try:
-        driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
-    except ElementClickInterceptedException:
-        # time.sleep(3)
-        try:
-            driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
-        except ElementClickInterceptedException:
-            raise
-    driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
-    driver.execute_script(
-        "arguments[0].click();",
-        driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]'),
-    )
+    driver.click_xpath('//*[text()="Preview in Tabular Form"]')
     driver.wait_for_xpath('//div[text()="58001"]')
-    driver.execute_script(
-        "arguments[0].click();",
-        driver.wait_for_xpath('//*[text()="Upload Photometry"]'),
-    )
+    driver.click_xpath('//*[text()="Upload Photometry"]')
     driver.wait_for_xpath('//*[contains(.,"Upload successful. Your upload ID is")]')
 
 
@@ -205,37 +144,19 @@ def test_upload_photometry_form_validation(
     )
     driver.wait_for_xpath('//div[contains(.,"Select an instrument")]')
 
-    inst_select = driver.wait_for_xpath('//*[@id="mui-component-select-instrumentID"]')
-    driver.scroll_to_element(inst_select)
-    ActionChains(driver).move_to_element(inst_select).click().pause(2).perform()
+    # instrument select
+    driver.click_xpath('//*[@id="mui-component-select-instrumentID"]')
+    driver.click_xpath(f'//li[@data-value="{inst_id}"]', scroll_parent=True)
 
-    sedm_element = driver.wait_for_xpath(f'//li[@data-value="{inst_id}"]')
-
-    driver.scroll_to_element(sedm_element)
-
-    # wait for the little animation - 2 seconds is plenty
-    ActionChains(driver).pause(2).perform()
-
-    driver.scroll_to_element_and_click(sedm_element)
-
-    # wait for the second little animation - 2 seconds is plenty
-    ActionChains(driver).pause(2).perform()
-
-    driver.wait_for_xpath_to_be_clickable('//body').click()
+    # Click somewhere outside to remove focus from instrument select
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
 
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
-    driver.wait_for_xpath_to_be_clickable('//body').click()
-    try:
-        driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
-    except ElementClickInterceptedException:
-        # time.sleep(3)
-        try:
-            driver.wait_for_xpath_to_be_clickable('//div[@id="selectGroups"]').click()
-        except ElementClickInterceptedException:
-            raise
-    driver.wait_for_xpath_to_be_clickable(f'//li[text()="{public_group.name}"]').click()
-    driver.execute_script(
-        "arguments[0].click();",
-        driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]'),
-    )
+
+    # group select
+    driver.click_xpath('//div[@id="selectGroups"]')
+    driver.click_xpath(f'//li[text()="{public_group.name}"]', scroll_parent=True)
+
+    driver.click_xpath('//*[text()="Preview in Tabular Form"]')
     driver.wait_for_xpath('//div[text()="58001"]')

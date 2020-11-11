@@ -1043,7 +1043,7 @@ def get_obj_classifications_owned_by(self, user_or_token):
 
     Returns
     -------
-    comment_list : list of `skyportal.models.Classification`
+    classification_list : list of `skyportal.models.Classification`
        The accessible classifications attached to this Obj.
     """
     return [
@@ -1086,7 +1086,7 @@ def get_photometry_owned_by_user(obj_id, user_or_token):
 Obj.get_photometry_owned_by_user = get_photometry_owned_by_user
 
 
-def get_spectra_owned_by(obj_id, user_or_token):
+def get_spectra_owned_by(obj_id, user_or_token, options=()):
     """Query the database and return the Spectra for this Obj that are shared
     with any of the User or Token owner's accessible Groups.
 
@@ -1096,6 +1096,8 @@ def get_spectra_owned_by(obj_id, user_or_token):
        The ID of the Obj to look up.
     user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
        The requesting `User` or `Token` object.
+    options : list of `sqlalchemy.orm.MapperOption`s
+       Options that wil be passed to `options()` in the loader query.
 
     Returns
     -------
@@ -1110,6 +1112,7 @@ def get_spectra_owned_by(obj_id, user_or_token):
                 Group.id.in_([g.id for g in user_or_token.accessible_groups])
             )
         )
+        .options(options)
         .all()
     )
 
@@ -1465,9 +1468,7 @@ class Comment(Base):
     attachment_name = sa.Column(
         sa.String, nullable=True, doc="Filename of the attachment."
     )
-    attachment_type = sa.Column(
-        sa.String, nullable=True, doc="Attachment extension, (e.g., pdf, png)."
-    )
+
     attachment_bytes = sa.Column(
         sa.types.LargeBinary,
         nullable=True,

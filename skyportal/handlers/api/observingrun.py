@@ -122,43 +122,43 @@ class ObservingRunHandler(BaseHandler):
                     f"Could not load observing run {run_id}", data={"run_id": run_id}
                 )
             # order the assignments by ra
-            run.assignments = sorted(run.assignments, key=lambda a: a.obj.ra)
+            assignments = sorted(run.assignments, key=lambda a: a.obj.ra)
 
             # filter out the assignments of objects that are not visible to
             # the user
-            run.assignments = list(
-                filter(lambda a: a.obj.is_owned_by(self.current_user), run.assignments)
+            assignments = list(
+                filter(lambda a: a.obj.is_owned_by(self.current_user), assignments)
             )
 
-            for assignment in run.assignments:
-                assignment.obj.comments = sorted(
-                    assignment.obj.comments, key=lambda c: c.modified, reverse=True
-                )
+            data = ObservingRunGetWithAssignments.dump(run)
+            data["assignments"] = [a.to_dict() for a in assignments]
 
-            with DBSession().no_autoflush:
-                data = ObservingRunGetWithAssignments.dump(run)
-                data["assignments"] = [a.to_dict() for a in data["assignments"]]
+            gids = [
+                g.id
+                for g in self.current_user.accessible_groups
+                if not g.single_user_group
+            ]
+            for a in data["assignments"]:
+                a['accessible_group_names'] = [
+                    (s.group.nickname if s.group.nickname is not None else s.group.name)
+                    for s in a['obj'].sources
+                    if s.group_id in gids
+                ]
+                del a['obj'].sources
 
-                gids = [g.id for g in self.current_user.accessible_groups]
-                for a in data["assignments"]:
-                    a['accessible_group_names'] = [
-                        s.group.name for s in a['obj'].sources if s.group_id in gids
-                    ]
-                    del a['obj'].sources
+            # vectorized calculation of ephemerides
 
-                # vectorized calculation of ephemerides
+            if len(data["assignments"]) > 0:
+                targets = [a['obj'].target for a in data["assignments"]]
 
-                if len(run.assignments) > 0:
-                    targets = [a.obj.target for a in run.assignments]
+                rise_times = run.rise_time(targets).isot
+                set_times = run.set_time(targets).isot
 
-                    rise_times = run.rise_time(targets).isot
-                    set_times = run.set_time(targets).isot
+                for d, rt, st in zip(data["assignments"], rise_times, set_times):
+                    d["rise_time_utc"] = rt
+                    d["set_time_utc"] = st
 
-                    for d, rt, st in zip(data["assignments"], rise_times, set_times):
-                        d["rise_time_utc"] = rt
-                        d["set_time_utc"] = st
-
-                return self.success(data=data)
+            return self.success(data=data)
 
         runs = ObservingRun.query.order_by(ObservingRun.calendar_date.asc()).all()
         return self.success(data=runs)

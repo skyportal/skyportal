@@ -45,3 +45,4 @@ data/gitlog.txt
 
 # test results
 test-results/
+webdriver-console/
