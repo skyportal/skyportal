@@ -2,6 +2,11 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
 
+import Table from "@material-ui/core/Table";
+import TableBody from "@material-ui/core/TableBody";
+import TableCell from "@material-ui/core/TableCell";
+import TableHead from "@material-ui/core/TableHead";
+import TableRow from "@material-ui/core/TableRow";
 import MUIDataTable from "mui-datatables";
 import Paper from "@material-ui/core/Paper";
 import Chip from "@material-ui/core/Chip";
@@ -29,7 +34,7 @@ import FormValidationError from "./FormValidationError";
 import * as groupsActions from "../ducks/groups";
 import * as usersActions from "../ducks/users";
 import * as streamsActions from "../ducks/streams";
-import * as inviteUsersActions from "../ducks/inviteUsers";
+import * as invitationsActions from "../ducks/invitations";
 import * as aclsActions from "../ducks/acls";
 import * as rolesActions from "../ducks/roles";
 
@@ -40,6 +45,7 @@ const useStyles = makeStyles(() => ({
   headerCell: {
     verticalAlign: "bottom",
   },
+  invitations: { marginBottom: "1rem" },
   spinnerDiv: {
     paddingTop: "2rem",
   },
@@ -70,6 +76,7 @@ const UserManagement = () => {
   let { all: allGroups } = useSelector((state) => state.groups);
   const acls = useSelector((state) => state.acls);
   const roles = useSelector((state) => state.roles);
+  const invitations = useSelector((state) => state.invitations);
   const [csvData, setCsvData] = useState("");
   const [addUserGroupsDialogOpen, setAddUserGroupsDialogOpen] = useState(false);
   const [addUserRolesDialogOpen, setAddUserRolesDialogOpen] = useState(false);
@@ -77,7 +84,16 @@ const UserManagement = () => {
   const [addUserStreamsDialogOpen, setAddUserStreamsDialogOpen] = useState(
     false
   );
+  const [
+    addInvitationGroupsDialogOpen,
+    setAddInvitationGroupsDialogOpen,
+  ] = useState(false);
+  const [
+    addInvitationStreamsDialogOpen,
+    setAddInvitationStreamsDialogOpen,
+  ] = useState(false);
   const [clickedUser, setClickedUser] = useState(null);
+  const [clickedInvitation, setClickedInvitation] = useState(null);
   const [dataFetched, setDataFetched] = useState(false);
 
   const { handleSubmit, errors, reset, control, getValues } = useForm();
@@ -88,6 +104,7 @@ const UserManagement = () => {
       dispatch(streamsActions.fetchStreams());
       dispatch(aclsActions.fetchACLs());
       dispatch(rolesActions.fetchRoles());
+      dispatch(invitationsActions.fetchInvitations());
     };
     if (!dataFetched) {
       fetchData();
@@ -140,6 +157,16 @@ const UserManagement = () => {
   const validateRoles = () => {
     const formState = getValues({ nest: true });
     return formState.roles.length >= 1;
+  };
+
+  const validateInvitationGroups = () => {
+    const formState = getValues({ nest: true });
+    return formState.invitationGroups.length >= 1;
+  };
+
+  const validateInvitationStreams = () => {
+    const formState = getValues({ nest: true });
+    return formState.invitationStreams.length >= 1;
   };
 
   const handleAddUserToGroups = async (formData) => {
@@ -261,6 +288,82 @@ const UserManagement = () => {
     }
   };
 
+  const handleClickDeleteInvitationGroup = async (invitation, groupID) => {
+    const groupIDs = invitation.groups
+      .filter((group) => group.id !== groupID)
+      .map((g) => g.id);
+    const result = await dispatch(
+      invitationsActions.updateInvitation(invitation.id, { groupIDs })
+    );
+    if (result.status === "success") {
+      dispatch(showNotification("Invitation successfully updated."));
+      dispatch(invitationsActions.fetchInvitations());
+    }
+  };
+
+  const handleClickDeleteInvitationStream = async (invitation, streamID) => {
+    const streamIDs = invitation.streams
+      .filter((stream) => stream.id !== streamID)
+      .map((s) => s.id);
+    const result = await dispatch(
+      invitationsActions.updateInvitation(invitation.id, { streamIDs })
+    );
+    if (result.status === "success") {
+      dispatch(showNotification("Invitation successfully updated."));
+      dispatch(invitationsActions.fetchInvitations());
+    }
+  };
+
+  const handleAddInvitationGroups = async (formData) => {
+    const groupIDs = new Set([
+      ...clickedInvitation.groups.map((g) => g.id),
+      ...formData.invitationGroups.map((g) => g.id),
+    ]);
+
+    const result = await dispatch(
+      invitationsActions.updateInvitation(clickedInvitation.id, {
+        groupIDs: [...groupIDs],
+      })
+    );
+    if (result.status === "success") {
+      dispatch(showNotification("Invitation successfully updated."));
+      dispatch(invitationsActions.fetchInvitations());
+      reset({ invitationGroups: [] });
+      setAddInvitationGroupsDialogOpen(false);
+      setClickedInvitation(null);
+    }
+  };
+
+  const handleAddInvitationStreams = async (formData) => {
+    const streamIDs = new Set([
+      ...clickedInvitation.streams.map((s) => s.id),
+      ...formData.invitationStreams.map((s) => s.id),
+    ]);
+
+    const result = await dispatch(
+      invitationsActions.updateInvitation(clickedInvitation.id, {
+        streamIDs: [...streamIDs],
+      })
+    );
+    if (result.status === "success") {
+      dispatch(showNotification("Invitation successfully updated."));
+      dispatch(invitationsActions.fetchInvitations());
+      reset({ invitationStreams: [] });
+      setAddInvitationStreamsDialogOpen(false);
+      setClickedInvitation(null);
+    }
+  };
+
+  const handleDeleteInvitation = async (invitationID) => {
+    const result = await dispatch(
+      invitationsActions.deleteInvitation(invitationID)
+    );
+    if (result.status === "success") {
+      dispatch(showNotification("Invitation successfully deleted."));
+      dispatch(invitationsActions.fetchInvitations());
+    }
+  };
+
   const handleClickAddUsers = async () => {
     let rows = PapaParse.parse(csvData.trim(), {
       delimiter: ",",
@@ -274,7 +377,7 @@ const UserManagement = () => {
     ]);
     const promises = rows.map((row) =>
       dispatch(
-        inviteUsersActions.inviteUser({
+        invitationsActions.inviteUser({
           userEmail: row[0],
           streamIDs: row[1],
           groupIDs: row[2],
@@ -285,6 +388,7 @@ const UserManagement = () => {
     const results = await Promise.all(promises);
     if (results.every((result) => result.status === "success")) {
       dispatch(showNotification("User(s) successfully invited."));
+      dispatch(invitationsActions.fetchInvitations());
       setCsvData("");
     }
   };
@@ -669,6 +773,94 @@ const UserManagement = () => {
       <br />
       {invitationsEnabled && (
         <>
+          {!!invitations?.length && (
+            <>
+              <Typography variant="h5">Pending Invitations</Typography>
+              <Paper elevation={1} className={classes.invitations}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Invitee Email</TableCell>
+                      <TableCell>Groups</TableCell>
+                      <TableCell>Streams</TableCell>
+                      <TableCell>Invited By</TableCell>
+                      <TableCell>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {invitations.map((invitation) => (
+                      <TableRow key={invitation.id}>
+                        <TableCell>{invitation.user_email}</TableCell>
+                        <TableCell>
+                          <IconButton
+                            aria-label="add-invitation-groups"
+                            data-testid={`addInvitationGroupsButton${invitation.id}`}
+                            onClick={() => {
+                              setClickedInvitation(invitation);
+                              setAddInvitationGroupsDialogOpen(true);
+                            }}
+                            size="small"
+                          >
+                            <AddCircleIcon color="disabled" />
+                          </IconButton>
+                          {invitation.groups.map((group) => (
+                            <Chip
+                              label={group.name}
+                              onDelete={() => {
+                                handleClickDeleteInvitationGroup(
+                                  invitation,
+                                  group.id
+                                );
+                              }}
+                              key={group.id}
+                              id={`invitationGroupChip_${invitation.id}_${group.id}`}
+                            />
+                          ))}
+                        </TableCell>
+                        <TableCell>
+                          <IconButton
+                            aria-label="add-invitation-streams"
+                            data-testid={`addInvitationStreamsButton${invitation.id}`}
+                            onClick={() => {
+                              setClickedInvitation(invitation);
+                              setAddInvitationStreamsDialogOpen(true);
+                            }}
+                            size="small"
+                          >
+                            <AddCircleIcon color="disabled" />
+                          </IconButton>
+                          {invitation.streams.map((stream) => (
+                            <Chip
+                              label={stream.name}
+                              onDelete={() => {
+                                handleClickDeleteInvitationStream(
+                                  invitation,
+                                  stream.id
+                                );
+                              }}
+                              key={stream.id}
+                              id={`invitationStreamChip_${invitation.id}_${stream.id}`}
+                            />
+                          ))}
+                        </TableCell>
+                        <TableCell>{invitation.invited_by?.username}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="contained"
+                            onClick={() => {
+                              handleDeleteInvitation(invitation.id);
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Paper>
+            </>
+          )}
           <Typography variant="h5">Bulk Invite New Users</Typography>
           <Paper elevation={1}>
             <Box p={5}>
@@ -923,6 +1115,128 @@ const UserManagement = () => {
                 type="submit"
                 name="submitAddRolesButton"
                 data-testid="submitAddRolesButton"
+              >
+                Submit
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={addInvitationGroupsDialogOpen}
+        onClose={() => {
+          setAddInvitationGroupsDialogOpen(false);
+        }}
+        style={{ position: "fixed" }}
+      >
+        <DialogTitle>
+          {`Add selected groups to invitation for ${clickedInvitation?.user_email}:`}
+        </DialogTitle>
+        <DialogContent>
+          <form onSubmit={handleSubmit(handleAddInvitationGroups)}>
+            {!!errors.invitationGroups && (
+              <FormValidationError message="Please select at least one group" />
+            )}
+            <Controller
+              name="invitationGroups"
+              id="addInvitationGroupsSelect"
+              as={
+                <Autocomplete
+                  multiple
+                  options={allGroups?.filter(
+                    (group) =>
+                      !clickedInvitation?.groups
+                        ?.map((g) => g.id)
+                        ?.includes(group.id)
+                  )}
+                  getOptionLabel={(group) => group.name}
+                  filterSelectedOptions
+                  data-testid="addInvitationGroupsSelect"
+                  renderInput={(params) => (
+                    <TextField
+                      // eslint-disable-next-line react/jsx-props-no-spreading
+                      {...params}
+                      error={!!errors.invitationGroups}
+                      variant="outlined"
+                      label="Select Groups"
+                      data-testid="addInvitationGroupsTextField"
+                    />
+                  )}
+                />
+              }
+              control={control}
+              onChange={([, data]) => data}
+              rules={{ validate: validateInvitationGroups }}
+              defaultValue={[]}
+            />
+            <br />
+            <div>
+              <Button
+                variant="contained"
+                type="submit"
+                name="submitAddInvitationGroupsButton"
+                data-testid="submitAddInvitationGroupsButton"
+              >
+                Submit
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={addInvitationStreamsDialogOpen}
+        onClose={() => {
+          setAddInvitationStreamsDialogOpen(false);
+        }}
+        style={{ position: "fixed" }}
+      >
+        <DialogTitle>
+          {`Add selected streams to invitation for ${clickedInvitation?.user_email}:`}
+        </DialogTitle>
+        <DialogContent>
+          <form onSubmit={handleSubmit(handleAddInvitationStreams)}>
+            {!!errors.invitationStreams && (
+              <FormValidationError message="Please select at least one stream" />
+            )}
+            <Controller
+              name="invitationStreams"
+              id="addInvitationStreamsSelect"
+              as={
+                <Autocomplete
+                  multiple
+                  options={streams?.filter(
+                    (stream) =>
+                      !clickedInvitation?.streams
+                        ?.map((s) => s.id)
+                        ?.includes(stream.id)
+                  )}
+                  getOptionLabel={(stream) => stream.name}
+                  filterSelectedOptions
+                  data-testid="addInvitationStreamsSelect"
+                  renderInput={(params) => (
+                    <TextField
+                      // eslint-disable-next-line react/jsx-props-no-spreading
+                      {...params}
+                      error={!!errors.invitationStreams}
+                      variant="outlined"
+                      label="Select Streams"
+                      data-testid="addInvitationStreamsTextField"
+                    />
+                  )}
+                />
+              }
+              control={control}
+              onChange={([, data]) => data}
+              rules={{ validate: validateInvitationStreams }}
+              defaultValue={[]}
+            />
+            <br />
+            <div>
+              <Button
+                variant="contained"
+                type="submit"
+                name="submitAddInvitationStreamsButton"
+                data-testid="submitAddInvitationStreamsButton"
               >
                 Submit
               </Button>
