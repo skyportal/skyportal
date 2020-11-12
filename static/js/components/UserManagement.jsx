@@ -24,7 +24,12 @@ import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogTitle from "@material-ui/core/DialogTitle";
 import Tooltip from "@material-ui/core/Tooltip";
-import { makeStyles } from "@material-ui/core/styles";
+import {
+  makeStyles,
+  createMuiTheme,
+  MuiThemeProvider,
+  useTheme,
+} from "@material-ui/core/styles";
 import Form from "@rjsf/material-ui";
 import PapaParse from "papaparse";
 
@@ -45,7 +50,8 @@ const useStyles = makeStyles(() => ({
   headerCell: {
     verticalAlign: "bottom",
   },
-  invitations: { marginBottom: "1rem" },
+  container: { padding: "1rem" },
+  section: { margin: "0.5rem 0 1rem 0" },
   spinnerDiv: {
     paddingTop: "2rem",
   },
@@ -54,6 +60,18 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
+const dataTableStyles = (theme) =>
+  createMuiTheme({
+    overrides: {
+      MuiPaper: {
+        elevation4: {
+          boxShadow: "none !important",
+        },
+      },
+    },
+    palette: theme.palette,
+  });
+
 const sampleCSVText = `example1@gmail.com,1,3,false
 example2@gmail.com,1 2 3,2 5 9,false false true`;
 
@@ -61,6 +79,7 @@ const defaultNumPerPage = 25;
 
 const UserManagement = () => {
   const classes = useStyles();
+  const theme = useTheme();
   const dispatch = useDispatch();
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [queryInProgress, setQueryInProgress] = useState(false);
@@ -187,7 +206,7 @@ const UserManagement = () => {
       );
       reset({ groups: [] });
       setAddUserGroupsDialogOpen(false);
-      dispatch(usersActions.fetchUsers());
+      dispatch(usersActions.fetchUsers(fetchParams));
       setClickedUser(null);
     }
   };
@@ -209,7 +228,7 @@ const UserManagement = () => {
       );
       reset({ streams: [] });
       setAddUserStreamsDialogOpen(false);
-      dispatch(usersActions.fetchUsers());
+      dispatch(usersActions.fetchUsers(fetchParams));
       setClickedUser(null);
     }
   };
@@ -225,7 +244,7 @@ const UserManagement = () => {
       dispatch(showNotification("User successfully granted specified ACL(s)."));
       reset({ acls: [] });
       setAddUserACLsDialogOpen(false);
-      dispatch(usersActions.fetchUsers());
+      dispatch(usersActions.fetchUsers(fetchParams));
       setClickedUser(null);
     }
   };
@@ -243,7 +262,7 @@ const UserManagement = () => {
       );
       reset({ roles: [] });
       setAddUserRolesDialogOpen(false);
-      dispatch(usersActions.fetchUsers());
+      dispatch(usersActions.fetchUsers(fetchParams));
       setClickedUser(null);
     }
   };
@@ -256,7 +275,7 @@ const UserManagement = () => {
       dispatch(
         showNotification("User successfully removed from specified group.")
       );
-      dispatch(usersActions.fetchUsers());
+      dispatch(usersActions.fetchUsers(fetchParams));
     }
   };
 
@@ -266,7 +285,7 @@ const UserManagement = () => {
     );
     if (result.status === "success") {
       dispatch(showNotification("Stream access successfully revoked."));
-      dispatch(usersActions.fetchUsers());
+      dispatch(usersActions.fetchUsers(fetchParams));
     }
   };
 
@@ -274,7 +293,7 @@ const UserManagement = () => {
     const result = await dispatch(aclsActions.deleteUserACL({ userID, acl }));
     if (result.status === "success") {
       dispatch(showNotification("User ACL successfully removed."));
-      dispatch(usersActions.fetchUsers());
+      dispatch(usersActions.fetchUsers(fetchParams));
     }
   };
 
@@ -284,7 +303,7 @@ const UserManagement = () => {
     );
     if (result.status === "success") {
       dispatch(showNotification("User role successfully removed."));
-      dispatch(usersActions.fetchUsers());
+      dispatch(usersActions.fetchUsers(fetchParams));
     }
   };
 
@@ -749,7 +768,6 @@ const UserManagement = () => {
     search: false,
     selectableRows: "none",
     enableNestedDataAccess: ".",
-    elevation: 2,
     sort: false,
     rowsPerPage,
     rowsPerPageOptions: [10, 25, 50, 100, 200],
@@ -765,10 +783,12 @@ const UserManagement = () => {
   };
 
   return (
-    <>
+    <Paper className={classes.container}>
       <Typography variant="h5">Manage users</Typography>
-      <Paper elevation={1}>
-        <MUIDataTable columns={columns} data={users} options={options} />
+      <Paper variant="outlined" className={classes.section}>
+        <MuiThemeProvider theme={dataTableStyles(theme)}>
+          <MUIDataTable columns={columns} data={users} options={options} />
+        </MuiThemeProvider>
       </Paper>
       <br />
       {invitationsEnabled && (
@@ -776,7 +796,7 @@ const UserManagement = () => {
           {!!invitations?.length && (
             <>
               <Typography variant="h5">Pending Invitations</Typography>
-              <Paper elevation={1} className={classes.invitations}>
+              <Paper variant="outlined" className={classes.section}>
                 <Table>
                   <TableHead>
                     <TableRow>
@@ -862,7 +882,7 @@ const UserManagement = () => {
             </>
           )}
           <Typography variant="h5">Bulk Invite New Users</Typography>
-          <Paper elevation={1}>
+          <Paper variant="outlined" className={classes.section}>
             <Box p={5}>
               <code>
                 User Email,Stream IDs,Group IDs,true/false indicating admin
@@ -1244,7 +1264,7 @@ const UserManagement = () => {
           </form>
         </DialogContent>
       </Dialog>
-    </>
+    </Paper>
   );
 };
 
