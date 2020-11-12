@@ -18,6 +18,7 @@ from ...models import (
     GroupUser,
     Spectrum,
     User,
+    ClassicalAssignment,
 )
 from ...schema import (
     SpectrumAsciiFilePostJSON,
@@ -413,9 +414,19 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             followup_request = FollowupRequest.query.get(followup_request_id)
             if followup_request is None:
                 return self.error('Invalid followup request.')
+            spec.followup_request = followup_request
             for group in followup_request.target_groups:
                 if group not in groups:
                     groups.append(group)
+
+        assignment_id = json.pop('assignment_id', None)
+        if assignment_id is not None:
+            assignment = ClassicalAssignment.query.get(assignment_id)
+            if assignment is None:
+                return self.error('Invalid assignment.')
+            spec.assignment = assignment
+            if assignment.run.group is not None:
+                groups.append(assignment.run.group)
 
         spec.original_file_filename = Path(filename).name
         spec.groups = groups
