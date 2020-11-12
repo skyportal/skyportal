@@ -1053,7 +1053,7 @@ def get_obj_classifications_owned_by(self, user_or_token):
 
     Returns
     -------
-    comment_list : list of `skyportal.models.Classification`
+    classification_list : list of `skyportal.models.Classification`
        The accessible classifications attached to this Obj.
     """
     return [
