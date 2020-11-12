@@ -1,3 +1,4 @@
+import uuid
 from skyportal.tests import api
 
 
@@ -251,12 +252,14 @@ def test_cannot_add_annotation_without_permission(view_only_token, public_source
 
 
 def test_delete_annotation(annotation_token, public_source):
+    origin = str(uuid.uuid4())
+
     status, data = api(
         'POST',
         'annotation',
         data={
             'obj_id': public_source.id,
-            'origin': 'kowalski',
+            'origin': origin,
             'data': {'offset_from_host_galaxy': 1.5},
         },
         token=annotation_token,
@@ -267,7 +270,7 @@ def test_delete_annotation(annotation_token, public_source):
     status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
     assert status == 200
     assert data['data']['data'] == {'offset_from_host_galaxy': 1.5}
-    assert data['data']['origin'] == 'kowalski'
+    assert data['data']['origin'] == origin
 
     status, data = api('DELETE', f'annotation/{annotation_id}', token=annotation_token)
     assert status == 200

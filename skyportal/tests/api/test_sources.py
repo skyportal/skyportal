@@ -251,7 +251,7 @@ def test_starlist(upload_data_token, public_source):
 
     status, data = api(
         'GET',
-        f'sources/{public_source.id}/offsets?facility=P200&how_many=1',
+        f'sources/{public_source.id}/offsets?facility=P200&num_offset_stars=1',
         token=upload_data_token,
     )
     assert status == 200

@@ -63,6 +63,8 @@ app:
       component: UploadSpectrum
     - path: "/observability/:id"
       component: Observability
+    - path: "/source/:id/finder"
+      component: FindingChart
 
   sidebar:
     # See https://material-ui.com/components/material-icons/

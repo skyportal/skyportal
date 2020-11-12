@@ -35,7 +35,12 @@ class TokenHandler(BaseHandler):
         data = self.get_json()
 
         user = User.query.filter(User.username == self.current_user.username).first()
-        token_acls = set(data['acls']) & set(user.permissions)
+        token_acls = set(data['acls'])
+        if not all([acl_id in user.permissions for acl_id in token_acls]):
+            return self.error(
+                "User has attempted to grant token ACLs they do not have "
+                "access to. Please try again."
+            )
         token_name = data['name']
         if Token.query.filter(Token.name == token_name).first():
             return self.error("Duplicate token name.")

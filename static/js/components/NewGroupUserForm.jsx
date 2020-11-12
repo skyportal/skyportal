@@ -17,7 +17,7 @@ import { makeStyles } from "@material-ui/core/styles";
 import { showNotification } from "baselayer/components/Notifications";
 import * as groupsActions from "../ducks/groups";
 import * as usersActions from "../ducks/users";
-import * as inviteUsersActions from "../ducks/inviteUsers";
+import * as invitationsActions from "../ducks/invitations";
 
 const filter = createFilterOptions();
 
@@ -50,7 +50,7 @@ const NewGroupUserForm = ({ group_id }) => {
     let result = null;
     if (formState.invitingNewUser && invitationsEnabled) {
       result = await dispatch(
-        inviteUsersActions.inviteUser({
+        invitationsActions.inviteUser({
           userEmail: formState.newUserEmail,
           groupIDs: [group_id],
           groupAdmin: [formState.admin],

@@ -4,6 +4,8 @@ import numpy as np
 import sncosmo
 import math
 
+from skyportal.models import DBSession, Token
+
 
 _, cfg = load_env()
 
@@ -159,7 +161,7 @@ def test_token_user_post_put_get_photometry_data(
     assert status == 200
     assert data['status'] == 'success'
     group_ids = [g["id"] for g in data['data']['groups']]
-    assert len(group_ids) == 1
+    assert len(group_ids) == 2
     assert group_ids[0] == public_group.id
 
     # PUTing photometry that contains
@@ -196,8 +198,20 @@ def test_token_user_post_put_get_photometry_data(
     assert status == 200
     assert data['status'] == 'success'
     group_ids = [g["id"] for g in data['data']['groups']]
-    assert len(group_ids) == 2
-    assert group_ids == [public_group.id, public_group2.id]
+    assert len(group_ids) == 3
+
+    token_object = (
+        DBSession()
+        .query(Token)
+        .filter(Token.id == upload_data_token_two_groups)
+        .first()
+    )
+
+    assert group_ids == [
+        public_group.id,
+        public_group2.id,
+        token_object.created_by.single_user_group.id,
+    ]
 
 
 def test_post_photometry_multiple_groups(
@@ -240,7 +254,7 @@ def test_post_photometry_multiple_groups(
     assert data['data']['ra_unc'] is None
     assert data['data']['dec_unc'] is None
 
-    assert len(data['data']['groups']) == 2
+    assert len(data['data']['groups']) == 3
 
     np.testing.assert_allclose(
         data['data']['flux'], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
@@ -288,7 +302,7 @@ def test_post_photometry_all_groups(
     assert data['data']['ra_unc'] is None
     assert data['data']['dec_unc'] is None
 
-    assert len(data['data']['groups']) == 1
+    assert len(data['data']['groups']) == 2
     assert data['data']['groups'][0]['name'] == cfg['misc']['public_group_name']
 
     np.testing.assert_allclose(
@@ -381,7 +395,7 @@ def test_retrieve_photometry_error_group_membership_posted_by_other(
     assert "Insufficient permissions" in data['message']
 
 
-def test_cannot_post_photometry_no_groups(
+def test_can_post_photometry_no_groups(
     upload_data_token, public_source, public_group, ztf_camera
 ):
     status, data = api(
@@ -399,12 +413,19 @@ def test_cannot_post_photometry_no_groups(
         },
         token=upload_data_token,
     )
-    assert status == 400
-    assert data['status'] == 'error'
-    assert "group_ids" in data["message"]
+    assert status == 200
+    assert data['status'] == 'success'
+
+    photometry_id = data['data']['ids'][0]
+    status, data = api(
+        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']['groups']) == 1
 
 
-def test_cannot_post_photometry_empty_groups_list(
+def test_can_post_photometry_empty_groups_list(
     upload_data_token, public_source, public_group, ztf_camera
 ):
     status, data = api(
@@ -423,9 +444,17 @@ def test_cannot_post_photometry_empty_groups_list(
         },
         token=upload_data_token,
     )
-    assert status == 400
-    assert data['status'] == 'error'
-    assert "Invalid group_ids field" in data["message"]
+
+    assert status == 200
+    assert data['status'] == 'success'
+
+    photometry_id = data['data']['ids'][0]
+    status, data = api(
+        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']['groups']) == 1
 
 
 def test_token_user_post_mag_photometry_data_and_convert(
@@ -1477,5 +1506,266 @@ def test_reject_photometry_inf(
         token=upload_data_token,
     )
 
+    assert status == 400
+    assert data['status'] == 'error'
+
+
+def test_token_user_post_to_foreign_group_and_retrieve(
+    upload_data_token, public_source_two_groups, public_group2, ztf_camera
+):
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source_two_groups.id),
+            'mjd': [58000.0, 58500.0, 59000.0],
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group2.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    photometry_id = data['data']['ids'][0]
+    status, data = api(
+        'GET', f'photometry/{photometry_id}?format=flux', token=upload_data_token
+    )
+    assert status == 200
+
+
+def test_problematic_photometry_1276(
+    public_source, public_group, super_admin_token, ztf_camera
+):
+    payload = {
+        "obj_id": public_source.id,
+        "group_ids": [public_group.id],
+        "magsys": "ab",
+        "instrument_id": ztf_camera.id,
+        "filter": [
+            "ztfg",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfg",
+            "ztfr",
+            "ztfr",
+            "ztfg",
+            "ztfg",
+            "ztfr",
+            "ztfg",
+            "ztfr",
+            "ztfr",
+            "ztfr",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfg",
+            "ztfr",
+            "ztfr",
+            "ztfg",
+            "ztfg",
+            "ztfr",
+            "ztfg",
+            "ztfr",
+        ],
+        "mjd": [
+            59123.41299769981,
+            59129.472291700076,
+            59134.451203700155,
+            59136.46903940011,
+            59136.46903940011,
+            59139.295057899784,
+            59139.295057899784,
+            59139.295057899784,
+            59139.389629600104,
+            59141.36341439979,
+            59141.36341439979,
+            59141.414189800154,
+            59141.414189800154,
+            59143.318460599985,
+            59143.39145829994,
+            59145.34545140015,
+            59145.34545140015,
+            59145.34545140015,
+            59145.41583329998,
+            59145.41583329998,
+            59149.4703819002,
+            59151.32671299996,
+            59151.33918979997,
+            59153.33692129981,
+            59153.404351899866,
+            59155.220972199924,
+            59155.290161999874,
+            59157.360347200185,
+            59157.433634299785,
+        ],
+        "limiting_mag": [
+            19.396099090576172,
+            20.23240089416504,
+            20.129100799560547,
+            20.493600845336914,
+            20.493600845336914,
+            20.422000885009766,
+            20.422000885009766,
+            20.422000885009766,
+            20.272199630737305,
+            20.18910026550293,
+            20.18910026550293,
+            20.846799850463867,
+            20.846799850463867,
+            20.624300003051758,
+            20.854000091552734,
+            20.628799438476562,
+            20.628799438476562,
+            20.628799438476562,
+            20.840900421142578,
+            20.840900421142578,
+            20.32859992980957,
+            19.60849952697754,
+            19.705799102783203,
+            19.47800064086914,
+            19.409400939941406,
+            19.462600708007812,
+            19.77630043029785,
+            19.678672790527344,
+            19.754121780395508,
+        ],
+        "mag": [
+            18.43560028076172,
+            17.338199615478516,
+            16.25189971923828,
+            16.011999130249023,
+            16.09589958190918,
+            15.974100112915039,
+            15.891500473022461,
+            15.891500473022461,
+            None,
+            15.753999710083008,
+            15.819600105285645,
+            18.528499603271484,
+            18.57939910888672,
+            15.781000137329102,
+            18.309499740600586,
+            15.692399978637695,
+            15.692399978637695,
+            15.790599822998047,
+            18.305700302124023,
+            18.31529998779297,
+            18.13994026184082,
+            18.040000915527344,
+            15.505499839782715,
+            15.569299697875977,
+            17.812599182128906,
+            18.046100616455078,
+            None,
+            17.95865249633789,
+            15.475956916809082,
+        ],
+        "magerr": [
+            0.18098600208759308,
+            0.12704600393772125,
+            0.03412500023841858,
+            0.018530000001192093,
+            0.09321600198745728,
+            0.1358170062303543,
+            0.017785999923944473,
+            0.017785999923944473,
+            None,
+            0.017010999843478203,
+            0.0650859996676445,
+            0.1969199925661087,
+            0.08772700279951096,
+            0.05595200136303902,
+            0.17250700294971466,
+            0.0137339998036623,
+            0.0137339998036623,
+            0.06520400196313858,
+            0.06727799773216248,
+            0.13235700130462646,
+            0.12975013256072998,
+            0.11010699719190598,
+            0.04597700014710426,
+            0.049855999648571014,
+            0.10752200335264206,
+            0.13239599764347076,
+            None,
+            0.139614999294281,
+            0.042450759559869766,
+        ],
+        "ra": [
+            56.0478815,
+            56.0468989,
+            56.0478,
+            56.0478343,
+            56.0480658,
+            56.0475873,
+            56.047908,
+            56.0480877,
+            None,
+            56.0476469,
+            56.0477499,
+            56.047177,
+            56.0469751,
+            56.0480999,
+            56.0470656,
+            56.0477652,
+            56.0476761,
+            56.0476218,
+            56.0469908,
+            56.0472491,
+            56.0467978,
+            56.0472009,
+            56.0478524,
+            56.0476997,
+            56.0471999,
+            56.0476057,
+            None,
+            56.0473734,
+            56.0477336,
+        ],
+        "dec": [
+            71.6368125,
+            71.6367721,
+            71.6367167,
+            71.6367615,
+            71.6367048,
+            71.6368681,
+            71.6368457,
+            71.6368389,
+            None,
+            71.6367596,
+            71.6365229,
+            71.6367611,
+            71.6368439,
+            71.6367764,
+            71.6368222,
+            71.6367943,
+            71.6368108,
+            71.6367366,
+            71.6368412,
+            71.6367895,
+            71.6368039,
+            71.6367984,
+            71.6367866,
+            71.6367788,
+            71.6368348,
+            71.6367571,
+            None,
+            71.6367753,
+            71.6367119,
+        ],
+    }
+
+    status, data = api('PUT', 'photometry', data=payload, token=super_admin_token,)
     assert status == 400
     assert data['status'] == 'error'

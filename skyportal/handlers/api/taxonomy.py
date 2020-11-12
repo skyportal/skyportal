@@ -28,13 +28,13 @@ class TaxonomyHandler(BaseHandler):
               content:
                 application/json:
                   schema: Error
-        mutiple:
+        multiple:
           description: Get all the taxonomies
           responses:
             200:
               content:
                 application/json:
-                  schema: ArrayOfTaxonomies
+                  schema: ArrayOfTaxonomys
             400:
               content:
                 application/json:

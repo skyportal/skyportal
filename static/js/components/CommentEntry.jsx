@@ -108,6 +108,7 @@ const CommentEntry = ({ addComment }) => {
                   control={control}
                   rules={{ validate: validateGroups }}
                   defaultValue
+                  data-testid={`commentGroupCheckBox${userGroup.id}`}
                 />
               }
               label={userGroup.name}

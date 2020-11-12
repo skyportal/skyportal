@@ -1091,6 +1091,7 @@ def get_finding_chart(
 
     buf = io.BytesIO()
     fig.savefig(buf, format=output_format)
+    plt.close(fig)
     buf.seek(0)
 
     return {
