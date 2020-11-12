@@ -136,6 +136,116 @@ def test_cannot_add_candidate_without_filter_id(upload_data_token):
     assert status == 400
 
 
+def test_cannot_add_candidate_without_passed_at(upload_data_token, public_filter):
+    candidate_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": candidate_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 400
+
+
+def test_token_user_post_two_candidates_same_obj_filter(
+    upload_data_token, view_only_token, public_filter
+):
+    candidate_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": candidate_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == candidate_id
+
+    status, data = api("GET", f"candidates/{candidate_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == candidate_id
+    npt.assert_almost_equal(data["data"]["ra"], 234.22)
+
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": candidate_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+
+def test_token_user_cannot_post_two_candidates_same_obj_filter_passed_at(
+    upload_data_token, view_only_token, public_filter
+):
+    candidate_id = str(uuid.uuid4())
+    passed_at = str(datetime.datetime.utcnow())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": candidate_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": passed_at,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == candidate_id
+
+    status, data = api("GET", f"candidates/{candidate_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == candidate_id
+    npt.assert_almost_equal(data["data"]["ra"], 234.22)
+
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": candidate_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": passed_at,
+        },
+        token=upload_data_token,
+    )
+    assert status == 400
+
+
 def test_candidate_list_sorting_basic(
     annotation_token, view_only_token, public_candidate, public_candidate2
 ):
