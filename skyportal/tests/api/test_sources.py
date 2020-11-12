@@ -193,7 +193,7 @@ def test_token_user_post_new_source(upload_data_token, view_only_token, public_g
     npt.assert_almost_equal(data['data']['ra'], 234.22)
 
     saved_at = parser.parse(data['data']['groups'][0]['saved_at'] + " UTC")
-    assert abs(saved_at - t0) < timedelta(seconds=2)
+    assert abs(saved_at - t0) < timedelta(seconds=4)
 
 
 def test_cannot_post_source_with_null_radec(
