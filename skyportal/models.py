@@ -2615,7 +2615,8 @@ def send_user_invite_email(mapper, connection, target):
         subject=cfg["invitations.email_subject"],
         html_content=(
             f'{cfg["invitations.email_body_preamble"]}<br /><br />'
-            f'Please click <a href="{link_location}">here</a> to join.'
+            f'To confirm your invite, click on the following link: '
+            f'<br /><br /><a href="{link_location}">{link_location}</a>.'
         ),
     )
     sg = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
