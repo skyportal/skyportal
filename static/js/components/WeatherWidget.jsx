@@ -17,13 +17,13 @@ import IconButton from "@material-ui/core/IconButton";
 import MoreVertIcon from "@material-ui/icons/MoreVert";
 
 import * as profileActions from "../ducks/profile";
-import * as fetchWeather from "../ducks/weather";
+import * as weatherActions from "../ducks/weather";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const defaultPrefs = {
-  telescopeID: "1",
+  telescopeID: 1,
 };
 
 const useStyles = makeStyles(() => ({
@@ -149,15 +149,17 @@ const WeatherWidget = ({ classes }) => {
     }
     return 0;
   });
-  const weatherPrefs = userPrefs || defaultPrefs;
+  const weatherPrefs = userPrefs?.telescopeID ? userPrefs : defaultPrefs;
   const [anchorEl, setAnchorEl] = useState(null);
 
   useEffect(() => {
-    // eslint-disable-next-line no-unused-vars
-    const getWeatherData = () => {
-      dispatch(fetchWeather(weatherPrefs.telescopeID));
+    const fetchWeatherData = () => {
+      dispatch(weatherActions.fetchWeather());
     };
-  }, [weatherPrefs, dispatch]);
+    if (weather?.id !== weatherPrefs?.telescopeID || weather === undefined) {
+      fetchWeatherData();
+    }
+  }, [weatherPrefs, weather, dispatch]);
 
   const handleClose = () => {
     setAnchorEl(null);

@@ -783,7 +783,6 @@ class CandidateHandler(BaseHandler):
 
         DBSession().commit()
 
-        self.push_all(action="skyportal/FETCH_CANDIDATES")
         return self.success()
 
     # TODO Do we need a delete handler? If so, what should it do? Old, unsaved
