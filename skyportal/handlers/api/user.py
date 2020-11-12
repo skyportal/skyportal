@@ -159,10 +159,16 @@ class UserHandler(BaseHandler):
                       - type: object
                         properties:
                           data:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/User'
-                            description: List of users
+                            type: object
+                            properties:
+                              users:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/User'
+                                description: List of users
+                              totalMatches:
+                                type: integer
+                                description: The total number of users matching the query
             400:
               content:
                 application/json:

@@ -7,6 +7,10 @@ from ...models import (
     DBSession,
     Group,
     GroupStream,
+    GroupInvitation,
+    StreamInvitation,
+    UserInvitation,
+    User,
     Invitation,
     Stream,
 )
@@ -157,6 +161,43 @@ class InvitationHandler(BaseHandler):
             description: |
               Bool indicating whether to include used invitations.
               Defaults to false.
+          - in: query
+            name: numPerPage
+            nullable: true
+            schema:
+              type: integer
+            description: |
+              Number of candidates to return per paginated request. Defaults to 25
+          - in: query
+            name: pageNumber
+            nullable: true
+            schema:
+              type: integer
+            description: Page number for paginated query results. Defaults to 1
+          - in: query
+            name: email
+            nullable: true
+            schema:
+              type: string
+            description: Get invitations whose email contains this string.
+          - in: query
+            name: group
+            nullable: true
+            schema:
+              type: string
+            description: Get invitations part of the group with name given by this parameter.
+          - in: query
+            name: stream
+            nullable: true
+            schema:
+              type: string
+            description: Get invitations with access to the stream with name given by this parameter.
+          - in: query
+            name: invitedBy
+            nullable: true
+            schema:
+              type: string
+            description: Get invitations invited by users whose username contains this string.
         responses:
             200:
               content:
@@ -167,24 +208,62 @@ class InvitationHandler(BaseHandler):
                       - type: object
                         properties:
                           data:
-                            type: array
-                            items:
-                              type: array
-                              items:
-                                $ref: '#/components/schemas/Invitation'
+                            type: object
+                            properties:
+                              invitations:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Invitation'
+                              totalMatches:
+                                type: integer
         """
         include_used = self.get_query_argument("includeUsed", False)
+        email_address = self.get_query_argument("email", None)
+        group = self.get_query_argument("group", None)
+        stream = self.get_query_argument("stream", None)
+        invited_by = self.get_query_argument("invitedBy", None)
+        page_number = self.get_query_argument("pageNumber", None) or 1
+        n_per_page = self.get_query_argument("numPerPage", None) or 25
+        try:
+            page_number = int(page_number)
+        except ValueError:
+            return self.error("Invalid page number value.")
+        try:
+            n_per_page = int(n_per_page)
+        except ValueError:
+            return self.error("Invalid numPerPage value.")
+
         query = Invitation.query
         if not include_used:
             query = query.filter(Invitation.used.is_(False))
+        if email_address is not None:
+            query = query.filter(Invitation.user_email.contains(email_address))
+        if group is not None:
+            query = query.join(GroupInvitation).join(Group).filter(Group.name == group)
+        if stream is not None:
+            query = (
+                query.join(StreamInvitation).join(Stream).filter(Stream.name == stream)
+            )
+        if invited_by is not None:
+            query = (
+                query.join(UserInvitation)
+                .join(User)
+                .filter(User.username.contains(invited_by))
+            )
+
+        total_matches = query.count()
+        query = query.limit(n_per_page).offset((page_number - 1) * n_per_page)
         invitations = query.all()
+        info = {}
         return_data = [invitation.to_dict() for invitation in invitations]
         for idx, invite_dict in enumerate(return_data):
             invite_dict["streams"] = invitations[idx].streams
             invite_dict["groups"] = invitations[idx].groups
             invite_dict["invited_by"] = invitations[idx].invited_by
 
-        return self.success(data=return_data)
+        info["invitations"] = return_data
+        info["totalMatches"] = int(total_matches)
+        return self.success(data=info)
 
     @permissions(["Manage users"])
     def patch(self, invitation_id):
