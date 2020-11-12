@@ -145,6 +145,7 @@ class ObservingRunHandler(BaseHandler):
                     if s.group_id in gids
                 ]
                 del a['obj'].sources
+                del a['obj'].users
 
             # vectorized calculation of ephemerides
 
