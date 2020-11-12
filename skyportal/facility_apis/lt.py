@@ -506,15 +506,18 @@ class IOOAPI(LTAPI):
         mode = response_rtml.get('mode')
 
         if mode == 'confirm':
+            request.status = 'submitted'
+        else:
+            request.status = f'rejected: {mode}'
 
-            transaction = FacilityTransaction(
-                request=http.serialize_requests_request_xml(full_payload),
-                response=http.serialize_requests_response_xml(response),
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request_xml(full_payload),
+            response=http.serialize_requests_response_xml(response),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
 
-            DBSession().add(transaction)
+        DBSession().add(transaction)
 
     _observation_types = ['r', 'gr', 'gri', 'griz', 'ugriz']
     _exposure_types = ['1x120s', '2x150s']
@@ -628,15 +631,18 @@ class IOIAPI(LTAPI):
         mode = response_rtml.get('mode')
 
         if mode == 'confirm':
+            request.status = 'submitted'
+        else:
+            request.status = f'rejected: {mode}'
 
-            transaction = FacilityTransaction(
-                request=http.serialize_requests_request_xml(full_payload),
-                response=http.serialize_requests_response_xml(response),
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request_xml(full_payload),
+            response=http.serialize_requests_response_xml(response),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
 
-            DBSession().add(transaction)
+        DBSession().add(transaction)
 
     _instrument_configs = {}
     _observation_types = ['H']
@@ -751,15 +757,18 @@ class SPRATAPI(LTAPI):
         mode = response_rtml.get('mode')
 
         if mode == 'confirm':
+            request.status = 'submitted'
+        else:
+            request.status = f'rejected: {mode}'
 
-            transaction = FacilityTransaction(
-                request=http.serialize_requests_request_xml(full_payload),
-                response=http.serialize_requests_response_xml(response),
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request_xml(full_payload),
+            response=http.serialize_requests_response_xml(response),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
 
-            DBSession().add(transaction)
+        DBSession().add(transaction)
 
     _instrument_configs = {}
 
