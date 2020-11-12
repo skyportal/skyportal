@@ -775,21 +775,7 @@ class ObservingRunGet(ObservingRunPost):
 
     @pre_dump
     def serialize(self, data, **kwargs):
-        data.ephemeris = {}
-        data.ephemeris['sunrise_utc'] = data.sunrise.isot
-        data.ephemeris['sunset_utc'] = data.sunset.isot
-        data.ephemeris[
-            'twilight_evening_nautical_utc'
-        ] = data.twilight_evening_nautical.isot
-        data.ephemeris[
-            'twilight_morning_nautical_utc'
-        ] = data.twilight_morning_nautical.isot
-        data.ephemeris[
-            'twilight_evening_astronomical_utc'
-        ] = data.twilight_evening_astronomical.isot
-        data.ephemeris[
-            'twilight_morning_astronomical_utc'
-        ] = data.twilight_morning_astronomical.isot
+        data.ephemeris = data.instrument.telescope.ephemeris(data.calendar_noon)
         return data
 
 

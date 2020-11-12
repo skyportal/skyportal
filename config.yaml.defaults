@@ -61,6 +61,8 @@ app:
       component: UserManagement
     - path: "/upload_spectrum/:id"
       component: UploadSpectrum
+    - path: "/observability/:id"
+      component: Observability
     - path: "/source/:id/finder"
       component: FindingChart
 
