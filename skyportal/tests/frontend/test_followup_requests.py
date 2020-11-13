@@ -79,6 +79,24 @@ def add_allocation(instrument_id, group_id, token):
     return data["data"]
 
 
+def add_allocation_ioo(instrument_id, group_id, token):
+    status, data = api(
+        "POST",
+        "allocation",
+        data={
+            "group_id": group_id,
+            "instrument_id": instrument_id,
+            "hours_allocated": 100,
+            "pi": "Ed Hubble",
+            "altdata": '{"username": "fritz_bot", "password": "fX5uxZTDy3"}',
+        },
+        token=token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    return data["data"]
+
+
 def add_followup_request_using_frontend_and_verify_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -146,7 +164,7 @@ def add_followup_request_using_frontend_and_verify_IOO(
     """Adds a new followup request and makes sure it renders properly."""
 
     idata = add_telescope_and_instrument("IOO", super_admin_token)
-    add_allocation(idata['id'], public_group.id, super_admin_token)
+    add_allocation_ioo(idata['id'], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
