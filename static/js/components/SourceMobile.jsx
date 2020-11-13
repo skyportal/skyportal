@@ -353,6 +353,11 @@ const SourceMobile = ({ source }) => {
                   className={classes.plot}
                   url={`/api/internal/plot/spectroscopy/${source.id}`}
                 />
+                <Link to={`/upload_spectrum/${source.id}`} role="link">
+                  <Button variant="contained">
+                    Upload additional spectroscopy
+                  </Button>
+                </Link>
                 <Link to={`/share_data/${source.id}`} role="link">
                   <Button variant="contained">Share data</Button>
                 </Link>
