@@ -54,8 +54,8 @@ class SharingHandler(BaseHandler):
                 "One of either `photometryIDs` or `spectrumIDs` must be provided."
             )
 
-        ok_groups = Group.query.filter(Group.id.in_(group_ids))
-        ok_group_ids = [og.id for og in ok_groups]
+        valid_groups = Group.query.filter(Group.id.in_(group_ids))
+        valid_group_ids = [g.id for g in valid_groups]
         invalid_group_ids = [gid for gid in group_ids if gid not in ok_group_ids]
 
         if len(invalid_group_ids) > 0:
