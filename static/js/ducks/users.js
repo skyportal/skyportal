@@ -35,7 +35,9 @@ const reducer = (state = { users: [], totalMatches: 0 }, action) => {
       const { id, ...userInfo } = action.data;
       return {
         ...state,
-        [id]: userInfo,
+        users: {
+          [id]: userInfo,
+        },
       };
     }
     case FETCH_USERS_OK: {
