@@ -415,7 +415,6 @@ const CandidateList = () => {
     // The key is actually a combination of `origin<>key`, so parse out the key part
     const key = formData.key.split("<>")[1];
     const annotationObj = { ...formData, key };
-    console.log(annotationObj);
     const filterListChip = filterAnnotationObjToChip(annotationObj);
     const filterListQueryItem = JSON.stringify(annotationObj);
 
