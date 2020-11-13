@@ -781,7 +781,7 @@ class Candidate(Base):
 
 Candidate.__table_args__ = (
     sa.Index(
-        'index',
+        "candidates_main_index",
         Candidate.obj_id,
         Candidate.filter_id,
         Candidate.passed_at,
