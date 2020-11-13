@@ -257,7 +257,22 @@ class SourceHandler(BaseHandler):
               type: boolean
             description: |
               Boolean indicating whether to only return the source save
-              information in the response (defaults to false).
+              information in the response (defaults to false). The schema
+              of this summary information is:
+              ```
+                  {
+                    "group_id": 2,
+                    "created_at": "2020-11-13T22:11:25.910271",
+                    "saved_by_id": 1,
+                    "saved_at": "2020-11-13T22:11:25.910271",
+                    "requested": false,
+                    "unsaved_at": null,
+                    "modified": "2020-11-13T22:11:25.910271",
+                    "obj_id": "16fil",
+                    "active": true,
+                    "unsaved_by_id": null
+                  }
+              ```
           responses:
             200:
               content:
