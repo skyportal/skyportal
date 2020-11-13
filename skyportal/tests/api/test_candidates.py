@@ -42,62 +42,15 @@ def test_token_user_retrieving_candidate_with_phot(view_only_token, public_candi
     assert all(k in data["data"] for k in ["ra", "dec", "redshift", "dm", "photometry"])
 
 
-def test_token_user_update_candidate(
-    manage_sources_token, public_candidate, public_filter
+def test_token_user_post_delete_new_candidate(
+    upload_data_token, view_only_token, public_filter, manage_sources_token,
 ):
-    passing_alert_id = 1234567890
-    passed_at = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")
-
-    status, data = api(
-        "PUT",
-        f"candidates/{public_candidate.id}",
-        data={
-            "filter_ids": [public_filter.id],
-            "passing_alert_id": passing_alert_id,
-            "passed_at": passed_at,
-        },
-        token=manage_sources_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-
-    status, data = api(
-        "GET", f"candidates/{public_candidate.id}", token=manage_sources_token
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    assert data["data"]["passing_alerts"][0]["passing_alert_id"] == passing_alert_id
-
-
-def test_cannot_update_candidate_without_permission(
-    view_only_token, public_candidate, public_filter
-):
-    passing_alert_id = 1234567890
-    passed_at = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")
-
-    status, data = api(
-        "PUT",
-        f"candidates/{public_candidate.id}",
-        data={
-            "filter_ids": [public_filter.id],
-            "passing_alert_id": passing_alert_id,
-            "passed_at": passed_at,
-        },
-        token=view_only_token,
-    )
-    assert status == 400
-    assert data["status"] == "error"
-
-
-def test_token_user_post_new_candidate(
-    upload_data_token, view_only_token, public_filter
-):
-    candidate_id = str(uuid.uuid4())
+    obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",
         "candidates",
         data={
-            "id": candidate_id,
+            "id": obj_id,
             "ra": 234.22,
             "dec": -22.33,
             "redshift": 3,
@@ -109,21 +62,26 @@ def test_token_user_post_new_candidate(
         token=upload_data_token,
     )
     assert status == 200
-    assert data["data"]["id"] == candidate_id
+    candidate_id = data["data"]["ids"][0]
 
-    status, data = api("GET", f"candidates/{candidate_id}", token=view_only_token)
+    status, data = api("GET", f"candidates/{obj_id}", token=view_only_token)
     assert status == 200
-    assert data["data"]["id"] == candidate_id
+    assert data["data"]["id"] == obj_id
     npt.assert_almost_equal(data["data"]["ra"], 234.22)
+
+    status, data = api(
+        "DELETE", f"candidates/{candidate_id}", token=manage_sources_token,
+    )
+    assert status == 200
 
 
 def test_cannot_add_candidate_without_filter_id(upload_data_token):
-    candidate_id = str(uuid.uuid4())
+    obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",
         "candidates",
         data={
-            "id": candidate_id,
+            "id": obj_id,
             "ra": 234.22,
             "dec": -22.33,
             "redshift": 3,
@@ -137,12 +95,12 @@ def test_cannot_add_candidate_without_filter_id(upload_data_token):
 
 
 def test_cannot_add_candidate_without_passed_at(upload_data_token, public_filter):
-    candidate_id = str(uuid.uuid4())
+    obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",
         "candidates",
         data={
-            "id": candidate_id,
+            "id": obj_id,
             "ra": 234.22,
             "dec": -22.33,
             "redshift": 3,
@@ -158,12 +116,12 @@ def test_cannot_add_candidate_without_passed_at(upload_data_token, public_filter
 def test_token_user_post_two_candidates_same_obj_filter(
     upload_data_token, view_only_token, public_filter
 ):
-    candidate_id = str(uuid.uuid4())
+    obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",
         "candidates",
         data={
-            "id": candidate_id,
+            "id": obj_id,
             "ra": 234.22,
             "dec": -22.33,
             "redshift": 3,
@@ -175,18 +133,17 @@ def test_token_user_post_two_candidates_same_obj_filter(
         token=upload_data_token,
     )
     assert status == 200
-    assert data["data"]["id"] == candidate_id
 
-    status, data = api("GET", f"candidates/{candidate_id}", token=view_only_token)
+    status, data = api("GET", f"candidates/{obj_id}", token=view_only_token)
     assert status == 200
-    assert data["data"]["id"] == candidate_id
+    assert data["data"]["id"] == obj_id
     npt.assert_almost_equal(data["data"]["ra"], 234.22)
 
     status, data = api(
         "POST",
         "candidates",
         data={
-            "id": candidate_id,
+            "id": obj_id,
             "ra": 234.22,
             "dec": -22.33,
             "redshift": 3,
@@ -203,13 +160,13 @@ def test_token_user_post_two_candidates_same_obj_filter(
 def test_token_user_cannot_post_two_candidates_same_obj_filter_passed_at(
     upload_data_token, view_only_token, public_filter
 ):
-    candidate_id = str(uuid.uuid4())
+    obj_id = str(uuid.uuid4())
     passed_at = str(datetime.datetime.utcnow())
     status, data = api(
         "POST",
         "candidates",
         data={
-            "id": candidate_id,
+            "id": obj_id,
             "ra": 234.22,
             "dec": -22.33,
             "redshift": 3,
@@ -221,18 +178,17 @@ def test_token_user_cannot_post_two_candidates_same_obj_filter_passed_at(
         token=upload_data_token,
     )
     assert status == 200
-    assert data["data"]["id"] == candidate_id
 
-    status, data = api("GET", f"candidates/{candidate_id}", token=view_only_token)
+    status, data = api("GET", f"candidates/{obj_id}", token=view_only_token)
     assert status == 200
-    assert data["data"]["id"] == candidate_id
+    assert data["data"]["id"] == obj_id
     npt.assert_almost_equal(data["data"]["ra"], 234.22)
 
     status, data = api(
         "POST",
         "candidates",
         data={
-            "id": candidate_id,
+            "id": obj_id,
             "ra": 234.22,
             "dec": -22.33,
             "redshift": 3,
