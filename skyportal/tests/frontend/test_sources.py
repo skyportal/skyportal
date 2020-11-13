@@ -561,3 +561,15 @@ def test_set_redshift_via_comments_and_history(driver, user, public_source):
     driver.wait_for_xpath("//th[text()='Set By']")
     driver.wait_for_xpath("//td[text()='0.3131']")
     driver.wait_for_xpath(f"//td[text()='{user.username}']")
+
+
+def test_obj_page_unsaved_source(public_obj, driver, user):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_obj.id}")
+
+    # wait for the plots to load
+    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
+    # this waits for the spectroscopy plot by looking for the element Mg
+    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
+
+    driver.wait_for_xpath_to_disappear('//div[contains(@data-testid, "groupChip")]')
