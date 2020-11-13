@@ -121,7 +121,7 @@ class UserHandler(BaseHandler):
                 return_values[-1]["contact_phone"] = user.contact_phone.e164
             return_values[-1]["contact_email"] = user.contact_email
             # Only Sys admins can see other users' group memberships
-            if "System admin" in self.associated_user_object.permissions:
+            if self.current_user.is_system_admin:
                 return_values[-1]["groups"] = user.groups
                 return_values[-1]["streams"] = user.streams
         return self.success(data=return_values)
