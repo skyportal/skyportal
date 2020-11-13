@@ -746,7 +746,7 @@ class SourceHandler(BaseHandler):
 
 class SourceOffsetsHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    async def get(self, obj_id):
         """
         ---
         description: Retrieve offset stars to aid in spectroscopy
@@ -914,6 +914,22 @@ class SourceOffsetsHandler(BaseHandler):
             # could not handle inputs
             return self.error('Invalid argument for `num_offset_stars`')
 
+        offset_func = functools.partial(
+            get_nearby_offset_stars,
+            best_ra,
+            best_dec,
+            obj_id,
+            how_many=num_offset_stars,
+            radius_degrees=radius_degrees,
+            mag_limit=mag_limit,
+            min_sep_arcsec=min_sep_arcsec,
+            starlist_type=facility,
+            mag_min=mag_min,
+            obstime=obstime,
+            allowed_queries=2,
+            use_ztfref=use_ztfref,
+        )
+
         try:
             (
                 starlist_info,
@@ -921,22 +937,9 @@ class SourceOffsetsHandler(BaseHandler):
                 queries_issued,
                 noffsets,
                 used_ztfref,
-            ) = get_nearby_offset_stars(
-                best_ra,
-                best_dec,
-                obj_id,
-                how_many=num_offset_stars,
-                radius_degrees=radius_degrees,
-                mag_limit=mag_limit,
-                min_sep_arcsec=min_sep_arcsec,
-                starlist_type=facility,
-                mag_min=mag_min,
-                obstime=obstime,
-                allowed_queries=2,
-                use_ztfref=use_ztfref,
-            )
+            ) = await IOLoop.current().run_in_executor(None, offset_func)
         except ValueError:
-            return self.error('Error while querying for nearby offset stars')
+            return self.error("Error querying for nearby offset stars")
 
         starlist_str = "\n".join(
             [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
