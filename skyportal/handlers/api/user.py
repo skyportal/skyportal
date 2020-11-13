@@ -94,7 +94,7 @@ class UserHandler(BaseHandler):
             schema:
               type: integer
             description: |
-              Number of candidates to return per paginated request. Defaults to 25
+              Number of candidates to return per paginated request. Defaults to all users
           - in: query
             name: pageNumber
             nullable: true
@@ -190,7 +190,7 @@ class UserHandler(BaseHandler):
             return self.success(data=user_info)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
-        n_per_page = self.get_query_argument("numPerPage", None) or 25
+        n_per_page = self.get_query_argument("numPerPage", None)
         first_name = self.get_query_argument("firstName", None)
         last_name = self.get_query_argument("lastName", None)
         username = self.get_query_argument("username", None)
@@ -205,7 +205,8 @@ class UserHandler(BaseHandler):
         except ValueError:
             return self.error("Invalid page number value.")
         try:
-            n_per_page = int(n_per_page)
+            if n_per_page is not None:
+                n_per_page = int(n_per_page)
         except ValueError:
             return self.error("Invalid numPerPage value.")
 
@@ -229,7 +230,8 @@ class UserHandler(BaseHandler):
             query = query.join(StreamUser).join(Stream).filter(Stream.name == stream)
 
         total_matches = query.count()
-        query = query.limit(n_per_page).offset((page_number - 1) * n_per_page)
+        if n_per_page is not None:
+            query = query.limit(n_per_page).offset((page_number - 1) * n_per_page)
         info = {}
         return_values = []
         for user in query.all():

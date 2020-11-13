@@ -31,7 +31,7 @@ const useStyles = makeStyles(() => ({
 const NewGroupUserForm = ({ group_id }) => {
   const dispatch = useDispatch();
   const { invitationsEnabled } = useSelector((state) => state.sysInfo);
-  const { allUsers } = useSelector((state) => state.users);
+  const { users: allUsers } = useSelector((state) => state.users);
   const [formState, setFormState] = useState({
     newUserEmail: null,
     admin: false,

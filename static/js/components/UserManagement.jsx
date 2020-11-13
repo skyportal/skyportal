@@ -99,7 +99,7 @@ const UserManagement = () => {
 
   useEffect(() => {
     const fetchData = () => {
-      dispatch(usersActions.fetchUsers());
+      dispatch(usersActions.fetchUsers(fetchParams));
       dispatch(streamsActions.fetchStreams());
       dispatch(aclsActions.fetchACLs());
       dispatch(rolesActions.fetchRoles());
