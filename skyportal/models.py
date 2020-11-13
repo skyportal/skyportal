@@ -758,19 +758,19 @@ class Candidate(Base):
         sa.ForeignKey("filters.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
-        doc="ID of the filter the Obj passed",
+        doc="ID of the filter the candidate passed",
     )
     filter = relationship(
         "Filter",
         foreign_keys=[filter_id],
         back_populates="candidates",
-        doc="The filter that an Obj passed",
+        doc="The filter that the Candidate passed",
     )
     passed_at = sa.Column(
         sa.DateTime,
         nullable=False,
         index=True,
-        doc="ISO UTC time when the Candidate passed the Filter last time.",
+        doc="ISO UTC time when the Candidate passed the Filter.",
     )
     passing_alert_id = sa.Column(
         sa.BigInteger,
