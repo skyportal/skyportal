@@ -37,6 +37,28 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
     });
   }, [reset, userGroups, filterGroups, candidate]);
 
+  const [filteredGroupNames, setFilteredGroupNames] = useState("");
+
+  useEffect(() => {
+    if (filterGroups.length <= 3) {
+      setFilteredGroupNames(
+        filterGroups
+          .map((g) => {
+            let name = g.nickname
+              ? g.nickname.substring(0, 15)
+              : g.name.substring(0, 15);
+            if (name.length > 15) {
+              name += "...";
+            }
+            return name;
+          })
+          .join(", ")
+      );
+    } else {
+      setFilteredGroupNames("selected groups");
+    }
+  }, [filterGroups]);
+
   const handleClickOpenDialog = () => {
     setDialogOpen(true);
   };
@@ -68,18 +90,6 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
   // Split button logic (largely copied from
   // https://material-ui.com/components/button-group/#split-button):
 
-  const filteredGroupNames = filterGroups
-    .map((g) => {
-      let name = g.nickname
-        ? g.nickname.substring(0, 15)
-        : g.name.substring(0, 15);
-      if (name.length > 15) {
-        name += "...";
-      }
-      return name;
-    })
-    .join(",");
-
   const options = [`Save to ${filteredGroupNames}`, "Select groups & save"];
 
   const [splitButtonMenuOpen, setSplitButtonMenuOpen] = useState(false);
@@ -91,7 +101,7 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
       setIsSubmitting(true);
       const data = {
         id: candidate.id,
-        group_ids: candidate.passing_group_ids,
+        group_ids: filterGroups.map((g) => g.id),
       };
       const result = await dispatch(sourceActions.saveSource(data));
       if (result.status === "error") {

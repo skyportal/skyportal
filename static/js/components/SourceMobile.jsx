@@ -211,13 +211,24 @@ const SourceMobile = ({ source }) => {
                 </>
               )}
               {source.redshift != null && <>&nbsp;|&nbsp;</>}
-              <Button href={`/api/sources/${source.id}/finder`}>
-                PDF Finding Chart
+              Finding Chart:&nbsp;
+              <Button
+                href={`/api/sources/${source.id}/finder`}
+                download="finder-chart-pdf"
+              >
+                PDF
               </Button>
+              <Link to={`/source/${source.id}/finder`} role="link">
+                <Button>Interactive</Button>
+              </Link>
               &nbsp;|&nbsp;
               <Button onClick={() => setShowStarList(!showStarList)}>
                 {showStarList ? "Hide Starlist" : "Show Starlist"}
               </Button>
+              &nbsp;|&nbsp;
+              <Link to={`/observability/${source.id}`} role="link">
+                <Button>Observability</Button>
+              </Link>
               <br />
               {showStarList && <StarList sourceId={source.id} />}
               {source.groups.map((group) => (
@@ -342,6 +353,11 @@ const SourceMobile = ({ source }) => {
                   className={classes.plot}
                   url={`/api/internal/plot/spectroscopy/${source.id}`}
                 />
+                <Link to={`/upload_spectrum/${source.id}`} role="link">
+                  <Button variant="contained">
+                    Upload additional spectroscopy
+                  </Button>
+                </Link>
                 <Link to={`/share_data/${source.id}`} role="link">
                   <Button variant="contained">Share data</Button>
                 </Link>

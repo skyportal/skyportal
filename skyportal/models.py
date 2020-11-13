@@ -3,7 +3,7 @@ import uuid
 import re
 import json
 import warnings
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import requests
 import arrow
 
@@ -1043,7 +1043,7 @@ def get_obj_classifications_owned_by(self, user_or_token):
 
     Returns
     -------
-    comment_list : list of `skyportal.models.Classification`
+    classification_list : list of `skyportal.models.Classification`
        The accessible classifications attached to this Obj.
     """
     return [
@@ -1086,7 +1086,7 @@ def get_photometry_owned_by_user(obj_id, user_or_token):
 Obj.get_photometry_owned_by_user = get_photometry_owned_by_user
 
 
-def get_spectra_owned_by(obj_id, user_or_token):
+def get_spectra_owned_by(obj_id, user_or_token, options=()):
     """Query the database and return the Spectra for this Obj that are shared
     with any of the User or Token owner's accessible Groups.
 
@@ -1096,6 +1096,8 @@ def get_spectra_owned_by(obj_id, user_or_token):
        The ID of the Obj to look up.
     user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
        The requesting `User` or `Token` object.
+    options : list of `sqlalchemy.orm.MapperOption`s
+       Options that wil be passed to `options()` in the loader query.
 
     Returns
     -------
@@ -1110,6 +1112,7 @@ def get_spectra_owned_by(obj_id, user_or_token):
                 Group.id.in_([g.id for g in user_or_token.accessible_groups])
             )
         )
+        .options(options)
         .all()
     )
 
@@ -1208,14 +1211,104 @@ class Telescope(Base):
         """Return an `astroplan.Observer` representing an observer at this
         facility, accounting for the latitude, longitude, elevation, and
         local time zone of the observatory (if ground based)."""
-        tf = timezonefinder.TimezoneFinder()
-        local_tz = tf.timezone_at(lng=self.lon, lat=self.lat)
-        return astroplan.Observer(
-            longitude=self.lon * u.deg,
-            latitude=self.lat * u.deg,
-            elevation=self.elevation * u.m,
-            timezone=local_tz,
+        try:
+            return self._observer
+        except AttributeError:
+            tf = timezonefinder.TimezoneFinder()
+            local_tz = tf.timezone_at(lng=self.lon, lat=self.lat)
+            self._observer = astroplan.Observer(
+                longitude=self.lon * u.deg,
+                latitude=self.lat * u.deg,
+                elevation=self.elevation * u.m,
+                timezone=local_tz,
+            )
+        return self._observer
+
+    def next_sunset(self, time=None):
+        """The astropy timestamp of the next sunset after `time` at this site.
+        If time=None, uses the current time."""
+        if time is None:
+            time = ap_time.Time.now()
+        observer = self.observer
+        return observer.sun_set_time(time, which='next')
+
+    def next_sunrise(self, time=None):
+        """The astropy timestamp of the next sunrise after `time` at this site.
+        If time=None, uses the current time."""
+        if time is None:
+            time = ap_time.Time.now()
+        observer = self.observer
+        return observer.sun_rise_time(time, which='next')
+
+    def next_twilight_evening_nautical(self, time=None):
+        """The astropy timestamp of the next evening nautical (-12 degree)
+        twilight at this site. If time=None, uses the current time."""
+        if time is None:
+            time = ap_time.Time.now()
+        observer = self.observer
+        return observer.twilight_evening_nautical(time, which='next')
+
+    def next_twilight_morning_nautical(self, time=None):
+        """The astropy timestamp of the next morning nautical (-12 degree)
+        twilight at this site. If time=None, uses the current time."""
+        if time is None:
+            time = ap_time.Time.now()
+        observer = self.observer
+        return observer.twilight_morning_nautical(time, which='next')
+
+    def next_twilight_evening_astronomical(self, time=None):
+        """The astropy timestamp of the next evening astronomical (-18 degree)
+        twilight at this site. If time=None, uses the current time."""
+        if time is None:
+            time = ap_time.Time.now()
+        observer = self.observer
+        return observer.twilight_evening_astronomical(time, which='next')
+
+    def next_twilight_morning_astronomical(self, time=None):
+        """The astropy timestamp of the next morning astronomical (-18 degree)
+        twilight at this site. If time=None, uses the current time."""
+        if time is None:
+            time = ap_time.Time.now()
+        observer = self.observer
+        return observer.twilight_morning_astronomical(time, which='next')
+
+    def ephemeris(self, time):
+
+        sunrise = self.next_sunrise(time=time)
+        sunset = self.next_sunset(time=time)
+
+        if sunset > sunrise:
+            sunset = self.observer.sun_set_time(time, which='previous')
+            time = sunset - ap_time.TimeDelta(30, format='sec')
+
+        twilight_morning_astronomical = self.next_twilight_morning_astronomical(
+            time=time
         )
+        twilight_evening_astronomical = self.next_twilight_evening_astronomical(
+            time=time
+        )
+
+        twilight_morning_nautical = self.next_twilight_morning_nautical(time=time)
+        twilight_evening_nautical = self.next_twilight_evening_nautical(time=time)
+
+        return {
+            'sunset_utc': sunset.isot,
+            'sunrise_utc': sunrise.isot,
+            'twilight_morning_astronomical_utc': twilight_morning_astronomical.isot,
+            'twilight_evening_astronomical_utc': twilight_evening_astronomical.isot,
+            'twilight_morning_nautical_utc': twilight_morning_nautical.isot,
+            'twilight_evening_nautical_utc': twilight_evening_nautical.isot,
+            'utc_offset_hours': self.observer.timezone.utcoffset(time.datetime)
+            / timedelta(hours=1),
+            'sunset_unix_ms': sunset.unix * 1000,
+            'sunrise_unix_ms': sunrise.unix * 1000,
+            'twilight_morning_astronomical_unix_ms': twilight_morning_astronomical.unix
+            * 1000,
+            'twilight_evening_astronomical_unix_ms': twilight_evening_astronomical.unix
+            * 1000,
+            'twilight_morning_nautical_unix_ms': twilight_morning_nautical.unix * 1000,
+            'twilight_evening_nautical_unix_ms': twilight_evening_nautical.unix * 1000,
+        }
 
 
 class ArrayOfEnum(ARRAY):
@@ -1469,9 +1562,7 @@ class Comment(Base):
     attachment_name = sa.Column(
         sa.String, nullable=True, doc="Filename of the attachment."
     )
-    attachment_type = sa.Column(
-        sa.String, nullable=True, doc="Attachment extension, (e.g., pdf, png)."
-    )
+
     attachment_bytes = sa.Column(
         sa.types.LargeBinary,
         nullable=True,
@@ -2402,7 +2493,7 @@ class ObservingRun(Base):
     )
 
     @property
-    def _calendar_noon(self):
+    def calendar_noon(self):
         observer = self.instrument.telescope.observer
         year = self.calendar_date.year
         month = self.calendar_date.month
@@ -2415,60 +2506,20 @@ class ObservingRun(Base):
         noon = ap_time.Time(noon, format='unix')
         return noon
 
-    @property
-    def sunset(self):
-        """The UTC timestamp of Sunset on this run."""
-        return self.instrument.telescope.observer.sun_set_time(
-            self._calendar_noon, which='next'
-        )
-
-    @property
-    def sunrise(self):
-        """The UTC timestamp of Sunrise on this run."""
-        return self.instrument.telescope.observer.sun_rise_time(
-            self._calendar_noon, which='next'
-        )
-
-    @property
-    def twilight_evening_nautical(self):
-        """The UTC timestamp of evening nautical (-12 degree) twilight on this run."""
-        return self.instrument.telescope.observer.twilight_evening_nautical(
-            self._calendar_noon, which='next'
-        )
-
-    @property
-    def twilight_morning_nautical(self):
-        """The UTC timestamp of morning nautical (-12 degree) twilight on this run."""
-        return self.instrument.telescope.observer.twilight_morning_nautical(
-            self._calendar_noon, which='next'
-        )
-
-    @property
-    def twilight_evening_astronomical(self):
-        """The UTC timestamp of evening astronomical (-18 degree) twilight on this run."""
-        return self.instrument.telescope.observer.twilight_evening_astronomical(
-            self._calendar_noon, which='next'
-        )
-
-    @property
-    def twilight_morning_astronomical(self):
-        """The UTC timestamp of morning astronomical (-18 degree) twilight on this run."""
-        return self.instrument.telescope.observer.twilight_morning_astronomical(
-            self._calendar_noon, which='next'
-        )
-
     def rise_time(self, target_or_targets):
         """The rise time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
+        sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
         return observer.target_rise_time(
-            self.sunset, target_or_targets, which='next', horizon=30 * u.degree
+            sunset, target_or_targets, which='next', horizon=30 * u.degree
         )
 
     def set_time(self, target_or_targets):
         """The set time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
+        sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
         return observer.target_set_time(
-            self.sunset, target_or_targets, which='next', horizon=30 * u.degree
+            sunset, target_or_targets, which='next', horizon=30 * u.degree
         )
 
 

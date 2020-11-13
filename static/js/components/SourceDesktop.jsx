@@ -182,13 +182,24 @@ const SourceDesktop = ({ source }) => {
             </>
           )}
           {source.redshift != null && <>&nbsp;|&nbsp;</>}
-          <Button href={`/api/sources/${source.id}/finder`}>
-            PDF Finding Chart
+          Finding Chart:&nbsp;
+          <Button
+            href={`/api/sources/${source.id}/finder`}
+            download="finder-chart-pdf"
+          >
+            PDF
           </Button>
+          <Link to={`/source/${source.id}/finder`} role="link">
+            <Button>Interactive</Button>
+          </Link>
           &nbsp;|&nbsp;
           <Button onClick={() => setShowStarList(!showStarList)}>
             {showStarList ? "Hide Starlist" : "Show Starlist"}
           </Button>
+          &nbsp;|&nbsp;
+          <Link to={`/observability/${source.id}`} role="link">
+            <Button>Observability</Button>
+          </Link>
           <br />
           {showStarList && <StarList sourceId={source.id} />}
           {source.groups.map((group) => (
@@ -223,6 +234,7 @@ const SourceDesktop = ({ source }) => {
             ra={source.ra}
             dec={source.dec}
             thumbnails={source.thumbnails}
+            size="12.875rem"
           />
         </div>
         <div className={classes.columnItem}>

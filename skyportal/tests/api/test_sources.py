@@ -193,7 +193,7 @@ def test_token_user_post_new_source(upload_data_token, view_only_token, public_g
     npt.assert_almost_equal(data['data']['ra'], 234.22)
 
     saved_at = parser.parse(data['data']['groups'][0]['saved_at'] + " UTC")
-    assert abs(saved_at - t0) < timedelta(seconds=2)
+    assert abs(saved_at - t0) < timedelta(seconds=60)
 
 
 def test_cannot_post_source_with_null_radec(
@@ -251,7 +251,7 @@ def test_starlist(upload_data_token, public_source):
 
     status, data = api(
         'GET',
-        f'sources/{public_source.id}/offsets?facility=P200&how_many=1',
+        f'sources/{public_source.id}/offsets?facility=P200&num_offset_stars=1',
         token=upload_data_token,
     )
     assert status == 200

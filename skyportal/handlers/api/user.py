@@ -111,7 +111,7 @@ class UserHandler(BaseHandler):
             return self.success(data=user_info)
 
         return_values = []
-        for user in User.query.all():
+        for user in sorted(User.query.all(), key=lambda u: u.username):
             return_values.append(user.to_dict())
             del return_values[-1]["preferences"]
             return_values[-1]["permissions"] = sorted(user.permissions)
