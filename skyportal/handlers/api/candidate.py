@@ -685,6 +685,7 @@ class CandidateHandler(BaseHandler):
                 filter=filter,
                 passing_alert_id=passing_alert_id,
                 passed_at=passed_at,
+                uploader_id=self.associated_user_object.id,
             )
             for filter in filters
         ]
@@ -695,7 +696,7 @@ class CandidateHandler(BaseHandler):
 
         return self.success(data={"ids": [c.id for c in candidates]})
 
-    @permissions(["Manage sources"])
+    @auth_or_token
     def delete(self, candidate_id):
         """
         ---
@@ -713,6 +714,11 @@ class CandidateHandler(BaseHandler):
                 schema: Success
         """
         c = Candidate.query.get(candidate_id)
+        if not (
+            self.associated_user_object.is_admin
+            or c.uploader_id == self.associated_user_object.id
+        ):
+            return self.error("Insufficient permissions.")
         DBSession().delete(c)
         DBSession().commit()
 

@@ -777,6 +777,12 @@ class Candidate(Base):
         index=True,
         doc="ID of the latest Stream alert that passed the Filter.",
     )
+    uploader_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the user that posted the candidate",
+    )
 
 
 Candidate.__table_args__ = (
