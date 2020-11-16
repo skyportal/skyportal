@@ -257,8 +257,9 @@ class SourceHandler(BaseHandler):
               type: boolean
             description: |
               Boolean indicating whether to only return the source save
-              information in the response (defaults to false). The schema
-              of this summary information is:
+              information in the response (defaults to false). If true,
+              the response will contain a list of dicts with the following
+              schema under `response['data']['sources']`:
               ```
                   {
                     "group_id": 2,

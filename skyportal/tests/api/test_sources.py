@@ -365,6 +365,7 @@ def test_token_user_source_summary(
 
     assert len(sources) == 1
     source = sources[0]
+    assert 'obj' not in source
 
     assert source['obj_id'] == public_source.id
     assert source['group_id'] == public_group.id
@@ -388,7 +389,6 @@ def test_token_user_source_summary(
     assert status == 200
     assert "sources" in data['data']
     sources = data['data']['sources']
-
     assert len(sources) == 0
 
     status, data = api(
