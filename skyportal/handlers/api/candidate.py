@@ -715,7 +715,7 @@ class CandidateHandler(BaseHandler):
         """
         c = Candidate.query.get(candidate_id)
         if not (
-            self.associated_user_object.is_admin
+            self.associated_user_object.is_system_admin
             or c.uploader_id == self.associated_user_object.id
         ):
             return self.error("Insufficient permissions.")

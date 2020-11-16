@@ -43,7 +43,7 @@ def upgrade():
     )
     candidates = sa.Table(
         "candidates",
-        sa.Metadata(),
+        sa.MetaData(),
         sa.Column("id", sa.Integer()),
         sa.Column("uploader_id", sa.Integer()),
     )

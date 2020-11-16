@@ -43,7 +43,7 @@ def test_token_user_retrieving_candidate_with_phot(view_only_token, public_candi
 
 
 def test_token_user_post_delete_new_candidate(
-    upload_data_token, view_only_token, public_filter, manage_sources_token,
+    upload_data_token, view_only_token, public_filter,
 ):
     obj_id = str(uuid.uuid4())
     status, data = api(
@@ -69,9 +69,7 @@ def test_token_user_post_delete_new_candidate(
     assert data["data"]["id"] == obj_id
     npt.assert_almost_equal(data["data"]["ra"], 234.22)
 
-    status, data = api(
-        "DELETE", f"candidates/{candidate_id}", token=manage_sources_token,
-    )
+    status, data = api("DELETE", f"candidates/{candidate_id}", token=upload_data_token,)
     assert status == 200
 
 
