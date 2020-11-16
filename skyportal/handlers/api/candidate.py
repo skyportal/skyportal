@@ -589,7 +589,7 @@ class CandidateHandler(BaseHandler):
     def post(self):
         """
         ---
-        description: Create a new candidate.
+        description: Create new candidate(s) (one per filter).
         requestBody:
           content:
             application/json:
