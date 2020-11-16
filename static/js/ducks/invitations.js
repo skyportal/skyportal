@@ -19,8 +19,14 @@ export const inviteUser = ({ userEmail, streamIDs, groupIDs, groupAdmin }) =>
     groupAdmin,
   });
 
-export const fetchInvitations = () =>
-  API.GET("/api/invitations", FETCH_INVITATIONS);
+export const fetchInvitations = (filterParams = {}) => {
+  if (!Object.keys(filterParams).includes("pageNumber")) {
+    filterParams.pageNumber = 1;
+  }
+  const params = new URLSearchParams(filterParams);
+  const queryString = params.toString();
+  return API.GET(`/api/invitations?${queryString}`, FETCH_INVITATIONS);
+};
 
 export const updateInvitation = (invitationID, payload) =>
   API.PATCH(`/api/invitations/${invitationID}`, UPDATE_INVITATION, payload);
@@ -28,10 +34,15 @@ export const updateInvitation = (invitationID, payload) =>
 export const deleteInvitation = (invitationID) =>
   API.DELETE(`/api/invitations/${invitationID}`, DELETE_INVITATION);
 
-function reducer(state = null, action) {
+function reducer(state = { invitations: [], totalMatches: 0 }, action) {
   switch (action.type) {
     case FETCH_INVITATIONS_OK: {
-      return action.data;
+      const { invitations, totalMatches } = action.data;
+      return {
+        ...state,
+        invitations,
+        totalMatches,
+      };
     }
     default:
       return state;
