@@ -827,6 +827,7 @@ Source.saved_at = sa.Column(
     sa.DateTime,
     nullable=False,
     default=utcnow,
+    index=True,
     doc="ISO UTC time when the Obj was saved to its Group.",
 )
 Source.active = sa.Column(
