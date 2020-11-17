@@ -26,7 +26,6 @@ from ...models import (
     Source,
     Token,
     Group,
-    GroupPhotometry,
     FollowupRequest,
     ClassicalAssignment,
     ObservingRun,
@@ -662,13 +661,10 @@ class SourceHandler(BaseHandler):
                 groups_query = (
                     DBSession()
                     .query(Group)
-                    .join(GroupPhotometry)
-                    .join(Photometry)
                     .join(Source)
-                    .join(Obj)
-                    .filter(Source.obj_id == source_list[-1]["id"])
                     .filter(
-                        Photometry.groups.any(Group.id.in_(user_accessible_group_ids))
+                        Source.obj_id == source_list[-1]["id"],
+                        Group.id.in_(user_accessible_group_ids),
                     )
                 )
                 groups_query = apply_active_or_requested_filtering(
