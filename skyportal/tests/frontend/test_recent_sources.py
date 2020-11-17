@@ -113,7 +113,6 @@ def test_recently_saved_candidate(
         token=upload_data_token,
     )
     assert status == 200
-    assert data['data']['id'] == obj_id
 
     status, data = api(
         'POST',

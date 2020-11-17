@@ -135,6 +135,7 @@ def test_request_source(
     super_admin_user_two_groups,
     public_group,
     public_group2,
+    upload_data_token,
     upload_data_token_two_groups,
 ):
 
@@ -148,7 +149,7 @@ def test_request_source(
 
     obj_id = str(uuid.uuid4())
 
-    # upload a new source, saved to the public group
+    # upload a new source, saved to public_group2
     status, data = api(
         'POST',
         'sources',
@@ -160,7 +161,7 @@ def test_request_source(
             'altdata': {'simbad': {'class': 'RRLyr'}},
             'transient': False,
             'ra_dis': 2.3,
-            'group_ids': [public_group2.id],
+            'group_ids': [public_group.id],
         },
         token=upload_data_token_two_groups,
     )
@@ -168,22 +169,22 @@ def test_request_source(
     assert data['data']['id'] == f'{obj_id}'
 
     # reload the group sources page
-    driver.get(f"/group_sources/{public_group.id}")
+    driver.get(f"/group_sources/{public_group2.id}")
 
-    # there should not be any new sources (the source is in group2)
+    # there should not be any new sources (the source is in group1)
     driver.wait_for_xpath("//*[text()[contains(., 'No sources')]]")
 
-    # request this source to be added to group1
+    # request this source to be added to group2
     status, data = api(
         'POST',
         'source_groups',
-        data={'objId': f'{obj_id}', 'inviteGroupIds': [public_group.id]},
-        token=upload_data_token_two_groups,
+        data={'objId': f'{obj_id}', 'inviteGroupIds': [public_group2.id]},
+        token=upload_data_token,
     )
     assert status == 200
 
     # reload the group sources page
-    driver.get(f"/group_sources/{public_group.id}")
+    driver.get(f"/group_sources/{public_group2.id}")
 
     # make sure the second table appears
     driver.wait_for_xpath("//*[text()[contains(., 'Requested to save')]]")

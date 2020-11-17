@@ -151,8 +151,8 @@ const SourceMobile = ({ source }) => {
   );
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
-  const userAccessibleGroups = useSelector(
-    (state) => state.groups.userAccessible
+  const groups = (useSelector((state) => state.groups.all) || []).filter(
+    (g) => !g.single_user_group
   );
 
   return (
@@ -252,7 +252,7 @@ const SourceMobile = ({ source }) => {
                   id: source.id,
                   currentGroupIds: source.groups.map((g) => g.id),
                 }}
-                userGroups={userAccessibleGroups}
+                groups={groups}
                 icon
               />
               <SourceSaveHistory groups={source.groups} />
