@@ -235,6 +235,20 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to only include requested/pending saves.
               Defaults to false.
+          - in: query
+            name: sortBy
+            nullable: true
+            schema:
+              type: string
+            description: |
+              The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"]
+          - in: query
+            name: sortOrder
+            nullable: true
+            schema:
+              type: string
+            description: |
+              The sort order - either "asc" or "desc". Defaults to "asc"
           responses:
             200:
               content:
@@ -275,6 +289,8 @@ class SourceHandler(BaseHandler):
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_requested = self.get_query_argument("includeRequested", False)
         requested_only = self.get_query_argument("pendingOnly", False)
+        sort_by = self.get_query_argument("sortBy", None)
+        sort_order = self.get_query_argument("sortOrder", "asc")
 
         # parse the group ids:
         group_ids = self.get_query_argument('group_ids', None)
@@ -452,6 +468,37 @@ class SourceHandler(BaseHandler):
                 )
             q = q.filter(Source.group_id.in_(group_ids))
 
+        order_by = None
+        if sort_by is not None:
+            if sort_by == "id":
+                order_by = (
+                    [Source.obj_id] if sort_order == "asc" else [Source.obj_id.desc()]
+                )
+            elif sort_by == "ra":
+                order_by = (
+                    [Obj.ra.nullslast()]
+                    if sort_order == "asc"
+                    else [Obj.ra.desc().nullslast()]
+                )
+            elif sort_by == "dec":
+                order_by = (
+                    [Obj.dec.nullslast()]
+                    if sort_order == "asc"
+                    else [Obj.dec.desc().nullslast()]
+                )
+            elif sort_by == "redshift":
+                order_by = (
+                    [Obj.redshift.nullslast()]
+                    if sort_order == "asc"
+                    else [Obj.redshift.desc().nullslast()]
+                )
+            elif sort_by == "saved_at":
+                order_by = (
+                    [Source.saved_at]
+                    if sort_order == "asc"
+                    else [Source.saved_at.desc()]
+                )
+
         if page_number:
             try:
                 page = int(page_number)
@@ -464,6 +511,7 @@ class SourceHandler(BaseHandler):
                     page,
                     num_per_page,
                     "sources",
+                    order_by=order_by,
                     include_photometry=include_photometry,
                 )
             except ValueError as e:
