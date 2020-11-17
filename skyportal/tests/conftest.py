@@ -293,7 +293,7 @@ def hst():
         lon=0,
         elevation=0,
         diameter=2.0,
-        space_based=True,
+        fixed_location=False,
     )
 
 

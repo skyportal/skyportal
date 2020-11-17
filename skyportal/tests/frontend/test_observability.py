@@ -1,4 +1,4 @@
-def test_space_based_filtering(  # noqa: E302
+def test_fixed_location_filtering(  # noqa: E302
     driver, view_only_user, hst, public_source, keck1_telescope
 ):
     driver.get(f'/become_user/{view_only_user.id}')

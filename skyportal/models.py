@@ -1255,11 +1255,11 @@ class Telescope(Base):
         sa.Boolean, default=False, nullable=False, doc="Is this telescope robotic?"
     )
 
-    space_based = sa.Column(
+    fixed_location = sa.Column(
         sa.Boolean,
         nullable=False,
-        server_default='false',
-        doc="Is this telescope space-based?",
+        server_default='true',
+        doc="Does this telescope have a fixed location (lon, lat, elev)?",
     )
 
     weather = sa.Column(JSONB, nullable=True, doc='Latest weather information')

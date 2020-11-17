@@ -26,7 +26,7 @@ const ObservabilityPage = ({ route }) => {
       </Typography>
       <Grid container spacing={3}>
         {telescopeList
-          .filter((telescope) => !telescope.space_based)
+          .filter((telescope) => telescope.fixed_location)
           .map((telescope) => {
             return (
               <Grid item key={telescope.id}>
