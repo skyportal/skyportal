@@ -1256,7 +1256,10 @@ class Telescope(Base):
     )
 
     space_based = sa.Column(
-        sa.Boolean, nullable=False, default=False, doc="Is this telescope space-based?"
+        sa.Boolean,
+        nullable=False,
+        server_default='false',
+        doc="Is this telescope space-based?",
     )
 
     weather = sa.Column(JSONB, nullable=True, doc='Latest weather information')
