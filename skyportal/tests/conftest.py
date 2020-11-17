@@ -285,6 +285,19 @@ def ztf_camera():
 
 
 @pytest.fixture()
+def hst():
+    return TelescopeFactory(
+        name=f'Hubble Space Telescope_{uuid.uuid4()}',
+        nickname=f'HST_{uuid.uuid4()}',
+        lat=0,
+        lon=0,
+        elevation=0,
+        diameter=2.0,
+        space_based=True,
+    )
+
+
+@pytest.fixture()
 def keck1_telescope():
     observer = astroplan.Observer.at_site('Keck')
     return TelescopeFactory(
