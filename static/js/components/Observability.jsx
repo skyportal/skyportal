@@ -25,23 +25,25 @@ const ObservabilityPage = ({ route }) => {
         Observability of <Link to={`/source/${route.id}`}>{route.id}</Link>
       </Typography>
       <Grid container spacing={3}>
-        {telescopeList.map((telescope) => {
-          return (
-            <Grid item key={telescope.id}>
-              <Paper>
-                <div className={classes.inner}>
-                  <Typography variant="h6">{telescope.name}</Typography>
-                  <Suspense fallback={<div>Loading plot...</div>}>
-                    <AirMassPlotWithEphemURL
-                      dataUrl={`/api/internal/plot/airmass/objtel/${route.id}/${telescope.id}`}
-                      ephemerisUrl={`/api/internal/ephemeris/${telescope.id}`}
-                    />
-                  </Suspense>
-                </div>
-              </Paper>
-            </Grid>
-          );
-        })}
+        {telescopeList
+          .filter((telescope) => !telescope.space_based)
+          .map((telescope) => {
+            return (
+              <Grid item key={telescope.id}>
+                <Paper>
+                  <div className={classes.inner}>
+                    <Typography variant="h6">{telescope.name}</Typography>
+                    <Suspense fallback={<div>Loading plot...</div>}>
+                      <AirMassPlotWithEphemURL
+                        dataUrl={`/api/internal/plot/airmass/objtel/${route.id}/${telescope.id}`}
+                        ephemerisUrl={`/api/internal/ephemeris/${telescope.id}`}
+                      />
+                    </Suspense>
+                  </div>
+                </Paper>
+              </Grid>
+            );
+          })}
       </Grid>
     </div>
   );
