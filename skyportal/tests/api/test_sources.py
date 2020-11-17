@@ -346,3 +346,56 @@ def test_source_notifications_unauthorized(
     assert data["message"].startswith(
         "Twilio Communication SMS API authorization error"
     )
+
+
+def test_sources_sorting(upload_data_token, view_only_token, public_group):
+    obj_id = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    ra1 = 230
+    ra2 = 240
+
+    # Upload two new sources
+    status, data = api(
+        'POST',
+        'sources',
+        data={
+            'id': obj_id,
+            'ra': ra1,
+            'dec': -22.33,
+            'redshift': 3,
+            'transient': False,
+            'ra_dis': 2.3,
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['data']['id'] == obj_id
+    status, data = api(
+        'POST',
+        'sources',
+        data={
+            'id': obj_id2,
+            'ra': ra2,
+            'dec': -22.33,
+            'redshift': 3,
+            'transient': False,
+            'ra_dis': 2.3,
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['data']['id'] == obj_id2
+
+    # Sort sources by ra, desc and check that source 2 is first
+    status, data = api(
+        'GET',
+        f'sources?group_ids={public_group.id}&sortBy=ra&sortOrder=desc',
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data['data']['sources'][0]['id'] == obj_id2
+    npt.assert_almost_equal(data['data']['sources'][0]['ra'], ra2)
+    assert data['data']['sources'][1]['id'] == obj_id
+    npt.assert_almost_equal(data['data']['sources'][1]['ra'], ra1)
