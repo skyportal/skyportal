@@ -23,8 +23,6 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy import func
 
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
 from twilio.rest import Client as TwilioClient
 
 from astropy import units as u
@@ -60,6 +58,7 @@ from .enum_types import (
     api_classnames,
     listener_classnames,
 )
+from .email_utils import send_email
 
 from skyportal import facility_apis
 
@@ -2674,17 +2673,14 @@ UserInvitation = join_model("user_invitations", User, Invitation)
 def send_user_invite_email(mapper, connection, target):
     app_base_url = get_app_base_url()
     link_location = f'{app_base_url}/login/google-oauth2/?invite_token={target.token}'
-    message = Mail(
-        from_email=cfg["twilio.from_email"],
-        to_emails=target.user_email,
+    send_email(
+        recipients=[target.user_email],
         subject=cfg["invitations.email_subject"],
-        html_content=(
+        body=(
             f'{cfg["invitations.email_body_preamble"]}<br /><br />'
             f'Please click <a href="{link_location}">here</a> to join.'
         ),
     )
-    sg = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
-    sg.send(message)
 
 
 class SourceNotification(Base):
@@ -2799,14 +2795,11 @@ def send_source_notification(mapper, connection, target):
                     f'<br /><br />Additional notes: {target.additional_notes}'
                 )
 
-            message = Mail(
-                from_email=cfg["twilio.from_email"],
-                to_emails=user.contact_email,
+            send_email(
+                recipients=[user.contact_email],
                 subject=f'{cfg["app.title"]}: Source Alert',
-                html_content=html_content,
+                body=html_content,
             )
-            sg = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
-            sg.send(message)
 
 
 @event.listens_for(User, 'after_insert')
