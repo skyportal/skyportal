@@ -495,7 +495,10 @@ def test_unsave_from_group(
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.click_xpath(f'//*[@data-testid="editGroups_{public_source.id}"]')
-    driver.click_xpath(f'//*[@data-testid="unsaveGroupCheckbox_{public_group2.id}"]')
+    driver.click_xpath(
+        f'//*[@data-testid="unsaveGroupCheckbox_{public_group2.id}"]',
+        scroll_parent=True,
+    )
     driver.click_xpath(f'//button[@name="editSourceGroupsButton_{public_source.id}"]')
     driver.wait_for_xpath('//*[text()="Source groups updated successfully"]')
     driver.wait_for_xpath_to_disappear(
@@ -510,7 +513,10 @@ def test_request_group_to_save_then_save(
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.click_xpath(f'//*[@data-testid="editGroups_{public_source.id}"]')
-    driver.click_xpath(f'//*[@data-testid="inviteGroupCheckbox_{public_group2.id}"]')
+    driver.click_xpath(
+        f'//*[@data-testid="inviteGroupCheckbox_{public_group2.id}"]',
+        scroll_parent=True,
+    )
     driver.click_xpath(f'//button[@name="editSourceGroupsButton_{public_source.id}"]')
     driver.wait_for_xpath('//*[text()="Source groups updated successfully"]')
     driver.get(f"/become_user/{user_two_groups.id}")
