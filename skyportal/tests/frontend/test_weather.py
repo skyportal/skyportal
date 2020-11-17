@@ -26,5 +26,5 @@ def test_weather_widget(driver, user, public_group, upload_data_token, p60_teles
     driver.get('/')
 
     driver.click_xpath('//*[@data-testid="tel-list-button"]')
-    driver.click_xpath(f'//*[text()="{p60_telescope.name}"]')
+    driver.click_xpath(f'//*[text()="{p60_telescope.name}"]', scroll_parent=True)
     driver.wait_for_xpath(f'//h6[text()="{p60_telescope.name}"]')
