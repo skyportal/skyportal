@@ -348,6 +348,74 @@ def test_source_notifications_unauthorized(
     )
 
 
+def test_token_user_source_summary(
+    public_group, public_source, view_only_token_two_groups, public_group2
+):
+
+    now = datetime.utcnow().isoformat()
+
+    status, data = api(
+        "GET",
+        f"sources?saveSummary=true&group_ids={public_group.id}",
+        token=view_only_token_two_groups,
+    )
+    assert status == 200
+    assert "sources" in data['data']
+    sources = data['data']['sources']
+
+    assert len(sources) == 1
+    source = sources[0]
+    assert 'ra' not in source
+    assert 'dec' not in source
+
+    assert source['obj_id'] == public_source.id
+    assert source['group_id'] == public_group.id
+
+    status, data = api(
+        "GET",
+        f"sources?saveSummary=true&savedAfter={now}&group_ids={public_group.id}",
+        token=view_only_token_two_groups,
+    )
+    assert status == 200
+    assert "sources" in data['data']
+    sources = data['data']['sources']
+
+    assert len(sources) == 0
+
+    status, data = api(
+        "GET",
+        f"sources?saveSummary=true&group_ids={public_group2.id}",
+        token=view_only_token_two_groups,
+    )
+    assert status == 200
+    assert "sources" in data['data']
+    sources = data['data']['sources']
+    assert len(sources) == 0
+
+    status, data = api(
+        "GET",
+        f"sources?saveSummary=true&group_ids={public_group.id}&savedBefore={now}",
+        token=view_only_token_two_groups,
+    )
+    assert status == 200
+    assert "sources" in data['data']
+    sources = data['data']['sources']
+
+    assert len(sources) == 1
+    source = sources[0]
+
+    assert source['obj_id'] == public_source.id
+    assert source['group_id'] == public_group.id
+
+    # check the datetime formatting is properly validated
+    status, data = api(
+        "GET",
+        f"sources?saveSummary=true&group_ids={public_group.id}&savedBefore=2020-104-01T00:00:01.2412",
+        token=view_only_token_two_groups,
+    )
+    assert status == 400
+
+
 def test_sources_sorting(upload_data_token, view_only_token, public_group):
     obj_id = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())

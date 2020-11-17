@@ -288,6 +288,15 @@ twilio:
   sms_account_sid:
   sms_auth_token:
 
+smtp:
+  from_email:  # This is both the email used to authenticate with smtplib and the sender address
+  password:
+  host: smtp.gmail.com  # Default Gmail settings; modify as needed
+  port: 587  # Default Gmail settings; modify as needed
+
+# This value needs to be either "sendgrid" or "smtp" (without quotes)
+email_service:
+
 invitations:
   enabled: False  # If debug_login=True above, invite tokens won't be used during auth
   days_until_expiry: 3

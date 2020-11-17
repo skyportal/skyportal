@@ -25,7 +25,7 @@ const useStyles = makeStyles(() => ({
 
 const SourceRedshiftHistory = ({ redshiftHistory }) => {
   const classes = useStyles();
-  const { allUsers } = useSelector((state) => state.users);
+  const { users: allUsers } = useSelector((state) => state.users);
   const userIdToUsername = {};
 
   const [dialogOpen, setDialogOpen] = useState(false);

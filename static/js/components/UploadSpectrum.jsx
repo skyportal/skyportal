@@ -106,7 +106,7 @@ SpectrumPreview.propTypes = {
 const UploadSpectrumForm = ({ route }) => {
   const { parsed } = useSelector((state) => state.spectra);
   const groups = useSelector((state) => state.groups.all);
-  const users = useSelector((state) => state.users.allUsers);
+  const { users } = useSelector((state) => state.users);
   const instrumentList = useSelector(
     (state) => state.instruments.instrumentList
   );

@@ -10,6 +10,7 @@ from dateutil.parser import isoparse
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_
 import arrow
+from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 import functools
 import healpix_alchemy as ha
@@ -236,6 +237,44 @@ class SourceHandler(BaseHandler):
               Boolean indicating whether to only include requested/pending saves.
               Defaults to false.
           - in: query
+            name: savedBefore
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources that were saved before this UTC datetime.
+          - in: query
+            name: savedAfter
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources that were saved after this UTC datetime.
+          - in: query
+            name: saveSummary
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to only return the source save
+              information in the response (defaults to false). If true,
+              the response will contain a list of dicts with the following
+              schema under `response['data']['sources']`:
+              ```
+                  {
+                    "group_id": 2,
+                    "created_at": "2020-11-13T22:11:25.910271",
+                    "saved_by_id": 1,
+                    "saved_at": "2020-11-13T22:11:25.910271",
+                    "requested": false,
+                    "unsaved_at": null,
+                    "modified": "2020-11-13T22:11:25.910271",
+                    "obj_id": "16fil",
+                    "active": true,
+                    "unsaved_by_id": null
+                  }
+              ```
+          - in: query
             name: sortBy
             nullable: true
             schema:
@@ -289,8 +328,50 @@ class SourceHandler(BaseHandler):
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_requested = self.get_query_argument("includeRequested", False)
         requested_only = self.get_query_argument("pendingOnly", False)
+        saved_after = self.get_query_argument('savedAfter', None)
+        saved_before = self.get_query_argument('savedBefore', None)
+        save_summary = self.get_query_argument('saveSummary', False)
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "asc")
+
+        # These are just throwaway helper classes to help with deserialization
+        class UTCTZnaiveDateTime(fields.DateTime):
+            """
+            DateTime object that deserializes both timezone aware iso8601
+            strings and naive iso8601 strings into naive datetime objects
+            in utc
+
+            See discussion in https://github.com/Scille/umongo/issues/44#issuecomment-244407236
+            """
+
+            def _deserialize(self, value, attr, data, **kwargs):
+                value = super()._deserialize(value, attr, data, **kwargs)
+                if value and value.tzinfo:
+                    value = (value - value.utcoffset()).replace(tzinfo=None)
+                return value
+
+        class Validator(Schema):
+            saved_after = UTCTZnaiveDateTime(required=False, missing=None)
+            saved_before = UTCTZnaiveDateTime(required=False, missing=None)
+            save_summary = fields.Boolean()
+
+        validator_instance = Validator()
+        params_to_be_validated = {}
+        if saved_after is not None:
+            params_to_be_validated['saved_after'] = saved_after
+        if saved_before is not None:
+            params_to_be_validated['saved_before'] = saved_before
+        if save_summary is not None:
+            params_to_be_validated['save_summary'] = save_summary
+
+        try:
+            validated = validator_instance.load(params_to_be_validated)
+        except ValidationError as e:
+            return self.error(f'Error parsing query params: {e.args[0]}.')
+
+        saved_after = validated['saved_after']
+        saved_before = validated['saved_before']
+        save_summary = validated['save_summary']
 
         # parse the group ids:
         group_ids = self.get_query_argument('group_ids', None)
@@ -417,17 +498,26 @@ class SourceHandler(BaseHandler):
             query_options.append(
                 joinedload(Obj.photometry).joinedload(Photometry.instrument)
             )
-        q = (
-            DBSession()
-            .query(Obj)
-            .join(Source)
-            .filter(
-                Source.group_id.in_(
-                    user_accessible_group_ids
-                )  # only give sources the user has access to
+
+        if not save_summary:
+            q = (
+                DBSession()
+                .query(Obj)
+                .join(Source)
+                .filter(
+                    Source.group_id.in_(
+                        user_accessible_group_ids
+                    )  # only give sources the user has access to
+                )
+                .options(query_options)
             )
-            .options(query_options)
-        )
+        else:
+            q = (
+                DBSession()
+                .query(Source)
+                .join(Obj)
+                .filter(Source.group_id.in_(user_accessible_group_ids))
+            )
 
         if sourceID:
             q = q.filter(Obj.id.contains(sourceID.strip()))
@@ -453,6 +543,10 @@ class SourceHandler(BaseHandler):
         if end_date:
             end_date = arrow.get(end_date.strip())
             q = q.filter(Obj.last_detected <= end_date)
+        if saved_before:
+            q = q.filter(Source.saved_at <= saved_before)
+        if saved_after:
+            q = q.filter(Source.saved_at >= saved_after)
         if simbad_class:
             q = q.filter(
                 func.lower(Obj.altdata['simbad']['class'].astext)
@@ -521,74 +615,77 @@ class SourceHandler(BaseHandler):
         else:
             query_results = {"sources": q.all()}
 
-        source_list = []
-        for source in query_results["sources"]:
-            source_list.append(source.to_dict())
-            source_list[-1]["comments"] = sorted(
-                [s.to_dict() for s in source.get_comments_owned_by(self.current_user)],
-                key=lambda x: x["created_at"],
-                reverse=True,
-            )
-            for comment in source_list[-1]["comments"]:
-                comment["author"] = comment["author"].to_dict()
-                del comment["author"]["preferences"]
-            source_list[-1]["classifications"] = source.get_classifications_owned_by(
-                self.current_user
-            )
-            source_list[-1]["annotations"] = sorted(
-                source.get_annotations_owned_by(self.current_user),
-                key=lambda x: x.origin,
-            )
-            source_list[-1]["last_detected"] = source.last_detected
-            source_list[-1]["gal_lon"] = source.gal_lon_deg
-            source_list[-1]["gal_lat"] = source.gal_lat_deg
-            source_list[-1]["luminosity_distance"] = source.luminosity_distance
-            source_list[-1]["dm"] = source.dm
-            source_list[-1][
-                "angular_diameter_distance"
-            ] = source.angular_diameter_distance
-            groups_query = (
-                DBSession()
-                .query(Group)
-                .join(Source)
-                .filter(
-                    Source.obj_id == source_list[-1]["id"],
-                    Group.id.in_(user_accessible_group_ids),
+        if not save_summary:
+            source_list = []
+            for source in query_results["sources"]:
+                source_list.append(source.to_dict())
+                source_list[-1]["comments"] = sorted(
+                    [
+                        s.to_dict()
+                        for s in source.get_comments_owned_by(self.current_user)
+                    ],
+                    key=lambda x: x["created_at"],
+                    reverse=True,
                 )
-            )
-            groups_query = apply_active_or_requested_filtering(
-                groups_query, include_requested, requested_only
-            )
-            groups = groups_query.all()
-            source_list[-1]["groups"] = [g.to_dict() for g in groups]
-            for group in source_list[-1]["groups"]:
-                source_table_row = Source.query.filter(
-                    Source.obj_id == source.id, Source.group_id == group["id"]
-                ).first()
-                group["active"] = source_table_row.active
-                group["requested"] = source_table_row.requested
-                group["saved_at"] = source_table_row.saved_at
-                group["saved_by"] = (
-                    source_table_row.saved_by.to_dict()
-                    if source_table_row.saved_by is not None
-                    else None
+                for comment in source_list[-1]["comments"]:
+                    comment["author"] = comment["author"].to_dict()
+                    del comment["author"]["preferences"]
+                source_list[-1][
+                    "classifications"
+                ] = source.get_classifications_owned_by(self.current_user)
+                source_list[-1]["annotations"] = sorted(
+                    source.get_annotations_owned_by(self.current_user),
+                    key=lambda x: x.origin,
                 )
-
-            # add the date(s) this source was saved to each of these groups
-            for i, g in enumerate(source_list[-1]["groups"]):
-                saved_at = (
+                source_list[-1]["last_detected"] = source.last_detected
+                source_list[-1]["gal_lon"] = source.gal_lon_deg
+                source_list[-1]["gal_lat"] = source.gal_lat_deg
+                source_list[-1]["luminosity_distance"] = source.luminosity_distance
+                source_list[-1]["dm"] = source.dm
+                source_list[-1][
+                    "angular_diameter_distance"
+                ] = source.angular_diameter_distance
+                groups_query = (
                     DBSession()
-                    .query(Source.saved_at)
+                    .query(Group)
+                    .join(Source)
                     .filter(
                         Source.obj_id == source_list[-1]["id"],
-                        Source.group_id == g["id"],
+                        Group.id.in_(user_accessible_group_ids),
                     )
-                    .first()
-                    .saved_at
                 )
-                source_list[-1]["groups"][i]['saved_at'] = saved_at
+                groups_query = apply_active_or_requested_filtering(
+                    groups_query, include_requested, requested_only
+                )
+                groups = groups_query.all()
+                source_list[-1]["groups"] = [g.to_dict() for g in groups]
+                for group in source_list[-1]["groups"]:
+                    source_table_row = Source.query.filter(
+                        Source.obj_id == source.id, Source.group_id == group["id"]
+                    ).first()
+                    group["active"] = source_table_row.active
+                    group["requested"] = source_table_row.requested
+                    group["saved_at"] = source_table_row.saved_at
+                    group["saved_by"] = (
+                        source_table_row.saved_by.to_dict()
+                        if source_table_row.saved_by is not None
+                        else None
+                    )
 
-        query_results["sources"] = source_list
+                # add the date(s) this source was saved to each of these groups
+                for i, g in enumerate(source_list[-1]["groups"]):
+                    saved_at = (
+                        DBSession()
+                        .query(Source.saved_at)
+                        .filter(
+                            Source.obj_id == source_list[-1]["id"],
+                            Source.group_id == g["id"],
+                        )
+                        .first()
+                        .saved_at
+                    )
+                    source_list[-1]["groups"][i]['saved_at'] = saved_at
+            query_results["sources"] = source_list
 
         return self.success(data=query_results)
 

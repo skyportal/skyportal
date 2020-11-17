@@ -198,7 +198,7 @@ class AssignmentHandler(BaseHandler):
         data["requester_id"] = self.associated_user_object.id
 
         modok = (
-            "System admin" in self.current_user.permissions
+            self.current_user.is_system_admin
             or assignment.requester.username == self.current_user.username
         )
         if not modok:
@@ -243,7 +243,7 @@ class AssignmentHandler(BaseHandler):
         assignment = ClassicalAssignment.query.get(int(assignment_id))
         user = self.associated_user_object
         delok = (
-            "System admin" in user.permissions
+            self.current_user.is_system_admin
             or assignment.requester.username == user.username
         )
         if not delok:
