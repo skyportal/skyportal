@@ -244,6 +244,7 @@ def public_candidate_two_groups(
             obj=obj,
             filter=public_filter,
             passed_at=datetime.utcnow() - timedelta(seconds=np.random.randint(0, 100)),
+            uploader_id=user.id,
         )
     )
     DBSession.add(
