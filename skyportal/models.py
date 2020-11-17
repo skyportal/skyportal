@@ -406,6 +406,14 @@ class Obj(Base, ha.Point):
         doc="Internal key used for secure websocket messaging.",
     )
 
+    candidates = relationship(
+        'Candidate',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        order_by="Candidate.passed_at",
+        doc="Candidates associated with the object.",
+    )
     comments = relationship(
         'Comment',
         back_populates='obj',
@@ -722,21 +730,68 @@ class Filter(Base):
         back_populates="filters",
         doc="The Filter's Group.",
     )
+    candidates = relationship(
+        'Candidate',
+        back_populates='filter',
+        cascade='save-update, merge, refresh-expire, expunge',
+        order_by="Candidate.passed_at",
+        doc="Candidates that have passed the filter.",
+    )
 
 
-Candidate = join_model("candidates", Filter, Obj)
-Candidate.__doc__ = (
-    "An Obj that passed a Filter, becoming scannable on the " "Filter's scanning page."
-)
-Candidate.passed_at = sa.Column(
-    sa.DateTime,
-    nullable=False,
-    index=True,
-    doc="ISO UTC time when the Candidate passed the Filter last time.",
-)
+class Candidate(Base):
+    "An Obj that passed a Filter, becoming scannable on the Filter's scanning page."
+    obj_id = sa.Column(
+        sa.ForeignKey("objs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the Obj",
+    )
+    obj = relationship(
+        "Obj",
+        foreign_keys=[obj_id],
+        back_populates="candidates",
+        doc="The Obj that passed a filter",
+    )
+    filter_id = sa.Column(
+        sa.ForeignKey("filters.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the filter the candidate passed",
+    )
+    filter = relationship(
+        "Filter",
+        foreign_keys=[filter_id],
+        back_populates="candidates",
+        doc="The filter that the Candidate passed",
+    )
+    passed_at = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        index=True,
+        doc="ISO UTC time when the Candidate passed the Filter.",
+    )
+    passing_alert_id = sa.Column(
+        sa.BigInteger,
+        index=True,
+        doc="ID of the latest Stream alert that passed the Filter.",
+    )
+    uploader_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the user that posted the candidate",
+    )
 
-Candidate.passing_alert_id = sa.Column(
-    sa.BigInteger, doc="ID of the latest Stream alert that passed the Filter."
+
+Candidate.__table_args__ = (
+    sa.Index(
+        "candidates_main_index",
+        Candidate.obj_id,
+        Candidate.filter_id,
+        Candidate.passed_at,
+        unique=True,
+    ),
 )
 
 
