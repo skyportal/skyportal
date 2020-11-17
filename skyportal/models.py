@@ -526,7 +526,7 @@ class Obj(Base, ha.Point):
     def desi_dr8_url(self):
         """Construct URL for public DESI DR8 cutout."""
         return (
-            f"http://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
+            f"https://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
             f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz"
         )
 
