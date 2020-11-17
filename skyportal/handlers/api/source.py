@@ -26,6 +26,7 @@ from ...models import (
     Source,
     Token,
     Group,
+    GroupPhotometry,
     FollowupRequest,
     ClassicalAssignment,
     ObservingRun,
@@ -507,12 +508,9 @@ class SourceHandler(BaseHandler):
             q = (
                 DBSession()
                 .query(Obj)
+                .join(Photometry)
                 .join(Source)
-                .filter(
-                    Source.group_id.in_(
-                        user_accessible_group_ids
-                    )  # only give sources the user has access to
-                )
+                .filter(Photometry.groups.any(Group.id.in_(user_accessible_group_ids)))
                 .options(query_options)
             )
         else:
@@ -520,7 +518,8 @@ class SourceHandler(BaseHandler):
                 DBSession()
                 .query(Source)
                 .join(Obj)
-                .filter(Source.group_id.in_(user_accessible_group_ids))
+                .join(Photometry)
+                .filter(Photometry.groups.any(Group.id.in_(user_accessible_group_ids)))
             )
 
         if sourceID:
@@ -663,10 +662,13 @@ class SourceHandler(BaseHandler):
                 groups_query = (
                     DBSession()
                     .query(Group)
+                    .join(GroupPhotometry)
+                    .join(Photometry)
                     .join(Source)
+                    .join(Obj)
+                    .filter(Source.obj_id == source_list[-1]["id"])
                     .filter(
-                        Source.obj_id == source_list[-1]["id"],
-                        Group.id.in_(user_accessible_group_ids),
+                        Photometry.groups.any(Group.id.in_(user_accessible_group_ids))
                     )
                 )
                 groups_query = apply_active_or_requested_filtering(
