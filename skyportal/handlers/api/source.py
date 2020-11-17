@@ -39,7 +39,7 @@ from ...utils import (
     get_finding_chart,
     _calculate_best_position_for_offset_stars,
 )
-from .candidate import grab_query_results_page, update_redshift_history_if_relevant
+from .candidate import grab_query_results, update_redshift_history_if_relevant
 
 
 SOURCES_PER_PAGE = 100
@@ -574,6 +574,7 @@ class SourceHandler(BaseHandler):
                     if sort_order == "asc"
                     else [Obj.ra.desc().nullslast()]
                 )
+                print(sort_by, sort_order)
             elif sort_by == "dec":
                 order_by = (
                     [Obj.dec.nullslast()]
@@ -599,7 +600,7 @@ class SourceHandler(BaseHandler):
             except ValueError:
                 return self.error("Invalid page number value.")
             try:
-                query_results = grab_query_results_page(
+                query_results = grab_query_results(
                     q,
                     total_matches,
                     page,
@@ -613,7 +614,15 @@ class SourceHandler(BaseHandler):
                     return self.error("Page number out of range.")
                 raise
         else:
-            query_results = {"sources": q.all()}
+            query_results = grab_query_results(
+                q,
+                total_matches,
+                None,
+                None,
+                "sources",
+                order_by=order_by,
+                include_photometry=include_photometry,
+            )
 
         if not save_summary:
             source_list = []

@@ -505,7 +505,7 @@ class CandidateHandler(BaseHandler):
                 Obj.id,
             ]
         try:
-            query_results = grab_query_results_page(
+            query_results = grab_query_results(
                 q,
                 total_matches,
                 page,
@@ -789,7 +789,7 @@ class CandidateHandler(BaseHandler):
     # candidates will automatically be deleted by cron job.
 
 
-def grab_query_results_page(
+def grab_query_results(
     q,
     total_matches,
     page,
@@ -845,27 +845,36 @@ def grab_query_results_page(
         info["totalMatches"] = int(total_matches)
     else:
         info["totalMatches"] = ordered_ids.count()
-    if (
-        (
-            (
-                info["totalMatches"] < (page - 1) * n_items_per_page
-                and info["totalMatches"] % n_items_per_page != 0
-            )
-            or (
-                info["totalMatches"] < page * n_items_per_page
-                and info["totalMatches"] % n_items_per_page == 0
-            )
-            and info["totalMatches"] != 0
-        )
-        or page <= 0
-        or (info["totalMatches"] == 0 and page != 1)
-    ):
-        raise ValueError("Page number out of range.")
 
-    # Now bring in the full Obj info for the candidates
-    page_ids = (
-        ordered_ids.limit(n_items_per_page).offset((page - 1) * n_items_per_page).all()
-    )
+    if page:
+        if (
+            (
+                (
+                    info["totalMatches"] < (page - 1) * n_items_per_page
+                    and info["totalMatches"] % n_items_per_page != 0
+                )
+                or (
+                    info["totalMatches"] < page * n_items_per_page
+                    and info["totalMatches"] % n_items_per_page == 0
+                )
+                and info["totalMatches"] != 0
+            )
+            or page <= 0
+            or (info["totalMatches"] == 0 and page != 1)
+        ):
+            raise ValueError("Page number out of range.")
+
+        # Now bring in the full Obj info for the candidates
+        page_ids = (
+            ordered_ids.limit(n_items_per_page)
+            .offset((page - 1) * n_items_per_page)
+            .all()
+        )
+        info["pageNumber"] = page
+        info["numPerPage"] = n_items_per_page
+    else:
+        page_ids = ordered_ids.all()
+
     items = []
     query_options = [joinedload(Obj.thumbnails)]
     if include_photometry:
@@ -875,6 +884,4 @@ def grab_query_results_page(
     for item_id in page_ids:
         items.append(Obj.query.options(query_options).get(item_id))
     info[items_name] = items
-    info["pageNumber"] = page
-    info["numPerPage"] = n_items_per_page
     return info

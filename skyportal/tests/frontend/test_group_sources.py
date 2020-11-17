@@ -210,7 +210,7 @@ def test_sources_sorting(
             'id': f'{obj_id}',
             'ra': 234.22,
             'dec': -22.33,
-            'redshift': 0.153,
+            'redshift': 0.0,
             'altdata': {'simbad': {'class': 'RRLyr'}},
             'transient': False,
             'ra_dis': 2.3,
@@ -246,16 +246,6 @@ def test_sources_sorting(
     # Wait for the group name appears
     driver.wait_for_xpath(f"//*[text()[contains(., '{public_group.name}')]]")
 
-    # By default, the first one posted should be the first row
-    # Col 0, Row 0 should be the first sources's id (MuiDataTableBodyCell-0-0)
-    driver.wait_for_xpath(
-        f'//td[contains(@data-testid, "MuiDataTableBodyCell-0-0")][.//a[text()="{obj_id}"]]'
-    )
-    # Col 0, Row 1 should be the second sources's id (MuiDataTableBodyCell-0-1)
-    driver.wait_for_xpath(
-        f'//td[contains(@data-testid, "MuiDataTableBodyCell-0-1")][.//a[text()="{obj_id2}"]]'
-    )
-
     # Now sort by date saved
     driver.click_xpath("//button[@data-testid='sortButton']")
     driver.click_xpath("//div[@id='root_column']")
@@ -271,4 +261,21 @@ def test_sources_sorting(
     # Col 0, Row 1 should be the first sources's id (MuiDataTableBodyCell-0-1)
     driver.wait_for_xpath(
         f'//td[contains(@data-testid, "MuiDataTableBodyCell-0-1")][.//a[text()="{obj_id}"]]'
+    )
+
+    # Now sort by redshift ascending, which would put obj_id first
+    driver.click_xpath("//button[@data-testid='sortButton']")
+    driver.click_xpath("//div[@id='root_column']")
+    driver.click_xpath("//li[@data-value='redshift']", scroll_parent=True)
+    driver.click_xpath("//input[@value='true']", wait_clickable=False)
+    driver.click_xpath("//span[text()='Submit']")
+
+    # Now, the first one posted should be the second row
+    # Col 0, Row 0 should be the second sources's id (MuiDataTableBodyCell-0-0)
+    driver.wait_for_xpath(
+        f'//td[contains(@data-testid, "MuiDataTableBodyCell-0-0")][.//a[text()="{obj_id}"]]'
+    )
+    # Col 0, Row 1 should be the first sources's id (MuiDataTableBodyCell-0-1)
+    driver.wait_for_xpath(
+        f'//td[contains(@data-testid, "MuiDataTableBodyCell-0-1")][.//a[text()="{obj_id2}"]]'
     )
