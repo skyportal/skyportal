@@ -2851,11 +2851,12 @@ def send_source_notification(mapper, connection, target):
     if target.additional_notes != "" and target.additional_notes is not None:
         html_content += f'<br /><br />Additional notes: {target.additional_notes}'
 
-    send_email(
-        recipients=recipients,
-        subject=f'{cfg["app.title"]}: Source Alert',
-        body=html_content,
-    )
+    if len(recipients) > 0:
+        send_email(
+            recipients=recipients,
+            subject=f'{cfg["app.title"]}: Source Alert',
+            body=html_content,
+        )
 
 
 @event.listens_for(User, 'after_insert')
