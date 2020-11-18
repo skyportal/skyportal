@@ -617,6 +617,8 @@ class SourceHandler(BaseHandler):
                 if "Page number out of range" in str(e):
                     return self.error("Page number out of range.")
                 raise
+        elif save_summary:
+            query_results = {"sources": q.all()}
         else:
             query_results = grab_query_results(
                 q,
