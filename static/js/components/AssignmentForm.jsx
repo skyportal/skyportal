@@ -104,6 +104,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
               as={Select}
               labelId="assignmentSelectLabel"
               name="run_id"
+              data-testid="assignmentSelect"
               control={control}
               rules={{ required: true }}
               defaultValue={
