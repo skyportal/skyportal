@@ -26,12 +26,12 @@ class LTRequest:
     """An XML structure for LT requests."""
 
     def _build_prolog(self):
-        """Payload for all LT queue requests.
+        """Payload outline for all LT queue requests.
 
         Returns
         ----------
-        payload:
-            payload for LT requests.
+        payload: etree.Element
+            payload outline for LT requests.
         """
 
         namespaces = {
@@ -64,13 +64,13 @@ class LTRequest:
 
         Returns
         ----------
-        payload:
-            payload for LT requests.
+        payload: etree.Element
+            payload header for request.
         """
 
         altdata = request.allocation.load_altdata()
 
-        project = etree.Element('Project', ProjectID=request.payload["LT_proposalID"])
+        project = etree.Element('Project', ProjectID=altdata["LT_proposalID"])
         contact = etree.SubElement(project, 'Contact')
 
         etree.SubElement(contact, 'Username').text = altdata["username"]
@@ -84,12 +84,12 @@ class LTRequest:
         ----------
 
         request: skyportal.models.FollowupRequest
-            The request to add to the queue and the SkyPortal database.
+            The request to send to LT.
 
         Returns
         ----------
-        constraints:
-            constraints list for LT requests.
+        constraints: list of etree.Element
+            constraints (airmass, sky, seeing, photometry, date) for request.
         """
 
         airmass_const = etree.Element(
@@ -133,8 +133,8 @@ class LTRequest:
 
         Returns
         ----------
-        target:
-            target for LT requests.
+        target: etree.Element
+            request xml target location.
         """
 
         target = etree.Element('Target', name=request.obj.id)
@@ -154,142 +154,75 @@ class LTRequest:
         return target
 
 
-class IOORequest(LTRequest):
+class IOOIOIRequest(LTRequest):
 
     """An XML structure for LT IOO requests."""
 
-    def _build_inst_schedule(self, payload, request):
-        """Payload header for LT IOO queue requests.
+    def _build_inst_schedule(self, instname, payload, request):
+        """Payload header for LT IOO/IOI queue requests.
 
         Parameters
         ----------
 
-        payload:
-            payload for LT requests.
+        instname: str
+            IO:O or IO:I.
+
+        payload: etree.Element
+            payload for requests.
 
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
 
         Returns
         ----------
-        payload:
+        payload: etree.Element
             payload for LT requests.
         """
 
-        exposure_type = request.payload["exposure_type"]
-        exposure_type_split = exposure_type.split("x")
-        exp_count = int(exposure_type_split[0])
-        exp_time = int(exposure_type_split[1][:-1])
-        for filt in request.payload["observation_type"]:
-            payload.append(self._build_IOO_schedule(request, filt, exp_time, exp_count))
+        exp_time = request.payload["exposure_time"]
+        exp_count = int(request.payload["exposure_counts"])
+        for filt in request.payload['observation_choices']:
+            payload.append(
+                self._build_schedule(instname, request, filt, exp_time, exp_count)
+            )
 
-    def _build_IOO_schedule(self, request, filt, exp_time, exp_count):
+    def _build_schedule(self, instname, request, filt, exp_time, exp_count):
         """Payload schedule for LT IOO queue requests.
 
         Parameters
         ----------
 
-        payload:
+        instname: str
+            IO:O or IO:I.
+
+        payload: etree.Element
             payload for LT requests.
 
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
 
-        filt:
-            Exposure filter
+        filt: str
+            Exposure filter [u, g, r, i, z, H]
 
-        exp_time:
-            Exposure time
+        exp_time: float
+            Exposure time [s]
 
-        exp_count:
+        exp_count: int
             Number of exposures
 
         Returns
         ----------
-        schedule:
+        schedule: etree.Element
             payload schedule for LT requests.
         """
 
         schedule = etree.Element('Schedule')
-        device = etree.SubElement(schedule, 'Device', name="IO:O", type="camera")
-        etree.SubElement(device, 'SpectralRegion').text = 'optical'
-        setup = etree.SubElement(device, 'Setup')
-        etree.SubElement(setup, 'Filter', type=filt.upper())
-        detector = etree.SubElement(setup, 'Detector')
-        binning = etree.SubElement(detector, 'Binning')
-        etree.SubElement(binning, 'X', units='pixels').text = request.payload[
-            "binning"
-        ].split('x')[0]
-        etree.SubElement(binning, 'Y', units='pixels').text = request.payload[
-            "binning"
-        ].split('x')[1]
-        exposure = etree.SubElement(schedule, 'Exposure', count=str(exp_count))
-        etree.SubElement(exposure, 'Value', units='seconds').text = str(exp_time)
-        schedule.append(self._build_target(request))
-        for const in self._build_constraints(request):
-            schedule.append(const)
-        return schedule
+        device = etree.SubElement(schedule, 'Device', name=instname, type="camera")
+        if instname == "IO:O":
+            etree.SubElement(device, 'SpectralRegion').text = 'optical'
+        elif instname == "IO:I":
+            etree.SubElement(device, 'SpectralRegion').text = 'infrared'
 
-
-class IOIRequest(LTRequest):
-
-    """An XML structure for LT IOI requests."""
-
-    def _build_inst_schedule(self, payload, request):
-        """Payload header for LT IOO queue requests.
-
-        Parameters
-        ----------
-
-        payload:
-            payload for LT requests.
-
-        request: skyportal.models.FollowupRequest
-            The request to add to the queue and the SkyPortal database.
-
-        Returns
-        ----------
-        payload:
-            payload for LT requests.
-        """
-
-        exposure_type = request.payload["exposure_type"]
-        exposure_type_split = exposure_type.split("x")
-        exp_count = int(exposure_type_split[0])
-        exp_time = int(exposure_type_split[1][:-1])
-        for filt in request.payload["observation_type"]:
-            payload.append(self._build_IOI_schedule(request, filt, exp_time, exp_count))
-
-    def _build_IOI_schedule(self, request, filt, exp_time, exp_count):
-        """Payload schedule for LT IOI queue requests.
-
-        Parameters
-        ----------
-
-        payload:
-            payload for LT requests.
-
-        request: skyportal.models.FollowupRequest
-            The request to add to the queue and the SkyPortal database.
-
-        filt:
-            Exposure filter
-
-        exp_time:
-            Exposure time
-
-        exp_count:
-            Number of exposures
-
-        Returns
-        ----------
-        schedule:
-            payload schedule for LT requests.
-        """
-
-        schedule = etree.Element('Schedule')
-        device = etree.SubElement(schedule, 'Device', name="IO:I", type="camera")
-        etree.SubElement(device, 'SpectralRegion').text = 'optical'
         setup = etree.SubElement(device, 'Setup')
         etree.SubElement(setup, 'Filter', type=filt.upper())
         detector = etree.SubElement(setup, 'Detector')
@@ -318,16 +251,16 @@ class SPRATRequest(LTRequest):
         Parameters
         ----------
 
-        payload:
-            payload for LT requests.
+        payload: etree.Element
+            payload for requests.
 
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
 
         Returns
         ----------
-        payload:
-            payload for LT requests.
+        payload: etree.Element
+            payload for requests.
         """
 
         self._build_SPRAT_schedule(payload, request)
@@ -338,8 +271,8 @@ class SPRATRequest(LTRequest):
         Parameters
         ----------
 
-        payload:
-            payload for LT requests.
+        payload: etree.Element
+            payload for requests.
 
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
@@ -347,14 +280,12 @@ class SPRATRequest(LTRequest):
         Returns
         ----------
         schedule:
-            payload schedule for LT requests.
+            payload schedule for requests.
         """
 
         grating = request.payload["observation_type"]
-        exposure_type = request.payload["exposure_type"]
-        exposure_type_split = exposure_type.split("x")
-        exp_count = int(exposure_type_split[0])
-        exp_time = int(exposure_type_split[1][:-1])
+        exp_time = request.payload["exposure_time"]
+        exp_count = int(request.payload["exposure_counts"])
 
         schedule = etree.Element('Schedule')
         device = etree.SubElement(schedule, 'Device', name="Sprat", type="spectrograph")
@@ -404,7 +335,7 @@ class LTAPI(FollowUpAPI):
 
         altdata = request.allocation.load_altdata()
         if not altdata:
-            return
+            raise ValueError('Missing allocation information.')
 
         content = req.transactions[0].response["response"]
         response_rtml = etree.fromstring(content)
@@ -414,9 +345,7 @@ class LTAPI(FollowUpAPI):
             'Username': altdata["username"],
             'Password': altdata["password"],
         }
-        url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
-            'http', cfg['app.lt_host'], cfg['app.lt_port']
-        )
+        url = f"http://{cfg['app.lt_host']}:{cfg['app.lt_port']}/node_agent2/node_agent?wsdl"
 
         namespaces = {
             'xsi': LT_XSI_NS,
@@ -431,7 +360,7 @@ class LTAPI(FollowUpAPI):
             nsmap=namespaces,
         )
         project = etree.SubElement(
-            cancel_payload, 'Project', ProjectID=request.payload["LT_proposalID"]
+            cancel_payload, 'Project', ProjectID=altdata["LT_proposalID"]
         )
         contact = etree.SubElement(project, 'Contact')
         etree.SubElement(contact, 'Username').text = altdata["username"]
@@ -480,20 +409,17 @@ class IOOAPI(LTAPI):
 
         altdata = request.allocation.load_altdata()
         if not altdata:
-            return
-
-        ltreq = IOORequest()
+            raise ValueError('Missing allocation information.')
+        ltreq = IOOIOIRequest()
         observation_payload = ltreq._build_prolog()
         ltreq._build_project(observation_payload, request)
-        ltreq._build_inst_schedule(observation_payload, request)
+        ltreq._build_inst_schedule("IO:O", observation_payload, request)
 
         headers = {
             'Username': altdata["username"],
             'Password': altdata["password"],
         }
-        url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
-            'http', cfg['app.lt_host'], cfg['app.lt_port']
-        )
+        url = f"http://{cfg['app.lt_host']}:{cfg['app.lt_port']}/node_agent2/node_agent?wsdl"
         client = Client(url=url, headers=headers)
         full_payload = etree.tostring(
             observation_payload, encoding="unicode", pretty_print=True
@@ -508,7 +434,8 @@ class IOOAPI(LTAPI):
         if mode == 'confirm':
             request.status = 'submitted'
         else:
-            request.status = f'rejected: {mode}'
+            error = list(response_rtml.iter('{http://www.rtml.org/v3.1a}Error'))[0].text
+            request.status = f'rejected: {error}'
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request_xml(full_payload),
@@ -519,24 +446,26 @@ class IOOAPI(LTAPI):
 
         DBSession().add(transaction)
 
-    _observation_types = ['r', 'gr', 'gri', 'griz', 'ugriz']
-    _exposure_types = ['1x120s', '2x150s']
-
     form_json_schema = {
         "type": "object",
         "properties": {
-            "observation_type": {
-                "type": "string",
-                "enum": _observation_types,
-                "default": "r",
+            "observation_choices": {
+                "type": "array",
+                "title": "Desired Observations",
+                "items": {"type": "string", "enum": ["u", "g", "r", "i", "z"]},
+                "uniqueItems": True,
+                "minItems": 1,
             },
-            "exposure_type": {
-                "type": "string",
-                "enum": _exposure_types,
-                "default": '1x120s',
+            "exposure_time": {
+                "title": "Exposure Time [s]",
+                "type": "number",
+                "default": 300.0,
             },
-            "priority": {"type": "string", "enum": ["1", "5"], "default": "1"},
-            "LT_proposalID": {"type": "string"},
+            "exposure_counts": {
+                "title": "Exposure Counts",
+                "type": "number",
+                "default": 1,
+            },
             "start_date": {
                 "type": "string",
                 "format": "date",
@@ -553,36 +482,55 @@ class IOOAPI(LTAPI):
                 "title": "Maximum Airmass (1-3)",
                 "type": "number",
                 "default": 2.0,
+                "minimum": 1,
+                "maximum": 3,
             },
             "maximum_seeing": {
                 "title": "Maximum Seeing [arcsec] (0-5)",
                 "type": "number",
                 "default": 1.2,
+                "minimum": 0,
+                "maximum": 5,
             },
             "sky_brightness": {
                 "title": "Maximum allowable Sky Brightness, Dark + X magnitudes [arcsec] (0-5)",
                 "type": "number",
                 "default": 2.0,
+                "minimum": 0,
+                "maximum": 5,
             },
             "photometric": {
                 "title": "Does this observation require photometric conditions?",
                 "type": "boolean",
             },
             "binning": {"type": "string", "enum": ["1x1", "2x2"], "default": "1x1"},
+            "priority": {
+                "type": "string",
+                "enum": ["1", "2", "3", "4", "5"],
+                "default": "1",
+                "title": "Priority",
+            },
         },
         "required": [
-            "observation_type",
-            "exposure_type",
-            "priority",
+            "observation_choices",
+            "exposure_time",
+            "exposure_counts",
             "start_date",
             "end_date",
             "maximum_airmass",
             "maximum_seeing",
             "binning",
+            "priority",
         ],
     }
 
-    ui_json_schema = {}
+    ui_json_schema = {
+        "observation_choices": {"ui:widget": "checkboxes"},
+        "maximum_airmass": {"ui:widget": "range"},
+        "maximum_seeing": {"ui:widget": "range"},
+        "sky_brightness": {"ui:widget": "range"},
+    }
+    ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
 
 
 class IOIAPI(LTAPI):
@@ -605,20 +553,18 @@ class IOIAPI(LTAPI):
 
         altdata = request.allocation.load_altdata()
         if not altdata:
-            return
+            raise ValueError('Missing allocation information.')
 
-        ltreq = IOIRequest()
+        ltreq = IOOIOIRequest()
         observation_payload = ltreq._build_prolog()
         ltreq._build_project(observation_payload, request)
-        ltreq._build_inst_schedule(observation_payload, request)
+        ltreq._build_inst_schedule("IO:I", observation_payload, request)
 
         headers = {
             'Username': altdata["username"],
             'Password': altdata["password"],
         }
-        url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
-            'http', cfg['app.lt_host'], cfg['app.lt_port']
-        )
+        url = f"http://{cfg['app.lt_host']}:{cfg['app.lt_port']}/node_agent2/node_agent?wsdl"
         client = Client(url=url, headers=headers)
         full_payload = etree.tostring(
             observation_payload, encoding="unicode", pretty_print=True
@@ -633,7 +579,8 @@ class IOIAPI(LTAPI):
         if mode == 'confirm':
             request.status = 'submitted'
         else:
-            request.status = f'rejected: {mode}'
+            error = list(response_rtml.iter('{http://www.rtml.org/v3.1a}Error'))[0].text
+            request.status = f'rejected: {error}'
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request_xml(full_payload),
@@ -644,25 +591,26 @@ class IOIAPI(LTAPI):
 
         DBSession().add(transaction)
 
-    _instrument_configs = {}
-    _observation_types = ['H']
-    _exposure_types = ['1x120s', '2x150s']
-
     form_json_schema = {
         "type": "object",
         "properties": {
-            "observation_type": {
-                "type": "string",
-                "enum": _observation_types,
-                "default": "H",
+            "observation_choices": {
+                "type": "array",
+                "title": "Desired Observations",
+                "items": {"type": "string", "enum": ["H"]},
+                "uniqueItems": True,
+                "minItems": 1,
             },
-            "exposure_type": {
-                "type": "string",
-                "enum": _exposure_types,
-                "default": '1x120s',
+            "exposure_time": {
+                "title": "Exposure Time [s]",
+                "type": "number",
+                "default": 300.0,
             },
-            "priority": {"type": "string", "enum": ["1", "5"], "default": "1"},
-            "LT_proposalID": {"type": "string"},
+            "exposure_counts": {
+                "title": "Exposure Counts",
+                "type": "number",
+                "default": 1,
+            },
             "start_date": {
                 "type": "string",
                 "format": "date",
@@ -679,36 +627,55 @@ class IOIAPI(LTAPI):
                 "title": "Maximum Airmass (1-3)",
                 "type": "number",
                 "default": 2.0,
+                "minimum": 1,
+                "maximum": 3,
             },
             "maximum_seeing": {
                 "title": "Maximum Seeing [arcsec] (0-5)",
                 "type": "number",
                 "default": 1.2,
+                "minimum": 0,
+                "maximum": 5,
             },
             "sky_brightness": {
                 "title": "Maximum allowable Sky Brightness, Dark + X magnitudes [arcsec] (0-5)",
                 "type": "number",
                 "default": 2.0,
+                "minimum": 0,
+                "maximum": 5,
             },
             "photometric": {
                 "title": "Does this observation require photometric conditions?",
                 "type": "boolean",
             },
             "binning": {"type": "string", "enum": ["1x1", "2x2"], "default": "1x1"},
+            "priority": {
+                "type": "string",
+                "enum": ["1", "2", "3", "4", "5"],
+                "default": "1",
+                "title": "Priority",
+            },
         },
         "required": [
-            "observation_type",
-            "exposure_type",
-            "priority",
+            "observation_choices",
+            "exposure_time",
+            "exposure_counts",
             "start_date",
             "end_date",
             "maximum_airmass",
             "maximum_seeing",
             "binning",
+            "priority",
         ],
     }
 
-    ui_json_schema = {}
+    ui_json_schema = {
+        "observation_choices": {"ui:widget": "checkboxes"},
+        "maximum_airmass": {"ui:widget": "range"},
+        "maximum_seeing": {"ui:widget": "range"},
+        "sky_brightness": {"ui:widget": "range"},
+    }
+    ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
 
 
 class SPRATAPI(LTAPI):
@@ -731,7 +698,7 @@ class SPRATAPI(LTAPI):
 
         altdata = request.allocation.load_altdata()
         if not altdata:
-            return
+            raise ValueError('Missing allocation information.')
 
         ltreq = SPRATRequest()
         observation_payload = ltreq._build_prolog()
@@ -742,9 +709,7 @@ class SPRATAPI(LTAPI):
             'Username': altdata["username"],
             'Password': altdata["password"],
         }
-        url = '{0}://{1}:{2}/node_agent2/node_agent?wsdl'.format(
-            'http', cfg['app.lt_host'], cfg['app.lt_port']
-        )
+        url = f"http://{cfg['app.lt_host']}:{cfg['app.lt_port']}/node_agent2/node_agent?wsdl"
         client = Client(url=url, headers=headers)
         full_payload = etree.tostring(
             observation_payload, encoding="unicode", pretty_print=True
@@ -759,7 +724,8 @@ class SPRATAPI(LTAPI):
         if mode == 'confirm':
             request.status = 'submitted'
         else:
-            request.status = f'rejected: {mode}'
+            error = list(response_rtml.iter('{http://www.rtml.org/v3.1a}Error'))[0].text
+            request.status = f'rejected: {error}'
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request_xml(full_payload),
@@ -770,44 +736,24 @@ class SPRATAPI(LTAPI):
 
         DBSession().add(transaction)
 
-    _instrument_configs = {}
-
-    _observation_types = ['blue', 'red']
-    _exposure_types = {
-        'blue': ['1x300s', '2x300s', '1x600s', '2x600s'],
-        'red': ['1x300s', '2x300s'],
-    }
-
-    _instrument_configs["observation"] = _observation_types
-    _instrument_configs["exposure"] = _exposure_types
-
-    _dependencies = {}
-
-    _dependencies["observation_type"] = {}
-    _dependencies["observation_type"]["oneOf"] = []
-
-    for _observation_type in _instrument_configs["observation"]:
-        oneOf = {
-            "properties": {
-                "observation_type": {"enum": [_observation_type]},
-                "exposure_type": {
-                    "enum": _instrument_configs["exposure"][_observation_type]
-                },
-            },
-            "required": ["exposure_type"],
-        }
-        _dependencies["observation_type"]["oneOf"].append(oneOf)
-
     form_json_schema = {
         "type": "object",
         "properties": {
             "observation_type": {
                 "type": "string",
-                "enum": _observation_types,
+                "enum": ["blue", "red"],
                 "default": "blue",
             },
-            "priority": {"type": "string", "enum": ["1", "5"], "default": "1"},
-            "LT_proposalID": {"type": "string"},
+            "exposure_time": {
+                "title": "Exposure Time [s]",
+                "type": "number",
+                "default": 300.0,
+            },
+            "exposure_counts": {
+                "title": "Exposure Counts",
+                "type": "number",
+                "default": 1,
+            },
             "start_date": {
                 "type": "string",
                 "format": "date",
@@ -824,31 +770,47 @@ class SPRATAPI(LTAPI):
                 "title": "Maximum Airmass (1-3)",
                 "type": "number",
                 "default": 2.0,
+                "minimum": 1,
+                "maximum": 3,
             },
             "maximum_seeing": {
                 "title": "Maximum Seeing [arcsec] (0-5)",
                 "type": "number",
                 "default": 1.2,
+                "minimum": 0,
+                "maximum": 5,
             },
             "sky_brightness": {
                 "title": "Maximum allowable Sky Brightness, Dark + X magnitudes [arcsec] (0-5)",
                 "type": "number",
                 "default": 2.0,
+                "minimum": 0,
+                "maximum": 5,
             },
             "photometric": {
                 "title": "Does this observation require photometric conditions?",
                 "type": "boolean",
             },
+            "priority": {
+                "type": "string",
+                "enum": ["1", "2", "3", "4", "5"],
+                "default": "1",
+                "title": "Priority",
+            },
         },
         "required": [
             "observation_type",
-            "priority",
             "start_date",
             "end_date",
             "maximum_airmass",
             "maximum_seeing",
+            "priority",
         ],
-        "dependencies": _dependencies,
     }
 
+    ui_json_schema = {
+        "maximum_airmass": {"ui:widget": "range"},
+        "maximum_seeing": {"ui:widget": "range"},
+        "sky_brightness": {"ui:widget": "range"},
+    }
     ui_json_schema = {}

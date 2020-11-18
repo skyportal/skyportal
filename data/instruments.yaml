@@ -150,6 +150,10 @@
   telescope_id: =Magellan_Baade
   type: spectrograph
 - band: optical
+  name: Frodospec
+  telescope_id: =LT
+  type: spectrograph
+- band: optical
   name: IOO
   telescope_id: =LT
   type: imager
