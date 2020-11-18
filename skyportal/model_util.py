@@ -1,6 +1,6 @@
 from social_tornado.models import TornadoStorage
 from skyportal.models import DBSession, ACL, Role, User, Group, Token
-from skyportal.enum_types import LISTENER_CLASSES
+from skyportal.enum_types import LISTENER_CLASSES, sqla_enum_types
 from baselayer.app.env import load_env
 
 all_acl_ids = [
@@ -64,6 +64,13 @@ def add_user(username, roles=[], auth=False):
     DBSession().commit()
 
     return User.query.filter(User.username == username).first()
+
+
+def refresh_enums():
+    for type in sqla_enum_types:
+        for key in type.enums:
+            DBSession().execute(f'ALTER TYPE {type.name} ADD VALUE IF NOT EXISTS {key}')
+    DBSession().commit()
 
 
 def make_super_user(username):

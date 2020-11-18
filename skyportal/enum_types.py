@@ -55,6 +55,14 @@ followup_priorities = sa.Enum(
     *FOLLOWUP_PRIORITIES, name='followup_priorities', validate_strings=True
 )
 
+sqla_enum_types = [
+    allowed_magsystems,
+    allowed_bandpasses,
+    thumbnail_types,
+    instrument_types,
+    followup_priorities,
+]
+
 api_classnames = sa.Enum(
     *[
         k

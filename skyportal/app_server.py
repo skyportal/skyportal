@@ -213,6 +213,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
     app = tornado.web.Application(handlers, **settings)
     models.init_db(**cfg['database'])
     baselayer_model_util.create_tables()
+    model_util.refresh_enums()
     model_util.setup_permissions()
     app.cfg = cfg
 
