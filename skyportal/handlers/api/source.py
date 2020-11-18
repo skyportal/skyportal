@@ -433,8 +433,12 @@ class SourceHandler(BaseHandler):
             source_info["angular_diameter_distance"] = s.angular_diameter_distance
 
             source_info["followup_requests"] = [
-                f for f in source_info['followup_requests'] if f.status != 'deleted'
+                f for f in s.followup_requests if f.status != 'deleted'
             ]
+            if include_photometry:
+                source_info["photometry"] = Obj.get_photometry_owned_by_user(
+                    obj_id, self.current_user
+                )
             query = (
                 DBSession()
                 .query(Group)
