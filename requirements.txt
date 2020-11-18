@@ -21,7 +21,7 @@ marshmallow>=3.4.0
 marshmallow-sqlalchemy>=0.21.0
 marshmallow-enum>=1.5.1
 Pillow>=6
-sncosmo>=2.1.0
+sncosmo==2.3.0
 tdtax>=0.1.2
 healpix-alchemy>=0.1.2
 jsonschema
