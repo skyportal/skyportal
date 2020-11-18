@@ -30,6 +30,9 @@ def send_email(recipients, subject, body):
         msg["To"] = ", ".join(recipients)
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "html"))
-        smtp_server.send_message(msg)
+        try:
+            smtp_server.send_message(msg)
+        finally:
+            smtp_server.quit()
     else:
         raise Exception("Invalid email service; update config.yaml")
