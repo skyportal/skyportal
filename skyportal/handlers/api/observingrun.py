@@ -1,3 +1,4 @@
+import numpy as np
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
@@ -156,8 +157,8 @@ class ObservingRunHandler(BaseHandler):
                 set_times = run.set_time(targets).isot
 
                 for d, rt, st in zip(data["assignments"], rise_times, set_times):
-                    d["rise_time_utc"] = rt
-                    d["set_time_utc"] = st
+                    d["rise_time_utc"] = rt if rt is not np.ma.masked else ''
+                    d["set_time_utc"] = st if st is not np.ma.masked else ''
 
             return self.success(data=data)
 
