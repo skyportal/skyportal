@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import Paper from "@material-ui/core/Paper";
@@ -61,27 +61,42 @@ const SourceList = () => {
     (state) => state.dbInfo.source_table_empty
   );
 
+  const [rowsPerPage, setRowsPerPage] = useState(100);
+
   useEffect(() => {
     dispatch(sourcesActions.fetchSources());
   }, [dispatch]);
 
-  const { handleSubmit, register, getValues, control, reset } = useForm();
+  const { handleSubmit, register, getValues, control } = useForm();
 
   const onSubmit = (data) => {
     dispatch(sourcesActions.fetchSources(data));
   };
 
   const handleClickReset = () => {
-    reset({ numPerPage: 100 });
+    setRowsPerPage(100);
     dispatch(sourcesActions.fetchSources());
   };
 
   const handleSourceTablePagination = (pageNumber, numPerPage) => {
+    setRowsPerPage(numPerPage);
     const data = {
       ...getValues(),
       pageNumber,
       numPerPage,
       totalMatches: sourcesState.totalMatches,
+    };
+    dispatch(sourcesActions.fetchSources(data));
+  };
+
+  const handleSourceTableSorting = (formData) => {
+    const data = {
+      ...getValues(),
+      pageNumber: 1,
+      rowsPerPage,
+      totalMatches: sourcesState.totalMatches,
+      sortBy: formData.column,
+      sortOrder: formData.ascending ? "asc" : "desc",
     };
     dispatch(sourcesActions.fetchSources(data));
   };
@@ -209,7 +224,7 @@ const SourceList = () => {
             </div>
           </form>
         </Paper>
-        {!sourcesState.queryInProgress && (
+        {sourcesState.sources && (
           <Grid item className={classes.tableGrid}>
             <SourceTable
               sources={sourcesState.sources}
@@ -217,10 +232,11 @@ const SourceList = () => {
               totalMatches={sourcesState.totalMatches}
               pageNumber={sourcesState.pageNumber}
               numPerPage={sourcesState.numPerPage}
+              sortingCallback={handleSourceTableSorting}
             />
           </Grid>
         )}
-        {sourcesState.queryInProgress && (
+        {!sourcesState.sources && (
           <CircularProgress className={classes.spinner} />
         )}
       </div>
