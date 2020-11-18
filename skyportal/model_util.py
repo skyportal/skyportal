@@ -69,7 +69,9 @@ def add_user(username, roles=[], auth=False):
 def refresh_enums():
     for type in sqla_enum_types:
         for key in type.enums:
-            DBSession().execute(f'ALTER TYPE {type.name} ADD VALUE IF NOT EXISTS {key}')
+            DBSession().execute(
+                f"ALTER TYPE {type.name} ADD VALUE IF NOT EXISTS '{key}'"
+            )
     DBSession().commit()
 
 
