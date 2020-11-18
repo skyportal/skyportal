@@ -11,6 +11,7 @@ import responses
 
 from baselayer.app.config import load_config
 from skyportal.tests import api
+from skyportal.models import DBSession
 
 
 cfg = load_config()
@@ -18,6 +19,22 @@ cfg = load_config()
 
 @pytest.mark.flaky(reruns=2)
 def test_public_source_page(driver, user, public_source, public_group):
+    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(
+        '//label[contains(text(), "band")]', 10
+    )  # TODO how to check plot?
+    driver.wait_for_xpath('//label[contains(text(), "Fe III")]')
+    driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
+
+
+@pytest.mark.flaky(reruns=2)
+def test_public_source_page_null_z(driver, user, public_source, public_group):
+    public_source.redshift = None
+    DBSession().add(public_source)
+    DBSession().commit()
+
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
@@ -478,7 +495,10 @@ def test_unsave_from_group(
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.click_xpath(f'//*[@data-testid="editGroups_{public_source.id}"]')
-    driver.click_xpath(f'//*[@data-testid="unsaveGroupCheckbox_{public_group2.id}"]')
+    driver.click_xpath(
+        f'//*[@data-testid="unsaveGroupCheckbox_{public_group2.id}"]',
+        scroll_parent=True,
+    )
     driver.click_xpath(f'//button[@name="editSourceGroupsButton_{public_source.id}"]')
     driver.wait_for_xpath('//*[text()="Source groups updated successfully"]')
     driver.wait_for_xpath_to_disappear(
@@ -487,15 +507,19 @@ def test_unsave_from_group(
 
 
 def test_request_group_to_save_then_save(
-    driver, user_two_groups, public_source, public_group2
+    driver, user, user_two_groups, public_source, public_group2
 ):
-    driver.get(f"/become_user/{user_two_groups.id}")
+    driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.click_xpath(f'//*[@data-testid="editGroups_{public_source.id}"]')
-    driver.click_xpath(f'//*[@data-testid="inviteGroupCheckbox_{public_group2.id}"]')
+    driver.click_xpath(
+        f'//*[@data-testid="inviteGroupCheckbox_{public_group2.id}"]',
+        scroll_parent=True,
+    )
     driver.click_xpath(f'//button[@name="editSourceGroupsButton_{public_source.id}"]')
     driver.wait_for_xpath('//*[text()="Source groups updated successfully"]')
+    driver.get(f"/become_user/{user_two_groups.id}")
     driver.get(f"/group_sources/{public_group2.id}")
     driver.click_xpath(f'//button[@data-testid="saveSourceButton_{public_source.id}"]')
     driver.wait_for_xpath_to_disappear(
@@ -544,3 +568,15 @@ def test_set_redshift_via_comments_and_history(driver, user, public_source):
     driver.wait_for_xpath("//th[text()='Set By']")
     driver.wait_for_xpath("//td[text()='0.3131']")
     driver.wait_for_xpath(f"//td[text()='{user.username}']")
+
+
+def test_obj_page_unsaved_source(public_obj, driver, user):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_obj.id}")
+
+    # wait for the plots to load
+    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
+    # this waits for the spectroscopy plot by looking for the element Mg
+    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
+
+    driver.wait_for_xpath_to_disappear('//div[contains(@data-testid, "groupChip")]')

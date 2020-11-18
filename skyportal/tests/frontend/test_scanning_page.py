@@ -34,7 +34,6 @@ def test_candidate_group_filtering(
             token=upload_data_token,
         )
         assert status == 200
-        assert data["data"]["id"] == f"{candidate_id}_{i}"
 
     status, data = api(
         "POST",
@@ -110,7 +109,6 @@ def test_candidate_unsaved_only_filtering(
             token=upload_data_token,
         )
         assert status == 200
-        assert data["data"]["id"] == f"{candidate_id}_{i}"
 
     driver.get(f"/become_user/{user.id}")
     driver.get("/candidates")
@@ -159,7 +157,6 @@ def test_candidate_date_filtering(
             token=upload_data_token,
         )
         assert status == 200
-        assert data["data"]["id"] == f"{candidate_id}_{i}"
 
         status, data = api(
             "POST",

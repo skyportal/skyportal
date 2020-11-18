@@ -101,7 +101,7 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
       setIsSubmitting(true);
       const data = {
         id: candidate.id,
-        group_ids: candidate.passing_group_ids,
+        group_ids: filterGroups.map((g) => g.id),
       };
       const result = await dispatch(sourceActions.saveSource(data));
       if (result.status === "error") {

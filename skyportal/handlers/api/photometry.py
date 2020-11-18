@@ -554,18 +554,6 @@ class PhotometryHandler(BaseHandler):
 
         groupquery = GroupPhotometry.__table__.insert()
         params = []
-        if group_ids == "all":
-            public_group = (
-                DBSession()
-                .query(Group)
-                .filter(Group.name == cfg["misc"]["public_group_name"])
-                .first()
-            )
-            group_ids = [public_group.id]
-
-        # always add the single user group of the uploading user
-        group_ids.append(self.associated_user_object.single_user_group.id)
-        group_ids = list(set(group_ids))
 
         for id in ids:
             for group_id in group_ids:
@@ -588,13 +576,23 @@ class PhotometryHandler(BaseHandler):
                 group = Group.query.get(group_id)
                 if group is None:
                     raise ValidationError(f'No group with ID {group_id}')
-
-        elif group_ids != "all":
+        elif group_ids == 'all':
+            public_group = (
+                DBSession()
+                .query(Group)
+                .filter(Group.name == cfg["misc"]["public_group_name"])
+                .first()
+            )
+            group_ids = [public_group.id]
+        else:
             raise ValidationError(
                 "Invalid group_ids parameter value. Must be a list of IDs "
                 "(integers) or the string 'all'."
             )
 
+        # always add the single user group
+        group_ids.append(self.associated_user_object.single_user_group.id)
+        group_ids = list(set(group_ids))
         return group_ids
 
     @permissions(['Upload data'])

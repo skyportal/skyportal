@@ -260,9 +260,9 @@ class AnnotationHandler(BaseHandler):
         if a is None:
             return self.error("Invalid annotation ID")
         obj_key = a.obj.internal_key
-        if (
-            "System admin" in user.permissions or "Manage groups" in user.permissions
-        ) or (a.author == user):
+        if (user.is_system_admin or "Manage groups" in user.permissions) or (
+            a.author == user
+        ):
             Annotation.query.filter_by(id=annotation_id).delete()
             DBSession().commit()
         else:

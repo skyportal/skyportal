@@ -285,7 +285,7 @@ class CommentHandler(BaseHandler):
         if c is None:
             return self.error("Invalid comment ID")
         obj_key = c.obj.internal_key
-        if ("System admin" in user.permissions) or (c.author == user):
+        if user.is_system_admin or c.author == user:
             Comment.query.filter_by(id=comment_id).delete()
             DBSession().commit()
         else:

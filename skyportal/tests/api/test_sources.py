@@ -193,7 +193,7 @@ def test_token_user_post_new_source(upload_data_token, view_only_token, public_g
     npt.assert_almost_equal(data['data']['ra'], 234.22)
 
     saved_at = parser.parse(data['data']['groups'][0]['saved_at'] + " UTC")
-    assert abs(saved_at - t0) < timedelta(seconds=2)
+    assert abs(saved_at - t0) < timedelta(seconds=60)
 
 
 def test_cannot_post_source_with_null_radec(
@@ -346,3 +346,124 @@ def test_source_notifications_unauthorized(
     assert data["message"].startswith(
         "Twilio Communication SMS API authorization error"
     )
+
+
+def test_token_user_source_summary(
+    public_group, public_source, view_only_token_two_groups, public_group2
+):
+
+    now = datetime.utcnow().isoformat()
+
+    status, data = api(
+        "GET",
+        f"sources?saveSummary=true&group_ids={public_group.id}",
+        token=view_only_token_two_groups,
+    )
+    assert status == 200
+    assert "sources" in data['data']
+    sources = data['data']['sources']
+
+    assert len(sources) == 1
+    source = sources[0]
+    assert 'ra' not in source
+    assert 'dec' not in source
+
+    assert source['obj_id'] == public_source.id
+    assert source['group_id'] == public_group.id
+
+    status, data = api(
+        "GET",
+        f"sources?saveSummary=true&savedAfter={now}&group_ids={public_group.id}",
+        token=view_only_token_two_groups,
+    )
+    assert status == 200
+    assert "sources" in data['data']
+    sources = data['data']['sources']
+
+    assert len(sources) == 0
+
+    status, data = api(
+        "GET",
+        f"sources?saveSummary=true&group_ids={public_group2.id}",
+        token=view_only_token_two_groups,
+    )
+    assert status == 200
+    assert "sources" in data['data']
+    sources = data['data']['sources']
+    assert len(sources) == 0
+
+    status, data = api(
+        "GET",
+        f"sources?saveSummary=true&group_ids={public_group.id}&savedBefore={now}",
+        token=view_only_token_two_groups,
+    )
+    assert status == 200
+    assert "sources" in data['data']
+    sources = data['data']['sources']
+
+    assert len(sources) == 1
+    source = sources[0]
+
+    assert source['obj_id'] == public_source.id
+    assert source['group_id'] == public_group.id
+
+    # check the datetime formatting is properly validated
+    status, data = api(
+        "GET",
+        f"sources?saveSummary=true&group_ids={public_group.id}&savedBefore=2020-104-01T00:00:01.2412",
+        token=view_only_token_two_groups,
+    )
+    assert status == 400
+
+
+def test_sources_sorting(upload_data_token, view_only_token, public_group):
+    obj_id = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    ra1 = 230
+    ra2 = 240
+
+    # Upload two new sources
+    status, data = api(
+        'POST',
+        'sources',
+        data={
+            'id': obj_id,
+            'ra': ra1,
+            'dec': -22.33,
+            'redshift': 3,
+            'transient': False,
+            'ra_dis': 2.3,
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['data']['id'] == obj_id
+    status, data = api(
+        'POST',
+        'sources',
+        data={
+            'id': obj_id2,
+            'ra': ra2,
+            'dec': -22.33,
+            'redshift': 3,
+            'transient': False,
+            'ra_dis': 2.3,
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['data']['id'] == obj_id2
+
+    # Sort sources by ra, desc and check that source 2 is first
+    status, data = api(
+        'GET',
+        f'sources?group_ids={public_group.id}&sortBy=ra&sortOrder=desc',
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data['data']['sources'][0]['id'] == obj_id2
+    npt.assert_almost_equal(data['data']['sources'][0]['ra'], ra2)
+    assert data['data']['sources'][1]['id'] == obj_id
+    npt.assert_almost_equal(data['data']['sources'][1]['ra'], ra1)

@@ -4,8 +4,9 @@ import pytest
 import os
 import uuid
 import pathlib
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
+import numpy as np
 
 from baselayer.app import models
 from baselayer.app.config import load_config
@@ -219,32 +220,63 @@ def public_source_group2(public_group2):
 
 
 @pytest.fixture()
-def public_candidate(public_filter):
+def public_candidate(public_filter, user):
     obj = ObjFactory(groups=[public_filter.group])
-    DBSession.add(Candidate(obj=obj, filter=public_filter, passed_at=datetime.utcnow()))
-    DBSession.commit()
-    return obj
-
-
-@pytest.fixture()
-def public_candidate_two_groups(
-    public_filter, public_filter2, public_group, public_group2
-):
-    obj = ObjFactory(groups=[public_group, public_group2])
-    DBSession.add(Candidate(obj=obj, filter=public_filter, passed_at=datetime.utcnow()))
     DBSession.add(
-        Candidate(obj=obj, filter=public_filter2, passed_at=datetime.utcnow())
+        Candidate(
+            obj=obj,
+            filter=public_filter,
+            passed_at=datetime.utcnow() - timedelta(seconds=np.random.randint(0, 100)),
+            uploader_id=user.id,
+        )
     )
     DBSession.commit()
     return obj
 
 
 @pytest.fixture()
-def public_candidate2(public_filter):
-    obj = ObjFactory(groups=[public_filter.group])
-    DBSession.add(Candidate(obj=obj, filter=public_filter, passed_at=datetime.utcnow()))
+def public_candidate_two_groups(
+    public_filter, public_filter2, public_group, public_group2, user
+):
+    obj = ObjFactory(groups=[public_group, public_group2])
+    DBSession.add(
+        Candidate(
+            obj=obj,
+            filter=public_filter,
+            passed_at=datetime.utcnow() - timedelta(seconds=np.random.randint(0, 100)),
+            uploader_id=user.id,
+        )
+    )
+    DBSession.add(
+        Candidate(
+            obj=obj,
+            filter=public_filter2,
+            passed_at=datetime.utcnow() - timedelta(seconds=np.random.randint(0, 100)),
+            uploader_id=user.id,
+        )
+    )
     DBSession.commit()
     return obj
+
+
+@pytest.fixture()
+def public_candidate2(public_filter, user):
+    obj = ObjFactory(groups=[public_filter.group])
+    DBSession.add(
+        Candidate(
+            obj=obj,
+            filter=public_filter,
+            passed_at=datetime.utcnow() - timedelta(seconds=np.random.randint(0, 100)),
+            uploader_id=user.id,
+        )
+    )
+    DBSession.commit()
+    return obj
+
+
+@pytest.fixture()
+def public_obj(public_group):
+    return ObjFactory(groups=[public_group])
 
 
 @pytest.fixture()
