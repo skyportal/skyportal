@@ -1279,8 +1279,10 @@ class Telescope(Base):
         try:
             return self._observer
         except AttributeError:
-            tf = timezonefinder.TimezoneFinder()
-            local_tz = tf.timezone_at(lng=self.lon, lat=self.lat)
+            tf = timezonefinder.TimezoneFinder(in_memory=True)
+            local_tz = tf.closest_timezone_at(
+                lng=self.lon, lat=self.lat, delta_degree=5
+            )
             self._observer = astroplan.Observer(
                 longitude=self.lon * u.deg,
                 latitude=self.lat * u.deg,
