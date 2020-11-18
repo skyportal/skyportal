@@ -524,12 +524,6 @@ class IOOAPI(LTAPI):
         ],
     }
 
-    ui_json_schema = {
-        "observation_choices": {"ui:widget": "checkboxes"},
-        "maximum_airmass": {"ui:widget": "range"},
-        "maximum_seeing": {"ui:widget": "range"},
-        "sky_brightness": {"ui:widget": "range"},
-    }
     ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
 
 
@@ -669,12 +663,6 @@ class IOIAPI(LTAPI):
         ],
     }
 
-    ui_json_schema = {
-        "observation_choices": {"ui:widget": "checkboxes"},
-        "maximum_airmass": {"ui:widget": "range"},
-        "maximum_seeing": {"ui:widget": "range"},
-        "sky_brightness": {"ui:widget": "range"},
-    }
     ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
 
 
@@ -808,9 +796,4 @@ class SPRATAPI(LTAPI):
         ],
     }
 
-    ui_json_schema = {
-        "maximum_airmass": {"ui:widget": "range"},
-        "maximum_seeing": {"ui:widget": "range"},
-        "sky_brightness": {"ui:widget": "range"},
-    }
     ui_json_schema = {}
