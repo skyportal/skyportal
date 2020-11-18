@@ -313,7 +313,7 @@ def wise_18inch():
 def xinglong_216cm():
     return TelescopeFactory(
         name=f'Xinglong 2.16m_{uuid.uuid4()}',
-        nickname='XL216',
+        nickname='XL216_{uuid.uuid4()}',
         lat=40.004463,
         lon=116.385556,
         elevation=950.0,
