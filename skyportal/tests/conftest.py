@@ -310,6 +310,18 @@ def wise_18inch():
 
 
 @pytest.fixture()
+def xinglong_216cm():
+    return TelescopeFactory(
+        name=f'Xinglong 2.16m_{uuid.uuid4()}',
+        nickname='XL216',
+        lat=40.004463,
+        lon=116.385556,
+        elevation=950.0,
+        diameter=2.16,
+    )
+
+
+@pytest.fixture()
 def p60_telescope():
     observer = astroplan.Observer.at_site('Palomar')
     return TelescopeFactory(
