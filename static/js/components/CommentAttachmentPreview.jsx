@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
+import { useDispatch, useSelector } from "react-redux";
 
-import { withStyles, makeStyles } from "@material-ui/core/styles";
+import { withStyles, makeStyles, useTheme } from "@material-ui/core/styles";
 import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogActions from "@material-ui/core/DialogActions";
@@ -14,6 +15,9 @@ import Typography from "@material-ui/core/Typography";
 import Tooltip from "@material-ui/core/Tooltip";
 
 import FilePreviewer, { FilePreviewerThumbnail } from "react-file-previewer";
+import ReactJson from "react-json-view";
+
+import * as sourceActions from "../ducks/source";
 
 const useStyles = makeStyles((theme) => ({
   linkButton: {
@@ -109,6 +113,17 @@ export const shortenFilename = (filename) => {
 
 const CommentAttachmentPreview = ({ filename, commentId }) => {
   const classes = useStyles();
+  const theme = useTheme();
+  const darkTheme = theme.palette.type === "dark";
+
+  const dispatch = useDispatch();
+  const commentAttachment = useSelector(
+    (state) => state.source.commentAttachment
+  );
+  const cachedAttachmentCommentId = commentAttachment
+    ? commentAttachment.commentId
+    : null;
+  const isCached = commentId === cachedAttachmentCommentId;
 
   const [open, setOpen] = useState(false);
   const handleClickOpen = () => {
@@ -120,9 +135,14 @@ const CommentAttachmentPreview = ({ filename, commentId }) => {
   };
 
   const fileType = filename.includes(".") ? filename.split(".", 2)[1] : "";
-  const supportedType = ["png", "jpg", "jpeg", "pdf", "gif"].includes(
+  const supportedType = ["png", "jpg", "jpeg", "pdf", "gif", "json"].includes(
     fileType.toLowerCase()
   );
+
+  const jsonFile = isCached ? JSON.parse(commentAttachment.attachment) : {};
+  if (fileType.toLowerCase() === "json" && !isCached && open) {
+    dispatch(sourceActions.getCommentAttachment(commentId));
+  }
 
   // The FilePreviewer expects a url ending with .pdf for PDF files
   const baseUrl = `/api/comment/${commentId}/attachment`;
@@ -163,7 +183,14 @@ const CommentAttachmentPreview = ({ filename, commentId }) => {
                 // component for PDF
                 <FilePreviewer file={{ url }} hideControls />
               )}
-              {supportedType && fileType !== "pdf" && (
+              {supportedType && fileType === "json" && (
+                <ReactJson
+                  src={jsonFile}
+                  name={false}
+                  theme={darkTheme ? "monokai" : "rjv-default"}
+                />
+              )}
+              {supportedType && fileType !== "pdf" && fileType !== "json" && (
                 <FilePreviewerThumbnail file={{ url }} hideControls />
               )}
               {!supportedType && (
