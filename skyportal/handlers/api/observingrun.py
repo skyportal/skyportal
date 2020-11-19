@@ -1,7 +1,7 @@
 import numpy as np
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
-from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.access import permissions, auth_or_token, AccessError
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -122,14 +122,20 @@ class ObservingRunHandler(BaseHandler):
                 return self.error(
                     f"Could not load observing run {run_id}", data={"run_id": run_id}
                 )
-            # order the assignments by ra
-            assignments = sorted(run.assignments, key=lambda a: a.obj.ra)
 
             # filter out the assignments of objects that are not visible to
             # the user
-            assignments = list(
-                filter(lambda a: a.obj.is_owned_by(self.current_user), assignments)
-            )
+            assignments = []
+            for a in run.assignments:
+                try:
+                    obj = Obj.get_if_owned_by(a.obj.id, self.current_user)
+                except AccessError:
+                    continue
+                if obj is not None:
+                    assignments.append(a)
+
+            # order the assignments by ra
+            assignments = sorted(run.assignments, key=lambda a: a.obj.ra)
 
             data = ObservingRunGetWithAssignments.dump(run)
             data["assignments"] = [a.to_dict() for a in assignments]
