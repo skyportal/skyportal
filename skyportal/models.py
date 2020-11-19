@@ -2575,12 +2575,16 @@ class ObservingRun(Base):
         """The rise time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
         sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
+        sunrise = self.instrument.telescope.next_sunrise(self.calendar_noon)
         next_rise = observer.target_rise_time(
             sunset, target_or_targets, which='next', horizon=altitude
         )
-        next_set = self.set_time(target_or_targets, altitude=altitude)
 
-        if next_rise > next_set:
+        # if next rise time is after next sunrise, the target rises before
+        # sunset. show the previous rise so that the target is shown to be
+        # "already up" when the run begins (a beginning of night target).
+
+        if next_rise > sunrise:
             next_rise = observer.target_rise_time(
                 sunset, target_or_targets, which='previous', horizon=altitude
             )
