@@ -26,6 +26,8 @@ from skyportal.models import (
     Instrument,
     Telescope,
     PHOT_ZP,
+    Spectrum,
+    GroupSpectrum,
 )
 
 import sncosmo
@@ -706,9 +708,18 @@ def photometry_plot(obj_id, user, width=600, height=300):
 
 
 # TODO make async so that thread isn't blocked
-def spectroscopy_plot(obj_id, spec_id=None):
+def spectroscopy_plot(obj_id, user, spec_id=None):
     obj = Obj.query.get(obj_id)
-    spectra = Obj.query.get(obj_id).spectra
+    spectra = (
+        DBSession()
+        .query(Spectrum)
+        .join(Obj)
+        .join(GroupSpectrum)
+        .filter(
+            Spectrum.obj_id == obj_id,
+            GroupSpectrum.group_id.in_([g.id for g in user.accessible_groups]),
+        )
+    )
     if spec_id is not None:
         spectra = [spec for spec in spectra if spec.id == int(spec_id)]
     if len(spectra) == 0:
