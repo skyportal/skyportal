@@ -162,7 +162,14 @@ class ObservingRunHandler(BaseHandler):
             return self.success(data=data)
 
         runs = ObservingRun.query.order_by(ObservingRun.calendar_date.asc()).all()
-        return self.success(data=runs)
+        runs_list = []
+        for run in runs:
+            runs_list.append(run.to_dict())
+            runs_list[-1]["run_end_utc"] = run.instrument.telescope.next_sunrise(
+                run.calendar_noon
+            ).isot
+
+        return self.success(data=runs_list)
 
     @permissions(["Upload data"])
     def put(self, run_id):
