@@ -211,7 +211,7 @@ const SourceMobile = ({ source }) => {
                 </>
               )}
               {source.redshift != null && <>&nbsp;|&nbsp;</>}
-              Finding Chart:&nbsp;
+              <b>Finding Chart:&nbsp;</b>
               <Button
                 href={`/api/sources/${source.id}/finder`}
                 download="finder-chart-pdf"

@@ -1,6 +1,5 @@
 import React, { useEffect, Suspense, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useHistory } from "react-router-dom";
 import PropTypes from "prop-types";
 
 import Paper from "@material-ui/core/Paper";
@@ -115,6 +114,11 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     flexFlow: "row wrap",
     alignItems: "center",
+  },
+  idButton: {
+    // color: theme.palette.primary.main,
+    textTransform: "none",
+    marginBottom: theme.spacing(1),
   },
 }));
 
@@ -256,7 +260,6 @@ CustomSortToolbar.defaultProps = {
 };
 
 const CandidateList = () => {
-  const history = useHistory();
   const [queryInProgress, setQueryInProgress] = useState(false);
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [filterGroups, setFilterGroups] = useState([]);
@@ -452,31 +455,26 @@ const CandidateList = () => {
     return (
       <div className={classes.info}>
         <span className={classes.itemPaddingBottom}>
-          <b>ID:</b>&nbsp;
           <a
             href={`/source/${candidateObj.id}`}
             target="_blank"
             rel="noreferrer"
           >
-            {candidateObj.id}&nbsp;
-            <OpenInNewIcon fontSize="inherit" />
+            <Button
+              variant="contained"
+              size="small"
+              color="primary"
+              className={classes.idButton}
+            >
+              {candidateObj.id}&nbsp;
+              <OpenInNewIcon fontSize="inherit" />
+            </Button>
           </a>
         </span>
-        <br />
         {candidateObj.is_source ? (
           <div>
             <div className={classes.itemPaddingBottom}>
-              <Chip
-                size="small"
-                label="Previously Saved"
-                clickable
-                onClick={() => history.push(`/source/${candidateObj.id}`)}
-                onDelete={() =>
-                  window.open(`/source/${candidateObj.id}`, "_blank")
-                }
-                deleteIcon={<OpenInNewIcon />}
-                color="primary"
-              />
+              <Chip size="small" label="Previously Saved" color="primary" />
             </div>
             <div className={classes.saveCandidateButton}>
               <EditSourceGroups
@@ -551,7 +549,7 @@ const CandidateList = () => {
         {candidateObj.classifications && recentClassification && (
           <div className={classes.infoItem}>
             <b>Classification: </b>
-            <span>{recentClassification}</span>
+            <Chip size="small" label={recentClassification} color="primary" />
           </div>
         )}
         {selectedAnnotationSortOptions !== null &&
