@@ -2571,20 +2571,28 @@ class ObservingRun(Base):
         noon = ap_time.Time(noon, format='unix')
         return noon
 
-    def rise_time(self, target_or_targets):
+    def rise_time(self, target_or_targets, altitude=30 * u.degree):
         """The rise time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
         sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
-        return observer.target_rise_time(
-            sunset, target_or_targets, which='next', horizon=30 * u.degree
+        next_rise = observer.target_rise_time(
+            sunset, target_or_targets, which='next', horizon=altitude
         )
+        next_set = self.set_time(target_or_targets, altitude=altitude)
 
-    def set_time(self, target_or_targets):
+        if next_rise > next_set:
+            next_rise = observer.target_rise_time(
+                sunset, target_or_targets, which='previouw', horizon=altitude
+            )
+
+        return next_rise
+
+    def set_time(self, target_or_targets, altitude=30 * u.degree):
         """The set time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
         sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
         return observer.target_set_time(
-            sunset, target_or_targets, which='next', horizon=30 * u.degree
+            sunset, target_or_targets, which='next', horizon=altitude
         )
 
 
