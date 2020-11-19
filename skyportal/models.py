@@ -2582,7 +2582,7 @@ class ObservingRun(Base):
 
         if next_rise > next_set:
             next_rise = observer.target_rise_time(
-                sunset, target_or_targets, which='previouw', horizon=altitude
+                sunset, target_or_targets, which='previous', horizon=altitude
             )
 
         return next_rise
