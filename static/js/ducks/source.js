@@ -22,6 +22,9 @@ export const ADD_COMMENT_OK = "skyportal/ADD_COMMENT_OK";
 export const DELETE_COMMENT = "skyportal/DELETE_COMMENT";
 export const DELETE_COMMENT_OK = "skyportal/DELETE_COMMENT_OK";
 
+export const GET_COMMENT_ATTACHMENT = "skyportal/GET_COMMENT_ATTACHMENT";
+export const GET_COMMENT_ATTACHMENT_OK = "skyportal/GET_COMMENT_ATTACHMENT_OK";
+
 export const ADD_SOURCE_VIEW = "skyportal/ADD_SOURCE_VIEW";
 export const ADD_SOURCE_VIEW_OK = "skyportal/ADD_SOURCE_VIEW_OK";
 
@@ -103,6 +106,13 @@ export function addComment(formData) {
 
 export function deleteComment(comment_id) {
   return API.DELETE(`/api/comment/${comment_id}`, DELETE_COMMENT);
+}
+
+export function getCommentAttachment(comment_id) {
+  return API.GET(
+    `/api/comment/${comment_id}/attachment?download=False`,
+    GET_COMMENT_ATTACHMENT
+  );
 }
 
 export function fetchSource(id) {
@@ -204,6 +214,16 @@ const reducer = (state = { source: null, loadError: false }, action) => {
         ...state,
         loadError: "Unknown error while loading source",
       };
+    case GET_COMMENT_ATTACHMENT_OK: {
+      const { commentId, attachment } = action.data;
+      return {
+        ...state,
+        commentAttachment: {
+          commentId,
+          attachment,
+        },
+      };
+    }
     default:
       return state;
   }
