@@ -719,16 +719,8 @@ def spectroscopy_plot(obj_id, spec_id=None):
     data = []
     for i, s in enumerate(spectra):
 
-        # normalize spectra to a common average flux per resolving
-        # element of 1 (facilitates easy visual comparison)
-        normfac = np.sum(np.gradient(s.wavelengths) * s.fluxes) / len(s.fluxes)
-
-        if not (np.isfinite(normfac) and normfac > 0):
-            # otherwise normalize the value at the median wavelength to 1
-            median_wave_index = np.argmin(
-                np.abs(s.wavelengths - np.median(s.wavelengths))
-            )
-            normfac = s.fluxes[median_wave_index]
+        # normalize spectra to a median flux of 1 for easy comparison
+        normfac = np.median(s.fluxes)
 
         df = pd.DataFrame(
             {
