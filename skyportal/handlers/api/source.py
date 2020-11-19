@@ -509,7 +509,12 @@ class SourceHandler(BaseHandler):
                 .query(Obj)
                 .join(Photometry)
                 .join(Source)
-                .filter(Photometry.groups.any(Group.id.in_(user_accessible_group_ids)))
+                .filter(
+                    or_(
+                        Photometry.groups.any(Group.id.in_(user_accessible_group_ids)),
+                        Source.group_id.in_(user_accessible_group_ids),
+                    )
+                )
                 .options(query_options)
             )
         else:
@@ -518,7 +523,12 @@ class SourceHandler(BaseHandler):
                 .query(Source)
                 .join(Obj)
                 .join(Photometry)
-                .filter(Photometry.groups.any(Group.id.in_(user_accessible_group_ids)))
+                .filter(
+                    or_(
+                        Photometry.groups.any(Group.id.in_(user_accessible_group_ids)),
+                        Source.group_id.in_(user_accessible_group_ids),
+                    )
+                )
             )
 
         if sourceID:
@@ -576,7 +586,6 @@ class SourceHandler(BaseHandler):
                     if sort_order == "asc"
                     else [Obj.ra.desc().nullslast()]
                 )
-                print(sort_by, sort_order)
             elif sort_by == "dec":
                 order_by = (
                     [Obj.dec.nullslast()]
