@@ -2832,8 +2832,8 @@ def send_source_notification(mapper, connection, target):
                 )
 
     # Send email notifications
+    recipients = []
     for user in target_users:
-        descriptor = "immediate" if target.level == "hard" else ""
         # If user has a contact email registered and opted into email notifications
         if (
             user.contact_email is not None
@@ -2841,20 +2841,22 @@ def send_source_notification(mapper, connection, target):
             and "allowEmailAlerts" in user.preferences
             and user.preferences.get("allowEmailAlerts")
         ):
-            html_content = (
-                f'{sent_by_name} would like to call your {descriptor} attention to'
-                f' <a href="{link_location}">{target.source_id}</a> ({source_info})'
-            )
-            if target.additional_notes != "" and target.additional_notes is not None:
-                html_content += (
-                    f'<br /><br />Additional notes: {target.additional_notes}'
-                )
+            recipients.append(user.contact_email)
 
-            send_email(
-                recipients=[user.contact_email],
-                subject=f'{cfg["app.title"]}: Source Alert',
-                body=html_content,
-            )
+    descriptor = "immediate" if target.level == "hard" else ""
+    html_content = (
+        f'{sent_by_name} would like to call your {descriptor} attention to'
+        f' <a href="{link_location}">{target.source_id}</a> ({source_info})'
+    )
+    if target.additional_notes != "" and target.additional_notes is not None:
+        html_content += f'<br /><br />Additional notes: {target.additional_notes}'
+
+    if len(recipients) > 0:
+        send_email(
+            recipients=recipients,
+            subject=f'{cfg["app.title"]}: Source Alert',
+            body=html_content,
+        )
 
 
 @event.listens_for(User, 'after_insert')
