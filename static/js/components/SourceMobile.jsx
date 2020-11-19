@@ -174,8 +174,8 @@ const SourceMobile = ({ source }) => {
               <b>Position (J2000):</b>
               &nbsp; &nbsp;
               <span className={classes.position}>
-                {ra_to_hours(source.ra)} &nbsp;
-                {dec_to_dms(source.dec)}
+                {ra_to_hours(source.ra, ":")} &nbsp;
+                {dec_to_dms(source.dec, ":")}
               </span>
               &nbsp; (&alpha;,&delta;= {source.ra}, &nbsp;
               {source.dec}; <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)},
