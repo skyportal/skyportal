@@ -52,8 +52,8 @@ def test_candidate_group_filtering(
     driver.scroll_to_element_and_click(group_checkbox)
     submit_button = driver.wait_for_xpath('//span[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
-    for i in range(5):
-        driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
+    for i in range(5):  # data-testid
+        driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]')
     driver.scroll_to_element_and_click(group_checkbox)
     driver.click_xpath(
         f'//*[@data-testid="filteringFormGroupCheckbox-{new_group_id}"]',
@@ -61,7 +61,7 @@ def test_candidate_group_filtering(
     )
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
-        driver.wait_for_xpath_to_disappear(f'//a[text()="{candidate_id}_{i}"]')
+        driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{candidate_id}_{i}"]')
 
 
 @pytest.mark.flaky(reruns=2)
@@ -121,11 +121,11 @@ def test_candidate_unsaved_only_filtering(
     submit_button = driver.wait_for_xpath('//span[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
-        driver.wait_for_xpath_to_disappear(f'//a[text()="{candidate_id}_{i}"]')
+        driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{candidate_id}_{i}"]')
     driver.scroll_to_element_and_click(unsaved_only_checkbox)
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
-        driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]')
+        driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]')
 
 
 @pytest.mark.flaky(reruns=2)
@@ -191,13 +191,15 @@ def test_candidate_date_filtering(
     submit_button = driver.wait_for_xpath_to_be_clickable('//span[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
-        driver.wait_for_xpath_to_disappear(f'//a[text()="{candidate_id}_{i}"]', 10)
+        driver.wait_for_xpath_to_disappear(
+            f'//a[@data-testid="{candidate_id}_{i}"]', 10
+        )
     end_date_input.clear()
     end_date_input.send_keys("209012120000")
     submit_button = driver.wait_for_xpath_to_be_clickable('//span[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
-        driver.wait_for_xpath(f'//a[text()="{candidate_id}_{i}"]', 10)
+        driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]', 10)
 
 
 @pytest.mark.flaky(reruns=2)
@@ -211,7 +213,7 @@ def test_save_candidate_quick_save(
         wait_clickable=False,
     )
     driver.click_xpath('//span[text()="Search"]', wait_clickable=False)
-    driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
+    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
     save_button = driver.wait_for_xpath(
         f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
     )
@@ -233,7 +235,7 @@ def test_save_candidate_select_groups(
         wait_clickable=False,
     )
     driver.click_xpath('//span[text()="Search"]')
-    driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
+    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
     carat = driver.wait_for_xpath(
         f'//button[@name="saveCandidateButtonDropDownArrow{public_candidate.id}"]'
     )
@@ -270,7 +272,7 @@ def test_save_candidate_no_groups_error_message(
         wait_clickable=False,
     )
     driver.click_xpath('//span[text()="Search"]')
-    driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
+    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
     carat = driver.wait_for_xpath_to_be_clickable(
         f'//button[@name="saveCandidateButtonDropDownArrow{public_candidate.id}"]'
     )
@@ -337,7 +339,7 @@ def test_submit_annotations_sorting(
         wait_clickable=False,
     )
     driver.click_xpath('//span[text()="Search"]')
-    driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
+    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
 
     driver.click_xpath(f"//p[text()='numeric_field: 1.0000']")
     # Check to see that selected annotation appears in info column
@@ -402,7 +404,7 @@ def test_submit_annotations_filtering(
         wait_clickable=False,
     )
     driver.click_xpath('//span[text()="Search"]')
-    driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
+    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
 
     # scroll to top of page so dialog doesn't get cut off
     element = driver.wait_for_xpath("//button[@data-testid='Filter Table-iconButton']")
@@ -429,6 +431,6 @@ def test_submit_annotations_filtering(
 
     # Check that results come back as expected
     # The first candidate should exist
-    driver.wait_for_xpath(f'//a[text()="{public_candidate.id}"]')
+    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
     # The second candidate should not exist
-    driver.wait_for_xpath_to_disappear(f'//a[text()="{public_candidate2.id}"]')
+    driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{public_candidate2.id}"]')

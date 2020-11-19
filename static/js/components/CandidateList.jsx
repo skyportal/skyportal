@@ -458,6 +458,7 @@ const CandidateList = () => {
           <a
             href={`/source/${candidateObj.id}`}
             target="_blank"
+            data-testid={candidateObj.id}
             rel="noreferrer"
           >
             <Button
