@@ -2576,28 +2576,35 @@ class ObservingRun(Base):
         observer = self.instrument.telescope.observer
         sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
         sunrise = self.instrument.telescope.next_sunrise(self.calendar_noon)
+        original_shape = np.asarray(target_or_targets).shape
+        target_array = (
+            [target_or_targets] if len(original_shape) == 0 else target_or_targets
+        )
+
         next_rise = observer.target_rise_time(
-            sunset, target_or_targets, which='next', horizon=altitude
+            sunset, target_array, which='next', horizon=altitude
         )
 
         # if next rise time is after next sunrise, the target rises before
         # sunset. show the previous rise so that the target is shown to be
         # "already up" when the run begins (a beginning of night target).
 
-        if next_rise > sunrise:
-            next_rise = observer.target_rise_time(
-                sunset, target_or_targets, which='previous', horizon=altitude
+        recalc = next_rise > sunrise
+        if recalc.any():
+            next_rise[recalc] = observer.target_rise_time(
+                sunset, target_or_targets[recalc], which='previous', horizon=altitude
             )
 
-        return next_rise
+        return next_rise.reshape(original_shape)
 
     def set_time(self, target_or_targets, altitude=30 * u.degree):
         """The set time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
         sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
+        original_shape = np.asarray(target_or_targets).shape
         return observer.target_set_time(
             sunset, target_or_targets, which='next', horizon=altitude
-        )
+        ).reshape(original_shape)
 
 
 User.observing_runs = relationship(
