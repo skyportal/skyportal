@@ -1,7 +1,7 @@
 import jsonschema
 from marshmallow.exceptions import ValidationError
 
-from baselayer.app.access import auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -96,7 +96,7 @@ class AssignmentHandler(BaseHandler):
 
         return self.success(data=out_json)
 
-    @auth_or_token
+    @permissions(['Upload data'])
     def post(self):
         """
         ---
@@ -163,7 +163,7 @@ class AssignmentHandler(BaseHandler):
         )
         return self.success(data={"id": assignment.id})
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def put(self, assignment_id):
         """
         ---
@@ -197,13 +197,6 @@ class AssignmentHandler(BaseHandler):
         data['id'] = assignment_id
         data["requester_id"] = self.associated_user_object.id
 
-        modok = (
-            self.current_user.is_system_admin
-            or assignment.requester.username == self.current_user.username
-        )
-        if not modok:
-            return self.error("Insufficient permissions.")
-
         schema = ClassicalAssignment.__schema__()
         try:
             schema.load(data, partial=True)
@@ -223,7 +216,7 @@ class AssignmentHandler(BaseHandler):
         )
         return self.success()
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def delete(self, assignment_id):
         """
         ---
@@ -241,14 +234,6 @@ class AssignmentHandler(BaseHandler):
                 schema: Success
         """
         assignment = ClassicalAssignment.query.get(int(assignment_id))
-        user = self.associated_user_object
-        delok = (
-            self.current_user.is_system_admin
-            or assignment.requester.username == user.username
-        )
-        if not delok:
-            return self.error("Insufficient permissions.")
-
         obj_key = assignment.obj.internal_key
 
         DBSession().delete(assignment)
