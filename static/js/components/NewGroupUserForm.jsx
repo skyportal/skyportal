@@ -71,7 +71,7 @@ const NewGroupUserForm = ({ group_id }) => {
         Add an existing user to this group
       </Typography>
       <Autocomplete
-        id="newUserEmail"
+        id="newGroupUserInput"
         value={
           allUsers.filter((user) => user.id === formState.userID)[0] || null
         }
