@@ -679,10 +679,11 @@ const UserManagement = () => {
             <Controller
               name="groups"
               id="addUserToGroupsSelect"
-              render={({ onChange }) => (
+              render={({ onChange, value }) => (
                 <Autocomplete
                   multiple
                   onChange={(e, data) => onChange(data)}
+                  value={value}
                   options={allGroups.filter(
                     (g) =>
                       !clickedUser?.groups?.map((gr) => gr.id)?.includes(g.id)
@@ -738,10 +739,11 @@ const UserManagement = () => {
             <Controller
               name="streams"
               id="addUserToStreamsSelect"
-              render={({ onChange }) => (
+              render={({ onChange, value }) => (
                 <Autocomplete
                   multiple
                   onChange={(e, data) => onChange(data)}
+                  value={value}
                   options={streams.filter(
                     (s) =>
                       !clickedUser?.streams
@@ -799,10 +801,11 @@ const UserManagement = () => {
             <Controller
               name="acls"
               id="addUserACLsSelect"
-              render={({ onChange }) => (
+              render={({ onChange, value }) => (
                 <Autocomplete
                   multiple
                   onChange={(e, data) => onChange(data)}
+                  value={value}
                   options={acls.filter(
                     (acl) => !clickedUser?.permissions?.includes(acl)
                   )}
@@ -857,10 +860,11 @@ const UserManagement = () => {
             <Controller
               name="roles"
               id="addUserRolesSelect"
-              render={({ onChange }) => (
+              render={({ onChange, value }) => (
                 <Autocomplete
                   multiple
                   onChange={(e, data) => onChange(data)}
+                  value={value}
                   options={roles?.filter(
                     (role) => !clickedUser?.roles?.includes(role.id)
                   )}
