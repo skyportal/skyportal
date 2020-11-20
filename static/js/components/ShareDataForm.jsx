@@ -242,7 +242,7 @@ const ShareDataForm = ({ route }) => {
           <Controller
             name="groups"
             id="dataSharingFormGroupsSelect"
-            render={({ onChange, value }) => (
+            render={({ onChange, value, ...props }) => (
               <Autocomplete
                 multiple
                 options={groups}
@@ -260,6 +260,8 @@ const ShareDataForm = ({ route }) => {
                     className={classes.groupSelect}
                   />
                 )}
+                // eslint-disable-next-line react/jsx-props-no-spreading
+                {...props}
               />
             )}
             control={control}

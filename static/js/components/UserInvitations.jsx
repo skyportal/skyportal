@@ -539,7 +539,7 @@ const UserInvitations = () => {
             <Controller
               name="invitationGroups"
               id="addInvitationGroupsSelect"
-              render={({ onChange, value }) => (
+              render={({ onChange, value, ...props }) => (
                 <Autocomplete
                   multiple
                   value={value}
@@ -563,6 +563,8 @@ const UserInvitations = () => {
                       data-testid="addInvitationGroupsTextField"
                     />
                   )}
+                  // eslint-disable-next-line react/jsx-props-no-spreading
+                  {...props}
                 />
               )}
               control={control}
@@ -601,7 +603,7 @@ const UserInvitations = () => {
             <Controller
               name="invitationStreams"
               id="addInvitationStreamsSelect"
-              render={({ onChange, value }) => (
+              render={({ onChange, value, ...props }) => (
                 <Autocomplete
                   multiple
                   value={value}
@@ -625,6 +627,8 @@ const UserInvitations = () => {
                       data-testid="addInvitationStreamsTextField"
                     />
                   )}
+                  // eslint-disable-next-line react/jsx-props-no-spreading
+                  {...props}
                 />
               )}
               control={control}

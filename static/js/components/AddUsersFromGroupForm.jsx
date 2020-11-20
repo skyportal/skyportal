@@ -61,7 +61,7 @@ const AddUsersFromGroupForm = ({ groupID }) => {
         <Controller
           name="groups"
           id="addUsersFromGroupsSelect"
-          render={({ onChange, value }) => (
+          render={({ onChange, value, ...props }) => (
             <Autocomplete
               multiple
               onChange={(e, data) => onChange(data)}
@@ -82,6 +82,8 @@ const AddUsersFromGroupForm = ({ groupID }) => {
                   data-testid="addUsersFromGroupsTextField"
                 />
               )}
+              // eslint-disable-next-line react/jsx-props-no-spreading
+              {...props}
             />
           )}
           control={control}
