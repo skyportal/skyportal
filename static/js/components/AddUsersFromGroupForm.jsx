@@ -60,10 +60,10 @@ const AddUsersFromGroupForm = ({ groupID }) => {
         )}
         <Controller
           name="groups"
-          id="addUsersFromGroupsSelect"
           render={({ onChange, value, ...props }) => (
             <Autocomplete
               multiple
+              id="addUsersFromGroupsSelect"
               onChange={(e, data) => onChange(data)}
               value={value}
               options={groups}

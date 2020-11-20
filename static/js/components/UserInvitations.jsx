@@ -538,9 +538,9 @@ const UserInvitations = () => {
             )}
             <Controller
               name="invitationGroups"
-              id="addInvitationGroupsSelect"
               render={({ onChange, value, ...props }) => (
                 <Autocomplete
+                  id="addInvitationGroupsSelect"
                   multiple
                   value={value}
                   onChange={(e, data) => onChange(data)}
@@ -602,9 +602,9 @@ const UserInvitations = () => {
             )}
             <Controller
               name="invitationStreams"
-              id="addInvitationStreamsSelect"
               render={({ onChange, value, ...props }) => (
                 <Autocomplete
+                  id="addInvitationStreamsSelect"
                   multiple
                   value={value}
                   onChange={(e, data) => onChange(data)}

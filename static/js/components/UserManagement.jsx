@@ -109,6 +109,7 @@ const UserManagement = () => {
       fetchData();
       setDataFetched(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataFetched, dispatch]);
 
   if (
@@ -678,10 +679,10 @@ const UserManagement = () => {
             )}
             <Controller
               name="groups"
-              id="addUserToGroupsSelect"
               render={({ onChange, value, ...props }) => (
                 <Autocomplete
                   multiple
+                  id="addUserToGroupsSelect"
                   onChange={(e, data) => onChange(data)}
                   value={value}
                   options={allGroups.filter(
@@ -740,10 +741,10 @@ const UserManagement = () => {
             )}
             <Controller
               name="streams"
-              id="addUserToStreamsSelect"
               render={({ onChange, value, ...props }) => (
                 <Autocomplete
                   multiple
+                  id="addUserToStreamsSelect"
                   onChange={(e, data) => onChange(data)}
                   value={value}
                   options={streams.filter(
@@ -804,10 +805,10 @@ const UserManagement = () => {
             )}
             <Controller
               name="acls"
-              id="addUserACLsSelect"
               render={({ onChange, value, ...props }) => (
                 <Autocomplete
                   multiple
+                  id="addUserACLsSelect"
                   onChange={(e, data) => onChange(data)}
                   value={value}
                   options={acls.filter(
@@ -865,10 +866,10 @@ const UserManagement = () => {
             )}
             <Controller
               name="roles"
-              id="addUserRolesSelect"
               render={({ onChange, value, ...props }) => (
                 <Autocomplete
                   multiple
+                  id="addUserRolesSelect"
                   onChange={(e, data) => onChange(data)}
                   value={value}
                   options={roles?.filter(

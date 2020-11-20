@@ -241,10 +241,10 @@ const ShareDataForm = ({ route }) => {
           )}
           <Controller
             name="groups"
-            id="dataSharingFormGroupsSelect"
             render={({ onChange, value, ...props }) => (
               <Autocomplete
                 multiple
+                id="dataSharingFormGroupsSelect"
                 options={groups}
                 value={value}
                 onChange={(e, data) => onChange(data)}
