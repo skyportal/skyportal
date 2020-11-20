@@ -163,7 +163,7 @@ const UserManagement = () => {
     const promises = groupIDs.map((gid) =>
       dispatch(
         groupsActions.addGroupUser({
-          username: clickedUser.username,
+          userID: clickedUser.id,
           admin: false,
           group_id: gid,
         })
