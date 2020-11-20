@@ -319,23 +319,26 @@ const UserManagement = () => {
   };
 
   const renderRolesHeader = () => (
-    <Tooltip
-      interactive
-      title={
-        <>
-          <b>Each role is associated with the following ACLs:</b>
-          <ul>
-            {roles.map((role) => (
-              <li key={role.id}>
-                {role.id}: {role.acls.join(", ")}
-              </li>
-            ))}
-          </ul>
-        </>
-      }
-    >
-      <HelpIcon color="disabled" size="small" className={classes.icon} />
-    </Tooltip>
+    <>
+      Roles
+      <Tooltip
+        interactive
+        title={
+          <>
+            <b>Each role is associated with the following ACLs:</b>
+            <ul>
+              {roles.map((role) => (
+                <li key={role.id}>
+                  {role.id}: {role.acls.join(", ")}
+                </li>
+              ))}
+            </ul>
+          </>
+        }
+      >
+        <HelpIcon color="disabled" size="small" className={classes.icon} />
+      </Tooltip>
+    </>
   );
 
   const renderACLs = (dataIndex) => {
@@ -368,19 +371,22 @@ const UserManagement = () => {
   };
 
   const renderACLsHeader = () => (
-    <Tooltip
-      interactive
-      title={
-        <>
-          <p>
-            These are in addition to those ACLs associated with user role(s).
-            See help icon tooltip in roles column header for those ACLs.
-          </p>
-        </>
-      }
-    >
-      <HelpIcon color="disabled" size="small" className={classes.icon} />
-    </Tooltip>
+    <>
+      ACLs
+      <Tooltip
+        interactive
+        title={
+          <>
+            <p>
+              These are in addition to those ACLs associated with user role(s).
+              See help icon tooltip in roles column header for those ACLs.
+            </p>
+          </>
+        }
+      >
+        <HelpIcon color="disabled" size="small" className={classes.icon} />
+      </Tooltip>
+    </>
   );
 
   const renderGroups = (dataIndex) => {
@@ -673,9 +679,10 @@ const UserManagement = () => {
             <Controller
               name="groups"
               id="addUserToGroupsSelect"
-              as={
+              render={({ onChange }) => (
                 <Autocomplete
                   multiple
+                  onChange={(e, data) => onChange(data)}
                   options={allGroups.filter(
                     (g) =>
                       !clickedUser?.groups?.map((gr) => gr.id)?.includes(g.id)
@@ -694,9 +701,8 @@ const UserManagement = () => {
                     />
                   )}
                 />
-              }
+              )}
               control={control}
-              onChange={([, data]) => data}
               rules={{ validate: validateGroups }}
               defaultValue={[]}
             />
@@ -732,9 +738,10 @@ const UserManagement = () => {
             <Controller
               name="streams"
               id="addUserToStreamsSelect"
-              as={
+              render={({ onChange }) => (
                 <Autocomplete
                   multiple
+                  onChange={(e, data) => onChange(data)}
                   options={streams.filter(
                     (s) =>
                       !clickedUser?.streams
@@ -755,9 +762,8 @@ const UserManagement = () => {
                     />
                   )}
                 />
-              }
+              )}
               control={control}
-              onChange={([, data]) => data}
               rules={{ validate: validateStreams }}
               defaultValue={[]}
             />
@@ -793,9 +799,10 @@ const UserManagement = () => {
             <Controller
               name="acls"
               id="addUserACLsSelect"
-              as={
+              render={({ onChange }) => (
                 <Autocomplete
                   multiple
+                  onChange={(e, data) => onChange(data)}
                   options={acls.filter(
                     (acl) => !clickedUser?.permissions?.includes(acl)
                   )}
@@ -813,9 +820,8 @@ const UserManagement = () => {
                     />
                   )}
                 />
-              }
+              )}
               control={control}
-              onChange={([, data]) => data}
               rules={{ validate: validateACLs }}
               defaultValue={[]}
             />
@@ -851,9 +857,10 @@ const UserManagement = () => {
             <Controller
               name="roles"
               id="addUserRolesSelect"
-              as={
+              render={({ onChange }) => (
                 <Autocomplete
                   multiple
+                  onChange={(e, data) => onChange(data)}
                   options={roles?.filter(
                     (role) => !clickedUser?.roles?.includes(role.id)
                   )}
@@ -871,9 +878,8 @@ const UserManagement = () => {
                     />
                   )}
                 />
-              }
+              )}
               control={control}
-              onChange={([, data]) => data}
               rules={{ validate: validateRoles }}
               defaultValue={[]}
             />
