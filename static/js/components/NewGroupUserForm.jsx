@@ -38,8 +38,7 @@ const NewGroupUserForm = ({ group_id }) => {
   }, [dispatch, allUsers]);
 
   const handleClickSubmit = async () => {
-    let result = null;
-    result = await dispatch(
+    const result = await dispatch(
       groupsActions.addGroupUser({
         userID: formState.userID,
         admin: formState.admin,
