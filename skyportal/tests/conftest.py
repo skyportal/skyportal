@@ -378,6 +378,13 @@ def user_group2(public_group2):
 
 
 @pytest.fixture()
+def user2(public_group):
+    return UserFactory(
+        groups=[public_group], roles=[models.Role.query.get("Full user")]
+    )
+
+
+@pytest.fixture()
 def user_no_groups():
     return UserFactory(roles=[models.Role.query.get("Full user")])
 
@@ -391,6 +398,13 @@ def user_two_groups(public_group, public_group2):
 
 @pytest.fixture()
 def view_only_user(public_group):
+    return UserFactory(
+        groups=[public_group], roles=[models.Role.query.get("View only")]
+    )
+
+
+@pytest.fixture()
+def view_only_user2(public_group):
     return UserFactory(
         groups=[public_group], roles=[models.Role.query.get("View only")]
     )
@@ -429,6 +443,12 @@ def super_admin_user_two_groups(public_group, public_group2):
 @pytest.fixture()
 def view_only_token(user):
     token_id = create_token(ACLs=[], user_id=user.id, name=str(uuid.uuid4()))
+    return token_id
+
+
+@pytest.fixture()
+def view_only_token2(user2):
+    token_id = create_token(ACLs=[], user_id=user2.id, name=str(uuid.uuid4()))
     return token_id
 
 
