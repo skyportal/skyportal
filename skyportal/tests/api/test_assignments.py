@@ -45,7 +45,7 @@ def test_token_user_delete_owned_assignment(
     assert data['status'] == 'success'
 
 
-def test_regular_user_delete_super_admin_assignment(
+def test_regular_user_can_delete_super_admin_assignment(
     red_transients_run, public_source, upload_data_token, super_admin_token
 ):
 
@@ -62,8 +62,8 @@ def test_regular_user_delete_super_admin_assignment(
     id = data['data']['id']
 
     status, data = api('DELETE', f'assignment/{id}', token=upload_data_token)
-    assert status == 400
-    assert data['status'] == 'error'
+    assert status == 200
+    assert data['status'] == 'success'
 
 
 def test_group1_user_cannot_see_group2_assignment(
