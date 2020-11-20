@@ -195,7 +195,7 @@ class AssignmentHandler(BaseHandler):
 
         data = self.get_json()
         data['id'] = assignment_id
-        data["requester_id"] = self.associated_user_object.id
+        data["last_modified_by_id"] = self.associated_user_object.id
 
         schema = ClassicalAssignment.__schema__()
         try:
