@@ -61,9 +61,11 @@ const AddUsersFromGroupForm = ({ groupID }) => {
         <Controller
           name="groups"
           id="addUsersFromGroupsSelect"
-          as={
+          render={({ onChange, value }) => (
             <Autocomplete
               multiple
+              onChange={(e, data) => onChange(data)}
+              value={value}
               options={groups}
               getOptionLabel={(group) => group.name}
               filterSelectedOptions
@@ -81,9 +83,8 @@ const AddUsersFromGroupForm = ({ groupID }) => {
                 />
               )}
             />
-          }
+          )}
           control={control}
-          onChange={([, data]) => data}
           rules={{ validate: validateGroups }}
           defaultValue={[]}
         />
