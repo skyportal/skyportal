@@ -13,8 +13,13 @@ export function fetchUser(id) {
   return API.GET(`/api/user/${id}`, FETCH_USER);
 }
 
-export function fetchUsers() {
-  return API.GET("/api/user", FETCH_USERS);
+export function fetchUsers(filterParams = {}) {
+  if (!Object.keys(filterParams).includes("pageNumber")) {
+    filterParams.pageNumber = 1;
+  }
+  const params = new URLSearchParams(filterParams);
+  const queryString = params.toString();
+  return API.GET(`/api/user?${queryString}`, FETCH_USERS);
 }
 
 // Websocket message handler
@@ -24,20 +29,23 @@ messageHandler.add((actionType, payload, dispatch) => {
   }
 });
 
-const reducer = (state = { allUsers: [] }, action) => {
+const reducer = (state = { users: [], totalMatches: 0 }, action) => {
   switch (action.type) {
     case FETCH_USER_OK: {
       const { id, ...userInfo } = action.data;
       return {
         ...state,
-        [id]: userInfo,
+        users: {
+          [id]: userInfo,
+        },
       };
     }
     case FETCH_USERS_OK: {
-      const users = action.data;
+      const { users, totalMatches } = action.data;
       return {
         ...state,
-        allUsers: users,
+        users,
+        totalMatches,
       };
     }
     default:

@@ -66,7 +66,9 @@ terminal, navigate to the ``skyportal`` directory, and run
   $ make load_demo_data
 
 to populate the database with sample data. To access the running, populated
-skyportal instance, navigate your browser to: ``http://localhost:5000``.
+skyportal instance, log in as the admin user by navigating your browser to
+``http://localhost:5000/become_user/1``. Then navigate to the home page at
+``http://localhost:5000``.
 
 User Guide
 ----------

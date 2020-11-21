@@ -175,7 +175,7 @@ source_image_parameters = {
 }
 
 
-def get_ztfcatalog(ra, dec, cache_dir="./cache/finder_cat/", cache_max_items=25):
+def get_ztfcatalog(ra, dec, cache_dir="./cache/finder_cat/", cache_max_items=1000):
     """Finds the ZTF public catalog data around this position
 
     Parameters
@@ -642,7 +642,7 @@ def fits_image(
     imsize=4.0,
     image_source="ztfref",
     cache_dir="./cache/finder/",
-    cache_max_items=5,
+    cache_max_items=1000,
 ):
 
     """Returns an opened FITS image centered on the source

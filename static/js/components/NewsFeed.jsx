@@ -56,7 +56,7 @@ const NewsFeedItem = ({ item }) => {
           style={{
             width: 32,
             height: 32,
-            backgroundColor: "#38B0DE",
+            backgroundColor: "#141b44",
             color: "white",
             fontSize: "10px",
           }}

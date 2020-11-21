@@ -13,6 +13,7 @@ import BuildIcon from "@material-ui/icons/Build";
 
 import Link from "@material-ui/core/Link";
 import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
+import ImageAspectRatioIcon from "@material-ui/icons/ImageAspectRatio";
 
 import Menu from "@material-ui/core/Menu";
 import MenuItem from "@material-ui/core/MenuItem";
@@ -193,7 +194,7 @@ const RunSummary = ({ route }) => {
             <Grid item>
               <Suspense fallback={<div>Loading plot...</div>}>
                 <AirmassPlot
-                  dataUrl={`/api/internal/plot/airmass/${assignment.id}`}
+                  dataUrl={`/api/internal/plot/airmass/assignment/${assignment.id}`}
                   ephemeris={observingRun.ephemeris}
                 />
               </Suspense>
@@ -249,11 +250,22 @@ const RunSummary = ({ route }) => {
   const renderFinderButton = (dataIndex) => {
     const assignment = assignments[dataIndex];
     return (
-      <IconButton size="small" key={`${assignment.id}_actions`}>
-        <Link href={`/api/sources/${assignment.obj.id}/finder`}>
-          <PictureAsPdfIcon />
-        </Link>
-      </IconButton>
+      <>
+        <IconButton size="small" key={`${assignment.id}_actions`}>
+          <Link href={`/api/sources/${assignment.obj.id}/finder`}>
+            <PictureAsPdfIcon />
+          </Link>
+        </IconButton>
+        <IconButton size="small" key={`${assignment.id}_actions_int`}>
+          <Link
+            href={`/source/${assignment.obj.id}/finder`}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <ImageAspectRatioIcon />
+          </Link>
+        </IconButton>
+      </>
     );
   };
 
@@ -270,6 +282,7 @@ const RunSummary = ({ route }) => {
               key={name}
               size="small"
               className={classes.chip}
+              data-testid={`chip-assignment_${assignment.id}-group_${name}`}
             />
             <br />
           </div>

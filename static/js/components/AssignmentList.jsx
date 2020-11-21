@@ -34,7 +34,7 @@ const AssignmentList = ({ assignments }) => {
     dispatch(Actions.deleteAssignment(id));
   };
 
-  const { allUsers } = useSelector((state) => state.users);
+  const { users: allUsers } = useSelector((state) => state.users);
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { instrumentList } = useSelector((state) => state.instruments);
 

@@ -42,7 +42,7 @@ class FilterHandler(BaseHandler):
         acls = self.current_user.permissions
 
         if filter_id is not None:
-            if "System admin" in acls or "Manage groups" in acls:
+            if self.current_user.is_system_admin or "Manage groups" in acls:
                 f = DBSession().query(Filter).get(filter_id)
             else:
                 f = (
@@ -111,7 +111,7 @@ class FilterHandler(BaseHandler):
         acls = self.current_user.permissions
 
         # check that user is su or group admin
-        if "System admin" not in acls and "Manage groups" not in acls:
+        if not (self.current_user.is_system_admin or "Manage groups" in acls):
             gu = GroupUser.query.filter(
                 GroupUser.group_id == fil.group_id,
                 GroupUser.user_id == self.associated_user_object.id,
@@ -164,7 +164,7 @@ class FilterHandler(BaseHandler):
         """
         acls = self.current_user.permissions
 
-        if "System admin" in acls or "Manage groups" in acls:
+        if self.current_user.is_system_admin or "Manage groups" in acls:
             f = DBSession().query(Filter).get(filter_id)
         else:
             f = (
@@ -217,7 +217,7 @@ class FilterHandler(BaseHandler):
         """
         acls = self.current_user.permissions
 
-        if "System admin" in acls or "Manage groups" in acls:
+        if self.current_user.is_system_admin or "Manage groups" in acls:
             f = DBSession().query(Filter).get(filter_id)
         else:
             f = (

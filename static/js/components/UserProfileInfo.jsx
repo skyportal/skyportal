@@ -50,7 +50,7 @@ const UserProfileInfo = () => {
             </Box>
             {profile.roles.join(", ")}
           </Box>
-          {profile.acls?.length && (
+          {!!profile.acls?.length && (
             <Box pb={1}>
               <Box fontWeight="fontWeightBold" component="span" mr={1}>
                 Additional user ACLs (separate from role-level ACLs):

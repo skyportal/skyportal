@@ -14,10 +14,10 @@ from ...models import (
     Group,
     Instrument,
     Obj,
-    Source,
     GroupUser,
     Spectrum,
     User,
+    ClassicalAssignment,
 )
 from ...schema import (
     SpectrumAsciiFilePostJSON,
@@ -172,7 +172,7 @@ class SpectrumHandler(BaseHandler):
 
         if spectrum is not None:
             # Permissions check
-            _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
+            _ = Obj.get_if_owned_by(spectrum.obj_id, self.current_user)
             spec_dict = spectrum.to_dict()
             spec_dict["instrument_name"] = spectrum.instrument.name
             spec_dict["groups"] = spectrum.groups
@@ -214,7 +214,7 @@ class SpectrumHandler(BaseHandler):
 
         spectrum = Spectrum.query.get(spectrum_id)
         # Permissions check
-        _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
+        _ = Obj.get_if_owned_by(spectrum.obj_id, self.current_user)
 
         # Check that the requesting user owns the spectrum (or is an admin)
         if not spectrum.is_modifiable_by(self.associated_user_object):
@@ -266,7 +266,7 @@ class SpectrumHandler(BaseHandler):
         """
         spectrum = Spectrum.query.get(spectrum_id)
         # Permissions check
-        _ = Source.get_obj_if_owned_by(spectrum.obj_id, self.current_user)
+        _ = Obj.get_if_owned_by(spectrum.obj_id, self.current_user)
 
         # Check that the requesting user owns the spectrum (or is an admin)
         if not spectrum.is_modifiable_by(self.associated_user_object):
@@ -361,7 +361,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
         filename = json.pop('filename')
 
-        obj = Source.get_obj_if_owned_by(json['obj_id'], self.current_user)
+        obj = Obj.get_if_owned_by(json['obj_id'], self.current_user)
         if obj is None:
             raise ValidationError('Invalid Obj id.')
 
@@ -413,9 +413,19 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             followup_request = FollowupRequest.query.get(followup_request_id)
             if followup_request is None:
                 return self.error('Invalid followup request.')
+            spec.followup_request = followup_request
             for group in followup_request.target_groups:
                 if group not in groups:
                     groups.append(group)
+
+        assignment_id = json.pop('assignment_id', None)
+        if assignment_id is not None:
+            assignment = ClassicalAssignment.query.get(assignment_id)
+            if assignment is None:
+                return self.error('Invalid assignment.')
+            spec.assignment = assignment
+            if assignment.run.group is not None:
+                groups.append(assignment.run.group)
 
         spec.original_file_filename = Path(filename).name
         spec.groups = groups

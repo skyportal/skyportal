@@ -72,7 +72,7 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
       break;
     case "dr8":
       alt = "Link to DESI DR8 Image Access";
-      link = `http://legacysurvey.org/viewer/jpeg-cutout?ra=${ra}&dec=${dec}&size=512&layer=dr8&pixscale=0.262&bands=grz`;
+      link = `https://www.legacysurvey.org/viewer/jpeg-cutout?ra=${ra}&dec=${dec}&size=512&layer=dr8&pixscale=0.262&bands=grz`;
       break;
     case "ps1":
       alt = "Link to PanSTARRS-1 Image Access";

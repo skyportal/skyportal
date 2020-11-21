@@ -128,8 +128,8 @@ const SourceDesktop = ({ source }) => {
   );
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
-  const userAccessibleGroups = useSelector(
-    (state) => state.groups.userAccessible
+  const groups = (useSelector((state) => state.groups.all) || []).filter(
+    (g) => !g.single_user_group
   );
 
   return (
@@ -182,7 +182,7 @@ const SourceDesktop = ({ source }) => {
             </>
           )}
           {source.redshift != null && <>&nbsp;|&nbsp;</>}
-          Finding Chart:&nbsp;
+          <b>Finding Chart:&nbsp;</b>
           <Button
             href={`/api/sources/${source.id}/finder`}
             download="finder-chart-pdf"
@@ -196,6 +196,10 @@ const SourceDesktop = ({ source }) => {
           <Button onClick={() => setShowStarList(!showStarList)}>
             {showStarList ? "Hide Starlist" : "Show Starlist"}
           </Button>
+          &nbsp;|&nbsp;
+          <Link to={`/observability/${source.id}`} role="link">
+            <Button>Observability</Button>
+          </Link>
           <br />
           {showStarList && <StarList sourceId={source.id} />}
           {source.groups.map((group) => (
@@ -220,7 +224,7 @@ const SourceDesktop = ({ source }) => {
               id: source.id,
               currentGroupIds: source.groups.map((g) => g.id),
             }}
-            userGroups={userAccessibleGroups}
+            groups={groups}
             icon
           />
           <SourceSaveHistory groups={source.groups} />
