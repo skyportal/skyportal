@@ -421,6 +421,11 @@ class SourceHandler(BaseHandler):
                 )
                 self.push_all(action="skyportal/FETCH_TOP_SOURCES")
 
+            s = Obj.get_if_owned_by(obj_id, self.current_user, options=query_options,)
+
+            if s is None:
+                return self.error("Source not found", status=404)
+
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
                 IOLoop.current().add_callback(
                     lambda: add_ps1_thumbnail_and_push_ws_msg(s, self)
