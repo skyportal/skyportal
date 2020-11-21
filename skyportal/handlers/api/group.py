@@ -25,9 +25,9 @@ def has_admin_access_for_group(user, group_id):
         .filter(GroupUser.user_id == user.id)
         .first()
     )
-    return {"System admin", "Manage users", "Manage groups"}.intersection(
-        set(user.permissions)
-    ) or (groupuser is not None and groupuser.admin)
+    return len(
+        {"System admin", "Manage groups"}.intersection(set(user.permissions))
+    ) > 0 or (groupuser is not None and groupuser.admin)
 
 
 class GroupHandler(BaseHandler):
@@ -119,31 +119,30 @@ class GroupHandler(BaseHandler):
                   schema: Error
         """
         if group_id is not None:
-            if has_admin_access_for_group(self.associated_user_object, group_id):
-                group = (
-                    Group.query.options(joinedload(Group.users))
-                    .options(joinedload(Group.group_users))
-                    .get(group_id)
-                )
-            else:
-                group = (
-                    Group.query.options(
-                        [joinedload(Group.users).load_only(User.id, User.username)]
-                    )
-                    .options(joinedload(Group.group_users))
-                    .get(group_id)
-                )
-                if group is not None and group.id not in [
-                    g.id for g in self.current_user.accessible_groups
-                ]:
-                    return self.error('Insufficient permissions.')
+            group = Group.query.join(GroupUser).join(User).first()
+            if group is not None and group.id not in [
+                g.id for g in self.current_user.accessible_groups
+            ]:
+                return self.error('Insufficient permissions.')
+
             if group is not None:
-                group = group.to_dict()
                 # Do not include User.groups to avoid circular reference
-                group['users'] = [
-                    {'id': user.id, 'username': user.username}
-                    for user in group['users']
+                users = [
+                    {
+                        "id": user.id,
+                        "username": user.username,
+                        "first_name": user.first_name,
+                        "last_name": user.last_name,
+                        "contact_email": user.contact_email,
+                        "contact_phone": user.contact_phone,
+                        "oauth_uid": user.oauth_uid,
+                        "admin": has_admin_access_for_group(user, group_id),
+                    }
+                    for user in group.users
                 ]
+                group = group.to_dict()
+                group['users'] = users
+                print(group)
                 # grab streams:
                 streams = (
                     DBSession()
