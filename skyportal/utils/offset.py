@@ -664,7 +664,7 @@ def get_nearby_offset_stars(
 
     space = " "
     star_list_format = (
-        f"{basename:{space}<.{maxname_size}} "
+        f"{basename:{space}<{maxname_size}} "
         + f"{center.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}"
         + f" 2000.0 {commentstr} source_name={source_name}"
     )
@@ -694,7 +694,7 @@ def get_nearby_offset_stars(
         name = f"{abrev_basename}_o{i+1}"
 
         star_list_format = (
-            f"{name:{space}<.{maxname_size}} "
+            f"{name:{space}<{maxname_size}} "
             + f"{c.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}"
             + f" 2000.0 {offsets} "
             + f" {commentstr} dist={3600*dist:<0.02f}\"; {source['phot_rp_mean_mag']:<0.02f} mag"
