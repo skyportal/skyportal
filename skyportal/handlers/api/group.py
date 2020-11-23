@@ -423,14 +423,12 @@ class GroupUserHandler(BaseHandler):
             return self.error(f"Invalid userID parameter: {user_id}")
 
         # Ensure user has sufficient stream access to be added to group
-	if group.streams:
-	    if not all(
-		[stream in user.accessible_streams for stream in group.streams]
-	    ):
-		return self.error(
-		    "User does not have sufficient stream access "
-		    "to be added to this group."
-		)
+        if group.streams:
+            if not all([stream in user.accessible_streams for stream in group.streams]):
+                return self.error(
+                    "User does not have sufficient stream access "
+                    "to be added to this group."
+                )
         # Add user to group
         gu = (
             GroupUser.query.filter(GroupUser.group_id == group_id)
@@ -469,7 +467,7 @@ class GroupUserHandler(BaseHandler):
                   admin:
                     type: boolean
                 required:
-                  - username
+                  - userID
                   - admin
         responses:
           200:
@@ -504,7 +502,7 @@ class GroupUserHandler(BaseHandler):
         return self.success()
 
     @permissions(["Manage users"])
-    def delete(self, group_id, username):
+    def delete(self, group_id, user_id):
         """
         ---
         description: Delete a group user
@@ -515,10 +513,10 @@ class GroupUserHandler(BaseHandler):
             schema:
               type: integer
           - in: path
-            name: username
+            name: user_id
             required: true
             schema:
-              type: string
+              type: integer
         responses:
           200:
             content:
@@ -531,7 +529,10 @@ class GroupUserHandler(BaseHandler):
         group = Group.query.get(group_id)
         if group.single_user_group:
             return self.error("Cannot delete users from single user groups.")
-        user_id = User.query.filter(User.username == username).first().id
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return self.error("Invalid user_id; unable to parse to integer")
         (
             GroupUser.query.filter(GroupUser.group_id == group_id)
             .filter(GroupUser.user_id == user_id)

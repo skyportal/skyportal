@@ -134,7 +134,7 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin }) => {
         onClick={() =>
           dispatch(
             groupsActions.deleteGroupUser({
-              username: user.username,
+              userID: user.id,
               group_id: group.id,
             })
           )
@@ -306,7 +306,7 @@ const Group = () => {
 
   const isAdmin = (aUser) => {
     const currentGroupUser = group?.users?.filter(
-      (group_user) => group_user.username === aUser.username
+      (group_user) => group_user.id === aUser.id
     )[0];
     return (
       (currentGroupUser &&

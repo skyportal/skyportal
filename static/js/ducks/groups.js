@@ -55,11 +55,11 @@ export const addAllUsersFromGroups = ({ toGroupID, fromGroupIDs }) =>
 export const updateGroupUser = (groupID, params) =>
   API.PATCH(`/api/groups/${groupID}/users`, UPDATE_GROUP_USER, params);
 
-export function deleteGroupUser({ username, group_id }) {
+export function deleteGroupUser({ userID, group_id }) {
   return API.DELETE(
-    `/api/groups/${group_id}/users/${username}`,
+    `/api/groups/${group_id}/users/${userID}`,
     DELETE_GROUP_USER,
-    { username, group_id }
+    { userID, group_id }
   );
 }
 
