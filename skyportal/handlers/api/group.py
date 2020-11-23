@@ -13,7 +13,6 @@ from ...models import (
     Stream,
     User,
     Token,
-    StreamUser,
 )
 
 _, cfg = load_env()
@@ -426,15 +425,10 @@ class GroupUserHandler(BaseHandler):
         else:
             user_id = user.id
             # Ensure user has sufficient stream access to be added to group
-            if group.streams and not user.is_system_admin:
-                user_stream_ids = [
-                    su.stream_id
-                    for su in DBSession()
-                    .query(StreamUser)
-                    .filter(StreamUser.user_id == user.id)
-                    .all()
-                ]
-                if not all([stream.id in user_stream_ids for stream in group.streams]):
+            if group.streams:
+                if not all(
+                    [stream in user.accessible_streams for stream in group.streams]
+                ):
                     return self.error(
                         "User does not have sufficient stream access "
                         "to be added to this group."
@@ -613,17 +607,8 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
         for group in from_groups:
             for user in group.users:
                 # Ensure user has sufficient stream access to be added to group
-                if group.streams and not user.is_system_admin:
-                    user_stream_ids = [
-                        su.stream_id
-                        for su in DBSession()
-                        .query(StreamUser)
-                        .filter(StreamUser.user_id == user.id)
-                        .all()
-                    ]
-                    if not all(
-                        [stream.id in user_stream_ids for stream in group.streams]
-                    ):
+                if group.streams:
+                    if not all([stream in user.streams for stream in group.streams]):
                         return self.error(
                             "Not all users have sufficient stream access "
                             "to be added to this group."
