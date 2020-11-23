@@ -155,6 +155,7 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin }) => {
       <IconButton
         edge="end"
         aria-label="delete"
+        data-testid={`delete-${user.username}`}
         onClick={() =>
           dispatch(
             groupsActions.deleteGroupUser({
@@ -265,7 +266,9 @@ const Group = () => {
         setGroupLoadError(data.message);
       }
     };
-    fetchGroup();
+    if (id !== loadedId) {
+      fetchGroup();
+    }
   }, [id, loadedId, dispatch]);
 
   const group = useSelector((state) => state.group);
@@ -331,7 +334,11 @@ const Group = () => {
     const currentGroupUser = group?.users?.filter(
       (group_user) => group_user.id === aUser.id
     )[0];
-    return currentGroupUser && currentGroupUser.admin;
+    return (
+      (currentGroupUser && currentGroupUser.admin) ||
+      aUser.permissions?.includes("System admin") ||
+      aUser.permissions?.includes("Manage groups")
+    );
   };
 
   const groupStreamIds = group?.streams?.map((stream) => stream.id);
@@ -347,6 +354,15 @@ const Group = () => {
           value.last_name ? value.last_name : ""
         }`
       : "";
+  };
+
+  const renderUsername = (dataIndex) => {
+    const user = group?.users[dataIndex];
+    return (
+      <Link to={`/user/${user.id}`} className={classes.filterLink}>
+        {user.username}
+      </Link>
+    );
   };
 
   const renderAdmin = (dataIndex) => {
@@ -431,6 +447,7 @@ const Group = () => {
       options: {
         // Turn off default filtering for custom form
         filter: true,
+        customBodyRenderLite: renderUsername,
       },
     },
     {
@@ -689,6 +706,7 @@ const Group = () => {
               variant="contained"
               color="primary"
               className={classes.button_add}
+              data-testid="add-stream-dialog-submit"
             >
               Add
             </Button>
@@ -757,6 +775,7 @@ const Group = () => {
               color="primary"
               className={classes.button_add}
               type="submit"
+              data-testid="add-filter-dialog-submit"
             >
               Add
             </Button>

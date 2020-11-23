@@ -119,7 +119,12 @@ class GroupHandler(BaseHandler):
                   schema: Error
         """
         if group_id is not None:
-            group = Group.query.join(GroupUser).join(User).first()
+            group = (
+                Group.query.join(GroupUser)
+                .join(User)
+                .filter(Group.id == group_id)
+                .first()
+            )
             if group is not None and group.id not in [
                 g.id for g in self.current_user.accessible_groups
             ]:
@@ -142,7 +147,6 @@ class GroupHandler(BaseHandler):
                 ]
                 group = group.to_dict()
                 group['users'] = users
-                print(group)
                 # grab streams:
                 streams = (
                     DBSession()
