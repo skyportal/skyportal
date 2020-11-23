@@ -150,7 +150,12 @@ const FilterCandidateList = ({
             <FormControlLabel
               control={
                 <Controller
-                  as={Checkbox}
+                  render={({ onChange, value }) => (
+                    <Checkbox
+                      onChange={(event) => onChange(event.target.checked)}
+                      checked={value}
+                    />
+                  )}
                   name="unsavedOnly"
                   control={control}
                   defaultValue={false}
@@ -173,12 +178,17 @@ const FilterCandidateList = ({
                   key={group.id}
                   control={
                     <Controller
-                      as={Checkbox}
+                      render={({ onChange, value }) => (
+                        <Checkbox
+                          onChange={(event) => onChange(event.target.checked)}
+                          checked={value}
+                        />
+                      )}
                       name={`groupIDs[${idx}]`}
                       data-testid={`filteringFormGroupCheckbox-${group.id}`}
                       control={control}
                       rules={{ validate: validateGroups }}
-                      defaultValue
+                      defaultValue={false}
                     />
                   }
                   label={group.name}
