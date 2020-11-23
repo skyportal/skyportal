@@ -76,7 +76,12 @@ const NewTokenForm = ({ availableAcls }) => {
                   key={acl}
                   control={
                     <Controller
-                      as={Checkbox}
+                      render={({ onChange, value }) => (
+                        <Checkbox
+                          onChange={(event) => onChange(event.target.checked)}
+                          checked={value}
+                        />
+                      )}
                       name={`acls[${idx}]`}
                       control={control}
                       defaultValue={false}

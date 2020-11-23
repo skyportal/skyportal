@@ -208,11 +208,19 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
                 key={userGroup.id}
                 control={
                   <Controller
-                    as={Checkbox}
+                    render={({ onChange, value }) => (
+                      <Checkbox
+                        onChange={(event) => onChange(event.target.checked)}
+                        checked={value}
+                      />
+                    )}
                     name={`group_ids[${idx}]`}
                     data-testid={`saveCandGroupCheckbox-${userGroup.id}`}
                     control={control}
                     rules={{ validate: validateGroups }}
+                    defaultValue={filterGroups
+                      .map((g) => g.id)
+                      .includes(userGroup.id)}
                   />
                 }
                 label={userGroup.name}
