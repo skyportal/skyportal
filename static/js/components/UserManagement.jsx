@@ -163,7 +163,7 @@ const UserManagement = () => {
     const promises = groupIDs.map((gid) =>
       dispatch(
         groupsActions.addGroupUser({
-          username: clickedUser.username,
+          userID: clickedUser.id,
           admin: false,
           group_id: gid,
         })
@@ -237,9 +237,9 @@ const UserManagement = () => {
     }
   };
 
-  const handleClickRemoveUserFromGroup = async (username, group_id) => {
+  const handleClickRemoveUserFromGroup = async (userID, group_id) => {
     const result = await dispatch(
-      groupsActions.deleteGroupUser({ username, group_id })
+      groupsActions.deleteGroupUser({ userID, group_id })
     );
     if (result.status === "success") {
       dispatch(
@@ -404,7 +404,7 @@ const UserManagement = () => {
             <Chip
               label={group.name}
               onDelete={() => {
-                handleClickRemoveUserFromGroup(user.username, group.id);
+                handleClickRemoveUserFromGroup(user.id, group.id);
               }}
               key={group.id}
               id={`deleteGroupUserButton_${user.id}_${group.id}`}

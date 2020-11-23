@@ -322,6 +322,20 @@ Token.accessible_groups = user_or_token_accessible_groups
 
 
 @property
+def user_or_token_accessible_streams(self):
+    """Return the list of Streams a User or Token has access to."""
+    if "System admin" in self.permissions:
+        return Stream.query.all()
+    if isinstance(self, Token):
+        return self.created_by.streams
+    return self.streams
+
+
+User.accessible_streams = user_or_token_accessible_streams
+Token.accessible_streams = user_or_token_accessible_streams
+
+
+@property
 def token_groups(self):
     """The groups the Token owner is a member of."""
     return self.created_by.groups
