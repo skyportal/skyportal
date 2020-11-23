@@ -60,7 +60,7 @@ def test_add_new_group_user_admin(
     driver.click_xpath(
         f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
     )
-    driver.click_xpath('//input[@id="newUserEmail"]')
+    driver.click_xpath('//input[@id="newGroupUserInput"]')
     driver.click_xpath(f'//li[text()="{user_no_groups.username}"]', scroll_parent=True)
     driver.click_xpath('//input[@type="checkbox"]')
     driver.click_xpath('//button[contains(.,"Add user")]')
@@ -85,7 +85,7 @@ def test_add_new_group_user_nonadmin(
     driver.click_xpath(
         f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
     )
-    driver.click_xpath('//input[@id="newUserEmail"]')
+    driver.click_xpath('//input[@id="newGroupUserInput"]')
     driver.click_xpath(f'//li[text()="{user_no_groups.username}"]', scroll_parent=True)
     driver.click_xpath('//button[contains(.,"Add user")]')
     driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')

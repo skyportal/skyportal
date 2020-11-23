@@ -123,9 +123,15 @@ class GroupHandler(BaseHandler):
                 .filter(Group.id == group_id)
                 .first()
             )
-            if group is not None and group.id not in [
-                g.id for g in self.current_user.accessible_groups
-            ]:
+            # If not super admin or member of group
+            if (
+                not {"System admin", "Manage groups"}.intersection(
+                    set(self.associated_user_object.permissions)
+                )
+            ) and (
+                group is not None
+                and group.id not in [g.id for g in self.current_user.accessible_groups]
+            ):
                 return self.error('Insufficient permissions.')
 
             if group is not None:
