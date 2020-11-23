@@ -10,6 +10,8 @@ import Typography from "@material-ui/core/Typography";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import { makeStyles } from "@material-ui/core/styles";
 
+import { showNotification } from "baselayer/components/Notifications";
+
 import * as groupsActions from "../ducks/groups";
 import * as usersActions from "../ducks/users";
 
@@ -38,18 +40,22 @@ const NewGroupUserForm = ({ group_id }) => {
   }, [dispatch, allUsers]);
 
   const handleClickSubmit = async () => {
-    const result = await dispatch(
-      groupsActions.addGroupUser({
-        userID: formState.userID,
-        admin: formState.admin,
-        group_id,
-      })
-    );
-    if (result.status === "success") {
-      setFormState({
-        userID: null,
-        admin: false,
-      });
+    if (!formState.userID) {
+      dispatch(showNotification("Please select a user", "error"));
+    } else {
+      const result = await dispatch(
+        groupsActions.addGroupUser({
+          userID: formState.userID,
+          admin: formState.admin,
+          group_id,
+        })
+      );
+      if (result.status === "success") {
+        setFormState({
+          userID: null,
+          admin: false,
+        });
+      }
     }
   };
 
