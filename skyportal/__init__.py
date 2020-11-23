@@ -27,4 +27,5 @@ if 'dev' in __version__:
                 .split()
             )
 
+            __version__ = __version__.split('+git', 1)[0]
             __version__ += f'+git{git_date}.{git_hash}'
