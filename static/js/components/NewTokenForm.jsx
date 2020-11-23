@@ -80,6 +80,7 @@ const NewTokenForm = ({ availableAcls }) => {
                         <Checkbox
                           onChange={(event) => onChange(event.target.checked)}
                           checked={value}
+                          data-testid={`acls[${idx}]`}
                         />
                       )}
                       name={`acls[${idx}]`}
