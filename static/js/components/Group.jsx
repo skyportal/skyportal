@@ -46,6 +46,7 @@ import * as groupsActions from "../ducks/groups";
 import * as streamsActions from "../ducks/streams";
 import * as filterActions from "../ducks/filter";
 import NewGroupUserForm from "./NewGroupUserForm";
+import InviteNewGroupUserForm from "./InviteNewGroupUserForm";
 import AddUsersFromGroupForm from "./AddUsersFromGroupForm";
 
 const useStyles = makeStyles((theme) => ({
@@ -133,7 +134,7 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin }) => {
         onClick={() =>
           dispatch(
             groupsActions.deleteGroupUser({
-              username: user.username,
+              userID: user.id,
               group_id: group.id,
             })
           )
@@ -245,6 +246,7 @@ const Group = () => {
 
   const group = useSelector((state) => state.group);
   const currentUser = useSelector((state) => state.profile);
+  const { invitationsEnabled } = useSelector((state) => state.sysInfo);
 
   // fetch streams:
   const streams = useSelector((state) => state.streams);
@@ -304,7 +306,7 @@ const Group = () => {
 
   const isAdmin = (aUser) => {
     const currentGroupUser = group?.users?.filter(
-      (group_user) => group_user.username === aUser.username
+      (group_user) => group_user.id === aUser.id
     )[0];
     return (
       (currentGroupUser &&
@@ -435,6 +437,13 @@ const Group = () => {
               <>
                 <br />
                 <NewGroupUserForm group_id={group.id} />
+                <br />
+                {invitationsEnabled && (
+                  <>
+                    <br />
+                    <InviteNewGroupUserForm group_id={group.id} />
+                  </>
+                )}
                 <br />
                 <AddUsersFromGroupForm groupID={group.id} />
               </>
