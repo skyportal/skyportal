@@ -162,7 +162,7 @@ def test_token_user_post_put_get_photometry_data(
     assert data['status'] == 'success'
     group_ids = [g["id"] for g in data['data']['groups']]
     assert len(group_ids) == 2
-    assert group_ids[0] == public_group.id
+    assert public_group.id in group_ids
 
     # PUTing photometry that contains
     # the same first point, the second point with a different origin, and a new third point should succeed
@@ -207,11 +207,13 @@ def test_token_user_post_put_get_photometry_data(
         .first()
     )
 
-    assert group_ids == [
-        public_group.id,
-        public_group2.id,
-        token_object.created_by.single_user_group.id,
-    ]
+    assert sorted(group_ids) == sorted(
+        [
+            public_group.id,
+            public_group2.id,
+            token_object.created_by.single_user_group.id,
+        ]
+    )
 
 
 def test_post_photometry_multiple_groups(
