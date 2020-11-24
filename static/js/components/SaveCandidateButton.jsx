@@ -212,10 +212,10 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
                       <Checkbox
                         onChange={(event) => onChange(event.target.checked)}
                         checked={value}
+                        data-testid={`saveCandGroupCheckbox-${userGroup.id}`}
                       />
                     )}
                     name={`group_ids[${idx}]`}
-                    data-testid={`saveCandGroupCheckbox-${userGroup.id}`}
                     control={control}
                     rules={{ validate: validateGroups }}
                     defaultValue={filterGroups

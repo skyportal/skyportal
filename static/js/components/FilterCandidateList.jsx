@@ -182,10 +182,10 @@ const FilterCandidateList = ({
                         <Checkbox
                           onChange={(event) => onChange(event.target.checked)}
                           checked={value}
+                          data-testid={`filteringFormGroupCheckbox-${group.id}`}
                         />
                       )}
                       name={`groupIDs[${idx}]`}
-                      data-testid={`filteringFormGroupCheckbox-${group.id}`}
                       control={control}
                       rules={{ validate: validateGroups }}
                       defaultValue={false}
