@@ -3,6 +3,7 @@ import tornado.web
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app import model_util as baselayer_model_util
 from baselayer.log import make_log
+from baselayer.app.env import load_env
 
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
@@ -74,6 +75,7 @@ from . import models, model_util, openapi
 
 
 log = make_log('app_server')
+env, _ = load_env()
 
 skyportal_handlers = [
     # API endpoints
@@ -213,7 +215,12 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
 
     app = tornado.web.Application(handlers, **settings)
     models.init_db(**cfg['database'])
-    baselayer_model_util.create_tables()
+
+    # If tables are found in the database, new tables will only be added
+    # in debug mode.  In production, we leave the tables alone, since
+    # migrations might be used.
+    baselayer_model_util.create_tables(add=env.debug)
+
     model_util.setup_permissions()
     app.cfg = cfg
 
