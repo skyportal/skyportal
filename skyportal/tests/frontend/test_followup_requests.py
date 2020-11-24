@@ -90,9 +90,9 @@ def add_followup_request_using_frontend_and_verify(
 
     driver.get(f"/source/{public_source.id}")
     # wait for the plots to load
-    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
+    driver.wait_for_xpath('//span[contains(text(), "band")]')
     # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
+    driver.wait_for_xpath('//span[text()="Mg"]')
 
     submit_button_xpath = '//form[@class="rjsf"]//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
