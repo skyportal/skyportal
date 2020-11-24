@@ -63,7 +63,6 @@ def test_add_new_group_user_admin(
     el_input = driver.wait_for_xpath(
         '//*[@data-testid="newGroupUserTextInput"]', timeout=10
     )
-    el_input.clear()
     ActionChains(driver).move_to_element(el_input).click().send_keys(
         user_no_groups.username
     ).perform()
@@ -93,7 +92,6 @@ def test_add_new_group_user_nonadmin(
     el_input = driver.wait_for_xpath(
         '//*[@data-testid="newGroupUserTextInput"]', timeout=10
     )
-    el_input.clear()
     ActionChains(driver).move_to_element(el_input).click().send_keys(
         user_no_groups.username
     ).perform()
@@ -120,7 +118,7 @@ def test_invite_all_users_from_other_group(
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.wait_for_xpath_to_disappear(f'//a[contains(.,"{user_group2.username}")]')
     driver.execute_script("arguments[0].click();", el)
-    driver.click_xpath('//*[@data-testid="addUsersFromGroupsSelect"]')
+    driver.click_xpath('//*[@data-testid="addUsersFromGroupsTextField"]')
     driver.click_xpath(f'//li[text()="{public_group2.name}"]', scroll_parent=True)
     driver.click_xpath('//*[text()="Add users"]')
     driver.wait_for_xpath(
