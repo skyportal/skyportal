@@ -191,7 +191,14 @@ const SourceList = () => {
                 labelPlacement="start"
                 control={
                   <Controller
-                    as={<Checkbox color="primary" type="checkbox" />}
+                    render={({ onChange, value }) => (
+                      <Checkbox
+                        color="primary"
+                        type="checkbox"
+                        onChange={(event) => onChange(event.target.checked)}
+                        checked={value}
+                      />
+                    )}
                     name="hasTNSname"
                     control={control}
                     defaultValue={false}

@@ -76,7 +76,7 @@ const NewGroupUserForm = ({ group_id }) => {
         Add an existing user to this group
       </Typography>
       <Autocomplete
-        id="newGroupUserInput"
+        data-testid="newGroupUser"
         value={
           allUsers.filter((user) => user.id === formState.userID)[0] || null
         }
@@ -96,8 +96,12 @@ const NewGroupUserForm = ({ group_id }) => {
         style={{ width: 300, paddingBottom: 10 }}
         defaultValue={null}
         renderInput={(params) => (
-          // eslint-disable-next-line react/jsx-props-no-spreading
-          <TextField {...params} label="Username" />
+          <TextField
+            // eslint-disable-next-line react/jsx-props-no-spreading
+            {...params}
+            label="Username"
+            data-testid="newGroupUserTextInput"
+          />
         )}
       />
       <input

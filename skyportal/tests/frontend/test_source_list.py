@@ -62,7 +62,7 @@ def test_add_sources_two_groups(
         f"//*[text()[contains(., '{t1.strftime('%Y-%m-%dT%H:%M')}')]]"
     )
     saved_group1 = parser.parse(saved_at_element.text + " UTC")
-    assert abs(saved_group1 - t1) < timedelta(seconds=2)
+    assert abs(saved_group1 - t1) < timedelta(seconds=30)
 
     # check the redshift shows up
     driver.wait_for_xpath(f"//*[text()[contains(., '{'0.153'}')]]")
