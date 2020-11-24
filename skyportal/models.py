@@ -2592,21 +2592,43 @@ class ObservingRun(Base):
         noon = ap_time.Time(noon, format='unix')
         return noon
 
-    def rise_time(self, target_or_targets):
+    def rise_time(self, target_or_targets, altitude=30 * u.degree):
         """The rise time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
-        sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
-        return observer.target_rise_time(
-            sunset, target_or_targets, which='next', horizon=30 * u.degree
+        sunset = self.instrument.telescope.next_sunset(self.calendar_noon).reshape((1,))
+        sunrise = self.instrument.telescope.next_sunrise(self.calendar_noon).reshape(
+            (1,)
+        )
+        original_shape = np.asarray(target_or_targets).shape
+        target_array = (
+            [target_or_targets] if len(original_shape) == 0 else target_or_targets
         )
 
-    def set_time(self, target_or_targets):
+        next_rise = observer.target_rise_time(
+            sunset, target_array, which='next', horizon=altitude
+        ).reshape((len(target_array),))
+
+        # if next rise time is after next sunrise, the target rises before
+        # sunset. show the previous rise so that the target is shown to be
+        # "already up" when the run begins (a beginning of night target).
+
+        recalc = next_rise > sunrise
+        if recalc.any():
+            target_subarr = [t for t, b in zip(target_array, recalc) if b]
+            next_rise[recalc] = observer.target_rise_time(
+                sunset, target_subarr, which='previous', horizon=altitude
+            ).reshape((len(target_subarr),))
+
+        return next_rise.reshape(original_shape)
+
+    def set_time(self, target_or_targets, altitude=30 * u.degree):
         """The set time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
         sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
+        original_shape = np.asarray(target_or_targets).shape
         return observer.target_set_time(
-            sunset, target_or_targets, which='next', horizon=30 * u.degree
-        )
+            sunset, target_or_targets, which='next', horizon=altitude
+        ).reshape(original_shape)
 
 
 User.observing_runs = relationship(

@@ -25,6 +25,7 @@ from skyportal.tests.fixtures import (
     InstrumentFactory,
     ObservingRunFactory,
     TelescopeFactory,
+    ClassicalAssignmentFactory,
 )
 from skyportal.model_util import create_token
 from skyportal.models import (
@@ -192,6 +193,14 @@ def public_filter(public_group, public_stream):
 @pytest.fixture()
 def public_filter2(public_group2, public_stream):
     return FilterFactory(group=public_group2, stream=public_stream)
+
+
+@pytest.fixture()
+def public_ZTF20acgrjqm(public_group):
+    obj = ObjFactory(groups=[public_group], ra=65.0630767, dec=82.5880983)
+    DBSession().add(Source(obj_id=obj.id, group_id=public_group.id))
+    DBSession().commit()
+    return obj
 
 
 @pytest.fixture()
@@ -369,6 +378,26 @@ def sedm(p60_telescope):
 @pytest.fixture()
 def red_transients_run():
     return ObservingRunFactory()
+
+
+@pytest.fixture()
+def lris_run_20201118(lris, public_group, super_admin_user):
+    return ObservingRunFactory(
+        instrument=lris,
+        group=public_group,
+        calendar_date='2020-11-18',
+        owner=super_admin_user,
+    )
+
+
+@pytest.fixture()
+def problematic_assignment(lris_run_20201118, public_ZTF20acgrjqm):
+    return ClassicalAssignmentFactory(
+        run=lris_run_20201118,
+        obj=public_ZTF20acgrjqm,
+        requester=lris_run_20201118.owner,
+        last_modified_by=lris_run_20201118.owner,
+    )
 
 
 @pytest.fixture()
