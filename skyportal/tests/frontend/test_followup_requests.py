@@ -216,9 +216,9 @@ def test_submit_new_followup_request_two_groups(
 
     driver.get(f"/source/{public_source_two_groups.id}")
     # wait for the plots to load
-    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
+    driver.wait_for_xpath('//span[contains(text(), "band")]', 10)
     # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
+    driver.wait_for_xpath('//span[text()="Mg"]', timeout=20)
 
     submit_button_xpath = '//form[@class="rjsf"]//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
