@@ -21,10 +21,8 @@ def test_public_source_page(driver, user, public_source, public_group):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    driver.wait_for_xpath(
-        '//label[contains(text(), "band")]', 10
-    )  # TODO how to check plot?
-    driver.wait_for_xpath('//label[contains(text(), "Fe III")]')
+    driver.wait_for_xpath('//span[contains(text(), "band")]', 10)
+    driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
@@ -38,9 +36,9 @@ def test_public_source_page_null_z(driver, user, public_source, public_group):
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.wait_for_xpath(
-        '//label[contains(text(), "band")]', 10
+        '//span[contains(text(), "band")]', 10
     )  # TODO how to check plot?
-    driver.wait_for_xpath('//label[contains(text(), "Fe III")]')
+    driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
@@ -565,8 +563,8 @@ def test_obj_page_unsaved_source(public_obj, driver, user):
     driver.get(f"/source/{public_obj.id}")
 
     # wait for the plots to load
-    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
+    driver.wait_for_xpath('//span[contains(text(), "band")]', 10)
     # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
+    driver.wait_for_xpath('//span[text()="Mg"]', timeout=20)
 
     driver.wait_for_xpath_to_disappear('//div[contains(@data-testid, "groupChip")]')
