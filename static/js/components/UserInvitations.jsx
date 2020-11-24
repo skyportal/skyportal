@@ -540,7 +540,6 @@ const UserInvitations = () => {
               name="invitationGroups"
               render={({ onChange, value, ...props }) => (
                 <Autocomplete
-                  id="addInvitationGroupsSelect"
                   multiple
                   value={value}
                   onChange={(e, data) => onChange(data)}
@@ -604,7 +603,6 @@ const UserInvitations = () => {
               name="invitationStreams"
               render={({ onChange, value, ...props }) => (
                 <Autocomplete
-                  id="addInvitationStreamsSelect"
                   multiple
                   value={value}
                   onChange={(e, data) => onChange(data)}

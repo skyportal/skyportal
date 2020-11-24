@@ -312,7 +312,7 @@ const UserManagement = () => {
               handleClickDeleteUserRole(user.id, role);
             }}
             key={role}
-            id={`deleteUserRoleButton_${user.id}_${role}`}
+            data-testid={`deleteUserRoleButton_${user.id}_${role}`}
           />
         ))}
       </div>
@@ -364,7 +364,7 @@ const UserManagement = () => {
               handleClickDeleteUserACL(user.id, acl);
             }}
             key={acl}
-            id={`deleteUserACLButton_${user.id}_${acl}`}
+            data-testid={`deleteUserACLButton_${user.id}_${acl}`}
           />
         ))}
       </div>
@@ -414,7 +414,7 @@ const UserManagement = () => {
                 handleClickRemoveUserFromGroup(user.id, group.id);
               }}
               key={group.id}
-              id={`deleteGroupUserButton_${user.id}_${group.id}`}
+              data-testid={`deleteGroupUserButton_${user.id}_${group.id}`}
             />
           ))}
       </div>
@@ -443,7 +443,7 @@ const UserManagement = () => {
               handleClickRemoveUserStreamAccess(user.id, stream.id);
             }}
             key={stream.id}
-            id={`deleteStreamUserButton_${user.id}_${stream.id}`}
+            data-testid={`deleteStreamUserButton_${user.id}_${stream.id}`}
           />
         ))}
       </div>
@@ -682,7 +682,6 @@ const UserManagement = () => {
               render={({ onChange, value, ...props }) => (
                 <Autocomplete
                   multiple
-                  id="addUserToGroupsSelect"
                   onChange={(e, data) => onChange(data)}
                   value={value}
                   options={allGroups.filter(
@@ -744,7 +743,6 @@ const UserManagement = () => {
               render={({ onChange, value, ...props }) => (
                 <Autocomplete
                   multiple
-                  id="addUserToStreamsSelect"
                   onChange={(e, data) => onChange(data)}
                   value={value}
                   options={streams.filter(
@@ -808,7 +806,6 @@ const UserManagement = () => {
               render={({ onChange, value, ...props }) => (
                 <Autocomplete
                   multiple
-                  id="addUserACLsSelect"
                   onChange={(e, data) => onChange(data)}
                   value={value}
                   options={acls.filter(
@@ -869,7 +866,6 @@ const UserManagement = () => {
               render={({ onChange, value, ...props }) => (
                 <Autocomplete
                   multiple
-                  id="addUserRolesSelect"
                   onChange={(e, data) => onChange(data)}
                   value={value}
                   options={roles?.filter(
