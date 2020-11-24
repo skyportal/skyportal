@@ -28,5 +28,5 @@ class SourceCountHandler(BaseHandler):
             .filter(Source.created_at >= cutoff_day)
         )
         result = q.first()[0]
-        data = {"count": result, "since_days_ago": since_days_ago}
+        data = {"count": result, "sinceDaysAgo": since_days_ago}
         return self.success(data=data)
