@@ -154,6 +154,7 @@ const FilterCandidateList = ({
                     <Checkbox
                       onChange={(event) => onChange(event.target.checked)}
                       checked={value}
+                      data-testid="unsavedOnlyCheckbox"
                     />
                   )}
                   name="unsavedOnly"
