@@ -107,9 +107,6 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     # Notification
     driver.wait_for_xpath("//*[text()='Classification saved']")
 
-    # Button at top of source page
-    driver.wait_for_xpath("//span[text()[contains(., 'Save')]]")
-
     # Scroll up to get top of classifications list component in view
     classifications = driver.find_element_by_xpath(
         "//div[@id='classifications-header']"
