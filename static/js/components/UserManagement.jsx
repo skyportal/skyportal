@@ -109,6 +109,7 @@ const UserManagement = () => {
       fetchData();
       setDataFetched(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataFetched, dispatch]);
 
   if (
@@ -311,7 +312,7 @@ const UserManagement = () => {
               handleClickDeleteUserRole(user.id, role);
             }}
             key={role}
-            id={`deleteUserRoleButton_${user.id}_${role}`}
+            data-testid={`deleteUserRoleButton_${user.id}_${role}`}
           />
         ))}
       </div>
@@ -319,23 +320,26 @@ const UserManagement = () => {
   };
 
   const renderRolesHeader = () => (
-    <Tooltip
-      interactive
-      title={
-        <>
-          <b>Each role is associated with the following ACLs:</b>
-          <ul>
-            {roles.map((role) => (
-              <li key={role.id}>
-                {role.id}: {role.acls.join(", ")}
-              </li>
-            ))}
-          </ul>
-        </>
-      }
-    >
-      <HelpIcon color="disabled" size="small" className={classes.icon} />
-    </Tooltip>
+    <>
+      Roles
+      <Tooltip
+        interactive
+        title={
+          <>
+            <b>Each role is associated with the following ACLs:</b>
+            <ul>
+              {roles.map((role) => (
+                <li key={role.id}>
+                  {role.id}: {role.acls.join(", ")}
+                </li>
+              ))}
+            </ul>
+          </>
+        }
+      >
+        <HelpIcon color="disabled" size="small" className={classes.icon} />
+      </Tooltip>
+    </>
   );
 
   const renderACLs = (dataIndex) => {
@@ -360,7 +364,7 @@ const UserManagement = () => {
               handleClickDeleteUserACL(user.id, acl);
             }}
             key={acl}
-            id={`deleteUserACLButton_${user.id}_${acl}`}
+            data-testid={`deleteUserACLButton_${user.id}_${acl}`}
           />
         ))}
       </div>
@@ -368,19 +372,22 @@ const UserManagement = () => {
   };
 
   const renderACLsHeader = () => (
-    <Tooltip
-      interactive
-      title={
-        <>
-          <p>
-            These are in addition to those ACLs associated with user role(s).
-            See help icon tooltip in roles column header for those ACLs.
-          </p>
-        </>
-      }
-    >
-      <HelpIcon color="disabled" size="small" className={classes.icon} />
-    </Tooltip>
+    <>
+      ACLs
+      <Tooltip
+        interactive
+        title={
+          <>
+            <p>
+              These are in addition to those ACLs associated with user role(s).
+              See help icon tooltip in roles column header for those ACLs.
+            </p>
+          </>
+        }
+      >
+        <HelpIcon color="disabled" size="small" className={classes.icon} />
+      </Tooltip>
+    </>
   );
 
   const renderGroups = (dataIndex) => {
@@ -407,7 +414,7 @@ const UserManagement = () => {
                 handleClickRemoveUserFromGroup(user.id, group.id);
               }}
               key={group.id}
-              id={`deleteGroupUserButton_${user.id}_${group.id}`}
+              data-testid={`deleteGroupUserButton_${user.id}_${group.id}`}
             />
           ))}
       </div>
@@ -436,7 +443,7 @@ const UserManagement = () => {
               handleClickRemoveUserStreamAccess(user.id, stream.id);
             }}
             key={stream.id}
-            id={`deleteStreamUserButton_${user.id}_${stream.id}`}
+            data-testid={`deleteStreamUserButton_${user.id}_${stream.id}`}
           />
         ))}
       </div>
@@ -672,10 +679,11 @@ const UserManagement = () => {
             )}
             <Controller
               name="groups"
-              id="addUserToGroupsSelect"
-              as={
+              render={({ onChange, value, ...props }) => (
                 <Autocomplete
                   multiple
+                  onChange={(e, data) => onChange(data)}
+                  value={value}
                   options={allGroups.filter(
                     (g) =>
                       !clickedUser?.groups?.map((gr) => gr.id)?.includes(g.id)
@@ -693,10 +701,11 @@ const UserManagement = () => {
                       data-testid="addUserToGroupsTextField"
                     />
                   )}
+                  // eslint-disable-next-line react/jsx-props-no-spreading
+                  {...props}
                 />
-              }
+              )}
               control={control}
-              onChange={([, data]) => data}
               rules={{ validate: validateGroups }}
               defaultValue={[]}
             />
@@ -731,10 +740,11 @@ const UserManagement = () => {
             )}
             <Controller
               name="streams"
-              id="addUserToStreamsSelect"
-              as={
+              render={({ onChange, value, ...props }) => (
                 <Autocomplete
                   multiple
+                  onChange={(e, data) => onChange(data)}
+                  value={value}
                   options={streams.filter(
                     (s) =>
                       !clickedUser?.streams
@@ -754,10 +764,11 @@ const UserManagement = () => {
                       data-testid="addUserToStreamsTextField"
                     />
                   )}
+                  // eslint-disable-next-line react/jsx-props-no-spreading
+                  {...props}
                 />
-              }
+              )}
               control={control}
-              onChange={([, data]) => data}
               rules={{ validate: validateStreams }}
               defaultValue={[]}
             />
@@ -792,10 +803,11 @@ const UserManagement = () => {
             )}
             <Controller
               name="acls"
-              id="addUserACLsSelect"
-              as={
+              render={({ onChange, value, ...props }) => (
                 <Autocomplete
                   multiple
+                  onChange={(e, data) => onChange(data)}
+                  value={value}
                   options={acls.filter(
                     (acl) => !clickedUser?.permissions?.includes(acl)
                   )}
@@ -812,10 +824,11 @@ const UserManagement = () => {
                       data-testid="addUserACLsTextField"
                     />
                   )}
+                  // eslint-disable-next-line react/jsx-props-no-spreading
+                  {...props}
                 />
-              }
+              )}
               control={control}
-              onChange={([, data]) => data}
               rules={{ validate: validateACLs }}
               defaultValue={[]}
             />
@@ -850,10 +863,11 @@ const UserManagement = () => {
             )}
             <Controller
               name="roles"
-              id="addUserRolesSelect"
-              as={
+              render={({ onChange, value, ...props }) => (
                 <Autocomplete
                   multiple
+                  onChange={(e, data) => onChange(data)}
+                  value={value}
                   options={roles?.filter(
                     (role) => !clickedUser?.roles?.includes(role.id)
                   )}
@@ -870,10 +884,11 @@ const UserManagement = () => {
                       data-testid="addUserRolesTextField"
                     />
                   )}
+                  // eslint-disable-next-line react/jsx-props-no-spreading
+                  {...props}
                 />
-              }
+              )}
               control={control}
-              onChange={([, data]) => data}
               rules={{ validate: validateRoles }}
               defaultValue={[]}
             />

@@ -116,7 +116,9 @@ def test_candidate_unsaved_only_filtering(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
         wait_clickable=False,
     )
-    unsaved_only_checkbox = driver.wait_for_xpath('//*[@name="unsavedOnly"]')
+    unsaved_only_checkbox = driver.wait_for_xpath(
+        '//*[@data-testid="unsavedOnlyCheckbox"]'
+    )
     driver.scroll_to_element_and_click(unsaved_only_checkbox)
     submit_button = driver.wait_for_xpath('//span[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
