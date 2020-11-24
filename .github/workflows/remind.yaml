@@ -13,7 +13,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          webhook-url: ${{ secrets.WEBHOOK_URL }}
+          webhook-url: ${{ secrets.PR_REMINDER_WEBHOOK_URL }}
           provider: "slack"
-          channel: ${{ secrets.SLACK_CHANNEL }} # Optional, eg: #general
-          github-provider-map: ${{ secrets.PROVIDER_MAP }}
+          channel: ${{ secrets.PR_REMINDER_SLACK_CHANNEL }} # Optional, eg: #general
+          github-provider-map: ${{ secrets.PR_REMINDER_PROVIDER_MAP }}
