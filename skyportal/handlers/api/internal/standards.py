@@ -81,7 +81,6 @@ class StandardsHandler(BaseHandler):
         """
         starlist_type = self.get_query_argument('facility', 'Keck')
         standard_type = self.get_query_argument('standard_type', 'ESO')
-        print("XX", standard_type)
         dec_filter_range_str = self.get_query_argument('dec_filter_range', "[-90, 90]")
         ra_filter_range_str = self.get_query_argument('ra_filter_range', "[0, 360]")
         show_first_line = self.get_query_argument('show_first_line', False)
