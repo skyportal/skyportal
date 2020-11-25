@@ -1,4 +1,5 @@
 import base64
+from distutils.util import strtobool
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -306,6 +307,12 @@ class CommentAttachmentHandler(BaseHandler):
             required: true
             schema:
               type: integer
+          - in: query
+            name: download
+            nullable: True
+            schema:
+              type: boolean
+              description: If true, download the attachment; else return file data as text. True by default.
         responses:
           200:
             content:
@@ -314,12 +321,40 @@ class CommentAttachmentHandler(BaseHandler):
                   type: string
                   format: base64
                   description: base64-encoded contents of attachment
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            comment_id:
+                              type: integer
+                              description: Comment ID attachment came from
+                            attachment:
+                              type: string
+                              description: The attachment file contents decoded as a string
+
         """
+        download = strtobool(self.get_query_argument('download', "True").lower())
+
         comment = Comment.get_if_owned_by(comment_id, self.current_user)
         if comment is None:
             return self.error('Invalid comment ID.')
-        self.set_header(
-            "Content-Disposition", "attachment; " f"filename={comment.attachment_name}"
-        )
-        self.set_header("Content-type", "application/octet-stream")
-        self.write(base64.b64decode(comment.attachment_bytes))
+
+        if download:
+            self.set_header(
+                "Content-Disposition",
+                "attachment; " f"filename={comment.attachment_name}",
+            )
+            self.set_header("Content-type", "application/octet-stream")
+            self.write(base64.b64decode(comment.attachment_bytes))
+        else:
+            return self.success(
+                data={
+                    "commentId": int(comment_id),
+                    "attachment": base64.b64decode(comment.attachment_bytes).decode(),
+                }
+            )

@@ -322,6 +322,20 @@ Token.accessible_groups = user_or_token_accessible_groups
 
 
 @property
+def user_or_token_accessible_streams(self):
+    """Return the list of Streams a User or Token has access to."""
+    if "System admin" in self.permissions:
+        return Stream.query.all()
+    if isinstance(self, Token):
+        return self.created_by.streams
+    return self.streams
+
+
+User.accessible_streams = user_or_token_accessible_streams
+Token.accessible_streams = user_or_token_accessible_streams
+
+
+@property
 def token_groups(self):
     """The groups the Token owner is a member of."""
     return self.created_by.groups
@@ -1253,6 +1267,13 @@ class Telescope(Base):
     )
     robotic = sa.Column(
         sa.Boolean, default=False, nullable=False, doc="Is this telescope robotic?"
+    )
+
+    fixed_location = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default='true',
+        doc="Does this telescope have a fixed location (lon, lat, elev)?",
     )
 
     weather = sa.Column(JSONB, nullable=True, doc='Latest weather information')
@@ -2571,21 +2592,43 @@ class ObservingRun(Base):
         noon = ap_time.Time(noon, format='unix')
         return noon
 
-    def rise_time(self, target_or_targets):
+    def rise_time(self, target_or_targets, altitude=30 * u.degree):
         """The rise time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
-        sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
-        return observer.target_rise_time(
-            sunset, target_or_targets, which='next', horizon=30 * u.degree
+        sunset = self.instrument.telescope.next_sunset(self.calendar_noon).reshape((1,))
+        sunrise = self.instrument.telescope.next_sunrise(self.calendar_noon).reshape(
+            (1,)
+        )
+        original_shape = np.asarray(target_or_targets).shape
+        target_array = (
+            [target_or_targets] if len(original_shape) == 0 else target_or_targets
         )
 
-    def set_time(self, target_or_targets):
+        next_rise = observer.target_rise_time(
+            sunset, target_array, which='next', horizon=altitude
+        ).reshape((len(target_array),))
+
+        # if next rise time is after next sunrise, the target rises before
+        # sunset. show the previous rise so that the target is shown to be
+        # "already up" when the run begins (a beginning of night target).
+
+        recalc = next_rise > sunrise
+        if recalc.any():
+            target_subarr = [t for t, b in zip(target_array, recalc) if b]
+            next_rise[recalc] = observer.target_rise_time(
+                sunset, target_subarr, which='previous', horizon=altitude
+            ).reshape((len(target_subarr),))
+
+        return next_rise.reshape(original_shape)
+
+    def set_time(self, target_or_targets, altitude=30 * u.degree):
         """The set time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
         sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
+        original_shape = np.asarray(target_or_targets).shape
         return observer.target_set_time(
-            sunset, target_or_targets, which='next', horizon=30 * u.degree
-        )
+            sunset, target_or_targets, which='next', horizon=altitude
+        ).reshape(original_shape)
 
 
 User.observing_runs = relationship(
@@ -2832,8 +2875,8 @@ def send_source_notification(mapper, connection, target):
                 )
 
     # Send email notifications
+    recipients = []
     for user in target_users:
-        descriptor = "immediate" if target.level == "hard" else ""
         # If user has a contact email registered and opted into email notifications
         if (
             user.contact_email is not None
@@ -2841,20 +2884,22 @@ def send_source_notification(mapper, connection, target):
             and "allowEmailAlerts" in user.preferences
             and user.preferences.get("allowEmailAlerts")
         ):
-            html_content = (
-                f'{sent_by_name} would like to call your {descriptor} attention to'
-                f' <a href="{link_location}">{target.source_id}</a> ({source_info})'
-            )
-            if target.additional_notes != "" and target.additional_notes is not None:
-                html_content += (
-                    f'<br /><br />Additional notes: {target.additional_notes}'
-                )
+            recipients.append(user.contact_email)
 
-            send_email(
-                recipients=[user.contact_email],
-                subject=f'{cfg["app.title"]}: Source Alert',
-                body=html_content,
-            )
+    descriptor = "immediate" if target.level == "hard" else ""
+    html_content = (
+        f'{sent_by_name} would like to call your {descriptor} attention to'
+        f' <a href="{link_location}">{target.source_id}</a> ({source_info})'
+    )
+    if target.additional_notes != "" and target.additional_notes is not None:
+        html_content += f'<br /><br />Additional notes: {target.additional_notes}'
+
+    if len(recipients) > 0:
+        send_email(
+            recipients=recipients,
+            subject=f'{cfg["app.title"]}: Source Alert',
+            body=html_content,
+        )
 
 
 @event.listens_for(User, 'after_insert')

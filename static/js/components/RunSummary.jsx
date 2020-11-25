@@ -350,7 +350,7 @@ const RunSummary = ({ route }) => {
       },
     },
     {
-      name: "Rise Time (UT)",
+      name: "Rises at (>30deg alt, UT)",
       options: {
         filter: false,
         customBodyRenderLite: (dataIndex) =>
@@ -358,7 +358,7 @@ const RunSummary = ({ route }) => {
       },
     },
     {
-      name: "Set Time (UT)",
+      name: "Sets at (<30deg alt, UT)",
       options: {
         filter: false,
         customBodyRenderLite: (dataIndex) =>

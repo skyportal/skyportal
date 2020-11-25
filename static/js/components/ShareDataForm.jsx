@@ -241,11 +241,13 @@ const ShareDataForm = ({ route }) => {
           )}
           <Controller
             name="groups"
-            id="dataSharingFormGroupsSelect"
-            as={
+            render={({ onChange, value, ...props }) => (
               <Autocomplete
                 multiple
+                id="dataSharingFormGroupsSelect"
                 options={groups}
+                value={value}
+                onChange={(e, data) => onChange(data)}
                 getOptionLabel={(group) => group.name}
                 filterSelectedOptions
                 renderInput={(params) => (
@@ -258,10 +260,11 @@ const ShareDataForm = ({ route }) => {
                     className={classes.groupSelect}
                   />
                 )}
+                // eslint-disable-next-line react/jsx-props-no-spreading
+                {...props}
               />
-            }
+            )}
             control={control}
-            onChange={([, data]) => data}
             rules={{ validate: validateGroups }}
             defaultValue={[]}
           />

@@ -10,7 +10,9 @@ import FormLabel from "@material-ui/core/FormLabel";
 import Radio from "@material-ui/core/Radio";
 import RadioGroup from "@material-ui/core/RadioGroup";
 import Select from "@material-ui/core/Select";
+import Input from "@material-ui/core/Input";
 import InputLabel from "@material-ui/core/InputLabel";
+import Chip from "@material-ui/core/Chip";
 import TextField from "@material-ui/core/TextField";
 import Button from "@material-ui/core/Button";
 import MenuItem from "@material-ui/core/MenuItem";
@@ -31,6 +33,13 @@ const useStyles = makeStyles((theme) => ({
       margin: "0.5rem 0",
     },
   },
+  chips: {
+    display: "flex",
+    flexWrap: "wrap",
+  },
+  chip: {
+    margin: 2,
+  },
 }));
 
 const getFontStyles = (groupId, groupIds = [], theme) => ({
@@ -43,7 +52,22 @@ const getFontStyles = (groupId, groupIds = [], theme) => ({
 const SourceNotification = ({ sourceId }) => {
   const classes = useStyles();
   const groups = useSelector((state) => state.groups.userAccessible);
+  const groupIDToName = {};
+  groups.forEach((g) => {
+    groupIDToName[g.id] = g.name;
+  });
+
   const theme = useTheme();
+  const ITEM_HEIGHT = 48;
+  const MenuProps = {
+    PaperProps: {
+      style: {
+        maxHeight: ITEM_HEIGHT * 4.5,
+        width: 250,
+      },
+    },
+  };
+
   const [selectedGroups, setSelectedGroups] = useState([]);
   const {
     handleSubmit,
@@ -72,7 +96,6 @@ const SourceNotification = ({ sourceId }) => {
       ...initialFormState,
       ...getValues(),
     };
-
     const result = await dispatch(Actions.sendAlert(formData));
     if (result.status === "success") {
       dispatch(showNotification("Notification queued up sucessfully", "info"));
@@ -95,8 +118,10 @@ const SourceNotification = ({ sourceId }) => {
               Choose Group
             </InputLabel>
             <Controller
-              as={Select}
+              id="groupSelect"
               name="groupIds"
+              labelId="notificationGroupSelectLabel"
+              as={Select}
               control={control}
               rules={{
                 required: true,
@@ -107,6 +132,19 @@ const SourceNotification = ({ sourceId }) => {
                 setSelectedGroups(event.target.value);
                 return event.target.value;
               }}
+              input={<Input id="selectGroupsChip" />}
+              renderValue={(selected) => (
+                <div className={classes.chips}>
+                  {selected.map((value) => (
+                    <Chip
+                      key={value}
+                      label={groupIDToName[value]}
+                      className={classes.chip}
+                    />
+                  ))}
+                </div>
+              )}
+              MenuProps={MenuProps}
               multiple
             >
               {groups.length > 0 &&
