@@ -1,7 +1,15 @@
 from sqlalchemy import desc, or_
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, Comment, Classification, Spectrum, Photometry
+from ...models import (
+    DBSession,
+    Source,
+    Comment,
+    Classification,
+    Spectrum,
+    Photometry,
+    basic_user_display_info,
+)
 
 
 class NewsFeedHandler(BaseHandler):
@@ -100,7 +108,7 @@ class NewsFeedHandler(BaseHandler):
                     'source_id': s.obj_id,
                 },
             )
-
+        # Add latest comments
         news_feed_items.extend(
             [
                 {
@@ -114,6 +122,7 @@ class NewsFeedHandler(BaseHandler):
                 for c in comments
             ]
         )
+        # Add latest classifications
         news_feed_items.extend(
             [
                 {
@@ -121,28 +130,33 @@ class NewsFeedHandler(BaseHandler):
                     "time": c.created_at,
                     "message": f"New classification for {c.obj_id} added by {c.author.username}: {c.classification}",
                     "source_id": c.obj_id,
+                    "author_info": basic_user_display_info(c.author),
                 }
                 for c in classifications
             ]
         )
+        # Add latest spectra
         news_feed_items.extend(
             [
                 {
                     "type": "spectrum",
                     "time": s.created_at,
-                    "message": f"New spectrum taken with {s.instrument.name} uploaded for {s.obj_id}",
+                    "message": f"{s.owner.first_name} {s.owner.last_name} uploaded a new spectrum taken with {s.instrument.name} for {s.obj_id}",
                     "source_id": s.obj_id,
+                    "author_info": basic_user_display_info(s.owner),
                 }
                 for s in spectra
             ]
         )
+        # Add latest follow-up photometry
         news_feed_items.extend(
             [
                 {
                     "type": "photometry",
                     "time": p.created_at,
-                    "message": f"Follow-up photometry taken for {p.obj_id}",
+                    "message": f"{p.owner.first_name} {p.owner.last_name} uploaded new follow-up photometry taken with {p.instrument.name} for {p.obj_id}",
                     "source_id": p.obj_id,
+                    "author_info": basic_user_display_info(p.owner),
                 }
                 for p in photometry
             ]

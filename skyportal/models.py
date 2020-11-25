@@ -85,6 +85,13 @@ def get_app_base_url():
     )
 
 
+def basic_user_display_info(user):
+    return {
+        field: getattr(user, field)
+        for field in ('username', 'first_name', 'last_name', 'gravatar_url')
+    }
+
+
 def is_owned_by(self, user_or_token):
     """Generic ownership logic for any `skyportal` ORM model.
 
