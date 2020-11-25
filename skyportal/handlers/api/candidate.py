@@ -290,9 +290,6 @@ class CandidateHandler(BaseHandler):
                 key=lambda x: x["created_at"],
                 reverse=True,
             )
-            for comment in candidate_info["comments"]:
-                comment["author"] = comment["author"].to_dict()
-                del comment["author"]["preferences"]
             candidate_info["annotations"] = sorted(
                 c.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
             )
@@ -568,9 +565,6 @@ class CandidateHandler(BaseHandler):
                     key=lambda x: x["created_at"],
                     reverse=True,
                 )
-                for comment in candidate_list[-1]["comments"]:
-                    comment["author"] = comment["author"].to_dict()
-                    del comment["author"]["preferences"]
                 candidate_list[-1]["annotations"] = sorted(
                     obj.get_annotations_owned_by(self.current_user),
                     key=lambda x: x.origin,
