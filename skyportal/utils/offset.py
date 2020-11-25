@@ -13,6 +13,7 @@ import seaborn as sns
 import numpy as np
 import numpy.ma as ma
 from scipy.ndimage.filters import gaussian_filter
+from joblib import Memory
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -193,6 +194,7 @@ starlist_formats = {
         ),
     },
 }
+offsets_memory = Memory("./cache/offsets/", verbose=0)
 
 
 def get_url(*args, **kwargs):
@@ -204,6 +206,7 @@ def get_url(*args, **kwargs):
         return None
 
 
+@offsets_memory.cache
 def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
     """
     From:
@@ -295,6 +298,7 @@ source_image_parameters = {
 }
 
 
+@offsets_memory.cache
 def get_ztfcatalog(ra, dec, cache_dir="./cache/finder_cat/", cache_max_items=1000):
     """Finds the ZTF public catalog data around this position
 
@@ -482,7 +486,6 @@ def get_formatted_standards_list(
         log("Warning: No standard stars defined in the config.yaml.")
         return result
 
-    print(standard_type)
     standard_file = standard_stars.get(standard_type)
     if standard_file is None:
         log(f"Warning: '{standard_type}' not defined in the config.yaml.")
@@ -553,6 +556,7 @@ def get_formatted_standards_list(
 
 @warningfilter(action="ignore", category=DeprecationWarning)
 @warningfilter(action="ignore", category=AstropyWarning)
+@offsets_memory.cache
 def get_nearby_offset_stars(
     source_ra,
     source_dec,
@@ -791,7 +795,7 @@ def get_nearby_offset_stars(
     star_list_format = (
         f"{basename:{space}<{maxname_size}} "
         + f"{center.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}"
-        + f" 2000.0 {commentstr} source_name={source_name}"
+        + f" 2000.0  {commentstr} source_name={source_name}"
     )
 
     star_list = [{"str": first_line}] if first_line else []
@@ -821,7 +825,7 @@ def get_nearby_offset_stars(
         star_list_format = (
             f"{name:{space}<{maxname_size}} "
             + f"{c.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}"
-            + f" 2000.0 {offsets} "
+            + f" 2000.0 {offsets}"
             + f" {commentstr} dist={3600*dist:<0.02f}\"; {source['phot_rp_mean_mag']:<0.02f} mag"
             + f"; {dras}, {ddecs} "
             + f" ID={source['source_id']}"
