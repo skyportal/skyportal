@@ -35,7 +35,7 @@ class PlotSpectroscopyHandler(BaseHandler):
     def get(self, obj_id):
         spec_id = self.get_query_argument("spectrumID", None)
         docs_json, render_items, custom_model_js = plot.spectroscopy_plot(
-            obj_id, spec_id
+            obj_id, self.associated_user_object, spec_id
         )
         if docs_json is None:
             self.success(data={'docs_json': None, 'url': self.request.path})

@@ -26,6 +26,7 @@ from skyportal.models import (
     Telescope,
     PHOT_ZP,
     Spectrum,
+    GroupSpectrum,
 )
 
 import sncosmo
@@ -706,9 +707,19 @@ def photometry_plot(obj_id, user, width=600, height=300):
 
 
 # TODO make async so that thread isn't blocked
-def spectroscopy_plot(obj_id, spec_id=None):
+def spectroscopy_plot(obj_id, user, spec_id=None):
     obj = Obj.query.get(obj_id)
-    spectra = Obj.query.get(obj_id).spectra
+    spectra = (
+        DBSession()
+        .query(Spectrum)
+        .join(Obj)
+        .join(GroupSpectrum)
+        .filter(
+            Spectrum.obj_id == obj_id,
+            GroupSpectrum.group_id.in_([g.id for g in user.accessible_groups]),
+        )
+    ).all()
+
     if spec_id is not None:
         spectra = [spec for spec in spectra if spec.id == int(spec_id)]
     if len(spectra) == 0:
@@ -721,16 +732,8 @@ def spectroscopy_plot(obj_id, spec_id=None):
     data = []
     for i, s in enumerate(spectra):
 
-        # normalize spectra to a common average flux per resolving
-        # element of 1 (facilitates easy visual comparison)
-        normfac = np.sum(np.gradient(s.wavelengths) * s.fluxes) / len(s.fluxes)
-
-        if not (np.isfinite(normfac) and normfac > 0):
-            # otherwise normalize the value at the median wavelength to 1
-            median_wave_index = np.argmin(
-                np.abs(s.wavelengths - np.median(s.wavelengths))
-            )
-            normfac = s.fluxes[median_wave_index]
+        # normalize spectra to a median flux of 1 for easy comparison
+        normfac = np.median(s.fluxes)
 
         df = pd.DataFrame(
             {
