@@ -538,10 +538,11 @@ const UserInvitations = () => {
             )}
             <Controller
               name="invitationGroups"
-              id="addInvitationGroupsSelect"
-              as={
+              render={({ onChange, value, ...props }) => (
                 <Autocomplete
                   multiple
+                  value={value}
+                  onChange={(e, data) => onChange(data)}
                   options={allGroups?.filter(
                     (group) =>
                       !clickedInvitation?.groups
@@ -561,10 +562,11 @@ const UserInvitations = () => {
                       data-testid="addInvitationGroupsTextField"
                     />
                   )}
+                  // eslint-disable-next-line react/jsx-props-no-spreading
+                  {...props}
                 />
-              }
+              )}
               control={control}
-              onChange={([, data]) => data}
               rules={{ validate: validateInvitationGroups }}
               defaultValue={[]}
             />
@@ -599,10 +601,11 @@ const UserInvitations = () => {
             )}
             <Controller
               name="invitationStreams"
-              id="addInvitationStreamsSelect"
-              as={
+              render={({ onChange, value, ...props }) => (
                 <Autocomplete
                   multiple
+                  value={value}
+                  onChange={(e, data) => onChange(data)}
                   options={streams?.filter(
                     (stream) =>
                       !clickedInvitation?.streams
@@ -622,10 +625,11 @@ const UserInvitations = () => {
                       data-testid="addInvitationStreamsTextField"
                     />
                   )}
+                  // eslint-disable-next-line react/jsx-props-no-spreading
+                  {...props}
                 />
-              }
+              )}
               control={control}
-              onChange={([, data]) => data}
               rules={{ validate: validateInvitationStreams }}
               defaultValue={[]}
             />

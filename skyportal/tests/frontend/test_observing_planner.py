@@ -24,10 +24,16 @@ def post_assignment(obj, run, priority, comment, token):
 
 @pytest.mark.flaky(reruns=2)
 def test_source_is_added_to_observing_run_via_frontend(
-    driver, super_admin_user, public_source, red_transients_run
+    driver, super_admin_user, public_source, red_transients_run,
 ):
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
+
+    # wait for plots to load
+    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
+    # this waits for the spectroscopy plot by looking for the element Mg
+    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
+
     run_select = driver.wait_for_xpath('//*[@id="mui-component-select-run_id"]')
     driver.scroll_to_element_and_click(run_select)
     observingrun_title = (
@@ -219,4 +225,11 @@ def test_add_run_to_observing_run_page(
     driver.wait_for_xpath(
         f'''//*[text()='2021-02-02 {lris.name}/{lris.telescope.nickname} (PI: {pi_name} / Group: {public_group.name})']''',
         timeout=15,
+    )
+
+
+@pytest.mark.flaky(reruns=2)
+def test_problematic_assignment_44(driver, super_admin_user, problematic_assignment):
+    test_source_is_added_to_observing_run_via_frontend(
+        driver, super_admin_user, problematic_assignment.obj, problematic_assignment.run
     )

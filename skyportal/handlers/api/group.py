@@ -3,7 +3,6 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from ..base import BaseHandler
-from .user import add_user_and_setup_groups
 from ...models import (
     DBSession,
     Filter,
@@ -13,7 +12,6 @@ from ...models import (
     Stream,
     User,
     Token,
-    StreamUser,
 )
 
 _, cfg = load_env()
@@ -25,9 +23,9 @@ def has_admin_access_for_group(user, group_id):
         .filter(GroupUser.user_id == user.id)
         .first()
     )
-    return {"System admin", "Manage users", "Manage groups"}.intersection(
-        set(user.permissions)
-    ) or (groupuser is not None and groupuser.admin)
+    return len(
+        {"System admin", "Manage groups"}.intersection(set(user.permissions))
+    ) > 0 or (groupuser is not None and groupuser.admin)
 
 
 class GroupHandler(BaseHandler):
@@ -119,31 +117,40 @@ class GroupHandler(BaseHandler):
                   schema: Error
         """
         if group_id is not None:
-            if has_admin_access_for_group(self.associated_user_object, group_id):
-                group = (
-                    Group.query.options(joinedload(Group.users))
-                    .options(joinedload(Group.group_users))
-                    .get(group_id)
+            group = (
+                Group.query.join(GroupUser)
+                .join(User)
+                .filter(Group.id == group_id)
+                .first()
+            )
+            # If not super admin or member of group
+            if (
+                not {"System admin", "Manage groups"}.intersection(
+                    set(self.associated_user_object.permissions)
                 )
-            else:
-                group = (
-                    Group.query.options(
-                        [joinedload(Group.users).load_only(User.id, User.username)]
-                    )
-                    .options(joinedload(Group.group_users))
-                    .get(group_id)
-                )
-                if group is not None and group.id not in [
-                    g.id for g in self.current_user.accessible_groups
-                ]:
-                    return self.error('Insufficient permissions.')
+            ) and (
+                group is not None
+                and group.id not in [g.id for g in self.current_user.accessible_groups]
+            ):
+                return self.error('Insufficient permissions.')
+
             if group is not None:
-                group = group.to_dict()
                 # Do not include User.groups to avoid circular reference
-                group['users'] = [
-                    {'id': user.id, 'username': user.username}
-                    for user in group['users']
+                users = [
+                    {
+                        "id": user.id,
+                        "username": user.username,
+                        "first_name": user.first_name,
+                        "last_name": user.last_name,
+                        "contact_email": user.contact_email,
+                        "contact_phone": user.contact_phone,
+                        "oauth_uid": user.oauth_uid,
+                        "admin": has_admin_access_for_group(user, group_id),
+                    }
+                    for user in group.users
                 ]
+                group = group.to_dict()
+                group['users'] = users
                 # grab streams:
                 streams = (
                     DBSession()
@@ -373,12 +380,12 @@ class GroupUserHandler(BaseHandler):
               schema:
                 type: object
                 properties:
-                  username:
-                    type: string
+                  userID:
+                    type: integer
                   admin:
                     type: boolean
                 required:
-                  - username
+                  - userID
                   - admin
         responses:
           200:
@@ -407,47 +414,39 @@ class GroupUserHandler(BaseHandler):
 
         data = self.get_json()
 
-        username = data.pop("username", None)
-        if username is None:
-            return self.error("Username must be specified")
+        user_id = data.pop("userID", None)
+        if user_id is None:
+            return self.error("userID parameter must be specified")
+        try:
+            user_id = int(user_id)
+        except (ValueError, TypeError):
+            return self.error("Invalid userID parameter: unable to parse to integer")
 
         admin = data.pop("admin", False)
         group_id = int(group_id)
         group = Group.query.get(group_id)
         if group.single_user_group:
             return self.error("Cannot add users to single-user groups.")
-        user = User.query.filter(User.username == username.lower()).first()
+        user = User.query.get(user_id)
         if user is None:
-            user_id = add_user_and_setup_groups(
-                username=username,
-                roles=["Full user"],
-                group_ids_and_admin=[[group_id, admin]],
-            )
-        else:
-            user_id = user.id
-            # Ensure user has sufficient stream access to be added to group
-            if group.streams and not user.is_system_admin:
-                user_stream_ids = [
-                    su.stream_id
-                    for su in DBSession()
-                    .query(StreamUser)
-                    .filter(StreamUser.user_id == user.id)
-                    .all()
-                ]
-                if not all([stream.id in user_stream_ids for stream in group.streams]):
-                    return self.error(
-                        "User does not have sufficient stream access "
-                        "to be added to this group."
-                    )
-            # Add user to group
-            gu = (
-                GroupUser.query.filter(GroupUser.group_id == group_id)
-                .filter(GroupUser.user_id == user_id)
-                .first()
-            )
-            if gu is not None:
-                return self.error("Specified user is already a member of this group.")
-            DBSession.add(GroupUser(group_id=group_id, user_id=user_id, admin=admin))
+            return self.error(f"Invalid userID parameter: {user_id}")
+
+        # Ensure user has sufficient stream access to be added to group
+        if group.streams:
+            if not all([stream in user.accessible_streams for stream in group.streams]):
+                return self.error(
+                    "User does not have sufficient stream access "
+                    "to be added to this group."
+                )
+        # Add user to group
+        gu = (
+            GroupUser.query.filter(GroupUser.group_id == group_id)
+            .filter(GroupUser.user_id == user_id)
+            .first()
+        )
+        if gu is not None:
+            return self.error("Specified user is already a member of this group.")
+        DBSession.add(GroupUser(group_id=group_id, user_id=user_id, admin=admin))
         DBSession().commit()
 
         self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
@@ -477,7 +476,7 @@ class GroupUserHandler(BaseHandler):
                   admin:
                     type: boolean
                 required:
-                  - username
+                  - userID
                   - admin
         responses:
           200:
@@ -512,7 +511,7 @@ class GroupUserHandler(BaseHandler):
         return self.success()
 
     @permissions(["Manage users"])
-    def delete(self, group_id, username):
+    def delete(self, group_id, user_id):
         """
         ---
         description: Delete a group user
@@ -523,10 +522,10 @@ class GroupUserHandler(BaseHandler):
             schema:
               type: integer
           - in: path
-            name: username
+            name: user_id
             required: true
             schema:
-              type: string
+              type: integer
         responses:
           200:
             content:
@@ -539,7 +538,10 @@ class GroupUserHandler(BaseHandler):
         group = Group.query.get(group_id)
         if group.single_user_group:
             return self.error("Cannot delete users from single user groups.")
-        user_id = User.query.filter(User.username == username).first().id
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return self.error("Invalid user_id; unable to parse to integer")
         (
             GroupUser.query.filter(GroupUser.group_id == group_id)
             .filter(GroupUser.user_id == user_id)
@@ -613,17 +615,8 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
         for group in from_groups:
             for user in group.users:
                 # Ensure user has sufficient stream access to be added to group
-                if group.streams and not user.is_system_admin:
-                    user_stream_ids = [
-                        su.stream_id
-                        for su in DBSession()
-                        .query(StreamUser)
-                        .filter(StreamUser.user_id == user.id)
-                        .all()
-                    ]
-                    if not all(
-                        [stream.id in user_stream_ids for stream in group.streams]
-                    ):
+                if group.streams:
+                    if not all([stream in user.streams for stream in group.streams]):
                         return self.error(
                             "Not all users have sufficient stream access "
                             "to be added to this group."

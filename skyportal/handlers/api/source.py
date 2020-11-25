@@ -39,7 +39,7 @@ from ...utils import (
     get_finding_chart,
     _calculate_best_position_for_offset_stars,
 )
-from .candidate import grab_query_results_page, update_redshift_history_if_relevant
+from .candidate import grab_query_results, update_redshift_history_if_relevant
 
 
 SOURCES_PER_PAGE = 100
@@ -274,6 +274,20 @@ class SourceHandler(BaseHandler):
                     "unsaved_by_id": null
                   }
               ```
+          - in: query
+            name: sortBy
+            nullable: true
+            schema:
+              type: string
+            description: |
+              The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"]
+          - in: query
+            name: sortOrder
+            nullable: true
+            schema:
+              type: string
+            description: |
+              The sort order - either "asc" or "desc". Defaults to "asc"
           responses:
             200:
               content:
@@ -317,6 +331,8 @@ class SourceHandler(BaseHandler):
         saved_after = self.get_query_argument('savedAfter', None)
         saved_before = self.get_query_argument('savedBefore', None)
         save_summary = self.get_query_argument('saveSummary', False)
+        sort_by = self.get_query_argument("sortBy", None)
+        sort_order = self.get_query_argument("sortOrder", "asc")
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -392,6 +408,10 @@ class SourceHandler(BaseHandler):
                 query_options.append(
                     joinedload(Obj.photometry).joinedload(Photometry.instrument)
                 )
+            s = Obj.get_if_owned_by(obj_id, self.current_user, options=query_options,)
+
+            if s is None:
+                return self.error("Source not found", status=404)
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
                 register_source_view(
@@ -405,6 +425,7 @@ class SourceHandler(BaseHandler):
 
             if s is None:
                 return self.error("Source not found", status=404)
+
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
                 IOLoop.current().add_callback(
                     lambda: add_ps1_thumbnail_and_push_ws_msg(s, self)
@@ -433,8 +454,12 @@ class SourceHandler(BaseHandler):
             source_info["angular_diameter_distance"] = s.angular_diameter_distance
 
             source_info["followup_requests"] = [
-                f for f in source_info['followup_requests'] if f.status != 'deleted'
+                f for f in s.followup_requests if f.status != 'deleted'
             ]
+            if include_photometry:
+                source_info["photometry"] = Obj.get_photometry_owned_by_user(
+                    obj_id, self.current_user
+                )
             query = (
                 DBSession()
                 .query(Group)
@@ -546,26 +571,69 @@ class SourceHandler(BaseHandler):
                 )
             q = q.filter(Source.group_id.in_(group_ids))
 
+        order_by = None
+        if sort_by is not None:
+            if sort_by == "id":
+                order_by = (
+                    [Source.obj_id] if sort_order == "asc" else [Source.obj_id.desc()]
+                )
+            elif sort_by == "ra":
+                order_by = (
+                    [Obj.ra.nullslast()]
+                    if sort_order == "asc"
+                    else [Obj.ra.desc().nullslast()]
+                )
+                print(sort_by, sort_order)
+            elif sort_by == "dec":
+                order_by = (
+                    [Obj.dec.nullslast()]
+                    if sort_order == "asc"
+                    else [Obj.dec.desc().nullslast()]
+                )
+            elif sort_by == "redshift":
+                order_by = (
+                    [Obj.redshift.nullslast()]
+                    if sort_order == "asc"
+                    else [Obj.redshift.desc().nullslast()]
+                )
+            elif sort_by == "saved_at":
+                order_by = (
+                    [Source.saved_at]
+                    if sort_order == "asc"
+                    else [Source.saved_at.desc()]
+                )
+
         if page_number:
             try:
                 page = int(page_number)
             except ValueError:
                 return self.error("Invalid page number value.")
             try:
-                query_results = grab_query_results_page(
+                query_results = grab_query_results(
                     q,
                     total_matches,
                     page,
                     num_per_page,
                     "sources",
+                    order_by=order_by,
                     include_photometry=include_photometry,
                 )
             except ValueError as e:
                 if "Page number out of range" in str(e):
                     return self.error("Page number out of range.")
                 raise
-        else:
+        elif save_summary:
             query_results = {"sources": q.all()}
+        else:
+            query_results = grab_query_results(
+                q,
+                total_matches,
+                None,
+                None,
+                "sources",
+                order_by=order_by,
+                include_photometry=include_photometry,
+            )
 
         if not save_summary:
             source_list = []

@@ -3,7 +3,12 @@ import { useHistory, useParams, Link } from "react-router-dom";
 import PropTypes from "prop-types";
 
 import { useDispatch, useSelector } from "react-redux";
-import { makeStyles, useTheme } from "@material-ui/core/styles";
+import {
+  makeStyles,
+  useTheme,
+  createMuiTheme,
+  MuiThemeProvider,
+} from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
 import MoreVertIcon from "@material-ui/icons/MoreVert";
 import DeleteIcon from "@material-ui/icons/Delete";
@@ -37,6 +42,7 @@ import Select from "@material-ui/core/Select";
 import Divider from "@material-ui/core/Divider";
 import Chip from "@material-ui/core/Chip";
 import CircularProgress from "@material-ui/core/CircularProgress";
+import MUIDataTable from "mui-datatables";
 
 import { useForm, Controller } from "react-hook-form";
 import { showNotification } from "baselayer/components/Notifications";
@@ -46,6 +52,7 @@ import * as groupsActions from "../ducks/groups";
 import * as streamsActions from "../ducks/streams";
 import * as filterActions from "../ducks/filter";
 import NewGroupUserForm from "./NewGroupUserForm";
+import InviteNewGroupUserForm from "./InviteNewGroupUserForm";
 import AddUsersFromGroupForm from "./AddUsersFromGroupForm";
 
 const useStyles = makeStyles((theme) => ({
@@ -88,11 +95,30 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+const getMuiTheme = (theme) =>
+  createMuiTheme({
+    palette: theme.palette,
+    overrides: {
+      MUIDataTableHeadCell: {
+        hintIconAlone: {
+          marginTop: 0,
+        },
+        hintIconWithSortIcon: {
+          marginTop: 0,
+        },
+        sortLabelRoot: {
+          height: "auto",
+          marginBottom: "auto",
+        },
+      },
+    },
+  });
+
 const ManageUserButtons = ({ group, loadedId, user, isAdmin }) => {
   const dispatch = useDispatch();
 
   let numAdmins = 0;
-  group?.group_users?.forEach((groupUser) => {
+  group?.users?.forEach((groupUser) => {
     if (groupUser?.admin) {
       numAdmins += 1;
     }
@@ -130,10 +156,11 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin }) => {
       <IconButton
         edge="end"
         aria-label="delete"
+        data-testid={`delete-${user.username}`}
         onClick={() =>
           dispatch(
             groupsActions.deleteGroupUser({
-              username: user.username,
+              userID: user.id,
               group_id: group.id,
             })
           )
@@ -240,11 +267,14 @@ const Group = () => {
         setGroupLoadError(data.message);
       }
     };
-    fetchGroup();
+    if (id !== loadedId) {
+      fetchGroup();
+    }
   }, [id, loadedId, dispatch]);
 
   const group = useSelector((state) => state.group);
   const currentUser = useSelector((state) => state.profile);
+  const { invitationsEnabled } = useSelector((state) => state.sysInfo);
 
   // fetch streams:
   const streams = useSelector((state) => state.streams);
@@ -304,14 +334,10 @@ const Group = () => {
 
   const isAdmin = (aUser) => {
     const currentGroupUser = group?.users?.filter(
-      (group_user) => group_user.username === aUser.username
+      (group_user) => group_user.id === aUser.id
     )[0];
     return (
-      (currentGroupUser &&
-        group.group_users &&
-        group.group_users.filter(
-          (group_user) => group_user.user_id === currentGroupUser.id
-        )[0].admin) ||
+      (currentGroupUser && currentGroupUser.admin) ||
       aUser.permissions?.includes("System admin") ||
       aUser.permissions?.includes("Manage groups")
     );
@@ -321,6 +347,150 @@ const Group = () => {
 
   const isStreamIdInStreams = (sid) =>
     streams?.map((stream) => stream.id).includes(sid);
+
+  // Set-up members table
+  // MUI DataTable functions
+  const renderName = (value) => {
+    return value
+      ? `${value.first_name ? value.first_name : ""} ${
+          value.last_name ? value.last_name : ""
+        }`
+      : "";
+  };
+
+  const renderUsername = (dataIndex) => {
+    const user = group?.users[dataIndex];
+    return (
+      <Link to={`/user/${user.id}`} className={classes.filterLink}>
+        {user.username}
+      </Link>
+    );
+  };
+
+  const renderAdmin = (dataIndex) => {
+    const user = group?.users[dataIndex];
+    return (
+      user &&
+      user.admin && (
+        <div style={{ display: "inline-block" }} id={`${user.id}-admin-chip`}>
+          <Chip label="Admin" size="small" color="secondary" />
+        </div>
+      )
+    );
+  };
+
+  const renderActions = (dataIndex) => {
+    const user = group?.users[dataIndex];
+    return (
+      <div>
+        {group &&
+          currentUser.permissions?.includes("Manage users") &&
+          (mobile ? (
+            <div>
+              <IconButton
+                edge="end"
+                aria-label="open-manage-user-popover"
+                onClick={(e) => handlePopoverOpen(e, user.id)}
+              >
+                <MoreVertIcon />
+              </IconButton>
+              <Popover
+                id={popoverId}
+                open={openedPopoverId === user.id}
+                anchorEl={anchorEl}
+                onClose={handlePopoverClose}
+                anchorOrigin={{
+                  vertical: "bottom",
+                  horizontal: "center",
+                }}
+                transformOrigin={{
+                  vertical: "top",
+                  horizontal: "center",
+                }}
+              >
+                <div className={classes.manageUserPopover}>
+                  <ManageUserButtons
+                    loadedId={loadedId}
+                    user={user}
+                    isAdmin={isAdmin}
+                    group={group}
+                  />
+                </div>
+              </Popover>
+            </div>
+          ) : (
+            <ManageUserButtons
+              loadedId={loadedId}
+              user={user}
+              isAdmin={isAdmin}
+              group={group}
+            />
+          ))}
+      </div>
+    );
+  };
+
+  const columns = [
+    {
+      name: "first_name",
+      label: "Name",
+      options: {
+        customBodyRender: renderName,
+        filter: true,
+        // Display only if there's at least one user with a first/last name
+        display:
+          group?.users.filter((user) => user.first_name || user.last_name)
+            .length > 0,
+      },
+    },
+    {
+      name: "username",
+      label: "Username",
+      options: {
+        // Turn off default filtering for custom form
+        filter: true,
+        customBodyRenderLite: renderUsername,
+      },
+    },
+    {
+      name: "admin",
+      label: "Admin",
+      options: {
+        sort: true,
+        customBodyRenderLite: renderAdmin,
+        filter: true,
+        hint:
+          "An admin is anyone that is a system admin, has group management permissions, and/or is specifically an admin of this group.",
+      },
+    },
+    {
+      name: "actions",
+      label: "Actions",
+      options: {
+        sort: false,
+        customBodyRenderLite: renderActions,
+        filter: false,
+        display: isAdmin(currentUser),
+        hint:
+          "Note that removing admin status only applies to group-specific admin status. Users who are also system admins and/or have 'Manage groups' permissions will remain admins regardless.",
+      },
+    },
+  ];
+
+  const options = {
+    responsive: "standard",
+    print: true,
+    download: true,
+    search: true,
+    selectableRows: "none",
+    enableNestedDataAccess: ".",
+    rowsPerPage: 25,
+    rowsPerPageOptions: [10, 25, 50, 100, 200],
+    filter: true,
+    jumpToPage: true,
+    pagination: true,
+    rowHover: false,
+  };
 
   return (
     <div>
@@ -361,80 +531,26 @@ const Group = () => {
           <Typography className={classes.heading}>Members</Typography>
         </AccordionSummary>
         <AccordionDetails className={classes.accordion_details}>
-          <List
-            component="nav"
-            aria-label="main mailbox folders"
-            className={classes.paper}
-            dense
-          >
-            {group?.users?.map((user) => (
-              <ListItem button key={user.id}>
-                <Link to={`/user/${user.id}`} className={classes.filterLink}>
-                  <ListItemText primary={user.username} />
-                </Link>
-                {isAdmin(user) && (
-                  <div
-                    style={{ display: "inline-block" }}
-                    id={`${user.id}-admin-chip`}
-                  >
-                    <Chip label="Admin" size="small" color="secondary" />
-                  </div>
-                )}
-                &nbsp;
-                {currentUser.permissions?.includes("Manage users") && (
-                  <ListItemSecondaryAction>
-                    {mobile ? (
-                      <div>
-                        <IconButton
-                          edge="end"
-                          aria-label="open-manage-user-popover"
-                          onClick={(e) => handlePopoverOpen(e, user.id)}
-                        >
-                          <MoreVertIcon />
-                        </IconButton>
-                        <Popover
-                          id={popoverId}
-                          open={openedPopoverId === user.id}
-                          anchorEl={anchorEl}
-                          onClose={handlePopoverClose}
-                          anchorOrigin={{
-                            vertical: "bottom",
-                            horizontal: "center",
-                          }}
-                          transformOrigin={{
-                            vertical: "top",
-                            horizontal: "center",
-                          }}
-                        >
-                          <div className={classes.manageUserPopover}>
-                            <ManageUserButtons
-                              loadedId={loadedId}
-                              user={user}
-                              isAdmin={isAdmin}
-                              group={group}
-                            />
-                          </div>
-                        </Popover>
-                      </div>
-                    ) : (
-                      <ManageUserButtons
-                        loadedId={loadedId}
-                        user={user}
-                        isAdmin={isAdmin}
-                        group={group}
-                      />
-                    )}
-                  </ListItemSecondaryAction>
-                )}
-              </ListItem>
-            ))}
-          </List>
+          <MuiThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              columns={columns}
+              data={group ? group.users : []}
+              options={options}
+            />
+          </MuiThemeProvider>
           <Divider />
           <div className={classes.paper}>
             {isAdmin(currentUser) && (
               <>
                 <br />
                 <NewGroupUserForm group_id={group.id} />
+                <br />
+                {invitationsEnabled && (
+                  <>
+                    <br />
+                    <InviteNewGroupUserForm group_id={group.id} />
+                  </>
+                )}
                 <br />
                 <AddUsersFromGroupForm groupID={group.id} />
               </>
@@ -599,6 +715,7 @@ const Group = () => {
               variant="contained"
               color="primary"
               className={classes.button_add}
+              data-testid="add-stream-dialog-submit"
             >
               Add
             </Button>
@@ -667,6 +784,7 @@ const Group = () => {
               color="primary"
               className={classes.button_add}
               type="submit"
+              data-testid="add-filter-dialog-submit"
             >
               Add
             </Button>
