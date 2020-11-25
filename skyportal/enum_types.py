@@ -56,7 +56,6 @@ followup_priorities = sa.Enum(
 )
 
 sqla_enum_types = [
-    allowed_magsystems,
     allowed_bandpasses,
     thumbnail_types,
     instrument_types,
