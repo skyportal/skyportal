@@ -719,7 +719,8 @@ def spectroscopy_plot(obj_id, user, spec_id=None):
             Spectrum.obj_id == obj_id,
             GroupSpectrum.group_id.in_([g.id for g in user.accessible_groups]),
         )
-    )
+    ).all()
+
     if spec_id is not None:
         spectra = [spec for spec in spectra if spec.id == int(spec_id)]
     if len(spectra) == 0:
