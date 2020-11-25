@@ -1,7 +1,7 @@
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, Comment
+from ...models import DBSession, Source, Comment, Classification, Spectrum, Photometry
 
 
 class NewsFeedHandler(BaseHandler):
@@ -39,28 +39,35 @@ class NewsFeedHandler(BaseHandler):
             self.current_user.preferences if self.current_user.preferences else {}
         )
         if 'newsFeed' in preferences and 'numItems' in preferences['newsFeed']:
-            n_items = min(int(preferences['newsFeed']['numItems']), 20)
+            n_items = min(int(preferences['newsFeed']['numItems']), 50)
         else:
             n_items = 5
 
         def fetch_newest(model):
-            newest = (
-                model.query.filter(
-                    model.obj_id.in_(
-                        DBSession()
-                        .query(Source.obj_id)
-                        .filter(
-                            Source.group_id.in_(
-                                [g.id for g in self.current_user.accessible_groups]
-                            )
+            query = model.query.filter(
+                model.obj_id.in_(
+                    DBSession()
+                    .query(Source.obj_id)
+                    .filter(
+                        Source.group_id.in_(
+                            [g.id for g in self.current_user.accessible_groups]
                         )
                     )
                 )
-                .order_by(desc(model.created_at or model.saved_at))
+            )
+            if model == Photometry:
+                query = query.filter(
+                    or_(
+                        Photometry.followup_request_id.isnot(None),
+                        Photometry.assignment_id.isnot(None),
+                    )
+                )
+            query = (
+                query.order_by(desc(model.created_at or model.saved_at))
                 .distinct(model.obj_id, model.created_at)
                 .limit(n_items)
-                .all()
             )
+            newest = query.all()
 
             if model == Comment:
                 for comment in newest:
@@ -70,6 +77,9 @@ class NewsFeedHandler(BaseHandler):
 
         sources = fetch_newest(Source)
         comments = fetch_newest(Comment)
+        classifications = fetch_newest(Classification)
+        spectra = fetch_newest(Spectrum)
+        photometry = fetch_newest(Photometry)
         news_feed_items = []
         source_seen = set()
         # Iterate in reverse so that we arrive at re-saved sources second
@@ -102,6 +112,39 @@ class NewsFeedHandler(BaseHandler):
                     'author_info': c.author_info,
                 }
                 for c in comments
+            ]
+        )
+        news_feed_items.extend(
+            [
+                {
+                    "type": "classification",
+                    "time": c.created_at,
+                    "message": f"New classification for {c.obj_id} added by {c.author.username}: {c.classification}",
+                    "source_id": c.obj_id,
+                }
+                for c in classifications
+            ]
+        )
+        news_feed_items.extend(
+            [
+                {
+                    "type": "spectrum",
+                    "time": s.created_at,
+                    "message": f"New spectrum taken with {s.instrument.name} uploaded for {s.obj_id}",
+                    "source_id": s.obj_id,
+                }
+                for s in spectra
+            ]
+        )
+        news_feed_items.extend(
+            [
+                {
+                    "type": "photometry",
+                    "time": p.created_at,
+                    "message": f"Follow-up photometry taken for {p.obj_id}",
+                    "source_id": p.obj_id,
+                }
+                for p in photometry
             ]
         )
         news_feed_items.sort(key=lambda x: x['time'], reverse=True)

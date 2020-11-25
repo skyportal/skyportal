@@ -67,6 +67,60 @@ const NewsFeedItem = ({ item }) => {
       /* eslint-disable react/display-name */
       entryTitle = "New source";
       break;
+    case "classification":
+      EntryAvatar = () => (
+        <Avatar
+          alt="C"
+          size={32}
+          style={{
+            width: 32,
+            height: 32,
+            backgroundColor: "#361e66",
+            color: "white",
+            fontSize: "10px",
+          }}
+        >
+          C
+        </Avatar>
+      );
+      entryTitle = "New classification";
+      break;
+    case "spectrum":
+      EntryAvatar = () => (
+        <Avatar
+          alt="sp"
+          size={32}
+          style={{
+            width: 32,
+            height: 32,
+            backgroundColor: "#aa6622",
+            color: "white",
+            fontSize: "10px",
+          }}
+        >
+          SP
+        </Avatar>
+      );
+      entryTitle = "New spectrum";
+      break;
+    case "photometry":
+      EntryAvatar = () => (
+        <Avatar
+          alt="ph"
+          size={32}
+          style={{
+            width: 32,
+            height: 32,
+            backgroundColor: "#bbbbaa",
+            color: "white",
+            fontSize: "10px",
+          }}
+        >
+          PH
+        </Avatar>
+      );
+      entryTitle = "New photometry";
+      break;
     default:
       break;
   }
