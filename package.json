@@ -14,7 +14,7 @@
     "@rjsf/core": "2.4.0",
     "@rjsf/material-ui": "2.4.0",
     "autosuggest-highlight": "3.1.1",
-    "bokehjs": "0.12.9",
+    "bokehjs": "0.12.13",
     "check-dependencies": "1.1.0",
     "clsx": "1.1.1",
     "convert-css-length": "2.0.1",
