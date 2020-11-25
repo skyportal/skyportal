@@ -35,6 +35,8 @@ import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import ObjPageAnnotations from "./ObjPageAnnotations";
 import SourceSaveHistory from "./SourceSaveHistory";
 
+const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
+
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
 );
