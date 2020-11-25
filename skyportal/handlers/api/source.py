@@ -288,6 +288,13 @@ class SourceHandler(BaseHandler):
               type: string
             description: |
               The sort order - either "asc" or "desc". Defaults to "asc"
+          - in: query
+            name: includeSpectrumExists
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to return if a source has a spectra. Defaults to false.
           responses:
             200:
               content:
@@ -333,6 +340,9 @@ class SourceHandler(BaseHandler):
         save_summary = self.get_query_argument('saveSummary', False)
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "asc")
+        include_spectrum_exists = self.get_query_argument(
+            "includeSpectrumExists", False
+        )
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -665,6 +675,12 @@ class SourceHandler(BaseHandler):
                 source_list[-1][
                     "angular_diameter_distance"
                 ] = source.angular_diameter_distance
+
+                if include_spectrum_exists:
+                    source_list[-1]["spectrum_exists"] = (
+                        len(Obj.get_spectra_owned_by(source.id, self.current_user)) > 0
+                    )
+
                 groups_query = (
                     DBSession()
                     .query(Group)

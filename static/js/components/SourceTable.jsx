@@ -22,10 +22,12 @@ import MUIDataTable from "mui-datatables";
 import { makeStyles } from "@material-ui/core/styles";
 import Tooltip from "@material-ui/core/Tooltip";
 import GroupIcon from "@material-ui/icons/Group";
+import CheckIcon from "@material-ui/icons/Check";
+import ClearIcon from "@material-ui/icons/Clear";
 
 import dayjs from "dayjs";
 
-import { ra_to_hours, dec_to_dms } from "../units";
+import { ra_to_hours, dec_to_dms, flux_to_mag } from "../units";
 import styles from "./CommentList.css";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
@@ -99,6 +101,8 @@ const SourceTable = ({
   );
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
+
+  const mjdNow = Math.floor(Date.now() / 86400000.0 + 40587.5);
 
   if (!sources) {
     return (
@@ -443,6 +447,56 @@ const SourceTable = ({
     );
   };
 
+  const renderSpectrumExists = (dataIndex) => {
+    const source = sources[dataIndex];
+    return source.spectrum_exists ? (
+      <CheckIcon
+        size="small"
+        key={`${source.id}_spectrum_exists`}
+        color="primary"
+      />
+    ) : (
+      <ClearIcon
+        size="small"
+        key={`${source.id}_spectrum_exists`}
+        color="secondary"
+      />
+    );
+  };
+
+  const renderPeakMagnitude = (dataIndex) => {
+    const source = sources[dataIndex];
+    const peakPoint = source.photometry
+      .filter((point) => point.flux)
+      .sort((a, b) => a.flux - b.flux)[0];
+    return (
+      <Tooltip title={`${(mjdNow - peakPoint.mjd).toFixed(2)} days ago`}>
+        <div>{`${flux_to_mag(peakPoint.flux).toFixed(4)}`}</div>
+      </Tooltip>
+    );
+  };
+
+  const renderLatestMagnitude = (dataIndex) => {
+    const source = sources[dataIndex];
+    const latestPoint = source.photometry
+      .filter((point) => point.flux)
+      .sort((a, b) => b.mjd - a.mjd)[0];
+    return (
+      <Tooltip title={`${(mjdNow - latestPoint.mjd).toFixed(2)} days ago`}>
+        <div>{`${flux_to_mag(latestPoint.flux).toFixed(4)}`}</div>
+      </Tooltip>
+    );
+  };
+
+  const renderTNSName = (dataIndex) => {
+    const source = sources[dataIndex];
+    return (
+      <div>
+        {source.altdata && source.altdata.tns ? source.altdata.tns.name : ""}
+      </div>
+    );
+  };
+
   const renderHeader = (name, label) => {
     const sortedOn = currentSortColumn && currentSortColumn.column === name;
     return (
@@ -627,6 +681,34 @@ const SourceTable = ({
         customBodyRenderLite: renderFinderButton,
       },
     },
+    {
+      name: "Spectrum?",
+      options: {
+        customBodyRenderLite: renderSpectrumExists,
+        display: false,
+      },
+    },
+    {
+      name: "Peak Magnitude",
+      options: {
+        customBodyRenderLite: renderPeakMagnitude,
+        display: false,
+      },
+    },
+    {
+      name: "Latest Magnitude",
+      options: {
+        customBodyRenderLite: renderLatestMagnitude,
+        display: false,
+      },
+    },
+    {
+      name: "TNS Name",
+      options: {
+        customBodyRenderLite: renderTNSName,
+        display: false,
+      },
+    },
   ];
 
   const options = {
@@ -704,6 +786,13 @@ SourceTable.propTypes = {
         })
       ),
       recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
+      altdata: PropTypes.shape({
+        tns: PropTypes.shape({
+          name: PropTypes.string,
+        }),
+      }),
+      spectrum_exists: PropTypes.bool,
+      photometry: PropTypes.arrayOf(PropTypes.shape({})),
       groups: PropTypes.arrayOf(
         PropTypes.shape({
           id: PropTypes.number,
