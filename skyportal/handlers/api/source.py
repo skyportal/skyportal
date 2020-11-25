@@ -437,9 +437,6 @@ class SourceHandler(BaseHandler):
                 key=lambda x: x["created_at"],
                 reverse=True,
             )
-            for comment in source_info["comments"]:
-                comment["author"] = comment["author"].to_dict()
-                del comment["author"]["preferences"]
             source_info["annotations"] = sorted(
                 s.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
             )
@@ -647,9 +644,6 @@ class SourceHandler(BaseHandler):
                     key=lambda x: x["created_at"],
                     reverse=True,
                 )
-                for comment in source_list[-1]["comments"]:
-                    comment["author"] = comment["author"].to_dict()
-                    del comment["author"]["preferences"]
                 source_list[-1][
                     "classifications"
                 ] = source.get_classifications_owned_by(self.current_user)

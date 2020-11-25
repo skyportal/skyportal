@@ -236,7 +236,6 @@ class UserHandler(BaseHandler):
         return_values = []
         for user in query.all():
             return_values.append(user.to_dict())
-            del return_values[-1]["preferences"]
             return_values[-1]["permissions"] = sorted(user.permissions)
             return_values[-1]["roles"] = sorted([role.id for role in user.roles])
             return_values[-1]["acls"] = sorted([acl.id for acl in user.acls])

@@ -92,6 +92,17 @@ def basic_user_display_info(user):
     }
 
 
+def user_to_dict(self):
+    return {
+        field: getattr(self, field)
+        for field in User.__table__.columns.keys()
+        if field != "preferences"
+    }
+
+
+User.to_dict = user_to_dict
+
+
 def is_owned_by(self, user_or_token):
     """Generic ownership logic for any `skyportal` ORM model.
 
