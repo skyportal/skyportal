@@ -470,6 +470,10 @@ class SourceHandler(BaseHandler):
                 source_info["photometry"] = Obj.get_photometry_owned_by_user(
                     obj_id, self.current_user
                 )
+            if include_spectrum_exists:
+                source_info["spectrum_exists"] = (
+                    len(Obj.get_spectra_owned_by(obj_id, self.current_user)) > 0
+                )
             query = (
                 DBSession()
                 .query(Group)
