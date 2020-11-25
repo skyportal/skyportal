@@ -51,13 +51,20 @@ const FilterCandidateList = ({
 }) => {
   const classes = useStyles();
 
-  const { handleSubmit, getValues, control, errors, reset } = useForm();
+  const defaultStartDate = new Date();
+  defaultStartDate.setDate(defaultStartDate.getDate() - 1);
+  const defaultEndDate = new Date();
+
+  const { handleSubmit, getValues, control, errors, reset } = useForm({
+    startDate: defaultStartDate,
+    endDate: defaultEndDate,
+  });
 
   useEffect(() => {
     reset({
       groupIDs: Array(userAccessibleGroups.length).fill(false),
-      startDate: null,
-      endDate: null,
+      startDate: defaultStartDate,
+      endDate: defaultEndDate,
     });
   }, [reset, userAccessibleGroups]);
 
