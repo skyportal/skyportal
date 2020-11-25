@@ -68,6 +68,7 @@ from skyportal.handlers.api.internal import (
     PlotObjTelAirmassHandler,
     AnnotationsInfoHandler,
     EphemerisHandler,
+    StandardsHandler,
 )
 
 from . import models, model_util, openapi
@@ -134,6 +135,7 @@ skyportal_handlers = [
     (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
     (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
     (r'/api/internal/instrument_forms', RoboticInstrumentsHandler),
+    (r'/api/internal/standards', StandardsHandler),
     (r'/api/internal/plot/airmass/assignment/(.*)', PlotAssignmentAirmassHandler),
     (r'/api/internal/plot/airmass/objtel/(.*)/([0-9]+)', PlotObjTelAirmassHandler,),
     (r'/api/internal/ephemeris/([0-9]+)', EphemerisHandler),
