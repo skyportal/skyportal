@@ -71,6 +71,12 @@ const useStyles = makeStyles((theme) => ({
     },
     flexFlow: "row wrap",
   },
+  infoItemPadded: {
+    "& > span": {
+      paddingLeft: "0.25rem",
+      paddingBottom: "0.1rem",
+    },
+  },
   saveCandidateButton: {
     margin: "0.5rem 0",
   },
@@ -551,9 +557,17 @@ const CandidateList = () => {
           </span>
         </div>
         {candidateObj.classifications && recentClassification && (
-          <div className={classes.infoItem}>
+          <div className={classes.infoItemPadded}>
             <b>Classification: </b>
-            <Chip size="small" label={recentClassification} color="primary" />
+            <br />
+            <span>
+              <Chip
+                size="small"
+                label={recentClassification}
+                color="primary"
+                className={classes.chip}
+              />
+            </span>
           </div>
         )}
         {selectedAnnotationSortOptions !== null &&
