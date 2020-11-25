@@ -398,7 +398,7 @@ class FollowupRequestHandler(BaseHandler):
             DBSession().commit()
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",
-                payload={"obj_id": followup_request.obj_id},
+                payload={"obj_key": followup_request.obj.internal_key},
             )
 
         return self.success(data={"id": followup_request.id})
