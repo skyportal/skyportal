@@ -2756,6 +2756,39 @@ User.assignments = relationship(
 )
 
 
+class Listing(Base):
+
+    user_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this Listing.",
+    )
+
+    obj_id = sa.Column(
+        sa.ForeignKey('obj.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the object that is on this Listing",
+    )
+
+    list_name = sa.Column(
+        sa.String, index=True, doc="Name of the list, e.g., 'favorites'. ",
+    )
+
+
+Listing.__table_args__ = (
+    sa.Index(
+        "listings_main_index",
+        Listing.user_id,
+        Listing.obj_id,
+        Listing.list_name,
+        unique=True,
+    ),
+)
+# do we need to have a relationship to User and Obj?
+
+
 class Invitation(Base):
     token = sa.Column(sa.String(), nullable=False, unique=True)
     groups = relationship(
