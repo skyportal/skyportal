@@ -72,7 +72,7 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
       break;
     case "dr8":
       alt = "Link to DESI DR8 Image Access";
-      link = `https://www.legacysurvey.org/viewer/jpeg-cutout?ra=${ra}&dec=${dec}&size=512&layer=dr8&pixscale=0.262&bands=grz`;
+      link = `https://www.legacysurvey.org/viewer?ra=${ra}&dec=${dec}&layer=ls-dr8&zoom=16`;
       break;
     case "ps1":
       alt = "Link to PanSTARRS-1 Image Access";
@@ -87,7 +87,7 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
     <Card className={classes.root} variant="outlined">
       <CardContent className={classes.cardTitle}>
         <Typography className={classes.title} color="textSecondary">
-          {name.toUpperCase()}
+          <a href={link}>{name.toUpperCase()}</a>
         </Typography>
       </CardContent>
       <div className={classes.mediaDiv}>
