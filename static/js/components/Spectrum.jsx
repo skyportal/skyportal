@@ -5,13 +5,15 @@ import Grid from "@material-ui/core/Grid";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 import Button from "@material-ui/core/Button";
+import Dialog from "@material-ui/core/Dialog";
+import DialogContent from "@material-ui/core/DialogContent";
 import { Link } from "react-router-dom";
 import DownloadLink from "react-download-link";
 import { makeStyles } from "@material-ui/core/styles";
 import dayjs from "dayjs";
 import Papa from "papaparse";
-import { confirmAlert } from "react-confirm-alert";
 
+import { showNotification } from "baselayer/components/Notifications";
 import Plot from "./Plot";
 import { UserContactInfo } from "./UserProfileInfo";
 import { fetchSourceSpectra, deleteSpectrum } from "../ducks/spectra";
@@ -25,8 +27,8 @@ const useStyles = makeStyles({
   margined: { margin: "1rem" },
 });
 
-function get_filename(spectrum) {
-  return `${spectrum.obj_id}_${spectrum.instrument.name}_${spectrum.observed_at}.csv`;
+function get_filename(spectrum, instrument) {
+  return `${spectrum.obj_id}_${instrument.name}_${spectrum.observed_at}.csv`;
 }
 
 function to_csv(spectrum) {
@@ -46,13 +48,20 @@ function to_csv(spectrum) {
 const DetailedSpectrumView = ({ spectrum }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
+  const { instrumentList } = useSelector((state) => state.instruments);
+  const { id: uid } = useSelector((state) => state.profile);
+  const [open, setOpen] = React.useState(false);
+
+  const instrument = instrumentList.find(
+    (i) => i.id === spectrum.instrument_id
+  );
 
   const data = spectrum.original_file_string
     ? spectrum.original_file_string
     : to_csv(spectrum);
   const filename = spectrum.original_file_filename
     ? spectrum.original_file_filename
-    : get_filename(spectrum);
+    : get_filename(spectrum, instrument);
 
   return (
     <div>
@@ -70,29 +79,61 @@ const DetailedSpectrumView = ({ spectrum }) => {
         className={classes.plot}
         url={`/api/internal/plot/spectroscopy/${spectrum.obj_id}?spectrumID=${spectrum.id}`}
       />
-      <Button
-        onClick={() => {
-          confirmAlert({
-            title: "Confirm delete spectrum",
-            message:
-              "Warning: this will permanently delete this spectrum from" +
-              " the database. This action cannot be undone. Are you sure you" +
-              " want to proceed?",
-            buttons: [
-              {
-                label: "Yes",
-                onClick: () => dispatch(deleteSpectrum(spectrum.id)),
-              },
-              { label: "No", onClick: () => {} },
-            ],
-          });
+      {spectrum.owner_id === uid && (
+        <Button
+          onClick={() => {
+            setOpen(true);
+          }}
+        >
+          Delete Spectrum
+        </Button>
+      )}
+      <DownloadLink
+        filename={filename}
+        exportFile={() => data}
+        tagName={Button}
+        label="Download ASCII Spectrum"
+        style={{}}
+      />
+      <Dialog
+        open={open}
+        aria-labelledby="simple-modal-title"
+        aria-describedby="simple-modal-description"
+        onClose={() => {
+          setOpen(false);
         }}
       >
-        Delete Spectrum
-      </Button>
-      <DownloadLink filename={filename} exportFile={data}>
-        <Button>Download Spectrum ASCII</Button>
-      </DownloadLink>
+        <DialogContent>
+          <div>
+            <Typography variant="h6">
+              Are you sure you want to do this?
+            </Typography>
+            The following operation <em>permanently</em> deletes the spectrum
+            from the database. This operation cannot be undone and your data
+            cannot be recovered after the fact. You will have to upload the
+            spectrum again from scratch.
+          </div>
+          <div>
+            <Button
+              onClick={() => {
+                setOpen(false);
+              }}
+            >
+              No, do not delete the spectrum.
+            </Button>
+            <Button
+              onClick={async () => {
+                const result = await dispatch(deleteSpectrum(spectrum.id));
+                if (result.status === "success") {
+                  dispatch(showNotification("Spectrum deleted."));
+                }
+              }}
+            >
+              Yes, delete the spectrum.
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
@@ -107,8 +148,10 @@ const user = {
 
 DetailedSpectrumView.propTypes = {
   spectrum: PropTypes.shape({
-    id: PropTypes.number,
+    id: PropTypes.string,
     obj_id: PropTypes.number,
+    owner_id: PropTypes.number,
+    instrument_id: PropTypes.number,
     reducers: PropTypes.arrayOf(user),
     observers: PropTypes.arrayOf(user),
     owner: PropTypes.shape(user),
@@ -123,6 +166,7 @@ const SpectrumPage = ({ route }) => {
   const classes = useStyles();
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
+  const profile = useSelector((state) => state.profile);
 
   useEffect(() => {
     dispatch(fetchSourceSpectra(route.id));
@@ -131,7 +175,8 @@ const SpectrumPage = ({ route }) => {
   if (
     !Object.keys(spectra).includes(route.id) ||
     telescopeList.length === 0 ||
-    instrumentList.length === 0
+    instrumentList.length === 0 ||
+    !profile.id
   ) {
     return <p>Loading...</p>;
   }
@@ -172,7 +217,7 @@ const SpectrumPage = ({ route }) => {
 
 SpectrumPage.propTypes = {
   route: PropTypes.shape({
-    id: PropTypes.number.isRequired,
+    id: PropTypes.string.isRequired,
   }).isRequired,
 };
 
