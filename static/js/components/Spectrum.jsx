@@ -9,6 +9,8 @@ import { Link } from "react-router-dom";
 import DownloadLink from "react-download-link";
 import { makeStyles } from "@material-ui/core/styles";
 import dayjs from "dayjs";
+import Papa from "papaparse";
+import { confirmAlert } from "react-confirm-alert";
 
 import Plot from "./Plot";
 import { UserContactInfo } from "./UserProfileInfo";
@@ -23,9 +25,35 @@ const useStyles = makeStyles({
   margined: { margin: "1rem" },
 });
 
+function get_filename(spectrum) {
+  return `${spectrum.obj_id}_${spectrum.instrument.name}_${spectrum.observed_at}.csv`;
+}
+
+function to_csv(spectrum) {
+  const formatted = [];
+  spectrum.wavelengths.forEach((wave, i) => {
+    const obj = {};
+    obj.wavelength = wave;
+    obj.flux = spectrum.fluxes[i];
+    if (spectrum.fluxerr) {
+      obj.fluxerr = spectrum.fluxerr[i];
+    }
+    formatted.push(obj);
+  });
+  return Papa.unparse(formatted);
+}
+
 const DetailedSpectrumView = ({ spectrum }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
+
+  const data = spectrum.original_file_string
+    ? spectrum.original_file_string
+    : to_csv(spectrum);
+  const filename = spectrum.original_file_filename
+    ? spectrum.original_file_filename
+    : get_filename(spectrum);
+
   return (
     <div>
       <Typography variant="h6">Uploaded by</Typography>
@@ -42,17 +70,29 @@ const DetailedSpectrumView = ({ spectrum }) => {
         className={classes.plot}
         url={`/api/internal/plot/spectroscopy/${spectrum.obj_id}?spectrumID=${spectrum.id}`}
       />
-      <Button onClick={() => dispatch(deleteSpectrum(spectrum.id))}>
+      <Button
+        onClick={() => {
+          confirmAlert({
+            title: "Confirm delete spectrum",
+            message:
+              "Warning: this will permanently delete this spectrum from" +
+              " the database. This action cannot be undone. Are you sure you" +
+              " want to proceed?",
+            buttons: [
+              {
+                label: "Yes",
+                onClick: () => dispatch(deleteSpectrum(spectrum.id)),
+              },
+              { label: "No", onClick: () => {} },
+            ],
+          });
+        }}
+      >
         Delete Spectrum
       </Button>
-      {spectrum.original_file_string && spectrum.original_file_filename && (
-        <DownloadLink
-          filename={spectrum.original_file_filename}
-          exportFile={spectrum.original_file_string}
-        >
-          <Button>Download Spectrum ASCII</Button>
-        </DownloadLink>
-      )}
+      <DownloadLink filename={filename} exportFile={data}>
+        <Button>Download Spectrum ASCII</Button>
+      </DownloadLink>
     </div>
   );
 };
