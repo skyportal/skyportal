@@ -17,14 +17,22 @@ import dayjs from "dayjs";
 
 const useStyles = makeStyles((theme) => ({
   root: {
-    display: "inline-block",
-    paddingLeft: "1em",
-    paddingRight: "1em",
-    maxWidth: "100rem",
+    padding: "1rem 2rem 2rem 2rem",
     fontSize: "1rem",
+    "& .MuiTypography-h5": {
+      margin: "1rem 0 0.83rem 0",
+      fontWeight: 600,
+      wordBreak: "break-all",
+    },
+    "& .MuiTypography-body1": {
+      margin: "1rem 0",
+    },
   },
   bibcard: {
     marginTop: "1rem",
+    "& .MuiTypography-body1": {
+      margin: 0,
+    },
   },
   bibtex: {
     marginTop: "2rem",
@@ -54,7 +62,7 @@ const BibLink = ({ bibtex, children }) => {
   const [folded, setFolded] = useState(true);
 
   return (
-    <Card className={classes.bibcard}>
+    <Card className={classes.bibcard} variant="outlined">
       <CardContent>
         <Typography>{children}</Typography>
         <pre
@@ -84,33 +92,32 @@ const About = () => {
   const cosmology = useSelector((state) => state.sysInfo.cosmology);
   const cosmoref = useSelector((state) => state.sysInfo.cosmoref);
   const gitlog = useSelector((state) => state.sysInfo.gitlog);
-
   return (
-    <Box className={classes.root}>
-      <h2>
+    <Paper className={classes.root}>
+      <Typography variant="h5">
         This is SkyPortal&nbsp;
         <code>v{version}</code>.
-      </h2>
-      <p>
+      </Typography>
+      <Typography variant="body1">
         The project homepage is at&nbsp;
         <a href="https://skyportal.io">https://skyportal.io</a>
-      </p>
-      <p>
+      </Typography>
+      <Typography variant="body1">
         Documentation lives at&nbsp;
         <a href="https://skyportal.io">https://skyportal.io/docs/</a>
-      </p>
-      <p>
+      </Typography>
+      <Typography variant="body1">
         You may also interact with SkyPortal through its API. Generate a token
         from your&nbsp;
         <Link to="/profile">profile</Link>&nbsp; page, then refer to the&nbsp;
         <a href="https://skyportal.io/docs/api.html">API documentation</a>.
-      </p>
-      <p>
+      </Typography>
+      <Typography variant="body1">
         Please file issues on our GitHub page at&nbsp;
         <a href="https://github.com/skyportal/skyportal">
           https://github.com/skyportal/skyportal
         </a>
-      </p>
+      </Typography>
       <div>
         If you found SkyPortal useful, please consider citing our work:
         <BibLink
@@ -138,7 +145,7 @@ const About = () => {
       </div>
       {gitlog && (
         <>
-          <h2>Recent Changelog</h2>
+          <Typography variant="h5">Recent Changelog</Typography>
           <Paper mt={1} className={classes.gitlogPaper}>
             <Box p={1}>
               <div>
@@ -170,7 +177,7 @@ const About = () => {
           </Paper>
         </>
       )}
-      <h2>Cosmology</h2>
+      <Typography variant="h5">Cosmology</Typography>
       <span>
         The cosmology currently used here is an instance of{" "}
         <code>astropy.cosmology</code> with the parameters (see{" "}
@@ -187,7 +194,7 @@ const About = () => {
           </>
         )}
       </span>
-    </Box>
+    </Paper>
   );
 };
 

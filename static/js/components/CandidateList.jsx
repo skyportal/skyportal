@@ -1,6 +1,5 @@
 import React, { useEffect, Suspense, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useHistory } from "react-router-dom";
 import PropTypes from "prop-types";
 
 import Paper from "@material-ui/core/Paper";
@@ -72,6 +71,12 @@ const useStyles = makeStyles((theme) => ({
     },
     flexFlow: "row wrap",
   },
+  infoItemPadded: {
+    "& > span": {
+      paddingLeft: "0.25rem",
+      paddingBottom: "0.1rem",
+    },
+  },
   saveCandidateButton: {
     margin: "0.5rem 0",
   },
@@ -116,6 +121,11 @@ const useStyles = makeStyles((theme) => ({
     flexFlow: "row wrap",
     alignItems: "center",
   },
+  idButton: {
+    // color: theme.palette.primary.main,
+    textTransform: "none",
+    marginBottom: theme.spacing(1),
+  },
 }));
 
 // Tweak responsive column widths
@@ -148,8 +158,10 @@ const getMostRecentClassification = (classifications) => {
   const sortedClasses = filteredClasses.sort((a, b) =>
     a.modified < b.modified ? 1 : -1
   );
+  const recentClassification =
+    sortedClasses.length > 0 ? `${sortedClasses[0].classification}` : null;
 
-  return `${sortedClasses[0].classification}`;
+  return recentClassification;
 };
 
 const getMuiPopoverTheme = () =>
@@ -168,6 +180,7 @@ const defaultNumPerPage = 25;
 const CustomSortToolbar = ({
   selectedAnnotationSortOptions,
   rowsPerPage,
+  filterGroups,
   filterFormData,
   setQueryInProgress,
   loaded,
@@ -188,6 +201,7 @@ const CustomSortToolbar = ({
     let data = {
       pageNumber: 1,
       numPerPage: rowsPerPage,
+      groupIDs: filterGroups.map((g) => g.id).join(),
       sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
       sortByAnnotationKey: selectedAnnotationSortOptions.key,
       sortByAnnotationOrder: newSortOrder,
@@ -241,16 +255,17 @@ CustomSortToolbar.propTypes = {
   }),
   setQueryInProgress: PropTypes.func.isRequired,
   rowsPerPage: PropTypes.number.isRequired,
-  filterFormData: PropTypes.shape({}).isRequired,
+  filterGroups: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
+  filterFormData: PropTypes.shape({}),
   loaded: PropTypes.bool.isRequired,
 };
 
 CustomSortToolbar.defaultProps = {
   selectedAnnotationSortOptions: null,
+  filterFormData: null,
 };
 
 const CandidateList = () => {
-  const history = useHistory();
   const [queryInProgress, setQueryInProgress] = useState(false);
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [filterGroups, setFilterGroups] = useState([]);
@@ -272,15 +287,15 @@ const CandidateList = () => {
   const {
     candidates,
     pageNumber,
-    lastPage,
     totalMatches,
-    numberingStart,
-    numberingEnd,
     selectedAnnotationSortOptions,
   } = useSelector((state) => state.candidates);
 
   const userAccessibleGroups = useSelector(
     (state) => state.groups.userAccessible
+  );
+  const allGroups = (useSelector((state) => state.groups.all) || []).filter(
+    (g) => !g.single_user_group
   );
 
   useEffect(() => {
@@ -378,6 +393,7 @@ const CandidateList = () => {
     let data = {
       pageNumber: 1,
       numPerPage: rowsPerPage,
+      groupIDs: filterGroups.map((g) => g.id).join(),
     };
     if (filterListQueryString !== null) {
       data = {
@@ -408,8 +424,11 @@ const CandidateList = () => {
   };
 
   const handleFilterAdd = ({ formData }) => {
-    const filterListChip = filterAnnotationObjToChip(formData);
-    const filterListQueryItem = JSON.stringify(formData);
+    // The key is actually a combination of `origin<>key`, so parse out the key part
+    const key = formData.key.split("<>")[1];
+    const annotationObj = { ...formData, key };
+    const filterListChip = filterAnnotationObjToChip(annotationObj);
+    const filterListQueryItem = JSON.stringify(annotationObj);
 
     setTableFilterList(tableFilterList.concat([filterListChip]));
     const newFilterListQueryStrings = filterListQueryStrings.concat([
@@ -437,34 +456,35 @@ const CandidateList = () => {
 
   const renderInfo = (dataIndex) => {
     const candidateObj = candidates[dataIndex];
+    const recentClassification =
+      candidateObj.classifications && candidateObj.classifications.length > 0
+        ? getMostRecentClassification(candidateObj.classifications)
+        : null;
+
     return (
       <div className={classes.info}>
         <span className={classes.itemPaddingBottom}>
-          <b>ID:</b>&nbsp;
           <a
-            href={`/candidate/${candidateObj.id}`}
+            href={`/source/${candidateObj.id}`}
             target="_blank"
+            data-testid={candidateObj.id}
             rel="noreferrer"
           >
-            {candidateObj.id}&nbsp;
-            <OpenInNewIcon fontSize="inherit" />
+            <Button
+              variant="contained"
+              size="small"
+              color="primary"
+              className={classes.idButton}
+            >
+              {candidateObj.id}&nbsp;
+              <OpenInNewIcon fontSize="inherit" />
+            </Button>
           </a>
         </span>
-        <br />
         {candidateObj.is_source ? (
           <div>
             <div className={classes.itemPaddingBottom}>
-              <Chip
-                size="small"
-                label="Previously Saved"
-                clickable
-                onClick={() => history.push(`/source/${candidateObj.id}`)}
-                onDelete={() =>
-                  window.open(`/source/${candidateObj.id}`, "_blank")
-                }
-                deleteIcon={<OpenInNewIcon />}
-                color="primary"
-              />
+              <Chip size="small" label="Previously Saved" color="primary" />
             </div>
             <div className={classes.saveCandidateButton}>
               <EditSourceGroups
@@ -472,7 +492,7 @@ const CandidateList = () => {
                   id: candidateObj.id,
                   currentGroupIds: candidateObj.saved_groups.map((g) => g.id),
                 }}
-                userGroups={userAccessibleGroups}
+                groups={allGroups}
               />
             </div>
             <div className={classes.infoItem}>
@@ -536,15 +556,20 @@ const CandidateList = () => {
             {candidateObj.gal_lat.toFixed(3)}
           </span>
         </div>
-        {candidateObj.classifications &&
-          candidateObj.classifications.length > 0 && (
-            <div className={classes.infoItem}>
-              <b>Classification: </b>
-              <span>
-                {getMostRecentClassification(candidateObj.classifications)}
-              </span>
-            </div>
-          )}
+        {candidateObj.classifications && recentClassification && (
+          <div className={classes.infoItemPadded}>
+            <b>Classification: </b>
+            <br />
+            <span>
+              <Chip
+                size="small"
+                label={recentClassification}
+                color="primary"
+                className={classes.chip}
+              />
+            </span>
+          </div>
+        )}
         {selectedAnnotationSortOptions !== null &&
           candidateHasAnnotationWithSelectedKey(candidateObj) && (
             <div className={classes.infoItem}>
@@ -628,7 +653,11 @@ const CandidateList = () => {
   const handlePageChange = async (page, numPerPage) => {
     setQueryInProgress(true);
     // API takes 1-indexed page number
-    let data = { pageNumber: page + 1, numPerPage };
+    let data = {
+      pageNumber: page + 1,
+      numPerPage,
+      groupIDs: filterGroups.map((g) => g.id).join(),
+    };
     if (selectedAnnotationSortOptions !== null) {
       data = {
         ...data,
@@ -713,6 +742,9 @@ const CandidateList = () => {
       filterFormSchema.properties.origin.enum.push(origin);
 
       // Make a list of keys to select from based on the origin
+      // We tack on the origin (using a separator that shouldn't be part of expected
+      // origin or key strings ('<>')) so that keys that are common across origin
+      // get their own fields in the form schema.
       const keySelect = {
         properties: {
           origin: {
@@ -721,7 +753,8 @@ const CandidateList = () => {
           key: {
             type: "string",
             title: "Key",
-            enum: fields.map((field) => Object.keys(field)[0]),
+            enum: fields.map((field) => `${origin}<>${Object.keys(field)[0]}`),
+            enumNames: fields.map((field) => Object.keys(field)[0]),
           },
         },
       };
@@ -734,7 +767,7 @@ const CandidateList = () => {
         const valueSelect = {
           properties: {
             key: {
-              enum: [key],
+              enum: [`${origin}<>${key}`],
             },
           },
           required: [],
@@ -855,6 +888,7 @@ const CandidateList = () => {
       <CustomSortToolbar
         selectedAnnotationSortOptions={selectedAnnotationSortOptions}
         rowsPerPage={rowsPerPage}
+        filterGroups={filterGroups}
         filterFormData={filterFormData}
         setQueryInProgress={setQueryInProgress}
         loaded={!queryInProgress}
@@ -871,13 +905,9 @@ const CandidateList = () => {
         </Typography>
         <FilterCandidateList
           userAccessibleGroups={userAccessibleGroups}
-          pageNumber={pageNumber}
-          numberingStart={numberingStart}
-          numberingEnd={numberingEnd}
-          lastPage={lastPage}
-          totalMatches={totalMatches}
           setQueryInProgress={setQueryInProgress}
           setFilterGroups={setFilterGroups}
+          numPerPage={rowsPerPage}
         />
         <Box
           display={queryInProgress ? "block" : "none"}

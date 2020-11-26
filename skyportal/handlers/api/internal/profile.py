@@ -213,8 +213,6 @@ class ProfileHandler(BaseHandler):
             self.push(action="skyportal/FETCH_RECENT_SOURCES")
         if "sourceCounts" in preferences:
             self.push(action="skyportal/FETCH_SOURCE_COUNTS")
-        if "weather" in preferences:
-            self.push(action="skyportal/FETCH_WEATHER")
 
         if username_updated:
             self.push_all(action="skyportal/FETCH_GROUPS")

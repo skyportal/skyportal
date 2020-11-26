@@ -92,7 +92,7 @@ const ClassificationList = () => {
               />
             </Tooltip>
           </div>
-          <div className={styles.wrap} name={`classificationDiv${id}`}>
+          <div className={styles.wrap} data-testid={`classificationDiv_${id}`}>
             <div className={styles.classificationMessage}>
               <span style={{ fontWeight: "bold", fontSize: "120%" }}>
                 {classification}

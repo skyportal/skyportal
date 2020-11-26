@@ -4,8 +4,9 @@ import pytest
 import os
 import uuid
 import pathlib
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
+import numpy as np
 
 from baselayer.app import models
 from baselayer.app.config import load_config
@@ -24,6 +25,7 @@ from skyportal.tests.fixtures import (
     InstrumentFactory,
     ObservingRunFactory,
     TelescopeFactory,
+    ClassicalAssignmentFactory,
 )
 from skyportal.model_util import create_token
 from skyportal.models import (
@@ -194,6 +196,14 @@ def public_filter2(public_group2, public_stream):
 
 
 @pytest.fixture()
+def public_ZTF20acgrjqm(public_group):
+    obj = ObjFactory(groups=[public_group], ra=65.0630767, dec=82.5880983)
+    DBSession().add(Source(obj_id=obj.id, group_id=public_group.id))
+    DBSession().commit()
+    return obj
+
+
+@pytest.fixture()
 def public_source(public_group):
     obj = ObjFactory(groups=[public_group])
     DBSession.add(Source(obj_id=obj.id, group_id=public_group.id))
@@ -219,32 +229,63 @@ def public_source_group2(public_group2):
 
 
 @pytest.fixture()
-def public_candidate(public_filter):
+def public_candidate(public_filter, user):
     obj = ObjFactory(groups=[public_filter.group])
-    DBSession.add(Candidate(obj=obj, filter=public_filter, passed_at=datetime.utcnow()))
-    DBSession.commit()
-    return obj
-
-
-@pytest.fixture()
-def public_candidate_two_groups(
-    public_filter, public_filter2, public_group, public_group2
-):
-    obj = ObjFactory(groups=[public_group, public_group2])
-    DBSession.add(Candidate(obj=obj, filter=public_filter, passed_at=datetime.utcnow()))
     DBSession.add(
-        Candidate(obj=obj, filter=public_filter2, passed_at=datetime.utcnow())
+        Candidate(
+            obj=obj,
+            filter=public_filter,
+            passed_at=datetime.utcnow() - timedelta(seconds=np.random.randint(0, 100)),
+            uploader_id=user.id,
+        )
     )
     DBSession.commit()
     return obj
 
 
 @pytest.fixture()
-def public_candidate2(public_filter):
-    obj = ObjFactory(groups=[public_filter.group])
-    DBSession.add(Candidate(obj=obj, filter=public_filter, passed_at=datetime.utcnow()))
+def public_candidate_two_groups(
+    public_filter, public_filter2, public_group, public_group2, user
+):
+    obj = ObjFactory(groups=[public_group, public_group2])
+    DBSession.add(
+        Candidate(
+            obj=obj,
+            filter=public_filter,
+            passed_at=datetime.utcnow() - timedelta(seconds=np.random.randint(0, 100)),
+            uploader_id=user.id,
+        )
+    )
+    DBSession.add(
+        Candidate(
+            obj=obj,
+            filter=public_filter2,
+            passed_at=datetime.utcnow() - timedelta(seconds=np.random.randint(0, 100)),
+            uploader_id=user.id,
+        )
+    )
     DBSession.commit()
     return obj
+
+
+@pytest.fixture()
+def public_candidate2(public_filter, user):
+    obj = ObjFactory(groups=[public_filter.group])
+    DBSession.add(
+        Candidate(
+            obj=obj,
+            filter=public_filter,
+            passed_at=datetime.utcnow() - timedelta(seconds=np.random.randint(0, 100)),
+            uploader_id=user.id,
+        )
+    )
+    DBSession.commit()
+    return obj
+
+
+@pytest.fixture()
+def public_obj(public_group):
+    return ObjFactory(groups=[public_group])
 
 
 @pytest.fixture()
@@ -261,6 +302,19 @@ def ztf_camera():
 
 
 @pytest.fixture()
+def hst():
+    return TelescopeFactory(
+        name=f'Hubble Space Telescope_{uuid.uuid4()}',
+        nickname=f'HST_{uuid.uuid4()}',
+        lat=0,
+        lon=0,
+        elevation=0,
+        diameter=2.0,
+        fixed_location=False,
+    )
+
+
+@pytest.fixture()
 def keck1_telescope():
     observer = astroplan.Observer.at_site('Keck')
     return TelescopeFactory(
@@ -270,6 +324,30 @@ def keck1_telescope():
         lon=observer.location.lon.to('deg').value,
         elevation=observer.location.height.to('m').value,
         diameter=10.0,
+    )
+
+
+@pytest.fixture()
+def wise_18inch():
+    return TelescopeFactory(
+        name=f'Wise 18-inch Telescope_{uuid.uuid4()}',
+        nickname=f'Wise18_{uuid.uuid4()}',
+        lat=34.763333,
+        lon=30.595833,
+        elevation=875,
+        diameter=0.46,
+    )
+
+
+@pytest.fixture()
+def xinglong_216cm():
+    return TelescopeFactory(
+        name=f'Xinglong 2.16m_{uuid.uuid4()}',
+        nickname='XL216_{uuid.uuid4()}',
+        lat=40.004463,
+        lon=116.385556,
+        elevation=950.0,
+        diameter=2.16,
     )
 
 
@@ -327,6 +405,26 @@ def red_transients_run():
 
 
 @pytest.fixture()
+def lris_run_20201118(lris, public_group, super_admin_user):
+    return ObservingRunFactory(
+        instrument=lris,
+        group=public_group,
+        calendar_date='2020-11-18',
+        owner=super_admin_user,
+    )
+
+
+@pytest.fixture()
+def problematic_assignment(lris_run_20201118, public_ZTF20acgrjqm):
+    return ClassicalAssignmentFactory(
+        run=lris_run_20201118,
+        obj=public_ZTF20acgrjqm,
+        requester=lris_run_20201118.owner,
+        last_modified_by=lris_run_20201118.owner,
+    )
+
+
+@pytest.fixture()
 def private_source():
     return ObjFactory(groups=[])
 
@@ -346,6 +444,13 @@ def user_group2(public_group2):
 
 
 @pytest.fixture()
+def user2(public_group):
+    return UserFactory(
+        groups=[public_group], roles=[models.Role.query.get("Full user")]
+    )
+
+
+@pytest.fixture()
 def user_no_groups():
     return UserFactory(roles=[models.Role.query.get("Full user")])
 
@@ -359,6 +464,13 @@ def user_two_groups(public_group, public_group2):
 
 @pytest.fixture()
 def view_only_user(public_group):
+    return UserFactory(
+        groups=[public_group], roles=[models.Role.query.get("View only")]
+    )
+
+
+@pytest.fixture()
+def view_only_user2(public_group):
     return UserFactory(
         groups=[public_group], roles=[models.Role.query.get("View only")]
     )
@@ -397,6 +509,12 @@ def super_admin_user_two_groups(public_group, public_group2):
 @pytest.fixture()
 def view_only_token(user):
     token_id = create_token(ACLs=[], user_id=user.id, name=str(uuid.uuid4()))
+    return token_id
+
+
+@pytest.fixture()
+def view_only_token2(user2):
+    token_id = create_token(ACLs=[], user_id=user2.id, name=str(uuid.uuid4()))
     return token_id
 
 

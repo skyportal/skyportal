@@ -105,7 +105,7 @@ export const ObservingRunStarList = () => {
     };
     fetchStarList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignments, dispatch, facility]);
+  }, [dispatch, facility]);
   return (
     <StarListBody
       starList={starList}

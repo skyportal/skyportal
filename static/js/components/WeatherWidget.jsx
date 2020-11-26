@@ -17,13 +17,13 @@ import IconButton from "@material-ui/core/IconButton";
 import MoreVertIcon from "@material-ui/icons/MoreVert";
 
 import * as profileActions from "../ducks/profile";
-import * as fetchWeather from "../ducks/weather";
+import * as weatherActions from "../ducks/weather";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const defaultPrefs = {
-  telescopeID: "1",
+  telescopeID: 1,
 };
 
 const useStyles = makeStyles(() => ({
@@ -149,15 +149,17 @@ const WeatherWidget = ({ classes }) => {
     }
     return 0;
   });
-  const weatherPrefs = userPrefs || defaultPrefs;
+  const weatherPrefs = userPrefs?.telescopeID ? userPrefs : defaultPrefs;
   const [anchorEl, setAnchorEl] = useState(null);
 
   useEffect(() => {
-    // eslint-disable-next-line no-unused-vars
-    const getWeatherData = () => {
-      dispatch(fetchWeather(weatherPrefs.telescopeID));
+    const fetchWeatherData = () => {
+      dispatch(weatherActions.fetchWeather());
     };
-  }, [weatherPrefs, dispatch]);
+    if (weather?.id !== weatherPrefs?.telescopeID || weather === undefined) {
+      fetchWeatherData();
+    }
+  }, [weatherPrefs, weather, dispatch]);
 
   const handleClose = () => {
     setAnchorEl(null);
@@ -171,16 +173,12 @@ const WeatherWidget = ({ classes }) => {
     setAnchorEl(null);
   };
 
-  const handleClickListItem = (event) => {
+  const handleClickDropdownIcon = (event) => {
     setAnchorEl(event.currentTarget);
   };
 
   return (
-    <Paper
-      id="weatherWidget"
-      elevation={1}
-      className={classes.widgetPaperFillSpace}
-    >
+    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <Typography variant="h6" display="inline">
           {weather?.name}
@@ -191,8 +189,9 @@ const WeatherWidget = ({ classes }) => {
           <div className={`${classes.widgetIcon} ${styles.selector}`}>
             <IconButton
               aria-controls="tel-list"
+              data-testid="tel-list-button"
               aria-haspopup="true"
-              onClick={handleClickListItem}
+              onClick={handleClickDropdownIcon}
             >
               <MoreVertIcon />
             </IconButton>

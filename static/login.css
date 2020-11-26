@@ -12,13 +12,13 @@ body {
 }
 
 .loginBox a {
-  color: #27a3de;
+  color: #141b44;
   text-decoration: none;
   font-weight: bold;
 }
 
 .loginHeader {
-  background-color: #38b0de; /* Header bar color */
+  background-color: #141b44; /* Header bar color */
   padding: 1em 2em 1em 2em;
 }
 

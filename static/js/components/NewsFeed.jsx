@@ -34,6 +34,9 @@ const NewsFeedItem = ({ item }) => {
   // Use switch-case to make it easy to add future newsfeed types
   switch (item.type) {
     case "comment":
+    case "photometry":
+    case "spectrum":
+    case "classification":
       /* eslint-disable react/display-name */
       EntryAvatar = () => (
         <UserAvatar
@@ -45,7 +48,7 @@ const NewsFeedItem = ({ item }) => {
         />
       );
       /* eslint-disable react/display-name */
-      entryTitle = item.author;
+      entryTitle = item.author_info.username;
       break;
     case "source":
       /* eslint-disable react/display-name */
@@ -56,7 +59,7 @@ const NewsFeedItem = ({ item }) => {
           style={{
             width: 32,
             height: 32,
-            backgroundColor: "#38B0DE",
+            backgroundColor: "#141b44",
             color: "white",
             fontSize: "10px",
           }}

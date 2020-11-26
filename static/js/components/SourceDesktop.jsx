@@ -128,8 +128,8 @@ const SourceDesktop = ({ source }) => {
   );
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
-  const userAccessibleGroups = useSelector(
-    (state) => state.groups.userAccessible
+  const groups = (useSelector((state) => state.groups.all) || []).filter(
+    (g) => !g.single_user_group
   );
 
   return (
@@ -148,8 +148,8 @@ const SourceDesktop = ({ source }) => {
           <b>Position (J2000):</b>
           &nbsp; &nbsp;
           <span className={classes.position}>
-            {ra_to_hours(source.ra)} &nbsp;
-            {dec_to_dms(source.dec)}
+            {ra_to_hours(source.ra, ":")} &nbsp;
+            {dec_to_dms(source.dec, ":")}
           </span>
           &nbsp; (&alpha;,&delta;= {source.ra}, &nbsp;
           {source.dec}; <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
@@ -182,13 +182,24 @@ const SourceDesktop = ({ source }) => {
             </>
           )}
           {source.redshift != null && <>&nbsp;|&nbsp;</>}
-          <Button href={`/api/sources/${source.id}/finder`}>
-            PDF Finding Chart
+          <b>Finding Chart:&nbsp;</b>
+          <Button
+            href={`/api/sources/${source.id}/finder`}
+            download="finder-chart-pdf"
+          >
+            PDF
           </Button>
+          <Link to={`/source/${source.id}/finder`} role="link">
+            <Button>Interactive</Button>
+          </Link>
           &nbsp;|&nbsp;
           <Button onClick={() => setShowStarList(!showStarList)}>
             {showStarList ? "Hide Starlist" : "Show Starlist"}
           </Button>
+          &nbsp;|&nbsp;
+          <Link to={`/observability/${source.id}`} role="link">
+            <Button>Observability</Button>
+          </Link>
           <br />
           {showStarList && <StarList sourceId={source.id} />}
           {source.groups.map((group) => (
@@ -213,7 +224,7 @@ const SourceDesktop = ({ source }) => {
               id: source.id,
               currentGroupIds: source.groups.map((g) => g.id),
             }}
-            userGroups={userAccessibleGroups}
+            groups={groups}
             icon
           />
           <SourceSaveHistory groups={source.groups} />
@@ -223,6 +234,7 @@ const SourceDesktop = ({ source }) => {
             ra={source.ra}
             dec={source.dec}
             thumbnails={source.thumbnails}
+            size="12.875rem"
           />
         </div>
         <div className={classes.columnItem}>

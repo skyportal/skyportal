@@ -2,7 +2,6 @@ import React from "react";
 import { useSelector } from "react-redux";
 
 import Paper from "@material-ui/core/Paper";
-import Box from "@material-ui/core/Box";
 import Typography from "@material-ui/core/Typography";
 import { makeStyles } from "@material-ui/core/styles";
 
@@ -18,7 +17,11 @@ const useStyles = makeStyles(() => ({
     height: "100%",
   },
   widgetPaperFillSpace: {
-    height: "100%",
+    maxHeight: "80vh",
+    marginTop: "1rem",
+  },
+  container: {
+    padding: "1rem",
   },
 }));
 
@@ -29,11 +32,9 @@ const GroupManagement = () => {
   );
 
   return (
-    <Paper variant="outlined">
-      <Box p={1}>
-        <Typography variant="h5">Group Management</Typography>
-        <GroupList title="All Groups" groups={allGroups} classes={classes} />
-      </Box>
+    <Paper variant="outlined" className={classes.container}>
+      <Typography variant="h5">Group Management</Typography>
+      <GroupList title="All Groups" groups={allGroups} classes={classes} />
     </Paper>
   );
 };

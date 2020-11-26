@@ -1,5 +1,5 @@
-import React, { useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React from "react";
+import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { CountUp } from "use-count-up";
 
@@ -28,25 +28,15 @@ const useStyles = makeStyles(() => ({
 
 const SourceCounts = ({ classes, sinceDaysAgo }) => {
   const styles = useStyles();
-  const sourceCounts = useSelector((state) => state.sourceCounts.sourceCounts);
+  const sourceCounts = useSelector((state) => state.sourceCounts?.sourceCounts);
   const userPrefs = useSelector(
     (state) => state.profile.preferences.sourceCounts
   );
-  const dispatch = useDispatch();
 
   const defaultPrefs = {
     sinceDaysAgo: sinceDaysAgo ? sinceDaysAgo.toString() : "",
   };
   const sourceCountPrefs = userPrefs || defaultPrefs;
-
-  useEffect(() => {
-    // If user prefs is blank, update to app default
-    if (!userPrefs) {
-      dispatch(
-        profileActions.updateUserPreferences({ sourceCounts: defaultPrefs })
-      );
-    }
-  }, [userPrefs, dispatch]);
 
   return (
     <Paper
@@ -79,7 +69,7 @@ const SourceCounts = ({ classes, sinceDaysAgo }) => {
           </Typography>
           <Typography align="center" variant="body1">
             New Sources <br />
-            <i>Last {sourceCounts?.since_days_ago} days</i>
+            <i>Last {sourceCounts?.sinceDaysAgo} days</i>
           </Typography>
         </div>
       </div>

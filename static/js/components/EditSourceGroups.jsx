@@ -27,7 +27,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const EditSourceGroups = ({ source, userGroups, icon }) => {
+const EditSourceGroups = ({ source, groups, icon }) => {
   const classes = useStyles();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -35,23 +35,23 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
 
   const { handleSubmit, errors, reset, control, getValues } = useForm();
 
-  const unsavedGroups = userGroups.filter(
+  const unsavedGroups = groups.filter(
     (g) => !source.currentGroupIds.includes(g.id)
   );
-  const savedGroups = userGroups.filter((g) =>
+  const savedGroups = groups.filter((g) =>
     source.currentGroupIds.includes(g.id)
   );
 
   useEffect(() => {
     reset({
       inviteGroupIds: Array(
-        userGroups.filter((g) => !source.currentGroupIds.includes(g.id)).length
+        groups.filter((g) => !source.currentGroupIds.includes(g.id)).length
       ).fill(false),
       unsaveGroupIds: Array(
-        userGroups.filter((g) => source.currentGroupIds.includes(g.id)).length
+        groups.filter((g) => source.currentGroupIds.includes(g.id)).length
       ).fill(false),
     });
-  }, [reset, userGroups, source]);
+  }, [reset, groups, source]);
 
   const openDialog = () => {
     setDialogOpen(true);
@@ -100,10 +100,10 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
     <>
       <div className={classes.editIcon}>
         {icon ? (
-          <Tooltip title="Edit source groups">
+          <Tooltip title="Manage source groups">
             <span>
               <IconButton
-                aria-label="add-group"
+                aria-label="manage-groups"
                 data-testid={`editGroups_${source.id}`}
                 onClick={openDialog}
                 size="small"
@@ -123,7 +123,7 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
             onClick={openDialog}
             disabled={isSubmitting}
           >
-            Edit groups
+            Manage groups
           </Button>
         )}
       </div>
@@ -133,7 +133,7 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
         onClose={closeDialog}
         style={{ position: "fixed" }}
       >
-        <DialogTitle>Edit source groups:</DialogTitle>
+        <DialogTitle>Unsave or save to new groups:</DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(onSubmit)}>
             {(errors.inviteGroupIds || errors.unsaveGroupIds) && (
@@ -141,19 +141,30 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
             )}
             {!!unsavedGroups.length && (
               <>
-                <div>
-                  Request selected group(s) to <b>save</b> source:
-                </div>
+                <>
+                  You can save to groups you belong to or request group admins
+                  of groups you are not a member of to save this source to their
+                  group.
+                  <br />
+                  <b>Save</b> (or request save, for groups you do not belong to)
+                  to selected groups:
+                </>
                 {unsavedGroups.map((unsavedGroup, idx) => (
                   <FormControlLabel
                     key={unsavedGroup.id}
                     control={
                       <Controller
-                        as={Checkbox}
+                        render={({ onChange, value }) => (
+                          <Checkbox
+                            onChange={(event) => onChange(event.target.checked)}
+                            checked={value}
+                            data-testid={`inviteGroupCheckbox_${unsavedGroup.id}`}
+                          />
+                        )}
                         name={`inviteGroupIds[${idx}]`}
+                        defaultValue={false}
                         control={control}
                         rules={{ validate: validateGroups }}
-                        data-testid={`inviteGroupCheckbox_${unsavedGroup.id}`}
                       />
                     }
                     label={unsavedGroup.name}
@@ -165,7 +176,7 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
             {!!savedGroups.length && (
               <>
                 <div>
-                  Select groups from which to <b>unsave</b> source:
+                  <b>Unsave</b> source from selected groups:
                 </div>
                 <div>
                   <em>
@@ -178,11 +189,17 @@ const EditSourceGroups = ({ source, userGroups, icon }) => {
                     key={savedGroup.id}
                     control={
                       <Controller
-                        as={Checkbox}
+                        render={({ onChange, value }) => (
+                          <Checkbox
+                            onChange={(event) => onChange(event.target.checked)}
+                            checked={value}
+                            data-testid={`unsaveGroupCheckbox_${savedGroup.id}`}
+                          />
+                        )}
                         name={`unsaveGroupIds[${idx}]`}
                         control={control}
                         rules={{ validate: validateGroups }}
-                        data-testid={`unsaveGroupCheckbox_${savedGroup.id}`}
+                        defaultValue={false}
                       />
                     }
                     label={savedGroup.name}
@@ -210,7 +227,7 @@ EditSourceGroups.propTypes = {
     id: PropTypes.string,
     currentGroupIds: PropTypes.arrayOf(PropTypes.number),
   }).isRequired,
-  userGroups: PropTypes.arrayOf(
+  groups: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number,
       name: PropTypes.string,

@@ -72,13 +72,18 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   }));
   const classes = useStyles();
 
-  if (observingRunList.length === 0) {
+  const upcomingObservingRuns = observingRunList.filter((run) =>
+    dayjs().isBefore(dayjs(run.run_end_utc))
+  );
+
+  if (upcomingObservingRuns.length === 0) {
     return <b>No upcoming observing runs to assign target to...</b>;
   }
 
   const initialFormState = {
     comment: "",
-    run_id: observingRunList.length > 0 ? observingRunList[0].id : null,
+    run_id:
+      upcomingObservingRuns.length > 0 ? upcomingObservingRuns[0].id : null,
     priority: "1",
     obj_id,
   };
@@ -104,13 +109,16 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
               as={Select}
               labelId="assignmentSelectLabel"
               name="run_id"
+              data-testid="assignmentSelect"
               control={control}
               rules={{ required: true }}
               defaultValue={
-                observingRunList.length > 0 ? observingRunList[0].id : null
+                upcomingObservingRuns.length > 0
+                  ? upcomingObservingRuns[0].id
+                  : null
               }
             >
-              {observingRunList.map((observingRun) => (
+              {upcomingObservingRuns.map((observingRun) => (
                 <MenuItem
                   value={observingRun.id}
                   key={observingRun.id.toString()}

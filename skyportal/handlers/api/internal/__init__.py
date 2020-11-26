@@ -1,7 +1,8 @@
 from .plot import (
     PlotPhotometryHandler,
     PlotSpectroscopyHandler,
-    PlotAirmassHandler,
+    PlotAssignmentAirmassHandler,
+    PlotObjTelAirmassHandler,
 )
 from .token import TokenHandler
 from .dbinfo import DBInfoHandler
@@ -12,3 +13,4 @@ from .robotic_instruments import RoboticInstrumentsHandler
 from .source_counts import SourceCountHandler
 from .log import LogHandler
 from .annotations_info import AnnotationsInfoHandler
+from .ephemeris import EphemerisHandler

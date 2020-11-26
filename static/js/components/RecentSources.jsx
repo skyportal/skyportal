@@ -114,7 +114,9 @@ const RecentSourcesList = ({ sources, styles }) => {
               a.modified < b.modified ? 1 : -1
             );
 
-            recentSourceName += ` (${sortedClasses[0].classification})`;
+            if (sortedClasses.length > 0) {
+              recentSourceName += ` (${sortedClasses[0].classification})`;
+            }
           }
 
           return (

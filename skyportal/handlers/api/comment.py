@@ -1,4 +1,5 @@
 import base64
+from distutils.util import strtobool
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -220,12 +221,28 @@ class CommentHandler(BaseHandler):
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
         data['id'] = comment_id
+        attachment_bytes = data.pop('attachment_bytes', None)
 
         schema = Comment.__schema__()
         try:
             schema.load(data, partial=True)
         except ValidationError as e:
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
+
+        if attachment_bytes is not None:
+            attachment_bytes = str.encode(attachment_bytes.split('base64,')[-1])
+            c.attachment_bytes = attachment_bytes
+
+        bytes_is_none = c.attachment_bytes is None
+        name_is_none = c.attachment_name is None
+
+        if bytes_is_none ^ name_is_none:
+            return self.error(
+                'This update leaves one of attachment name or '
+                'attachment bytes null. Both fields must be '
+                'filled, or both must be null.'
+            )
+
         DBSession().flush()
         if group_ids is not None:
             c = Comment.get_if_owned_by(comment_id, self.current_user)
@@ -269,9 +286,7 @@ class CommentHandler(BaseHandler):
         if c is None:
             return self.error("Invalid comment ID")
         obj_key = c.obj.internal_key
-        if (
-            "System admin" in user.permissions or "Manage groups" in user.permissions
-        ) or (c.author == user):
+        if user.is_system_admin or c.author == user:
             Comment.query.filter_by(id=comment_id).delete()
             DBSession().commit()
         else:
@@ -292,6 +307,12 @@ class CommentAttachmentHandler(BaseHandler):
             required: true
             schema:
               type: integer
+          - in: query
+            name: download
+            nullable: True
+            schema:
+              type: boolean
+              description: If true, download the attachment; else return file data as text. True by default.
         responses:
           200:
             content:
@@ -300,12 +321,40 @@ class CommentAttachmentHandler(BaseHandler):
                   type: string
                   format: base64
                   description: base64-encoded contents of attachment
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            comment_id:
+                              type: integer
+                              description: Comment ID attachment came from
+                            attachment:
+                              type: string
+                              description: The attachment file contents decoded as a string
+
         """
+        download = strtobool(self.get_query_argument('download', "True").lower())
+
         comment = Comment.get_if_owned_by(comment_id, self.current_user)
         if comment is None:
             return self.error('Invalid comment ID.')
-        self.set_header(
-            "Content-Disposition", "attachment; " f"filename={comment.attachment_name}"
-        )
-        self.set_header("Content-type", "application/octet-stream")
-        self.write(base64.b64decode(comment.attachment_bytes))
+
+        if download:
+            self.set_header(
+                "Content-Disposition",
+                "attachment; " f"filename={comment.attachment_name}",
+            )
+            self.set_header("Content-type", "application/octet-stream")
+            self.write(base64.b64decode(comment.attachment_bytes))
+        else:
+            return self.success(
+                data={
+                    "commentId": int(comment_id),
+                    "attachment": base64.b64decode(comment.attachment_bytes).decode(),
+                }
+            )

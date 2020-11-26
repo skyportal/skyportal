@@ -3,7 +3,7 @@ import uuid
 import re
 import json
 import warnings
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import requests
 import arrow
 
@@ -16,15 +16,13 @@ import sqlalchemy as sa
 from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy import func
 
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
 from twilio.rest import Client as TwilioClient
 
 from astropy import units as u
@@ -60,6 +58,7 @@ from .enum_types import (
     api_classnames,
     listener_classnames,
 )
+from .email_utils import send_email
 
 from skyportal import facility_apis
 
@@ -84,6 +83,24 @@ def get_app_base_url():
         )
         else ""
     )
+
+
+def basic_user_display_info(user):
+    return {
+        field: getattr(user, field)
+        for field in ('username', 'first_name', 'last_name', 'gravatar_url')
+    }
+
+
+def user_to_dict(self):
+    return {
+        field: getattr(self, field)
+        for field in User.__table__.columns.keys()
+        if field != "preferences"
+    }
+
+
+User.to_dict = user_to_dict
 
 
 def is_owned_by(self, user_or_token):
@@ -323,6 +340,20 @@ Token.accessible_groups = user_or_token_accessible_groups
 
 
 @property
+def user_or_token_accessible_streams(self):
+    """Return the list of Streams a User or Token has access to."""
+    if "System admin" in self.permissions:
+        return Stream.query.all()
+    if isinstance(self, Token):
+        return self.created_by.streams
+    return self.streams
+
+
+User.accessible_streams = user_or_token_accessible_streams
+Token.accessible_streams = user_or_token_accessible_streams
+
+
+@property
 def token_groups(self):
     """The groups the Token owner is a member of."""
     return self.created_by.groups
@@ -407,6 +438,14 @@ class Obj(Base, ha.Point):
         doc="Internal key used for secure websocket messaging.",
     )
 
+    candidates = relationship(
+        'Candidate',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        order_by="Candidate.passed_at",
+        doc="Candidates associated with the object.",
+    )
     comments = relationship(
         'Comment',
         back_populates='obj',
@@ -526,7 +565,7 @@ class Obj(Base, ha.Point):
     def desi_dr8_url(self):
         """Construct URL for public DESI DR8 cutout."""
         return (
-            f"http://legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
+            f"https://www.legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
             f"&dec={self.dec}&size=200&layer=dr8&pixscale=0.262&bands=grz"
         )
 
@@ -723,21 +762,68 @@ class Filter(Base):
         back_populates="filters",
         doc="The Filter's Group.",
     )
+    candidates = relationship(
+        'Candidate',
+        back_populates='filter',
+        cascade='save-update, merge, refresh-expire, expunge',
+        order_by="Candidate.passed_at",
+        doc="Candidates that have passed the filter.",
+    )
 
 
-Candidate = join_model("candidates", Filter, Obj)
-Candidate.__doc__ = (
-    "An Obj that passed a Filter, becoming scannable on the " "Filter's scanning page."
-)
-Candidate.passed_at = sa.Column(
-    sa.DateTime,
-    nullable=False,
-    index=True,
-    doc="ISO UTC time when the Candidate passed the Filter last time.",
-)
+class Candidate(Base):
+    "An Obj that passed a Filter, becoming scannable on the Filter's scanning page."
+    obj_id = sa.Column(
+        sa.ForeignKey("objs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the Obj",
+    )
+    obj = relationship(
+        "Obj",
+        foreign_keys=[obj_id],
+        back_populates="candidates",
+        doc="The Obj that passed a filter",
+    )
+    filter_id = sa.Column(
+        sa.ForeignKey("filters.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the filter the candidate passed",
+    )
+    filter = relationship(
+        "Filter",
+        foreign_keys=[filter_id],
+        back_populates="candidates",
+        doc="The filter that the Candidate passed",
+    )
+    passed_at = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        index=True,
+        doc="ISO UTC time when the Candidate passed the Filter.",
+    )
+    passing_alert_id = sa.Column(
+        sa.BigInteger,
+        index=True,
+        doc="ID of the latest Stream alert that passed the Filter.",
+    )
+    uploader_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the user that posted the candidate",
+    )
 
-Candidate.passing_alert_id = sa.Column(
-    sa.BigInteger, doc="ID of the latest Stream alert that passed the Filter."
+
+Candidate.__table_args__ = (
+    sa.Index(
+        "candidates_main_index",
+        Candidate.obj_id,
+        Candidate.filter_id,
+        Candidate.passed_at,
+        unique=True,
+    ),
 )
 
 
@@ -827,6 +913,7 @@ Source.saved_at = sa.Column(
     sa.DateTime,
     nullable=False,
     default=utcnow,
+    index=True,
     doc="ISO UTC time when the Obj was saved to its Group.",
 )
 Source.active = sa.Column(
@@ -951,22 +1038,32 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
        The requested Obj.
     """
 
+    def construct_joinedload(base, additional_attrs):
+        jl = joinedload(base)
+        for attr in additional_attrs:
+            jl = jl.joinedload(attr)
+        return jl
+
     if Obj.query.get(obj_id) is None:
         return None
     if "System admin" in user_or_token.permissions:
         return Obj.query.options(options).get(obj_id)
+
+    # the order of the following attempts is important -
+    # this one should come first
+    if Obj.get_photometry_owned_by_user(obj_id, user_or_token):
+        return Obj.query.options(options).get(obj_id)
+
     try:
-        obj = Source.get_obj_if_owned_by(obj_id, user_or_token, options)
+        source_opts = [construct_joinedload(Source.obj, o.path) for o in options]
+        obj = Source.get_obj_if_owned_by(obj_id, user_or_token, source_opts)
     except AccessError:  # They may still be able to view the associated Candidate
-        obj = Candidate.get_obj_if_owned_by(obj_id, user_or_token, options)
-        if obj is None:
-            # If user can't view associated Source, and there's no Candidate they can
-            # view, raise AccessError
-            raise
-    if obj is None:  # There is no associated Source/Cand, so check based on photometry
-        if Obj.get_photometry_owned_by_user(obj_id, user_or_token):
-            return Obj.query.options(options).get(obj_id)
-        raise AccessError("Insufficient permissions.")
+        cand_opts = [construct_joinedload(Candidate.obj, o.path) for o in options]
+        obj = Candidate.get_obj_if_owned_by(obj_id, user_or_token, cand_opts)
+
+    if obj is None:
+        raise AccessError('Insufficient permissions.')
+
     # If we get here, the user has access to either the associated Source or Candidate
     return obj
 
@@ -1043,7 +1140,7 @@ def get_obj_classifications_owned_by(self, user_or_token):
 
     Returns
     -------
-    comment_list : list of `skyportal.models.Classification`
+    classification_list : list of `skyportal.models.Classification`
        The accessible classifications attached to this Obj.
     """
     return [
@@ -1086,7 +1183,7 @@ def get_photometry_owned_by_user(obj_id, user_or_token):
 Obj.get_photometry_owned_by_user = get_photometry_owned_by_user
 
 
-def get_spectra_owned_by(obj_id, user_or_token):
+def get_spectra_owned_by(obj_id, user_or_token, options=()):
     """Query the database and return the Spectra for this Obj that are shared
     with any of the User or Token owner's accessible Groups.
 
@@ -1096,6 +1193,8 @@ def get_spectra_owned_by(obj_id, user_or_token):
        The ID of the Obj to look up.
     user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
        The requesting `User` or `Token` object.
+    options : list of `sqlalchemy.orm.MapperOption`s
+       Options that wil be passed to `options()` in the loader query.
 
     Returns
     -------
@@ -1110,6 +1209,7 @@ def get_spectra_owned_by(obj_id, user_or_token):
                 Group.id.in_([g.id for g in user_or_token.accessible_groups])
             )
         )
+        .options(options)
         .all()
     )
 
@@ -1125,6 +1225,10 @@ User.sources = relationship(
     passive_deletes=True,
     doc='The Sources accessible to this User.',
 )
+
+isadmin = property(lambda self: "System admin" in self.permissions)
+User.is_system_admin = isadmin
+Token.is_system_admin = isadmin
 
 
 class SourceView(Base):
@@ -1183,6 +1287,13 @@ class Telescope(Base):
         sa.Boolean, default=False, nullable=False, doc="Is this telescope robotic?"
     )
 
+    fixed_location = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default='true',
+        doc="Does this telescope have a fixed location (lon, lat, elev)?",
+    )
+
     weather = sa.Column(JSONB, nullable=True, doc='Latest weather information')
     weather_retrieved_at = sa.Column(
         sa.DateTime, nullable=True, doc="When was the weather last retrieved?"
@@ -1204,14 +1315,106 @@ class Telescope(Base):
         """Return an `astroplan.Observer` representing an observer at this
         facility, accounting for the latitude, longitude, elevation, and
         local time zone of the observatory (if ground based)."""
-        tf = timezonefinder.TimezoneFinder()
-        local_tz = tf.timezone_at(lng=self.lon, lat=self.lat)
-        return astroplan.Observer(
-            longitude=self.lon * u.deg,
-            latitude=self.lat * u.deg,
-            elevation=self.elevation * u.m,
-            timezone=local_tz,
+        try:
+            return self._observer
+        except AttributeError:
+            tf = timezonefinder.TimezoneFinder(in_memory=True)
+            local_tz = tf.closest_timezone_at(
+                lng=self.lon, lat=self.lat, delta_degree=5
+            )
+            self._observer = astroplan.Observer(
+                longitude=self.lon * u.deg,
+                latitude=self.lat * u.deg,
+                elevation=self.elevation * u.m,
+                timezone=local_tz,
+            )
+        return self._observer
+
+    def next_sunset(self, time=None):
+        """The astropy timestamp of the next sunset after `time` at this site.
+        If time=None, uses the current time."""
+        if time is None:
+            time = ap_time.Time.now()
+        observer = self.observer
+        return observer.sun_set_time(time, which='next')
+
+    def next_sunrise(self, time=None):
+        """The astropy timestamp of the next sunrise after `time` at this site.
+        If time=None, uses the current time."""
+        if time is None:
+            time = ap_time.Time.now()
+        observer = self.observer
+        return observer.sun_rise_time(time, which='next')
+
+    def next_twilight_evening_nautical(self, time=None):
+        """The astropy timestamp of the next evening nautical (-12 degree)
+        twilight at this site. If time=None, uses the current time."""
+        if time is None:
+            time = ap_time.Time.now()
+        observer = self.observer
+        return observer.twilight_evening_nautical(time, which='next')
+
+    def next_twilight_morning_nautical(self, time=None):
+        """The astropy timestamp of the next morning nautical (-12 degree)
+        twilight at this site. If time=None, uses the current time."""
+        if time is None:
+            time = ap_time.Time.now()
+        observer = self.observer
+        return observer.twilight_morning_nautical(time, which='next')
+
+    def next_twilight_evening_astronomical(self, time=None):
+        """The astropy timestamp of the next evening astronomical (-18 degree)
+        twilight at this site. If time=None, uses the current time."""
+        if time is None:
+            time = ap_time.Time.now()
+        observer = self.observer
+        return observer.twilight_evening_astronomical(time, which='next')
+
+    def next_twilight_morning_astronomical(self, time=None):
+        """The astropy timestamp of the next morning astronomical (-18 degree)
+        twilight at this site. If time=None, uses the current time."""
+        if time is None:
+            time = ap_time.Time.now()
+        observer = self.observer
+        return observer.twilight_morning_astronomical(time, which='next')
+
+    def ephemeris(self, time):
+
+        sunrise = self.next_sunrise(time=time)
+        sunset = self.next_sunset(time=time)
+
+        if sunset > sunrise:
+            sunset = self.observer.sun_set_time(time, which='previous')
+            time = sunset - ap_time.TimeDelta(30, format='sec')
+
+        twilight_morning_astronomical = self.next_twilight_morning_astronomical(
+            time=time
         )
+        twilight_evening_astronomical = self.next_twilight_evening_astronomical(
+            time=time
+        )
+
+        twilight_morning_nautical = self.next_twilight_morning_nautical(time=time)
+        twilight_evening_nautical = self.next_twilight_evening_nautical(time=time)
+
+        return {
+            'sunset_utc': sunset.isot,
+            'sunrise_utc': sunrise.isot,
+            'twilight_morning_astronomical_utc': twilight_morning_astronomical.isot,
+            'twilight_evening_astronomical_utc': twilight_evening_astronomical.isot,
+            'twilight_morning_nautical_utc': twilight_morning_nautical.isot,
+            'twilight_evening_nautical_utc': twilight_evening_nautical.isot,
+            'utc_offset_hours': self.observer.timezone.utcoffset(time.datetime)
+            / timedelta(hours=1),
+            'sunset_unix_ms': sunset.unix * 1000,
+            'sunrise_unix_ms': sunrise.unix * 1000,
+            'twilight_morning_astronomical_unix_ms': twilight_morning_astronomical.unix
+            * 1000,
+            'twilight_evening_astronomical_unix_ms': twilight_evening_astronomical.unix
+            * 1000,
+            'twilight_morning_nautical_unix_ms': twilight_morning_nautical.unix * 1000,
+            'twilight_evening_nautical_unix_ms': twilight_evening_nautical.unix * 1000,
+        }
 
 
 class ArrayOfEnum(ARRAY):
@@ -1465,9 +1668,7 @@ class Comment(Base):
     attachment_name = sa.Column(
         sa.String, nullable=True, doc="Filename of the attachment."
     )
-    attachment_type = sa.Column(
-        sa.String, nullable=True, doc="Attachment extension, (e.g., pdf, png)."
-    )
+
     attachment_bytes = sa.Column(
         sa.types.LargeBinary,
         nullable=True,
@@ -2398,7 +2599,7 @@ class ObservingRun(Base):
     )
 
     @property
-    def _calendar_noon(self):
+    def calendar_noon(self):
         observer = self.instrument.telescope.observer
         year = self.calendar_date.year
         month = self.calendar_date.month
@@ -2411,61 +2612,43 @@ class ObservingRun(Base):
         noon = ap_time.Time(noon, format='unix')
         return noon
 
-    @property
-    def sunset(self):
-        """The UTC timestamp of Sunset on this run."""
-        return self.instrument.telescope.observer.sun_set_time(
-            self._calendar_noon, which='next'
-        )
-
-    @property
-    def sunrise(self):
-        """The UTC timestamp of Sunrise on this run."""
-        return self.instrument.telescope.observer.sun_rise_time(
-            self._calendar_noon, which='next'
-        )
-
-    @property
-    def twilight_evening_nautical(self):
-        """The UTC timestamp of evening nautical (-12 degree) twilight on this run."""
-        return self.instrument.telescope.observer.twilight_evening_nautical(
-            self._calendar_noon, which='next'
-        )
-
-    @property
-    def twilight_morning_nautical(self):
-        """The UTC timestamp of morning nautical (-12 degree) twilight on this run."""
-        return self.instrument.telescope.observer.twilight_morning_nautical(
-            self._calendar_noon, which='next'
-        )
-
-    @property
-    def twilight_evening_astronomical(self):
-        """The UTC timestamp of evening astronomical (-18 degree) twilight on this run."""
-        return self.instrument.telescope.observer.twilight_evening_astronomical(
-            self._calendar_noon, which='next'
-        )
-
-    @property
-    def twilight_morning_astronomical(self):
-        """The UTC timestamp of morning astronomical (-18 degree) twilight on this run."""
-        return self.instrument.telescope.observer.twilight_morning_astronomical(
-            self._calendar_noon, which='next'
-        )
-
-    def rise_time(self, target_or_targets):
+    def rise_time(self, target_or_targets, altitude=30 * u.degree):
         """The rise time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
-        return observer.target_rise_time(
-            self.sunset, target_or_targets, which='next', horizon=30 * u.degree
+        sunset = self.instrument.telescope.next_sunset(self.calendar_noon).reshape((1,))
+        sunrise = self.instrument.telescope.next_sunrise(self.calendar_noon).reshape(
+            (1,)
+        )
+        original_shape = np.asarray(target_or_targets).shape
+        target_array = (
+            [target_or_targets] if len(original_shape) == 0 else target_or_targets
         )
 
-    def set_time(self, target_or_targets):
+        next_rise = observer.target_rise_time(
+            sunset, target_array, which='next', horizon=altitude
+        ).reshape((len(target_array),))
+
+        # if next rise time is after next sunrise, the target rises before
+        # sunset. show the previous rise so that the target is shown to be
+        # "already up" when the run begins (a beginning of night target).
+
+        recalc = next_rise > sunrise
+        if recalc.any():
+            target_subarr = [t for t, b in zip(target_array, recalc) if b]
+            next_rise[recalc] = observer.target_rise_time(
+                sunset, target_subarr, which='previous', horizon=altitude
+            ).reshape((len(target_subarr),))
+
+        return next_rise.reshape(original_shape)
+
+    def set_time(self, target_or_targets, altitude=30 * u.degree):
         """The set time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
+        sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
+        original_shape = np.asarray(target_or_targets).shape
         return observer.target_set_time(
-            self.sunset, target_or_targets, which='next', horizon=30 * u.degree
-        )
+            sunset, target_or_targets, which='next', horizon=altitude
+        ).reshape(original_shape)
 
 
 User.observing_runs = relationship(
@@ -2608,17 +2791,14 @@ UserInvitation = join_model("user_invitations", User, Invitation)
 def send_user_invite_email(mapper, connection, target):
     app_base_url = get_app_base_url()
     link_location = f'{app_base_url}/login/google-oauth2/?invite_token={target.token}'
-    message = Mail(
-        from_email=cfg["twilio.from_email"],
-        to_emails=target.user_email,
+    send_email(
+        recipients=[target.user_email],
         subject=cfg["invitations.email_subject"],
-        html_content=(
+        body=(
             f'{cfg["invitations.email_body_preamble"]}<br /><br />'
             f'Please click <a href="{link_location}">here</a> to join.'
         ),
     )
-    sg = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
-    sg.send(message)
 
 
 class SourceNotification(Base):
@@ -2715,8 +2895,8 @@ def send_source_notification(mapper, connection, target):
                 )
 
     # Send email notifications
+    recipients = []
     for user in target_users:
-        descriptor = "immediate" if target.level == "hard" else ""
         # If user has a contact email registered and opted into email notifications
         if (
             user.contact_email is not None
@@ -2724,23 +2904,22 @@ def send_source_notification(mapper, connection, target):
             and "allowEmailAlerts" in user.preferences
             and user.preferences.get("allowEmailAlerts")
         ):
-            html_content = (
-                f'{sent_by_name} would like to call your {descriptor} attention to'
-                f' <a href="{link_location}">{target.source_id}</a> ({source_info})'
-            )
-            if target.additional_notes != "" and target.additional_notes is not None:
-                html_content += (
-                    f'<br /><br />Additional notes: {target.additional_notes}'
-                )
+            recipients.append(user.contact_email)
 
-            message = Mail(
-                from_email=cfg["twilio.from_email"],
-                to_emails=user.contact_email,
-                subject=f'{cfg["app.title"]}: Source Alert',
-                html_content=html_content,
-            )
-            sg = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
-            sg.send(message)
+    descriptor = "immediate" if target.level == "hard" else ""
+    html_content = (
+        f'{sent_by_name} would like to call your {descriptor} attention to'
+        f' <a href="{link_location}">{target.source_id}</a> ({source_info})'
+    )
+    if target.additional_notes != "" and target.additional_notes is not None:
+        html_content += f'<br /><br />Additional notes: {target.additional_notes}'
+
+    if len(recipients) > 0:
+        send_email(
+            recipients=recipients,
+            subject=f'{cfg["app.title"]}: Source Alert',
+            body=html_content,
+        )
 
 
 @event.listens_for(User, 'after_insert')

@@ -24,10 +24,16 @@ def post_assignment(obj, run, priority, comment, token):
 
 @pytest.mark.flaky(reruns=2)
 def test_source_is_added_to_observing_run_via_frontend(
-    driver, super_admin_user, public_source, red_transients_run
+    driver, super_admin_user, public_source, red_transients_run,
 ):
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
+
+    # wait for plots to load
+    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
+    # this waits for the spectroscopy plot by looking for the element Mg
+    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
+
     run_select = driver.wait_for_xpath('//*[@id="mui-component-select-run_id"]')
     driver.scroll_to_element_and_click(run_select)
     observingrun_title = (
@@ -79,7 +85,11 @@ def test_assignment_posts_to_observing_run(
     # 20 second timeout to give the backend time to perform ephemeris calcs
     driver.wait_for_xpath(f'//*[text()="{public_source.id}"]', timeout=20)
     for group in [s.group for s in public_source.sources]:
-        driver.wait_for_xpath(f'//*[text()="{group.name[:15]}"]')
+        if group.single_user_group:
+            func = driver.wait_for_xpath_to_disappear
+        else:
+            func = driver.wait_for_xpath
+        func(f'//span[text()="{group.name[:15]}"]')
 
 
 @pytest.mark.flaky(reruns=2)
@@ -192,24 +202,22 @@ def test_add_run_to_observing_run_page(
         1
     ).perform()
 
-    instruments_element = driver.wait_for_xpath('//*[@id="root_instrument_id"]')
+    # instruments
+    driver.click_xpath('//*[@id="root_instrument_id"]')
 
-    driver.scroll_to_element_and_click(instruments_element)
-
-    lris_element = driver.wait_for_xpath(f'//li[@data-value="{lris.id}"]')
-    driver.scroll_to_element_and_click(lris_element)
+    # lris
+    driver.click_xpath(f'//li[@data-value="{lris.id}"]', scroll_parent=True)
 
     time.sleep(1)
 
-    groups_element = driver.wait_for_xpath('//*[@id="root_group_id"]')
-    driver.scroll_to_element_and_click(groups_element)
+    # groups
+    driver.click_xpath('//*[@id="root_group_id"]')
 
-    public_group_element = driver.wait_for_xpath(
-        f'//li[@data-value="{public_group.id}"]'
-    )
-    driver.scroll_to_element_and_click(public_group_element)
-    submit_button = driver.wait_for_xpath('//button[@type="submit"]')
-    driver.scroll_to_element_and_click(submit_button)
+    # public group
+    driver.click_xpath(f'//li[@data-value="{public_group.id}"]', scroll_parent=True)
+
+    # submit button
+    driver.click_xpath('//button[@type="submit"]')
 
     # long timeout as it can take a long time for the telescopelist,
     # observingrun list, and instrumentlist to fully load on
@@ -217,4 +225,11 @@ def test_add_run_to_observing_run_page(
     driver.wait_for_xpath(
         f'''//*[text()='2021-02-02 {lris.name}/{lris.telescope.nickname} (PI: {pi_name} / Group: {public_group.name})']''',
         timeout=15,
+    )
+
+
+@pytest.mark.flaky(reruns=2)
+def test_problematic_assignment_44(driver, super_admin_user, problematic_assignment):
+    test_source_is_added_to_observing_run_via_frontend(
+        driver, super_admin_user, problematic_assignment.obj, problematic_assignment.run
     )

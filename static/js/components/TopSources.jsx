@@ -80,7 +80,9 @@ const TopSourcesList = ({ sources, styles }) => {
               a.modified < b.modified ? 1 : -1
             );
 
-            topsourceName += ` (${sortedClasses[0].classification})`;
+            if (sortedClasses.length > 0) {
+              topsourceName += ` (${sortedClasses[0].classification})`;
+            }
           }
 
           return (

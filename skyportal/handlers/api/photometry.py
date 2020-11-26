@@ -554,14 +554,7 @@ class PhotometryHandler(BaseHandler):
 
         groupquery = GroupPhotometry.__table__.insert()
         params = []
-        if group_ids == "all":
-            public_group = (
-                DBSession()
-                .query(Group)
-                .filter(Group.name == cfg["misc"]["public_group_name"])
-                .first()
-            )
-            group_ids = [public_group.id]
+
         for id in ids:
             for group_id in group_ids:
                 params.append({'photometr_id': id, 'group_id': group_id})
@@ -571,29 +564,35 @@ class PhotometryHandler(BaseHandler):
 
     def get_group_ids(self):
         data = self.get_json()
-
-        try:
-            group_ids = data.pop("group_ids")
-        except KeyError:
-            raise ValidationError("Missing required field: group_ids")
-        user_group_ids = [g.id for g in self.associated_user_object.accessible_groups]
+        group_ids = data.pop("group_ids", [])
         if isinstance(group_ids, (list, tuple)):
-            forbidden_groups = set(group_ids) - set(user_group_ids)
-            if len(forbidden_groups) > 0:
-                raise ValidationError(
-                    f"Invalid group_ids field. User does not have access to group IDs: {list(forbidden_groups)}."
-                )
-            groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
-            if not groups:
-                raise ValidationError(
-                    "Invalid group_ids field. Specify at least one valid group ID."
-                )
-        elif group_ids != "all":
+            for group_id in group_ids:
+                try:
+                    group_id = int(group_id)
+                except TypeError:
+                    raise ValidationError(
+                        f"Invalid format for group id {group_id}, must be an integer."
+                    )
+                group = Group.query.get(group_id)
+                if group is None:
+                    raise ValidationError(f'No group with ID {group_id}')
+        elif group_ids == 'all':
+            public_group = (
+                DBSession()
+                .query(Group)
+                .filter(Group.name == cfg["misc"]["public_group_name"])
+                .first()
+            )
+            group_ids = [public_group.id]
+        else:
             raise ValidationError(
                 "Invalid group_ids parameter value. Must be a list of IDs "
                 "(integers) or the string 'all'."
             )
 
+        # always add the single user group
+        group_ids.append(self.associated_user_object.single_user_group.id)
+        group_ids = list(set(group_ids))
         return group_ids
 
     @permissions(['Upload data'])

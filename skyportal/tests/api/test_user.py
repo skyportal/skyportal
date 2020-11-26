@@ -156,3 +156,31 @@ def test_add_modify_user_adds_modifies_single_user_group(
             for group in data["data"]["all_groups"]
         ]
     )
+
+
+def test_user_list(view_only_token):
+    status, data = api("GET", "user", token=view_only_token)
+    assert status == 200
+    assert data["status"] == "success"
+
+
+def test_user_list_filtering(view_only_token, user, view_only_user):
+    # Try some simple filtering options - other options follow very similar
+    # logic so just these should be decent coverage
+
+    # Username
+    status, data = api("GET", f'user/?username={user.username}', token=view_only_token,)
+    assert status == 200
+    assert len(data["data"]["users"]) == 1
+    assert data["data"]["users"][0]["id"] == user.id
+
+    # Role
+    # Make sure the result shows up among all the view_only_users provisioned across tests
+    # by returning a huge page
+    status, data = api(
+        "GET", f'user/?role=View+only&numPerPage=300', token=view_only_token,
+    )
+    assert status == 200
+    result_user_ids = list(map(lambda user: user["id"], data["data"]["users"]))
+    assert view_only_user.id in result_user_ids
+    assert user.id not in result_user_ids

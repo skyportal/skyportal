@@ -103,11 +103,17 @@ const CommentEntry = ({ addComment }) => {
               key={userGroup.id}
               control={
                 <Controller
-                  as={Checkbox}
+                  render={({ onChange, value }) => (
+                    <Checkbox
+                      onChange={(event) => onChange(event.target.checked)}
+                      checked={value}
+                      data-testid={`commentGroupCheckBox${userGroup.id}`}
+                    />
+                  )}
                   name={`group_ids[${idx}]`}
+                  defaultValue
                   control={control}
                   rules={{ validate: validateGroups }}
-                  defaultValue
                 />
               }
               label={userGroup.name}

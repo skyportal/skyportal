@@ -1,13 +1,13 @@
 import uuid
-
+import pytest
 from .. import api
-from selenium.common.exceptions import TimeoutException
 
 from tdtax import taxonomy, __version__
 
 from datetime import datetime, timezone
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_new_source_renders_on_group_sources_page(
     driver,
     super_admin_user_two_groups,
@@ -64,24 +64,13 @@ def test_add_new_source_renders_on_group_sources_page(
     driver.wait_for_xpath(f"//*[text()[contains(., '{'0.153'}')]]")
 
     # little triangle you push to expand the table
-    expand_button = driver.wait_for_xpath("//*[@id='expandable-button']")
-    driver.scroll_to_element_and_click(expand_button)
+    driver.click_xpath("//*[@id='expandable-button']")
 
     # make sure the div containing the individual source appears
-    driver.wait_for_xpath("//tr[contains(@class, 'MuiTableRow-root')]")
+    driver.wait_for_xpath(f'//tr[@data-testid="groupSourceExpand_{obj_id}"]')
 
-    try:  # the vega plot may take some time to appear, and in the meanwhile the MUI drawer gets closed for some reason.
-        # make sure the table row opens up and show the vega plot
-        driver.wait_for_xpath("//*[@class='vega-embed']", timeout=2)
-    except TimeoutException:
-        # try again to click this triangle thingy to open the drawer
-        expand_button = driver.wait_for_xpath("//*[@id='expandable-button']")
-        driver.scroll_to_element_and_click(expand_button)
-
-        # with the drawer opened again, it should now work...
-        driver.wait_for_xpath(
-            "//*[@class='vega-embed']"
-        )  # make sure the table row opens up and show the vega plot
+    # Check for vega plot
+    driver.wait_for_xpath("//*[@class='vega-embed']", timeout=20)
 
     # post a taxonomy and classification
     status, data = api(
@@ -113,16 +102,6 @@ def test_add_new_source_renders_on_group_sources_page(
         token=classification_token_two_groups,
     )
     assert status == 200
-
-    # check the classification shows up (it should not show up without a page refresh!)
-    try:
-        driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]", timeout=1)
-
-    except TimeoutException:
-        pass  # the classification should not appear on its own, so we ignore this error
-
-    # making sure the drawer is still open even after posting a classification!
-    driver.wait_for_xpath("//*[@class='vega-embed']")
 
     # need to reload the page to see changes!
     driver.get(f"/group_sources/{public_group.id}")
@@ -156,6 +135,7 @@ def test_request_source(
     super_admin_user_two_groups,
     public_group,
     public_group2,
+    upload_data_token,
     upload_data_token_two_groups,
 ):
 
@@ -169,7 +149,7 @@ def test_request_source(
 
     obj_id = str(uuid.uuid4())
 
-    # upload a new source, saved to the public group
+    # upload a new source, saved to public_group2
     status, data = api(
         'POST',
         'sources',
@@ -181,7 +161,7 @@ def test_request_source(
             'altdata': {'simbad': {'class': 'RRLyr'}},
             'transient': False,
             'ra_dis': 2.3,
-            'group_ids': [public_group2.id],
+            'group_ids': [public_group.id],
         },
         token=upload_data_token_two_groups,
     )
@@ -189,22 +169,22 @@ def test_request_source(
     assert data['data']['id'] == f'{obj_id}'
 
     # reload the group sources page
-    driver.get(f"/group_sources/{public_group.id}")
+    driver.get(f"/group_sources/{public_group2.id}")
 
-    # there should not be any new sources (the source is in group2)
+    # there should not be any new sources (the source is in group1)
     driver.wait_for_xpath("//*[text()[contains(., 'No sources')]]")
 
-    # request this source to be added to group1
+    # request this source to be added to group2
     status, data = api(
         'POST',
         'source_groups',
-        data={'objId': f'{obj_id}', 'inviteGroupIds': [public_group.id]},
-        token=upload_data_token_two_groups,
+        data={'objId': f'{obj_id}', 'inviteGroupIds': [public_group2.id]},
+        token=upload_data_token,
     )
     assert status == 200
 
     # reload the group sources page
-    driver.get(f"/group_sources/{public_group.id}")
+    driver.get(f"/group_sources/{public_group2.id}")
 
     # make sure the second table appears
     driver.wait_for_xpath("//*[text()[contains(., 'Requested to save')]]")
@@ -215,3 +195,88 @@ def test_request_source(
     # make sure the second table has "save/ignore" buttons
     driver.wait_for_xpath("//*[text()[contains(., 'Save')]]")
     driver.wait_for_xpath("//*[text()[contains(., 'Ignore')]]")
+
+
+def test_sources_sorting(
+    driver, super_admin_user, public_group, upload_data_token,
+):
+    obj_id = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+
+    # upload two new sources, saved to the public group
+    status, data = api(
+        'POST',
+        'sources',
+        data={
+            'id': f'{obj_id}',
+            'ra': 234.22,
+            'dec': -22.33,
+            'redshift': 0.0,
+            'altdata': {'simbad': {'class': 'RRLyr'}},
+            'transient': False,
+            'ra_dis': 2.3,
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['data']['id'] == f'{obj_id}'
+    status, data = api(
+        'POST',
+        'sources',
+        data={
+            'id': f'{obj_id2}',
+            'ra': 234.22,
+            'dec': -22.33,
+            'redshift': 0.153,
+            'altdata': {'simbad': {'class': 'RRLyr'}},
+            'transient': False,
+            'ra_dis': 2.3,
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['data']['id'] == f'{obj_id2}'
+
+    driver.get(f"/become_user/{super_admin_user.id}")  # become a super-user
+
+    # Go to the group sources page
+    driver.get(f"/group_sources/{public_group.id}")
+
+    # Wait for the group name appears
+    driver.wait_for_xpath(f"//*[text()[contains(., '{public_group.name}')]]")
+
+    # Now sort by date saved
+    driver.click_xpath("//button[@data-testid='sortButton']")
+    driver.click_xpath("//div[@id='root_column']")
+    driver.click_xpath("//li[@data-value='saved_at']", scroll_parent=True)
+    driver.click_xpath("//input[@value='false']", wait_clickable=False)
+    driver.click_xpath("//span[text()='Submit']")
+
+    # Now, the first one posted should be the second row
+    # Col 0, Row 0 should be the second sources's id (MuiDataTableBodyCell-0-0)
+    driver.wait_for_xpath(
+        f'//td[contains(@data-testid, "MuiDataTableBodyCell-0-0")][.//a[text()="{obj_id2}"]]'
+    )
+    # Col 0, Row 1 should be the first sources's id (MuiDataTableBodyCell-0-1)
+    driver.wait_for_xpath(
+        f'//td[contains(@data-testid, "MuiDataTableBodyCell-0-1")][.//a[text()="{obj_id}"]]'
+    )
+
+    # Now sort by redshift ascending, which would put obj_id first
+    driver.click_xpath("//button[@data-testid='sortButton']")
+    driver.click_xpath("//div[@id='root_column']")
+    driver.click_xpath("//li[@data-value='redshift']", scroll_parent=True)
+    driver.click_xpath("//input[@value='true']", wait_clickable=False)
+    driver.click_xpath("//span[text()='Submit']")
+
+    # Now, the first one posted should be the second row
+    # Col 0, Row 0 should be the second sources's id (MuiDataTableBodyCell-0-0)
+    driver.wait_for_xpath(
+        f'//td[contains(@data-testid, "MuiDataTableBodyCell-0-0")][.//a[text()="{obj_id}"]]'
+    )
+    # Col 0, Row 1 should be the first sources's id (MuiDataTableBodyCell-0-1)
+    driver.wait_for_xpath(
+        f'//td[contains(@data-testid, "MuiDataTableBodyCell-0-1")][.//a[text()="{obj_id2}"]]'
+    )

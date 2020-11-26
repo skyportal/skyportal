@@ -73,10 +73,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
 const initialState = {
   candidates: null,
   pageNumber: 1,
-  lastPage: false,
   totalMatches: 0,
-  numberingStart: 0,
-  numberingEnd: 0,
   selectedAnnotationSortOptions: null,
   annotationsInfo: null,
   filterFormData: null,
@@ -85,22 +82,12 @@ const initialState = {
 const reducer = (state = initialState, action) => {
   switch (action.type) {
     case FETCH_CANDIDATES_OK: {
-      const {
-        candidates,
-        pageNumber,
-        lastPage,
-        totalMatches,
-        numberingStart,
-        numberingEnd,
-      } = action.data;
+      const { candidates, pageNumber, totalMatches } = action.data;
       return {
         ...state,
         candidates,
         pageNumber,
-        lastPage,
         totalMatches,
-        numberingStart,
-        numberingEnd,
       };
     }
     case FETCH_CANDIDATE_AND_MERGE_OK: {

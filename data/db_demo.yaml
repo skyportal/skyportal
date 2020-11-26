@@ -46,9 +46,9 @@ groups:
     =id: program_B
 
 groups/=program_A/users:
-  - username: viewonlyuser
+  - userID: =viewonlyuser
     admin: false
-  - username: fulluser
+  - userID: =fulluser
     admin: false
 
 streams/=ztf_public/users:
@@ -310,12 +310,12 @@ assignment:
   - obj_id: 14gqr
     run_id: =lris_run
     priority: "4"
-    status: "done"
+    status: "complete"
     comment: Please get 2x625s
   - obj_id: 16fil
     run_id: =lris_run
     priority: "3"
-    status: "done"
+    status: "complete"
     comment: Please do i-band imaging to 24th mag
   - obj_id: 14gqr
     run_id: =esi_run
