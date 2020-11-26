@@ -4,14 +4,15 @@ import PropTypes from "prop-types";
 import Grid from "@material-ui/core/Grid";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
+import Button from "@material-ui/core/Button";
 import { Link } from "react-router-dom";
-
+import DownloadLink from "react-download-link";
 import { makeStyles } from "@material-ui/core/styles";
 import dayjs from "dayjs";
 
 import Plot from "./Plot";
-import { UserContactCard } from "./UserProfileInfo";
-import { fetchSourceSpectra } from "../ducks/spectra";
+import { UserContactInfo } from "./UserProfileInfo";
+import { fetchSourceSpectra, deleteSpectrum } from "../ducks/spectra";
 
 const useStyles = makeStyles({
   plot: {
@@ -24,22 +25,34 @@ const useStyles = makeStyles({
 
 const DetailedSpectrumView = ({ spectrum }) => {
   const classes = useStyles();
+  const dispatch = useDispatch();
   return (
     <div>
       <Typography variant="h6">Uploaded by</Typography>
-      <UserContactCard user={spectrum.owner} />
+      <UserContactInfo user={spectrum.owner} />
       <Typography variant="h6">Reduced by</Typography>
       {spectrum.reducers.map((reducer) => (
-        <UserContactCard user={reducer} key={reducer.id} />
+        <UserContactInfo user={reducer} key={reducer.id} />
       ))}
       <Typography variant="h6">Observed by</Typography>
       {spectrum.observers.map((observer) => (
-        <UserContactCard user={observer} key={observer.id} />
+        <UserContactInfo user={observer} key={observer.id} />
       ))}
       <Plot
         className={classes.plot}
         url={`/api/internal/plot/spectroscopy/${spectrum.obj_id}?spectrumID=${spectrum.id}`}
       />
+      <Button onClick={() => dispatch(deleteSpectrum(spectrum.id))}>
+        Delete Spectrum
+      </Button>
+      {spectrum.original_file_string && spectrum.original_file_filename && (
+        <DownloadLink
+          filename={spectrum.original_file_filename}
+          exportFile={spectrum.original_file_string}
+        >
+          <Button>Download Spectrum ASCII</Button>
+        </DownloadLink>
+      )}
     </div>
   );
 };
@@ -59,6 +72,8 @@ DetailedSpectrumView.propTypes = {
     reducers: PropTypes.arrayOf(user),
     observers: PropTypes.arrayOf(user),
     owner: PropTypes.shape(user),
+    original_file_string: PropTypes.string,
+    original_file_filename: PropTypes.string,
   }).isRequired,
 };
 
@@ -100,7 +115,7 @@ const SpectrumPage = ({ route }) => {
           const specname = `${telescope?.nickname}/${instrument?.name}: ${spectrum.observed_at}`;
 
           return (
-            <Grid item md={12} lg={6} xl={4} key={spectrum.id}>
+            <Grid item key={spectrum.id}>
               <Paper className={classes.margined}>
                 <div className={classes.inner}>
                   <Typography variant="h6">{specname}</Typography>

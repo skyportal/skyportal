@@ -140,6 +140,11 @@ class SpectrumHandler(BaseHandler):
             payload={'obj_key': spec.obj.internal_key},
         )
 
+        self.push_all(
+            action='skyportal/FETCH_SOURCE_SPECTRA',
+            payload={'obj_key': spec.obj.internal_key},
+        )
+
         return self.success(data={"id": spec.id})
 
     @auth_or_token
@@ -290,6 +295,10 @@ class SpectrumHandler(BaseHandler):
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
             payload={'obj_key': spectrum.obj.internal_key},
+        )
+
+        self.push_all(
+            action='skyportal/FETCH_SOURCE_SPECTRA', payload={'obj_id': spectrum.obj_id}
         )
 
         return self.success()
@@ -530,4 +539,4 @@ class ObjSpectraHandler(BaseHandler):
 
             s["fluxes"] = s["fluxes"] / norm
 
-        return self.success(data=return_values)
+        return self.success(data={'obj_id': obj.id, 'spectra': return_values})

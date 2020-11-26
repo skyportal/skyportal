@@ -9,6 +9,8 @@ export const FETCH_SOURCE_SPECTRA_OK = "skyportal/FETCH_SOURCE_SPECTRA_OK";
 export const UPLOAD_SPECTRUM = "skyportal/UPLOAD_SPECTRUM";
 export const UPLOAD_SPECTRUM_OK = "skyportal/UPLOAD_SPECTRUM_OK";
 
+export const DELETE_SPECTRUM = "skyportal/DELETE_SPECTRUM";
+
 export const PARSE_SOURCE_SPECTRUM_ASCII =
   "skyportal/PARSE_SOURCE_SPECTRUM_ASCII";
 export const PARSE_SOURCE_SPECTRUM_ASCII_OK =
@@ -28,6 +30,10 @@ export function parseASCIISpectrum(data) {
   );
 }
 
+export function deleteSpectrum(id) {
+  return API.DELETE(`/api/spectrum/${id}`, DELETE_SPECTRUM);
+}
+
 export function uploadASCIISpectrum(data) {
   return API.POST(`/api/spectrum/ascii`, UPLOAD_SPECTRUM, data);
 }
@@ -42,15 +48,12 @@ messageHandler.add((actionType, payload, dispatch) => {
 const reducer = (state = { parsed: null }, action) => {
   switch (action.type) {
     case FETCH_SOURCE_SPECTRA_OK: {
-      const spectra = action.data;
-      if (spectra.length > 0) {
-        const sourceID = spectra[0].obj_id;
-        return {
-          ...state,
-          [sourceID]: spectra,
-        };
-      }
-      return state;
+      const payload = action.data;
+      const sourceID = payload.obj_id;
+      return {
+        ...state,
+        [sourceID]: payload.spectra,
+      };
     }
     case PARSE_SOURCE_SPECTRUM_ASCII_OK: {
       const parsed = action.data;
@@ -71,6 +74,7 @@ const reducer = (state = { parsed: null }, action) => {
         parsed: null,
       };
     }
+
     default:
       return state;
   }
