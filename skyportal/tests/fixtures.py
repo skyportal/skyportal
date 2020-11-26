@@ -4,6 +4,7 @@ import uuid
 from tempfile import mkdtemp
 import numpy as np
 import factory
+import random
 from skyportal.models import (
     DBSession,
     User,
@@ -19,6 +20,7 @@ from skyportal.models import (
     Thumbnail,
     Filter,
     ObservingRun,
+    ClassicalAssignment,
 )
 
 from baselayer.app.env import load_env
@@ -219,7 +221,11 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
             DBSession().add(ThumbnailFactory(obj_id=obj.id, type="new"))
             DBSession().add(ThumbnailFactory(obj_id=obj.id, type="ps1"))
             DBSession().add(CommentFactory(obj_id=obj.id, groups=passed_groups))
-        DBSession().add(SpectrumFactory(obj_id=obj.id, instrument=instruments[0]))
+        DBSession().add(
+            SpectrumFactory(
+                obj_id=obj.id, instrument=instruments[0], groups=passed_groups
+            )
+        )
         DBSession().commit()
 
 
@@ -249,3 +255,14 @@ class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
     observers = 'D. Goldstein, S. Dhawan'
     calendar_date = '3021-02-27'
     owner = factory.SubFactory(UserFactory)
+
+
+class ClassicalAssignmentFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = ClassicalAssignment
+
+    obj = factory.SubFactory(ObjFactory)
+    run = factory.SubFactory(ObservingRunFactory)
+    requester = factory.SubFactory(UserFactory)
+    last_modified_by = factory.SubFactory(UserFactory)
+    priority = factory.LazyFunction(lambda: str(random.choice(range(1, 6))))

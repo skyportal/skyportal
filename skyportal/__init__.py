@@ -27,4 +27,8 @@ if 'dev' in __version__:
                 .split()
             )
 
+            __version__ = '+'.join(
+                [tag for tag in __version__.split('+')
+                 if not tag.startswith('git')]
+            )
             __version__ += f'+git{git_date}.{git_hash}'

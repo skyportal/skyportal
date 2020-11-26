@@ -16,7 +16,7 @@ messageHandler.add((actionType, payload, dispatch) => {
   }
 });
 
-const reducer = (state = { sourceViews: [] }, action) => {
+const reducer = (state = null, action) => {
   switch (action.type) {
     case FETCH_SOURCE_COUNTS_OK: {
       const sourceCounts = action.data;

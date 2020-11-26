@@ -1,6 +1,7 @@
+import numpy as np
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
-from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.access import permissions, auth_or_token, AccessError
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -121,14 +122,20 @@ class ObservingRunHandler(BaseHandler):
                 return self.error(
                     f"Could not load observing run {run_id}", data={"run_id": run_id}
                 )
-            # order the assignments by ra
-            assignments = sorted(run.assignments, key=lambda a: a.obj.ra)
 
             # filter out the assignments of objects that are not visible to
             # the user
-            assignments = list(
-                filter(lambda a: a.obj.is_owned_by(self.current_user), assignments)
-            )
+            assignments = []
+            for a in run.assignments:
+                try:
+                    obj = Obj.get_if_owned_by(a.obj.id, self.current_user)
+                except AccessError:
+                    continue
+                if obj is not None:
+                    assignments.append(a)
+
+            # order the assignments by ra
+            assignments = sorted(run.assignments, key=lambda a: a.obj.ra)
 
             data = ObservingRunGetWithAssignments.dump(run)
             data["assignments"] = [a.to_dict() for a in assignments]
@@ -156,13 +163,20 @@ class ObservingRunHandler(BaseHandler):
                 set_times = run.set_time(targets).isot
 
                 for d, rt, st in zip(data["assignments"], rise_times, set_times):
-                    d["rise_time_utc"] = rt
-                    d["set_time_utc"] = st
+                    d["rise_time_utc"] = rt if rt is not np.ma.masked else ''
+                    d["set_time_utc"] = st if st is not np.ma.masked else ''
 
             return self.success(data=data)
 
         runs = ObservingRun.query.order_by(ObservingRun.calendar_date.asc()).all()
-        return self.success(data=runs)
+        runs_list = []
+        for run in runs:
+            runs_list.append(run.to_dict())
+            runs_list[-1]["run_end_utc"] = run.instrument.telescope.next_sunrise(
+                run.calendar_noon
+            ).isot
+
+        return self.success(data=runs_list)
 
     @permissions(["Upload data"])
     def put(self, run_id):

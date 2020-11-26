@@ -25,6 +25,7 @@ from skyportal.tests.fixtures import (
     InstrumentFactory,
     ObservingRunFactory,
     TelescopeFactory,
+    ClassicalAssignmentFactory,
 )
 from skyportal.model_util import create_token
 from skyportal.models import (
@@ -195,6 +196,14 @@ def public_filter2(public_group2, public_stream):
 
 
 @pytest.fixture()
+def public_ZTF20acgrjqm(public_group):
+    obj = ObjFactory(groups=[public_group], ra=65.0630767, dec=82.5880983)
+    DBSession().add(Source(obj_id=obj.id, group_id=public_group.id))
+    DBSession().commit()
+    return obj
+
+
+@pytest.fixture()
 def public_source(public_group):
     obj = ObjFactory(groups=[public_group])
     DBSession.add(Source(obj_id=obj.id, group_id=public_group.id))
@@ -293,6 +302,19 @@ def ztf_camera():
 
 
 @pytest.fixture()
+def hst():
+    return TelescopeFactory(
+        name=f'Hubble Space Telescope_{uuid.uuid4()}',
+        nickname=f'HST_{uuid.uuid4()}',
+        lat=0,
+        lon=0,
+        elevation=0,
+        diameter=2.0,
+        fixed_location=False,
+    )
+
+
+@pytest.fixture()
 def keck1_telescope():
     observer = astroplan.Observer.at_site('Keck')
     return TelescopeFactory(
@@ -302,6 +324,30 @@ def keck1_telescope():
         lon=observer.location.lon.to('deg').value,
         elevation=observer.location.height.to('m').value,
         diameter=10.0,
+    )
+
+
+@pytest.fixture()
+def wise_18inch():
+    return TelescopeFactory(
+        name=f'Wise 18-inch Telescope_{uuid.uuid4()}',
+        nickname=f'Wise18_{uuid.uuid4()}',
+        lat=34.763333,
+        lon=30.595833,
+        elevation=875,
+        diameter=0.46,
+    )
+
+
+@pytest.fixture()
+def xinglong_216cm():
+    return TelescopeFactory(
+        name=f'Xinglong 2.16m_{uuid.uuid4()}',
+        nickname='XL216_{uuid.uuid4()}',
+        lat=40.004463,
+        lon=116.385556,
+        elevation=950.0,
+        diameter=2.16,
     )
 
 
@@ -356,6 +402,26 @@ def sedm(p60_telescope):
 @pytest.fixture()
 def red_transients_run():
     return ObservingRunFactory()
+
+
+@pytest.fixture()
+def lris_run_20201118(lris, public_group, super_admin_user):
+    return ObservingRunFactory(
+        instrument=lris,
+        group=public_group,
+        calendar_date='2020-11-18',
+        owner=super_admin_user,
+    )
+
+
+@pytest.fixture()
+def problematic_assignment(lris_run_20201118, public_ZTF20acgrjqm):
+    return ClassicalAssignmentFactory(
+        run=lris_run_20201118,
+        obj=public_ZTF20acgrjqm,
+        requester=lris_run_20201118.owner,
+        last_modified_by=lris_run_20201118.owner,
+    )
 
 
 @pytest.fixture()

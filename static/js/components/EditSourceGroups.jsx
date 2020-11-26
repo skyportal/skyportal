@@ -154,11 +154,17 @@ const EditSourceGroups = ({ source, groups, icon }) => {
                     key={unsavedGroup.id}
                     control={
                       <Controller
-                        as={Checkbox}
+                        render={({ onChange, value }) => (
+                          <Checkbox
+                            onChange={(event) => onChange(event.target.checked)}
+                            checked={value}
+                            data-testid={`inviteGroupCheckbox_${unsavedGroup.id}`}
+                          />
+                        )}
                         name={`inviteGroupIds[${idx}]`}
+                        defaultValue={false}
                         control={control}
                         rules={{ validate: validateGroups }}
-                        data-testid={`inviteGroupCheckbox_${unsavedGroup.id}`}
                       />
                     }
                     label={unsavedGroup.name}
@@ -183,11 +189,17 @@ const EditSourceGroups = ({ source, groups, icon }) => {
                     key={savedGroup.id}
                     control={
                       <Controller
-                        as={Checkbox}
+                        render={({ onChange, value }) => (
+                          <Checkbox
+                            onChange={(event) => onChange(event.target.checked)}
+                            checked={value}
+                            data-testid={`unsaveGroupCheckbox_${savedGroup.id}`}
+                          />
+                        )}
                         name={`unsaveGroupIds[${idx}]`}
                         control={control}
                         rules={{ validate: validateGroups }}
-                        data-testid={`unsaveGroupCheckbox_${savedGroup.id}`}
+                        defaultValue={false}
                       />
                     }
                     label={savedGroup.name}

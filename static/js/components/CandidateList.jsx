@@ -71,6 +71,12 @@ const useStyles = makeStyles((theme) => ({
     },
     flexFlow: "row wrap",
   },
+  infoItemPadded: {
+    "& > span": {
+      paddingLeft: "0.25rem",
+      paddingBottom: "0.1rem",
+    },
+  },
   saveCandidateButton: {
     margin: "0.5rem 0",
   },
@@ -418,8 +424,11 @@ const CandidateList = () => {
   };
 
   const handleFilterAdd = ({ formData }) => {
-    const filterListChip = filterAnnotationObjToChip(formData);
-    const filterListQueryItem = JSON.stringify(formData);
+    // The key is actually a combination of `origin<>key`, so parse out the key part
+    const key = formData.key.split("<>")[1];
+    const annotationObj = { ...formData, key };
+    const filterListChip = filterAnnotationObjToChip(annotationObj);
+    const filterListQueryItem = JSON.stringify(annotationObj);
 
     setTableFilterList(tableFilterList.concat([filterListChip]));
     const newFilterListQueryStrings = filterListQueryStrings.concat([
@@ -548,9 +557,17 @@ const CandidateList = () => {
           </span>
         </div>
         {candidateObj.classifications && recentClassification && (
-          <div className={classes.infoItem}>
+          <div className={classes.infoItemPadded}>
             <b>Classification: </b>
-            <Chip size="small" label={recentClassification} color="primary" />
+            <br />
+            <span>
+              <Chip
+                size="small"
+                label={recentClassification}
+                color="primary"
+                className={classes.chip}
+              />
+            </span>
           </div>
         )}
         {selectedAnnotationSortOptions !== null &&
@@ -725,6 +742,9 @@ const CandidateList = () => {
       filterFormSchema.properties.origin.enum.push(origin);
 
       // Make a list of keys to select from based on the origin
+      // We tack on the origin (using a separator that shouldn't be part of expected
+      // origin or key strings ('<>')) so that keys that are common across origin
+      // get their own fields in the form schema.
       const keySelect = {
         properties: {
           origin: {
@@ -733,7 +753,8 @@ const CandidateList = () => {
           key: {
             type: "string",
             title: "Key",
-            enum: fields.map((field) => Object.keys(field)[0]),
+            enum: fields.map((field) => `${origin}<>${Object.keys(field)[0]}`),
+            enumNames: fields.map((field) => Object.keys(field)[0]),
           },
         },
       };
@@ -746,7 +767,7 @@ const CandidateList = () => {
         const valueSelect = {
           properties: {
             key: {
-              enum: [key],
+              enum: [`${origin}<>${key}`],
             },
           },
           required: [],

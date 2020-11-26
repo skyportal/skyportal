@@ -75,13 +75,13 @@ jobs:
 
       - name: Install SSH Client 🔑
         if: github.ref == 'refs/heads/master'
-        uses: webfactory/ssh-agent@v0.2.0
+        uses: webfactory/ssh-agent@v0.4.1
         with:
           ssh-private-key: ${{ secrets.CI_DEPLOY_KEY }}
 
       - name: Deploy docs
         if: github.ref == 'refs/heads/master'
-        uses: JamesIves/github-pages-deploy-action@3.5.9
+        uses: JamesIves/github-pages-deploy-action@releases/v3
         with:
           FOLDER: doc/_build/html
           REPOSITORY_NAME: skyportal/docs

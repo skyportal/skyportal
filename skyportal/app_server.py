@@ -75,6 +75,82 @@ from . import models, model_util, openapi
 
 log = make_log('app_server')
 
+skyportal_handlers = [
+    # API endpoints
+    (r'/api/acls', ACLHandler),
+    (r'/api/allocation(/.*)?', AllocationHandler),
+    (r'/api/assignment(/.*)?', AssignmentHandler),
+    (r'/api/candidates(/.*)?', CandidateHandler),
+    (r'/api/classification(/[0-9]+)?', ClassificationHandler),
+    (r'/api/comment(/[0-9]+)?', CommentHandler),
+    (r'/api/comment(/[0-9]+)/attachment', CommentAttachmentHandler),
+    # Allow the '.pdf' suffix for the attachment route, as the
+    # react-file-previewer package expects URLs ending with '.pdf' to
+    # load PDF files.
+    (r'/api/comment(/[0-9]+)/attachment.pdf', CommentAttachmentHandler),
+    (r'/api/annotation(/[0-9]+)?', AnnotationHandler),
+    (r'/api/facility', FacilityMessageHandler),
+    (r'/api/filters(/.*)?', FilterHandler),
+    (r'/api/followup_request(/.*)?', FollowupRequestHandler),
+    (r'/api/groups/public', PublicGroupHandler),
+    (r'/api/groups(/[0-9]+)/streams(/[0-9]+)?', GroupStreamHandler),
+    (r'/api/groups(/[0-9]+)/users(/.*)?', GroupUserHandler),
+    (r'/api/groups(/[0-9]+)/usersFromGroups(/.*)?', GroupUsersFromOtherGroupsHandler,),
+    (r'/api/groups(/[0-9]+)?', GroupHandler),
+    (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
+    (r'/api/invitations(/.*)?', InvitationHandler),
+    (r'/api/newsfeed', NewsFeedHandler),
+    (r'/api/observing_run(/[0-9]+)?', ObservingRunHandler),
+    (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
+    (r'/api/sharing', SharingHandler),
+    (r'/api/photometry/bulk_delete/(.*)', BulkDeletePhotometryHandler),
+    (r'/api/photometry/range(/.*)?', PhotometryRangeHandler),
+    (r'/api/roles', RoleHandler),
+    (r'/api/sources(/[0-9A-Za-z-_]+)/photometry', ObjPhotometryHandler),
+    (r'/api/sources(/[0-9A-Za-z-_]+)/spectra', ObjSpectraHandler),
+    (r'/api/sources(/[0-9A-Za-z-_]+)/offsets', SourceOffsetsHandler),
+    (r'/api/sources(/[0-9A-Za-z-_]+)/finder', SourceFinderHandler),
+    (r'/api/sources(/.*)?', SourceHandler),
+    (r'/api/source_notifications', SourceNotificationHandler),
+    (r'/api/source_groups(/.*)?', SourceGroupsHandler),
+    (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
+    (r'/api/spectrum/parse/ascii', SpectrumASCIIFileParser),
+    (r'/api/spectrum/ascii(/[0-9]+)?', SpectrumASCIIFileHandler),
+    (r'/api/streams(/[0-9]+)/users(/.*)?', StreamUserHandler),
+    (r'/api/streams(/[0-9]+)?', StreamHandler),
+    (r'/api/sysinfo', SysInfoHandler),
+    (r'/api/taxonomy(/.*)?', TaxonomyHandler),
+    (r'/api/telescope(/[0-9]+)?', TelescopeHandler),
+    (r'/api/thumbnail(/[0-9]+)?', ThumbnailHandler),
+    (r'/api/user(/[0-9]+)/acls(/.*)?', UserACLHandler),
+    (r'/api/user(/[0-9]+)/roles(/.*)?', UserRoleHandler),
+    (r'/api/user(/.*)?', UserHandler),
+    (r'/api/weather(/.*)?', WeatherHandler),
+    (r'/api/internal/tokens(/.*)?', TokenHandler),
+    (r'/api/internal/profile', ProfileHandler),
+    (r'/api/internal/dbinfo', DBInfoHandler),
+    (r'/api/internal/source_views(/.*)?', SourceViewsHandler),
+    (r'/api/internal/source_counts(/.*)?', SourceCountHandler),
+    (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
+    (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
+    (r'/api/internal/instrument_forms', RoboticInstrumentsHandler),
+    (r'/api/internal/plot/airmass/assignment/(.*)', PlotAssignmentAirmassHandler),
+    (r'/api/internal/plot/airmass/objtel/(.*)/([0-9]+)', PlotObjTelAirmassHandler,),
+    (r'/api/internal/ephemeris/([0-9]+)', EphemerisHandler),
+    (r'/api/internal/log', LogHandler),
+    (r'/api/internal/recent_sources(/.*)?', RecentSourcesHandler),
+    (r'/api/internal/annotations_info', AnnotationsInfoHandler),
+    (r'/api/.*', InvalidEndpointHandler),
+    (r'/become_user(/.*)?', BecomeUserHandler),
+    (r'/logout', LogoutHandler),
+    # User-facing pages.
+    # Route all frontend pages, such as
+    # `/source/g647ba`, through the main page.
+    (r'/.*', MainPageHandler),
+    #
+    # Refer to Main.jsx for routing info.
+]
+
 
 def make_app(cfg, baselayer_handlers, baselayer_settings):
     """Create and return a `tornado.web.Application` object with specified
@@ -97,82 +173,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         print('  in the configuration file!')
         print('!' * 80)
 
-    handlers = baselayer_handlers + [
-        # API endpoints
-        (r'/api/acls', ACLHandler),
-        (r'/api/allocation(/.*)?', AllocationHandler),
-        (r'/api/assignment(/.*)?', AssignmentHandler),
-        (r'/api/candidates(/.*)?', CandidateHandler),
-        (r'/api/classification(/[0-9]+)?', ClassificationHandler),
-        (r'/api/comment(/[0-9]+)?', CommentHandler),
-        (r'/api/comment(/[0-9]+)/attachment', CommentAttachmentHandler),
-        # Allow the '.pdf' suffix for the attachment route, as the react-file-previewer
-        # package expects URLs ending with '.pdf' to load PDF files.
-        (r'/api/comment(/[0-9]+)/attachment.pdf', CommentAttachmentHandler),
-        (r'/api/annotation(/[0-9]+)?', AnnotationHandler),
-        (r'/api/facility', FacilityMessageHandler),
-        (r'/api/filters(/.*)?', FilterHandler),
-        (r'/api/followup_request(/.*)?', FollowupRequestHandler),
-        (r'/api/groups/public', PublicGroupHandler),
-        (r'/api/groups(/[0-9]+)/streams(/[0-9]+)?', GroupStreamHandler),
-        (r'/api/groups(/[0-9]+)/users(/.*)?', GroupUserHandler),
-        (
-            r'/api/groups(/[0-9]+)/usersFromGroups(/.*)?',
-            GroupUsersFromOtherGroupsHandler,
-        ),
-        (r'/api/groups(/[0-9]+)?', GroupHandler),
-        (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
-        (r'/api/invitations(/.*)?', InvitationHandler),
-        (r'/api/newsfeed', NewsFeedHandler),
-        (r'/api/observing_run(/[0-9]+)?', ObservingRunHandler),
-        (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
-        (r'/api/sharing', SharingHandler),
-        (r'/api/photometry/bulk_delete/(.*)', BulkDeletePhotometryHandler),
-        (r'/api/photometry/range(/.*)?', PhotometryRangeHandler),
-        (r'/api/roles', RoleHandler),
-        (r'/api/sources(/[0-9A-Za-z-_]+)/photometry', ObjPhotometryHandler),
-        (r'/api/sources(/[0-9A-Za-z-_]+)/spectra', ObjSpectraHandler),
-        (r'/api/sources(/[0-9A-Za-z-_]+)/offsets', SourceOffsetsHandler),
-        (r'/api/sources(/[0-9A-Za-z-_]+)/finder', SourceFinderHandler),
-        (r'/api/sources(/.*)?', SourceHandler),
-        (r'/api/source_notifications', SourceNotificationHandler),
-        (r'/api/source_groups(/.*)?', SourceGroupsHandler),
-        (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
-        (r'/api/spectrum/parse/ascii', SpectrumASCIIFileParser),
-        (r'/api/spectrum/ascii(/[0-9]+)?', SpectrumASCIIFileHandler),
-        (r'/api/streams(/[0-9]+)/users(/.*)?', StreamUserHandler),
-        (r'/api/streams(/[0-9]+)?', StreamHandler),
-        (r'/api/sysinfo', SysInfoHandler),
-        (r'/api/taxonomy(/.*)?', TaxonomyHandler),
-        (r'/api/telescope(/[0-9]+)?', TelescopeHandler),
-        (r'/api/thumbnail(/[0-9]+)?', ThumbnailHandler),
-        (r'/api/user(/[0-9]+)/acls(/.*)?', UserACLHandler),
-        (r'/api/user(/[0-9]+)/roles(/.*)?', UserRoleHandler),
-        (r'/api/user(/.*)?', UserHandler),
-        (r'/api/weather(/.*)?', WeatherHandler),
-        (r'/api/internal/tokens(/.*)?', TokenHandler),
-        (r'/api/internal/profile', ProfileHandler),
-        (r'/api/internal/dbinfo', DBInfoHandler),
-        (r'/api/internal/source_views(/.*)?', SourceViewsHandler),
-        (r'/api/internal/source_counts(/.*)?', SourceCountHandler),
-        (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
-        (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
-        (r'/api/internal/instrument_forms', RoboticInstrumentsHandler),
-        (r'/api/internal/plot/airmass/assignment/(.*)', PlotAssignmentAirmassHandler),
-        (r'/api/internal/plot/airmass/objtel/(.*)/([0-9]+)', PlotObjTelAirmassHandler,),
-        (r'/api/internal/ephemeris/([0-9]+)', EphemerisHandler),
-        (r'/api/internal/log', LogHandler),
-        (r'/api/internal/recent_sources(/.*)?', RecentSourcesHandler),
-        (r'/api/internal/annotations_info', AnnotationsInfoHandler),
-        (r'/api/.*', InvalidEndpointHandler),
-        (r'/become_user(/.*)?', BecomeUserHandler),
-        (r'/logout', LogoutHandler),
-        # User-facing pages
-        (r'/.*', MainPageHandler),  # Route all frontend pages, such as
-        # `/source/g647ba`, through the main page.
-        #
-        # Refer to Main.jsx for routing info.
-    ]
+    handlers = baselayer_handlers + skyportal_handlers
 
     settings = baselayer_settings
     settings.update(
@@ -213,6 +214,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
     app = tornado.web.Application(handlers, **settings)
     models.init_db(**cfg['database'])
     baselayer_model_util.create_tables()
+    model_util.refresh_enums()
     model_util.setup_permissions()
     app.cfg = cfg
 

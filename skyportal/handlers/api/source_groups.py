@@ -112,6 +112,9 @@ class SourceGroupsHandler(BaseHandler):
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
         )
+        self.push_all(
+            action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+        )
         self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
         return self.success()
 
@@ -170,6 +173,9 @@ class SourceGroupsHandler(BaseHandler):
         self.push_all(action="skyportal/FETCH_SOURCES")
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+        )
+        self.push_all(
+            action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
         )
         self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
         return self.success()

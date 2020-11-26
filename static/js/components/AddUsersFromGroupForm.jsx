@@ -60,10 +60,12 @@ const AddUsersFromGroupForm = ({ groupID }) => {
         )}
         <Controller
           name="groups"
-          id="addUsersFromGroupsSelect"
-          as={
+          render={({ onChange, value, ...props }) => (
             <Autocomplete
               multiple
+              id="addUsersFromGroupsSelect"
+              onChange={(e, data) => onChange(data)}
+              value={value}
               options={groups}
               getOptionLabel={(group) => group.name}
               filterSelectedOptions
@@ -80,10 +82,11 @@ const AddUsersFromGroupForm = ({ groupID }) => {
                   data-testid="addUsersFromGroupsTextField"
                 />
               )}
+              // eslint-disable-next-line react/jsx-props-no-spreading
+              {...props}
             />
-          }
+          )}
           control={control}
-          onChange={([, data]) => data}
           rules={{ validate: validateGroups }}
           defaultValue={[]}
         />

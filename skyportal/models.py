@@ -85,6 +85,24 @@ def get_app_base_url():
     )
 
 
+def basic_user_display_info(user):
+    return {
+        field: getattr(user, field)
+        for field in ('username', 'first_name', 'last_name', 'gravatar_url')
+    }
+
+
+def user_to_dict(self):
+    return {
+        field: getattr(self, field)
+        for field in User.__table__.columns.keys()
+        if field != "preferences"
+    }
+
+
+User.to_dict = user_to_dict
+
+
 def is_owned_by(self, user_or_token):
     """Generic ownership logic for any `skyportal` ORM model.
 
@@ -319,6 +337,20 @@ def user_or_token_accessible_groups(self):
 
 User.accessible_groups = user_or_token_accessible_groups
 Token.accessible_groups = user_or_token_accessible_groups
+
+
+@property
+def user_or_token_accessible_streams(self):
+    """Return the list of Streams a User or Token has access to."""
+    if "System admin" in self.permissions:
+        return Stream.query.all()
+    if isinstance(self, Token):
+        return self.created_by.streams
+    return self.streams
+
+
+User.accessible_streams = user_or_token_accessible_streams
+Token.accessible_streams = user_or_token_accessible_streams
 
 
 @property
@@ -1255,6 +1287,13 @@ class Telescope(Base):
         sa.Boolean, default=False, nullable=False, doc="Is this telescope robotic?"
     )
 
+    fixed_location = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default='true',
+        doc="Does this telescope have a fixed location (lon, lat, elev)?",
+    )
+
     weather = sa.Column(JSONB, nullable=True, doc='Latest weather information')
     weather_retrieved_at = sa.Column(
         sa.DateTime, nullable=True, doc="When was the weather last retrieved?"
@@ -1279,8 +1318,10 @@ class Telescope(Base):
         try:
             return self._observer
         except AttributeError:
-            tf = timezonefinder.TimezoneFinder()
-            local_tz = tf.timezone_at(lng=self.lon, lat=self.lat)
+            tf = timezonefinder.TimezoneFinder(in_memory=True)
+            local_tz = tf.closest_timezone_at(
+                lng=self.lon, lat=self.lat, delta_degree=5
+            )
             self._observer = astroplan.Observer(
                 longitude=self.lon * u.deg,
                 latitude=self.lat * u.deg,
@@ -2571,21 +2612,43 @@ class ObservingRun(Base):
         noon = ap_time.Time(noon, format='unix')
         return noon
 
-    def rise_time(self, target_or_targets):
+    def rise_time(self, target_or_targets, altitude=30 * u.degree):
         """The rise time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
-        sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
-        return observer.target_rise_time(
-            sunset, target_or_targets, which='next', horizon=30 * u.degree
+        sunset = self.instrument.telescope.next_sunset(self.calendar_noon).reshape((1,))
+        sunrise = self.instrument.telescope.next_sunrise(self.calendar_noon).reshape(
+            (1,)
+        )
+        original_shape = np.asarray(target_or_targets).shape
+        target_array = (
+            [target_or_targets] if len(original_shape) == 0 else target_or_targets
         )
 
-    def set_time(self, target_or_targets):
+        next_rise = observer.target_rise_time(
+            sunset, target_array, which='next', horizon=altitude
+        ).reshape((len(target_array),))
+
+        # if next rise time is after next sunrise, the target rises before
+        # sunset. show the previous rise so that the target is shown to be
+        # "already up" when the run begins (a beginning of night target).
+
+        recalc = next_rise > sunrise
+        if recalc.any():
+            target_subarr = [t for t, b in zip(target_array, recalc) if b]
+            next_rise[recalc] = observer.target_rise_time(
+                sunset, target_subarr, which='previous', horizon=altitude
+            ).reshape((len(target_subarr),))
+
+        return next_rise.reshape(original_shape)
+
+    def set_time(self, target_or_targets, altitude=30 * u.degree):
         """The set time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
         sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
+        original_shape = np.asarray(target_or_targets).shape
         return observer.target_set_time(
-            sunset, target_or_targets, which='next', horizon=30 * u.degree
-        )
+            sunset, target_or_targets, which='next', horizon=altitude
+        ).reshape(original_shape)
 
 
 User.observing_runs = relationship(

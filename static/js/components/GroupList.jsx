@@ -13,7 +13,7 @@ const useStyles = makeStyles(() => ({
   listContainer: {
     overflowX: "hidden",
     overflowY: "scroll",
-    height: "85%",
+    height: "95%",
   },
 }));
 
@@ -25,20 +25,26 @@ const GroupList = ({ title, groups, classes }) => {
       <div className={classes.widgetPaperDiv}>
         <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
         <Typography variant="h6">{title}</Typography>
-        <div className={styles.listContainer}>
-          <List component="nav" aria-label="main mailbox folders">
-            {groups &&
-              groups
-                .filter((group) => !group.single_user_group)
-                .map((group) => (
-                  <Link to={`/group/${group.id}`} key={group.id}>
-                    <ListItem key={group.id} button>
-                      <ListItemText primary={group.name} />
-                    </ListItem>
-                  </Link>
-                ))}
-          </List>
-        </div>
+        <List
+          component="nav"
+          aria-label="main mailbox folders"
+          className={styles.listContainer}
+        >
+          {groups &&
+            groups
+              .filter((group) => !group.single_user_group)
+              .map((group) => (
+                <Link to={`/group/${group.id}`} key={group.id}>
+                  <ListItem
+                    key={group.id}
+                    button
+                    data-testid={`${title}-${group.name}`}
+                  >
+                    <ListItemText primary={group.name} />
+                  </ListItem>
+                </Link>
+              ))}
+        </List>
       </div>
     </Paper>
   );

@@ -116,7 +116,9 @@ def test_candidate_unsaved_only_filtering(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
         wait_clickable=False,
     )
-    unsaved_only_checkbox = driver.wait_for_xpath('//*[@name="unsavedOnly"]')
+    unsaved_only_checkbox = driver.wait_for_xpath(
+        '//*[@data-testid="unsavedOnlyCheckbox"]'
+    )
     driver.scroll_to_element_and_click(unsaved_only_checkbox)
     submit_button = driver.wait_for_xpath('//span[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
@@ -420,7 +422,9 @@ def test_submit_annotations_filtering(
     driver.click_xpath("//div[@id='root_origin']")
     driver.click_xpath(f'//li[@data-value="{origin}"]', scroll_parent=True)
     driver.click_xpath("//div[@id='root_key']")
-    driver.click_xpath("//li[@data-value='numeric_field']", scroll_parent=True)
+    driver.click_xpath(
+        f"//li[@data-value='{origin}<>numeric_field']", scroll_parent=True
+    )
     min_box = driver.wait_for_xpath("//*[@id='root_min']")
     min_text = "0"
     min_box.send_keys(min_text)
