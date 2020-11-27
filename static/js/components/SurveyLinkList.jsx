@@ -211,7 +211,7 @@ const SurveyLinkList = ({ ra, dec, id }) => {
       />
       <SurveyLink
         name="SDSS"
-        url={`http://skyserver.sdss.org/dr16/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.25`}
+        url={`https://skyserver.sdss.org/dr16/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.25`}
       />
       <SurveyLink
         name="SIMBAD"
