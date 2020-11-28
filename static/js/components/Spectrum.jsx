@@ -25,6 +25,12 @@ const useStyles = makeStyles({
   },
   inner: { padding: "1rem" },
   margined: { margin: "1rem" },
+  detailedSpecButton: {
+    color: "primary",
+    variant: "contained",
+    cursor: "default",
+  },
+  specTitle: { margin: "0.5rem" },
 });
 
 function get_filename(spectrum, instrument) {
@@ -67,14 +73,22 @@ const DetailedSpectrumView = ({ spectrum }) => {
     <div>
       <Typography variant="h6">Uploaded by</Typography>
       <UserContactInfo user={spectrum.owner} />
-      <Typography variant="h6">Reduced by</Typography>
-      {spectrum.reducers.map((reducer) => (
-        <UserContactInfo user={reducer} key={reducer.id} />
-      ))}
-      <Typography variant="h6">Observed by</Typography>
-      {spectrum.observers.map((observer) => (
-        <UserContactInfo user={observer} key={observer.id} />
-      ))}
+      {spectrum.reducers.length > 0 && (
+        <div>
+          <Typography variant="h6">Reduced by</Typography>
+          {spectrum.reducers.map((reducer) => (
+            <UserContactInfo user={reducer} key={reducer.id} />
+          ))}
+        </div>
+      )}
+      {spectrum.observers.length > 0 && (
+        <div>
+          <Typography variant="h6">Observed by</Typography>
+          {spectrum.observers.map((observer) => (
+            <UserContactInfo user={observer} key={observer.id} />
+          ))}
+        </div>
+      )}
       <Plot
         className={classes.plot}
         url={`/api/internal/plot/spectroscopy/${spectrum.obj_id}?spectrumID=${spectrum.id}`}
@@ -91,9 +105,9 @@ const DetailedSpectrumView = ({ spectrum }) => {
       <DownloadLink
         filename={filename}
         exportFile={() => data}
-        tagName={Button}
+        style={{ color: "rgba(0, 0, 0, 0.87)", fontWeight: 500 }}
         label="Download ASCII Spectrum"
-        style={{}}
+        tagName={Button}
       />
       <Dialog
         open={open}
@@ -102,6 +116,7 @@ const DetailedSpectrumView = ({ spectrum }) => {
         onClose={() => {
           setOpen(false);
         }}
+        className={classes.detailedSpecButton}
       >
         <DialogContent>
           <div>
@@ -203,7 +218,9 @@ const SpectrumPage = ({ route }) => {
             <Grid item key={spectrum.id}>
               <Paper className={classes.margined}>
                 <div className={classes.inner}>
-                  <Typography variant="h6">{specname}</Typography>
+                  <Typography variant="h5" className={classes.specTitle}>
+                    {specname}
+                  </Typography>
                   <DetailedSpectrumView spectrum={spectrum} />
                 </div>
               </Paper>
