@@ -21,7 +21,6 @@ from ...models import (
     DBSession,
     Allocation,
     Instrument,
-    Photometry,
     Obj,
     Source,
     Token,
@@ -40,6 +39,7 @@ from ...utils import (
     _calculate_best_position_for_offset_stars,
 )
 from .candidate import grab_query_results, update_redshift_history_if_relevant
+from .photometry import serialize
 
 
 SOURCES_PER_PAGE = 100
@@ -414,10 +414,7 @@ class SourceHandler(BaseHandler):
                 .joinedload(FollowupRequest.allocation)
                 .joinedload(Allocation.group),
             ]
-            if include_photometry:
-                query_options.append(
-                    joinedload(Obj.photometry).joinedload(Photometry.instrument)
-                )
+
             s = Obj.get_if_owned_by(obj_id, self.current_user, options=query_options,)
 
             if s is None:
@@ -467,9 +464,10 @@ class SourceHandler(BaseHandler):
                 f for f in s.followup_requests if f.status != 'deleted'
             ]
             if include_photometry:
-                source_info["photometry"] = Obj.get_photometry_owned_by_user(
-                    obj_id, self.current_user
-                )
+                photometry = Obj.get_photometry_owned_by_user(obj_id, self.current_user)
+                source_info["photometry"] = [
+                    serialize(phot, 'ab', 'flux') for phot in photometry
+                ]
             if include_spectrum_exists:
                 source_info["spectrum_exists"] = (
                     len(Obj.get_spectra_owned_by(obj_id, self.current_user)) > 0
@@ -517,10 +515,6 @@ class SourceHandler(BaseHandler):
 
         # Fetch multiple sources
         query_options = [joinedload(Obj.thumbnails)]
-        if include_photometry:
-            query_options.append(
-                joinedload(Obj.photometry).joinedload(Photometry.instrument)
-            )
 
         if not save_summary:
             q = (
@@ -679,7 +673,13 @@ class SourceHandler(BaseHandler):
                 source_list[-1][
                     "angular_diameter_distance"
                 ] = source.angular_diameter_distance
-
+                if include_photometry:
+                    photometry = Obj.get_photometry_owned_by_user(
+                        source.id, self.current_user
+                    )
+                    source_list[-1]["photometry"] = [
+                        serialize(phot, 'ab', 'flux') for phot in photometry
+                    ]
                 if include_spectrum_exists:
                     source_list[-1]["spectrum_exists"] = (
                         len(Obj.get_spectra_owned_by(source.id, self.current_user)) > 0

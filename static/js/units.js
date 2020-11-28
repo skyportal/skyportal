@@ -51,10 +51,9 @@ function time_relative_to_local(isostring) {
   return dayjs(isostring).local().fromNow();
 }
 
-const flux_to_mag = (flux) => {
+const flux_to_mag = (flux, zp) => {
   // Take a flux value and return the AB mag. Return null if flux is negative or null
-  const default_zp = 23.9;
-  return flux && flux > 0 ? -2.5 * Math.log10(flux) + default_zp : null;
+  return flux && flux > 0 ? -2.5 * Math.log10(flux) + zp : null;
 };
 
 export { ra_to_hours, dec_to_dms, time_relative_to_local, flux_to_mag };

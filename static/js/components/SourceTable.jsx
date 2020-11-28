@@ -471,7 +471,7 @@ const SourceTable = ({
       .sort((a, b) => a.flux - b.flux)[0];
     return (
       <Tooltip title={`${(mjdNow - peakPoint.mjd).toFixed(2)} days ago`}>
-        <div>{`${flux_to_mag(peakPoint.flux).toFixed(4)}`}</div>
+        <div>{`${flux_to_mag(peakPoint.flux, peakPoint.zp).toFixed(4)}`}</div>
       </Tooltip>
     );
   };
@@ -483,7 +483,9 @@ const SourceTable = ({
       .sort((a, b) => b.mjd - a.mjd)[0];
     return (
       <Tooltip title={`${(mjdNow - latestPoint.mjd).toFixed(2)} days ago`}>
-        <div>{`${flux_to_mag(latestPoint.flux).toFixed(4)}`}</div>
+        <div>
+          {`${flux_to_mag(latestPoint.flux, latestPoint.zp).toFixed(4)}`}
+        </div>
       </Tooltip>
     );
   };
