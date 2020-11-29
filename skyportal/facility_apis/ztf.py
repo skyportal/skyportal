@@ -15,6 +15,26 @@ ZTF_URL = 'http://localhost:9999'
 """URL for the P48 scheduler."""
 
 
+def ztf_queue():
+
+    r = requests.get(urllib.parse.urljoin(ZTF_URL, 'queues'), json={})
+    data_all = r.json()
+    queue_names_list = []
+    for data in data_all:
+        queue_names_list.append(data['queue_name'])
+
+    return queue_names_list
+
+
+def ztf_delete_queue(queue_name):
+
+    r = requests.delete(
+        urllib.parse.urljoin(ZTF_URL, 'queues'), json={'queue_name': queue_name}
+    )
+
+    r.raise_for_status()
+
+
 class ZTFRequest:
 
     """A dictionary structure for ZTF ToO requests."""
@@ -195,6 +215,11 @@ class ZTFAPI(FollowUpAPI):
             "filters": {"type": "string", "default": "g,r,i"},
             "field_ids": {"type": "string", "default": "699,700"},
             "queue_name": {"type": "string", "default": datetime.utcnow()},
+            "existing_queue": {
+                "type": "string",
+                "enum": ztf_queue(),
+                "default": ztf_queue()[0],
+            },
         },
         "required": [
             "start_date",
