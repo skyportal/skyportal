@@ -35,6 +35,7 @@ import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import ObjPageAnnotations from "./ObjPageAnnotations";
 import SourceSaveHistory from "./SourceSaveHistory";
+import PhotometryTable from "./PhotometryTable";
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -145,6 +146,7 @@ const SourceMobile = ({ source }) => {
   const classes = useSourceStyles();
 
   const [showStarList, setShowStarList] = useState(false);
+  const [showPhotometry, setShowPhotometry] = useState(false);
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
@@ -331,6 +333,14 @@ const SourceMobile = ({ source }) => {
                   <Link to={`/share_data/${source.id}`} role="link">
                     <Button variant="contained">Share data</Button>
                   </Link>
+                  <Button
+                    variant="contained"
+                    onClick={() => {
+                      setShowPhotometry(true);
+                    }}
+                  >
+                    Show Photometry Table
+                  </Button>
                 </div>
               </div>
             </AccordionDetails>
@@ -398,6 +408,13 @@ const SourceMobile = ({ source }) => {
               </div>
             </AccordionDetails>
           </Accordion>
+          <PhotometryTable
+            obj_id={source.id}
+            open={showPhotometry}
+            onClose={() => {
+              setShowPhotometry(false);
+            }}
+          />
         </div>
         <Accordion defaultExpanded>
           <AccordionSummary
