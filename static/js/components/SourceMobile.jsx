@@ -362,7 +362,9 @@ const SourceMobile = ({ source }) => {
                   <Button variant="contained">Share data</Button>
                 </Link>
                 <Link to={`/spectra/${source.id}`} role="link">
-                  <Button variant="contained">View Spectra</Button>
+                  <Button variant="contained" data-testid="view-spectra-button">
+                    View Spectra
+                  </Button>
                 </Link>
               </div>
             </AccordionDetails>

@@ -98,6 +98,7 @@ const DetailedSpectrumView = ({ spectrum }) => {
           onClick={() => {
             setOpen(true);
           }}
+          data-testid="delete-spectrum-button"
         >
           Delete Spectrum
         </Button>
@@ -143,6 +144,7 @@ const DetailedSpectrumView = ({ spectrum }) => {
                   dispatch(showNotification("Spectrum deleted."));
                 }
               }}
+              data-testid="yes-delete"
             >
               Yes, delete the spectrum.
             </Button>
