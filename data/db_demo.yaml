@@ -117,6 +117,15 @@ telescope:
     skycam_link: /static/images/kcam_2.jpg
     robotic: false
     =id: Keck1
+  - diameter: 1.2
+    elevation: 1870.0
+    lat: 33.3633675
+    lon: -116.8361345
+    nickname: Palomar 1.2m Oschin
+    name: P48
+    skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+    =id: P48
+    robotic: true
 
 instrument:
   - name: P60 Camera
@@ -146,6 +155,13 @@ instrument:
     filters: ["sdssu", "sdssg", "sdssr", "sdssi"]
     api_classname: SEDMAPI
     =id: SEDM
+  - band: optical
+    name: ZTF
+    telescope_id: =P48
+    type: imager
+    api_classname: ZTFAPI
+    filters: ['ztfg', 'ztfr', 'ztfi']
+    =id: ZTF
 
 allocation:
   - pi: Michael Coughlin
@@ -155,6 +171,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =SEDM
+  - pi: Michael Coughlin
+    proposal_id: ZTF-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =ZTF
 
 candidates:
   - id: 14gqr_unsaved_copy
