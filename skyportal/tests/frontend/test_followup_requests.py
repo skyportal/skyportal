@@ -123,7 +123,7 @@ def add_allocation_ztf(instrument_id, group_id, token):
             "group_id": group_id,
             "instrument_id": instrument_id,
             "hours_allocated": 100,
-            "pi": "Ed Hubble"
+            "pi": "Ed Hubble",
         },
         token=token,
     )
@@ -237,6 +237,7 @@ def add_followup_request_using_frontend_and_verify_SEDM(
     driver.wait_for_xpath(
         f'''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
+
 
 def add_followup_request_using_frontend_and_verify_Floyds(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -600,8 +601,9 @@ def test_submit_new_followup_request_SEDM(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
+
 @pytest.mark.flaky(reruns=2)
-#@pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
+# @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_submit_new_followup_request_ZTF(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -609,6 +611,7 @@ def test_submit_new_followup_request_ZTF(
     add_followup_request_using_frontend_and_verify_ZTF(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
+
 
 @pytest.mark.flaky(reruns=2)
 def test_submit_new_followup_request_IOO(
@@ -639,6 +642,7 @@ def test_submit_new_followup_request_SPRAT(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
+
 @pytest.mark.flaky(reruns=2)
 def test_submit_new_followup_request_Sinistro(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -647,6 +651,7 @@ def test_submit_new_followup_request_Sinistro(
     add_followup_request_using_frontend_and_verify_Sinistro(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
+
 
 @pytest.mark.flaky(reruns=2)
 def test_submit_new_followup_request_Spectral(
@@ -657,6 +662,7 @@ def test_submit_new_followup_request_Spectral(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
+
 @pytest.mark.flaky(reruns=2)
 def test_submit_new_followup_request_MUSCAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -665,6 +671,7 @@ def test_submit_new_followup_request_MUSCAT(
     add_followup_request_using_frontend_and_verify_MUSCAT(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
+
 
 @pytest.mark.flaky(reruns=2)
 def test_submit_new_followup_request_Floyds(
@@ -711,7 +718,7 @@ def test_edit_existing_followup_request(
     )
 
 
-#@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_delete_followup_request_ZTF(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -853,6 +860,7 @@ def test_delete_followup_request_Sinistro(
         '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
 
+
 @pytest.mark.flaky(reruns=2)
 def test_delete_followup_request_Spectral(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -876,6 +884,7 @@ def test_delete_followup_request_Spectral(
     driver.wait_for_xpath_to_disappear(
         '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
+
 
 @pytest.mark.flaky(reruns=2)
 def test_delete_followup_request_MUSCAT(
@@ -901,6 +910,7 @@ def test_delete_followup_request_MUSCAT(
         '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
 
+
 @pytest.mark.flaky(reruns=2)
 def test_delete_followup_request_Floyds(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -924,6 +934,7 @@ def test_delete_followup_request_Floyds(
     driver.wait_for_xpath_to_disappear(
         '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
     )
+
 
 @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
