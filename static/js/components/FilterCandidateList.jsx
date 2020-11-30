@@ -11,10 +11,15 @@ import Paper from "@material-ui/core/Paper";
 import SearchIcon from "@material-ui/icons/Search";
 import { makeStyles } from "@material-ui/core/styles";
 
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+
 import * as candidatesActions from "../ducks/candidates";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 import FormValidationError from "./FormValidationError";
+
+dayjs.extend(utc);
 
 const useStyles = makeStyles(() => ({
   filterListContainer: {
@@ -124,30 +129,32 @@ const FilterCandidateList = ({
               <FormValidationError message="Invalid date range." />
             )}
             <Controller
-              as={
+              render={({ onChange, value }) => (
                 <KeyboardDateTimePicker
-                  value={formState.startDate}
-                  label="Start (browser local time)"
+                  value={dayjs.utc(value)}
+                  onChange={(e, date) => onChange(dayjs.utc(date))}
+                  label="Start (UTC)"
                   format="YYYY/MM/DD HH:mm"
                   ampm={false}
                   showTodayButton
                 />
-              }
+              )}
               rules={{ validate: validateDates }}
               name="startDate"
               control={control}
             />
             &nbsp;
             <Controller
-              as={
+              render={({ onChange, value }) => (
                 <KeyboardDateTimePicker
-                  value={formState.endDate}
-                  label="End (browser local time)"
+                  value={dayjs.utc(value)}
+                  onChange={(e, date) => onChange(dayjs.utc(date))}
+                  label="End (UTC)"
                   format="YYYY/MM/DD HH:mm"
                   ampm={false}
                   showTodayButton
                 />
-              }
+              )}
               rules={{ validate: validateDates }}
               name="endDate"
               control={control}
