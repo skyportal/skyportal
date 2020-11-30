@@ -49,7 +49,7 @@ class SourceViewsHandler(BaseHandler):
         )
         sources = []
         for view, obj_id in query_results:
-            s = Source.get_obj_if_owned_by(  # Returns Source.obj
+            s = Source.get_obj_if_readable_by(  # Returns Source.obj
                 obj_id,
                 self.current_user,
                 options=[joinedload(Source.obj).joinedload(Obj.thumbnails)],
@@ -71,7 +71,7 @@ class SourceViewsHandler(BaseHandler):
     @tornado.web.authenticated
     def post(self, obj_id):
         # Ensure user has access to source
-        Source.get_obj_if_owned_by(obj_id, self.current_user)
+        Source.get_obj_if_readable_by(obj_id, self.current_user)
         # This endpoint will only be hit by front-end, so this will never be a token
         register_source_view(
             obj_id=obj_id,

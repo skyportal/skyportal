@@ -29,7 +29,7 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        comment = Comment.get_if_owned_by(comment_id, self.current_user)
+        comment = Comment.get_if_readable_by(comment_id, self.current_user)
         if comment is None:
             return self.error('Invalid comment ID.')
         return self.success(data=comment)
@@ -93,7 +93,7 @@ class CommentHandler(BaseHandler):
         comment_text = data.get("text")
 
         # Ensure user/token has access to parent source
-        obj = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        obj = Source.get_obj_if_readable_by(obj_id, self.current_user)
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
             filtr.id
@@ -214,7 +214,7 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        c = Comment.get_if_owned_by(comment_id, self.current_user)
+        c = Comment.get_if_readable_by(comment_id, self.current_user)
         if c is None:
             return self.error('Invalid comment ID.')
 
@@ -245,7 +245,7 @@ class CommentHandler(BaseHandler):
 
         DBSession().flush()
         if group_ids is not None:
-            c = Comment.get_if_owned_by(comment_id, self.current_user)
+            c = Comment.get_if_readable_by(comment_id, self.current_user)
             groups = Group.query.filter(Group.id.in_(group_ids)).all()
             if not groups:
                 return self.error(
@@ -340,7 +340,7 @@ class CommentAttachmentHandler(BaseHandler):
         """
         download = strtobool(self.get_query_argument('download', "True").lower())
 
-        comment = Comment.get_if_owned_by(comment_id, self.current_user)
+        comment = Comment.get_if_readable_by(comment_id, self.current_user)
         if comment is None:
             return self.error('Invalid comment ID.')
 
