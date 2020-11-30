@@ -140,7 +140,7 @@ jobs:
       - name: Test loading demo data
         run: |
           make run &
-          sleep 5 && make load_demo_data
+          sleep 10 && make load_demo_data
           kill %1
 
       - name: Run test suite
