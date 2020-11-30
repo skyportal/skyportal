@@ -1,7 +1,11 @@
+import re
+from marshmallow.exceptions import ValidationError
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    User,
+    Obj,
     Listing,
 )
 
@@ -59,7 +63,70 @@ class ListingHandler(BaseHandler):
 
     @auth_or_token
     def post(self):
-        pass
+        """
+                ---
+                description: Post a new listing
+                requestBody:
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        properties:
+                          user_id:
+                            type: string
+                          obj_id:
+                            type: string
+                          list_name:
+                             type: string
+                             description: |
+                                Listing name for this item, e.g., "favorites".
+                                Multiple objects can be saved by the same user to different
+                                lists, where the list names are user-defined.
+                                List name must be a non-empty string starting with an
+                                alphanumeric character or underscore.
+                                (it must match the regex: /^\\w+/)
+
+
+                        required:
+                          - user_id
+                          - obj_id
+                          - list_name
+                responses:
+                  200:
+                    content:
+
+                """
+        data = self.get_json()
+
+        schema = Listing.__schema__()
+        try:
+            schema.load(data)
+        except ValidationError as e:
+            return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
+
+        # should we make user_id optional, defaulting to self.associated_user_object?
+        user_id = data.get("user_id")
+        if User.query.get(user_id) is None:  # verify that user exists
+            return self.error(f'User "{user_id}" does not exist!')
+
+        # verify that poster has write access to user_id's lists?
+
+        obj_id = data.get("obj_id")
+        if Obj.query.get(obj_id) is None:  # verify that object exists!
+            return self.error(f'Object "{obj_id}" does not exist!')
+
+        list_name = data.get("list_name")
+        if not re.search(r'^\w+', list_name):
+            return self.error(
+                "Input `list_name` must begin with alphanumeric/underscore"
+            )
+
+        listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name,)
+
+        DBSession.add(listing)
+        DBSession.commit()
+
+        return self.success(data={})  # should we return something?
 
     @auth_or_token
     def put(self):

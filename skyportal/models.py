@@ -522,6 +522,14 @@ class Obj(Base, ha.Point):
         doc="Notifications regarding the object sent out by users",
     )
 
+    listings = relationship(
+        "Listing",
+        back_populates="obj",
+        cascade="delete",
+        passive_deletes=True,
+        doc="Listings like favorites list",
+    )
+
     @hybrid_property
     def last_detected(self):
         """UTC ISO date at which the object was last detected above a S/N of 5."""
@@ -886,6 +894,14 @@ def candidate_is_owned_by(self, user_or_token):
 
 Candidate.get_obj_if_owned_by = get_candidate_if_owned_by
 Candidate.is_owned_by = candidate_is_owned_by
+
+
+User.listings = relationship(
+    'Listing',
+    backref='listings',
+    passive_deletes=True,
+    doc='The listings saved by this user',
+)
 
 
 Source = join_model("sources", Group, Obj)
@@ -2501,6 +2517,49 @@ User.transactions = relationship(
 )
 
 
+class Listing(Base):
+
+    user_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this Listing.",
+    )
+
+    user = relationship(
+        "User",
+        foreign_keys=user_id,
+        back_populates="listings",
+        doc="The user that saved this object/listing",
+    )
+
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the object that is on this Listing",
+    )
+
+    obj = relationship(
+        "Obj", back_populates="listings", doc="The object referenced by this listing",
+    )
+
+    list_name = sa.Column(
+        sa.String, index=True, doc="Name of the list, e.g., 'favorites'. ",
+    )
+
+
+Listing.__table_args__ = (
+    sa.Index(
+        "listings_main_index",
+        Listing.user_id,
+        Listing.obj_id,
+        Listing.list_name,
+        unique=True,
+    ),
+)
+
+
 class Thumbnail(Base):
     """Thumbnail image centered on the location of an Obj."""
 
@@ -2754,39 +2813,6 @@ User.assignments = relationship(
     doc="Objs the User has assigned to ObservingRuns.",
     foreign_keys="ClassicalAssignment.requester_id",
 )
-
-
-class Listing(Base):
-
-    user_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True,
-        doc="The ID of the User who created this Listing.",
-    )
-
-    obj_id = sa.Column(
-        sa.ForeignKey('obj.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True,
-        doc="The ID of the object that is on this Listing",
-    )
-
-    list_name = sa.Column(
-        sa.String, index=True, doc="Name of the list, e.g., 'favorites'. ",
-    )
-
-
-Listing.__table_args__ = (
-    sa.Index(
-        "listings_main_index",
-        Listing.user_id,
-        Listing.obj_id,
-        Listing.list_name,
-        unique=True,
-    ),
-)
-# do we need to have a relationship to User and Obj?
 
 
 class Invitation(Base):
