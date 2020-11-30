@@ -55,7 +55,9 @@ const CommentList = () => {
   comments = comments || [];
 
   const emojiSupport = (text) =>
-    text.value.replace(/:\w+:/gi, (name) => emoji.getUnicode(name));
+    text.value.replace(/:\w+:/gi, (name) =>
+      emoji.getUnicode(name) ? emoji.getUnicode(name) : name
+    );
 
   return (
     <div className={styles.comments}>
