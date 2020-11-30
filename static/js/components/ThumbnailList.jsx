@@ -68,7 +68,7 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
       break;
     case "sdss":
       alt = "Link to SDSS Navigate tool";
-      link = `http://skyserver.sdss3.org/public/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.1981`;
+      link = `https://skyserver.sdss3.org/public/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.1981`;
       break;
     case "dr8":
       alt = "Link to DESI DR8 Image Access";
@@ -76,7 +76,7 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
       break;
     case "ps1":
       alt = "Link to PanSTARRS-1 Image Access";
-      link = `http://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos=${ra}+${dec}&filter=color&filter=g&filter=r&filter=i&filter=z&filter=y&filetypes=stack&auxiliary=data&size=240&output_size=0&verbose=0&autoscale=99.500000&catlist=`;
+      link = `https://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos=${ra}+${dec}&filter=color&filter=g&filter=r&filter=i&filter=z&filter=y&filetypes=stack&auxiliary=data&size=240&output_size=0&verbose=0&autoscale=99.500000&catlist=`;
       break;
     default:
       alt = "";
