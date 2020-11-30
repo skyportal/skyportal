@@ -13,6 +13,7 @@ from .group import (
     GroupStreamHandler,
     GroupUsersFromOtherGroupsHandler,
 )
+from .listing import ListingHandler
 from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
