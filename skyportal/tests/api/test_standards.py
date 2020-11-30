@@ -5,7 +5,7 @@ def test_standards(view_only_token):
     status, data = api(
         'GET',
         'internal/standards',
-        data={
+        params={
             'facility': "Keck",
             'standard_type': "ESO",
             'dec_filter_range_str': None,
@@ -26,7 +26,7 @@ def test_standards_bad_standard_list(view_only_token):
     status, data = api(
         'GET',
         'internal/standards',
-        data={
+        params={
             'facility': "Keck",
             'standard_type': "SpaceX",
             'dec_filter_range': None,
@@ -45,7 +45,7 @@ def test_standards_filter(view_only_token):
     status, data = api(
         'GET',
         'internal/standards',
-        data={
+        params={
             'facility': "Keck",
             'standard_type': "ESO",
             'dec_filter_range': None,
@@ -61,7 +61,7 @@ def test_standards_filter(view_only_token):
     status, data = api(
         'GET',
         'internal/standards',
-        data={
+        params={
             'facility': "Keck",
             'standard_type': "ESO",
             'dec_filter_range': "(-90, 0)",

@@ -8,7 +8,9 @@ from baselayer.app.env import load_env
 IS_CI_BUILD = "TRAVIS" in os.environ or "GITHUB_ACTIONS" in os.environ
 
 
-def api(method, endpoint, data=None, host=None, token=None, raw_response=False):
+def api(
+    method, endpoint, data=None, params=None, host=None, token=None, raw_response=False
+):
     """Make a SkyPortal API call.
 
     Parameters
@@ -19,7 +21,9 @@ def api(method, endpoint, data=None, host=None, token=None, raw_response=False):
         Relative API endpoint.  E.g., `sources` means
         `http://localhost:port/api/sources`.
     data : dict
-        Data to post or params to use in GET
+        Data to post
+    params : dict
+        URL parameters, in GET
     host : str
         Defaults to http://localhost on the port specified in the
         SkyPortal configuration file.
@@ -41,10 +45,7 @@ def api(method, endpoint, data=None, host=None, token=None, raw_response=False):
         host = f'http://localhost:{cfg["ports.app"]}'
     url = urllib.parse.urljoin(host, f'/api/{endpoint}')
     headers = {'Authorization': f'token {token}'} if token else None
-    if method == "GET" and data is not None:
-        response = requests.request(method, url, params=data, headers=headers)
-    else:
-        response = requests.request(method, url, json=data, headers=headers)
+    response = requests.request(method, url, json=data, params=params, headers=headers)
 
     if raw_response:
         return response
