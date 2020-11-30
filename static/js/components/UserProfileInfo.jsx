@@ -14,7 +14,7 @@ export const UserContactInfo = ({ user }) => {
   if (user.first_name || user.last_name) {
     contact_string += `${user.first_name} ${user.last_name}`;
   } else {
-    contact_string += `${user.username}`;
+    contact_string += `${user.username} `;
   }
 
   const contact = [];
