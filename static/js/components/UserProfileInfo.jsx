@@ -12,9 +12,9 @@ import UserAvatar from "./UserAvatar";
 export const UserContactInfo = ({ user }) => {
   let contact_string = "";
   if (user.first_name || user.last_name) {
-    contact_string += `${user.first_name} ${user.last_name}`;
+    contact_string += `${user.first_name} ${user.last_name} `;
   } else {
-    contact_string += `${user.username}`;
+    contact_string += `${user.username} `;
   }
 
   const contact = [];
