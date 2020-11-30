@@ -56,30 +56,34 @@ class ListingHandler(BaseHandler):
         # verify that poster has read access to user_id's lists?
 
         list_name = data.get("list_name")
-        if not re.search(r'^\w+', list_name):
-            return self.error(
-                "Input `list_name` must begin with alphanumeric/underscore"
-            )
 
         if list_name is None:
-            lists = (
+            listings = (
                 DBSession().query(Listing).filter(Listing.user_id == user_id)
-            ).unique()
-            return self.success(data=lists)
+            ).all()
+
+            list_names = [L.list_name for L in listings]
+            list_names = list(set(list_names))  # show only unique list names
+
+            return self.success(data=list_names)
+
         else:
-            object_ids = (
+            listings = (
                 DBSession()
                 .query(Listing)
                 .filter(Listing.user_id == user_id)
                 .filter(Listing.list_name == list_name)
             ).all()
+
+            object_ids = [L.obj_id for L in listings]
+
             return self.success(data=object_ids)
 
     @auth_or_token
-    def post(self):
+    def put(self):
         """
         ---
-        description: Post a new listing
+        description: Add a listing, if it doesn't exist yet
         requestBody:
           content:
             application/json:
@@ -138,29 +142,6 @@ class ListingHandler(BaseHandler):
         DBSession.commit()
 
         return self.success(data={})  # should we return something?
-
-    @auth_or_token
-    def put(self):
-        """
-        ---
-        description: Retrieve a source
-        parameters:
-          - in: path
-            name: obj_id
-            required: false
-            schema:
-              type: integer
-              required: false
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  oneOf:
-                    - SingleSource
-                    - Error
-        """
-        pass
 
     @auth_or_token
     def delete(self):
