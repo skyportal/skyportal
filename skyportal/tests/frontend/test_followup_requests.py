@@ -120,12 +120,7 @@ def add_followup_request_using_frontend_and_verify_SEDM(
     )
     select_box.click()
 
-    driver.wait_for_xpath('//li[@data-value="1"]')
-    for ii in range(1, 100):
-        allocation = driver.wait_for_xpath('//li[@data-value="%d"]' % ii)
-        if "SEDM" in allocation.text:
-            allocation.click()
-            break
+    driver.click_xpath('//li[contains(text(), "SEDM")]', scroll_parent=True)
 
     # mode select
     driver.click_xpath('//*[@id="root_observation_type"]')
@@ -182,12 +177,7 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
     )
     select_box.click()
 
-    driver.wait_for_xpath('//li[@data-value="1"]')
-    for ii in range(1, 100):
-        allocation = driver.wait_for_xpath('//li[@data-value="%d"]' % ii)
-        if "SPRAT" in allocation.text:
-            allocation.click()
-            break
+    driver.click_xpath('//li[contains(text(), "SPRAT")]', scroll_parent=True)
 
     photometric_option = driver.wait_for_xpath('//input[@id="root_photometric"]')
     driver.scroll_to_element_and_click(photometric_option)
@@ -229,12 +219,7 @@ def add_followup_request_using_frontend_and_verify_IOI(
     )
     select_box.click()
 
-    driver.wait_for_xpath('//li[@data-value="1"]')
-    for ii in range(1, 100):
-        allocation = driver.wait_for_xpath('//li[@data-value="%d"]' % ii)
-        if "IOI" in allocation.text:
-            allocation.click()
-            break
+    driver.click_xpath('//li[contains(text(), "IOI")]', scroll_parent=True)
 
     # H band option
     driver.click_xpath(
@@ -281,12 +266,7 @@ def add_followup_request_using_frontend_and_verify_IOO(
     )
     select_box.click()
 
-    driver.wait_for_xpath('//li[@data-value="1"]')
-    for ii in range(1, 100):
-        allocation = driver.wait_for_xpath('//li[@data-value="%d"]' % ii)
-        if "IOO" in allocation.text:
-            allocation.click()
-            break
+    driver.click_xpath('//li[contains(text(), "IOO")]', scroll_parent=True)
 
     # u band option
     driver.click_xpath(
