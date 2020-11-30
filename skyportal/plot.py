@@ -7,7 +7,6 @@ from bokeh.document import Document
 from bokeh.layouts import row, column
 from bokeh.models import CustomJS, HoverTool, Range1d, Slider, Button, LinearAxis
 from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
-from bokeh.palettes import viridis
 from bokeh.plotting import figure, ColumnDataSource
 from bokeh.util.compiler import bundle_all_models
 from bokeh.util.serialization import make_id
@@ -26,6 +25,8 @@ from skyportal.models import (
     Instrument,
     Telescope,
     PHOT_ZP,
+    Spectrum,
+    GroupSpectrum,
 )
 
 import sncosmo
@@ -706,29 +707,33 @@ def photometry_plot(obj_id, user, width=600, height=300):
 
 
 # TODO make async so that thread isn't blocked
-def spectroscopy_plot(obj_id, spec_id=None):
+def spectroscopy_plot(obj_id, user, spec_id=None):
     obj = Obj.query.get(obj_id)
-    spectra = Obj.query.get(obj_id).spectra
+    spectra = (
+        DBSession()
+        .query(Spectrum)
+        .join(Obj)
+        .join(GroupSpectrum)
+        .filter(
+            Spectrum.obj_id == obj_id,
+            GroupSpectrum.group_id.in_([g.id for g in user.accessible_groups]),
+        )
+    ).all()
+
     if spec_id is not None:
         spectra = [spec for spec in spectra if spec.id == int(spec_id)]
     if len(spectra) == 0:
         return None, None, None
 
-    color_map = dict(zip([s.id for s in spectra], viridis(len(spectra))))
+    rainbow = cm.get_cmap('rainbow', len(spectra))
+    palette = list(map(rgb2hex, rainbow(range(len(spectra)))))
+    color_map = dict(zip([s.id for s in spectra], palette))
 
     data = []
     for i, s in enumerate(spectra):
 
-        # normalize spectra to a common average flux per resolving
-        # element of 1 (facilitates easy visual comparison)
-        normfac = np.sum(np.gradient(s.wavelengths) * s.fluxes) / len(s.fluxes)
-
-        if not (np.isfinite(normfac) and normfac > 0):
-            # otherwise normalize the value at the median wavelength to 1
-            median_wave_index = np.argmin(
-                np.abs(s.wavelengths - np.median(s.wavelengths))
-            )
-            normfac = s.fluxes[median_wave_index]
+        # normalize spectra to a median flux of 1 for easy comparison
+        normfac = np.median(s.fluxes)
 
         df = pd.DataFrame(
             {
@@ -738,7 +743,13 @@ def spectroscopy_plot(obj_id, spec_id=None):
                 'telescope': s.instrument.telescope.name,
                 'instrument': s.instrument.name,
                 'date_observed': s.observed_at.date().isoformat(),
-                'pi': s.assignment.run.pi if s.assignment is not None else "",
+                'pi': s.assignment.run.pi
+                if s.assignment is not None
+                else (
+                    s.followup_request.allocation.pi
+                    if s.followup_request is not None
+                    else ""
+                ),
             }
         )
         data.append(df)
@@ -786,8 +797,12 @@ def spectroscopy_plot(obj_id, spec_id=None):
     plot.add_tools(hover)
     model_dict = {}
     for i, (key, df) in enumerate(split):
-        model_dict['s' + str(i)] = plot.line(
-            x='wavelength', y='flux', color=color_map[key], source=ColumnDataSource(df)
+        model_dict['s' + str(i)] = plot.step(
+            x='wavelength',
+            y='flux',
+            color=color_map[key],
+            source=ColumnDataSource(df),
+            mode="center",
         )
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
@@ -796,11 +811,14 @@ def spectroscopy_plot(obj_id, spec_id=None):
     # TODO how to choose a good default?
     plot.y_range = Range1d(0, 1.03 * data.flux.max())
 
+    spec_labels = []
+    for k, _ in split:
+        s = Spectrum.query.get(k)
+        label = f'{s.instrument.telescope.nickname}/{s.instrument.name} ({s.observed_at.date().isoformat()})'
+        spec_labels.append(label)
+
     toggle = CheckboxWithLegendGroup(
-        labels=[
-            f'{s.instrument.telescope.nickname}/{s.instrument.name} ({s.observed_at.date().isoformat()})'
-            for s in spectra
-        ],
+        labels=spec_labels,
         active=list(range(len(spectra))),
         colors=[color_map[k] for k, df in split],
     )

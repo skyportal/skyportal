@@ -328,6 +328,30 @@ def keck1_telescope():
 
 
 @pytest.fixture()
+def wise_18inch():
+    return TelescopeFactory(
+        name=f'Wise 18-inch Telescope_{uuid.uuid4()}',
+        nickname=f'Wise18_{uuid.uuid4()}',
+        lat=34.763333,
+        lon=30.595833,
+        elevation=875,
+        diameter=0.46,
+    )
+
+
+@pytest.fixture()
+def xinglong_216cm():
+    return TelescopeFactory(
+        name=f'Xinglong 2.16m_{uuid.uuid4()}',
+        nickname='XL216_{uuid.uuid4()}',
+        lat=40.004463,
+        lon=116.385556,
+        elevation=950.0,
+        diameter=2.16,
+    )
+
+
+@pytest.fixture()
 def p60_telescope():
     observer = astroplan.Observer.at_site('Palomar')
     return TelescopeFactory(
