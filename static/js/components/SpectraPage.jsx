@@ -55,7 +55,7 @@ const DetailedSpectrumView = ({ spectrum }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const { instrumentList } = useSelector((state) => state.instruments);
-  const { id: uid } = useSelector((state) => state.profile);
+  const { id: currentUserId } = useSelector((state) => state.profile);
   const [open, setOpen] = React.useState(false);
 
   const instrument = instrumentList.find(
@@ -73,7 +73,7 @@ const DetailedSpectrumView = ({ spectrum }) => {
     <div>
       <Typography variant="h6">Uploaded by</Typography>
       <UserContactInfo user={spectrum.owner} />
-      {spectrum.reducers.length > 0 && (
+      {spectrum.reducers?.length > 0 && (
         <div>
           <Typography variant="h6">Reduced by</Typography>
           {spectrum.reducers.map((reducer) => (
@@ -81,7 +81,7 @@ const DetailedSpectrumView = ({ spectrum }) => {
           ))}
         </div>
       )}
-      {spectrum.observers.length > 0 && (
+      {spectrum.observers?.length > 0 && (
         <div>
           <Typography variant="h6">Observed by</Typography>
           {spectrum.observers.map((observer) => (
@@ -93,7 +93,7 @@ const DetailedSpectrumView = ({ spectrum }) => {
         className={classes.plot}
         url={`/api/internal/plot/spectroscopy/${spectrum.obj_id}?spectrumID=${spectrum.id}`}
       />
-      {spectrum.owner_id === uid && (
+      {spectrum.owner_id === currentUserId && (
         <Button
           onClick={() => {
             setOpen(true);
@@ -177,7 +177,7 @@ DetailedSpectrumView.propTypes = {
   }).isRequired,
 };
 
-const SpectrumPage = ({ route }) => {
+const SpectraPage = ({ route }) => {
   const dispatch = useDispatch();
   const spectra = useSelector((state) => state.spectra);
   const classes = useStyles();
@@ -234,10 +234,10 @@ const SpectrumPage = ({ route }) => {
   );
 };
 
-SpectrumPage.propTypes = {
+SpectraPage.propTypes = {
   route: PropTypes.shape({
     id: PropTypes.string.isRequired,
   }).isRequired,
 };
 
-export default SpectrumPage;
+export default SpectraPage;

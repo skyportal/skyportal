@@ -64,7 +64,7 @@ app:
     - path: "/source/:id/finder"
       component: FindingChart
     - path: "/spectra/:id"
-      component: Spectrum
+      component: SpectraPage
 
   sidebar:
     # See https://material-ui.com/components/material-icons/

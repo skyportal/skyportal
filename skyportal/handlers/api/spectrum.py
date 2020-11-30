@@ -505,7 +505,19 @@ class ObjSpectraHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: ArrayOfSpectrums
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            obj_id:
+                              type: string
+                              description: The ID of the requested Obj
+                            spectra:
+                              $ref: '#/components/schemas/ArrayOfSpectrums'
           400:
             content:
               application/json:
