@@ -165,8 +165,8 @@ const user = {
 
 DetailedSpectrumView.propTypes = {
   spectrum: PropTypes.shape({
-    id: PropTypes.string,
-    obj_id: PropTypes.number,
+    id: PropTypes.number,
+    obj_id: PropTypes.string,
     owner_id: PropTypes.number,
     instrument_id: PropTypes.number,
     reducers: PropTypes.arrayOf(user),
