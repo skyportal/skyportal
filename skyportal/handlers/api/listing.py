@@ -61,9 +61,6 @@ class ListingHandler(BaseHandler):
                 "Input `list_name` must begin with alphanumeric/underscore"
             )
 
-        # user_id = self.get_query_argument('user_id')
-        # list_name = self.get_query_argument('list_name', None)
-
         if list_name is None:
             lists = (
                 DBSession().query(Listing).filter(Listing.user_id == user_id)
@@ -168,22 +165,54 @@ class ListingHandler(BaseHandler):
     @auth_or_token
     def delete(self):
         """
-        ---
-        description: Retrieve a source
-        parameters:
-          - in: path
-            name: obj_id
-            required: false
-            schema:
-              type: integer
-              required: false
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  oneOf:
-                    - SingleSource
-                    - Error
-        """
-        pass
+                ---
+                description: Remove an existing listing
+                requestBody:
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        properties:
+                          user_id:
+                            type: string
+                          obj_id:
+                            type: string
+                          list_name:
+                             type: string
+                             description: |
+                                Listing name for this item, e.g., "favorites".
+
+                        required:
+                          - user_id
+                          - obj_id
+                          - list_name
+
+                        """
+        data = self.get_json()
+
+        schema = Listing.__schema__()
+        try:
+            schema.load(data)
+        except ValidationError as e:
+            return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
+
+        # should we make user_id optional, defaulting to self.associated_user_object?
+        user_id = data.get("user_id")
+        if User.query.get(user_id) is None:  # verify that user exists
+            return self.error(f'User "{user_id}" does not exist!')
+
+        # verify that poster has write access to user_id's lists?
+
+        obj_id = data.get("obj_id")
+        list_name = data.get("list_name")
+
+        q = Listing.query.filter_by(
+            user_id=user_id, obj_id=obj_id, list_name=list_name
+        ).first()
+        if q is None:
+            return self.error("Listing does not exist.")
+
+        q.delete()
+        DBSession.commit()
+
+        return self.success(data={})  # should we return something?
