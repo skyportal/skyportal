@@ -33,6 +33,7 @@ import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import ObjPageAnnotations from "./ObjPageAnnotations";
 import SourceSaveHistory from "./SourceSaveHistory";
+import PhotometryTable from "./PhotometryTable";
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -123,6 +124,7 @@ const SourceDesktop = ({ source }) => {
   const classes = useSourceStyles();
 
   const [showStarList, setShowStarList] = useState(false);
+  const [showPhotometry, setShowPhotometry] = useState(false);
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
@@ -280,6 +282,15 @@ const SourceDesktop = ({ source }) => {
                   <Link to={`/share_data/${source.id}`} role="link">
                     <Button variant="contained">Share data</Button>
                   </Link>
+                  <Button
+                    variant="contained"
+                    onClick={() => {
+                      setShowPhotometry(true);
+                    }}
+                    data-testid="show-photometry-table-button"
+                  >
+                    Show Photometry Table
+                  </Button>
                 </div>
               </div>
             </AccordionDetails>
@@ -350,6 +361,13 @@ const SourceDesktop = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </div>
+        <PhotometryTable
+          obj_id={source.id}
+          open={showPhotometry}
+          onClose={() => {
+            setShowPhotometry(false);
+          }}
+        />
       </div>
 
       <div className={classes.rightColumn}>
