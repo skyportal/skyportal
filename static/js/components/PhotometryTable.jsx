@@ -42,9 +42,6 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
           },
         },
       }));
-      const formattedData = data.map((dataRow) =>
-        keys.map((key) => dataRow[key])
-      );
 
       const customToolbarFunc = () => {
         return (
@@ -74,7 +71,7 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
           <MUIDataTable
             title={`Photometry of ${obj_id}`}
             columns={columns}
-            data={formattedData}
+            data={data}
             options={options}
           />
         </div>
