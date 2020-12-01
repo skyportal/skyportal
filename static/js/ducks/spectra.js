@@ -3,6 +3,7 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
+export const REFRESH_SOURCE_SPECTRA = "skyportal/REFRESH_SOURCE_SPECTRA";
 export const FETCH_SOURCE_SPECTRA = "skyportal/FETCH_SOURCE_SPECTRA";
 export const FETCH_SOURCE_SPECTRA_OK = "skyportal/FETCH_SOURCE_SPECTRA_OK";
 
@@ -39,9 +40,12 @@ export function uploadASCIISpectrum(data) {
 }
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch) => {
-  if (actionType === FETCH_SOURCE_SPECTRA) {
-    dispatch(fetchSourceSpectra(payload.obj_id));
+messageHandler.add((actionType, payload, dispatch, getState) => {
+  if (actionType === REFRESH_SOURCE_SPECTRA) {
+    const state = getState().spectra;
+    if (Object.keys(state).includes(payload.obj_id)) {
+      dispatch(fetchSourceSpectra(payload.obj_id));
+    }
   }
 });
 

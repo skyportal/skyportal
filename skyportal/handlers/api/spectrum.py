@@ -141,7 +141,7 @@ class SpectrumHandler(BaseHandler):
         )
 
         self.push_all(
-            action='skyportal/FETCH_SOURCE_SPECTRA',
+            action='skyportal/REFRESH_SOURCE_SPECTRA',
             payload={'obj_key': spec.obj.internal_key},
         )
 
@@ -298,7 +298,8 @@ class SpectrumHandler(BaseHandler):
         )
 
         self.push_all(
-            action='skyportal/FETCH_SOURCE_SPECTRA', payload={'obj_id': spectrum.obj_id}
+            action='skyportal/REFRESH_SOURCE_SPECTRA',
+            payload={'obj_id': spectrum.obj_id},
         )
 
         return self.success()
