@@ -158,6 +158,7 @@ class CommentHandler(BaseHandler):
         )
 
         DBSession().add(comment)
+        DBSession().commit()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
