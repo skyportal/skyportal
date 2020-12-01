@@ -136,7 +136,7 @@ const FilterCandidateList = ({
                   label="Start (UTC)"
                   format="YYYY/MM/DD HH:mm"
                   ampm={false}
-                  showTodayButton
+                  showTodayButton={false}
                 />
               )}
               rules={{ validate: validateDates }}
@@ -152,7 +152,7 @@ const FilterCandidateList = ({
                   label="End (UTC)"
                   format="YYYY/MM/DD HH:mm"
                   ampm={false}
-                  showTodayButton
+                  showTodayButton={false}
                 />
               )}
               rules={{ validate: validateDates }}
