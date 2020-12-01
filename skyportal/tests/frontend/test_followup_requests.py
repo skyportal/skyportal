@@ -400,11 +400,9 @@ def test_delete_followup_request_IOO(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
-    delete_button = driver.wait_for_xpath(f'//button[contains(@name, "deleteRequest")]')
-    driver.scroll_to_element(delete_button)
-    driver.execute_script("window.scrollTo(200, document.body.scrollHeight);")
-    ActionChains(driver).pause(1).click().perform()
-    driver.refresh()
+    driver.click_xpath(
+        f'//button[contains(@name, "deleteRequest")]', scroll_parent=True
+    )
 
     driver.wait_for_xpath_to_disappear(
         '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]'
@@ -425,11 +423,9 @@ def test_delete_followup_request_IOI(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
-    delete_button = driver.wait_for_xpath(f'//button[contains(@name, "deleteRequest")]')
-    driver.scroll_to_element(delete_button)
-    driver.execute_script("window.scrollTo(200, document.body.scrollHeight);")
-    ActionChains(driver).pause(1).click().perform()
-    driver.refresh()
+    driver.click_xpath(
+        f'//button[contains(@name, "deleteRequest")]', scroll_parent=True
+    )
 
     driver.wait_for_xpath_to_disappear(
         '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]'
@@ -450,11 +446,9 @@ def test_delete_followup_request_SPRAT(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
-    delete_button = driver.wait_for_xpath(f'//button[contains(@name, "deleteRequest")]')
-    driver.scroll_to_element(delete_button)
-    driver.execute_script("window.scrollTo(200, document.body.scrollHeight);")
-    ActionChains(driver).pause(1).click().perform()
-    driver.refresh()
+    driver.click_xpath(
+        f'//button[contains(@name, "deleteRequest")]', scroll_parent=True
+    )
 
     driver.wait_for_xpath_to_disappear(
         '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]'
