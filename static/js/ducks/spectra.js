@@ -55,7 +55,6 @@ const reducer = (state = { parsed: null }, action) => {
       const payload = action.data;
       const sourceID = payload.obj_id;
       return {
-        ...state,
         [sourceID]: payload.spectra,
       };
     }
