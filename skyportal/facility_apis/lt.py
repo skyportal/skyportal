@@ -1,4 +1,3 @@
-import time
 from datetime import datetime, timedelta
 
 from lxml import etree
@@ -25,7 +24,7 @@ class LTRequest:
 
     """An XML structure for LT requests."""
 
-    def _build_prolog(self):
+    def _build_prolog(self, request):
         """Payload outline for all LT queue requests.
 
         Returns
@@ -38,13 +37,12 @@ class LTRequest:
             'xsi': LT_XSI_NS,
         }
         schemaLocation = etree.QName(LT_XSI_NS, 'schemaLocation')
-        uid = format(str(int(time.time())))
         payload = etree.Element(
             'RTML',
             {schemaLocation: LT_SCHEMA_LOCATION},
             xmlns=LT_XML_NS,
             mode='request',
-            uid=uid,
+            uid=format(str(request.id)),
             version='3.1a',
             nsmap=namespaces,
         )
@@ -328,11 +326,6 @@ class LTAPI(FollowUpAPI):
             .one()
         )
 
-        # this happens for failed submissions
-        # just go ahead and delete
-        if len(req.transactions) == 0:
-            return
-
         altdata = request.allocation.load_altdata()
         if not altdata:
             raise ValueError('Missing allocation information.')
@@ -393,7 +386,6 @@ class IOOAPI(LTAPI):
 
     """An interface to LT IOO operations."""
 
-    # subclasses *must* implement the method below
     @staticmethod
     def submit(request):
 
@@ -411,7 +403,7 @@ class IOOAPI(LTAPI):
         if not altdata:
             raise ValueError('Missing allocation information.')
         ltreq = IOOIOIRequest()
-        observation_payload = ltreq._build_prolog()
+        observation_payload = ltreq._build_prolog(request)
         ltreq._build_project(observation_payload, request)
         ltreq._build_inst_schedule("IO:O", observation_payload, request)
 
@@ -531,7 +523,6 @@ class IOIAPI(LTAPI):
 
     """An interface to LT IOI operations."""
 
-    # subclasses *must* implement the method below
     @staticmethod
     def submit(request):
 
@@ -550,7 +541,7 @@ class IOIAPI(LTAPI):
             raise ValueError('Missing allocation information.')
 
         ltreq = IOOIOIRequest()
-        observation_payload = ltreq._build_prolog()
+        observation_payload = ltreq._build_prolog(request)
         ltreq._build_project(observation_payload, request)
         ltreq._build_inst_schedule("IO:I", observation_payload, request)
 
@@ -670,7 +661,6 @@ class SPRATAPI(LTAPI):
 
     """An interface to LT SPRAT operations."""
 
-    # subclasses *must* implement the method below
     @staticmethod
     def submit(request):
 
@@ -689,7 +679,7 @@ class SPRATAPI(LTAPI):
             raise ValueError('Missing allocation information.')
 
         ltreq = SPRATRequest()
-        observation_payload = ltreq._build_prolog()
+        observation_payload = ltreq._build_prolog(request)
         ltreq._build_project(observation_payload, request)
         ltreq._build_inst_schedule(observation_payload, request)
 

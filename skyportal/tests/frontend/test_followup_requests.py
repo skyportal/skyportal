@@ -19,6 +19,15 @@ except requests.exceptions.ConnectTimeout:
 else:
     sedm_isonline = True
 
+url = f"http://{cfg['app.lt_host']}:{cfg['app.lt_port']}/node_agent2/node_agent?wsdl"
+lt_isonline = False
+try:
+    requests.get(url, timeout=5)
+except requests.exceptions.ConnectTimeout:
+    pass
+else:
+    lt_isonline = True
+
 
 def add_telescope_and_instrument(instrument_name, token):
     status, data = api("GET", f"instrument?name={instrument_name}", token=token)
@@ -306,6 +315,7 @@ def test_submit_new_followup_request_SEDM(
 
 
 @pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_submit_new_followup_request_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -316,6 +326,7 @@ def test_submit_new_followup_request_IOO(
 
 
 @pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_submit_new_followup_request_IOI(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -326,6 +337,7 @@ def test_submit_new_followup_request_IOI(
 
 
 @pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_submit_new_followup_request_SPRAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -393,6 +405,7 @@ def test_delete_followup_request_SEDM(
 
 
 @pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_delete_followup_request_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -416,6 +429,7 @@ def test_delete_followup_request_IOO(
 
 
 @pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_delete_followup_request_IOI(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -438,7 +452,8 @@ def test_delete_followup_request_IOI(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_delete_followup_request_SPRAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
