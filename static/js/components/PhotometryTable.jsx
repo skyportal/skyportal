@@ -29,7 +29,14 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
       const keys = Object.keys(data[0]).filter((key) => key !== "groups");
       const columns = keys.map((key) => ({
         name: key,
-        options: { filter: false },
+        customBodyRenderLite: (dataIndex) => {
+          const value = data[dataIndex][key];
+          if (typeof value === "number" && value.isInteger()) {
+            return value.toString();
+          }
+          // use six digits after the decimal for floats
+          return value.toFixed(6);
+        },
       }));
       const formattedData = data.map((dataRow) =>
         keys.map((key) => dataRow[key])
@@ -52,6 +59,7 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
         expandableRows: false,
         selectableRows: "none",
         customToolbar: customToolbarFunc,
+        filter: false,
       };
 
       bodyContent = (
