@@ -43,3 +43,11 @@ def test_upload_spectroscopy(
     driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
 
     driver.wait_for_xpath(f'//*[contains(.,"{sedm.telescope.nickname}/{sedm.name}")]')
+
+    spectrum = list(
+        filter(
+            lambda s: s.original_file_filename == 'ZTF20abucjsa_20200909_LT_v1.ascii',
+            public_source.spectra,
+        )
+    )[0]
+    assert len(spectrum.groups) > 1
