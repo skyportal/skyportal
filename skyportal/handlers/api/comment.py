@@ -92,7 +92,7 @@ class CommentHandler(BaseHandler):
         comment_text = data.get("text")
 
         # Ensure user/token has access to parent source
-        obj = Source.get_obj_if_readable_by(obj_id, self.current_user)
+        _ = Source.get_obj_if_readable_by(obj_id, self.current_user)
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
             filtr.id
