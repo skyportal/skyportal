@@ -403,6 +403,7 @@ const UploadSpectrumForm = ({ route }) => {
       filename,
       observed_by: persistentFormData.observed_by,
       reduced_by: persistentFormData.reduced_by,
+      group_ids: persistentFormData.group_ids,
     };
     const result = await dispatch(Actions.uploadASCIISpectrum(payload));
     if (result.status === "success") {

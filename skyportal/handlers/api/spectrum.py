@@ -18,6 +18,7 @@ from ...models import (
     Spectrum,
     User,
     ClassicalAssignment,
+    GroupSpectrum,
 )
 from ...schema import (
     SpectrumAsciiFilePostJSON,
@@ -162,10 +163,18 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
         spectrum = (
             DBSession()
             .query(Spectrum)
-            .filter(Spectrum.id == spectrum_id)
+            .join(Obj)
+            .join(GroupSpectrum)
+            .filter(
+                Spectrum.id == spectrum_id,
+                GroupSpectrum.group_id.in_(
+                    [g.id for g in self.current_user.accessible_groups]
+                ),
+            )
             .options(joinedload(Spectrum.groups))
             .first()
         )
@@ -219,7 +228,7 @@ class SpectrumHandler(BaseHandler):
         # Check that the requesting user owns the spectrum (or is an admin)
         if not spectrum.is_modifiable_by(self.associated_user_object):
             return self.error(
-                f'Cannot delete spectrum that is owned by {spectrum.owner}.'
+                f'Cannot modify spectrum that is owned by {spectrum.owner}.'
             )
 
         data = self.get_json()

@@ -68,15 +68,15 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
       break;
     case "sdss":
       alt = "Link to SDSS Navigate tool";
-      link = `http://skyserver.sdss3.org/public/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.1981`;
+      link = `https://skyserver.sdss3.org/public/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.1981`;
       break;
     case "dr8":
       alt = "Link to DESI DR8 Image Access";
-      link = `https://www.legacysurvey.org/viewer/jpeg-cutout?ra=${ra}&dec=${dec}&size=512&layer=dr8&pixscale=0.262&bands=grz`;
+      link = `https://www.legacysurvey.org/viewer?ra=${ra}&dec=${dec}&layer=ls-dr8&zoom=16`;
       break;
     case "ps1":
       alt = "Link to PanSTARRS-1 Image Access";
-      link = `http://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos=${ra}+${dec}&filter=color&filter=g&filter=r&filter=i&filter=z&filter=y&filetypes=stack&auxiliary=data&size=240&output_size=0&verbose=0&autoscale=99.500000&catlist=`;
+      link = `https://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos=${ra}+${dec}&filter=color&filter=g&filter=r&filter=i&filter=z&filter=y&filetypes=stack&auxiliary=data&size=240&output_size=0&verbose=0&autoscale=99.500000&catlist=`;
       break;
     default:
       alt = "";
@@ -87,7 +87,7 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
     <Card className={classes.root} variant="outlined">
       <CardContent className={classes.cardTitle}>
         <Typography className={classes.title} color="textSecondary">
-          {name.toUpperCase()}
+          <a href={link}>{name.toUpperCase()}</a>
         </Typography>
       </CardContent>
       <div className={classes.mediaDiv}>

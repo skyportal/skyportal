@@ -85,6 +85,24 @@ def get_app_base_url():
     )
 
 
+def basic_user_display_info(user):
+    return {
+        field: getattr(user, field)
+        for field in ('username', 'first_name', 'last_name', 'gravatar_url')
+    }
+
+
+def user_to_dict(self):
+    return {
+        field: getattr(self, field)
+        for field in User.__table__.columns.keys()
+        if field != "preferences"
+    }
+
+
+User.to_dict = user_to_dict
+
+
 def is_owned_by(self, user_or_token):
     """Generic ownership logic for any `skyportal` ORM model.
 
@@ -538,7 +556,7 @@ class Obj(Base, ha.Point):
     def sdss_url(self):
         """Construct URL for public Sloan Digital Sky Survey (SDSS) cutout."""
         return (
-            f"http://skyserver.sdss.org/dr12/SkyserverWS/ImgCutout/getjpeg"
+            f"https://skyserver.sdss.org/dr12/SkyserverWS/ImgCutout/getjpeg"
             f"?ra={self.ra}&dec={self.dec}&scale=0.3&width=200&height=200"
             f"&opt=G&query=&Grid=on"
         )
@@ -560,7 +578,7 @@ class Obj(Base, ha.Point):
         want (in this case a combination of the g/r/i filters).
         """
         ps_query_url = (
-            f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
+            f"https://ps1images.stsci.edu/cgi-bin/ps1cutouts"
             f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
             f"&filter=r&filter=i&filetypes=stack&size=250"
         )
@@ -1300,8 +1318,10 @@ class Telescope(Base):
         try:
             return self._observer
         except AttributeError:
-            tf = timezonefinder.TimezoneFinder()
-            local_tz = tf.timezone_at(lng=self.lon, lat=self.lat)
+            tf = timezonefinder.TimezoneFinder(in_memory=True)
+            local_tz = tf.closest_timezone_at(
+                lng=self.lon, lat=self.lat, delta_degree=5
+            )
             self._observer = astroplan.Observer(
                 longitude=self.lon * u.deg,
                 latitude=self.lat * u.deg,
