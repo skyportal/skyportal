@@ -208,7 +208,9 @@ const SourceTable = ({
             </Grid>
             <Grid item>
               <Suspense fallback={<div>Loading spectra...</div>}>
-                <VegaSpectrum dataUrl={`/api/sources/${source.id}/spectra`} />
+                <VegaSpectrum
+                  dataUrl={`/api/sources/${source.id}/spectra?normalization=median`}
+                />
               </Suspense>
             </Grid>
             <Grid item>
