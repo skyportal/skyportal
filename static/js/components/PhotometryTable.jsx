@@ -15,6 +15,9 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
 
+const isFloat = (x) =>
+  typeof x === "number" && Number.isFinite(x) && Math.floor(x) !== x;
+
 const PhotometryTable = ({ obj_id, open, onClose }) => {
   const { photometry } = useSelector((state) => state);
   let bodyContent = null;
@@ -29,13 +32,15 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
       const keys = Object.keys(data[0]).filter((key) => key !== "groups");
       const columns = keys.map((key) => ({
         name: key,
-        customBodyRenderLite: (dataIndex) => {
-          const value = data[dataIndex][key];
-          if (typeof value === "number" && value.isInteger()) {
-            return value.toString();
-          }
-          // use six digits after the decimal for floats
-          return value.toFixed(6);
+        options: {
+          customBodyRenderLite: (dataIndex) => {
+            const value = data[dataIndex][key];
+            if (isFloat(value)) {
+              return value.toFixed(key.includes("jd") ? 8 : 6);
+            }
+            // use six digits after the decimal for floats
+            return value;
+          },
         },
       }));
       const formattedData = data.map((dataRow) =>
