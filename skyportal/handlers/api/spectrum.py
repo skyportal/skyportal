@@ -498,6 +498,8 @@ class ObjSpectraHandler(BaseHandler):
             description: |
               what normalization is needed for the spectra (e.g., "median").
               If omitted, returns the original spectrum.
+              Options for normalization are:
+              - median: normalize the flux to have median==1
 
         responses:
           200:
@@ -541,7 +543,7 @@ class ObjSpectraHandler(BaseHandler):
                     s["fluxes"] = s["fluxes"] / norm
             else:
                 return self.error(
-                    f'Invalid "normalization" value "{normalization}, use "median" or no None'
+                    f'Invalid "normalization" value "{normalization}, use "median" or None'
                 )
 
         return self.success(data=return_values)
