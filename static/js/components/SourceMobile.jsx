@@ -414,6 +414,7 @@ const SourceMobile = ({ source }) => {
             onClose={() => {
               setShowPhotometry(false);
             }}
+            data-testid="show-photometry-table-button"
           />
         </div>
         <Accordion defaultExpanded>

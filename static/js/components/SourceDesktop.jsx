@@ -286,6 +286,7 @@ const SourceDesktop = ({ source }) => {
                     onClick={() => {
                       setShowPhotometry(true);
                     }}
+                    data-testid="show-photometry-table-button"
                   >
                     Show Photometry Table
                   </Button>

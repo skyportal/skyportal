@@ -38,7 +38,6 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
             if (isFloat(value)) {
               return value.toFixed(key.includes("jd") ? 8 : 6);
             }
-            // use six digits after the decimal for floats
             return value;
           },
         },
@@ -51,7 +50,10 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
         return (
           <>
             <Tooltip title="Close Table">
-              <IconButton onClick={onClose}>
+              <IconButton
+                onClick={onClose}
+                data-testid="close-photometry-table-button"
+              >
                 <CloseIcon />
               </IconButton>
             </Tooltip>
