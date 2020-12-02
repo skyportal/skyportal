@@ -184,10 +184,12 @@ def test_candidate_date_filtering(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
         wait_clickable=False,
     )
-    start_date_input = driver.wait_for_xpath("//*[@name='startDate']")
+    start_date_input = driver.wait_for_xpath(
+        "//*[@data-testid='startDatePicker']//input"
+    )
     start_date_input.clear()
     start_date_input.send_keys("200012120000")
-    end_date_input = driver.wait_for_xpath("//*[@name='endDate']")
+    end_date_input = driver.wait_for_xpath("//*[@data-testid='endDatePicker']//input")
     end_date_input.clear()
     end_date_input.send_keys("200112120000")
     submit_button = driver.wait_for_xpath_to_be_clickable('//span[text()="Search"]')

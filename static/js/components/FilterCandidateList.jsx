@@ -137,6 +137,7 @@ const FilterCandidateList = ({
                   format="YYYY/MM/DD HH:mm"
                   ampm={false}
                   showTodayButton={false}
+                  data-testid="startDatePicker"
                 />
               )}
               rules={{ validate: validateDates }}
@@ -153,6 +154,7 @@ const FilterCandidateList = ({
                   format="YYYY/MM/DD HH:mm"
                   ampm={false}
                   showTodayButton={false}
+                  data-testid="endDatePicker"
                 />
               )}
               rules={{ validate: validateDates }}
