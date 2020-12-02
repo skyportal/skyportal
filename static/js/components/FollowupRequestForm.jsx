@@ -4,7 +4,9 @@ import PropTypes from "prop-types";
 import Select from "@material-ui/core/Select";
 import InputLabel from "@material-ui/core/InputLabel";
 import MenuItem from "@material-ui/core/MenuItem";
+import Button from "@material-ui/core/Button";
 import Form from "@rjsf/material-ui";
+import CircularProgress from "@material-ui/core/CircularProgress";
 import { makeStyles } from "@material-ui/core/styles";
 import * as Actions from "../ducks/source";
 import GroupShareSelect from "./GroupShareSelect";
@@ -19,6 +21,7 @@ const useStyles = makeStyles(() => ({
   chip: {
     margin: 2,
   },
+  hiddenButton: { display: "none" },
 }));
 
 const FollowupRequestForm = ({
@@ -33,6 +36,7 @@ const FollowupRequestForm = ({
   const allGroups = useSelector((state) => state.groups.all);
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     // Initialize the select
@@ -85,14 +89,16 @@ const FollowupRequestForm = ({
     setSelectedAllocationId(e.target.value);
   };
 
-  const handleSubmit = ({ formData }) => {
+  const handleSubmit = async ({ formData }) => {
+    setIsSubmitting(true);
     const json = {
       obj_id,
       allocation_id: selectedAllocationId,
       target_group_ids: selectedGroupIds,
       payload: formData,
     };
-    dispatch(Actions.submitFollowupRequest(json));
+    await dispatch(Actions.submitFollowupRequest(json));
+    setIsSubmitting(false);
   };
 
   return (
@@ -133,7 +139,14 @@ const FollowupRequestForm = ({
           ].uiSchema
         }
         onSubmit={handleSubmit}
-      />
+      >
+        {isSubmitting && (
+          <div>
+            <Button className={classes.hiddenButton} type="submit" />
+            <CircularProgress />
+          </div>
+        )}
+      </Form>
     </div>
   );
 };
