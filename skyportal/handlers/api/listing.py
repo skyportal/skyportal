@@ -10,12 +10,13 @@ from ...models import (
 )
 
 
-class UserOBjListHandler(BaseHandler):
+class UserObjListHandler(BaseHandler):
     @auth_or_token
     def get(self):
         """
         ---
             description: get all objects corresponding to a specific user and that match a list name.
+            parameters:
             - in: query
               name: user_id
               required: true
@@ -53,25 +54,30 @@ class UserOBjListHandler(BaseHandler):
         objects = DBSession().query(Listing).filter(Listing.user_id == user_id)
         if list_name is not None:
             objects = objects.filter(Listing.list_name == list_name)
-        return self.success(data=objects.all())
+
+        obj_ids = [obj.obj_id for obj in objects.all()]
+        obj_ids = list(set(obj_ids))  # choose only the unique obj_ids
+
+        return self.success(data=obj_ids)
 
     @auth_or_token
     def put(self):
         """
         ---
         description: Add a listing, if it doesn't exist yet
+        parameters:
         - in: query
-            name: user_id
-            required: true
-            type: string
+          name: user_id
+          required: true
+          type: string
         - in: query
-            name: obj_id
-            required: true
-            type: string
+          name: obj_id
+          required: true
+          type: string
         - in: query
-            name: list_name
-            required: true
-            type: string
+          name: list_name
+          required: true
+          type: string
         description: |
             Listing name for this item, e.g., "favorites".
             Multiple objects can be saved by the same user to different
@@ -127,18 +133,19 @@ class UserOBjListHandler(BaseHandler):
         """
         ---
         description: Remove an existing listing
+        parameters:
         - in: query
-            name: user_id
-            required: true
-            type: string
+          name: user_id
+          required: true
+          type: string
         - in: query
-            name: obj_id
-            required: true
-            type: string
+          name: obj_id
+          required: true
+          type: string
         - in: query
-            name: list_name
-            required: true
-            type: string
+          name: list_name
+          required: true
+          type: string
 
         """
         data = self.get_json()
