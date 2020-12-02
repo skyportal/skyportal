@@ -42,15 +42,14 @@ def test_source_is_added_to_observing_run_via_frontend(
         driver.wait_for_xpath(f'//li[@data-value="{red_transients_run.id}"]')
     )
 
-    comment_box = driver.wait_for_xpath("//*[@data-testid='assignmentCommentInput']")
+    comment_box = driver.wait_for_xpath(
+        "//*[@data-testid='assignmentCommentInput']/div/textarea"
+    )
     comment_text = str(uuid.uuid4())
     comment_box.send_keys(comment_text)
+    driver.click_xpath('//*[@data-testid="assignmentSubmitButton"]')
 
-    submit_button = driver.wait_for_xpath('//*[@data-testid="assignmentSubmitButton"]')
-
-    driver.scroll_to_element_and_click(submit_button)
     driver.get(f"/run/{red_transients_run.id}")
-
     # 20 second timeout to give the backend time to perform ephemeris calcs
     driver.wait_for_xpath(f'//*[text()="{public_source.id}"]', timeout=20)
     driver.wait_for_xpath(f'//*[text()="{comment_text}"]')
