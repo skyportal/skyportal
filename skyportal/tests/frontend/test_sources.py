@@ -440,17 +440,10 @@ def test_centroid_plot(
 def test_dropdown_facility_change(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//span[text()="Show Starlist"]')
-    )
+    driver.click_xpath('//*[text()="Show Starlist"]')
     driver.wait_for_xpath("//code/div/pre[text()[contains(., 'raoffset')]]", timeout=45)
-
-    xpath = '//*[@id="mui-component-select-StarListSelectElement"]'
-    element = driver.wait_for_xpath(xpath)
-    ActionChains(driver).move_to_element(element).click_and_hold().perform()
-    xpath = '//li[@data-value="P200"]'
-    element = driver.wait_for_xpath(xpath)
-    ActionChains(driver).move_to_element(element).click_and_hold().perform()
+    driver.click_xpath('//*[@id="mui-component-select-StarListSelectElement"]')
+    driver.click_xpath('//li[@data-value="P200"]')
     driver.wait_for_xpath("//code/div/pre[text()[contains(., 'dist')]]", timeout=45)
 
 
