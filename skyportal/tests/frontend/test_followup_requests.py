@@ -97,7 +97,7 @@ def add_allocation_lt(instrument_id, group_id, token):
             "instrument_id": instrument_id,
             "hours_allocated": 100,
             "pi": "Ed Hubble",
-            "altdata": '{"username": "fritz_bot", "password": "fX5uxZTDy3", "LT_proposalID": "GrowthTest"}',
+            "_altdata": '{"username": "fritz_bot", "password": "fX5uxZTDy3", "LT_proposalID": "GrowthTest"}',
         },
         token=token,
     )
@@ -194,13 +194,16 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
     driver.click_xpath(submit_button_xpath)
 
     driver.wait_for_xpath(
-        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]'
+        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]',
+        timeout=20,
     )
     driver.wait_for_xpath(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "blue")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "blue")]''',
+        timeout=20,
     )
     driver.wait_for_xpath(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]''',
+        timeout=20,
     )
 
 
@@ -241,13 +244,16 @@ def add_followup_request_using_frontend_and_verify_IOI(
     driver.click_xpath(submit_button_xpath)
 
     driver.wait_for_xpath(
-        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]'
+        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]',
+        timeout=20,
     )
     driver.wait_for_xpath(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "H")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "H")]''',
+        timeout=20,
     )
     driver.wait_for_xpath(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]''',
+        timeout=20,
     )
 
 
@@ -293,13 +299,16 @@ def add_followup_request_using_frontend_and_verify_IOO(
     driver.click_xpath(submit_button_xpath)
 
     driver.wait_for_xpath(
-        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]'
+        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]',
+        timeout=20,
     )
     driver.wait_for_xpath(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "u,z")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "u,z")]''',
+        timeout=20,
     )
     driver.wait_for_xpath(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]''',
+        timeout=20,
     )
 
 

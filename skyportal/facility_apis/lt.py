@@ -66,7 +66,7 @@ class LTRequest:
             payload header for request.
         """
 
-        altdata = request.allocation.load_altdata()
+        altdata = request.allocation.altdata
 
         project = etree.Element('Project', ProjectID=altdata["LT_proposalID"])
         contact = etree.SubElement(project, 'Contact')
@@ -326,7 +326,7 @@ class LTAPI(FollowUpAPI):
             .one()
         )
 
-        altdata = request.allocation.load_altdata()
+        altdata = request.allocation.altdata
         if not altdata:
             raise ValueError('Missing allocation information.')
 
@@ -399,7 +399,7 @@ class IOOAPI(LTAPI):
 
         from ..models import DBSession, FacilityTransaction
 
-        altdata = request.allocation.load_altdata()
+        altdata = request.allocation.altdata
         if not altdata:
             raise ValueError('Missing allocation information.')
         ltreq = IOOIOIRequest()
@@ -536,7 +536,7 @@ class IOIAPI(LTAPI):
 
         from ..models import DBSession, FacilityTransaction
 
-        altdata = request.allocation.load_altdata()
+        altdata = request.allocation.altdata
         if not altdata:
             raise ValueError('Missing allocation information.')
 
@@ -674,7 +674,7 @@ class SPRATAPI(LTAPI):
 
         from ..models import DBSession, FacilityTransaction
 
-        altdata = request.allocation.load_altdata()
+        altdata = request.allocation.altdata
         if not altdata:
             raise ValueError('Missing allocation information.')
 

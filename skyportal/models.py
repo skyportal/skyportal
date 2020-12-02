@@ -1644,15 +1644,20 @@ class Allocation(Base):
         doc="The Instrument the allocation is associated with.",
     )
 
-    altdata = sa.Column(
+    _altdata = sa.Column(
         EncryptedType(JSONType, cfg['app.secret_key'], AesEngine, 'pkcs5')
     )
 
-    def load_altdata(self):
-        if self.altdata is None:
+    @property
+    def altdata(self):
+        if self._altdata is None:
             return {}
         else:
-            return json.loads(self.altdata)
+            return json.loads(self._altdata)
+
+    @altdata.setter
+    def altdata(self, value):
+        self._altdata = value
 
 
 class Taxonomy(Base):
