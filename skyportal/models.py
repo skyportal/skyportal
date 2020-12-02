@@ -160,6 +160,70 @@ Base.get_if_readable_by = classmethod(get_if_readable_by)
 Base.get_if_modifiable_by = classmethod(get_if_modifiable_by)
 
 
+def user_accessible_groups_temporary_table():
+    """This method creates a temporary table that maps user_ids to their
+    accessible group_ids. For normal users, accessible groups are identical
+    to what is in the group_users table. For users with the "System admin" ACL,
+    all groups are accessible.
+
+    The temporary table lives for the duration of the current database
+    transaction and is visible only to the transaction it was created
+    within. The temporary table maintains a forward and reverse index
+    for fast joins on accessible groups.
+
+    This function can be called many times within a transaction. It will only
+    create the table once per transaction and subsequent calls will always
+    return a reference to the table created on the first call, with the same
+    underlying data.
+
+    Returns
+    -------
+    table: `sqlalchemy.Table`
+        The forward- and reverse-indexed `user_accessible_groups` temporary
+        table for the current database transaction.
+    """
+
+    sql = """
+CREATE TEMP TABLE IF NOT EXISTS user_accessible_groups ON COMMIT DROP
+AS
+  (SELECT user_id,
+          group_id
+   FROM group_users
+   UNION SELECT sq.user_id,
+                sq.group_id
+   FROM
+     (SELECT uacl.user_id AS user_id,
+             g.id AS group_id
+      FROM
+        (SELECT u.id AS user_id,
+                ra.acl_id AS acl_id
+         FROM users u
+         JOIN user_roles ur ON u.id = ur.user_id
+         JOIN role_acls ra ON ur.role_id = ra.role_id
+         UNION SELECT ua.user_id,
+                      ua.acl_id
+         FROM user_acls ua) uacl
+      JOIN groups g ON uacl.acl_id = 'System admin') sq);"""
+    DBSession().execute(sql)
+    DBSession().execute(
+        'CREATE INDEX IF NOT EXISTS user_accessible_groups_forward_index '
+        'ON user_accessible_groups (user_id, group_id)'
+    )
+    DBSession().execute(
+        'CREATE INDEX IF NOT EXISTS user_accessible_groups_reverse_index '
+        'ON user_accessible_groups (group_id, user_id)'
+    )
+
+    t = sa.Table(
+        'user_accessible_groups',
+        Base.metadata,
+        sa.Column('user_id', sa.Integer, primary_key=True),
+        sa.Column('group_id', sa.Integer, primary_key=True),
+        extend_existing=True,
+    )
+    return t
+
+
 class NumpyArray(sa.types.TypeDecorator):
     """SQLAlchemy representation of a NumPy array."""
 
