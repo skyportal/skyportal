@@ -19,7 +19,7 @@ from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
 from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy import func
 
@@ -103,28 +103,18 @@ def user_to_dict(self):
 User.to_dict = user_to_dict
 
 
+@hybrid_method
 def is_readable_by(self, user_or_token):
     """Generic ownership logic for any `skyportal` ORM model.
 
     Models with complicated ownership logic should implement their own method
     instead of adding too many additional conditions here.
     """
-    if hasattr(self, 'tokens'):
-        return user_or_token in self.tokens
-    if hasattr(self, 'groups'):
-        return bool(set(self.groups) & set(user_or_token.accessible_groups))
-    if hasattr(self, 'group'):
-        return self.group in user_or_token.accessible_groups
-    if hasattr(self, 'users'):
-        if hasattr(user_or_token, 'created_by'):
-            if user_or_token.created_by in self.users:
-                return True
-        return user_or_token in self.users
-
-    raise NotImplementedError(f"{type(self).__name__} object has no owner")
+    return True
 
 
-def is_modifiable_by(self, user):
+@hybrid_method
+def is_modifiable_by(self, user_or_token):
     """Return a boolean indicating whether an object point can be modified or
     deleted by a given user.
 
@@ -145,13 +135,29 @@ def is_modifiable_by(self, user):
             f'and thus does not expose the interface that is needed '
             f'to check for modification or deletion privileges.'
         )
+    return False
 
-    is_admin = "System admin" in user.permissions
-    owns_spectrum = self.owner is user
-    return is_admin or owns_spectrum
+
+def get_if_readable_by(cls, cls_id, user_or_token):
+    instance = cls.query.get(cls_id)
+    if instance is not None:
+        if not instance.is_readable_by(user_or_token):
+            raise AccessError('Invalid permissions.')
+    return instance
+
+
+def get_if_modifiable_by(cls, cls_id, user_or_token):
+    instance = cls.query.get(cls_id)
+    if instance is not None:
+        if not instance.is_modifiable_by(user_or_token):
+            raise AccessError('Invalid permissions.')
+    return instance
 
 
 Base.is_readable_by = is_readable_by
+Base.is_modifiable_by = is_modifiable_by
+Base.get_if_readable_by = classmethod(get_if_readable_by)
+Base.get_if_modifiable_by = classmethod(get_if_modifiable_by)
 
 
 class NumpyArray(sa.types.TypeDecorator):
