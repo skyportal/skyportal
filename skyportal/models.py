@@ -73,6 +73,114 @@ _, cfg = load_env()
 cosmo = establish_cosmology(cfg)
 
 
+def user_acls_temporary_table():
+    """This method creates a temporary table that maps user_ids to their
+    acl_ids (from roles and individual ACL grants).
+
+    The temporary table lives for the duration of the current database
+    transaction and is visible only to the transaction it was created
+    within. The temporary table maintains a forward and reverse index
+    for fast joins on accessible groups.
+
+    This function can be called many times within a transaction. It will only
+    create the table once per transaction and subsequent calls will always
+    return a reference to the table created on the first call, with the same
+    underlying data.
+
+    Returns
+    -------
+    table: `sqlalchemy.Table`
+        The forward- and reverse-indexed `merged_user_acls` temporary
+        table for the current database transaction.
+    """
+    sql = """CREATE TEMP TABLE IF NOT EXISTS merged_user_acls ON COMMIT DROP
+AS (SELECT u.id AS user_id,
+                ra.acl_id AS acl_id
+         FROM users u
+         JOIN user_roles ur ON u.id = ur.user_id
+         JOIN role_acls ra ON ur.role_id = ra.role_id
+         UNION SELECT ua.user_id,
+                      ua.acl_id
+         FROM user_acls ua);"""
+    DBSession().execute(sql)
+    DBSession().execute(
+        'CREATE INDEX IF NOT EXISTS merged_user_acls_forward_index '
+        'ON merged_user_acls (user_id, acl_id)'
+    )
+    DBSession().execute(
+        'CREATE INDEX IF NOT EXISTS merged_user_acls_reverse_index '
+        'ON merged_user_acls (acl_id, user_id)'
+    )
+
+    t = sa.Table(
+        'merged_user_acls',
+        Base.metadata,
+        sa.Column('user_id', sa.Integer, primary_key=True),
+        sa.Column('acl_id', sa.Integer, primary_key=True),
+        extend_existing=True,
+    )
+    return t
+
+
+def user_accessible_groups_temporary_table():
+    """This method creates a temporary table that maps user_ids to their
+    accessible group_ids. For normal users, accessible groups are identical
+    to what is in the group_users table. For users with the "System admin" ACL,
+    all groups are accessible.
+
+    The temporary table lives for the duration of the current database
+    transaction and is visible only to the transaction it was created
+    within. The temporary table maintains a forward and reverse index
+    for fast joins on accessible groups.
+
+    This function can be called many times within a transaction. It will only
+    create the table once per transaction and subsequent calls will always
+    return a reference to the table created on the first call, with the same
+    underlying data.
+
+    Returns
+    -------
+    table: `sqlalchemy.Table`
+        The forward- and reverse-indexed `user_accessible_groups` temporary
+        table for the current database transaction.
+    """
+
+    user_acls = user_acls_temporary_table()
+
+    sql = f"""
+CREATE TEMP TABLE IF NOT EXISTS user_accessible_groups ON COMMIT DROP
+AS
+  (SELECT user_id,
+          group_id
+   FROM group_users
+   UNION SELECT sq.user_id,
+                sq.group_id
+   FROM
+     (SELECT uacl.user_id AS user_id,
+             g.id AS group_id
+      FROM
+        {user_acls.__tablename__} uacl
+      JOIN groups g ON uacl.acl_id = 'System admin') sq);"""
+    DBSession().execute(sql)
+    DBSession().execute(
+        'CREATE INDEX IF NOT EXISTS user_accessible_groups_forward_index '
+        'ON user_accessible_groups (user_id, group_id)'
+    )
+    DBSession().execute(
+        'CREATE INDEX IF NOT EXISTS user_accessible_groups_reverse_index '
+        'ON user_accessible_groups (group_id, user_id)'
+    )
+
+    t = sa.Table(
+        'user_accessible_groups',
+        Base.metadata,
+        sa.Column('user_id', sa.Integer, primary_key=True),
+        sa.Column('group_id', sa.Integer, primary_key=True),
+        extend_existing=True,
+    )
+    return t
+
+
 def get_app_base_url():
     ports_to_ignore = {True: 443, False: 80}  # True/False <-> server.ssl=True/False
     return f"{'https' if cfg['server.ssl'] else 'http'}:" f"//{cfg['server.host']}" + (
@@ -103,14 +211,29 @@ def user_to_dict(self):
 User.to_dict = user_to_dict
 
 
-@hybrid_method
 def is_readable_by(self, user_or_token):
+    cls = type(self)
+    return (
+        DBSession()
+        .query(cls.is_readable_by(user_or_token))
+        .filter(cls.id == self.id)
+        .scalar()
+    )
+
+
+Base.is_readable_by = hybrid_property(is_readable_by)
+
+
+def is_readable_by(cls, user_or_token):
     """Generic ownership logic for any `skyportal` ORM model.
 
     Models with complicated ownership logic should implement their own method
     instead of adding too many additional conditions here.
     """
     return True
+
+
+Base.is_readable_by.expression = is_readable_by
 
 
 @hybrid_method
@@ -125,17 +248,75 @@ def is_modifiable_by(self, user_or_token):
 
     Returns
     -------
-    readable: bool
+    modifiable: bool
        Whether the Object can be modified by the User.
     """
 
-    if not hasattr(self, 'owner'):
+    cls = type(self)
+    return (
+        DBSession()
+        .query(cls.is_modifiable_by(user_or_token))
+        .filter(cls.id == self.id)
+        .scalar()
+    )
+
+
+@is_modifiable_by.expression
+def is_modifiable_by(cls, user_or_token):
+
+    if not hasattr(cls, 'owner'):
         raise TypeError(
-            f'Object {self} does not have an `owner` attribute, '
+            f'{cls} does not have an `owner` attribute, '
             f'and thus does not expose the interface that is needed '
             f'to check for modification or deletion privileges.'
         )
-    return False
+
+    if user_or_token is Token or isinstance(user_or_token, Token):
+        modifiable_target = user_or_token.created_by
+    else:
+        modifiable_target = user_or_token
+
+    cls_alias = sa.alias(cls)
+    cls_alias_1 = sa.alias(cls)
+    user_alias = sa.alias(User)
+    user_acls = user_acls_temporary_table()
+
+    modifiable_by_virtue_of_owner = (
+        sa.select([cls_alias_1.c.id.label('cls_id'), user_acls.c.id.label('user_id')])
+        .select_from(
+            sa.join(
+                cls_alias_1, user_acls, cls_alias_1.c.owner_id == user_acls.c.user_id
+            )
+        )
+        .where(cls_alias_1.c.id == cls_alias.c.id)
+        .where(user_acls.c.user_id == user_alias.c.id)
+    )
+
+    modifiable_by_virtue_of_acl = (
+        sa.select([cls_alias_1.id, user_acls.user_id])
+        .select_from(
+            sa.join(cls_alias, user_acls, user_acls.c.acl_id == 'System admin')
+        )
+        .where(cls_alias_1.c.id == cls_alias.c.id)
+        .where(user_acls.c.user_id == user_alias.c.id)
+    )
+
+    lateral = sa.union(
+        modifiable_by_virtue_of_owner, modifiable_by_virtue_of_acl
+    ).lateral()
+
+    return (
+        sa.select([lateral.c.cls_id.isnot(None)])
+        .select_from(
+            sa.join(cls_alias, user_alias, sa.literal(True)).outerjoin(
+                lateral, cls_alias.c.id == lateral.c.obj_id
+            )
+        )
+        .where(cls_alias.c.id == cls.id)
+        .where(user_alias.c.id == modifiable_target)
+        .label('modifiable')
+        .is_(True)
+    )
 
 
 def get_if_readable_by(cls, cls_id, user_or_token):
@@ -158,70 +339,6 @@ Base.is_readable_by = is_readable_by
 Base.is_modifiable_by = is_modifiable_by
 Base.get_if_readable_by = classmethod(get_if_readable_by)
 Base.get_if_modifiable_by = classmethod(get_if_modifiable_by)
-
-
-def user_accessible_groups_temporary_table():
-    """This method creates a temporary table that maps user_ids to their
-    accessible group_ids. For normal users, accessible groups are identical
-    to what is in the group_users table. For users with the "System admin" ACL,
-    all groups are accessible.
-
-    The temporary table lives for the duration of the current database
-    transaction and is visible only to the transaction it was created
-    within. The temporary table maintains a forward and reverse index
-    for fast joins on accessible groups.
-
-    This function can be called many times within a transaction. It will only
-    create the table once per transaction and subsequent calls will always
-    return a reference to the table created on the first call, with the same
-    underlying data.
-
-    Returns
-    -------
-    table: `sqlalchemy.Table`
-        The forward- and reverse-indexed `user_accessible_groups` temporary
-        table for the current database transaction.
-    """
-
-    sql = """
-CREATE TEMP TABLE IF NOT EXISTS user_accessible_groups ON COMMIT DROP
-AS
-  (SELECT user_id,
-          group_id
-   FROM group_users
-   UNION SELECT sq.user_id,
-                sq.group_id
-   FROM
-     (SELECT uacl.user_id AS user_id,
-             g.id AS group_id
-      FROM
-        (SELECT u.id AS user_id,
-                ra.acl_id AS acl_id
-         FROM users u
-         JOIN user_roles ur ON u.id = ur.user_id
-         JOIN role_acls ra ON ur.role_id = ra.role_id
-         UNION SELECT ua.user_id,
-                      ua.acl_id
-         FROM user_acls ua) uacl
-      JOIN groups g ON uacl.acl_id = 'System admin') sq);"""
-    DBSession().execute(sql)
-    DBSession().execute(
-        'CREATE INDEX IF NOT EXISTS user_accessible_groups_forward_index '
-        'ON user_accessible_groups (user_id, group_id)'
-    )
-    DBSession().execute(
-        'CREATE INDEX IF NOT EXISTS user_accessible_groups_reverse_index '
-        'ON user_accessible_groups (group_id, user_id)'
-    )
-
-    t = sa.Table(
-        'user_accessible_groups',
-        Base.metadata,
-        sa.Column('user_id', sa.Integer, primary_key=True),
-        sa.Column('group_id', sa.Integer, primary_key=True),
-        extend_existing=True,
-    )
-    return t
 
 
 class NumpyArray(sa.types.TypeDecorator):
