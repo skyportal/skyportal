@@ -220,10 +220,3 @@ def test_add_run_to_observing_run_page(
         f'''//*[text()='2021-02-02 {lris.name}/{lris.telescope.nickname} (PI: {pi_name} / Group: {public_group.name})']''',
         timeout=15,
     )
-
-
-@pytest.mark.flaky(reruns=2)
-def test_problematic_assignment_44(driver, super_admin_user, problematic_assignment):
-    test_source_is_added_to_observing_run_via_frontend(
-        driver, super_admin_user, problematic_assignment.obj, problematic_assignment.run
-    )
