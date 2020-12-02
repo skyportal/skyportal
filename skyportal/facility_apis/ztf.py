@@ -2,6 +2,7 @@ import requests
 from datetime import datetime, timedelta
 from astropy.time import Time
 import urllib
+from sshtunnel import SSHTunnelForwarder
 
 from . import FollowUpAPI
 from baselayer.app.env import load_env
@@ -11,26 +12,36 @@ from ..utils import http
 env, cfg = load_env()
 
 
-ZTF_URL = 'http://localhost:9999'
+ZTF_URL = 'http://localhost:8000'
 """URL for the P48 scheduler."""
+
+
+server = SSHTunnelForwarder(
+    'schoty.caltech.edu',
+    ssh_username=cfg["ztf_username"],
+    ssh_password=cfg["ztf_password"],
+    remote_bind_address=('127.0.0.1', 5000),
+    local_bind_address=('localhost', 8000),
+)
 
 
 def ztf_queue():
 
-    r = requests.get(urllib.parse.urljoin(ZTF_URL, 'queues'), json={})
+    server.start()
+    r = requests.get(urllib.parse.urljoin(ZTF_URL, 'api/queues'), json={})
+    server.stop()
     data_all = r.json()
-    queue_names_list = []
-    for data in data_all:
-        queue_names_list.append(data['queue_name'])
 
-    return queue_names_list
+    return data_all
 
 
 def ztf_delete_queue(queue_name):
 
+    server.start()
     r = requests.delete(
-        urllib.parse.urljoin(ZTF_URL, 'queues'), json={'queue_name': queue_name}
+        urllib.parse.urljoin(ZTF_URL, 'api/queues'), json={'queue_name': queue_name}
     )
+    server.stop()
 
     r.raise_for_status()
 
@@ -129,9 +140,11 @@ class ZTFAPI(FollowUpAPI):
 
         queue_name = "ToO_" + request.payload["queue_name"]
 
+        server.start()
         r = requests.delete(
-            urllib.parse.urljoin(ZTF_URL, 'queues'), json={'queue_name': queue_name}
+            urllib.parse.urljoin(ZTF_URL, 'api/queues'), json={'queue_name': queue_name}
         )
+        server.stop()
 
         r.raise_for_status()
         request.status = "deleted"
@@ -162,8 +175,9 @@ class ZTFAPI(FollowUpAPI):
         req = ZTFRequest()
         requestgroup = req._build_payload(request)
 
+        server.start()
         r = requests.put(
-            urllib.parse.urljoin(ZTF_URL, 'queues'),
+            urllib.parse.urljoin(ZTF_URL, 'api/queues'),
             json={
                 'targets': requestgroup["targets"],
                 'queue_name': requestgroup["queue_name"],
@@ -171,6 +185,7 @@ class ZTFAPI(FollowUpAPI):
                 'queue_type': 'list',
             },
         )
+        server.stop()
 
         r.raise_for_status()
 
@@ -217,8 +232,8 @@ class ZTFAPI(FollowUpAPI):
             "queue_name": {"type": "string", "default": datetime.utcnow()},
             "existing_queue": {
                 "type": "string",
-                "enum": ztf_queue(),
-                "default": ztf_queue()[0],
+                "enum": ["temp1", "temp2"],
+                "default": "temp1",
             },
         },
         "required": [
