@@ -572,9 +572,9 @@ def test_show_photometry_table(public_source, driver, user):
     driver.get(f"/source/{public_source.id}")
 
     # wait for the plots to load
-    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
+    driver.wait_for_xpath('//span[contains(text(), "band")]', 20)
     # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
+    driver.wait_for_xpath('//span[text()="Mg"]')
 
     driver.click_xpath('//*[@data-testid="show-photometry-table-button"]')
     driver.wait_for_xpath(f'//*[contains(text(), "Photometry of {public_source.id}")]')
