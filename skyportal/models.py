@@ -16,7 +16,7 @@ import sqlalchemy as sa
 from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.orm import relationship, joinedload
+from sqlalchemy.orm import relationship
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
@@ -93,15 +93,13 @@ def user_acls_temporary_table():
         The forward- and reverse-indexed `merged_user_acls` temporary
         table for the current database transaction.
     """
-    sql = """CREATE TEMP TABLE IF NOT EXISTS merged_user_acls ON COMMIT DROP
-AS (SELECT u.id AS user_id,
-                ra.acl_id AS acl_id
+    sql = """CREATE TEMP TABLE IF NOT EXISTS merged_user_acls ON COMMIT DROP AS
+    (SELECT u.id AS user_id, ra.acl_id AS acl_id
          FROM users u
          JOIN user_roles ur ON u.id = ur.user_id
          JOIN role_acls ra ON ur.role_id = ra.role_id
-         UNION SELECT ua.user_id,
-                      ua.acl_id
-         FROM user_acls ua);"""
+         UNION
+     SELECT ua.user_id, ua.acl_id FROM user_acls ua)"""
     DBSession().execute(sql)
     DBSession().execute(
         'CREATE INDEX IF NOT EXISTS merged_user_acls_forward_index '
@@ -211,134 +209,204 @@ def user_to_dict(self):
 User.to_dict = user_to_dict
 
 
-def is_readable_by(self, user_or_token):
-    cls = type(self)
-    return (
-        DBSession()
-        .query(cls.is_readable_by(user_or_token))
-        .filter(cls.id == self.id)
-        .scalar()
-    )
-
-
-Base.is_readable_by = hybrid_property(is_readable_by)
-
-
-def is_readable_by(cls, user_or_token):
-    """Generic ownership logic for any `skyportal` ORM model.
-
-    Models with complicated ownership logic should implement their own method
-    instead of adding too many additional conditions here.
-    """
-    return True
-
-
-Base.is_readable_by.expression = is_readable_by
-
-
-@hybrid_method
-def is_modifiable_by(self, user_or_token):
-    """Return a boolean indicating whether an object point can be modified or
-    deleted by a given user.
-
-    Parameters
-    ----------
-    user: `baselayer.app.models.User`
-       The User to check.
-
-    Returns
-    -------
-    modifiable: bool
-       Whether the Object can be modified by the User.
-    """
-
-    cls = type(self)
-    return (
-        DBSession()
-        .query(cls.is_modifiable_by(user_or_token))
-        .filter(cls.id == self.id)
-        .scalar()
-    )
-
-
-@is_modifiable_by.expression
-def is_modifiable_by(cls, user_or_token):
-
-    if not hasattr(cls, 'owner'):
-        raise TypeError(
-            f'{cls} does not have an `owner` attribute, '
-            f'and thus does not expose the interface that is needed '
-            f'to check for modification or deletion privileges.'
+class ReadProtected:
+    @hybrid_method
+    def is_readable_by(self, user_or_token):
+        cls = type(self)
+        return (
+            DBSession()
+            .query(cls.is_readable_by(user_or_token))
+            .filter(cls.id == self.id)
+            .scalar()
         )
 
-    if user_or_token is Token or isinstance(user_or_token, Token):
-        modifiable_target = user_or_token.created_by
-    else:
-        modifiable_target = user_or_token
+    @is_readable_by.expression
+    def is_readable_by(cls, user_or_token):
+        """Generic ownership logic for any `skyportal` ORM model.
 
-    cls_alias = sa.alias(cls)
-    cls_alias_1 = sa.alias(cls)
-    user_alias = sa.alias(User)
-    user_acls = user_acls_temporary_table()
+        Models with complicated ownership logic should implement their own method
+        instead of adding too many additional conditions here.
+        """
+        return sa.literal(True)
 
-    modifiable_by_virtue_of_owner = (
-        sa.select([cls_alias_1.c.id.label('cls_id'), user_acls.c.id.label('user_id')])
-        .select_from(
-            sa.join(
-                cls_alias_1, user_acls, cls_alias_1.c.owner_id == user_acls.c.user_id
+    @classmethod
+    def get_if_readable_by(cls, cls_id, user_or_token, options=[]):
+        instance = cls.query.options(options).get(cls_id)
+        if instance is not None:
+            if not instance.is_readable_by(user_or_token):
+                raise AccessError('Invalid permissions.')
+        return instance
+
+
+class ReadableByGroupMembers(ReadProtected):
+    @hybrid_method
+    def is_readable_by(self, user_or_token):
+        # need to explicitly override this so that
+        # we have a reference for the sql version below
+        return super().is_readable_by(user_or_token)
+
+    @is_readable_by.expression
+    def is_readable_by(cls, user_or_token):
+
+        if not hasattr(cls, 'groups'):
+            raise TypeError(
+                f'{cls} does not have a `groups` attribute, '
+                f'and thus does not expose the interface that is needed '
+                f'to check for group readability.'
             )
-        )
-        .where(cls_alias_1.c.id == cls_alias.c.id)
-        .where(user_acls.c.user_id == user_alias.c.id)
-    )
 
-    modifiable_by_virtue_of_acl = (
-        sa.select([cls_alias_1.id, user_acls.user_id])
-        .select_from(
-            sa.join(cls_alias, user_acls, user_acls.c.acl_id == 'System admin')
-        )
-        .where(cls_alias_1.c.id == cls_alias.c.id)
-        .where(user_acls.c.user_id == user_alias.c.id)
-    )
+        if user_or_token is Token or isinstance(user_or_token, Token):
+            readable_target = user_or_token.created_by
+        else:
+            readable_target = user_or_token
 
-    lateral = sa.union(
-        modifiable_by_virtue_of_owner, modifiable_by_virtue_of_acl
-    ).lateral()
+        cls_alias = sa.alias(cls)
+        cls_alias_1 = sa.alias(cls)
+        cls_groups_join_table = sa.inspect(cls).relationships['groups'].secondary
+        user_alias = sa.alias(User)
+        user_accessible_groups = user_accessible_groups_temporary_table()
 
-    return (
-        sa.select([lateral.c.cls_id.isnot(None)])
-        .select_from(
-            sa.join(cls_alias, user_alias, sa.literal(True)).outerjoin(
-                lateral, cls_alias.c.id == lateral.c.obj_id
+        readable_by_virtue_of_groups = (
+            sa.select(
+                [
+                    cls_alias_1.c.id.label('cls_id'),
+                    user_accessible_groups.c.id.label('user_id'),
+                ]
             )
+            .select_from(
+                sa.join(
+                    cls_alias_1,
+                    cls_groups_join_table,
+                    # automatically detects foreign key
+                ).join(
+                    user_accessible_groups,
+                    cls_groups_join_table.c.group_id
+                    == user_accessible_groups.c.group_id,
+                )
+            )
+            .where(cls_alias_1.c.id == cls_alias.c.id)
+            .where(user_accessible_groups.c.user_id == user_alias.c.id)
         )
-        .where(cls_alias.c.id == cls.id)
-        .where(user_alias.c.id == modifiable_target)
-        .label('modifiable')
-        .is_(True)
-    )
+
+        lateral = sa.distinct(readable_by_virtue_of_groups).lateral()
+
+        return (
+            sa.select([lateral.c.cls_id.isnot(None)])
+            .select_from(
+                sa.join(cls_alias, user_alias, sa.literal(True)).outerjoin(
+                    lateral, cls_alias.c.id == lateral.c.obj_id
+                )
+            )
+            .where(cls_alias.c.id == cls.id)
+            .where(user_alias.c.id == readable_target)
+            .label('readable')
+            .is_(True)
+        )
 
 
-def get_if_readable_by(cls, cls_id, user_or_token):
-    instance = cls.query.get(cls_id)
-    if instance is not None:
-        if not instance.is_readable_by(user_or_token):
-            raise AccessError('Invalid permissions.')
-    return instance
+class WriteProtected:
+    @hybrid_method
+    def is_modifiable_by(self, user_or_token):
+        """Return a boolean indicating whether an object point can be modified or
+        deleted by a given user.
+
+        Parameters
+        ----------
+        user: `baselayer.app.models.User`
+           The User to check.
+
+        Returns
+        -------
+        modifiable: bool
+           Whether the Object can be modified by the User.
+        """
+
+        cls = type(self)
+        return (
+            DBSession()
+            .query(cls.is_modifiable_by(user_or_token))
+            .filter(cls.id == self.id)
+            .scalar()
+        )
+
+    @is_modifiable_by.expression
+    def is_modifiable_by(cls, user_or_token):
+        return sa.literal(True)
+
+    @classmethod
+    def get_if_modifiable_by(cls, cls_id, user_or_token, options=[]):
+        instance = cls.query.options(options).get(cls_id)
+        if instance is not None:
+            if not instance.is_modifiable_by(user_or_token):
+                raise AccessError('Invalid permissions.')
+        return instance
 
 
-def get_if_modifiable_by(cls, cls_id, user_or_token):
-    instance = cls.query.get(cls_id)
-    if instance is not None:
-        if not instance.is_modifiable_by(user_or_token):
-            raise AccessError('Invalid permissions.')
-    return instance
+class ModifiableByOwner(WriteProtected):
+    @hybrid_method
+    def is_modifiable_by(self, user_or_token):
+        return super().is_modifiable_by(user_or_token)
 
+    @is_modifiable_by.expression
+    def is_modifiable_by(cls, user_or_token):
+        if not hasattr(cls, 'owner'):
+            raise TypeError(
+                f'{cls} does not have an `owner` attribute, '
+                f'and thus does not expose the interface that is needed '
+                f'to check for modification or deletion privileges.'
+            )
 
-Base.is_readable_by = is_readable_by
-Base.is_modifiable_by = is_modifiable_by
-Base.get_if_readable_by = classmethod(get_if_readable_by)
-Base.get_if_modifiable_by = classmethod(get_if_modifiable_by)
+        if user_or_token is Token or isinstance(user_or_token, Token):
+            modifiable_target = user_or_token.created_by
+        else:
+            modifiable_target = user_or_token
+
+        cls_alias = sa.alias(cls)
+        cls_alias_1 = sa.alias(cls)
+        user_alias = sa.alias(User)
+        user_alias_1 = sa.alias(User)
+        user_acls = user_acls_temporary_table()
+
+        modifiable_by_virtue_of_owner = (
+            sa.select(
+                [cls_alias_1.c.id.label('cls_id'), user_alias_1.c.id.label('user_id')]
+            )
+            .select_from(
+                sa.join(
+                    cls_alias_1,
+                    user_alias_1,
+                    cls_alias_1.c.owner_id == user_alias_1.c.user_id,
+                )
+            )
+            .where(cls_alias_1.c.id == cls_alias.c.id)
+            .where(user_alias_1.c.user_id == user_alias.c.id)
+        )
+
+        modifiable_by_virtue_of_acl = (
+            sa.select([cls_alias_1.id, user_acls.c.user_id])
+            .select_from(
+                sa.join(cls_alias, user_acls, user_acls.c.acl_id == 'System admin')
+            )
+            .where(cls_alias_1.c.id == cls_alias.c.id)
+            .where(user_acls.c.user_id == user_alias.c.id)
+        )
+
+        lateral = sa.union(
+            modifiable_by_virtue_of_owner, modifiable_by_virtue_of_acl
+        ).lateral()
+
+        return (
+            sa.select([lateral.c.cls_id.isnot(None)])
+            .select_from(
+                sa.join(cls_alias, user_alias, sa.literal(True)).outerjoin(
+                    lateral, cls_alias.c.id == lateral.c.obj_id
+                )
+            )
+            .where(cls_alias.c.id == cls.id)
+            .where(user_alias.c.id == modifiable_target)
+            .label('modifiable')
+            .is_(True)
+        )
 
 
 class NumpyArray(sa.types.TypeDecorator):
@@ -445,7 +513,8 @@ GroupUser.admin = sa.Column(
 
 
 class Stream(Base):
-    """A data stream producing alerts that can be programmatically filtered using a Filter."""
+    """A data stream producing alerts that can be programmatically filtered
+    using a Filter. """
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Stream name.")
     altdata = sa.Column(
@@ -549,11 +618,9 @@ def token_groups(self):
 Token.groups = token_groups
 
 
-class Obj(Base, ha.Point):
+class Obj(Base, ha.Point, ReadProtected):
     """A record of an astronomical Object and its metadata, such as position,
-    positional uncertainties, name, and redshift. Permissioning rules,
-    such as group ownership, user visibility, etc., are managed by other
-    entities, namely Source and Candidate."""
+    positional uncertainties, name, and redshift."""
 
     id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
     # TODO should this column type be decimal? fixed-precison numeric
@@ -918,6 +985,280 @@ class Obj(Base, ha.Point):
 
         return telescope.observer.altaz(time, self.target).alt
 
+    @hybrid_method
+    def has_candidate_readable_by(self, user_or_token):
+        cls = type(self)
+        return (
+            DBSession()
+            .query(cls.has_candidate_readable_by(user_or_token))
+            .filter(cls.id == self.id)
+            .scalar()
+        )
+
+    @has_candidate_readable_by.expression
+    def has_candidate_readable_by(cls, user_or_token):
+        """Return an Obj from the database if the Obj is a Candidate in at
+        least one of the requesting User or Token owner's accessible Groups.
+        If the Obj is not a Candidate in one of the User or Token owner's
+        accessible Groups, raise an AccessError. If the Obj does not exist,
+        return `None`.
+
+        Parameters
+        ----------
+        obj_id : integer or string
+           Primary key of the Obj.
+        user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+           The requesting `User` or `Token` object.
+
+        Returns
+        -------
+        obj : `skyportal.models.Obj`
+           The requested Obj.
+        """
+
+        if user_or_token is Token or isinstance(user_or_token, Token):
+            readable_target = user_or_token.created_by
+        else:
+            readable_target = user_or_token
+
+        cand_x_filt = sa.join(Candidate, Filter)
+        user_accessible_groups = user_accessible_groups_temporary_table()
+        cls_alias = sa.alias(cls)
+        user_alias = sa.alias(User)
+
+        candidate_hits = (
+            sa.select([Candidate.obj_id, user_accessible_groups.c.user_id])
+            .select_from(
+                sa.join(
+                    cand_x_filt,
+                    user_accessible_groups,
+                    Filter.group_id == user_accessible_groups.c.group_id,
+                )
+            )
+            .where(Candidate.obj_id == cls_alias.c.id)
+            .where(user_accessible_groups.c.user_id == user_alias.c.id)
+        )
+
+        lateral = sa.distinct(candidate_hits).lateral()
+
+        return (
+            sa.select([lateral.c.cls_id.isnot(None)])
+            .select_from(
+                sa.join(cls_alias, user_alias, sa.literal(True)).outerjoin(
+                    lateral, cls_alias.c.id == lateral.c.obj_id
+                )
+            )
+            .where(cls_alias.c.id == cls.id)
+            .where(user_alias.c.id == readable_target)
+            .label('has_candidate')
+            .is_(True)
+        )
+
+    @classmethod
+    def get_if_has_candidate_readable_by(cls, cls_id, user_or_token, options=[]):
+        instance = cls.query.options(options).get(cls_id)
+        if instance is not None:
+            if not instance.has_candidate_readable_by(user_or_token):
+                raise AccessError('Invalid permissions.')
+        return instance
+
+    @hybrid_method
+    def has_source_readable_by(self, user_or_token):
+        """Return a boolean indicating whether the Source has been saved to
+        any of a User or Token owner's accessible Groups.
+
+        Parameters
+        ----------
+        user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+           The requesting `User` or `Token` object.
+
+        Returns
+        -------
+        readable : bool
+           Whether the Candidate is readable by the User or Token owner.
+        """
+        cls = type(self)
+        return (
+            DBSession()
+            .query(cls.has_source_readable_by(user_or_token))
+            .filter(cls.id == self.id)
+            .scalar()
+        )
+
+    @has_source_readable_by.expression
+    def has_source_readable_by(cls, user_or_token):
+
+        if user_or_token is Token or isinstance(user_or_token, Token):
+            readable_target = user_or_token.created_by
+        else:
+            readable_target = user_or_token
+
+        user_accessible_groups = user_accessible_groups_temporary_table()
+        cls_alias = sa.alias(cls)
+        user_alias = sa.alias(User)
+
+        source_hits = (
+            sa.select([Source.obj_id, user_accessible_groups.c.user_id])
+            .select_from(
+                sa.join(
+                    Source,
+                    user_accessible_groups,
+                    Source.group_id == user_accessible_groups.c.group_id,
+                )
+            )
+            .where(Source.obj_id == cls_alias.c.id)
+            .where(user_accessible_groups.c.user_id == user_alias.c.id)
+        )
+
+        lateral = sa.distinct(source_hits).lateral()
+
+        return (
+            sa.select([lateral.c.cls_id.isnot(None)])
+            .select_from(
+                sa.join(cls_alias, user_alias, sa.literal(True)).outerjoin(
+                    lateral, cls_alias.c.id == lateral.c.obj_id
+                )
+            )
+            .where(cls_alias.c.id == cls.id)
+            .where(user_alias.c.id == readable_target)
+            .label('has_source')
+            .is_(True)
+        )
+
+    @classmethod
+    def get_if_has_source_readable_by(cls, cls_id, user_or_token, options=[]):
+        instance = cls.query.options(options).get(cls_id)
+        if instance is not None:
+            if not instance.has_source_readable_by(user_or_token):
+                raise AccessError('Invalid permissions.')
+        return instance
+
+    @hybrid_method
+    def is_readable_by(self, user_or_token):
+        # Need to explicitly overwrite this due to the
+        # linking of hybrid methods
+        return super().is_readable_by(user_or_token)
+
+    @is_readable_by.expression
+    def is_readable_by(cls, user_or_token):
+        cand_x_filt = sa.join(Candidate, Filter)
+        phot_x_groupphot = sa.join(Photometry, GroupPhotometry)
+
+        user_alias = sa.alias(User)
+        unified_group_users = user_accessible_groups_temporary_table()
+
+        alias = sa.alias(cls)
+        source_subq = (
+            sa.select([Source.obj_id, unified_group_users.c.user_id])
+            .select_from(
+                sa.join(
+                    Source,
+                    unified_group_users,
+                    Source.group_id == unified_group_users.c.group_id,
+                )
+            )
+            .where(Source.obj_id == alias.c.id)
+            .where(unified_group_users.c.user_id == user_alias.c.id)
+        )
+
+        cand_subq = (
+            sa.select([Candidate.obj_id, unified_group_users.c.user_id])
+            .select_from(
+                sa.join(
+                    cand_x_filt,
+                    unified_group_users,
+                    Filter.group_id == unified_group_users.c.group_id,
+                )
+            )
+            .where(Candidate.obj_id == alias.c.id)
+            .where(unified_group_users.c.user_id == user_alias.c.id)
+        )
+
+        phot_subq = (
+            sa.select(
+                [
+                    Photometry.obj_id.label('obj_id'),
+                    unified_group_users.c.user_id.label('user_id'),
+                ]
+            )
+            .select_from(
+                sa.join(
+                    phot_x_groupphot,
+                    unified_group_users,
+                    GroupPhotometry.group_id == unified_group_users.c.group_id,
+                )
+            )
+            .where(Photometry.obj_id == alias.c.id)
+            .where(unified_group_users.c.user_id == user_alias.c.id)
+        )
+
+        lateral = sa.union(phot_subq, source_subq, cand_subq).lateral()
+
+        if isinstance(user_or_token, Token) or user_or_token is Token:
+            user_target_id = user_or_token.created_by_id
+        else:
+            user_target_id = user_or_token.id
+
+        return (
+            sa.select([lateral.c.obj_id.isnot(None)])
+            .select_from(
+                sa.join(alias, user_alias, sa.literal(True)).outerjoin(
+                    lateral, alias.c.id == lateral.c.obj_id
+                )
+            )
+            .where(alias.c.id == cls.id)
+            .where(user_alias.c.id == user_target_id)
+            .label('ownership')
+            .is_(True)
+        )
+
+    def get_comments_readable_by(self, user_or_token):
+        return (
+            DBSession()
+            .query(Comment)
+            .filter(Comment.is_readable_by(user_or_token), Comment.obj_id == self.id)
+            .all()
+        )
+
+    def get_annotations_readable_by(self, user_or_token):
+        return (
+            DBSession()
+            .query(Annotation)
+            .filter(
+                Annotation.is_readable_by(user_or_token), Annotation.obj_id == self.id
+            )
+            .all()
+        )
+
+    def get_classifications_readable_by(self, user_or_token):
+        return (
+            DBSession()
+            .query(Classification)
+            .filter(
+                Classification.is_readable_by(user_or_token),
+                Classification.obj_id == self.id,
+            )
+            .all()
+        )
+
+    def get_photometry_readable_by(self, user_or_token):
+        return (
+            DBSession()
+            .query(Photometry)
+            .filter(
+                Photometry.is_readable_by(user_or_token), Photometry.obj_id == self.id
+            )
+            .all()
+        )
+
+    def get_spectra_readable_by(self, user_or_token):
+        return (
+            DBSession()
+            .query(Spectrum)
+            .filter(Spectrum.is_readable_by(user_or_token), Spectrum.obj_id == self.id)
+            .all()
+        )
+
 
 class Filter(Base):
     """An alert filter that operates on a Stream. A Filter is associated
@@ -958,7 +1299,7 @@ class Filter(Base):
     )
 
 
-class Candidate(Base):
+class Candidate(Base, ReadableByGroupMembers):
     "An Obj that passed a Filter, becoming scannable on the Filter's scanning page."
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
@@ -1014,68 +1355,7 @@ Candidate.__table_args__ = (
 )
 
 
-def get_candidate_if_readable_by(obj_id, user_or_token, options=[]):
-    """Return an Obj from the database if the Obj is a Candidate in at least
-    one of the requesting User or Token owner's accessible Groups. If the Obj is not a
-    Candidate in one of the User or Token owner's accessible Groups, raise an AccessError.
-    If the Obj does not exist, return `None`.
-
-    Parameters
-    ----------
-    obj_id : integer or string
-       Primary key of the Obj.
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-    options : list of `sqlalchemy.orm.MapperOption`s
-       Options that wil be passed to `options()` in the loader query.
-
-    Returns
-    -------
-    obj : `skyportal.models.Obj`
-       The requested Obj.
-    """
-
-    if Candidate.query.filter(Candidate.obj_id == obj_id).first() is None:
-        return None
-    user_group_ids = [g.id for g in user_or_token.accessible_groups]
-    c = (
-        Candidate.query.filter(Candidate.obj_id == obj_id)
-        .filter(
-            Candidate.filter_id.in_(
-                DBSession.query(Filter.id).filter(Filter.group_id.in_(user_group_ids))
-            )
-        )
-        .options(options)
-        .first()
-    )
-    if c is None:
-        raise AccessError("Insufficient permissions.")
-    return c.obj
-
-
-def candidate_is_readable_by(self, user_or_token):
-    """Return a boolean indicating whether the Candidate passed the Filter
-    of any of a User or Token owner's accessible Groups.
-
-
-    Parameters
-    ----------
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-
-    Returns
-    -------
-    readable : bool
-       Whether the Candidate is readable by the User or Token owner.
-    """
-    return self.filter.group in user_or_token.accessible_groups
-
-
-Candidate.get_obj_if_readable_by = get_candidate_if_readable_by
-Candidate.is_readable_by = candidate_is_readable_by
-
-
-Source = join_model("sources", Group, Obj)
+Source = join_model("sources", Group, Obj, mixins=(ReadableByGroupMembers,))
 Source.__doc__ = (
     "An Obj that has been saved to a Group. Once an Obj is saved as a Source, "
     "the Obj is shielded in perpetuity from automatic database removal. "
@@ -1139,269 +1419,6 @@ Obj.candidates = relationship(
     back_populates='obj',
     doc="Instances in which this Obj passed a group's filter.",
 )
-
-
-def source_is_readable_by(self, user_or_token):
-    """Return a boolean indicating whether the Source has been saved to
-    any of a User or Token owner's accessible Groups.
-
-    Parameters
-    ----------
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-
-    Returns
-    -------
-    readable : bool
-       Whether the Candidate is readable by the User or Token owner.
-    """
-
-    source_group_ids = [
-        row[0]
-        for row in DBSession.query(Source.group_id)
-        .filter(Source.obj_id == self.obj_id)
-        .all()
-    ]
-    return bool(set(source_group_ids) & {g.id for g in user_or_token.accessible_groups})
-
-
-def get_source_if_readable_by(obj_id, user_or_token, options=[]):
-    """Return an Obj from the database if the Obj is a Source in at least
-    one of the requesting User or Token owner's accessible Groups. If the Obj is not a
-    Source in one of the User or Token owner's accessible Groups, raise an AccessError.
-    If the Obj does not exist, return `None`.
-
-    Parameters
-    ----------
-    obj_id : integer or string
-       Primary key of the Obj.
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-    options : list of `sqlalchemy.orm.MapperOption`s
-       Options that wil be passed to `options()` in the loader query.
-
-    Returns
-    -------
-    obj : `skyportal.models.Obj`
-       The requested Obj.
-    """
-
-    if Source.query.filter(Source.obj_id == obj_id).first() is None:
-        return None
-    user_group_ids = [g.id for g in user_or_token.accessible_groups]
-    s = (
-        Source.query.filter(Source.obj_id == obj_id)
-        .filter(Source.group_id.in_(user_group_ids))
-        .options(options)
-        .first()
-    )
-    if s is None:
-        raise AccessError("Insufficient permissions.")
-    return s.obj
-
-
-Source.is_readable_by = source_is_readable_by
-Source.get_obj_if_readable_by = get_source_if_readable_by
-
-
-def get_obj_if_readable_by(obj_id, user_or_token, options=[]):
-    """Return an Obj from the database if the Obj is either a Source or a Candidate in at least
-    one of the requesting User or Token owner's accessible Groups. If the Obj is not a
-    Source or a Candidate in one of the User or Token owner's accessible Groups, raise an AccessError.
-    If the Obj does not exist, return `None`.
-
-    Parameters
-    ----------
-    obj_id : integer or string
-       Primary key of the Obj.
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-    options : list of `sqlalchemy.orm.MapperOption`s
-       Options that wil be passed to `options()` in the loader query.
-
-    Returns
-    -------
-    obj : `skyportal.models.Obj`
-       The requested Obj.
-    """
-
-    def construct_joinedload(base, additional_attrs):
-        jl = joinedload(base)
-        for attr in additional_attrs:
-            jl = jl.joinedload(attr)
-        return jl
-
-    if Obj.query.get(obj_id) is None:
-        return None
-    if "System admin" in user_or_token.permissions:
-        return Obj.query.options(options).get(obj_id)
-
-    # the order of the following attempts is important -
-    # this one should come first
-    if Obj.get_photometry_readable_by_user(obj_id, user_or_token):
-        return Obj.query.options(options).get(obj_id)
-
-    try:
-        source_opts = [construct_joinedload(Source.obj, o.path) for o in options]
-        obj = Source.get_obj_if_readable_by(obj_id, user_or_token, source_opts)
-    except AccessError:  # They may still be able to view the associated Candidate
-        cand_opts = [construct_joinedload(Candidate.obj, o.path) for o in options]
-        obj = Candidate.get_obj_if_readable_by(obj_id, user_or_token, cand_opts)
-
-    if obj is None:
-        raise AccessError('Insufficient permissions.')
-
-    # If we get here, the user has access to either the associated Source or Candidate
-    return obj
-
-
-Obj.get_if_readable_by = get_obj_if_readable_by
-
-
-def get_obj_comments_readable_by(self, user_or_token):
-    """Query the database and return the Comments on this Obj that are accessible
-    to any of the User or Token owner's accessible Groups.
-
-    Parameters
-    ----------
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-
-    Returns
-    -------
-    comment_list : list of `skyportal.models.Comment`
-       The accessible comments attached to this Obj.
-    """
-    readable_comments = [
-        comment for comment in self.comments if comment.is_readable_by(user_or_token)
-    ]
-
-    # Grab basic author info for the comments
-    for comment in readable_comments:
-        comment.author_info = comment.construct_author_info_dict()
-
-    return readable_comments
-
-
-Obj.get_comments_readable_by = get_obj_comments_readable_by
-
-
-def get_obj_annotations_readable_by(self, user_or_token):
-    """Query the database and return the Annotations on this Obj that are accessible
-    to any of the User or Token owner's accessible Groups.
-
-    Parameters
-    ----------
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-
-    Returns
-    -------
-    annotation_list : list of `skyportal.models.Annotation`
-       The accessible annotations attached to this Obj.
-    """
-    readable_annotations = [
-        annotation
-        for annotation in self.annotations
-        if annotation.is_readable_by(user_or_token)
-    ]
-
-    # Grab basic author info for the annotations
-    for annotation in readable_annotations:
-        annotation.author_info = annotation.construct_author_info_dict()
-
-    return readable_annotations
-
-
-Obj.get_annotations_readable_by = get_obj_annotations_readable_by
-
-
-def get_obj_classifications_readable_by(self, user_or_token):
-    """Query the database and return the Classifications on this Obj that are accessible
-    to any of the User or Token owner's accessible Groups.
-
-    Parameters
-    ----------
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-
-    Returns
-    -------
-    classification_list : list of `skyportal.models.Classification`
-       The accessible classifications attached to this Obj.
-    """
-    return [
-        classifications
-        for classifications in self.classifications
-        if classifications.is_readable_by(user_or_token)
-    ]
-
-
-Obj.get_classifications_readable_by = get_obj_classifications_readable_by
-
-
-def get_photometry_readable_by_user(obj_id, user_or_token):
-    """Query the database and return the Photometry for this Obj that is shared
-    with any of the User or Token owner's accessible Groups.
-
-    Parameters
-    ----------
-    obj_id : string
-       The ID of the Obj to look up.
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-
-    Returns
-    -------
-    photometry_list : list of `skyportal.models.Photometry`
-       The accessible Photometry of this Obj.
-    """
-    return (
-        Photometry.query.filter(Photometry.obj_id == obj_id)
-        .filter(
-            Photometry.groups.any(
-                Group.id.in_([g.id for g in user_or_token.accessible_groups])
-            )
-        )
-        .all()
-    )
-
-
-Obj.get_photometry_readable_by_user = get_photometry_readable_by_user
-
-
-def get_spectra_readable_by(obj_id, user_or_token, options=()):
-    """Query the database and return the Spectra for this Obj that are shared
-    with any of the User or Token owner's accessible Groups.
-
-    Parameters
-    ----------
-    obj_id : string
-       The ID of the Obj to look up.
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-    options : list of `sqlalchemy.orm.MapperOption`s
-       Options that wil be passed to `options()` in the loader query.
-
-    Returns
-    -------
-    photometry_list : list of `skyportal.models.Spectrum`
-       The accessible Spectra of this Obj.
-    """
-
-    return (
-        Spectrum.query.filter(Spectrum.obj_id == obj_id)
-        .filter(
-            Spectrum.groups.any(
-                Group.id.in_([g.id for g in user_or_token.accessible_groups])
-            )
-        )
-        .options(options)
-        .all()
-    )
-
-
-Obj.get_spectra_readable_by = get_spectra_readable_by
 
 
 User.sources = relationship(
@@ -1754,7 +1771,7 @@ class Allocation(Base):
     )
 
 
-class Taxonomy(Base):
+class Taxonomy(Base, ReadableByGroupMembers):
     """An ontology within which Objs can be classified."""
 
     __tablename__ = 'taxonomies'
@@ -1811,39 +1828,7 @@ GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
 GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
 
 
-def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
-    """Query the database and return the requested Taxonomy if it is accessible
-    to the requesting User or Token owner. If the Taxonomy is not accessible or
-    if it does not exist, return an empty list.
-
-    Parameters
-    ----------
-    taxonomy_id : integer
-       The ID of the requested Taxonomy.
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-
-    Returns
-    -------
-    tax : `skyportal.models.Taxonomy`
-       The requested Taxonomy.
-    """
-
-    return (
-        Taxonomy.query.filter(Taxonomy.id == taxonomy_id)
-        .filter(
-            Taxonomy.groups.any(
-                Group.id.in_([g.id for g in user_or_token.accessible_groups])
-            )
-        )
-        .all()
-    )
-
-
-Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
-
-
-class Comment(Base):
+class Comment(Base, ReadableByGroupMembers):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
@@ -1887,23 +1872,12 @@ class Comment(Base):
         doc="Groups that can see the comment.",
     )
 
-    def construct_author_info_dict(self):
+    @property
+    def author_info(self):
         return {
             field: getattr(self.author, field)
             for field in ('username', 'first_name', 'last_name', 'gravatar_url')
         }
-
-    @classmethod
-    def get_if_readable_by(cls, ident, user, options=[]):
-        comment = cls.query.options(options).get(ident)
-
-        if comment is not None and not comment.is_readable_by(user):
-            raise AccessError('Insufficient permissions.')
-
-        # Grab basic author info for the comment
-        comment.author_info = comment.construct_author_info_dict()
-
-        return comment
 
 
 GroupComment = join_model("group_comments", Group, Comment)
@@ -1912,8 +1886,9 @@ GroupComment.__doc__ = "Join table mapping Groups to Comments."
 User.comments = relationship("Comment", back_populates="author")
 
 
-class Annotation(Base):
-    """A sortable/searchable Annotation made by a filter or other robot, with a set of data as JSON """
+class Annotation(Base, ReadableByGroupMembers):
+    """A sortable/searchable Annotation made by a filter or other robot,
+    with a set of data as JSON """
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
@@ -1957,23 +1932,12 @@ class Annotation(Base):
         doc="Groups that can see the annotation.",
     )
 
-    def construct_author_info_dict(self):
+    @property
+    def author_info(self):
         return {
             field: getattr(self.author, field)
             for field in ('username', 'first_name', 'last_name', 'gravatar_url')
         }
-
-    @classmethod
-    def get_if_readable_by(cls, ident, user, options=[]):
-        annotation = cls.query.options(options).get(ident)
-
-        if annotation is not None and not annotation.is_readable_by(user):
-            raise AccessError('Insufficient permissions.')
-
-        # Grab basic author info for the annotation
-        annotation.author_info = annotation.construct_author_info_dict()
-
-        return annotation
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
@@ -1984,7 +1948,7 @@ GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
 User.annotations = relationship("Annotation", back_populates="author")
 
 
-class Classification(Base):
+class Classification(Base, ReadableByGroupMembers):
     """Classification of an Obj."""
 
     classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
@@ -2039,7 +2003,7 @@ GroupClassifications = join_model("group_classifications", Group, Classification
 GroupClassifications.__doc__ = "Join table mapping Groups to Classifications."
 
 
-class Photometry(Base, ha.Point):
+class Photometry(Base, ha.Point, ReadableByGroupMembers, ModifiableByOwner):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
     __tablename__ = 'photometry'
@@ -2214,8 +2178,6 @@ class Photometry(Base, ha.Point):
         return self.flux / self.fluxerr
 
 
-Photometry.is_modifiable_by = is_modifiable_by
-
 # Deduplication index. This is a unique index that prevents any photometry
 # point that has the same obj_id, instrument_id, origin, mjd, flux error,
 # and flux as a photometry point that already exists within the table from
@@ -2244,7 +2206,7 @@ GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 
 
-class Spectrum(Base):
+class Spectrum(Base, ReadableByGroupMembers, ModifiableByOwner):
     """Wavelength-dependent measurement of the flux of an object through a
     dispersive element."""
 
@@ -2512,7 +2474,6 @@ class Spectrum(Base):
         )
 
 
-Spectrum.is_modifiable_by = is_modifiable_by
 User.spectra = relationship(
     'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
 )
