@@ -491,6 +491,7 @@ def test_unsave_from_group(
     )
 
 
+@pytest.mark.flaky(reruns=2)
 def test_request_group_to_save_then_save(
     driver, user, user_two_groups, public_source, public_group2
 ):
@@ -502,7 +503,10 @@ def test_request_group_to_save_then_save(
         f'//*[@data-testid="inviteGroupCheckbox_{public_group2.id}"]',
         scroll_parent=True,
     )
-    driver.click_xpath(f'//button[@name="editSourceGroupsButton_{public_source.id}"]')
+    driver.click_xpath(
+        f'//button[@name="editSourceGroupsButton_{public_source.id}"]',
+        scroll_parent=True,
+    )
     driver.wait_for_xpath('//*[text()="Source groups updated successfully"]')
     driver.get(f"/become_user/{user_two_groups.id}")
     driver.get(f"/group_sources/{public_group2.id}")
