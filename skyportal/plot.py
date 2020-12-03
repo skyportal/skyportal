@@ -741,7 +741,7 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
     plot.add_tools(hover)
     model_dict = {}
     for i, (key, df) in enumerate(split):
-        model_dict['s' + str(i)] = plot.line(
+        model_dict['s' + str(i)] = plot.step(
             x='wavelength',
             y='flux',
             color=color_map[key],
