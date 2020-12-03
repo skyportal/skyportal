@@ -13,7 +13,6 @@ import AccordionDetails from "@material-ui/core/AccordionDetails";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Typography from "@material-ui/core/Typography";
 
-import Plot from "./Plot";
 import CommentList from "./CommentList";
 import ClassificationList from "./ClassificationList";
 import ClassificationForm from "./ClassificationForm";
@@ -35,6 +34,8 @@ import ObjPageAnnotations from "./ObjPageAnnotations";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 
+const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
+
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
 );
@@ -52,15 +53,9 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "flex",
     overflowX: "scroll",
     flexDirection: "column",
-    paddingBottom: "0.5rem",
+    padding: "0.5rem",
     "& div button": {
       margin: "0.5rem",
-    },
-    "& .bk-bs-nav": {
-      marginTop: "0px",
-    },
-    "& .bk-plotdiv > .bk-widget": {
-      marginTop: "0px",
     },
   },
   source: {
@@ -91,10 +86,6 @@ export const useSourceStyles = makeStyles((theme) => ({
     color: "darkgray",
     paddingBottom: "0.25em",
     display: "inline-block",
-  },
-  plot: {
-    width: "900px",
-    overflow: "auto",
   },
   smallPlot: {
     width: "350px",
@@ -268,10 +259,11 @@ const SourceDesktop = ({ source }) => {
             </AccordionSummary>
             <AccordionDetails>
               <div className={classes.photometryContainer}>
-                <Plot
-                  className={classes.plot}
-                  url={`/api/internal/plot/photometry/${source.id}`}
-                />
+                <Suspense fallback={<div>Loading photometry plot...</div>}>
+                  <Plot
+                    url={`/api/internal/plot/photometry/${source.id}?width=800&height=500`}
+                  />
+                </Suspense>
                 <div>
                   <Link to={`/upload_photometry/${source.id}`} role="link">
                     <Button variant="contained">
@@ -308,10 +300,11 @@ const SourceDesktop = ({ source }) => {
             </AccordionSummary>
             <AccordionDetails>
               <div className={classes.photometryContainer}>
-                <Plot
-                  className={classes.plot}
-                  url={`/api/internal/plot/spectroscopy/${source.id}`}
-                />
+                <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
+                  <Plot
+                    url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=500`}
+                  />
+                </Suspense>
                 <div>
                   <Link to={`/upload_spectrum/${source.id}`} role="link">
                     <Button variant="contained">

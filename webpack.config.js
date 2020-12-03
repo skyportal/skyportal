@@ -33,7 +33,19 @@ const config = {
           compact: false,
         },
       },
-
+      // For Bokeh's "export * from y" syntax
+      {
+        test: /\.js?$/,
+        include: /node_modules\/@bokeh/,
+        use: [
+          {
+            loader: "babel-loader",
+            options: {
+              plugins: ["@babel/plugin-proposal-export-namespace-from"],
+            },
+          },
+        ],
+      },
       // Enable CSS Modules for Skyportal
       {
         test: /\.css$/,
@@ -51,23 +63,6 @@ const config = {
             },
           },
         ],
-      },
-
-      // bokehjs doesn't like css-modules, but it
-      // does need style-loader and css-loader
-      {
-        test: /\.css$/,
-        include: /node_modules\/bokehjs/,
-        use: ["style-loader", "raw-loader"],
-      },
-      {
-        test: /\.js$/,
-        include: /node_modules\/bokehjs/,
-
-        // See https://webpack.js.org/guides/shimming/
-        // Bokeh needs 'this' to be defined, in part since the npm package
-        // does not support the Universal Module spec
-        use: "imports-loader?this=>window",
       },
 
       // react-grid-layout for Home page
@@ -90,8 +85,6 @@ const config = {
   resolve: {
     alias: {
       baselayer: path.resolve(__dirname, "baselayer/static/js"),
-      bokehjs: path.resolve(__dirname, "node_modules/bokehjs/build/js"),
-      bokehcss: path.resolve(__dirname, "node_modules/bokehjs/build/css"),
       reactgridlayoutcss: path.resolve(
         __dirname,
         "node_modules/react-grid-layout/css"
@@ -99,6 +92,10 @@ const config = {
       reactresizablecss: path.resolve(
         __dirname,
         "node_modules/react-resizable/css"
+      ),
+      bokehjs: path.resolve(
+        __dirname,
+        "node_modules/@bokeh/bokehjs/build/js/lib"
       ),
     },
     extensions: [".js", ".jsx", ".json"],

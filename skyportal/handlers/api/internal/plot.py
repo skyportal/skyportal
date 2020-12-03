@@ -8,46 +8,31 @@ from astropy import time as ap_time
 import pandas as pd
 
 
-# TODO this should distinguish between "no data to plot" and "plot failed"
 class PlotPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
-        height = self.get_query_argument("plotHeight", 300)
-        width = self.get_query_argument("plotWidth", 600)
-        docs_json, render_items, custom_model_js = plot.photometry_plot(
+        height = self.get_query_argument("height", 300)
+        width = self.get_query_argument("width", 600)
+        json = plot.photometry_plot(
             obj_id, self.current_user, height=int(height), width=int(width),
         )
-        if docs_json is None:
-            self.success(data={'docs_json': None, 'url': self.request.path})
-        else:
-            self.success(
-                data={
-                    'docs_json': docs_json,
-                    'render_items': render_items,
-                    'custom_model_js': custom_model_js,
-                    'url': self.request.uri,
-                }
-            )
+        self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
 
 class PlotSpectroscopyHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
+        height = self.get_query_argument("height", 300)
+        width = self.get_query_argument("width", 600)
         spec_id = self.get_query_argument("spectrumID", None)
-        docs_json, render_items, custom_model_js = plot.spectroscopy_plot(
-            obj_id, self.associated_user_object, spec_id
+        json = plot.spectroscopy_plot(
+            obj_id,
+            self.associated_user_object,
+            spec_id,
+            height=int(height),
+            width=int(width),
         )
-        if docs_json is None:
-            self.success(data={'docs_json': None, 'url': self.request.path})
-        else:
-            self.success(
-                data={
-                    'docs_json': docs_json,
-                    'render_items': render_items,
-                    'custom_model_js': custom_model_js,
-                    'url': self.request.uri,
-                }
-            )
+        self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
 
 class AirmassHandler(BaseHandler):
