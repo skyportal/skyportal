@@ -289,13 +289,13 @@ class SourceHandler(BaseHandler):
             description: |
               The sort order - either "asc" or "desc". Defaults to "asc"
           - in: query
-            name: includeCommentAttachments
+            name: includeCommentAttachmentData
             nullable: true
             schema:
               type: boolean
             description: |
-              Boolean indicating whether to include comment attachments in response
-              data. Defaults to false.
+              Boolean indicating whether to include comment attachment data in response.
+              Defaults to false.
           responses:
             200:
               content:
@@ -341,8 +341,8 @@ class SourceHandler(BaseHandler):
         save_summary = self.get_query_argument('saveSummary', False)
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "asc")
-        include_attachments = self.get_query_argument(
-            "includeCommentAttachments", False
+        include_attachment_data = self.get_query_argument(
+            "includeCommentAttachmentData", False
         )
 
         # These are just throwaway helper classes to help with deserialization
@@ -452,7 +452,7 @@ class SourceHandler(BaseHandler):
                     {
                         k: v
                         for k, v in c.to_dict().items()
-                        if not (k.startswith("attachment") and not include_attachments)
+                        if not (k == "attachment_bytes" and not include_attachment_data)
                     }
                     for c in comments
                 ],
@@ -665,7 +665,7 @@ class SourceHandler(BaseHandler):
                             k: v
                             for k, v in c.to_dict().items()
                             if not (
-                                k.startswith("attachment") and not include_attachments
+                                k == "attachment_bytes" and not include_attachment_data
                             )
                         }
                         for c in source.get_comments_readable_by(self.current_user)
