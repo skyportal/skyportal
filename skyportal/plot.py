@@ -7,7 +7,6 @@ from bokeh.core.properties import List, String
 from bokeh.layouts import row, column
 from bokeh.models import CustomJS, HoverTool, Range1d, Slider, Button, LinearAxis
 from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
-from bokeh.palettes import viridis
 from bokeh.plotting import figure, ColumnDataSource
 
 import bokeh.embed as bokeh_embed
@@ -28,6 +27,7 @@ from skyportal.models import (
     Telescope,
     PHOT_ZP,
     Spectrum,
+    GroupSpectrum,
 )
 
 import sncosmo
@@ -662,15 +662,27 @@ def photometry_plot(obj_id, user, width=600, height=300):
     return bokeh_embed.json_item(tabs)
 
 
-def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
+def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
     obj = Obj.query.get(obj_id)
-    spectra = Obj.query.get(obj_id).spectra
+    spectra = (
+        DBSession()
+        .query(Spectrum)
+        .join(Obj)
+        .join(GroupSpectrum)
+        .filter(
+            Spectrum.obj_id == obj_id,
+            GroupSpectrum.group_id.in_([g.id for g in user.accessible_groups]),
+        )
+    ).all()
+
     if spec_id is not None:
         spectra = [spec for spec in spectra if spec.id == int(spec_id)]
     if len(spectra) == 0:
         return None, None, None
 
-    color_map = dict(zip([s.id for s in spectra], viridis(len(spectra))))
+    rainbow = cm.get_cmap('rainbow', len(spectra))
+    palette = list(map(rgb2hex, rainbow(range(len(spectra)))))
+    color_map = dict(zip([s.id for s in spectra], palette))
 
     data = []
     for i, s in enumerate(spectra):
@@ -762,7 +774,7 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
         spec_labels.append(label)
 
     toggle = CheckboxWithLegendGroup(
-        labels=[
+        spec_labels=[
             f'{s.instrument.telescope.nickname}/{s.instrument.name} ({s.observed_at.date().isoformat()})'
             for s in spectra
         ],

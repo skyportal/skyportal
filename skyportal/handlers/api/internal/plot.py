@@ -26,7 +26,11 @@ class PlotSpectroscopyHandler(BaseHandler):
         width = self.get_query_argument("width", 600)
         spec_id = self.get_query_argument("spectrumID", None)
         json = plot.spectroscopy_plot(
-            obj_id, spec_id, height=int(height), width=int(width)
+            obj_id,
+            self.associated_user_object,
+            spec_id,
+            height=int(height),
+            width=int(width),
         )
         self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
