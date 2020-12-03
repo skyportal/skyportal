@@ -173,9 +173,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         return None, None, None
 
     data['color'] = [get_color(f) for f in data['filter']]
-    data['label'] = [
-        f'{i} {f}-band' for i, f in zip(data['instrument'], data['filter'])
-    ]
+    data['label'] = [f'{i}/{f}' for i, f in zip(data['instrument'], data['filter'])]
 
     data['zp'] = PHOT_ZP
     data['magsys'] = 'ab'
