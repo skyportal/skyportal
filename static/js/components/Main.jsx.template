@@ -7,7 +7,7 @@ import PropTypes from "prop-types";
 import { Provider, useSelector } from "react-redux";
 import ReactDOM from "react-dom";
 
-import { BrowserRouter, Switch } from "react-router-dom";
+import { BrowserRouter, Switch, useLocation } from "react-router-dom";
 
 import { MuiPickersUtilsProvider } from "@material-ui/pickers";
 import { makeStyles } from "@material-ui/core/styles";
@@ -81,6 +81,11 @@ const MainContent = ({ root }) => {
     store.dispatch(hydrate());
     store.dispatch(rotateLogoActions.rotateLogo());
   }, []);
+
+  let location = useLocation();
+  useEffect(() => {
+    document.title = "{{ app.title }}";
+  }, [location]);
 
   return (
     <Theme {% if testing %} disableTransitions {% endif %}>
