@@ -306,10 +306,12 @@ def photometry_plot(obj_id, user, width=600, height=300):
     plot.yaxis.axis_label = 'Flux (μJy)'
     plot.toolbar.logo = None
 
+    colors_labels = data[['color', 'label']].unique()
+
     toggle = CheckboxWithLegendGroup(
-        labels=list(data.label.unique()),
-        active=list(range(len(data.label.unique()))),
-        colors=list(data.color.unique()),
+        labels=colors_labels.label,
+        active=list(range(len(colors_labels))),
+        colors=colors_labels.color,
         width=width // 5,
     )
 
