@@ -6,10 +6,12 @@ from functools import wraps
 
 import pandas as pd
 import requests
+from requests.exceptions import HTTPError
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import numpy.ma as ma
 from scipy.ndimage.filters import gaussian_filter
 
 from astropy import units as u
@@ -24,12 +26,98 @@ from astropy.wcs.utils import pixel_to_skycoord
 from astropy.io import fits
 from astropy.visualization import ImageNormalize, ZScaleInterval
 from reproject import reproject_adaptive
+import pyvo as vo
+from pyvo.dal.exceptions import DALQueryError
 
 from .cache import Cache
 
 from baselayer.log import make_log
 
 log = make_log('finder-chart')
+
+
+class GaiaQuery:
+
+    alt_tap = 'https://gaia.aip.de/tap'
+    alt_main_db = 'gaiaedr3'
+
+    # conversion for units in VO tables to astropy units
+    unit_conversion = {
+        'Dimensionless': None,
+        'Angle[deg]': u.deg,
+        'Time[Julian Years]': u.yr,
+        'Magnitude[mag]': u.mag,
+        'Angular Velocity[mas/year]': u.mas / u.yr,
+        'Angle[mas]': u.mas,
+    }
+
+    def __init__(self, main_db="gaiaedr3"):
+        self.main_db = main_db
+        self.db_connected = self._connect()
+        log(
+            f"Gaia connection {'succeeded' if self.db_connected else 'failed'}."
+            f" Main db = {self.main_db}{' (backup)' if self.is_backup else ''}."
+        )
+
+    def _connect(self):
+        """Try to connect to the main Gaia server of astroquery, else
+        fall over to backup server
+        """
+        try:
+            g = Gaia
+            q = f"SELECT TOP 1  * from {self.main_db}.gaia_source"
+            job = g.launch_job(q)
+            _ = job.get_results()
+            self.is_backup = False
+            self.connection = g
+            return True
+        except HTTPError:
+            log("Warning: main Gaia TAP+ server failed")
+            self.is_backup = True
+
+        if self.is_backup:
+            try:
+                self.main_db = GaiaQuery.alt_main_db
+                g = vo.dal.TAPService(GaiaQuery.alt_tap)
+                q = f"SELECT TOP 1 * from {self.alt_main_db}.gaia_source"
+                _ = g.search(q)
+                self.connection = g
+                return True
+            except DALQueryError:
+                log("Warning: backup TAP+ server failed")
+                self.connection = None
+                return False
+
+    def query(self, q):
+        if not self.db_connected or self.connection is None:
+            raise HTTPError("GaiaQuery not connected properly.")
+
+        # replace the main db name
+        q = q.format(main_db=self.main_db)
+        if not self.is_backup:
+            job = self.connection.launch_job(q)
+            rez = job.get_results()
+            return rez
+        else:
+            # native return type is pyvo.dal.tap.TAPResults
+            job = self.connection.search(q)
+            return self._standardize_table(job.to_table())
+
+    def _standardize_table(self, tab):
+
+        new_tab = tab.copy()
+        for col in tab.columns:
+            if tab[col].name == 'source_id':
+                new_tab[col] = tab[col].astype(np.int64)
+            if tab[col].unit is not None:
+                colunit = new_tab[col].unit.to_string()
+                new_tab[col].unit = GaiaQuery.unit_conversion.get(colunit)
+            if tab[col].name == 'pos':
+                ma.set_fill_value(new_tab[col], 180.0)
+                new_tab[col] = new_tab[col].astype(np.float64)
+                new_tab[col].name = 'dist'
+
+        return new_tab
 
 
 def warningfilter(action="ignore", category=RuntimeWarning):
@@ -403,7 +491,7 @@ def get_nearby_offset_stars(
         # TODO: check the obstime format
         source_obstime = Time(obstime)
 
-    gaia_obstime = "J2015.5"
+    gaia_obstime = "J2016.0"
 
     center = SkyCoord(
         source_ra,
@@ -422,7 +510,7 @@ def get_nearby_offset_stars(
                     POINT('ICRS', {source_ra}, {source_dec})) AS
                     dist, source_id, ra, dec, ref_epoch,
                     phot_rp_mean_mag, pmra, pmdec, parallax
-                  FROM gaiadr2.gaia_source
+                  FROM {{main_db}}.gaia_source
                   WHERE 1=CONTAINS(
                     POINT('ICRS', ra, dec),
                     CIRCLE('ICRS', {source_ra}, {source_dec},
@@ -432,9 +520,9 @@ def get_nearby_offset_stars(
                   AND parallax < 250
                   ORDER BY phot_rp_mean_mag ASC
                 """
-    # TODO possibly: save the offset data (cache)
-    job = Gaia.launch_job(query_string)
-    r = job.get_results()
+
+    g = GaiaQuery()
+    r = g.query(query_string)
     queries_issued += 1
 
     catalog = SkyCoord.guess_from_table(r)
