@@ -95,6 +95,7 @@ export const useSourceStyles = makeStyles((theme) => ({
   classifications: {
     display: "flex",
     flexDirection: "column",
+    width: "100%",
   },
   alignRight: {
     display: "inline-block",

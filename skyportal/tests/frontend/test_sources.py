@@ -93,17 +93,20 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    driver.click_xpath('//div[@id="tax-select"]')
+    driver.click_xpath('//div[@id="root_taxonomy"]')
     driver.click_xpath(
         f'//*[text()="{tax_name} ({tax_version})"]',
         wait_clickable=False,
         scroll_parent=True,
     )
     driver.click_xpath('//*[@id="classification"]')
-    driver.wait_for_xpath('//*[@id="classification"]').send_keys(
-        "Symmetrical", Keys.ENTER
+    driver.click_xpath('//li[contains(@data-value, "Symmetrical")]', scroll_parent=True)
+    driver.click_xpath('//*[@id="probability"]')
+    driver.wait_for_xpath('//*[@id="probability"]').send_keys("1", Keys.ENTER)
+    driver.click_xpath(
+        "//*[@id='classifications-content']//span[text()='Submit']",
+        wait_clickable=False,
     )
-    driver.click_xpath("//*[@id='classificationSubmitButton']")
     # Notification
     driver.wait_for_xpath("//*[text()='Classification saved']")
 

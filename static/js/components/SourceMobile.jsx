@@ -102,7 +102,7 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "column",
     margin: "auto",
-    maxWidth: "100%",
+    width: "100%",
   },
   thumbnails: {
     "& > div": {
