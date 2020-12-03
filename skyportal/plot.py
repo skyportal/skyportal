@@ -121,7 +121,9 @@ tooltip_format = [
     ('instrument', '@instrument'),
     ('stacked', '@stacked'),
 ]
-cmap = cm.get_cmap('jet_r')
+cmap_opt = cm.get_cmap('nipy_spectral')
+cmap_uv = cm.get_cmap('cool')
+cmap_ir = cm.get_cmap('autumn')
 
 
 def get_color(bandpass_name):
@@ -130,11 +132,21 @@ def get_color(bandpass_name):
     else:
         bandpass = sncosmo.get_bandpass(bandpass_name)
         wave = bandpass.wave_eff
-        cmap_limits = (1, 5)
 
-        rgb = cmap(
-            (cmap_limits[1] - np.log10(wave)) / (cmap_limits[1] - cmap_limits[0])
-        )[:3]
+        if 0 < wave < 3000:
+            cmap = cmap_uv
+            cmap_limits = (0, 3000)
+        elif 3000 <= wave <= 10000:
+            cmap = cmap_opt
+            cmap_limits = (3000, 10000)
+        elif 10000 < wave < 1e5:
+            wave = np.log10(wave)
+            cmap = cmap_ir
+            cmap_limits = (4, 5)
+        else:
+            raise ValueError('wavelength out of range for color maps')
+
+        rgb = cmap((cmap_limits[1] - wave) / (cmap_limits[1] - cmap_limits[0]))[:3]
         bandcolor = rgb2hex(rgb)
 
         return bandcolor
@@ -174,7 +186,6 @@ def photometry_plot(obj_id, user, width=600, height=300):
 
     data['color'] = [get_color(f) for f in data['filter']]
     data['label'] = [f'{i}/{f}' for i, f in zip(data['instrument'], data['filter'])]
-
     data['zp'] = PHOT_ZP
     data['magsys'] = 'ab'
     data['alpha'] = 1.0
