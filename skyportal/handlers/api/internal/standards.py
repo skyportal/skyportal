@@ -1,8 +1,12 @@
 import ast
 
 from baselayer.app.access import auth_or_token
+from baselayer.app.env import load_env
+
 from ...base import BaseHandler
 from ....utils.offset import get_formatted_standards_list
+
+_, cfg = load_env()
 
 
 class StandardsHandler(BaseHandler):
@@ -34,7 +38,7 @@ class StandardsHandler(BaseHandler):
           schema:
             type: list
           description: |
-            lowested and highest dec to return
+            lowest and highest dec to return, e.g. "(-10,30)"
         - in: query
           name: ra_filter_range
           required: false
@@ -42,14 +46,16 @@ class StandardsHandler(BaseHandler):
           schema:
             type: list
           description: |
-            lowested and highest dec to return (or wrapped range)
+            lowest and highest ra to return (or wrapped range)
+            e.g. "(125,320)" or "(300,10)"
         - in: query
           name: show_first_line
           required: false
           schema:
             type: boolean
           description: |
-            return the first line of if demanded by the format
+            In the returned list, include the first formatting line
+            if it is otherwise demanded by the format.
         responses:
           200:
             content:
@@ -85,17 +91,40 @@ class StandardsHandler(BaseHandler):
         ra_filter_range_str = self.get_query_argument('ra_filter_range', "[0, 360]")
         show_first_line = self.get_query_argument('show_first_line', False)
 
+        if standard_type not in cfg["standard_stars"]:
+            return self.error(
+                f'Invalid `standard_type`. Should be {cfg["standard_stars"]}'
+            )
+
+        if starlist_type not in ["Keck", "Shane", "P200"]:
+            return self.error(
+                'Invalid `starlist_type`. Should be in [Keck, Shane, P200]'
+            )
+
+        if not isinstance(show_first_line, bool):
+            return self.error('Invalid argument for `show_first_line`')
+
         dec_filter_range = ast.literal_eval(dec_filter_range_str)
         if not (
             isinstance(dec_filter_range, (list, tuple)) and len(dec_filter_range) == 2
         ):
             return self.error('Invalid argument for `dec_filter_range`')
+        if not (
+            isinstance(dec_filter_range[0], (float, int))
+            and isinstance(dec_filter_range[1], (float, int))
+        ):
+            return self.error('Invalid arguments in `dec_filter_range`')
 
         ra_filter_range = ast.literal_eval(ra_filter_range_str)
         if not (
             isinstance(ra_filter_range, (list, tuple)) and len(ra_filter_range) == 2
         ):
             return self.error('Invalid argument for `ra_filter_range`')
+        if not (
+            isinstance(ra_filter_range[0], (float, int))
+            and isinstance(ra_filter_range[1], (float, int))
+        ):
+            return self.error('Invalid arguments in `ra_filter_range`')
 
         data = get_formatted_standards_list(
             starlist_type=starlist_type,
