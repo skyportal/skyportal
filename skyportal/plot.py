@@ -774,10 +774,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
         spec_labels.append(label)
 
     toggle = CheckboxWithLegendGroup(
-        spec_labels=[
-            f'{s.instrument.telescope.nickname}/{s.instrument.name} ({s.observed_at.date().isoformat()})'
-            for s in spectra
-        ],
+        labels=spec_labels,
         active=list(range(len(spectra))),
         colors=[color_map[k] for k, df in split],
         width=width // 5,
