@@ -609,10 +609,12 @@ def photometry_plot(obj_id, user, width=600, height=300):
     plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
     plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
 
+    colors_labels = data[['color', 'label']].unique()
+
     toggle = CheckboxWithLegendGroup(
-        labels=list(data.label.unique()),
-        active=list(range(len(data.label.unique()))),
-        colors=list(data.color.unique()),
+        labels=colors_labels.label,
+        active=list(range(len(colors_labels))),
+        colors=colors_labels.color,
         width=width // 5,
     )
 
