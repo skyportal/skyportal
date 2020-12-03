@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from astropy.time import Time
 import urllib
 from sshtunnel import SSHTunnelForwarder
+import jwt
 
 from . import FollowUpAPI
 from baselayer.app.env import load_env
@@ -18,11 +19,13 @@ ZTF_URL = 'http://localhost:8000'
 
 server = SSHTunnelForwarder(
     'schoty.caltech.edu',
-    ssh_username=cfg["ztf_username"],
-    ssh_password=cfg["ztf_password"],
+    ssh_username=cfg["app.ztf_username"],
+    ssh_password=cfg["app.ztf_password"],
     remote_bind_address=('127.0.0.1', 5000),
     local_bind_address=('localhost', 8000),
 )
+
+secret_key = cfg["app.ztf_secret_key"]
 
 
 def ztf_queue():
@@ -140,9 +143,12 @@ class ZTFAPI(FollowUpAPI):
 
         queue_name = "ToO_" + request.payload["queue_name"]
 
+        payload = {'queue_name': queue_name, 'user': request.requester.username}
+        encoded_jwt = jwt.encode(payload, secret_key, algorithm='HS256')
+
         server.start()
         r = requests.delete(
-            urllib.parse.urljoin(ZTF_URL, 'api/queues'), json={'queue_name': queue_name}
+            urllib.parse.urljoin(ZTF_URL, 'api/queues'), data=encoded_jwt
         )
         server.stop()
 
@@ -175,16 +181,17 @@ class ZTFAPI(FollowUpAPI):
         req = ZTFRequest()
         requestgroup = req._build_payload(request)
 
+        payload = {
+            'targets': requestgroup["targets"],
+            'queue_name': requestgroup["queue_name"],
+            'validity_window_mjd': requestgroup["validity_window_mjd"],
+            'queue_type': 'list',
+            'user': request.requester.username,
+        }
+        encoded_jwt = jwt.encode(payload, secret_key, algorithm='HS256')
+
         server.start()
-        r = requests.put(
-            urllib.parse.urljoin(ZTF_URL, 'api/queues'),
-            json={
-                'targets': requestgroup["targets"],
-                'queue_name': requestgroup["queue_name"],
-                'validity_window_mjd': requestgroup["validity_window_mjd"],
-                'queue_type': 'list',
-            },
-        )
+        r = requests.put(urllib.parse.urljoin(ZTF_URL, 'api/queues'), data=encoded_jwt)
         server.stop()
 
         r.raise_for_status()
