@@ -408,7 +408,9 @@ class SourceHandler(BaseHandler):
                 query_options.append(
                     joinedload(Obj.photometry).joinedload(Photometry.instrument)
                 )
-            s = Obj.get_if_owned_by(obj_id, self.current_user, options=query_options,)
+            s = Obj.get_if_readable_by(
+                obj_id, self.current_user, options=query_options,
+            )
 
             if s is None:
                 return self.error("Source not found", status=404)
@@ -421,7 +423,9 @@ class SourceHandler(BaseHandler):
                 )
                 self.push_all(action="skyportal/FETCH_TOP_SOURCES")
 
-            s = Obj.get_if_owned_by(obj_id, self.current_user, options=query_options,)
+            s = Obj.get_if_readable_by(
+                obj_id, self.current_user, options=query_options,
+            )
 
             if s is None:
                 return self.error("Source not found", status=404)
@@ -430,7 +434,7 @@ class SourceHandler(BaseHandler):
                 IOLoop.current().add_callback(
                     lambda: add_ps1_thumbnail_and_push_ws_msg(s, self)
                 )
-            comments = s.get_comments_owned_by(self.current_user)
+            comments = s.get_comments_readable_by(self.current_user)
             source_info = s.to_dict()
             source_info["comments"] = sorted(
                 [c.to_dict() for c in comments],
@@ -438,9 +442,10 @@ class SourceHandler(BaseHandler):
                 reverse=True,
             )
             source_info["annotations"] = sorted(
-                s.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
+                s.get_annotations_readable_by(self.current_user),
+                key=lambda x: x.origin,
             )
-            source_info["classifications"] = s.get_classifications_owned_by(
+            source_info["classifications"] = s.get_classifications_readable_by(
                 self.current_user
             )
             source_info["last_detected"] = s.last_detected
@@ -454,7 +459,7 @@ class SourceHandler(BaseHandler):
                 f for f in s.followup_requests if f.status != 'deleted'
             ]
             if include_photometry:
-                source_info["photometry"] = Obj.get_photometry_owned_by_user(
+                source_info["photometry"] = Obj.get_photometry_readable_by_user(
                     obj_id, self.current_user
                 )
             query = (
@@ -639,16 +644,16 @@ class SourceHandler(BaseHandler):
                 source_list[-1]["comments"] = sorted(
                     [
                         s.to_dict()
-                        for s in source.get_comments_owned_by(self.current_user)
+                        for s in source.get_comments_readable_by(self.current_user)
                     ],
                     key=lambda x: x["created_at"],
                     reverse=True,
                 )
                 source_list[-1][
                     "classifications"
-                ] = source.get_classifications_owned_by(self.current_user)
+                ] = source.get_classifications_readable_by(self.current_user)
                 source_list[-1]["annotations"] = sorted(
-                    source.get_annotations_owned_by(self.current_user),
+                    source.get_annotations_readable_by(self.current_user),
                     key=lambda x: x.origin,
                 )
                 source_list[-1]["last_detected"] = source.last_detected
@@ -839,7 +844,7 @@ class SourceHandler(BaseHandler):
                 schema: Error
         """
         # Permissions check
-        _ = Obj.get_if_owned_by(obj_id, self.current_user)
+        _ = Obj.get_if_readable_by(obj_id, self.current_user)
         data = self.get_json()
         data['id'] = obj_id
 
@@ -1017,7 +1022,7 @@ class SourceOffsetsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Obj.get_if_owned_by(
+        source = Obj.get_if_readable_by(
             obj_id, self.current_user, options=[joinedload(Obj.photometry)],
         )
         if source is None:
@@ -1188,7 +1193,7 @@ class SourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Obj.get_if_owned_by(
+        source = Obj.get_if_readable_by(
             obj_id, self.current_user, options=[joinedload(Obj.photometry)],
         )
         if source is None:
@@ -1403,7 +1408,7 @@ class SourceNotificationHandler(BaseHandler):
         if data.get("sourceId") is None:
             return self.error("Missing required parameter `sourceId`")
 
-        source = Obj.get_if_owned_by(data["sourceId"], self.current_user)
+        source = Obj.get_if_readable_by(data["sourceId"], self.current_user)
         if source is None:
             return self.error('Source not found', status=404)
 
