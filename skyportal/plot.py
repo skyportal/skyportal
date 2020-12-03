@@ -27,6 +27,7 @@ from skyportal.models import (
     Instrument,
     Telescope,
     PHOT_ZP,
+    Spectrum,
 )
 
 import sncosmo
@@ -403,7 +404,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         tools='box_zoom,wheel_zoom,pan,reset,save',
         y_range=(ymax, ymin),
         x_range=(xmin, xmax),
-        #        toolbar_location='above',
+        toolbar_location='above',
         toolbar_sticky=False,
         x_axis_location='above',
     )
@@ -547,7 +548,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
             color='color',
             marker='inverted_triangle',
             fill_color='white',
-            #            line_color='color',
+            line_color='color',
             alpha=0.8,
             source=ColumnDataSource(
                 data=dict(
@@ -674,16 +675,8 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
     data = []
     for i, s in enumerate(spectra):
 
-        # normalize spectra to a common average flux per resolving
-        # element of 1 (facilitates easy visual comparison)
-        normfac = np.sum(np.gradient(s.wavelengths) * s.fluxes) / len(s.fluxes)
-
-        if not (np.isfinite(normfac) and normfac > 0):
-            # otherwise normalize the value at the median wavelength to 1
-            median_wave_index = np.argmin(
-                np.abs(s.wavelengths - np.median(s.wavelengths))
-            )
-            normfac = s.fluxes[median_wave_index]
+        # normalize spectra to a median flux of 1 for easy comparison
+        normfac = np.median(s.fluxes)
 
         df = pd.DataFrame(
             {
@@ -693,7 +686,15 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
                 'telescope': s.instrument.telescope.name,
                 'instrument': s.instrument.name,
                 'date_observed': s.observed_at.date().isoformat(),
-                'pi': s.assignment.run.pi if s.assignment is not None else "",
+                'pi': (
+                    s.assignment.run.pi
+                    if s.assignment is not None
+                    else (
+                        s.followup_request.allocation.pi
+                        if s.followup_request is not None
+                        else ""
+                    )
+                ),
             }
         )
         data.append(df)
@@ -741,7 +742,11 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
     model_dict = {}
     for i, (key, df) in enumerate(split):
         model_dict['s' + str(i)] = plot.line(
-            x='wavelength', y='flux', color=color_map[key], source=ColumnDataSource(df)
+            x='wavelength',
+            y='flux',
+            color=color_map[key],
+            source=ColumnDataSource(df),
+            mode="center",
         )
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
@@ -749,6 +754,12 @@ def spectroscopy_plot(obj_id, spec_id=None, width=600, height=300):
 
     # TODO how to choose a good default?
     plot.y_range = Range1d(0, 1.03 * data.flux.max())
+
+    spec_labels = []
+    for k, _ in split:
+        s = Spectrum.query.get(k)
+        label = f'{s.instrument.telescope.nickname}/{s.instrument.name} ({s.observed_at.date().isoformat()})'
+        spec_labels.append(label)
 
     toggle = CheckboxWithLegendGroup(
         labels=[
