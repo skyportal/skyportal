@@ -124,7 +124,7 @@ tooltip_format = [
 cmap = cm.get_cmap('jet_r')
 
 
-def get_color(bandpass_name, cmap_limits=(3000.0, 10000.0)):
+def get_color(bandpass_name, cmap_limits=(500.0, 10000.0)):
     if bandpass_name.startswith('ztf'):
         return {'ztfg': 'green', 'ztfi': 'orange', 'ztfr': 'red'}[bandpass_name]
     else:
