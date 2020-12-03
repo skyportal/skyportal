@@ -63,7 +63,7 @@
     "styled-components": "4.4.1",
     "use-count-up": "2.2.4",
     "vega": "5.17.0",
-    "vega-embed": "6.11.1",
+    "vega-embed": "6.13.0",
     "vega-lite": "4.14.1"
   },
   "devDependencies": {
