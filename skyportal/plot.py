@@ -124,13 +124,17 @@ tooltip_format = [
 cmap = cm.get_cmap('jet_r')
 
 
-def get_color(bandpass_name, cmap_limits=(500.0, 10000.0)):
+def get_color(bandpass_name):
     if bandpass_name.startswith('ztf'):
         return {'ztfg': 'green', 'ztfi': 'orange', 'ztfr': 'red'}[bandpass_name]
     else:
         bandpass = sncosmo.get_bandpass(bandpass_name)
         wave = bandpass.wave_eff
-        rgb = cmap((cmap_limits[1] - wave) / (cmap_limits[1] - cmap_limits[0]))[:3]
+        cmap_limits = (1, 5)
+
+        rgb = cmap(
+            (cmap_limits[1] - np.log10(wave)) / (cmap_limits[1] - cmap_limits[0])
+        )[:3]
         bandcolor = rgb2hex(rgb)
 
         return bandcolor
