@@ -288,6 +288,14 @@ class SourceHandler(BaseHandler):
               type: string
             description: |
               The sort order - either "asc" or "desc". Defaults to "asc"
+          - in: query
+            name: includeCommentAttachments
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include comment attachments in response
+              data. Defaults to false.
           responses:
             200:
               content:
@@ -333,6 +341,9 @@ class SourceHandler(BaseHandler):
         save_summary = self.get_query_argument('saveSummary', False)
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "asc")
+        include_attachments = self.get_query_argument(
+            "includeCommentAttachments", False
+        )
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -437,7 +448,14 @@ class SourceHandler(BaseHandler):
             comments = s.get_comments_readable_by(self.current_user)
             source_info = s.to_dict()
             source_info["comments"] = sorted(
-                [c.to_dict() for c in comments],
+                [
+                    {
+                        k: v
+                        for k, v in c.to_dict().items()
+                        if not (k.startswith("attachment") and not include_attachments)
+                    }
+                    for c in comments
+                ],
                 key=lambda x: x["created_at"],
                 reverse=True,
             )
@@ -643,8 +661,14 @@ class SourceHandler(BaseHandler):
                 source_list.append(source.to_dict())
                 source_list[-1]["comments"] = sorted(
                     [
-                        s.to_dict()
-                        for s in source.get_comments_readable_by(self.current_user)
+                        {
+                            k: v
+                            for k, v in c.to_dict().items()
+                            if not (
+                                k.startswith("attachment") and not include_attachments
+                            )
+                        }
+                        for c in source.get_comments_readable_by(self.current_user)
                     ],
                     key=lambda x: x["created_at"],
                     reverse=True,
