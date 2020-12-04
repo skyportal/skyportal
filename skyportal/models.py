@@ -6,6 +6,7 @@ import warnings
 from datetime import datetime, timezone, timedelta
 import requests
 import arrow
+import abc
 
 import astroplan
 import numpy as np
@@ -210,26 +211,22 @@ def user_to_dict(self):
 User.to_dict = user_to_dict
 
 
-def _is_accessible_by(self, user_or_token, accessibility_type):
+def _check_accessibility(self, user_or_token, access_func):
     cls = type(self)
-    access_func = getattr(cls, f'is_{accessibility_type}_by')
     return (
         DBSession().query(access_func(user_or_token)).filter(cls.id == self.id).scalar()
     )
 
 
-def _is_accessible_by_sql(cls, user_or_token, accessibility_type):
-    f"""Generic {accessibility_type} logic for any `skyportal` ORM model."""
-
-    attribute_func = getattr(
-        cls, f'_required_attributes_for_{accessibility_type}_check'
-    )
-    for attr in attribute_func():
+def _check_accessibility_sql(
+    cls, user_or_token, opname, accessible_pair_func, required_attrs
+):
+    for attr in required_attrs:
         if not hasattr(cls, attr):
             raise TypeError(
                 f'{cls} does not have the attribute "{attr}", '
                 f'and thus does not expose the interface that is needed '
-                f'to check if {accessibility_type}.'
+                f'to check if {opname}.'
             )
 
     if isinstance(user_or_token, FromClause):
@@ -244,9 +241,6 @@ def _is_accessible_by_sql(cls, user_or_token, accessibility_type):
 
     correlation_cls_alias = sa.alias(cls)
     correlation_user_alias = sa.alias(User)
-
-    accessible_pair_func = getattr(cls, f'_{accessibility_type}_pair_table')
-
     accessible_pairs = accessible_pair_func(
         correlation_cls_alias, correlation_user_alias
     )
@@ -263,89 +257,85 @@ def _is_accessible_by_sql(cls, user_or_token, accessibility_type):
         )
         .where(correlation_cls_alias.c.id == cls.id)
         .where(correlation_user_alias.c.id == accessibility_target)
-        .label(accessibility_type)
+        .label(opname)
         .is_(True)
     )
 
 
-def _accessible_pair_table(cls, correlation_cls_alias, correlation_user_alias):
-    cls_alias = sa.alias(cls)
-    user_alias = sa.alias(User)
-
-    table = (
-        sa.select([cls_alias.c.id.label('cls_id'), user_alias.c.id.label('user_id')])
-        .select_from(sa.join(cls_alias, user_alias, sa.literal(True)))
-        .where(cls_alias.c.id == correlation_cls_alias.c.id)
-        .where(user_alias.c.id == correlation_user_alias.c.id)
-    )
-
-    return table.distinct().lateral()
-
-
-def _get_if_accessible_by(cls, cls_id, user_or_token, accessibility_type, options=[]):
+def _get_if_accessible_by(cls, cls_id, user_or_token, access_func, options=[]):
     instance = cls.query.options(options).get(cls_id)
     if instance is not None:
-        access_func = getattr(instance, f'is_{accessibility_type}_by')
         if not access_func(user_or_token):
             raise AccessError('Invalid permissions.')
     return instance
 
 
-class ReadProtected:
-    @classmethod
-    def get_if_readable_by(cls, cls_id, user_or_token, options=[]):
-        return _get_if_accessible_by(
-            cls, cls_id, user_or_token, 'readable', options=options
-        )
+class PermissionControl(type):
+    def __new__(cls, name, parents, dict):
 
-    @hybrid_method
-    def is_readable_by(self, user_or_token):
-        return _is_accessible_by(self, user_or_token, 'readable')
+        if 'opname' not in dict:
+            raise ValueError(
+                f'Passed dict must provide an opname to create '
+                f'the permission controlled class {name}.'
+            )
+        opname = dict['opname']
+        access_func_name = f'{opname}_by'
+        pair_table_func_name = f'_{opname}_pair_table'
+        get_classmethod_name = f'get_if_{opname}'
+        required_attributes_func_name = f'_required_attributes_for_{opname}_check'
 
-    @is_readable_by.expression
-    def is_readable_by(cls, user_or_token):
-        return _is_accessible_by_sql(cls, user_or_token, 'readable')
+        @hybrid_method
+        def is_accessible(self, user_or_token):
+            cls = type(self)
+            access_func = getattr(cls, access_func_name)
+            return _check_accessibility(self, user_or_token, access_func)
 
-    @classmethod
-    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
-        return _accessible_pair_table(
-            cls, correlation_cls_alias, correlation_user_alias
-        )
+        @is_accessible.expression
+        def is_accessible(cls, user_or_token):
+            pair_table_func = getattr(cls, pair_table_func_name)
+            return _check_accessibility_sql(cls, user_or_token, opname, pair_table_func)
 
-    @classmethod
-    def _required_attributes_for_readable_check(cls):
-        return ()
+        @classmethod
+        def get_classmethod(cls, cls_id, user_or_token, options=[]):
+            access_func = getattr(cls, access_func_name)
+            return _get_if_accessible_by(
+                cls, cls_id, user_or_token, access_func, options=options
+            )
+
+        @classmethod
+        @abc.abstractmethod
+        def _pair_table(cls, correlation_cls_alias, correlation_user_alias):
+            return NotImplemented
+
+        @classmethod
+        @abc.abstractmethod
+        def _required_attributes(cls):
+            return NotImplemented
+
+        class_dict = {
+            access_func_name: is_accessible,
+            get_classmethod_name: get_classmethod,
+            pair_table_func_name: _pair_table,
+            required_attributes_func_name: _required_attributes,
+        }
+
+        parents = (parents + abc.ABC,)
+        return super().__new__(cls, name, parents, class_dict)
 
 
-class WriteProtected:
-    @classmethod
-    def get_if_modifiable_by(cls, cls_id, user_or_token, options=[]):
-        return _get_if_accessible_by(
-            cls, cls_id, user_or_token, 'modifiable', options=options
-        )
-
-    @hybrid_method
-    def is_modifiable_by(self, user_or_token):
-        return _is_accessible_by(self, user_or_token, 'modifiable')
-
-    @is_modifiable_by.expression
-    def is_modifiable_by(cls, user_or_token):
-        return _is_accessible_by_sql(cls, user_or_token, 'modifiable')
-
-    @classmethod
-    def _modifiable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
-        return _accessible_pair_table(
-            cls, correlation_cls_alias, correlation_user_alias
-        )
-
-    @classmethod
-    def _required_attributes_for_modifiable_check(cls):
-        return ()
+ReadProtected = PermissionControl('ReadProtected', (), {'opname': 'is_readable'})
+WriteProtected = PermissionControl('WriteProtected', (), {'opname': 'is_modifiable'})
+HasReadableSourceProtected = PermissionControl(
+    'HasReadableSourceProtected', (), {'opname': 'has_source_readable'}
+)
+HasReadableCandidateProtected = PermissionControl(
+    'HasReadableCandidateProtected', (), {'opname': 'has_candidate_readable'}
+)
 
 
 class ReadableByGroupMembers(ReadProtected):
     @classmethod
-    def _required_attributes_for_readable_check(cls):
+    def _required_attributes_for_is_readable_check(cls):
         return ('groups',)
 
     @classmethod
@@ -696,7 +686,13 @@ def token_groups(self):
 Token.groups = token_groups
 
 
-class Obj(ReadProtected, Base, ha.Point):
+class Obj(
+    ReadProtected,
+    Base,
+    ha.Point,
+    HasReadableSourceProtected,
+    HasReadableCandidateProtected,
+):
     """A record of an astronomical Object and its metadata, such as position,
     positional uncertainties, name, and redshift."""
 
@@ -1063,46 +1059,16 @@ class Obj(ReadProtected, Base, ha.Point):
 
         return telescope.observer.altaz(time, self.target).alt
 
-    @hybrid_method
-    def has_candidate_readable_by(self, user_or_token):
-        cls = type(self)
-        return (
-            DBSession()
-            .query(cls.has_candidate_readable_by(user_or_token))
-            .filter(cls.id == self.id)
-            .scalar()
-        )
+    @classmethod
+    def _required_attributes_for_has_candidate_readable_check(cls):
+        pass
 
-    @has_candidate_readable_by.expression
-    def has_candidate_readable_by(cls, user_or_token):
-        """Return an Obj from the database if the Obj is a Candidate in at
-        least one of the requesting User or Token owner's accessible Groups.
-        If the Obj is not a Candidate in one of the User or Token owner's
-        accessible Groups, raise an AccessError. If the Obj does not exist,
-        return `None`.
-
-        Parameters
-        ----------
-        obj_id : integer or string
-           Primary key of the Obj.
-        user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-           The requesting `User` or `Token` object.
-
-        Returns
-        -------
-        obj : `skyportal.models.Obj`
-           The requested Obj.
-        """
-
-        if user_or_token is Token or isinstance(user_or_token, Token):
-            readable_target = user_or_token.created_by
-        else:
-            readable_target = user_or_token
-
+    @classmethod
+    def _has_candidate_readable_by_pair_table(
+        cls, correlation_cls_alias, correlation_user_alias
+    ):
         cand_x_filt = sa.join(Candidate, Filter)
         user_accessible_groups = user_accessible_groups_temporary_table()
-        cls_alias = sa.alias(cls)
-        user_alias = sa.alias(User)
 
         candidate_hits = (
             sa.select(
@@ -1118,67 +1084,17 @@ class Obj(ReadProtected, Base, ha.Point):
                     Filter.group_id == user_accessible_groups.c.group_id,
                 )
             )
-            .where(Candidate.obj_id == cls_alias.c.id)
-            .where(user_accessible_groups.c.user_id == user_alias.c.id)
+            .where(Candidate.obj_id == correlation_cls_alias.c.id)
+            .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
         )
 
-        lateral = candidate_hits.distinct().lateral()
-
-        return (
-            sa.select([lateral.c.cls_id.isnot(None)])
-            .select_from(
-                sa.join(cls_alias, user_alias, sa.literal(True)).outerjoin(
-                    lateral, cls_alias.c.id == lateral.c.cls_id
-                )
-            )
-            .where(cls_alias.c.id == cls.id)
-            .where(user_alias.c.id == readable_target)
-            .label('has_candidate')
-            .is_(True)
-        )
+        return candidate_hits.distinct().lateral()
 
     @classmethod
-    def get_if_has_candidate_readable_by(cls, cls_id, user_or_token, options=[]):
-        instance = cls.query.options(options).get(cls_id)
-        if instance is not None:
-            if not instance.has_candidate_readable_by(user_or_token):
-                raise AccessError('Invalid permissions.')
-        return instance
-
-    @hybrid_method
-    def has_source_readable_by(self, user_or_token):
-        """Return a boolean indicating whether the Source has been saved to
-        any of a User or Token owner's accessible Groups.
-
-        Parameters
-        ----------
-        user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-           The requesting `User` or `Token` object.
-
-        Returns
-        -------
-        readable : bool
-           Whether the Candidate is readable by the User or Token owner.
-        """
-        cls = type(self)
-        return (
-            DBSession()
-            .query(cls.has_source_readable_by(user_or_token))
-            .filter(cls.id == self.id)
-            .scalar()
-        )
-
-    @has_source_readable_by.expression
-    def has_source_readable_by(cls, user_or_token):
-
-        if user_or_token is Token or isinstance(user_or_token, Token):
-            readable_target = user_or_token.created_by
-        else:
-            readable_target = user_or_token
-
+    def _has_source_readable_by_pair_table(
+        cls, correlation_cls_alias, correlation_user_alias
+    ):
         user_accessible_groups = user_accessible_groups_temporary_table()
-        cls_alias = sa.alias(cls)
-        user_alias = sa.alias(User)
 
         source_hits = (
             sa.select(
@@ -1194,32 +1110,11 @@ class Obj(ReadProtected, Base, ha.Point):
                     Source.group_id == user_accessible_groups.c.group_id,
                 )
             )
-            .where(Source.obj_id == cls_alias.c.id)
-            .where(user_accessible_groups.c.user_id == user_alias.c.id)
+            .where(Source.obj_id == correlation_cls_alias.c.id)
+            .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
         )
 
-        lateral = source_hits.distinct().lateral()
-
-        return (
-            sa.select([lateral.c.cls_id.isnot(None)])
-            .select_from(
-                sa.join(cls_alias, user_alias, sa.literal(True)).outerjoin(
-                    lateral, cls_alias.c.id == lateral.c.cls_id
-                )
-            )
-            .where(cls_alias.c.id == cls.id)
-            .where(user_alias.c.id == readable_target)
-            .label('has_source')
-            .is_(True)
-        )
-
-    @classmethod
-    def get_if_has_source_readable_by(cls, cls_id, user_or_token, options=[]):
-        instance = cls.query.options(options).get(cls_id)
-        if instance is not None:
-            if not instance.has_source_readable_by(user_or_token):
-                raise AccessError('Invalid permissions.')
-        return instance
+        return source_hits.distinct().lateral()
 
     @classmethod
     def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
@@ -2242,11 +2137,11 @@ class Photometry(ha.Point, ReadableByGroupMembers, ModifiableByOwner, Base):
 
     @hybrid_method
     def is_readable_by(self, user_or_token):
-        return _is_accessible_by(self, user_or_token, 'readable')
+        return _check_accessibility(self, user_or_token, 'readable')
 
     @is_readable_by.expression
     def is_readable_by(cls, user_or_token):
-        return _is_accessible_by_sql(cls, user_or_token, 'readable')
+        return _check_accessibility_sql(cls, user_or_token, 'readable')
 
 
 # Deduplication index. This is a unique index that prevents any photometry
