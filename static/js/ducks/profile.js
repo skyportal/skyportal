@@ -51,6 +51,7 @@ messageHandler.add((actionType, payload, dispatch) => {
 const initialState = {
   username: "",
   first_name: null,
+  id: null,
   last_name: null,
   contact_email: null,
   contact_phone: null,
@@ -60,6 +61,7 @@ const initialState = {
   permissions: [],
   tokens: [],
   preferences: {},
+  groupAdmissionRequests: [],
 };
 
 const reducer = (state = initialState, action) => {
