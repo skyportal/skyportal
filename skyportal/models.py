@@ -270,7 +270,7 @@ def _get_if_accessible_by(cls, cls_id, user_or_token, access_func, options=[]):
     return instance
 
 
-def make_permission_control(name, opname):
+def make_permission_control_dict(opname):
 
     access_func_name = f'{opname}_by'
     pair_table_func_name = f'_{opname}_pair_table'
@@ -315,17 +315,16 @@ def make_permission_control(name, opname):
         access_func_name: is_accessible,
     }
 
+    return class_dict
+
+
+def make_permission_control(name, opname):
+    class_dict = make_permission_control_dict(opname)
     return type(name, (), class_dict)
 
 
 ReadProtected = make_permission_control('ReadProtected', 'is_readable')
 WriteProtected = make_permission_control('WriteProtected', 'is_modifiable')
-HasReadableSourceProtected = make_permission_control(
-    'HasReadableSourceProtected', 'has_source_readable'
-)
-HasReadableCandidateProtected = make_permission_control(
-    'HasReadableCandidateProtected', 'has_candidate_readable'
-)
 
 
 class ReadableByGroupMembers(ReadProtected):
@@ -682,11 +681,7 @@ Token.groups = token_groups
 
 
 class Obj(
-    ReadProtected,
-    Base,
-    ha.Point,
-    HasReadableSourceProtected,
-    HasReadableCandidateProtected,
+    ReadProtected, Base, ha.Point,
 ):
     """A record of an astronomical Object and its metadata, such as position,
     positional uncertainties, name, and redshift."""
@@ -1055,65 +1050,8 @@ class Obj(
         return telescope.observer.altaz(time, self.target).alt
 
     @classmethod
-    def _required_attributes_for_has_candidate_readable_check(cls):
-        return ('candidates',)
-
-    @classmethod
     def _required_attributes_for_is_readable_check(cls):
         return ()
-
-    @classmethod
-    def _has_candidate_readable_by_pair_table(
-        cls, correlation_cls_alias, correlation_user_alias
-    ):
-        cand_x_filt = sa.join(Candidate, Filter)
-        user_accessible_groups = user_accessible_groups_temporary_table()
-
-        candidate_hits = (
-            sa.select(
-                [
-                    Candidate.obj_id.label('cls_id'),
-                    user_accessible_groups.c.user_id.label('user_id'),
-                ]
-            )
-            .select_from(
-                sa.join(
-                    cand_x_filt,
-                    user_accessible_groups,
-                    Filter.group_id == user_accessible_groups.c.group_id,
-                )
-            )
-            .where(Candidate.obj_id == correlation_cls_alias.c.id)
-            .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
-        )
-
-        return candidate_hits.distinct().lateral()
-
-    @classmethod
-    def _has_source_readable_by_pair_table(
-        cls, correlation_cls_alias, correlation_user_alias
-    ):
-        user_accessible_groups = user_accessible_groups_temporary_table()
-
-        source_hits = (
-            sa.select(
-                [
-                    Source.obj_id.label('cls_id'),
-                    user_accessible_groups.c.user_id.label('user_id'),
-                ]
-            )
-            .select_from(
-                sa.join(
-                    Source,
-                    user_accessible_groups,
-                    Source.group_id == user_accessible_groups.c.group_id,
-                )
-            )
-            .where(Source.obj_id == correlation_cls_alias.c.id)
-            .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
-        )
-
-        return source_hits.distinct().lateral()
 
     @classmethod
     def _is_readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
@@ -1166,53 +1104,6 @@ class Obj(
         )
 
         return sa.union(phot_subq, source_subq, cand_subq).lateral()
-
-    def get_comments_readable_by(self, user_or_token):
-        return (
-            DBSession()
-            .query(Comment)
-            .filter(Comment.is_readable_by(user_or_token), Comment.obj_id == self.id)
-            .all()
-        )
-
-    def get_annotations_readable_by(self, user_or_token):
-        return (
-            DBSession()
-            .query(Annotation)
-            .filter(
-                Annotation.is_readable_by(user_or_token), Annotation.obj_id == self.id
-            )
-            .all()
-        )
-
-    def get_classifications_readable_by(self, user_or_token):
-        return (
-            DBSession()
-            .query(Classification)
-            .filter(
-                Classification.is_readable_by(user_or_token),
-                Classification.obj_id == self.id,
-            )
-            .all()
-        )
-
-    def get_photometry_readable_by(self, user_or_token):
-        return (
-            DBSession()
-            .query(Photometry)
-            .filter(
-                Photometry.is_readable_by(user_or_token), Photometry.obj_id == self.id
-            )
-            .all()
-        )
-
-    def get_spectra_readable_by(self, user_or_token):
-        return (
-            DBSession()
-            .query(Spectrum)
-            .filter(Spectrum.is_readable_by(user_or_token), Spectrum.obj_id == self.id)
-            .all()
-        )
 
 
 class Filter(Base):
