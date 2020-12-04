@@ -244,6 +244,12 @@ class Group(Base):
         passive_deletes=True,
         doc="Allocations made to this group.",
     )
+    admission_requests = relationship(
+        "GroupAdmissionRequest",
+        back_populates="group",
+        passive_deletes=True,
+        doc="User requests to join this group.",
+    )
 
 
 GroupUser = join_model('group_users', Group, User)
@@ -255,6 +261,57 @@ GroupUser.admin = sa.Column(
     default=False,
     doc="Boolean flag indicating whether the User is an admin of the group.",
 )
+
+User.group_admission_requests = relationship(
+    "GroupAdmissionRequest",
+    back_populates="user",
+    passive_deletes=True,
+    doc="User's requests to join groups.",
+)
+
+
+class GroupAdmissionRequest(Base):
+    """Table tracking requests from users to join groups."""
+
+    user_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the User requesting to join the group",
+    )
+    user = relationship(
+        "User",
+        foreign_keys=[user_id],
+        back_populates="group_admission_requests",
+        doc="The User requesting to join a group",
+    )
+    group_id = sa.Column(
+        sa.ForeignKey("groups.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the Group to which admission is requested",
+    )
+    group = relationship(
+        "Group",
+        foreign_keys=[group_id],
+        back_populates="admission_requests",
+        doc="The Group to which admission is requested",
+    )
+    status = sa.Column(
+        sa.Enum(
+            "pending",
+            "accepted",
+            "declined",
+            name='admission_request_status',
+            validate_strings=True,
+        ),
+        nullable=False,
+        default="pending",
+        doc=(
+            "Admission request status. Can be one of either 'pending', "
+            "'accepted', or 'declined'."
+        ),
+    )
 
 
 class Stream(Base):
