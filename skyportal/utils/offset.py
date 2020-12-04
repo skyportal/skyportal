@@ -194,7 +194,9 @@ starlist_formats = {
         ),
     },
 }
-offsets_memory = Memory("./cache/offsets/", verbose=0)
+
+JOBLIB_CACHE_SIZE = 100e6  # 100 MB
+offsets_memory = Memory("./cache/offsets/", verbose=0, bytes_limit=JOBLIB_CACHE_SIZE)
 
 
 def get_url(*args, **kwargs):
@@ -457,6 +459,7 @@ def get_formatted_standards_list(
     show_first_line=False,
 ):
     """Returns a list of standard stars in the preferred starlist format.
+
     The standards collections are established in the config.yaml file
     pointing to a CSV file with the standards
 

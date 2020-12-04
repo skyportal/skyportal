@@ -116,6 +116,8 @@ class StandardsHandler(BaseHandler):
             and isinstance(dec_filter_range[1], (float, int))
         ):
             return self.error('Invalid arguments in `dec_filter_range`')
+        if not all(map(lambda x: x >= -90 and x <= 90, dec_filter_range)):
+            return self.error('Elements out of range in `dec_filter_range`')
 
         ra_filter_range = ast.literal_eval(ra_filter_range_str)
         if not (
@@ -127,6 +129,9 @@ class StandardsHandler(BaseHandler):
             and isinstance(ra_filter_range[1], (float, int))
         ):
             return self.error('Invalid arguments in `ra_filter_range`')
+
+        if not all(map(lambda x: x >= 0 and x <= 360, ra_filter_range)):
+            return self.error('Elements out of range in `ra_filter_range`')
 
         data = get_formatted_standards_list(
             starlist_type=starlist_type,

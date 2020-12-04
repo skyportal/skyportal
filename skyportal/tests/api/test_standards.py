@@ -14,7 +14,6 @@ def test_standards(view_only_token):
         },
         token=view_only_token,
     )
-    print(data)
     assert status == 200
     assert data['status'] == 'success'
     assert isinstance(data['data']['starlist_info'], list)
@@ -38,6 +37,38 @@ def test_standards_bad_standard_list(view_only_token):
     )
     assert status == 400
     assert data['message'].find('Invalid') != -1
+
+
+def test_standards_bad_range(view_only_token):
+    status, data = api(
+        'GET',
+        'internal/standards',
+        params={
+            'facility': "Keck",
+            'standard_type': "ESO",
+            'dec_filter_range': None,
+            'ra_filter_range': "(-45, 60)",
+            'show_first_line': True,
+        },
+        token=view_only_token,
+    )
+    assert status == 400
+    assert data['message'].find('Elements out of range') != -1
+
+    status, data = api(
+        'GET',
+        'internal/standards',
+        params={
+            'facility': "Keck",
+            'standard_type': "ESO",
+            'dec_filter_range': "(10, 100)",
+            'ra_filter_range': None,
+            'show_first_line': True,
+        },
+        token=view_only_token,
+    )
+    assert status == 400
+    assert data['message'].find('Elements out of range') != -1
 
 
 def test_standards_filter(view_only_token):
