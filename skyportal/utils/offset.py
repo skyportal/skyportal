@@ -13,6 +13,7 @@ import seaborn as sns
 import numpy as np
 import numpy.ma as ma
 from scipy.ndimage.filters import gaussian_filter
+from joblib import Memory
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -32,8 +33,11 @@ from pyvo.dal.exceptions import DALQueryError
 from .cache import Cache
 
 from baselayer.log import make_log
+from baselayer.app.env import load_env
 
 log = make_log('finder-chart')
+
+_, cfg = load_env()
 
 
 class GaiaQuery:
@@ -163,6 +167,38 @@ irsa = {
 }
 
 
+starlist_formats = {
+    'Keck': {
+        "sep": ' ',
+        "commentstr": "#",
+        "giveoffsets": True,
+        "maxname_size": 15,
+        "first_line": None,
+    },
+    'P200': {
+        "sep": ':',
+        "commentstr": "!",
+        "giveoffsets": False,
+        "maxname_size": 20,
+        "first_line": None,
+    },
+    'Shane': {
+        "sep": ' ',
+        "commentstr": "#",
+        "giveoffsets": True,
+        "maxname_size": 15,
+        # see https://mthamilton.ucolick.org/techdocs/telescopes/Shane/coords/
+        "first_line": (
+            "!Data {name %16} ra_h ra_m ra_s dec_d dec_m dec_s "
+            "equinox keyval {comment *}"
+        ),
+    },
+}
+
+JOBLIB_CACHE_SIZE = 100e6  # 100 MB
+offsets_memory = Memory("./cache/offsets/", verbose=0, bytes_limit=JOBLIB_CACHE_SIZE)
+
+
 def get_url(*args, **kwargs):
     # Connect and read timeouts
     kwargs['timeout'] = (6.05, 20)
@@ -172,6 +208,7 @@ def get_url(*args, **kwargs):
         return None
 
 
+@offsets_memory.cache
 def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
     """
     From:
@@ -263,6 +300,7 @@ source_image_parameters = {
 }
 
 
+@offsets_memory.cache
 def get_ztfcatalog(ra, dec, cache_dir="./cache/finder_cat/", cache_max_items=1000):
     """Finds the ZTF public catalog data around this position
 
@@ -413,8 +451,115 @@ def _calculate_best_position_for_offset_stars(
     return position
 
 
+def get_formatted_standards_list(
+    starlist_type='Keck',
+    standard_type='ESO',
+    dec_filter_range=(-90, 90),
+    ra_filter_range=(0, 360),
+    show_first_line=False,
+):
+    """Returns a list of standard stars in the preferred starlist format.
+
+    The standards collections are established in the config.yaml file
+    pointing to a CSV file with the standards
+
+    Parameters
+    ----------
+    starlist_type : str, optional
+        Type of starlist (Keck, P200, Shane)
+    standard_type : str, optional
+        Name of the collection of standards (ESO, ZTF, ...)
+    dec_filter_range: tuple, optional
+        Inclusive range in degrees to keep standards. Useful for showing
+        fewer sources which are not accessible to a given telescope
+    ra_filter_range: tuple, optional
+        Inclusive range in degrees to keep standards. Useful for showing
+        fewer sources which are not accessible to a given telescope. If
+        the first element is larger than the first, then assume the filter
+        request wraps around 0. Ie. if ra_filter_range = (150, 20) then
+        include all sources with ra > 150 or ra < 20.
+    show_first_line: bool, optional
+        Return the first formatting line  if the starlist type adds
+        a preamble
+    """
+    starlist = []
+    result = {"starlist_info": starlist, "success": False}
+    standard_stars = cfg.get("standard_stars")
+    if standard_stars is None:
+        log("Warning: No standard stars defined in the config.yaml.")
+        return result
+
+    standard_file = standard_stars.get(standard_type)
+    if standard_file is None:
+        log(f"Warning: '{standard_type}' not defined in the config.yaml.")
+        return result
+
+    starlist_format = starlist_formats.get(starlist_type)
+    if starlist_format is None:
+        log("Warning: Do not recognize this starlist format. Using Keck.")
+        starlist_format = starlist_formats["Keck"]
+
+    space = " "
+    sep = starlist_format["sep"]
+    commentstr = starlist_format["commentstr"]
+    maxname_size = starlist_format["maxname_size"]
+    if show_first_line and starlist_format["first_line"] not in [None, ""]:
+        starlist.append(starlist_format["first_line"])
+
+    df = pd.read_csv(standard_file, comment="#")
+    if not set(['name', 'ra', 'dec', 'epoch', 'comment']).issubset(
+        set(df.columns.values)
+    ):
+        log("Error: Standard star CSV file is missing necessary headers.")
+        return result
+
+    tab = SkyCoord(df["ra"], df["dec"], unit=(u.hourangle, u.deg))
+    df["ra_float"] = tab.ra.value
+    df["dec_float"] = tab.dec.value
+    df["skycoord"] = [
+        x[1:]
+        for x in tab.to_string(
+            'hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True
+        )
+    ]
+
+    # filter
+    df = df[
+        (df["dec_float"] >= dec_filter_range[0])
+        & (df["dec_float"] <= dec_filter_range[1])
+    ]
+    if ra_filter_range[1] > ra_filter_range[0]:
+        df = df[
+            (df["ra_float"] >= ra_filter_range[0])
+            & (df["ra_float"] <= ra_filter_range[1])
+        ]
+    else:
+        df = df[
+            (df["ra_float"] >= ra_filter_range[0])
+            | (df["ra_float"] <= ra_filter_range[1])
+        ]
+
+    if len(df) == 0:
+        log("Warning: No standards stars match the filter criteria.")
+        return result
+
+    for index, row in df.iterrows():
+        starlist.append(
+            {
+                "str": (
+                    f"{row['name'].replace(' ',''):{space}<{maxname_size}} "
+                    + f"{row.skycoord}"
+                    + f" {row.epoch} "
+                    + f" {commentstr} {row.comment}"
+                )
+            }
+        )
+    return {"starlist_info": starlist, "success": True}
+
+
 @warningfilter(action="ignore", category=DeprecationWarning)
 @warningfilter(action="ignore", category=AstropyWarning)
+@offsets_memory.cache
 def get_nearby_offset_stars(
     source_ra,
     source_dec,
@@ -630,29 +775,16 @@ def get_nearby_offset_stars(
             required_ztfref_source_distance=required_ztfref_source_distance,
         )
 
-    # default to Keck starlist
-
-    if starlist_type == 'Keck':
-        sep = ' '  # 'fromunit'
-        commentstr = "#"
-        giveoffsets = True
-        maxname_size = 15
-        first_line = None
-    elif starlist_type == 'P200':
-        sep = ':'  # 'fromunit'
-        commentstr = "!"
-        giveoffsets = False
-        maxname_size = 20
-        first_line = None
-    elif starlist_type == 'Shane':
-        sep = ' '  # 'fromunit'
-        commentstr = "#"
-        giveoffsets = True
-        maxname_size = 15
-        # see https://mthamilton.ucolick.org/techdocs/telescopes/Shane/coords/
-        first_line = "!Data {name %16} ra_h ra_m ra_s dec_d dec_m dec_s equinox keyval {comment *}"
-    else:
+    starlist_format = starlist_formats.get(starlist_type)
+    if starlist_format is None:
         log("Warning: Do not recognize this starlist format. Using Keck.")
+        starlist_format = starlist_formats["Keck"]
+
+    sep = starlist_format["sep"]
+    commentstr = starlist_format["commentstr"]
+    giveoffsets = starlist_format["giveoffsets"]
+    maxname_size = starlist_format["maxname_size"]
+    first_line = starlist_format["first_line"]
 
     basename = source_name.strip().replace(" ", "")
     if len(basename) > maxname_size:
@@ -664,9 +796,9 @@ def get_nearby_offset_stars(
 
     space = " "
     star_list_format = (
-        f"{basename:{space}<.{maxname_size}} "
+        f"{basename:{space}<{maxname_size}} "
         + f"{center.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}"
-        + f" 2000.0 {commentstr} source_name={source_name}"
+        + f" 2000.0  {commentstr} source_name={source_name}"
     )
 
     star_list = [{"str": first_line}] if first_line else []
@@ -694,9 +826,9 @@ def get_nearby_offset_stars(
         name = f"{abrev_basename}_o{i+1}"
 
         star_list_format = (
-            f"{name:{space}<.{maxname_size}} "
+            f"{name:{space}<{maxname_size}} "
             + f"{c.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}"
-            + f" 2000.0 {offsets} "
+            + f" 2000.0 {offsets}"
             + f" {commentstr} dist={3600*dist:<0.02f}\"; {source['phot_rp_mean_mag']:<0.02f} mag"
             + f"; {dras}, {ddecs} "
             + f" ID={source['source_id']}"
