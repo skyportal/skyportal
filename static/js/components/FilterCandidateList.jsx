@@ -9,6 +9,10 @@ import Button from "@material-ui/core/Button";
 import { KeyboardDateTimePicker } from "@material-ui/pickers";
 import Paper from "@material-ui/core/Paper";
 import SearchIcon from "@material-ui/icons/Search";
+import Select from "@material-ui/core/Select";
+import MenuItem from "@material-ui/core/MenuItem";
+import Input from "@material-ui/core/Input";
+import InputLabel from "@material-ui/core/InputLabel";
 import { makeStyles } from "@material-ui/core/styles";
 
 import dayjs from "dayjs";
@@ -46,7 +50,38 @@ const useStyles = makeStyles(() => ({
       marginLeft: "0.5rem",
     },
   },
+  savedStatusSelect: {
+    margin: "1rem 0",
+    "& input": {
+      fontSize: "1rem",
+    },
+  },
 }));
+
+const savedStatusSelectOptions = [
+  { value: "all", label: "regardless of saved status" },
+  { value: "savedToAllSelected", label: "and is saved to all selected groups" },
+  {
+    value: "savedToAnySelected",
+    label: "and is saved to at least one of the selected groups",
+  },
+  {
+    value: "savedToAnyAccessible",
+    label: "and is saved to at least one of the user-accessible groups",
+  },
+  {
+    value: "notSavedToAnyAccessible",
+    label: "and is not saved to any of the user-accesible groups",
+  },
+  {
+    value: "notSavedToAnySelected",
+    label: "and is not saved to any of the selected groups",
+  },
+  {
+    value: "notSavedToAllSelected",
+    label: "and is not saved to all of the selected groups",
+  },
+];
 
 const FilterCandidateList = ({
   userAccessibleGroups,
@@ -99,7 +134,7 @@ const FilterCandidateList = ({
 
     const data = {
       groupIDs: selectedGroupIDs,
-      unsavedOnly: formData.unsavedOnly,
+      savedStatus: formData.savedStatus,
     };
     // Convert dates to ISO for parsing on back-end
     if (formData.startDate) {
@@ -162,24 +197,25 @@ const FilterCandidateList = ({
               control={control}
             />
           </div>
-          <div>
-            <FormControlLabel
-              control={
-                <Controller
-                  render={({ onChange, value }) => (
-                    <Checkbox
-                      onChange={(event) => onChange(event.target.checked)}
-                      checked={value}
-                      data-testid="unsavedOnlyCheckbox"
-                    />
-                  )}
-                  name="unsavedOnly"
-                  control={control}
-                  defaultValue={false}
-                />
-              }
-              label="Show only unsaved candidates"
-            />
+          <div className={classes.savedStatusSelect}>
+            <InputLabel id="savedStatusSelectLabel">
+              Show only candidates which passed a filter from the selected
+              groups...
+            </InputLabel>
+            <Controller
+              labelId="savedStatusSelectLabel"
+              as={Select}
+              name="savedStatus"
+              control={control}
+              input={<Input data-testid="savedStatusSelect" />}
+              defaultValue="all"
+            >
+              {savedStatusSelectOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Controller>
           </div>
           <div>
             <Responsive
