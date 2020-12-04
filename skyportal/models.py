@@ -270,66 +270,61 @@ def _get_if_accessible_by(cls, cls_id, user_or_token, access_func, options=[]):
     return instance
 
 
-class PermissionControl(type):
-    def __new__(cls, name, parents, dict):
+def make_permission_control(name, opname):
 
-        if 'opname' not in dict:
-            raise ValueError(
-                f'Passed dict must provide an opname to create '
-                f'the permission controlled class {name}.'
-            )
-        opname = dict['opname']
-        access_func_name = f'{opname}_by'
-        pair_table_func_name = f'_{opname}_pair_table'
-        get_classmethod_name = f'get_if_{opname}'
-        required_attributes_func_name = f'_required_attributes_for_{opname}_check'
+    access_func_name = f'{opname}_by'
+    pair_table_func_name = f'_{opname}_pair_table'
+    get_classmethod_name = f'get_if_{opname}'
+    required_attributes_func_name = f'_required_attributes_for_{opname}_check'
 
-        @hybrid_method
-        def is_accessible(self, user_or_token):
-            cls = type(self)
-            access_func = getattr(cls, access_func_name)
-            return _check_accessibility(self, user_or_token, access_func)
+    @hybrid_method
+    def is_accessible(self, user_or_token):
+        cls = type(self)
+        access_func = getattr(cls, access_func_name)
+        return _check_accessibility(self, user_or_token, access_func)
 
-        @is_accessible.expression
-        def is_accessible(cls, user_or_token):
-            pair_table_func = getattr(cls, pair_table_func_name)
-            return _check_accessibility_sql(cls, user_or_token, opname, pair_table_func)
+    @is_accessible.expression
+    def is_accessible(cls, user_or_token):
+        pair_table_func = getattr(cls, pair_table_func_name)
+        required_attrs = getattr(cls, required_attributes_func_name)()
+        return _check_accessibility_sql(
+            cls, user_or_token, opname, pair_table_func, required_attrs
+        )
 
-        @classmethod
-        def get_classmethod(cls, cls_id, user_or_token, options=[]):
-            access_func = getattr(cls, access_func_name)
-            return _get_if_accessible_by(
-                cls, cls_id, user_or_token, access_func, options=options
-            )
+    @classmethod
+    def get_classmethod(cls, cls_id, user_or_token, options=[]):
+        access_func = getattr(cls, access_func_name)
+        return _get_if_accessible_by(
+            cls, cls_id, user_or_token, access_func, options=options
+        )
 
-        @classmethod
-        @abc.abstractmethod
-        def _pair_table(cls, correlation_cls_alias, correlation_user_alias):
-            return NotImplemented
+    @classmethod
+    @abc.abstractmethod
+    def _pair_table(cls, correlation_cls_alias, correlation_user_alias):
+        return NotImplemented
 
-        @classmethod
-        @abc.abstractmethod
-        def _required_attributes(cls):
-            return NotImplemented
+    @classmethod
+    @abc.abstractmethod
+    def _required_attributes(cls):
+        return NotImplemented
 
-        class_dict = {
-            access_func_name: is_accessible,
-            get_classmethod_name: get_classmethod,
-            pair_table_func_name: _pair_table,
-            required_attributes_func_name: _required_attributes,
-        }
+    class_dict = {
+        get_classmethod_name: get_classmethod,
+        pair_table_func_name: _pair_table,
+        required_attributes_func_name: _required_attributes,
+        access_func_name: is_accessible,
+    }
 
-        parents = (parents + abc.ABC,)
-        return super().__new__(cls, name, parents, class_dict)
+    return type(name, (), class_dict)
 
 
-ReadProtected = PermissionControl('ReadProtected', (), {'opname': 'is_readable'})
-WriteProtected = PermissionControl('WriteProtected', (), {'opname': 'is_modifiable'})
-HasReadableSourceProtected = PermissionControl(
-    'HasReadableSourceProtected', (), {'opname': 'has_source_readable'}
+ReadProtected = make_permission_control('ReadProtected', 'is_readable')
+WriteProtected = make_permission_control('WriteProtected', 'is_modifiable')
+HasReadableSourceProtected = make_permission_control(
+    'HasReadableSourceProtected', 'has_source_readable'
 )
-HasReadableCandidateProtected = PermissionControl(
-    'HasReadableCandidateProtected', (), {'opname': 'has_candidate_readable'}
+HasReadableCandidateProtected = make_permission_control(
+    'HasReadableCandidateProtected', 'has_candidate_readable'
 )
 
 
@@ -339,7 +334,7 @@ class ReadableByGroupMembers(ReadProtected):
         return ('groups',)
 
     @classmethod
-    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def _is_readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
 
         cls_alias = sa.alias(cls)
         cls_groups_join_table = sa.inspect(cls).relationships['groups'].secondary
@@ -372,11 +367,11 @@ class ReadableByGroupMembers(ReadProtected):
 
 class ReadableByGroupMembersIfObjIsReadable(ReadProtected):
     @classmethod
-    def _required_attributes_for_readable_check(cls):
+    def _required_attributes_for_is_readable_check(cls):
         return 'groups', 'obj'
 
     @classmethod
-    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def _is_readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
 
         cls_alias = sa.alias(cls)
         cls_groups_join_table = sa.inspect(cls).relationships['groups'].secondary
@@ -412,11 +407,11 @@ class ReadableByGroupMembersIfObjIsReadable(ReadProtected):
 
 class ReadableIfObjIsReadable(ReadProtected):
     @classmethod
-    def _required_attributes_for_readable_check(cls):
+    def _required_attributes_for_is_readable_check(cls):
         return ('obj',)
 
     @classmethod
-    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def _is_readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
 
         cls_alias = sa.alias(cls)
         user_alias = sa.alias(User)
@@ -439,11 +434,11 @@ class ReadableIfObjIsReadable(ReadProtected):
 
 class ModifiableByOwner(WriteProtected):
     @classmethod
-    def _required_attributes_for_modifiable_check(cls):
+    def _required_attributes_for_is_modifiable_check(cls):
         return ('owner',)
 
     @classmethod
-    def _modifiable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def _is_modifiable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
         cls_alias = sa.alias(cls)
         user_alias = sa.alias(User)
         user_acls = user_acls_temporary_table()
@@ -1061,7 +1056,11 @@ class Obj(
 
     @classmethod
     def _required_attributes_for_has_candidate_readable_check(cls):
-        pass
+        return ('candidates',)
+
+    @classmethod
+    def _required_attributes_for_is_readable_check(cls):
+        return ()
 
     @classmethod
     def _has_candidate_readable_by_pair_table(
@@ -1117,7 +1116,7 @@ class Obj(
         return source_hits.distinct().lateral()
 
     @classmethod
-    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def _is_readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
         cand_x_filt = sa.join(Candidate, Filter)
         phot_x_groupphot = sa.join(Photometry, GroupPhotometry)
         unified_group_users = user_accessible_groups_temporary_table()
