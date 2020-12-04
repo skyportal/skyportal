@@ -123,11 +123,13 @@ class CandidateHandler(BaseHandler):
               Used only in the case of paginating query results - if provided, this
               allows for avoiding a potentially expensive query.count() call.
           - in: query
-            name: unsavedOnly
+            name: savedStatus
             nullable: true
             schema:
-              type: boolean
-            description: Boolean indicating whether to return only unsaved candidates
+                type: string
+                enum: [all, savedToAllSelected, savedToAnySelected, savedToAnyAccessible, notSavedToAnyAccessible, notSavedToAnySelected, notSavedToAllSelected]
+            description: |
+                String indicating the saved status to filter candidate results for. Must be one of the enumerated values.
           - in: query
             name: startDate
             nullable: true
@@ -322,7 +324,7 @@ class CandidateHandler(BaseHandler):
 
         page_number = self.get_query_argument("pageNumber", None) or 1
         n_per_page = self.get_query_argument("numPerPage", None) or 25
-        unsaved_only = self.get_query_argument("unsavedOnly", False)
+        saved_status = self.get_query_argument("savedStatus", "all")
         total_matches = self.get_query_argument("totalMatches", None)
         start_date = self.get_query_argument("startDate", None)
         end_date = self.get_query_argument("endDate", None)
@@ -399,14 +401,84 @@ class CandidateHandler(BaseHandler):
             # the LIMT/OFFSET helper function down the line once other query
             # params are set.
             order_by = [Obj.last_detected.desc().nullslast(), Obj.id]
-        if unsaved_only == "true":
-            q = q.filter(
-                Obj.id.notin_(
-                    DBSession()
-                    .query(Source.obj_id)
-                    .filter(Source.group_id.in_(group_ids))
+
+        if saved_status in [
+            "all",
+            "savedToAllSelected",
+            "savedToAnySelected",
+            "savedToAnyAccessible",
+            "notSavedToAnyAccessible",
+            "notSavedToAnySelected",
+            "notSavedToAllSelected",
+        ]:
+            if saved_status == "savedToAllSelected":
+                # Retrieve objects that have as many active saved groups that are
+                # in 'group_ids' as there are items in 'group_ids'
+                q = q.filter(
+                    Obj.id.in_(
+                        DBSession()
+                        .query(Source.obj_id)
+                        .filter(Source.active.is_(True))
+                        .filter(Source.group_id.in_(group_ids))
+                        .group_by(Source.obj_id)
+                        .having(func.count(Source.group_id) == len(group_ids))
+                    )
                 )
+            elif saved_status == "savedToAnySelected":
+                q = q.filter(
+                    Obj.id.in_(
+                        DBSession()
+                        .query(Source.obj_id)
+                        .filter(Source.active.is_(True))
+                        .filter(Source.group_id.in_(group_ids))
+                    )
+                )
+            elif saved_status == "savedToAnyAccessible":
+                q = q.filter(
+                    Obj.id.in_(
+                        DBSession()
+                        .query(Source.obj_id)
+                        .filter(Source.active.is_(True))
+                        .filter(Source.group_id.in_(user_accessible_group_ids))
+                    )
+                )
+            elif saved_status == "notSavedToAnyAccessible":
+                q = q.filter(
+                    Obj.id.notin_(
+                        DBSession()
+                        .query(Source.obj_id)
+                        .filter(Source.active.is_(True))
+                        .filter(Source.group_id.in_(user_accessible_group_ids))
+                    )
+                )
+            elif saved_status == "notSavedToAnySelected":
+                q = q.filter(
+                    Obj.id.notin_(
+                        DBSession()
+                        .query(Source.obj_id)
+                        .filter(Source.active.is_(True))
+                        .filter(Source.group_id.in_(group_ids))
+                    )
+                )
+            elif saved_status == "notSavedToAllSelected":
+                # Retrieve objects that have as many active saved groups that are
+                # in 'group_ids' as there are items in 'group_ids', and select
+                # the objects not in that set
+                q = q.filter(
+                    Obj.id.notin_(
+                        DBSession()
+                        .query(Source.obj_id)
+                        .filter(Source.active.is_(True))
+                        .filter(Source.group_id.in_(group_ids))
+                        .group_by(Source.obj_id)
+                        .having(func.count(Source.group_id) == len(group_ids))
+                    )
+                )
+        else:
+            return self.error(
+                f"Invalid savedStatus: {saved_status}. Must be one of the enumerated options."
             )
+
         if start_date is not None and start_date.strip() not in [
             "",
             "null",
