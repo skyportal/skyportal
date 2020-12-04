@@ -14,6 +14,7 @@ def test_standards(view_only_token):
         },
         token=view_only_token,
     )
+    print(data)
     assert status == 200
     assert data['status'] == 'success'
     assert isinstance(data['data']['starlist_info'], list)
@@ -35,10 +36,8 @@ def test_standards_bad_standard_list(view_only_token):
         },
         token=view_only_token,
     )
-    assert status == 200
-    assert data['status'] == 'success'
-    assert isinstance(data['data']['starlist_info'], list)
-    assert len(data['data']['starlist_info']) == 0
+    assert status == 400
+    assert data['message'].find('Invalid') != -1
 
 
 def test_standards_filter(view_only_token):

@@ -93,7 +93,7 @@ class StandardsHandler(BaseHandler):
 
         if standard_type not in cfg["standard_stars"]:
             return self.error(
-                f'Invalid `standard_type`. Should be {cfg["standard_stars"]}'
+                f'Invalid `standard_type`. Should be in {list(cfg["standard_stars"].keys())}'
             )
 
         if starlist_type not in ["Keck", "Shane", "P200"]:
@@ -101,7 +101,9 @@ class StandardsHandler(BaseHandler):
                 'Invalid `starlist_type`. Should be in [Keck, Shane, P200]'
             )
 
-        if not isinstance(show_first_line, bool):
+        try:
+            show_first_line = bool(show_first_line)
+        except TypeError:
             return self.error('Invalid argument for `show_first_line`')
 
         dec_filter_range = ast.literal_eval(dec_filter_range_str)
