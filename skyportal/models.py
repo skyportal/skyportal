@@ -330,6 +330,38 @@ WriteProtected = make_permission_control('WriteProtected', 'is_modifiable')
 class ReadableByGroupMembers(ReadProtected):
     @classmethod
     def _required_attributes_for_is_readable_check(cls):
+        return ('group',)
+
+    @classmethod
+    def _is_readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+
+        cls_alias = sa.alias(cls)
+        user_accessible_groups = user_accessible_groups_temporary_table()
+
+        readable_by_virtue_of_groups = (
+            sa.select(
+                [
+                    cls_alias.c.id.label('cls_id'),
+                    user_accessible_groups.c.user_id.label('user_id'),
+                ]
+            )
+            .select_from(
+                sa.join(
+                    cls_alias,
+                    user_accessible_groups,
+                    cls_alias.c.group_id == user_accessible_groups.c.group_id,
+                )
+            )
+            .where(cls_alias.c.id == correlation_cls_alias.c.id)
+            .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
+        )
+
+        return readable_by_virtue_of_groups.distinct().lateral()
+
+
+class ReadableByGroupsMembers(ReadProtected):
+    @classmethod
+    def _required_attributes_for_is_readable_check(cls):
         return ('groups',)
 
     @classmethod
@@ -1106,7 +1138,7 @@ class Obj(
         return sa.union(phot_subq, source_subq, cand_subq).lateral()
 
 
-class Filter(Base):
+class Filter(ReadableByGroupMembers, Base):
     """An alert filter that operates on a Stream. A Filter is associated
     with exactly one Group, and a Group may have multiple operational Filters.
     """
@@ -1576,7 +1608,7 @@ class Instrument(Base):
         return getattr(facility_apis, self.listener_classname)
 
 
-class Allocation(Base):
+class Allocation(ReadableByGroupMembers, Base):
     """An allocation of observing time on a robotic instrument."""
 
     pi = sa.Column(sa.String, doc="The PI of the allocation's proposal.")
@@ -1619,7 +1651,7 @@ class Allocation(Base):
     )
 
 
-class Taxonomy(ReadableByGroupMembers, Base):
+class Taxonomy(ReadableByGroupsMembers, Base):
     """An ontology within which Objs can be classified."""
 
     __tablename__ = 'taxonomies'
@@ -1851,7 +1883,7 @@ GroupClassifications = join_model("group_classifications", Group, Classification
 GroupClassifications.__doc__ = "Join table mapping Groups to Classifications."
 
 
-class Photometry(ha.Point, ReadableByGroupMembers, ModifiableByOwner, Base):
+class Photometry(ha.Point, ReadableByGroupsMembers, ModifiableByOwner, Base):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
     __tablename__ = 'photometry'
@@ -2062,7 +2094,7 @@ GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 
 
-class Spectrum(ReadableByGroupMembers, ModifiableByOwner, Base):
+class Spectrum(ReadableByGroupMembersIfObjIsReadable, ModifiableByOwner, Base):
     """Wavelength-dependent measurement of the flux of an object through a
     dispersive element."""
 
@@ -2786,7 +2818,7 @@ def send_user_invite_email(mapper, connection, target):
     )
 
 
-class SourceNotification(ReadableByGroupMembers, Base):
+class SourceNotification(ReadableByGroupsMembers, Base):
     groups = relationship(
         "Group",
         secondary="group_notifications",
