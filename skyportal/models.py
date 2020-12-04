@@ -1105,7 +1105,12 @@ class Obj(ReadProtected, Base, ha.Point):
         user_alias = sa.alias(User)
 
         candidate_hits = (
-            sa.select([Candidate.obj_id, user_accessible_groups.c.user_id])
+            sa.select(
+                [
+                    Candidate.obj_id.label('cls_id'),
+                    user_accessible_groups.c.user_id.label('user_id'),
+                ]
+            )
             .select_from(
                 sa.join(
                     cand_x_filt,
@@ -1123,7 +1128,7 @@ class Obj(ReadProtected, Base, ha.Point):
             sa.select([lateral.c.cls_id.isnot(None)])
             .select_from(
                 sa.join(cls_alias, user_alias, sa.literal(True)).outerjoin(
-                    lateral, cls_alias.c.id == lateral.c.obj_id
+                    lateral, cls_alias.c.id == lateral.c.cls_id
                 )
             )
             .where(cls_alias.c.id == cls.id)
@@ -1176,7 +1181,12 @@ class Obj(ReadProtected, Base, ha.Point):
         user_alias = sa.alias(User)
 
         source_hits = (
-            sa.select([Source.obj_id, user_accessible_groups.c.user_id])
+            sa.select(
+                [
+                    Source.obj_id.label('cls_id'),
+                    user_accessible_groups.c.user_id.label('user_id'),
+                ]
+            )
             .select_from(
                 sa.join(
                     Source,
@@ -1194,7 +1204,7 @@ class Obj(ReadProtected, Base, ha.Point):
             sa.select([lateral.c.cls_id.isnot(None)])
             .select_from(
                 sa.join(cls_alias, user_alias, sa.literal(True)).outerjoin(
-                    lateral, cls_alias.c.id == lateral.c.obj_id
+                    lateral, cls_alias.c.id == lateral.c.cls_id
                 )
             )
             .where(cls_alias.c.id == cls.id)
