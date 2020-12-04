@@ -21,7 +21,6 @@ from ...models import (
     DBSession,
     Allocation,
     Instrument,
-    Photometry,
     Obj,
     Source,
     Token,
@@ -40,6 +39,7 @@ from ...utils import (
     _calculate_best_position_for_offset_stars,
 )
 from .candidate import grab_query_results, update_redshift_history_if_relevant
+from .photometry import serialize
 
 
 SOURCES_PER_PAGE = 100
@@ -296,6 +296,13 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to include comment metadata in response.
               Defaults to false.
+          - in: query
+            name: includeSpectrumExists
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to return if a source has a spectra. Defaults to false.
           responses:
             200:
               content:
@@ -342,6 +349,9 @@ class SourceHandler(BaseHandler):
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "asc")
         include_comments = self.get_query_argument("includeComments", False)
+        include_spectrum_exists = self.get_query_argument(
+            "includeSpectrumExists", False
+        )
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -413,16 +423,7 @@ class SourceHandler(BaseHandler):
                 .joinedload(FollowupRequest.allocation)
                 .joinedload(Allocation.group),
             ]
-            if include_photometry:
-                query_options.append(
-                    joinedload(Obj.photometry).joinedload(Photometry.instrument)
-                )
-            s = Obj.get_if_readable_by(
-                obj_id, self.current_user, options=query_options,
-            )
 
-            if s is None:
-                return self.error("Source not found", status=404)
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
                 register_source_view(
@@ -476,8 +477,15 @@ class SourceHandler(BaseHandler):
                 f for f in s.followup_requests if f.status != 'deleted'
             ]
             if include_photometry:
-                source_info["photometry"] = Obj.get_photometry_readable_by_user(
+                photometry = Obj.get_photometry_readable_by_user(
                     obj_id, self.current_user
+                )
+                source_info["photometry"] = [
+                    serialize(phot, 'ab', 'flux') for phot in photometry
+                ]
+            if include_spectrum_exists:
+                source_info["spectrum_exists"] = (
+                    len(Obj.get_spectra_readable_by(obj_id, self.current_user)) > 0
                 )
             query = (
                 DBSession()
@@ -522,10 +530,6 @@ class SourceHandler(BaseHandler):
 
         # Fetch multiple sources
         query_options = [joinedload(Obj.thumbnails)]
-        if include_photometry:
-            query_options.append(
-                joinedload(Obj.photometry).joinedload(Photometry.instrument)
-            )
 
         if not save_summary:
             q = (
@@ -686,6 +690,19 @@ class SourceHandler(BaseHandler):
                 source_list[-1][
                     "angular_diameter_distance"
                 ] = source.angular_diameter_distance
+                if include_photometry:
+                    photometry = Obj.get_photometry_readable_by_user(
+                        source.id, self.current_user
+                    )
+                    source_list[-1]["photometry"] = [
+                        serialize(phot, 'ab', 'flux') for phot in photometry
+                    ]
+                if include_spectrum_exists:
+                    source_list[-1]["spectrum_exists"] = (
+                        len(Obj.get_spectra_readable_by(source.id, self.current_user))
+                        > 0
+                    )
+
                 groups_query = (
                     DBSession()
                     .query(Group)

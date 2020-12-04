@@ -37,16 +37,24 @@ export function fetchSources(filterParams = {}) {
 export function fetchSavedGroupSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
   const params = new URLSearchParams(filterParams);
+  const additionalInfo = "includePhotometry=true&includeSpectrumExists=true";
   const queryString = params.toString();
-  return API.GET(`/api/sources?${queryString}`, FETCH_SAVED_GROUP_SOURCES);
+  return API.GET(
+    `/api/sources?${additionalInfo}&${queryString}`,
+    FETCH_SAVED_GROUP_SOURCES
+  );
 }
 
 export function fetchPendingGroupSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
   filterParams.pendingOnly = true;
   const params = new URLSearchParams(filterParams);
+  const additionalInfo = "includePhotometry=true&includeSpectrumExists=true";
   const queryString = params.toString();
-  return API.GET(`/api/sources?${queryString}`, FETCH_PENDING_GROUP_SOURCES);
+  return API.GET(
+    `/api/sources?${additionalInfo}&${queryString}`,
+    FETCH_PENDING_GROUP_SOURCES
+  );
 }
 
 const initialState = {
