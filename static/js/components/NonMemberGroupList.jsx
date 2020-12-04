@@ -1,0 +1,132 @@
+import React from "react";
+import PropTypes from "prop-types";
+import { useDispatch, useSelector } from "react-redux";
+import Button from "@material-ui/core/Button";
+import MUIDataTable from "mui-datatables";
+
+import { showNotification } from "baselayer/components/Notifications";
+
+import * as groupsActions from "../ducks/groups";
+
+const NonMemberGroupList = ({ groups }) => {
+  const dispatch = useDispatch();
+  const { id: currentUserID, groupAdmissionRequests } = useSelector(
+    (state) => state.profile
+  );
+  if (currentUserID === null) {
+    return <>Loading...</>;
+  }
+  const pendingRequestGroupIDs = groupAdmissionRequests
+    .filter((gar) => gar.status === "pending")
+    .map((gar) => gar.group_id);
+  const declinedRequestGroupIDs = groupAdmissionRequests
+    .filter((gar) => gar.status === "declined")
+    .map((gar) => gar.group_id);
+
+  const handleRequestAdmission = async (groupID) => {
+    const result = await dispatch(
+      groupsActions.requestGroupAdmission(currentUserID, groupID)
+    );
+    if (result.status === "success") {
+      dispatch(showNotification("Successfully requested admission to group."));
+      dispatch(groupsActions.fetchGroups(true));
+    }
+  };
+
+  const handleDeleteAdmissionRequest = (admissionRequestID) => {
+    dispatch(groupsActions.deleteAdmissionRequest(admissionRequestID));
+  };
+
+  const renderActions = (dataIndex) => {
+    const group = groups[dataIndex];
+    if (declinedRequestGroupIDs.includes(group.id)) {
+      return <em>Admission request declined.</em>;
+    }
+    if (pendingRequestGroupIDs.includes(group.id)) {
+      const admissionRequestID = groupAdmissionRequests.filter(
+        (gar) => gar.group_id === group.id
+      )[0].id;
+      return (
+        <>
+          <em>Request pending... </em>
+          <Button
+            size="small"
+            variant="contained"
+            onClick={() => handleDeleteAdmissionRequest(admissionRequestID)}
+            data-testid={`deleteAdmissionRequestButton${group.id}`}
+          >
+            Delete
+          </Button>
+        </>
+      );
+    }
+    return (
+      <Button
+        size="small"
+        variant="contained"
+        onClick={() => handleRequestAdmission(group.id)}
+        data-testid={`requestAdmissionButton${group.id}`}
+      >
+        Request admission
+      </Button>
+    );
+  };
+  const columns = [
+    {
+      name: "name",
+      label: "Name",
+      options: {
+        filter: false,
+      },
+    },
+    {
+      name: "nickname",
+      label: "Nickname",
+      options: {
+        filter: false,
+      },
+    },
+    {
+      name: "actions",
+      label: "Actions",
+      options: {
+        sort: false,
+        customBodyRenderLite: renderActions,
+        filter: false,
+      },
+    },
+  ];
+
+  const options = {
+    responsive: "standard",
+    download: false,
+    search: true,
+    selectableRows: "none",
+    rowsPerPage: 10,
+    rowsPerPageOptions: [10, 25, 50, 100, 200],
+    filter: true,
+    jumpToPage: true,
+    pagination: true,
+    rowHover: false,
+  };
+  return (
+    <MUIDataTable
+      title="Non-member groups"
+      columns={columns}
+      data={groups}
+      options={options}
+    />
+  );
+};
+
+NonMemberGroupList.propTypes = {
+  groups: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string,
+      nickname: PropTypes.string,
+      id: PropTypes.number,
+    })
+  ).isRequired,
+};
+
+export default NonMemberGroupList;
