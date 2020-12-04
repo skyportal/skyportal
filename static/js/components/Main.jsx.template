@@ -82,7 +82,7 @@ const MainContent = ({ root }) => {
     store.dispatch(rotateLogoActions.rotateLogo());
   }, []);
 
-  let location = useLocation();
+  const location = useLocation();
   useEffect(() => {
     document.title = "{{ app.title }}";
   }, [location]);
