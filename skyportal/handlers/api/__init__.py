@@ -1,7 +1,7 @@
 from .acls import ACLHandler, UserACLHandler
 from .allocation import AllocationHandler
 from .candidate import CandidateHandler
-from .classification import ClassificationHandler
+from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
 from .filter import FilterHandler
