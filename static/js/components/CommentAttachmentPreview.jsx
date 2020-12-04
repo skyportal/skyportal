@@ -134,7 +134,7 @@ const CommentAttachmentPreview = ({ filename, commentId }) => {
     setOpen(false);
   };
 
-  const fileType = filename.includes(".") ? filename.split(".", 2)[1] : "";
+  const fileType = filename.includes(".") ? filename.split(".").pop() : "";
   const supportedType = ["png", "jpg", "jpeg", "pdf", "gif", "json"].includes(
     fileType.toLowerCase()
   );

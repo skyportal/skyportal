@@ -11,10 +11,15 @@ import Paper from "@material-ui/core/Paper";
 import SearchIcon from "@material-ui/icons/Search";
 import { makeStyles } from "@material-ui/core/styles";
 
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+
 import * as candidatesActions from "../ducks/candidates";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 import FormValidationError from "./FormValidationError";
+
+dayjs.extend(utc);
 
 const useStyles = makeStyles(() => ({
   filterListContainer: {
@@ -51,13 +56,20 @@ const FilterCandidateList = ({
 }) => {
   const classes = useStyles();
 
-  const { handleSubmit, getValues, control, errors, reset } = useForm();
+  const defaultStartDate = new Date();
+  defaultStartDate.setDate(defaultStartDate.getDate() - 1);
+  const defaultEndDate = new Date();
+
+  const { handleSubmit, getValues, control, errors, reset } = useForm({
+    startDate: defaultStartDate,
+    endDate: defaultEndDate,
+  });
 
   useEffect(() => {
     reset({
       groupIDs: Array(userAccessibleGroups.length).fill(false),
-      startDate: null,
-      endDate: null,
+      startDate: defaultStartDate,
+      endDate: defaultEndDate,
     });
   }, [reset, userAccessibleGroups]);
 
@@ -117,30 +129,34 @@ const FilterCandidateList = ({
               <FormValidationError message="Invalid date range." />
             )}
             <Controller
-              as={
+              render={({ onChange, value }) => (
                 <KeyboardDateTimePicker
-                  value={formState.startDate}
-                  label="Start (browser local time)"
+                  value={dayjs.utc(value)}
+                  onChange={(e, date) => onChange(dayjs.utc(date))}
+                  label="Start (UTC)"
                   format="YYYY/MM/DD HH:mm"
                   ampm={false}
-                  showTodayButton
+                  showTodayButton={false}
+                  data-testid="startDatePicker"
                 />
-              }
+              )}
               rules={{ validate: validateDates }}
               name="startDate"
               control={control}
             />
             &nbsp;
             <Controller
-              as={
+              render={({ onChange, value }) => (
                 <KeyboardDateTimePicker
-                  value={formState.endDate}
-                  label="End (browser local time)"
+                  value={dayjs.utc(value)}
+                  onChange={(e, date) => onChange(dayjs.utc(date))}
+                  label="End (UTC)"
                   format="YYYY/MM/DD HH:mm"
                   ampm={false}
-                  showTodayButton
+                  showTodayButton={false}
+                  data-testid="endDatePicker"
                 />
-              }
+              )}
               rules={{ validate: validateDates }}
               name="endDate"
               control={control}

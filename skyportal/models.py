@@ -103,7 +103,7 @@ def user_to_dict(self):
 User.to_dict = user_to_dict
 
 
-def is_owned_by(self, user_or_token):
+def is_readable_by(self, user_or_token):
     """Generic ownership logic for any `skyportal` ORM model.
 
     Models with complicated ownership logic should implement their own method
@@ -135,7 +135,7 @@ def is_modifiable_by(self, user):
 
     Returns
     -------
-    owned: bool
+    readable: bool
        Whether the Object can be modified by the User.
     """
 
@@ -151,7 +151,7 @@ def is_modifiable_by(self, user):
     return is_admin or owns_spectrum
 
 
-Base.is_owned_by = is_owned_by
+Base.is_readable_by = is_readable_by
 
 
 class NumpyArray(sa.types.TypeDecorator):
@@ -827,7 +827,7 @@ Candidate.__table_args__ = (
 )
 
 
-def get_candidate_if_owned_by(obj_id, user_or_token, options=[]):
+def get_candidate_if_readable_by(obj_id, user_or_token, options=[]):
     """Return an Obj from the database if the Obj is a Candidate in at least
     one of the requesting User or Token owner's accessible Groups. If the Obj is not a
     Candidate in one of the User or Token owner's accessible Groups, raise an AccessError.
@@ -866,7 +866,7 @@ def get_candidate_if_owned_by(obj_id, user_or_token, options=[]):
     return c.obj
 
 
-def candidate_is_owned_by(self, user_or_token):
+def candidate_is_readable_by(self, user_or_token):
     """Return a boolean indicating whether the Candidate passed the Filter
     of any of a User or Token owner's accessible Groups.
 
@@ -878,14 +878,14 @@ def candidate_is_owned_by(self, user_or_token):
 
     Returns
     -------
-    owned : bool
-       Whether the Candidate is owned by the User or Token owner.
+    readable : bool
+       Whether the Candidate is readable by the User or Token owner.
     """
     return self.filter.group in user_or_token.accessible_groups
 
 
-Candidate.get_obj_if_owned_by = get_candidate_if_owned_by
-Candidate.is_owned_by = candidate_is_owned_by
+Candidate.get_obj_if_readable_by = get_candidate_if_readable_by
+Candidate.is_readable_by = candidate_is_readable_by
 
 
 Source = join_model("sources", Group, Obj)
@@ -954,7 +954,7 @@ Obj.candidates = relationship(
 )
 
 
-def source_is_owned_by(self, user_or_token):
+def source_is_readable_by(self, user_or_token):
     """Return a boolean indicating whether the Source has been saved to
     any of a User or Token owner's accessible Groups.
 
@@ -965,8 +965,8 @@ def source_is_owned_by(self, user_or_token):
 
     Returns
     -------
-    owned : bool
-       Whether the Candidate is owned by the User or Token owner.
+    readable : bool
+       Whether the Candidate is readable by the User or Token owner.
     """
 
     source_group_ids = [
@@ -978,7 +978,7 @@ def source_is_owned_by(self, user_or_token):
     return bool(set(source_group_ids) & {g.id for g in user_or_token.accessible_groups})
 
 
-def get_source_if_owned_by(obj_id, user_or_token, options=[]):
+def get_source_if_readable_by(obj_id, user_or_token, options=[]):
     """Return an Obj from the database if the Obj is a Source in at least
     one of the requesting User or Token owner's accessible Groups. If the Obj is not a
     Source in one of the User or Token owner's accessible Groups, raise an AccessError.
@@ -1013,11 +1013,11 @@ def get_source_if_owned_by(obj_id, user_or_token, options=[]):
     return s.obj
 
 
-Source.is_owned_by = source_is_owned_by
-Source.get_obj_if_owned_by = get_source_if_owned_by
+Source.is_readable_by = source_is_readable_by
+Source.get_obj_if_readable_by = get_source_if_readable_by
 
 
-def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
+def get_obj_if_readable_by(obj_id, user_or_token, options=[]):
     """Return an Obj from the database if the Obj is either a Source or a Candidate in at least
     one of the requesting User or Token owner's accessible Groups. If the Obj is not a
     Source or a Candidate in one of the User or Token owner's accessible Groups, raise an AccessError.
@@ -1051,15 +1051,15 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
 
     # the order of the following attempts is important -
     # this one should come first
-    if Obj.get_photometry_owned_by_user(obj_id, user_or_token):
+    if Obj.get_photometry_readable_by_user(obj_id, user_or_token):
         return Obj.query.options(options).get(obj_id)
 
     try:
         source_opts = [construct_joinedload(Source.obj, o.path) for o in options]
-        obj = Source.get_obj_if_owned_by(obj_id, user_or_token, source_opts)
+        obj = Source.get_obj_if_readable_by(obj_id, user_or_token, source_opts)
     except AccessError:  # They may still be able to view the associated Candidate
         cand_opts = [construct_joinedload(Candidate.obj, o.path) for o in options]
-        obj = Candidate.get_obj_if_owned_by(obj_id, user_or_token, cand_opts)
+        obj = Candidate.get_obj_if_readable_by(obj_id, user_or_token, cand_opts)
 
     if obj is None:
         raise AccessError('Insufficient permissions.')
@@ -1068,10 +1068,10 @@ def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
     return obj
 
 
-Obj.get_if_owned_by = get_obj_if_owned_by
+Obj.get_if_readable_by = get_obj_if_readable_by
 
 
-def get_obj_comments_owned_by(self, user_or_token):
+def get_obj_comments_readable_by(self, user_or_token):
     """Query the database and return the Comments on this Obj that are accessible
     to any of the User or Token owner's accessible Groups.
 
@@ -1085,21 +1085,21 @@ def get_obj_comments_owned_by(self, user_or_token):
     comment_list : list of `skyportal.models.Comment`
        The accessible comments attached to this Obj.
     """
-    owned_comments = [
-        comment for comment in self.comments if comment.is_owned_by(user_or_token)
+    readable_comments = [
+        comment for comment in self.comments if comment.is_readable_by(user_or_token)
     ]
 
     # Grab basic author info for the comments
-    for comment in owned_comments:
+    for comment in readable_comments:
         comment.author_info = comment.construct_author_info_dict()
 
-    return owned_comments
+    return readable_comments
 
 
-Obj.get_comments_owned_by = get_obj_comments_owned_by
+Obj.get_comments_readable_by = get_obj_comments_readable_by
 
 
-def get_obj_annotations_owned_by(self, user_or_token):
+def get_obj_annotations_readable_by(self, user_or_token):
     """Query the database and return the Annotations on this Obj that are accessible
     to any of the User or Token owner's accessible Groups.
 
@@ -1113,23 +1113,23 @@ def get_obj_annotations_owned_by(self, user_or_token):
     annotation_list : list of `skyportal.models.Annotation`
        The accessible annotations attached to this Obj.
     """
-    owned_annotations = [
+    readable_annotations = [
         annotation
         for annotation in self.annotations
-        if annotation.is_owned_by(user_or_token)
+        if annotation.is_readable_by(user_or_token)
     ]
 
     # Grab basic author info for the annotations
-    for annotation in owned_annotations:
+    for annotation in readable_annotations:
         annotation.author_info = annotation.construct_author_info_dict()
 
-    return owned_annotations
+    return readable_annotations
 
 
-Obj.get_annotations_owned_by = get_obj_annotations_owned_by
+Obj.get_annotations_readable_by = get_obj_annotations_readable_by
 
 
-def get_obj_classifications_owned_by(self, user_or_token):
+def get_obj_classifications_readable_by(self, user_or_token):
     """Query the database and return the Classifications on this Obj that are accessible
     to any of the User or Token owner's accessible Groups.
 
@@ -1146,14 +1146,14 @@ def get_obj_classifications_owned_by(self, user_or_token):
     return [
         classifications
         for classifications in self.classifications
-        if classifications.is_owned_by(user_or_token)
+        if classifications.is_readable_by(user_or_token)
     ]
 
 
-Obj.get_classifications_owned_by = get_obj_classifications_owned_by
+Obj.get_classifications_readable_by = get_obj_classifications_readable_by
 
 
-def get_photometry_owned_by_user(obj_id, user_or_token):
+def get_photometry_readable_by_user(obj_id, user_or_token):
     """Query the database and return the Photometry for this Obj that is shared
     with any of the User or Token owner's accessible Groups.
 
@@ -1180,10 +1180,10 @@ def get_photometry_owned_by_user(obj_id, user_or_token):
     )
 
 
-Obj.get_photometry_owned_by_user = get_photometry_owned_by_user
+Obj.get_photometry_readable_by_user = get_photometry_readable_by_user
 
 
-def get_spectra_owned_by(obj_id, user_or_token, options=()):
+def get_spectra_readable_by(obj_id, user_or_token, options=()):
     """Query the database and return the Spectra for this Obj that are shared
     with any of the User or Token owner's accessible Groups.
 
@@ -1214,7 +1214,7 @@ def get_spectra_owned_by(obj_id, user_or_token, options=()):
     )
 
 
-Obj.get_spectra_owned_by = get_spectra_owned_by
+Obj.get_spectra_readable_by = get_spectra_readable_by
 
 
 User.sources = relationship(
@@ -1707,10 +1707,10 @@ class Comment(Base):
         }
 
     @classmethod
-    def get_if_owned_by(cls, ident, user, options=[]):
+    def get_if_readable_by(cls, ident, user, options=[]):
         comment = cls.query.options(options).get(ident)
 
-        if comment is not None and not comment.is_owned_by(user):
+        if comment is not None and not comment.is_readable_by(user):
             raise AccessError('Insufficient permissions.')
 
         # Grab basic author info for the comment
@@ -1777,10 +1777,10 @@ class Annotation(Base):
         }
 
     @classmethod
-    def get_if_owned_by(cls, ident, user, options=[]):
+    def get_if_readable_by(cls, ident, user, options=[]):
         annotation = cls.query.options(options).get(ident)
 
-        if annotation is not None and not annotation.is_owned_by(user):
+        if annotation is not None and not annotation.is_readable_by(user):
             raise AccessError('Insufficient permissions.')
 
         # Grab basic author info for the annotation
@@ -2425,7 +2425,7 @@ class FollowupRequest(Base):
     def instrument(self):
         return self.allocation.instrument
 
-    def is_owned_by(self, user_or_token):
+    def is_readable_by(self, user_or_token):
         """Return a boolean indicating whether a FollowupRequest belongs to
         an allocation that is accessible to the given user or token.
 
@@ -2436,7 +2436,7 @@ class FollowupRequest(Base):
 
         Returns
         -------
-        owned: bool
+        readable: bool
            Whether the FollowupRequest belongs to an Allocation that is
            accessible to the given user or token.
         """

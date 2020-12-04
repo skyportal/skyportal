@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
@@ -13,12 +13,13 @@ import TextField from "@material-ui/core/TextField";
 import { showNotification } from "baselayer/components/Notifications";
 
 import FormValidationError from "./FormValidationError";
-import Plot from "./Plot";
 
 import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
 import { useSourceStyles } from "./SourceDesktop";
+
+const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 
 const createPhotRow = (
   id,
@@ -222,11 +223,13 @@ const ShareDataForm = ({ route }) => {
               expandableRows: true,
               // eslint-disable-next-line react/display-name,no-unused-vars
               renderExpandableRow: (rowData, rowMeta) => (
-                <Plot
-                  className={styles.plot}
-                  // eslint-disable-next-line react/prop-types
-                  url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`}
-                />
+                <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
+                  <Plot
+                    className={styles.plot}
+                    // eslint-disable-next-line react/prop-types
+                    url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`}
+                  />
+                </Suspense>
               ),
               expandableRowsOnClick: true,
             }}

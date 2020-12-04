@@ -28,7 +28,7 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        classification = Classification.get_if_owned_by(
+        classification = Classification.get_if_readable_by(
             classification_id, self.current_user
         )
         if classification is None:
@@ -94,7 +94,7 @@ class ClassificationHandler(BaseHandler):
         data = self.get_json()
         obj_id = data['obj_id']
         # Ensure user/token has access to parent source
-        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        source = Source.get_obj_if_readable_by(obj_id, self.current_user)
         if source is None:
             return self.error("Invalid source.")
         user_group_ids = [g.id for g in self.current_user.groups]
@@ -214,7 +214,7 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        c = Classification.get_if_owned_by(classification_id, self.current_user)
+        c = Classification.get_if_readable_by(classification_id, self.current_user)
         if c is None:
             return self.error('Invalid classification ID.')
 
@@ -231,7 +231,7 @@ class ClassificationHandler(BaseHandler):
             )
         DBSession().flush()
         if group_ids is not None:
-            c = Classification.get_if_owned_by(classification_id, self.current_user)
+            c = Classification.get_if_readable_by(classification_id, self.current_user)
             groups = Group.query.filter(Group.id.in_(group_ids)).all()
             if not groups:
                 return self.error(

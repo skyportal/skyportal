@@ -780,7 +780,7 @@ class PhotometryHandler(BaseHandler):
     def get(self, photometry_id):
         # The full docstring/API spec is below as an f-string
 
-        phot = Photometry.get_if_owned_by(photometry_id, self.current_user)
+        phot = Photometry.get_if_readable_by(photometry_id, self.current_user)
         if phot is None:
             return self.error('Invalid photometry ID')
 
@@ -819,7 +819,7 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
 
-        photometry = Photometry.get_if_owned_by(photometry_id, self.current_user)
+        photometry = Photometry.get_if_readable_by(photometry_id, self.current_user)
         if not photometry.is_modifiable_by(self.associated_user_object):
             return self.error(
                 f'Cannot delete photometry point that is owned by {photometry.owner}.'
@@ -885,7 +885,7 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        photometry = Photometry.get_if_owned_by(photometry_id, self.current_user)
+        photometry = Photometry.get_if_readable_by(photometry_id, self.current_user)
         if not photometry.is_modifiable_by(self.associated_user_object):
             return self.error(
                 f'Cannot delete photometry point that is owned by {photometry.owner}.'
@@ -905,7 +905,7 @@ class ObjPhotometryHandler(BaseHandler):
         obj = Obj.query.get(obj_id)
         if obj is None:
             return self.error('Invalid object id.')
-        photometry = Obj.get_photometry_owned_by_user(obj_id, self.current_user)
+        photometry = Obj.get_photometry_readable_by_user(obj_id, self.current_user)
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
         return self.success(
@@ -937,7 +937,7 @@ class BulkDeletePhotometryHandler(BaseHandler):
         """
         # Permissions check:
         phot_id = Photometry.query.filter(Photometry.upload_id == upload_id).first().id
-        _ = Photometry.get_if_owned_by(phot_id, self.current_user)
+        _ = Photometry.get_if_readable_by(phot_id, self.current_user)
 
         n_deleted = (
             DBSession()

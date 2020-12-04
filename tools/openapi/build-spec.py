@@ -6,10 +6,10 @@ from skyportal.app_server import skyportal_handlers
 
 spec = openapi.spec_from_handlers(baselayer_handlers + skyportal_handlers)
 
-f = open('openapi.yml', 'w')
-f.write(spec.to_yaml())
-f.close()
-f = open('openapi.json', 'w')
+with open('openapi.yml', 'w') as f:
+    f.write(spec.to_yaml())
 
-json.dump(spec.to_dict(), f)
+with open('openapi.json', 'w') as f:
+    json.dump(spec.to_dict(), f)
+
 print("OpenAPI spec written to openapi.{yml,json}")
