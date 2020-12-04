@@ -116,7 +116,10 @@ export function getCommentAttachment(comment_id) {
 }
 
 export function fetchSource(id) {
-  return API.GET(`/api/sources/${id}`, FETCH_LOADED_SOURCE);
+  return API.GET(
+    `/api/sources/${id}?includeComments=true`,
+    FETCH_LOADED_SOURCE
+  );
 }
 
 export function addSourceView(id) {

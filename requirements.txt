@@ -39,3 +39,4 @@ twilio>=6.45.3
 jsonschema-to-openapi>=0.2.1
 responses>=0.12.0
 numba>=0.51.2
+pyvo>=1.1
