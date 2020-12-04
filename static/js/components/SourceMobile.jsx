@@ -15,7 +15,6 @@ import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 
-import Plot from "./Plot";
 import CommentListMobile from "./CommentListMobile";
 import ClassificationList from "./ClassificationList";
 import ClassificationForm from "./ClassificationForm";
@@ -36,6 +35,8 @@ import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import ObjPageAnnotations from "./ObjPageAnnotations";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
+
+const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -80,10 +81,6 @@ export const useSourceStyles = makeStyles((theme) => ({
     paddingBottom: "0.25em",
     display: "inline-block",
   },
-  plot: {
-    width: "900px",
-    overflow: "auto",
-  },
   smallPlot: {
     width: "350px",
     overflow: "auto",
@@ -96,12 +93,6 @@ export const useSourceStyles = makeStyles((theme) => ({
     "& div button": {
       margin: "0.5rem",
     },
-    "& .bk-bs-nav": {
-      marginTop: "0px",
-    },
-    "& .bk-plotdiv > .bk-widget": {
-      marginTop: "0px",
-    },
   },
   comments: {
     marginLeft: "1rem",
@@ -111,7 +102,7 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "column",
     margin: "auto",
-    maxWidth: "100%",
+    width: "100%",
   },
   thumbnails: {
     "& > div": {
@@ -320,10 +311,11 @@ const SourceMobile = ({ source }) => {
             </AccordionSummary>
             <AccordionDetails>
               <div className={classes.photometryContainer}>
-                <Plot
-                  className={classes.plot}
-                  url={`/api/internal/plot/photometry/${source.id}`}
-                />
+                <Suspense fallback={<div>Loading photometry plot...</div>}>
+                  <Plot
+                    url={`/api/internal/plot/photometry/${source.id}?width=500&height=300`}
+                  />
+                </Suspense>
                 <div>
                   <Link to={`/upload_photometry/${source.id}`} role="link">
                     <Button variant="contained">
@@ -359,10 +351,11 @@ const SourceMobile = ({ source }) => {
             </AccordionSummary>
             <AccordionDetails>
               <div className={classes.photometryContainer}>
-                <Plot
-                  className={classes.plot}
-                  url={`/api/internal/plot/spectroscopy/${source.id}`}
-                />
+                <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
+                  <Plot
+                    url={`/api/internal/plot/spectroscopy/${source.id}?width=500&height=300`}
+                  />
+                </Suspense>
                 <Link to={`/upload_spectrum/${source.id}`} role="link">
                   <Button variant="contained">
                     Upload additional spectroscopy

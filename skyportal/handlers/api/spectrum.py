@@ -490,6 +490,16 @@ class ObjSpectraHandler(BaseHandler):
             schema:
               type: string
             description: ID of the object to retrieve spectra for
+          - in: query
+            name: normalization
+            required: false
+            schema:
+              type: string
+            description: |
+              what normalization is needed for the spectra (e.g., "median").
+              If omitted, returns the original spectrum.
+              Options for normalization are:
+              - median: normalize the flux to have median==1
 
         responses:
           200:
@@ -517,15 +527,23 @@ class ObjSpectraHandler(BaseHandler):
             spec_dict["observers"] = spec.observers
             return_values.append(spec_dict)
 
-        for s in return_values:
-            norm = np.median(s["fluxes"])
-            if not (np.isfinite(norm) and norm > 0):
-                # otherwise normalize the value at the median wavelength to 1
-                median_wave_index = np.argmin(
-                    np.abs(s["wavelengths"] - np.median(s["wavelengths"]))
-                )
-                norm = s["fluxes"][median_wave_index]
+        normalization = self.get_query_argument('normalization', None)
 
-            s["fluxes"] = s["fluxes"] / norm
+        if normalization is not None:
+            if normalization == "median":
+                for s in return_values:
+                    norm = np.median(s["fluxes"])
+                    if not (np.isfinite(norm) and norm > 0):
+                        # otherwise normalize the value at the median wavelength to 1
+                        median_wave_index = np.argmin(
+                            np.abs(s["wavelengths"] - np.median(s["wavelengths"]))
+                        )
+                        norm = s["fluxes"][median_wave_index]
+
+                    s["fluxes"] = s["fluxes"] / norm
+            else:
+                return self.error(
+                    f'Invalid "normalization" value "{normalization}, use "median" or None'
+                )
 
         return self.success(data=return_values)

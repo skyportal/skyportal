@@ -21,7 +21,6 @@ from ...models import (
     DBSession,
     Allocation,
     Instrument,
-    Photometry,
     Obj,
     Source,
     Token,
@@ -40,6 +39,7 @@ from ...utils import (
     _calculate_best_position_for_offset_stars,
 )
 from .candidate import grab_query_results, update_redshift_history_if_relevant
+from .photometry import serialize
 
 
 SOURCES_PER_PAGE = 100
@@ -288,6 +288,21 @@ class SourceHandler(BaseHandler):
               type: string
             description: |
               The sort order - either "asc" or "desc". Defaults to "asc"
+          - in: query
+            name: includeComments
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include comment metadata in response.
+              Defaults to false.
+          - in: query
+            name: includeSpectrumExists
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to return if a source has a spectra. Defaults to false.
           responses:
             200:
               content:
@@ -333,6 +348,10 @@ class SourceHandler(BaseHandler):
         save_summary = self.get_query_argument('saveSummary', False)
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "asc")
+        include_comments = self.get_query_argument("includeComments", False)
+        include_spectrum_exists = self.get_query_argument(
+            "includeSpectrumExists", False
+        )
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -404,16 +423,7 @@ class SourceHandler(BaseHandler):
                 .joinedload(FollowupRequest.allocation)
                 .joinedload(Allocation.group),
             ]
-            if include_photometry:
-                query_options.append(
-                    joinedload(Obj.photometry).joinedload(Photometry.instrument)
-                )
-            s = Obj.get_if_readable_by(
-                obj_id, self.current_user, options=query_options,
-            )
 
-            if s is None:
-                return self.error("Source not found", status=404)
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
                 register_source_view(
@@ -434,13 +444,21 @@ class SourceHandler(BaseHandler):
                 IOLoop.current().add_callback(
                     lambda: add_ps1_thumbnail_and_push_ws_msg(s, self)
                 )
-            comments = s.get_comments_readable_by(self.current_user)
             source_info = s.to_dict()
-            source_info["comments"] = sorted(
-                [c.to_dict() for c in comments],
-                key=lambda x: x["created_at"],
-                reverse=True,
-            )
+            if include_comments:
+                comments = s.get_comments_readable_by(self.current_user)
+                source_info["comments"] = sorted(
+                    [
+                        {
+                            k: v
+                            for k, v in c.to_dict().items()
+                            if k != "attachment_bytes"
+                        }
+                        for c in comments
+                    ],
+                    key=lambda x: x["created_at"],
+                    reverse=True,
+                )
             source_info["annotations"] = sorted(
                 s.get_annotations_readable_by(self.current_user),
                 key=lambda x: x.origin,
@@ -459,8 +477,15 @@ class SourceHandler(BaseHandler):
                 f for f in s.followup_requests if f.status != 'deleted'
             ]
             if include_photometry:
-                source_info["photometry"] = Obj.get_photometry_readable_by_user(
+                photometry = Obj.get_photometry_readable_by_user(
                     obj_id, self.current_user
+                )
+                source_info["photometry"] = [
+                    serialize(phot, 'ab', 'flux') for phot in photometry
+                ]
+            if include_spectrum_exists:
+                source_info["spectrum_exists"] = (
+                    len(Obj.get_spectra_readable_by(obj_id, self.current_user)) > 0
                 )
             query = (
                 DBSession()
@@ -505,10 +530,6 @@ class SourceHandler(BaseHandler):
 
         # Fetch multiple sources
         query_options = [joinedload(Obj.thumbnails)]
-        if include_photometry:
-            query_options.append(
-                joinedload(Obj.photometry).joinedload(Photometry.instrument)
-            )
 
         if not save_summary:
             q = (
@@ -641,14 +662,19 @@ class SourceHandler(BaseHandler):
             source_list = []
             for source in query_results["sources"]:
                 source_list.append(source.to_dict())
-                source_list[-1]["comments"] = sorted(
-                    [
-                        s.to_dict()
-                        for s in source.get_comments_readable_by(self.current_user)
-                    ],
-                    key=lambda x: x["created_at"],
-                    reverse=True,
-                )
+                if include_comments:
+                    source_list[-1]["comments"] = sorted(
+                        [
+                            {
+                                k: v
+                                for k, v in c.to_dict().items()
+                                if k != "attachment_bytes"
+                            }
+                            for c in source.get_comments_readable_by(self.current_user)
+                        ],
+                        key=lambda x: x["created_at"],
+                        reverse=True,
+                    )
                 source_list[-1][
                     "classifications"
                 ] = source.get_classifications_readable_by(self.current_user)
@@ -664,6 +690,19 @@ class SourceHandler(BaseHandler):
                 source_list[-1][
                     "angular_diameter_distance"
                 ] = source.angular_diameter_distance
+                if include_photometry:
+                    photometry = Obj.get_photometry_readable_by_user(
+                        source.id, self.current_user
+                    )
+                    source_list[-1]["photometry"] = [
+                        serialize(phot, 'ab', 'flux') for phot in photometry
+                    ]
+                if include_spectrum_exists:
+                    source_list[-1]["spectrum_exists"] = (
+                        len(Obj.get_spectra_readable_by(source.id, self.current_user))
+                        > 0
+                    )
+
                 groups_query = (
                     DBSession()
                     .query(Group)

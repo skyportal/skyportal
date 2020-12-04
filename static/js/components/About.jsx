@@ -188,9 +188,6 @@ const About = () => {
           <>
             <blockquote>{cosmology}</blockquote>
             <b>Reference</b>: {cosmoref}
-            <br />
-            If you&apos;d like to change the cosmology, please do so in the{" "}
-            <code>config.yaml</code> under <code>misc.cosmology</code>.
           </>
         )}
       </span>
