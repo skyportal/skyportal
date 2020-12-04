@@ -209,73 +209,155 @@ def user_to_dict(self):
 User.to_dict = user_to_dict
 
 
+def _is_accessible_by(self, user_or_token, accessibility_type):
+    cls = type(self)
+    access_func = getattr(cls, f'is_{accessibility_type}_by')
+    return (
+        DBSession().query(access_func(user_or_token)).filter(cls.id == self.id).scalar()
+    )
+
+
+def _is_accessible_by_sql(cls, user_or_token, accessibility_type):
+    f"""Generic {accessibility_type} logic for any `skyportal` ORM model."""
+
+    for attr in cls._required_attributes_for_accessible_check():
+        if not hasattr(cls, attr):
+            raise TypeError(
+                f'{cls} does not have the attribute "{attr}", '
+                f'and thus does not expose the interface that is needed '
+                f'to check if {accessibility_type}.'
+            )
+
+    if isinstance(user_or_token, sa.Table):
+        if hasattr(user_or_token.c, 'created_by_id'):
+            accessible = user_or_token.c.created_by_id
+        else:
+            accessible = user_or_token.c.id
+    elif user_or_token is Token or isinstance(user_or_token, Token):
+        accessible = user_or_token.created_by
+    else:
+        accessible = user_or_token
+
+    correlation_cls_alias = sa.alias(cls)
+    correlation_user_alias = sa.alias(User)
+    accessible_pairs = cls._accessible_pair_table(
+        correlation_cls_alias, correlation_user_alias
+    )
+
+    return (
+        sa.select([accessible_pairs.c.cls_id.isnot(None)])
+        .select_from(
+            sa.join(
+                correlation_cls_alias, correlation_user_alias, sa.literal(True)
+            ).outerjoin(
+                accessible_pairs,
+                correlation_cls_alias.c.id == accessible_pairs.c.cls_id,
+            )
+        )
+        .where(correlation_cls_alias.c.id == cls.id)
+        .where(correlation_user_alias.c.id == accessible)
+        .label(accessibility_type)
+        .is_(True)
+    )
+
+
+def _accessible_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    cls_alias = sa.alias(cls)
+    user_alias = sa.alias(User)
+
+    table = (
+        sa.select([cls_alias.c.id.label('cls_id'), user_alias.c.id.label('user_id')])
+        .select_from(sa.join(cls_alias, user_alias, sa.literal(True)))
+        .where(cls_alias.c.id == correlation_cls_alias.c.id)
+        .where(user_alias.c.id == correlation_user_alias.c.id)
+    )
+
+    return sa.distinct(table).lateral()
+
+
+def _get_if_accessible_by(cls, cls_id, user_or_token, accessibility_type, options=[]):
+    instance = cls.query.options(options).get(cls_id)
+    if instance is not None:
+        access_func = getattr(instance, f'is_{accessibility_type}_by')
+        if not access_func(user_or_token):
+            raise AccessError('Invalid permissions.')
+    return instance
+
+
 class ReadProtected:
+    @classmethod
+    def get_if_readable_by(cls, cls_id, user_or_token, options=[]):
+        return _get_if_accessible_by(
+            cls, cls_id, user_or_token, 'readable', options=options
+        )
+
     @hybrid_method
     def is_readable_by(self, user_or_token):
-        cls = type(self)
-        return (
-            DBSession()
-            .query(cls.is_readable_by(user_or_token))
-            .filter(cls.id == self.id)
-            .scalar()
-        )
+        return _is_accessible_by(self, user_or_token, 'readable')
 
     @is_readable_by.expression
     def is_readable_by(cls, user_or_token):
-        """Generic ownership logic for any `skyportal` ORM model.
-
-        Models with complicated ownership logic should implement their own method
-        instead of adding too many additional conditions here.
-        """
-        return sa.literal(True)
+        return _is_accessible_by_sql(cls, user_or_token, 'readable')
 
     @classmethod
-    def get_if_readable_by(cls, cls_id, user_or_token, options=[]):
-        instance = cls.query.options(options).get(cls_id)
-        if instance is not None:
-            if not instance.is_readable_by(user_or_token):
-                raise AccessError('Invalid permissions.')
-        return instance
+    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+        return _accessible_pair_table(
+            cls, correlation_cls_alias, correlation_user_alias
+        )
+
+    @classmethod
+    def _required_attributes_for_readable_check(cls):
+        return ()
+
+
+class WriteProtected:
+    @classmethod
+    def get_if_modifiable_by(cls, cls_id, user_or_token, options=[]):
+        return _get_if_accessible_by(
+            cls, cls_id, user_or_token, 'modifiable', options=options
+        )
+
+    @hybrid_method
+    def is_modifiable_by(self, user_or_token):
+        return _is_accessible_by(self, user_or_token, 'modifiable')
+
+    @is_modifiable_by.expression
+    def is_modifiable_by(cls, user_or_token):
+        return _is_accessible_by_sql(cls, user_or_token, 'modifiable')
+
+    @classmethod
+    def _modifiable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+        return _accessible_pair_table(
+            cls, correlation_cls_alias, correlation_user_alias
+        )
+
+    @classmethod
+    def _required_attributes_for_modifiable_check(cls):
+        return ()
 
 
 class ReadableByGroupMembers(ReadProtected):
-    @hybrid_method
-    def is_readable_by(self, user_or_token):
-        # need to explicitly override this so that
-        # we have a reference for the sql version below
-        return super().is_readable_by(user_or_token)
+    @classmethod
+    def _required_attributes_for_readable_check(cls):
+        return ('groups',)
 
-    @is_readable_by.expression
-    def is_readable_by(cls, user_or_token):
-
-        if not hasattr(cls, 'groups'):
-            raise TypeError(
-                f'{cls} does not have a `groups` attribute, '
-                f'and thus does not expose the interface that is needed '
-                f'to check for group readability.'
-            )
-
-        if user_or_token is Token or isinstance(user_or_token, Token):
-            readable_target = user_or_token.created_by
-        else:
-            readable_target = user_or_token
+    @classmethod
+    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
 
         cls_alias = sa.alias(cls)
-        cls_alias_1 = sa.alias(cls)
         cls_groups_join_table = sa.inspect(cls).relationships['groups'].secondary
-        user_alias = sa.alias(User)
         user_accessible_groups = user_accessible_groups_temporary_table()
 
         readable_by_virtue_of_groups = (
             sa.select(
                 [
-                    cls_alias_1.c.id.label('cls_id'),
+                    cls_alias.c.id.label('cls_id'),
                     user_accessible_groups.c.id.label('user_id'),
                 ]
             )
             .select_from(
                 sa.join(
-                    cls_alias_1,
+                    cls_alias,
                     cls_groups_join_table,
                     # automatically detects foreign key
                 ).join(
@@ -284,129 +366,120 @@ class ReadableByGroupMembers(ReadProtected):
                     == user_accessible_groups.c.group_id,
                 )
             )
-            .where(cls_alias_1.c.id == cls_alias.c.id)
-            .where(user_accessible_groups.c.user_id == user_alias.c.id)
+            .where(cls_alias.c.id == correlation_cls_alias.c.id)
+            .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
         )
 
-        lateral = sa.distinct(readable_by_virtue_of_groups).lateral()
-
-        return (
-            sa.select([lateral.c.cls_id.isnot(None)])
-            .select_from(
-                sa.join(cls_alias, user_alias, sa.literal(True)).outerjoin(
-                    lateral, cls_alias.c.id == lateral.c.obj_id
-                )
-            )
-            .where(cls_alias.c.id == cls.id)
-            .where(user_alias.c.id == readable_target)
-            .label('readable')
-            .is_(True)
-        )
+        return sa.distinct(readable_by_virtue_of_groups).lateral()
 
 
-class WriteProtected:
-    @hybrid_method
-    def is_modifiable_by(self, user_or_token):
-        """Return a boolean indicating whether an object point can be modified or
-        deleted by a given user.
-
-        Parameters
-        ----------
-        user: `baselayer.app.models.User`
-           The User to check.
-
-        Returns
-        -------
-        modifiable: bool
-           Whether the Object can be modified by the User.
-        """
-
-        cls = type(self)
-        return (
-            DBSession()
-            .query(cls.is_modifiable_by(user_or_token))
-            .filter(cls.id == self.id)
-            .scalar()
-        )
-
-    @is_modifiable_by.expression
-    def is_modifiable_by(cls, user_or_token):
-        return sa.literal(True)
+class ReadableByGroupMembersIfObjIsReadable(ReadProtected):
+    @classmethod
+    def _required_attributes_for_readable_check(cls):
+        return 'groups', 'obj'
 
     @classmethod
-    def get_if_modifiable_by(cls, cls_id, user_or_token, options=[]):
-        instance = cls.query.options(options).get(cls_id)
-        if instance is not None:
-            if not instance.is_modifiable_by(user_or_token):
-                raise AccessError('Invalid permissions.')
-        return instance
+    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+
+        cls_alias = sa.alias(cls)
+        cls_groups_join_table = sa.inspect(cls).relationships['groups'].secondary
+        user_accessible_groups = user_accessible_groups_temporary_table()
+
+        readable_by_virtue_of_groups = (
+            sa.select(
+                [
+                    cls_alias.c.id.label('cls_id'),
+                    user_accessible_groups.c.id.label('user_id'),
+                ]
+            )
+            .select_from(
+                sa.join(
+                    cls_alias,
+                    cls_groups_join_table,
+                    # automatically detects foreign key
+                )
+                .join(
+                    user_accessible_groups,
+                    cls_groups_join_table.c.group_id
+                    == user_accessible_groups.c.group_id,
+                )
+                .join(Obj, Obj.id == cls_alias.c.obj_id)
+            )
+            .where(cls_alias.c.id == correlation_cls_alias.c.id)
+            .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
+            .where(Obj.is_readable_by(correlation_user_alias))
+        )
+
+        return sa.distinct(readable_by_virtue_of_groups).lateral()
+
+
+class ReadableIfObjIsReadable(ReadProtected):
+    @classmethod
+    def _required_attributes_for_readable_check(cls):
+        return ('obj',)
+
+    @classmethod
+    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+
+        cls_alias = sa.alias(cls)
+        user_alias = sa.alias(User)
+
+        readable_by_virtue_of_obj = (
+            sa.select(
+                [cls_alias.c.id.label('cls_id'), user_alias.c.id.label('user_id')]
+            )
+            .select_from(
+                sa.join(cls_alias, Obj, Obj.id == cls_alias.c.obj_id).join(
+                    user_alias, Obj.is_readable_by(user_alias)
+                )
+            )
+            .where(cls_alias.c.id == correlation_cls_alias.c.id)
+            .where(user_alias.c.id == correlation_user_alias.c.id)
+        )
+
+        return sa.distinct(readable_by_virtue_of_obj).lateral()
 
 
 class ModifiableByOwner(WriteProtected):
-    @hybrid_method
-    def is_modifiable_by(self, user_or_token):
-        return super().is_modifiable_by(user_or_token)
+    @classmethod
+    def _required_attributes_for_modifiable_check(cls):
+        return ('owner',)
 
-    @is_modifiable_by.expression
-    def is_modifiable_by(cls, user_or_token):
-        if not hasattr(cls, 'owner'):
-            raise TypeError(
-                f'{cls} does not have an `owner` attribute, '
-                f'and thus does not expose the interface that is needed '
-                f'to check for modification or deletion privileges.'
-            )
-
-        if user_or_token is Token or isinstance(user_or_token, Token):
-            modifiable_target = user_or_token.created_by
-        else:
-            modifiable_target = user_or_token
-
+    @classmethod
+    def _modifiable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
         cls_alias = sa.alias(cls)
-        cls_alias_1 = sa.alias(cls)
         user_alias = sa.alias(User)
-        user_alias_1 = sa.alias(User)
         user_acls = user_acls_temporary_table()
 
         modifiable_by_virtue_of_owner = (
             sa.select(
-                [cls_alias_1.c.id.label('cls_id'), user_alias_1.c.id.label('user_id')]
+                [cls_alias.c.id.label('cls_id'), user_alias.c.id.label('user_id')]
             )
             .select_from(
                 sa.join(
-                    cls_alias_1,
-                    user_alias_1,
-                    cls_alias_1.c.owner_id == user_alias_1.c.user_id,
+                    cls_alias, user_alias, cls_alias.c.owner_id == user_alias.c.user_id,
                 )
             )
-            .where(cls_alias_1.c.id == cls_alias.c.id)
-            .where(user_alias_1.c.user_id == user_alias.c.id)
+            .where(cls_alias.c.id == correlation_cls_alias.c.id)
+            .where(user_alias.c.user_id == correlation_user_alias.c.id)
         )
 
         modifiable_by_virtue_of_acl = (
-            sa.select([cls_alias_1.id, user_acls.c.user_id])
+            sa.select([cls_alias.id, user_acls.c.user_id])
             .select_from(
-                sa.join(cls_alias, user_acls, user_acls.c.acl_id == 'System admin')
-            )
-            .where(cls_alias_1.c.id == cls_alias.c.id)
-            .where(user_acls.c.user_id == user_alias.c.id)
-        )
-
-        lateral = sa.union(
-            modifiable_by_virtue_of_owner, modifiable_by_virtue_of_acl
-        ).lateral()
-
-        return (
-            sa.select([lateral.c.cls_id.isnot(None)])
-            .select_from(
-                sa.join(cls_alias, user_alias, sa.literal(True)).outerjoin(
-                    lateral, cls_alias.c.id == lateral.c.obj_id
+                sa.join(
+                    correlation_cls_alias,
+                    user_acls,
+                    user_acls.c.acl_id == 'System admin',
                 )
             )
-            .where(cls_alias.c.id == cls.id)
-            .where(user_alias.c.id == modifiable_target)
-            .label('modifiable')
-            .is_(True)
+            .where(cls_alias.c.id == correlation_cls_alias.c.id)
+            .where(user_acls.c.user_id == correlation_user_alias.c.id)
         )
+
+        return sa.union(
+            modifiable_by_virtue_of_owner, modifiable_by_virtue_of_acl
+        ).lateral()
 
 
 class NumpyArray(sa.types.TypeDecorator):
@@ -1141,6 +1214,7 @@ class Obj(Base, ha.Point, ReadProtected):
 
     @is_readable_by.expression
     def is_readable_by(cls, user_or_token):
+
         cand_x_filt = sa.join(Candidate, Filter)
         phot_x_groupphot = sa.join(Photometry, GroupPhotometry)
 
@@ -1299,7 +1373,7 @@ class Filter(Base):
     )
 
 
-class Candidate(Base, ReadableByGroupMembers):
+class Candidate(Base, ReadableByGroupMembersIfObjIsReadable):
     "An Obj that passed a Filter, becoming scannable on the Filter's scanning page."
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
@@ -1355,7 +1429,9 @@ Candidate.__table_args__ = (
 )
 
 
-Source = join_model("sources", Group, Obj, mixins=(ReadableByGroupMembers,))
+Source = join_model(
+    "sources", Group, Obj, mixins=(ReadableByGroupMembersIfObjIsReadable,)
+)
 Source.__doc__ = (
     "An Obj that has been saved to a Group. Once an Obj is saved as a Source, "
     "the Obj is shielded in perpetuity from automatic database removal. "
@@ -1828,7 +1904,7 @@ GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
 GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
 
 
-class Comment(Base, ReadableByGroupMembers):
+class Comment(Base, ReadableByGroupMembersIfObjIsReadable):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
@@ -1886,7 +1962,7 @@ GroupComment.__doc__ = "Join table mapping Groups to Comments."
 User.comments = relationship("Comment", back_populates="author")
 
 
-class Annotation(Base, ReadableByGroupMembers):
+class Annotation(Base, ReadableByGroupMembersIfObjIsReadable):
     """A sortable/searchable Annotation made by a filter or other robot,
     with a set of data as JSON """
 
@@ -1948,7 +2024,7 @@ GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
 User.annotations = relationship("Annotation", back_populates="author")
 
 
-class Classification(Base, ReadableByGroupMembers):
+class Classification(Base, ReadableByGroupMembersIfObjIsReadable):
     """Classification of an Obj."""
 
     classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
@@ -2498,7 +2574,7 @@ GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
 #        return '/' + file_uri.lstrip('./')
 
 
-class FollowupRequest(Base):
+class FollowupRequest(Base, ReadableIfObjIsReadable, WriteProtected):
     """A request for follow-up data (spectroscopy, photometry, or both) using a
     robotic instrument."""
 
@@ -2573,25 +2649,6 @@ class FollowupRequest(Base):
     def instrument(self):
         return self.allocation.instrument
 
-    def is_readable_by(self, user_or_token):
-        """Return a boolean indicating whether a FollowupRequest belongs to
-        an allocation that is accessible to the given user or token.
-
-        Parameters
-        ----------
-        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
-           The User or Token to check.
-
-        Returns
-        -------
-        readable: bool
-           Whether the FollowupRequest belongs to an Allocation that is
-           accessible to the given user or token.
-        """
-
-        user_or_token_group_ids = [g.id for g in user_or_token.accessible_groups]
-        return self.allocation.group_id in user_or_token_group_ids
-
 
 FollowupRequestTargetGroup = join_model('request_groups', FollowupRequest, Group)
 
@@ -2649,7 +2706,7 @@ User.transactions = relationship(
 )
 
 
-class Thumbnail(Base):
+class Thumbnail(Base, ReadableIfObjIsReadable):
     """Thumbnail image centered on the location of an Obj."""
 
     # TODO delete file after deleting row
@@ -2682,7 +2739,7 @@ class Thumbnail(Base):
     )
 
 
-class ObservingRun(Base):
+class ObservingRun(Base, ModifiableByOwner):
     """A classical observing run with a target list (of Objs)."""
 
     instrument_id = sa.Column(
@@ -2806,7 +2863,7 @@ User.observing_runs = relationship(
 )
 
 
-class ClassicalAssignment(Base):
+class ClassicalAssignment(Base, ReadableIfObjIsReadable, WriteProtected):
     """Assignment of an Obj to an Observing Run as a target."""
 
     requester_id = sa.Column(
@@ -2949,7 +3006,7 @@ def send_user_invite_email(mapper, connection, target):
     )
 
 
-class SourceNotification(Base):
+class SourceNotification(Base, ReadableByGroupMembers):
     groups = relationship(
         "Group",
         secondary="group_notifications",
