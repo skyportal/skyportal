@@ -288,6 +288,14 @@ class SourceHandler(BaseHandler):
               type: string
             description: |
               The sort order - either "asc" or "desc". Defaults to "asc"
+          - in: query
+            name: includeComments
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include comment metadata in response.
+              Defaults to false.
           responses:
             200:
               content:
@@ -333,6 +341,7 @@ class SourceHandler(BaseHandler):
         save_summary = self.get_query_argument('saveSummary', False)
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "asc")
+        include_comments = self.get_query_argument("includeComments", False)
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -434,13 +443,21 @@ class SourceHandler(BaseHandler):
                 IOLoop.current().add_callback(
                     lambda: add_ps1_thumbnail_and_push_ws_msg(s, self)
                 )
-            comments = s.get_comments_readable_by(self.current_user)
             source_info = s.to_dict()
-            source_info["comments"] = sorted(
-                [c.to_dict() for c in comments],
-                key=lambda x: x["created_at"],
-                reverse=True,
-            )
+            if include_comments:
+                comments = s.get_comments_readable_by(self.current_user)
+                source_info["comments"] = sorted(
+                    [
+                        {
+                            k: v
+                            for k, v in c.to_dict().items()
+                            if k != "attachment_bytes"
+                        }
+                        for c in comments
+                    ],
+                    key=lambda x: x["created_at"],
+                    reverse=True,
+                )
             source_info["annotations"] = sorted(
                 s.get_annotations_readable_by(self.current_user),
                 key=lambda x: x.origin,
@@ -641,14 +658,19 @@ class SourceHandler(BaseHandler):
             source_list = []
             for source in query_results["sources"]:
                 source_list.append(source.to_dict())
-                source_list[-1]["comments"] = sorted(
-                    [
-                        s.to_dict()
-                        for s in source.get_comments_readable_by(self.current_user)
-                    ],
-                    key=lambda x: x["created_at"],
-                    reverse=True,
-                )
+                if include_comments:
+                    source_list[-1]["comments"] = sorted(
+                        [
+                            {
+                                k: v
+                                for k, v in c.to_dict().items()
+                                if k != "attachment_bytes"
+                            }
+                            for c in source.get_comments_readable_by(self.current_user)
+                        ],
+                        key=lambda x: x["created_at"],
+                        reverse=True,
+                    )
                 source_list[-1][
                     "classifications"
                 ] = source.get_classifications_readable_by(self.current_user)
