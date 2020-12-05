@@ -235,7 +235,7 @@ def _check_accessibility_sql(
         else:
             accessibility_target = user_or_token.c.id
     elif user_or_token is Token or isinstance(user_or_token, Token):
-        accessibility_target = user_or_token.created_by
+        accessibility_target = user_or_token.created_by_id
     else:
         accessibility_target = user_or_token.id
 
@@ -262,9 +262,10 @@ def _check_accessibility_sql(
     )
 
 
-def _get_if_accessible_by(cls, cls_id, user_or_token, access_func, options=[]):
+def _get_if_accessible_by(cls, cls_id, user_or_token, access_func_name, options=[]):
     instance = cls.query.options(options).get(cls_id)
     if instance is not None:
+        access_func = getattr(instance, access_func_name)
         if not access_func(user_or_token):
             raise AccessError('Invalid permissions.')
     return instance
@@ -274,7 +275,7 @@ def make_permission_control_dict(opname):
 
     access_func_name = f'{opname}_by'
     pair_table_func_name = f'_{opname}_pair_table'
-    get_classmethod_name = f'get_if_{opname}'
+    get_classmethod_name = f'get_if_{opname}_by'
     required_attributes_func_name = f'_required_attributes_for_{opname}_check'
 
     @hybrid_method
@@ -293,9 +294,8 @@ def make_permission_control_dict(opname):
 
     @classmethod
     def get_classmethod(cls, cls_id, user_or_token, options=[]):
-        access_func = getattr(cls, access_func_name)
         return _get_if_accessible_by(
-            cls, cls_id, user_or_token, access_func, options=options
+            cls, cls_id, user_or_token, access_func_name, options=options
         )
 
     @classmethod
@@ -396,7 +396,7 @@ class ReadableByGroupsMembers(ReadProtected):
         return readable_by_virtue_of_groups.distinct().lateral()
 
 
-class ReadableByGroupMembersIfObjIsReadable(ReadProtected):
+class ReadableByGroupsMembersIfObjIsReadable(ReadProtected):
     @classmethod
     def _required_attributes_for_is_readable_check(cls):
         return 'groups', 'obj'
@@ -412,7 +412,7 @@ class ReadableByGroupMembersIfObjIsReadable(ReadProtected):
             sa.select(
                 [
                     cls_alias.c.id.label('cls_id'),
-                    user_accessible_groups.c.id.label('user_id'),
+                    user_accessible_groups.c.user_id.label('user_id'),
                 ]
             )
             .select_from(
@@ -420,17 +420,49 @@ class ReadableByGroupMembersIfObjIsReadable(ReadProtected):
                     cls_alias,
                     cls_groups_join_table,
                     # automatically detects foreign key
-                )
-                .join(
+                ).join(
                     user_accessible_groups,
                     cls_groups_join_table.c.group_id
                     == user_accessible_groups.c.group_id,
                 )
-                .join(Obj, Obj.id == cls_alias.c.obj_id)
             )
             .where(cls_alias.c.id == correlation_cls_alias.c.id)
             .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
-            .where(Obj.is_readable_by(correlation_user_alias))
+        )
+
+        return readable_by_virtue_of_groups.distinct().lateral()
+
+
+class ReadableByFilterGroupMembers(ReadProtected):
+    @classmethod
+    def _required_attributes_for_is_readable_check(cls):
+        return ('filter',)
+
+    @classmethod
+    def _is_readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+
+        cls_alias = sa.alias(cls)
+        user_accessible_groups = user_accessible_groups_temporary_table()
+
+        readable_by_virtue_of_groups = (
+            sa.select(
+                [
+                    cls_alias.c.id.label('cls_id'),
+                    user_accessible_groups.c.user_id.label('user_id'),
+                ]
+            )
+            .select_from(
+                sa.join(
+                    cls_alias,
+                    Filter,
+                    # automatically detects foreign key
+                ).join(
+                    user_accessible_groups,
+                    Filter.group_id == user_accessible_groups.c.group_id,
+                )
+            )
+            .where(cls_alias.c.id == correlation_cls_alias.c.id)
+            .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
         )
 
         return readable_by_virtue_of_groups.distinct().lateral()
@@ -1177,7 +1209,7 @@ class Filter(ReadableByGroupMembers, Base):
     )
 
 
-class Candidate(ReadableByGroupMembersIfObjIsReadable, Base):
+class Candidate(ReadableByFilterGroupMembers, Base):
     "An Obj that passed a Filter, becoming scannable on the Filter's scanning page."
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
@@ -1233,9 +1265,8 @@ Candidate.__table_args__ = (
 )
 
 
-Source = join_model(
-    "sources", Group, Obj, mixins=(ReadableByGroupMembersIfObjIsReadable,)
-)
+Source = join_model("sources", Group, Obj, mixins=(ReadableByGroupMembers,))
+
 Source.__doc__ = (
     "An Obj that has been saved to a Group. Once an Obj is saved as a Source, "
     "the Obj is shielded in perpetuity from automatic database removal. "
@@ -1708,7 +1739,7 @@ GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
 GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
 
 
-class Comment(ReadableByGroupMembersIfObjIsReadable, Base):
+class Comment(ReadableByGroupsMembersIfObjIsReadable, Base):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
@@ -1766,7 +1797,7 @@ GroupComment.__doc__ = "Join table mapping Groups to Comments."
 User.comments = relationship("Comment", back_populates="author")
 
 
-class Annotation(ReadableByGroupMembersIfObjIsReadable, Base):
+class Annotation(ReadableByGroupsMembersIfObjIsReadable, Base):
     """A sortable/searchable Annotation made by a filter or other robot,
     with a set of data as JSON """
 
@@ -1828,7 +1859,7 @@ GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
 User.annotations = relationship("Annotation", back_populates="author")
 
 
-class Classification(ReadableByGroupMembersIfObjIsReadable, Base):
+class Classification(ReadableByGroupsMembersIfObjIsReadable, Base):
     """Classification of an Obj."""
 
     classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
@@ -2057,14 +2088,6 @@ class Photometry(ha.Point, ReadableByGroupsMembers, ModifiableByOwner, Base):
         """Signal-to-noise ratio of this Photometry point."""
         return self.flux / self.fluxerr
 
-    @hybrid_method
-    def is_readable_by(self, user_or_token):
-        return _check_accessibility(self, user_or_token, 'readable')
-
-    @is_readable_by.expression
-    def is_readable_by(cls, user_or_token):
-        return _check_accessibility_sql(cls, user_or_token, 'readable')
-
 
 # Deduplication index. This is a unique index that prevents any photometry
 # point that has the same obj_id, instrument_id, origin, mjd, flux error,
@@ -2094,7 +2117,7 @@ GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 
 
-class Spectrum(ReadableByGroupMembersIfObjIsReadable, ModifiableByOwner, Base):
+class Spectrum(ReadableByGroupsMembersIfObjIsReadable, ModifiableByOwner, Base):
     """Wavelength-dependent measurement of the flux of an object through a
     dispersive element."""
 

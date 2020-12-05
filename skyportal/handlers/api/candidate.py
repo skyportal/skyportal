@@ -254,7 +254,7 @@ class CandidateHandler(BaseHandler):
                     joinedload(Obj.photometry).joinedload(Photometry.instrument)
                 )
 
-            c = Obj.get_if_readable_by(
+            c = Obj.get_if_is_readable_by(
                 obj_id, self.current_user, options=query_options,
             )
             if c is None:
