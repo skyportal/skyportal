@@ -55,12 +55,10 @@ class AssignmentHandler(BaseHandler):
         """
 
         # get owned assignments
-        assignments = DBSession().query(ClassicalAssignment)
         assignments = (
-            assignments.join(Obj)
-            .join(Source)
-            .join(Group)
-            .filter(Group.id.in_([g.id for g in self.current_user.accessible_groups]))
+            DBSession()
+            .query(ClassicalAssignment)
+            .filter(ClassicalAssignment.is_readable_by(self.current_user))
         )
 
         if assignment_id is not None:
