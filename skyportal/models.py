@@ -17,7 +17,7 @@ import sqlalchemy as sa
 from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, aliased
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
@@ -234,6 +234,8 @@ def _check_accessibility_sql(
             accessibility_target = user_or_token.c.created_by_id
         else:
             accessibility_target = user_or_token.c.id
+    elif isinstance(user_or_token, sa.Column):
+        accessibility_target = user_or_token
     elif user_or_token is Token or isinstance(user_or_token, Token):
         accessibility_target = user_or_token.created_by_id
     else:
@@ -407,6 +409,7 @@ class ReadableByGroupsMembersIfObjIsReadable(ReadProtected):
         cls_alias = sa.alias(cls)
         cls_groups_join_table = sa.inspect(cls).relationships['groups'].secondary
         user_accessible_groups = user_accessible_groups_temporary_table()
+        obj_alias = aliased(Obj)
 
         readable_by_virtue_of_groups = (
             sa.select(
@@ -420,10 +423,15 @@ class ReadableByGroupsMembersIfObjIsReadable(ReadProtected):
                     cls_alias,
                     cls_groups_join_table,
                     # automatically detects foreign key
-                ).join(
+                )
+                .join(
                     user_accessible_groups,
                     cls_groups_join_table.c.group_id
                     == user_accessible_groups.c.group_id,
+                )
+                .join(
+                    obj_alias,
+                    obj_alias.is_readable_by(user_accessible_groups.c.user_id),
                 )
             )
             .where(cls_alias.c.id == correlation_cls_alias.c.id)
@@ -478,14 +486,15 @@ class ReadableIfObjIsReadable(ReadProtected):
 
         cls_alias = sa.alias(cls)
         user_alias = sa.alias(User)
+        obj_alias = aliased(Obj)
 
         readable_by_virtue_of_obj = (
             sa.select(
                 [cls_alias.c.id.label('cls_id'), user_alias.c.id.label('user_id')]
             )
             .select_from(
-                sa.join(cls_alias, Obj, Obj.id == cls_alias.c.obj_id).join(
-                    user_alias, Obj.is_readable_by(user_alias)
+                sa.join(cls_alias, obj_alias, obj_alias.id == cls_alias.c.obj_id).join(
+                    user_alias, obj_alias.is_readable_by(user_alias)
                 )
             )
             .where(cls_alias.c.id == correlation_cls_alias.c.id)
