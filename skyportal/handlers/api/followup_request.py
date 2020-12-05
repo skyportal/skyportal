@@ -145,7 +145,7 @@ class AssignmentHandler(BaseHandler):
             return self.error('Object is already assigned to this run.')
 
         assignment = ClassicalAssignment(**data)
-        source = Source.get_obj_if_readable_by(assignment.obj_id, self.current_user)
+        source = Obj.get_if_is_readable_by(assignment.obj_id, self.current_user)
 
         if source is None:
             return self.error(f'Invalid obj_id: "{assignment.obj_id}"')
@@ -341,7 +341,7 @@ class FollowupRequestHandler(BaseHandler):
                               description: New follow-up request ID
         """
         data = self.get_json()
-        _ = Source.get_obj_if_readable_by(data["obj_id"], self.current_user)
+        _ = Obj.get_if_is_readable_by(data["obj_id"], self.current_user)
 
         try:
             data = FollowupRequestPost.load(data)
@@ -429,7 +429,7 @@ class FollowupRequestHandler(BaseHandler):
                 schema: Error
         """
 
-        followup_request = FollowupRequest.get_if_readable_by(
+        followup_request = FollowupRequest.get_if_is_readable_by(
             request_id, self.current_user
         )
 
@@ -497,7 +497,7 @@ class FollowupRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        followup_request = FollowupRequest.get_if_readable_by(
+        followup_request = FollowupRequest.get_if_is_readable_by(
             request_id, self.current_user
         )
         if not (
