@@ -211,14 +211,14 @@ def user_to_dict(self):
 User.to_dict = user_to_dict
 
 
-def _check_accessibility(self, user_or_token, access_func):
+def _is_accessible(self, user_or_token, access_func):
     cls = type(self)
     return (
         DBSession().query(access_func(user_or_token)).filter(cls.id == self.id).scalar()
     )
 
 
-def _check_accessibility_sql(
+def _is_accessible_sql(
     cls, user_or_token, opname, accessible_pair_func, required_attrs
 ):
     for attr in required_attrs:
@@ -269,7 +269,7 @@ def _get_if_accessible_by(cls, cls_id, user_or_token, access_func_name, options=
     if instance is not None:
         access_func = getattr(instance, access_func_name)
         if not access_func(user_or_token):
-            raise AccessError('Invalid permissions.')
+            raise AccessError('Insufficient permissions.')
     return instance
 
 
@@ -284,13 +284,13 @@ def make_permission_control_dict(opname):
     def is_accessible(self, user_or_token):
         cls = type(self)
         access_func = getattr(cls, access_func_name)
-        return _check_accessibility(self, user_or_token, access_func)
+        return _is_accessible(self, user_or_token, access_func)
 
     @is_accessible.expression
     def is_accessible(cls, user_or_token):
         pair_table_func = getattr(cls, pair_table_func_name)
         required_attrs = getattr(cls, required_attributes_func_name)()
-        return _check_accessibility_sql(
+        return _is_accessible_sql(
             cls, user_or_token, opname, pair_table_func, required_attrs
         )
 
