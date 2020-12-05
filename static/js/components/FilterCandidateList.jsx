@@ -71,7 +71,7 @@ const savedStatusSelectOptions = [
   },
   {
     value: "notSavedToAnyAccessible",
-    label: "and is not saved to any of the user-accesible groups",
+    label: "and is not saved to any of the user-accessible groups",
   },
   {
     value: "notSavedToAnySelected",
