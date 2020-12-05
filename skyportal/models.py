@@ -273,7 +273,7 @@ def _get_if_accessible_by(cls, cls_id, user_or_token, access_func_name, options=
     return instance
 
 
-def make_permission_control_dict(opname):
+def make_permission_control(name, opname):
 
     access_func_name = f'{opname}_by'
     pair_table_func_name = f'_{opname}_pair_table'
@@ -316,12 +316,6 @@ def make_permission_control_dict(opname):
         required_attributes_func_name: _required_attributes,
         access_func_name: is_accessible,
     }
-
-    return class_dict
-
-
-def make_permission_control(name, opname):
-    class_dict = make_permission_control_dict(opname)
     return type(name, (), class_dict)
 
 
@@ -2998,6 +2992,20 @@ def update_single_user_group(mapper, connection, target):
         single_user_group = target.single_user_group
         single_user_group.name = slugify(target.username)
         DBSession().add(single_user_group)
+
+
+def _make_retreive_accessible_children(cls):
+    return lambda self, user_or_token: (
+        DBSession()
+        .query(cls)
+        .filter(cls.obj_id == self.id, cls.is_readable_by(user_or_token))
+        .all()
+    )
+
+
+for cls in [Comment, Classification, Spectrum, Photometry, Annotation, Thumbnail]:
+    func_name = f'get_{cls.__tablename__}_readable_by'
+    setattr(Obj, func_name, _make_retreive_accessible_children(cls))
 
 
 schema.setup_schema()

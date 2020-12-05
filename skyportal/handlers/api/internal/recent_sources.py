@@ -11,7 +11,7 @@ default_prefs = {'maxNumSources': 5}
 
 class RecentSourcesHandler(BaseHandler):
     @classmethod
-    def get_recent_source_ids(self, current_user):
+    def get_recent_source_ids(cls, current_user):
         user_prefs = getattr(current_user, 'preferences', None) or {}
         recent_sources_prefs = user_prefs.get('recentSources', {})
         recent_sources_prefs = {**default_prefs, **recent_sources_prefs}
@@ -20,18 +20,7 @@ class RecentSourcesHandler(BaseHandler):
         query_results = (
             DBSession()
             .query(Source)
-            .filter(
-                Source.obj_id.in_(
-                    DBSession()
-                    .query(Source.obj_id)
-                    .filter(
-                        Source.group_id.in_(
-                            [g.id for g in current_user.accessible_groups]
-                        )
-                    )
-                    .filter(Source.active.is_(True))
-                )
-            )
+            .filter(Source.active.is_(True), Source.is_readable_by(current_user))
             .order_by(desc('created_at'))
             .distinct(Source.obj_id, Source.created_at)
             .limit(max_num_sources)
@@ -55,10 +44,8 @@ class RecentSourcesHandler(BaseHandler):
                 recency_index = sources_seen[obj_id]
                 sources_seen[obj_id] += 1
 
-            s = Source.get_obj_if_readable_by(  # Returns Source.obj
-                obj_id,
-                self.current_user,
-                options=[joinedload(Source.obj).joinedload(Obj.thumbnails)],
+            s = Obj.get_if_is_readable_by(  # Returns Source.obj
+                obj_id, self.current_user, options=[joinedload(Obj.thumbnails)],
             )
 
             # Get the entry in the Source table to get the accurate saved_at time

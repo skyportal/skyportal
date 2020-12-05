@@ -92,12 +92,11 @@ class SourceHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        user_group_ids = [g.id for g in self.associated_user_object.accessible_groups]
         num_s = (
             DBSession()
             .query(Source)
             .filter(Source.obj_id == obj_id)
-            .filter(Source.group_id.in_(user_group_ids))
+            .filter(Source.is_readable_by(self.current_user))
             .count()
         )
         if num_s > 0:
@@ -433,7 +432,7 @@ class SourceHandler(BaseHandler):
                 )
                 self.push_all(action="skyportal/FETCH_TOP_SOURCES")
 
-            s = Obj.get_if_readable_by(
+            s = Obj.get_if_is_readable_by(
                 obj_id, self.current_user, options=query_options,
             )
 
@@ -536,11 +535,7 @@ class SourceHandler(BaseHandler):
                 DBSession()
                 .query(Obj)
                 .join(Source)
-                .filter(
-                    Source.group_id.in_(
-                        user_accessible_group_ids
-                    )  # only give sources the user has access to
-                )
+                .filter(Source.is_readable_by(self.current_user))
                 .options(query_options)
             )
         else:
@@ -548,7 +543,7 @@ class SourceHandler(BaseHandler):
                 DBSession()
                 .query(Source)
                 .join(Obj)
-                .filter(Source.group_id.in_(user_accessible_group_ids))
+                .filter(Source.is_readable_by(self.current_user))
             )
 
         if sourceID:
@@ -883,7 +878,7 @@ class SourceHandler(BaseHandler):
                 schema: Error
         """
         # Permissions check
-        _ = Obj.get_if_readable_by(obj_id, self.current_user)
+        _ = Obj.get_if_is_readable_by(obj_id, self.current_user)
         data = self.get_json()
         data['id'] = obj_id
 
@@ -1061,7 +1056,7 @@ class SourceOffsetsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Obj.get_if_readable_by(
+        source = Obj.get_if_is_readable_by(
             obj_id, self.current_user, options=[joinedload(Obj.photometry)],
         )
         if source is None:
@@ -1232,7 +1227,7 @@ class SourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Obj.get_if_readable_by(
+        source = Obj.get_if_is_readable_by(
             obj_id, self.current_user, options=[joinedload(Obj.photometry)],
         )
         if source is None:
@@ -1447,7 +1442,7 @@ class SourceNotificationHandler(BaseHandler):
         if data.get("sourceId") is None:
             return self.error("Missing required parameter `sourceId`")
 
-        source = Obj.get_if_readable_by(data["sourceId"], self.current_user)
+        source = Obj.get_if_is_readable_by(data["sourceId"], self.current_user)
         if source is None:
             return self.error('Source not found', status=404)
 
