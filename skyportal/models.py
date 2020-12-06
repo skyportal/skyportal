@@ -2557,6 +2557,13 @@ Listing.__table_args__ = (
         Listing.list_name,
         unique=True,
     ),
+    sa.Index(
+        "listings_reverse_index",
+        Listing.list_name,
+        Listing.obj_id,
+        Listing.user_id,
+        unique=True,
+    ),
 )
 
 

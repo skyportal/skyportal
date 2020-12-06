@@ -1,5 +1,5 @@
 import re
-from marshmallow.exceptions import ValidationError
+
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (
@@ -39,7 +39,7 @@ class UserObjListHandler(BaseHandler):
                       - $ref: '#/components/schemas/Success'
                       - type: array
                         items:
-                          description: array of object ids.
+                          description: array of listing objects
         """
 
         user_id = self.get_query_argument("user_id")
@@ -47,18 +47,22 @@ class UserObjListHandler(BaseHandler):
         if User.query.get(user_id) is None:  # verify that user exists
             return self.error(f'User "{user_id}" does not exist!')
 
-        # verify that poster has read access to user_id's lists?
+        # verify that poster has read access to user_id's lists
+        if (
+            not self.associated_user_object.id == user_id
+            and "System admin" not in self.associated_user_object.permissions
+        ):
+            return self.error(
+                'User does not have sufficient permissions to access this listing. '
+            )
 
         list_name = self.get_query_argument("list_name", None)
 
         objects = DBSession().query(Listing).filter(Listing.user_id == user_id)
-        if list_name is not None:
+        if list_name is not None and re.search(r'^\w+', list_name):
             objects = objects.filter(Listing.list_name == list_name)
 
-        obj_ids = [obj.obj_id for obj in objects.all()]
-        obj_ids = list(set(obj_ids))  # choose only the unique obj_ids
-
-        return self.success(data=obj_ids)
+        return self.success(data=objects.all())
 
     @auth_or_token
     def put(self):
@@ -104,12 +108,18 @@ class UserObjListHandler(BaseHandler):
 
         """
 
-        # should we make user_id optional, defaulting to self.associated_user_object?
         user_id = self.get_query_argument("user_id")
         if User.query.get(user_id) is None:  # verify that user exists
             return self.error(f'User "{user_id}" does not exist!')
 
-        # verify that poster has write access to user_id's lists?
+        # verify that poster has write access to user_id's lists
+        if (
+            not self.associated_user_object.id == user_id
+            and "System admin" not in self.associated_user_object.permissions
+        ):
+            return self.error(
+                'User does not have sufficient permissions to access this listing. '
+            )
 
         obj_id = self.get_query_argument("obj_id")
         if Obj.query.get(obj_id) is None:  # verify that object exists!
@@ -129,49 +139,40 @@ class UserObjListHandler(BaseHandler):
         return self.success(data={listing.id})
 
     @auth_or_token
-    def delete(self):
+    def delete(self, listing_id):
         """
         ---
         description: Remove an existing listing
         parameters:
-        - in: query
-          name: user_id
+        - in: path
+          name: listing_id
           required: true
-          type: string
-        - in: query
-          name: obj_id
-          required: true
-          type: string
-        - in: query
-          name: list_name
-          required: true
-          type: string
+          schema:
+            type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: success
+
 
         """
-        data = self.get_json()
 
-        schema = Listing.__schema__()
-        try:
-            schema.load(data)
-        except ValidationError as e:
-            return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
+        listing = Listing.query.get(listing_id)
 
-        user_id = data.get("user_id")
-        if User.query.get(user_id) is None:  # verify that user exists
-            return self.error(f'User "{user_id}" does not exist!')
-
-        # verify that poster has write access to user_id's lists?
-
-        obj_id = data.get("obj_id")
-        list_name = data.get("list_name")
-
-        q = Listing.query.filter_by(
-            user_id=user_id, obj_id=obj_id, list_name=list_name
-        ).first()
-        if q is None:
+        if listing is None:
             return self.error("Listing does not exist.")
 
-        q.delete()
+        # verify that poster has write access to user_id's lists
+        if (
+            not self.associated_user_object.id == listing.user_id
+            and "System admin" not in self.associated_user_object.permissions
+        ):
+            return self.error(
+                'User does not have sufficient permissions to access this listing. '
+            )
+
+        listing.delete()
         DBSession.commit()
 
-        return self.success(data={})  # should we return something?
+        return self.success()
