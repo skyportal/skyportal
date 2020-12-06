@@ -128,7 +128,7 @@ class ObservingRunHandler(BaseHandler):
             assignments = []
             for a in run.assignments:
                 try:
-                    obj = Obj.get_if_owned_by(a.obj.id, self.current_user)
+                    obj = Obj.get_if_readable_by(a.obj.id, self.current_user)
                 except AccessError:
                     continue
                 if obj is not None:

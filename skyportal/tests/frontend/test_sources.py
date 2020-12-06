@@ -21,10 +21,8 @@ def test_public_source_page(driver, user, public_source, public_group):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    driver.wait_for_xpath(
-        '//label[contains(text(), "band")]', 10
-    )  # TODO how to check plot?
-    driver.wait_for_xpath('//label[contains(text(), "Fe III")]')
+    driver.wait_for_xpath('//span[contains(text(), "band")]', 10)
+    driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
@@ -38,9 +36,9 @@ def test_public_source_page_null_z(driver, user, public_source, public_group):
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     driver.wait_for_xpath(
-        '//label[contains(text(), "band")]', 10
+        '//span[contains(text(), "band")]', 10
     )  # TODO how to check plot?
-    driver.wait_for_xpath('//label[contains(text(), "Fe III")]')
+    driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
@@ -95,22 +93,22 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    driver.click_xpath('//div[@id="tax-select"]')
+    driver.click_xpath('//div[@id="root_taxonomy"]')
     driver.click_xpath(
         f'//*[text()="{tax_name} ({tax_version})"]',
         wait_clickable=False,
         scroll_parent=True,
     )
     driver.click_xpath('//*[@id="classification"]')
-    driver.wait_for_xpath('//*[@id="classification"]').send_keys(
-        "Symmetrical", Keys.ENTER
+    driver.click_xpath('//li[contains(@data-value, "Symmetrical")]', scroll_parent=True)
+    driver.click_xpath('//*[@id="probability"]')
+    driver.wait_for_xpath('//*[@id="probability"]').send_keys("1", Keys.ENTER)
+    driver.click_xpath(
+        "//*[@id='classifications-content']//span[text()='Submit']",
+        wait_clickable=False,
     )
-    driver.click_xpath("//*[@id='classificationSubmitButton']")
     # Notification
     driver.wait_for_xpath("//*[text()='Classification saved']")
-
-    # Button at top of source page
-    driver.wait_for_xpath("//span[text()[contains(., 'Save')]]")
 
     # Scroll up to get top of classifications list component in view
     classifications = driver.find_element_by_xpath(
@@ -445,17 +443,10 @@ def test_centroid_plot(
 def test_dropdown_facility_change(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//span[text()="Show Starlist"]')
-    )
+    driver.click_xpath('//*[text()="Show Starlist"]')
     driver.wait_for_xpath("//code/div/pre[text()[contains(., 'raoffset')]]", timeout=45)
-
-    xpath = '//*[@id="mui-component-select-StarListSelectElement"]'
-    element = driver.wait_for_xpath(xpath)
-    ActionChains(driver).move_to_element(element).click_and_hold().perform()
-    xpath = '//li[@data-value="P200"]'
-    element = driver.wait_for_xpath(xpath)
-    ActionChains(driver).move_to_element(element).click_and_hold().perform()
+    driver.click_xpath('//*[@id="mui-component-select-StarListSelectElement"]')
+    driver.click_xpath('//li[@data-value="P200"]')
     driver.wait_for_xpath("//code/div/pre[text()[contains(., 'dist')]]", timeout=45)
 
 
@@ -496,6 +487,7 @@ def test_unsave_from_group(
     )
 
 
+@pytest.mark.flaky(reruns=2)
 def test_request_group_to_save_then_save(
     driver, user, user_two_groups, public_source, public_group2
 ):
@@ -507,7 +499,10 @@ def test_request_group_to_save_then_save(
         f'//*[@data-testid="inviteGroupCheckbox_{public_group2.id}"]',
         scroll_parent=True,
     )
-    driver.click_xpath(f'//button[@name="editSourceGroupsButton_{public_source.id}"]')
+    driver.click_xpath(
+        f'//button[@name="editSourceGroupsButton_{public_source.id}"]',
+        scroll_parent=True,
+    )
     driver.wait_for_xpath('//*[text()="Source groups updated successfully"]')
     driver.get(f"/become_user/{user_two_groups.id}")
     driver.get(f"/group_sources/{public_group2.id}")
@@ -540,33 +535,31 @@ def test_update_redshift_and_history(driver, user, public_source):
     driver.wait_for_xpath(f"//td[text()='{user.username}']")
 
 
-@pytest.mark.flaky(reruns=2)
-def test_set_redshift_via_comments_and_history(driver, user, public_source):
-    if "TRAVIS" in os.environ:
-        pytest.xfail("Xfailing this test on Travis builds.")
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    comment_box = driver.wait_for_xpath("//input[@name='text']")
-    comment_text = "z=0.3131"
-    comment_box.send_keys(comment_text)
-    driver.click_xpath('//*[@name="submitCommentButton"]')
-
-    driver.click_xpath(
-        "//*[@data-testid='redshiftHistoryIconButton']", wait_clickable=False
-    )
-    driver.wait_for_xpath("//th[text()='Set By']")
-    driver.wait_for_xpath("//td[text()='0.3131']")
-    driver.wait_for_xpath(f"//td[text()='{user.username}']")
-
-
 def test_obj_page_unsaved_source(public_obj, driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_obj.id}")
 
     # wait for the plots to load
-    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
+    driver.wait_for_xpath('//span[contains(text(), "band")]', 10)
     # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
+    driver.wait_for_xpath('//span[text()="Mg"]', timeout=20)
 
     driver.wait_for_xpath_to_disappear('//div[contains(@data-testid, "groupChip")]')
+
+
+def test_show_photometry_table(public_source, driver, user):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+
+    # wait for the plots to load
+    driver.wait_for_xpath('//span[contains(text(), "band")]', 20)
+    # this waits for the spectroscopy plot by looking for the element Mg
+    driver.wait_for_xpath('//span[text()="Mg"]')
+
+    driver.click_xpath('//*[@data-testid="show-photometry-table-button"]')
+    driver.wait_for_xpath(f'//*[contains(text(), "Photometry of {public_source.id}")]')
+
+    driver.click_xpath('//*[@data-testid="close-photometry-table-button"]')
+    driver.wait_for_xpath_to_disappear(
+        '//*[@data-testid="close-photometry-table-button"]'
+    )

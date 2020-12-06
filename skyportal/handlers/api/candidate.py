@@ -254,7 +254,7 @@ class CandidateHandler(BaseHandler):
                     .joinedload(Obj.photometry)
                     .joinedload(Photometry.instrument)
                 )
-            c = Candidate.get_obj_if_owned_by(
+            c = Candidate.get_obj_if_readable_by(
                 obj_id, self.current_user, options=query_options,
             )
             if c is None:
@@ -286,12 +286,16 @@ class CandidateHandler(BaseHandler):
             candidate_info["filter_ids"] = filter_ids
             candidate_info["passing_alerts"] = passing_alerts
             candidate_info["comments"] = sorted(
-                [cmt.to_dict() for cmt in c.get_comments_owned_by(self.current_user)],
+                [
+                    cmt.to_dict()
+                    for cmt in c.get_comments_readable_by(self.current_user)
+                ],
                 key=lambda x: x["created_at"],
                 reverse=True,
             )
             candidate_info["annotations"] = sorted(
-                c.get_annotations_owned_by(self.current_user), key=lambda x: x.origin,
+                c.get_annotations_readable_by(self.current_user),
+                key=lambda x: x.origin,
             )
             candidate_info["is_source"] = len(c.sources) > 0
             if candidate_info["is_source"]:
@@ -304,7 +308,7 @@ class CandidateHandler(BaseHandler):
                     .filter(Group.id.in_(user_accessible_group_ids))
                     .all()
                 )
-                candidate_info["classifications"] = c.get_classifications_owned_by(
+                candidate_info["classifications"] = c.get_classifications_readable_by(
                     self.current_user
                 )
             candidate_info["last_detected"] = c.last_detected
@@ -537,7 +541,7 @@ class CandidateHandler(BaseHandler):
                         .filter(Group.id.in_(user_accessible_group_ids))
                         .all()
                     )
-                    obj.classifications = obj.get_classifications_owned_by(
+                    obj.classifications = obj.get_classifications_readable_by(
                         self.current_user
                     )
                 obj.passing_group_ids = [
@@ -560,13 +564,13 @@ class CandidateHandler(BaseHandler):
                 candidate_list[-1]["comments"] = sorted(
                     [
                         cmt.to_dict()
-                        for cmt in obj.get_comments_owned_by(self.current_user)
+                        for cmt in obj.get_comments_readable_by(self.current_user)
                     ],
                     key=lambda x: x["created_at"],
                     reverse=True,
                 )
                 candidate_list[-1]["annotations"] = sorted(
-                    obj.get_annotations_owned_by(self.current_user),
+                    obj.get_annotations_readable_by(self.current_user),
                     key=lambda x: x.origin,
                 )
                 candidate_list[-1]["last_detected"] = obj.last_detected

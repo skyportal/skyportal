@@ -32,6 +32,7 @@ from skyportal.handlers.api import (
     PhotometryHandler,
     BulkDeletePhotometryHandler,
     ObjPhotometryHandler,
+    ObjClassificationHandler,
     PhotometryRangeHandler,
     RoleHandler,
     UserRoleHandler,
@@ -69,6 +70,7 @@ from skyportal.handlers.api.internal import (
     PlotObjTelAirmassHandler,
     AnnotationsInfoHandler,
     EphemerisHandler,
+    StandardsHandler,
 )
 
 from . import models, model_util, openapi
@@ -112,6 +114,7 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_]+)/spectra', ObjSpectraHandler),
     (r'/api/sources(/[0-9A-Za-z-_]+)/offsets', SourceOffsetsHandler),
     (r'/api/sources(/[0-9A-Za-z-_]+)/finder', SourceFinderHandler),
+    (r'/api/sources(/[0-9A-Za-z-_]+)/classifications', ObjClassificationHandler),
     (r'/api/sources(/.*)?', SourceHandler),
     (r'/api/source_notifications', SourceNotificationHandler),
     (r'/api/source_groups(/.*)?', SourceGroupsHandler),
@@ -136,6 +139,7 @@ skyportal_handlers = [
     (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
     (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
     (r'/api/internal/instrument_forms', RoboticInstrumentsHandler),
+    (r'/api/internal/standards', StandardsHandler),
     (r'/api/internal/plot/airmass/assignment/(.*)', PlotAssignmentAirmassHandler),
     (r'/api/internal/plot/airmass/objtel/(.*)/([0-9]+)', PlotObjTelAirmassHandler,),
     (r'/api/internal/ephemeris/([0-9]+)', EphemerisHandler),

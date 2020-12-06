@@ -12,7 +12,7 @@ from . import schema
 api_description = pjoin(os.path.dirname(__file__), 'api_description.md')
 
 
-def spec_from_handlers(handlers, exclude_internal=True):
+def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
     """Generate an OpenAPI spec from Tornado handlers.
 
     The docstrings of the various http methods of the Tornado handlers
@@ -52,11 +52,11 @@ def spec_from_handlers(handlers, exclude_internal=True):
     `spec.Error`.  All schemas in `schema` are added to the OpenAPI definition.
 
     """
-    openapi_spec = APISpec(
-        title='SkyPortal',
-        version=__version__,
-        openapi_version='3.0.2',
-        info={
+    meta = {
+        'title': 'SkyPortal',
+        'version': __version__,
+        'openapi_version': '3.0.2',
+        'info': {
             'description': open(api_description, 'r').read(),
             'x-logo': {
                 'url': 'https://raw.githubusercontent.com/skyportal/skyportal/master/static/images/skyportal_logo.png',
@@ -65,8 +65,11 @@ def spec_from_handlers(handlers, exclude_internal=True):
                 'href': 'https://skyportal.io/docs',
             },
         },
-        plugins=[MarshmallowPlugin()],
-    )
+    }
+    if metadata is not None:
+        meta.update(metadata)
+
+    openapi_spec = APISpec(**meta, plugins=[MarshmallowPlugin()],)
 
     token_scheme = {
         "type": "apiKey",

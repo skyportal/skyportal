@@ -4,7 +4,6 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Source, Comment, Group, Candidate, Filter
-from .candidate import update_redshift_history_if_relevant
 
 
 class CommentHandler(BaseHandler):
@@ -29,7 +28,7 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        comment = Comment.get_if_owned_by(comment_id, self.current_user)
+        comment = Comment.get_if_readable_by(comment_id, self.current_user)
         if comment is None:
             return self.error('Invalid comment ID.')
         return self.success(data=comment)
@@ -93,7 +92,7 @@ class CommentHandler(BaseHandler):
         comment_text = data.get("text")
 
         # Ensure user/token has access to parent source
-        obj = Source.get_obj_if_owned_by(obj_id, self.current_user)
+        _ = Source.get_obj_if_readable_by(obj_id, self.current_user)
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
             filtr.id
@@ -159,17 +158,6 @@ class CommentHandler(BaseHandler):
         )
 
         DBSession().add(comment)
-        if comment_text.startswith("z="):
-            try:
-                redshift = float(comment_text.strip().split("z=")[1])
-            except ValueError:
-                return self.error(
-                    "Invalid redshift value provided; unable to cast to float"
-                )
-            obj.redshift = redshift
-            update_redshift_history_if_relevant(
-                {"redshift": redshift}, obj, self.associated_user_object
-            )
         DBSession().commit()
 
         self.push_all(
@@ -214,7 +202,7 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        c = Comment.get_if_owned_by(comment_id, self.current_user)
+        c = Comment.get_if_readable_by(comment_id, self.current_user)
         if c is None:
             return self.error('Invalid comment ID.')
 
@@ -245,7 +233,7 @@ class CommentHandler(BaseHandler):
 
         DBSession().flush()
         if group_ids is not None:
-            c = Comment.get_if_owned_by(comment_id, self.current_user)
+            c = Comment.get_if_readable_by(comment_id, self.current_user)
             groups = Group.query.filter(Group.id.in_(group_ids)).all()
             if not groups:
                 return self.error(
@@ -340,7 +328,7 @@ class CommentAttachmentHandler(BaseHandler):
         """
         download = strtobool(self.get_query_argument('download', "True").lower())
 
-        comment = Comment.get_if_owned_by(comment_id, self.current_user)
+        comment = Comment.get_if_readable_by(comment_id, self.current_user)
         if comment is None:
             return self.error('Invalid comment ID.')
 

@@ -157,12 +157,14 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
             multiline
             defaultValue=""
             name="comment"
+            data-testid="assignmentCommentInput"
             size="small"
             inputRef={register}
           />
           <Button
             type="submit"
             name="assignmentSubmitButton"
+            data-testid="assignmentSubmitButton"
             variant="contained"
           >
             Submit
