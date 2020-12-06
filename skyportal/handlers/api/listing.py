@@ -158,7 +158,7 @@ class UserObjListHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: success
+                schema: Success
 
 
         """
