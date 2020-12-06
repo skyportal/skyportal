@@ -47,14 +47,14 @@ class UserObjListHandler(BaseHandler):
         if User.query.get(user_id) is None:  # verify that user exists
             return self.error(f'User "{user_id}" does not exist!')
 
+        user_id = int(user_id)
+
         # verify that poster has read access to user_id's lists
         if (
             not self.associated_user_object.id == user_id
             and "System admin" not in self.associated_user_object.permissions
         ):
-            return self.error(
-                'User does not have sufficient permissions to access this listing. '
-            )
+            return self.error('Insufficient permissions to access this listing. ')
 
         list_name = self.get_query_argument("list_name", None)
 
@@ -112,14 +112,16 @@ class UserObjListHandler(BaseHandler):
         if User.query.get(user_id) is None:  # verify that user exists
             return self.error(f'User "{user_id}" does not exist!')
 
+        user_id = int(user_id)
+        print(user_id)
+        print(self.associated_user_object.id)
+
         # verify that poster has write access to user_id's lists
         if (
             not self.associated_user_object.id == user_id
             and "System admin" not in self.associated_user_object.permissions
         ):
-            return self.error(
-                'User does not have sufficient permissions to access this listing. '
-            )
+            return self.error('Insufficient permissions to access this listing. ')
 
         obj_id = self.get_query_argument("obj_id")
         if Obj.query.get(obj_id) is None:  # verify that object exists!
@@ -131,12 +133,15 @@ class UserObjListHandler(BaseHandler):
                 "Input `list_name` must begin with alphanumeric/underscore"
             )
 
+        print(obj_id)
+        print(list_name)
+
         listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name,)
 
         DBSession.add(listing)
         DBSession.commit()
 
-        return self.success(data={listing.id})
+        return self.success(data=listing.id)
 
     @auth_or_token
     def delete(self, listing_id):
@@ -158,7 +163,7 @@ class UserObjListHandler(BaseHandler):
 
         """
 
-        listing = Listing.query.get(listing_id)
+        listing = Listing.query.get(int(listing_id))
 
         if listing is None:
             return self.error("Listing does not exist.")
@@ -168,11 +173,9 @@ class UserObjListHandler(BaseHandler):
             not self.associated_user_object.id == listing.user_id
             and "System admin" not in self.associated_user_object.permissions
         ):
-            return self.error(
-                'User does not have sufficient permissions to access this listing. '
-            )
+            return self.error('Insufficient permissions to access this listing. ')
 
-        listing.delete()
+        DBSession.delete(listing)
         DBSession.commit()
 
         return self.success()

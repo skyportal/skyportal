@@ -100,7 +100,7 @@ skyportal_handlers = [
     (r'/api/groups(/[0-9]+)/users(/.*)?', GroupUserHandler),
     (r'/api/groups(/[0-9]+)/usersFromGroups(/.*)?', GroupUsersFromOtherGroupsHandler,),
     (r'/api/groups(/[0-9]+)?', GroupHandler),
-    (r'/api/listing', UserObjListHandler),
+    (r'/api/listing(/[0-9]+)?', UserObjListHandler),
     (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
     (r'/api/invitations(/.*)?', InvitationHandler),
     (r'/api/newsfeed', NewsFeedHandler),
