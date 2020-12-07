@@ -780,7 +780,7 @@ class PhotometryHandler(BaseHandler):
     def get(self, photometry_id):
         # The full docstring/API spec is below as an f-string
 
-        phot = Photometry.get_if_readable_by(photometry_id, self.current_user)
+        phot = Photometry.get_if_is_readable_by(photometry_id, self.current_user)
         if phot is None:
             return self.error('Invalid photometry ID')
 
@@ -819,7 +819,7 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
 
-        photometry = Photometry.get_if_readable_by(photometry_id, self.current_user)
+        photometry = Photometry.get_if_is_readable_by(photometry_id, self.current_user)
         if not photometry.is_modifiable_by(self.associated_user_object):
             return self.error(
                 f'Cannot delete photometry point that is owned by {photometry.owner}.'
@@ -885,7 +885,7 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        photometry = Photometry.get_if_readable_by(photometry_id, self.current_user)
+        photometry = Photometry.get_if_is_readable_by(photometry_id, self.current_user)
         if not photometry.is_modifiable_by(self.associated_user_object):
             return self.error(
                 f'Cannot delete photometry point that is owned by {photometry.owner}.'
@@ -937,7 +937,7 @@ class BulkDeletePhotometryHandler(BaseHandler):
         """
         # Permissions check:
         phot_id = Photometry.query.filter(Photometry.upload_id == upload_id).first().id
-        _ = Photometry.get_if_readable_by(phot_id, self.current_user)
+        _ = Photometry.get_if_is_readable_by(phot_id, self.current_user)
 
         n_deleted = (
             DBSession()
