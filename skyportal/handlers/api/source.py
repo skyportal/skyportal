@@ -476,15 +476,13 @@ class SourceHandler(BaseHandler):
                 f for f in s.followup_requests if f.status != 'deleted'
             ]
             if include_photometry:
-                photometry = Obj.get_photometry_readable_by_user(
-                    obj_id, self.current_user
-                )
+                photometry = s.get_photometry_readable_by(self.current_user)
                 source_info["photometry"] = [
                     serialize(phot, 'ab', 'flux') for phot in photometry
                 ]
             if include_spectrum_exists:
                 source_info["spectrum_exists"] = (
-                    len(Obj.get_spectra_readable_by(obj_id, self.current_user)) > 0
+                    len(s.get_spectra_readable_by(self.current_user)) > 0
                 )
             query = (
                 DBSession()
@@ -686,16 +684,13 @@ class SourceHandler(BaseHandler):
                     "angular_diameter_distance"
                 ] = source.angular_diameter_distance
                 if include_photometry:
-                    photometry = Obj.get_photometry_readable_by_user(
-                        source.id, self.current_user
-                    )
+                    photometry = source.get_photometry_readable_by(self.current_user)
                     source_list[-1]["photometry"] = [
                         serialize(phot, 'ab', 'flux') for phot in photometry
                     ]
                 if include_spectrum_exists:
                     source_list[-1]["spectrum_exists"] = (
-                        len(Obj.get_spectra_readable_by(source.id, self.current_user))
-                        > 0
+                        len(source.get_spectra_readable_by(self.current_user)) > 0
                     )
 
                 groups_query = (

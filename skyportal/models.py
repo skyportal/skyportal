@@ -2995,10 +2995,11 @@ def update_single_user_group(mapper, connection, target):
 
 
 def _make_retreive_accessible_children(cls):
-    return lambda self, user_or_token: (
+    return lambda self, user_or_token, options=[]: (
         DBSession()
         .query(cls)
         .filter(cls.obj_id == self.id, cls.is_readable_by(user_or_token))
+        .options(options)
         .all()
     )
 
