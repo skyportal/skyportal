@@ -34,12 +34,7 @@ class UserObjListHandler(BaseHandler):
             responses:
               200:
                 content:
-                  schema:
-                    allOf:
-                      - $ref: '#/components/schemas/Success'
-                      - type: array
-                        items:
-                          description: array of listing objects
+                  schema: ArrayOFListings
         """
 
         user_id = self.get_query_argument("user_id")
@@ -51,7 +46,7 @@ class UserObjListHandler(BaseHandler):
 
         # verify that poster has read access to user_id's lists
         if (
-            not self.associated_user_object.id == user_id
+            self.associated_user_object.id != user_id
             and "System admin" not in self.associated_user_object.permissions
         ):
             return self.error('Insufficient permissions to access this listing. ')
@@ -59,8 +54,11 @@ class UserObjListHandler(BaseHandler):
         list_name = self.get_query_argument("list_name", None)
 
         objects = DBSession().query(Listing).filter(Listing.user_id == user_id)
-        if list_name is not None and re.search(r'^\w+', list_name):
+
+        if list_name is not None:
             objects = objects.filter(Listing.list_name == list_name)
+            if objects.first() is None:
+                return self.error(f'No entries under the "{list_name}" list. ')
 
         return self.success(data=objects.all())
 
@@ -113,8 +111,6 @@ class UserObjListHandler(BaseHandler):
             return self.error(f'User "{user_id}" does not exist!')
 
         user_id = int(user_id)
-        print(user_id)
-        print(self.associated_user_object.id)
 
         # verify that poster has write access to user_id's lists
         if (
@@ -133,15 +129,12 @@ class UserObjListHandler(BaseHandler):
                 "Input `list_name` must begin with alphanumeric/underscore"
             )
 
-        print(obj_id)
-        print(list_name)
-
         listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name,)
 
-        DBSession.add(listing)
-        DBSession.commit()
+        DBSession().add(listing)
+        DBSession().commit()
 
-        return self.success(data=listing.id)
+        return self.success(data={'listing_id': listing.id})
 
     @auth_or_token
     def delete(self, listing_id):

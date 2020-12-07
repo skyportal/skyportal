@@ -18,7 +18,7 @@ def test_add_objects_to_list(
     )
 
     assert status == 200
-    item1 = data["data"]  # get the list item ID
+    item1 = data["data"]["listing_id"]  # get the list item ID
 
     status, data = api(
         'PUT',
@@ -27,7 +27,7 @@ def test_add_objects_to_list(
     )
 
     assert status == 200
-    item2 = data["data"]  # get the list item ID
+    item2 = data["data"]["listing_id"]  # get the list item ID
 
     # get the list back, should include only two items
     status, data = api(
@@ -56,7 +56,7 @@ def test_add_remove_objects(
         token=token_id,
     )
     assert status == 200
-    item1 = data["data"]  # get the list item ID
+    item1 = data["data"]["listing_id"]  # get the list item ID
 
     status, data = api(
         'PUT',
@@ -65,7 +65,7 @@ def test_add_remove_objects(
     )
 
     assert status == 200
-    item2 = data["data"]  # get the list item ID
+    item2 = data["data"]["listing_id"]  # get the list item ID
 
     status, data = api('DELETE', f'listing/{item1}', token=token_id)
 
@@ -100,7 +100,7 @@ def test_add_objects_to_different_lists(
     )
 
     assert status == 200
-    item1 = data["data"]  # get the list item ID
+    item1 = data["data"]["listing_id"]  # get the list item ID
 
     list2 = uuid.uuid4()
     status, data = api(
