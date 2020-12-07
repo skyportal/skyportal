@@ -315,12 +315,12 @@ def photometry_plot(obj_id, user, width=600, height=300):
     plot.yaxis.axis_label = 'Flux (μJy)'
     plot.toolbar.logo = None
 
-    colors_labels = data[['color', 'label']].unique()
+    colors_labels = data[['color', 'label']].drop_duplicates()
 
     toggle = CheckboxWithLegendGroup(
-        labels=colors_labels.label,
+        labels=colors_labels.label.tolist(),
         active=list(range(len(colors_labels))),
-        colors=colors_labels.color,
+        colors=colors_labels.color.tolist(),
         width=width // 5,
     )
 
@@ -620,12 +620,12 @@ def photometry_plot(obj_id, user, width=600, height=300):
     plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
     plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
 
-    colors_labels = data[['color', 'label']].unique()
+    colors_labels = data[['color', 'label']].drop_duplicates()
 
     toggle = CheckboxWithLegendGroup(
-        labels=colors_labels.label,
+        labels=colors_labels.label.tolist(),
         active=list(range(len(colors_labels))),
-        colors=colors_labels.color,
+        colors=colors_labels.color.tolist(),
         width=width // 5,
     )
 
