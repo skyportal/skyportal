@@ -419,7 +419,7 @@ class CandidateHandler(BaseHandler):
         )  # Join in annotations info for sort/filter
         if classifications is not None:
             if isinstance(classifications, str) and "," in classifications:
-                classifications = classifications.split(",")
+                classifications = [c.strip() for c in classifications.split(",")]
             elif isinstance(classifications, str):
                 classifications = [classifications]
             else:
