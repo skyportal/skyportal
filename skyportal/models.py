@@ -1926,6 +1926,10 @@ class Classification(ReadableByGroupsMembersIfObjIsReadable, Base):
         doc="Groups that can access this Classification.",
     )
 
+    def to_dict(self):
+        _ = self.groups
+        return super().to_dict()
+
 
 GroupClassifications = join_model("group_classifications", Group, Classification)
 GroupClassifications.__doc__ = "Join table mapping Groups to Classifications."
