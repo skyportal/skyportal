@@ -2,6 +2,7 @@ import datetime
 from copy import copy
 import re
 import json
+import ast
 
 import arrow
 
@@ -21,6 +22,7 @@ from ...models import (
     Filter,
     Annotation,
     Group,
+    Classification,
 )
 
 
@@ -211,6 +213,25 @@ class CandidateHandler(BaseHandler):
             description: |
               Boolean indicating whether to include associated photometry. Defaults to
               false.
+          - in: query
+            name: classifications
+            nullable: true
+            schema:
+              type: array
+              items:
+                type: string
+            explode: false
+            style: simple
+            description: |
+              Comma-separated string of classification(s) to filter for candidates matching
+              that/those classification(s).
+          - in: query
+            name: redshiftRange
+            nullable: True
+            schema:
+                type: list
+            description: |
+                lowest and highest redshift to return, e.g. "(0,0.5)"
           responses:
             200:
               content:
@@ -330,6 +351,8 @@ class CandidateHandler(BaseHandler):
         filter_ids = self.get_query_argument("filterIDs", None)
         sort_by_origin = self.get_query_argument("sortByAnnotationOrigin", None)
         annotation_filter_list = self.get_query_argument("annotationFilterList", None)
+        classifications = self.get_query_argument("classifications", None)
+        redshift_range_str = self.get_query_argument("redshiftRange", None)
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
             filtr.id
@@ -394,6 +417,18 @@ class CandidateHandler(BaseHandler):
             )
             .outerjoin(Annotation)
         )  # Join in annotations info for sort/filter
+        if classifications is not None:
+            if isinstance(classifications, str) and "," in classifications:
+                classifications = classifications.split(",")
+            elif isinstance(classifications, str):
+                classifications = [classifications]
+            else:
+                return self.error(
+                    "Invalid classifications value -- must provide at least one string value"
+                )
+            q = q.join(Classification).filter(
+                Classification.classification.in_(classifications)
+            )
         if sort_by_origin is None:
             # Don't apply the order by just yet. Save it so we can pass it to
             # the LIMT/OFFSET helper function down the line once other query
@@ -417,6 +452,21 @@ class CandidateHandler(BaseHandler):
         if end_date is not None and end_date.strip() not in ["", "null", "undefined"]:
             end_date = arrow.get(end_date).datetime
             q = q.filter(Candidate.passed_at <= end_date)
+        if redshift_range_str is not None:
+            redshift_range = ast.literal_eval(redshift_range_str)
+            if not (
+                isinstance(redshift_range, (list, tuple)) and len(redshift_range) == 2
+            ):
+                return self.error('Invalid argument for `redshiftRange`')
+            if not (
+                isinstance(redshift_range[0], (float, int))
+                and isinstance(redshift_range[1], (float, int))
+            ):
+                return self.error('Invalid arguments in `redshiftRange`')
+            q = q.filter(
+                Obj.redshift >= redshift_range[0], Obj.redshift <= redshift_range[1]
+            )
+
         if annotation_filter_list is not None:
             # Parse annotation filter list objects from the query string
             # and apply the filters to the query
