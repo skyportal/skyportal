@@ -104,12 +104,7 @@ const FilterCandidateList = ({
     );
     classifications = classifications.concat(currentClasses);
   });
-  classifications = classifications
-    .filter(
-      (classification, index) =>
-        classifications.indexOf(classification) === index
-    )
-    .sort();
+  classifications = Array.from(new Set(classifications)).sort();
 
   const [selectedClassifications, setSelectedClassifications] = useState([]);
 
