@@ -67,11 +67,11 @@ const savedStatusSelectOptions = [
   },
   {
     value: "savedToAnyAccessible",
-    label: "and is saved to at least one of the user-accessible groups",
+    label: "and is saved to at least one group I have access to",
   },
   {
     value: "notSavedToAnyAccessible",
-    label: "and is not saved to any of the user-accessible groups",
+    label: "and is not saved to any of group I have access to",
   },
   {
     value: "notSavedToAnySelected",
