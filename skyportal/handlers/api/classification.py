@@ -1,7 +1,7 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Group, Classification, Taxonomy
+from ...models import DBSession, Group, Classification, Taxonomy, Obj
 from .internal.recent_sources import RecentSourcesHandler
 from .internal.source_views import SourceViewsHandler
 
@@ -296,3 +296,37 @@ class ClassificationHandler(BaseHandler):
             self.push_all(action='skyportal/FETCH_RECENT_SOURCES')
 
         return self.success()
+
+
+class ObjClassificationHandler(BaseHandler):
+    @auth_or_token
+    def get(self, obj_id):
+        """
+        ---
+        description: Retrieve an object's classifications
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfClassifications
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        obj = Obj.get_if_readable_by(obj_id, self.current_user)
+        if obj is None:
+            return self.error('Invalid obj_id.')
+
+        classifications = obj.get_classifications_readable_by(self.current_user)
+        for classification in classifications:
+            del classification.groups
+
+        return self.success(data=classifications)

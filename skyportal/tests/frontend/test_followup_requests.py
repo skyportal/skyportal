@@ -90,7 +90,7 @@ def add_followup_request_using_frontend_and_verify(
 
     driver.get(f"/source/{public_source.id}")
     # wait for the plots to load
-    driver.wait_for_xpath('//span[contains(text(), "band")]', 20)
+    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
     # this waits for the spectroscopy plot by looking for the element Mg
     driver.wait_for_xpath('//span[text()="Mg"]')
 
@@ -216,7 +216,7 @@ def test_submit_new_followup_request_two_groups(
 
     driver.get(f"/source/{public_source_two_groups.id}")
     # wait for the plots to load
-    driver.wait_for_xpath('//span[contains(text(), "band")]', 20)
+    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
     # this waits for the spectroscopy plot by looking for the element Mg
     driver.wait_for_xpath('//span[text()="Mg"]', timeout=20)
 
