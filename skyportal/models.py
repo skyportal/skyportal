@@ -177,7 +177,13 @@ class Group(Base):
     nickname = sa.Column(
         sa.String, unique=True, nullable=True, index=True, doc='Short group nickname.'
     )
-
+    private = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=False,
+        index=True,
+        doc="Boolean indicating whether group is invisible to non-members.",
+    )
     streams = relationship(
         'Stream',
         secondary='group_streams',
@@ -302,7 +308,7 @@ class GroupAdmissionRequest(Base):
             "pending",
             "accepted",
             "declined",
-            name='admission_request_status',
+            name="admission_request_status",
             validate_strings=True,
         ),
         nullable=False,

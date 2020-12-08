@@ -6,9 +6,71 @@ from ...models import (
     User,
     GroupAdmissionRequest,
 )
+from .group import has_admin_access_for_group
 
 
 class GroupAdmissionRequestHandler(BaseHandler):
+    @auth_or_token
+    def get(self, admission_request_id=None):
+        """
+        ---
+        single:
+          description: Retrieve a group admission request
+          parameters:
+            - in: path
+              name: admission_request_id
+              required: false
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleGroupAdmissionRequest
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all group admission requests
+          parameters:
+          - in: query
+            name: groupID
+            nullable: true
+            schema:
+              type: integer
+            description: ID of group for which admission requests are desired
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfGroupAdmissionRequests
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+        group_id = self.get_query_argument("groupID", None)
+        if admission_request_id is not None:
+            admission_request = GroupAdmissionRequest.query.get(admission_request_id)
+            if admission_request is None:
+                return self.error("Invalid admission request ID.")
+
+            response_data = admission_request.to_json()
+            response_data["user"] = admission_request.user
+
+            return self.success(data=response_data)
+
+        q = GroupAdmissionRequest.query
+        if group_id is not None:
+            q = q.filter(GroupAdmissionRequest.group_id == group_id)
+        admission_requests = q.all()
+        response_data = [
+            {**admission_request.to_dict(), "user": admission_request.user}
+            for admission_request in admission_requests
+        ]
+        return self.success(data=response_data)
+
     @auth_or_token
     def post(self):
         """
@@ -75,6 +137,49 @@ class GroupAdmissionRequestHandler(BaseHandler):
         DBSession().commit()
         self.push(action="skyportal/FETCH_USER_PROFILE")
         return self.success(data={"id": admission_request.id})
+
+    @auth_or_token
+    def patch(self, admission_request_id):
+        """
+        ---
+        description: Update an admission request's status
+        parameters:
+          - in: path
+            name: admission_request_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: One of either 'accepted', 'declined', or 'pending'.
+                required:
+                  - status
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        data = self.get_json()
+        status = data.get("status")
+        if status is None:
+            return self.error("Missing required parameter `status`")
+        admission_request = GroupAdmissionRequest.query.get(admission_request_id)
+        if admission_request is None:
+            return self.error("Invalid admission request ID.")
+        if not has_admin_access_for_group(
+            self.current_user, admission_request.group_id
+        ):
+            return self.error("Insufficient permissions.")
+        admission_request.status = status
+        DBSession().commit()
+        return self.success()
 
     @auth_or_token
     def delete(self, admission_request_id):

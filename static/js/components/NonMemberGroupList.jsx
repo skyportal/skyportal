@@ -6,7 +6,7 @@ import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
 
-import * as groupsActions from "../ducks/groups";
+import * as groupAdmissionRequestsActions from "../ducks/groupAdmissionRequests";
 
 const NonMemberGroupList = ({ groups }) => {
   const dispatch = useDispatch();
@@ -17,24 +17,29 @@ const NonMemberGroupList = ({ groups }) => {
     return <>Loading...</>;
   }
   const pendingRequestGroupIDs = groupAdmissionRequests
-    .filter((gar) => gar.status === "pending")
-    .map((gar) => gar.group_id);
+    .filter((request) => request.status === "pending")
+    .map((request) => request.group_id);
   const declinedRequestGroupIDs = groupAdmissionRequests
-    .filter((gar) => gar.status === "declined")
-    .map((gar) => gar.group_id);
+    .filter((request) => request.status === "declined")
+    .map((request) => request.group_id);
 
   const handleRequestAdmission = async (groupID) => {
     const result = await dispatch(
-      groupsActions.requestGroupAdmission(currentUserID, groupID)
+      groupAdmissionRequestsActions.requestGroupAdmission(
+        currentUserID,
+        groupID
+      )
     );
     if (result.status === "success") {
       dispatch(showNotification("Successfully requested admission to group."));
-      dispatch(groupsActions.fetchGroups(true));
+      // dispatch(groupsActions.fetchGroups(true));
     }
   };
 
   const handleDeleteAdmissionRequest = (admissionRequestID) => {
-    dispatch(groupsActions.deleteAdmissionRequest(admissionRequestID));
+    dispatch(
+      groupAdmissionRequestsActions.deleteAdmissionRequest(admissionRequestID)
+    );
   };
 
   const renderActions = (dataIndex) => {
@@ -44,18 +49,19 @@ const NonMemberGroupList = ({ groups }) => {
     }
     if (pendingRequestGroupIDs.includes(group.id)) {
       const admissionRequestID = groupAdmissionRequests.filter(
-        (gar) => gar.group_id === group.id
+        (request) => request.group_id === group.id
       )[0].id;
       return (
         <>
-          <em>Request pending... </em>
+          <em>Request pending...</em>
+          <br />
           <Button
             size="small"
             variant="contained"
             onClick={() => handleDeleteAdmissionRequest(admissionRequestID)}
             data-testid={`deleteAdmissionRequestButton${group.id}`}
           >
-            Delete
+            Delete request
           </Button>
         </>
       );
@@ -108,6 +114,7 @@ const NonMemberGroupList = ({ groups }) => {
     jumpToPage: true,
     pagination: true,
     rowHover: false,
+    print: false,
   };
   return (
     <MUIDataTable
