@@ -245,6 +245,7 @@ class CandidateHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+
         include_photometry = self.get_query_argument("includePhotometry", False)
 
         if obj_id is not None:
@@ -302,7 +303,8 @@ class CandidateHandler(BaseHandler):
                 .filter(
                     Annotation.obj_id == obj_id,
                     Annotation.is_readable_by(self.current_user),
-                ),
+                )
+                .all(),
                 key=lambda x: x.origin,
             )
             candidate_info["is_source"] = len(c.sources) > 0
@@ -323,6 +325,7 @@ class CandidateHandler(BaseHandler):
                         Classification.obj_id == obj_id,
                         Classification.is_readable_by(self.current_user),
                     )
+                    .all()
                 )
 
             candidate_info["last_detected"] = c.last_detected
@@ -420,10 +423,10 @@ class CandidateHandler(BaseHandler):
             "null",
             "undefined",
         ]:
-            start_date = arrow.get(start_date).datetime
+            start_date = arrow.get(start_date).isoformat()
             q = q.filter(Candidate.passed_at >= start_date)
         if end_date is not None and end_date.strip() not in ["", "null", "undefined"]:
-            end_date = arrow.get(end_date).datetime
+            end_date = arrow.get(end_date).isoformat()
             q = q.filter(Candidate.passed_at <= end_date)
         if annotation_filter_list is not None:
             # Parse annotation filter list objects from the query string

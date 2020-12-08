@@ -1793,6 +1793,13 @@ class Comment(ReadableByGroupsMembersIfObjIsReadable, Base):
             for field in ('username', 'first_name', 'last_name', 'gravatar_url')
         }
 
+    def to_dict(self):
+        _ = self.groups
+        dict = super().to_dict()
+        dict['author'] = self.author.to_dict()
+        dict['author_info'] = self.author_info
+        return dict
+
 
 GroupComment = join_model("group_comments", Group, Comment)
 GroupComment.__doc__ = "Join table mapping Groups to Comments."
@@ -1852,6 +1859,13 @@ class Annotation(ReadableByGroupsMembersIfObjIsReadable, Base):
             field: getattr(self.author, field)
             for field in ('username', 'first_name', 'last_name', 'gravatar_url')
         }
+
+    def to_dict(self):
+        _ = self.groups
+        dict = super().to_dict()
+        dict['author'] = self.author.to_dict()
+        dict['author_info'] = self.author_info
+        return dict
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
