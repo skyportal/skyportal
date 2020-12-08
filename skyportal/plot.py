@@ -121,15 +121,31 @@ tooltip_format = [
     ('instrument', '@instrument'),
     ('stacked', '@stacked'),
 ]
-cmap = cm.get_cmap('jet_r')
+cmap_opt = cm.get_cmap('nipy_spectral')
+cmap_uv = cm.get_cmap('cool')
+cmap_ir = cm.get_cmap('autumn')
 
 
-def get_color(bandpass_name, cmap_limits=(3000.0, 10000.0)):
+def get_color(bandpass_name):
     if bandpass_name.startswith('ztf'):
         return {'ztfg': 'green', 'ztfi': 'orange', 'ztfr': 'red'}[bandpass_name]
     else:
         bandpass = sncosmo.get_bandpass(bandpass_name)
         wave = bandpass.wave_eff
+
+        if 0 < wave < 3000:
+            cmap = cmap_uv
+            cmap_limits = (0, 3000)
+        elif 3000 <= wave <= 10000:
+            cmap = cmap_opt
+            cmap_limits = (3000, 10000)
+        elif 10000 < wave < 1e5:
+            wave = np.log10(wave)
+            cmap = cmap_ir
+            cmap_limits = (4, 5)
+        else:
+            raise ValueError('wavelength out of range for color maps')
+
         rgb = cmap((cmap_limits[1] - wave) / (cmap_limits[1] - cmap_limits[0]))[:3]
         bandcolor = rgb2hex(rgb)
 
@@ -169,10 +185,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         return None, None, None
 
     data['color'] = [get_color(f) for f in data['filter']]
-    data['label'] = [
-        f'{i} {f}-band' for i, f in zip(data['instrument'], data['filter'])
-    ]
-
+    data['label'] = [f'{i}/{f}' for i, f in zip(data['instrument'], data['filter'])]
     data['zp'] = PHOT_ZP
     data['magsys'] = 'ab'
     data['alpha'] = 1.0
@@ -302,10 +315,12 @@ def photometry_plot(obj_id, user, width=600, height=300):
     plot.yaxis.axis_label = 'Flux (μJy)'
     plot.toolbar.logo = None
 
+    colors_labels = data[['color', 'label']].drop_duplicates()
+
     toggle = CheckboxWithLegendGroup(
-        labels=list(data.label.unique()),
-        active=list(range(len(data.label.unique()))),
-        colors=list(data.color.unique()),
+        labels=colors_labels.label.tolist(),
+        active=list(range(len(colors_labels))),
+        colors=colors_labels.color.tolist(),
         width=width // 5,
     )
 
@@ -605,10 +620,12 @@ def photometry_plot(obj_id, user, width=600, height=300):
     plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
     plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
 
+    colors_labels = data[['color', 'label']].drop_duplicates()
+
     toggle = CheckboxWithLegendGroup(
-        labels=list(data.label.unique()),
-        active=list(range(len(data.label.unique()))),
-        colors=list(data.color.unique()),
+        labels=colors_labels.label.tolist(),
+        active=list(range(len(colors_labels))),
+        colors=colors_labels.color.tolist(),
         width=width // 5,
     )
 
