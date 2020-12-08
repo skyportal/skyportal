@@ -110,7 +110,7 @@ const NonMemberGroupList = ({ groups }) => {
     selectableRows: "none",
     rowsPerPage: 10,
     rowsPerPageOptions: [10, 25, 50, 100, 200],
-    filter: true,
+    filter: false,
     jumpToPage: true,
     pagination: true,
     rowHover: false,

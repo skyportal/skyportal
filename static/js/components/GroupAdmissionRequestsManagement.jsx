@@ -121,11 +121,10 @@ const GroupAdmissionRequestsManagement = ({ groupID }) => {
     return <></>;
   };
 
-  const renderUserInfo = (dataIndex) => {
-    const { user } = requests[dataIndex];
-    let userInfoString = user.username;
-    if (!!user.first_name && !!user.last_name) {
-      userInfoString += ` (${user.first_name} ${user.last_name})`;
+  const renderUserInfo = (value) => {
+    let userInfoString = value.username;
+    if (!!value.first_name && !!value.last_name) {
+      userInfoString += ` (${value.first_name} ${value.last_name})`;
     }
     return userInfoString;
   };
@@ -136,14 +135,14 @@ const GroupAdmissionRequestsManagement = ({ groupID }) => {
       label: "Requesting User",
       options: {
         filter: false,
-        customBodyRenderLite: renderUserInfo,
+        customBodyRender: renderUserInfo,
       },
     },
     {
       name: "status",
       label: "Status",
       options: {
-        filter: false,
+        filter: true,
       },
     },
     {

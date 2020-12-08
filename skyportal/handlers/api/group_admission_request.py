@@ -170,6 +170,10 @@ class GroupAdmissionRequestHandler(BaseHandler):
         status = data.get("status")
         if status is None:
             return self.error("Missing required parameter `status`")
+        if status not in ["pending", "accepted", "declined"]:
+            return self.error(
+                "Invalid 'status' value - should be one of either 'accepted', 'declined', or 'pending'"
+            )
         admission_request = GroupAdmissionRequest.query.get(admission_request_id)
         if admission_request is None:
             return self.error("Invalid admission request ID.")
