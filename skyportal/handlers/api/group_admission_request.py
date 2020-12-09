@@ -126,7 +126,10 @@ class GroupAdmissionRequestHandler(BaseHandler):
             and not self.current_user.is_system_admin
         ):
             return self.error("Insufficient permissions")
-        if Group.query.get(group_id) is None:
+        if (
+            Group.query.get(group_id) is None
+            or Group.query.get(group_id).single_user_group
+        ):
             return self.error("Invalid group ID")
         if User.query.get(user_id) is None:
             return self.error("Invalid user ID")
