@@ -264,18 +264,20 @@ const Group = () => {
   const currentUser = useSelector((state) => state.profile);
   const { invitationsEnabled } = useSelector((state) => state.sysInfo);
   const streams = useSelector((state) => state.streams);
+  const [dataFetched, setDataFetched] = useState(false);
 
   useEffect(() => {
-    const fetchGroup = async (groupID) => {
-      const result = await dispatch(groupActions.fetchGroup(groupID));
+    const fetchGroup = async () => {
+      const result = await dispatch(groupActions.fetchGroup(id));
       if (result.status === "error") {
         setGroupLoadError(result.message);
       }
     };
-    if (String(id) !== String(group?.id)) {
-      fetchGroup(id);
+    if (!dataFetched) {
+      fetchGroup();
+      setDataFetched(true);
     }
-  }, [id, group, dispatch]);
+  }, [id, group, dataFetched, dispatch]);
 
   useEffect(() => {
     const fetchStreams = async () => {

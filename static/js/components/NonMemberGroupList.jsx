@@ -32,7 +32,6 @@ const NonMemberGroupList = ({ groups }) => {
     );
     if (result.status === "success") {
       dispatch(showNotification("Successfully requested admission to group."));
-      // dispatch(groupsActions.fetchGroups(true));
     }
   };
 
