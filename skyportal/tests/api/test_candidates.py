@@ -4,6 +4,8 @@ import uuid
 
 from skyportal.tests import api
 
+from tdtax import taxonomy, __version__
+
 
 def test_candidate_list(view_only_token, public_candidate):
     status, data = api("GET", "candidates", token=view_only_token)
@@ -489,3 +491,144 @@ def test_candidate_list_filtering_string(
     assert status == 200
     assert len(data["data"]["candidates"]) == 1
     assert data["data"]["candidates"][0]["id"] == public_candidate.id
+
+
+def test_candidate_list_classifications(
+    upload_data_token,
+    taxonomy_token,
+    classification_token,
+    view_only_token,
+    public_filter,
+    public_group,
+):
+    # Post a candidate with a classification, and one without
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id1,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id2,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "POST", "sources", data={"id": obj_id1}, token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        'POST',
+        'taxonomy',
+        data={
+            'name': "test taxonomy" + str(uuid.uuid4()),
+            'hierarchy': taxonomy,
+            'group_ids': [public_group.id],
+            'provenance': f"tdtax_{__version__}",
+            'version': __version__,
+            'isLatest': True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+    taxonomy_id = data['data']['taxonomy_id']
+
+    status, data = api(
+        'POST',
+        'classification',
+        data={
+            'obj_id': obj_id1,
+            'classification': 'Algol',
+            'taxonomy_id': taxonomy_id,
+            'probability': 1.0,
+            'group_ids': [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
+    # Filter for candidates with classification 'Algol' - should only get obj_id1 back
+    status, data = api(
+        "GET",
+        "candidates",
+        params={"classifications": "Algol", "groupIDs": f"{public_group.id}"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["candidates"]) == 1
+    assert data["data"]["candidates"][0]["id"] == obj_id1
+
+
+def test_candidate_list_redshift_range(
+    upload_data_token, view_only_token, public_filter, public_group
+):
+    # Post candidates with different redshifts
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id1,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 0,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id2,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 1,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    # Filter for candidates redshift between 0 and 0.5 - should only get obj_id1 back
+    status, data = api(
+        "GET",
+        "candidates",
+        params={"redshiftRange": "(0,0.5)", "groupIDs": f"{public_group.id}"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["candidates"]) == 1
+    assert data["data"]["candidates"][0]["id"] == obj_id1

@@ -45,7 +45,7 @@ const addNodePaths = (nodePaths, hierarchy, prefix_path = []) => {
 
 // For each class in the hierarchy, return its name
 // as well as the path from the root of hierarchy to that class
-const allowedClasses = (hierarchy) => {
+export const allowedClasses = (hierarchy) => {
   const classPaths = [];
   addNodePaths(classPaths, hierarchy);
 
