@@ -40,7 +40,7 @@ def test_public_source_page_null_z(driver, user, public_source, public_group):
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
-@pytest.mark.flaky(reruns=3)
+@pytest.mark.xfail
 def test_classifications(driver, user, taxonomy_token, public_group, public_source):
     simple = {
         'class': 'Cepheid',
