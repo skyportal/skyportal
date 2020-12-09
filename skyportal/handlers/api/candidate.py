@@ -308,10 +308,7 @@ class CandidateHandler(BaseHandler):
                 [
                     cmt.to_dict()
                     for cmt in DBSession()
-                    .query(
-                    
-                    
-                    )
+                    .query()
                     .filter(
                         Comment.obj_id == obj_id,
                         Comment.is_readable_by(self.current_user),
