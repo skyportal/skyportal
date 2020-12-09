@@ -3,13 +3,14 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-export const REFRESH_GROUP = "skyportal/REFRESH_GROUP";
+const REFRESH_GROUP = "skyportal/REFRESH_GROUP";
 
-export const FETCH_GROUP = "skyportal/FETCH_GROUP";
-export const FETCH_GROUP_OK = "skyportal/FETCH_GROUP_OK";
+const FETCH_GROUP = "skyportal/FETCH_GROUP";
+const FETCH_GROUP_OK = "skyportal/FETCH_GROUP_OK";
 const FETCH_GROUP_ERROR = "skyportal/FETCH_GROUP_ERROR";
 const FETCH_GROUP_FAIL = "skyportal/FETCH_GROUP_FAIL";
 
+// eslint-disable-next-line import/prefer-default-export
 export function fetchGroup(id) {
   return API.GET(`/api/groups/${id}`, FETCH_GROUP);
 }
@@ -30,8 +31,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
 const reducer = (state = null, action) => {
   switch (action.type) {
     case FETCH_GROUP_OK: {
-      const group = action.data;
-      return group;
+      return action.data;
     }
     case FETCH_GROUP_FAIL:
     case FETCH_GROUP_ERROR: {
