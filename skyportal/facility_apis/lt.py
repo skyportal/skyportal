@@ -154,7 +154,25 @@ class LTRequest:
 
 class IOOIOIRequest(LTRequest):
 
-    """An XML structure for LT IOO requests."""
+    """An XML structure for LT IOO/IOI requests."""
+
+    def __init__(self, instname, request):
+        """Initialize IOO/IOI request.
+
+        Parameters
+        ----------
+
+        instname: str
+            IO:O or IO:I.
+
+        request: skyportal.models.FollowupRequest
+            The request to add to the queue and the SkyPortal database.
+
+        """
+
+        self.observation_payload = self._build_prolog(request)
+        self._build_project(self.observation_payload, request)
+        self._build_inst_schedule(instname, self.observation_payload, request)
 
     def _build_inst_schedule(self, instname, payload, request):
         """Payload header for LT IOO/IOI queue requests.
@@ -242,6 +260,21 @@ class IOOIOIRequest(LTRequest):
 class SPRATRequest(LTRequest):
 
     """An XML structure for LT SPRAT requests."""
+
+    def __init__(self, request):
+        """Initialize SPRAT request.
+
+        Parameters
+        ----------
+
+        request: skyportal.models.FollowupRequest
+            The request to add to the queue and the SkyPortal database.
+
+        """
+
+        self.observation_payload = self._build_prolog(request)
+        self._build_project(self.observation_payload, request)
+        self._build_inst_schedule(self.observation_payload, request)
 
     def _build_inst_schedule(self, payload, request):
         """Payload header for LT SPRAT queue requests.
@@ -402,10 +435,8 @@ class IOOAPI(LTAPI):
         altdata = request.allocation.altdata
         if not altdata:
             raise ValueError('Missing allocation information.')
-        ltreq = IOOIOIRequest()
-        observation_payload = ltreq._build_prolog(request)
-        ltreq._build_project(observation_payload, request)
-        ltreq._build_inst_schedule("IO:O", observation_payload, request)
+        ltreq = IOOIOIRequest("IO:O", request)
+        observation_payload = ltreq.observation_payload
 
         headers = {
             'Username': altdata["username"],
@@ -539,11 +570,8 @@ class IOIAPI(LTAPI):
         altdata = request.allocation.altdata
         if not altdata:
             raise ValueError('Missing allocation information.')
-
-        ltreq = IOOIOIRequest()
-        observation_payload = ltreq._build_prolog(request)
-        ltreq._build_project(observation_payload, request)
-        ltreq._build_inst_schedule("IO:I", observation_payload, request)
+        ltreq = IOOIOIRequest("IO:I", request)
+        observation_payload = ltreq.observation_payload
 
         headers = {
             'Username': altdata["username"],
@@ -678,10 +706,8 @@ class SPRATAPI(LTAPI):
         if not altdata:
             raise ValueError('Missing allocation information.')
 
-        ltreq = SPRATRequest()
-        observation_payload = ltreq._build_prolog(request)
-        ltreq._build_project(observation_payload, request)
-        ltreq._build_inst_schedule(observation_payload, request)
+        ltreq = SPRATRequest(request)
+        observation_payload = ltreq.observation_payload
 
         headers = {
             'Username': altdata["username"],
