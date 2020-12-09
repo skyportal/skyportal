@@ -29,6 +29,7 @@ from ...models import (
     ClassicalAssignment,
     ObservingRun,
     SourceNotification,
+    Classification,
 )
 from .internal.source_views import register_source_view
 from ...utils import (
@@ -303,6 +304,18 @@ class SourceHandler(BaseHandler):
               type: boolean
             description: |
               Boolean indicating whether to return if a source has a spectra. Defaults to false.
+          - in: query
+            name: classifications
+            nullable: true
+            schema:
+              type: array
+              items:
+                type: string
+            explode: false
+            style: simple
+            description: |
+              Comma-separated string of classification(s) to filter for sources matching
+              that/those classification(s).
           responses:
             200:
               content:
@@ -352,6 +365,7 @@ class SourceHandler(BaseHandler):
         include_spectrum_exists = self.get_query_argument(
             "includeSpectrumExists", False
         )
+        classifications = self.get_query_argument("classifications", None)
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -551,6 +565,9 @@ class SourceHandler(BaseHandler):
                 .filter(Source.group_id.in_(user_accessible_group_ids))
             )
 
+        if classifications is not None or sort_by == "classification":
+            q = q.join(Classification)
+
         if sourceID:
             q = q.filter(Obj.id.contains(sourceID.strip()))
         if any([ra, dec, radius]):
@@ -586,6 +603,16 @@ class SourceHandler(BaseHandler):
             )
         if has_tns_name in ['true', True]:
             q = q.filter(Obj.altdata['tns']['name'].isnot(None))
+        if classifications is not None:
+            if isinstance(classifications, str) and "," in classifications:
+                classifications = [c.strip() for c in classifications.split(",")]
+            elif isinstance(classifications, str):
+                classifications = [classifications]
+            else:
+                return self.error(
+                    "Invalid classifications value -- must provide at least one string value"
+                )
+            q = q.filter(Classification.classification.in_(classifications))
         q = apply_active_or_requested_filtering(q, include_requested, requested_only)
         if group_ids is not None:
             if not all(gid in user_accessible_group_ids for gid in group_ids):
@@ -624,6 +651,12 @@ class SourceHandler(BaseHandler):
                     [Source.saved_at]
                     if sort_order == "asc"
                     else [Source.saved_at.desc()]
+                )
+            elif sort_by == "classification":
+                order_by = (
+                    [Classification.classification]
+                    if sort_order == "asc"
+                    else [Classification.classification.desc()]
                 )
 
         if page_number:

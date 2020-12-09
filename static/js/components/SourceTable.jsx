@@ -528,8 +528,15 @@ const SourceTable = ({
       column: {
         type: "string",
         title: "Column",
-        enum: ["id", "ra", "dec", "redshift", "saved_at"],
-        enumNames: ["Source ID", "RA", "Dec", "Redshift", "Date Saved"],
+        enum: ["id", "ra", "dec", "redshift", "saved_at", "classification"],
+        enumNames: [
+          "Source ID",
+          "RA",
+          "Dec",
+          "Redshift",
+          "Date Saved",
+          "Classification",
+        ],
       },
       ascending: {
         title: "Order",
