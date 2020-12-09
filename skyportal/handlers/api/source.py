@@ -408,6 +408,9 @@ class SourceHandler(BaseHandler):
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
         if obj_id is not None:
+            import pdb
+
+            pdb.set_trace()
             query_options = [
                 joinedload(Obj.followup_requests).joinedload(FollowupRequest.requester),
                 joinedload(Obj.followup_requests)

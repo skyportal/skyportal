@@ -430,6 +430,7 @@ class ReadableByGroupsMembersIfObjIsReadable(ReadProtected):
             )
             .where(cls_alias.c.id == correlation_cls_alias.c.id)
             .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
+            .where(obj_alias.id == cls_alias.c.obj_id)
         )
 
         return readable_by_virtue_of_groups.distinct().lateral()
@@ -493,6 +494,7 @@ class ReadableIfObjIsReadable(ReadProtected):
             )
             .where(cls_alias.c.id == correlation_cls_alias.c.id)
             .where(user_alias.c.id == correlation_user_alias.c.id)
+            .where(obj_alias.id == cls_alias.c.obj_id)
         )
 
         return readable_by_virtue_of_obj.distinct().lateral()

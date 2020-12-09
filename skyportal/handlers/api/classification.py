@@ -321,7 +321,7 @@ class ObjClassificationHandler(BaseHandler):
                 schema: Error
         """
 
-        obj = Obj.get_if_readable_by(obj_id, self.current_user)
+        obj = Obj.get_if_is_readable_by(obj_id, self.current_user)
         if obj is None:
             return self.error('Invalid obj_id.')
 
