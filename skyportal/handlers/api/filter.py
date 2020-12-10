@@ -41,7 +41,7 @@ class FilterHandler(BaseHandler):
         """
 
         if filter_id is not None:
-            f = Filter.get_if_is_readable_by(filter_id, self.current_user)
+            f = Filter.get_if_readable_by(filter_id, self.current_user)
             if f is None:
                 return self.error("Invalid filter ID.")
             # get stream:
@@ -147,7 +147,7 @@ class FilterHandler(BaseHandler):
                 schema: Error
         """
 
-        f = Filter.get_if_is_readable_by(filter_id, self.current_user)
+        f = Filter.get_if_readable_by(filter_id, self.current_user)
         if f is None:
             return self.error("Invalid filter ID.")
 
@@ -185,7 +185,7 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        f = Filter.get_if_is_readable_by(filter_id, self.current_user)
+        f = Filter.get_if_readable_by(filter_id, self.current_user)
         if f is None:
             return self.error("Invalid filter ID.")
 

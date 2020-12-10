@@ -28,7 +28,7 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        classification = Classification.get_if_is_readable_by(
+        classification = Classification.get_if_readable_by(
             classification_id, self.current_user
         )
         if classification is None:
@@ -109,7 +109,7 @@ class ClassificationHandler(BaseHandler):
 
         # check the taxonomy
         taxonomy_id = data["taxonomy_id"]
-        taxonomy = Taxonomy.get_if_is_readable_by(taxonomy_id, self.current_user)
+        taxonomy = Taxonomy.get_if_readable_by(taxonomy_id, self.current_user)
         if taxonomy is None:
             return self.error(
                 'That taxonomy does not exist or is not available to user.'
@@ -211,7 +211,7 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        c = Classification.get_if_is_readable_by(classification_id, self.current_user)
+        c = Classification.get_if_readable_by(classification_id, self.current_user)
         if c is None:
             return self.error('Invalid classification ID.')
 
@@ -228,9 +228,7 @@ class ClassificationHandler(BaseHandler):
             )
         DBSession().flush()
         if group_ids is not None:
-            c = Classification.get_if_is_readable_by(
-                classification_id, self.current_user
-            )
+            c = Classification.get_if_readable_by(classification_id, self.current_user)
             groups = Group.query.filter(Group.id.in_(group_ids)).all()
             if not groups:
                 return self.error(
@@ -321,7 +319,7 @@ class ObjClassificationHandler(BaseHandler):
                 schema: Error
         """
 
-        obj = Obj.get_if_is_readable_by(obj_id, self.current_user)
+        obj = Obj.get_if_readable_by(obj_id, self.current_user)
         if obj is None:
             return self.error('Invalid obj_id.')
 

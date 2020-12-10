@@ -363,17 +363,17 @@ def make_permission_control(name, opname):
     return type(name, (), class_dict)
 
 
-ReadProtected = make_permission_control('ReadProtected', 'is_readable')
+ReadProtected = make_permission_control('ReadProtected', 'readable')
 WriteProtected = make_permission_control('WriteProtected', 'is_modifiable')
 
 
 class ReadableByGroupMembers(ReadProtected):
     @classmethod
-    def _required_attributes_for_is_readable_check(cls):
+    def _required_attributes_for_readable_check(cls):
         return ('group',)
 
     @classmethod
-    def _is_readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
 
         cls_alias = sa.alias(cls)
         user_accessible_groups = user_accessible_groups_temporary_table()
@@ -401,11 +401,11 @@ class ReadableByGroupMembers(ReadProtected):
 
 class ReadableByGroupsMembers(ReadProtected):
     @classmethod
-    def _required_attributes_for_is_readable_check(cls):
+    def _required_attributes_for_readable_check(cls):
         return ('groups',)
 
     @classmethod
-    def _is_readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
 
         cls_alias = sa.alias(cls)
         cls_groups_join_table = sa.inspect(cls).relationships['groups'].secondary
@@ -438,11 +438,11 @@ class ReadableByGroupsMembers(ReadProtected):
 
 class ReadableByGroupsMembersIfObjIsReadable(ReadProtected):
     @classmethod
-    def _required_attributes_for_is_readable_check(cls):
+    def _required_attributes_for_readable_check(cls):
         return 'groups', 'obj'
 
     @classmethod
-    def _is_readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
 
         cls_alias = sa.alias(cls)
         cls_groups_join_table = sa.inspect(cls).relationships['groups'].secondary
@@ -482,11 +482,11 @@ class ReadableByGroupsMembersIfObjIsReadable(ReadProtected):
 
 class ReadableByFilterGroupMembers(ReadProtected):
     @classmethod
-    def _required_attributes_for_is_readable_check(cls):
+    def _required_attributes_for_readable_check(cls):
         return ('filter',)
 
     @classmethod
-    def _is_readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
 
         cls_alias = sa.alias(cls)
         user_accessible_groups = user_accessible_groups_temporary_table()
@@ -517,11 +517,11 @@ class ReadableByFilterGroupMembers(ReadProtected):
 
 class ReadableIfObjIsReadable(ReadProtected):
     @classmethod
-    def _required_attributes_for_is_readable_check(cls):
+    def _required_attributes_for_readable_check(cls):
         return ('obj',)
 
     @classmethod
-    def _is_readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
 
         cls_alias = sa.alias(cls)
         user_alias = sa.alias(User)
@@ -1161,11 +1161,11 @@ class Obj(
         return telescope.observer.altaz(time, self.target).alt
 
     @classmethod
-    def _required_attributes_for_is_readable_check(cls):
+    def _required_attributes_for_readable_check(cls):
         return ()
 
     @classmethod
-    def _is_readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
         cand_x_filt = sa.join(Candidate, Filter)
         phot_x_groupphot = sa.join(Photometry, GroupPhotometry)
         unified_group_users = user_accessible_groups_temporary_table()

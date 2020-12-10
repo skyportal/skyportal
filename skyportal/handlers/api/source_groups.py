@@ -49,7 +49,7 @@ class SourceGroupsHandler(BaseHandler):
         obj_id = data.get("objId")
         if obj_id is None:
             return self.error("Missing required parameter: objId")
-        obj = Obj.get_if_is_readable_by(obj_id, self.associated_user_object)
+        obj = Obj.get_if_readable_by(obj_id, self.associated_user_object)
         if obj is None:
             return self.error("Invalid objId")
         save_or_invite_group_ids = data.get("inviteGroupIds", [])
@@ -157,7 +157,7 @@ class SourceGroupsHandler(BaseHandler):
             return self.error("Missing required parameter: groupID")
         active = data.get("active")
         requested = data.get("requested")
-        obj = Obj.get_if_is_readable_by(obj_id, self.associated_user_object)
+        obj = Obj.get_if_readable_by(obj_id, self.associated_user_object)
         source = (
             DBSession()
             .query(Source)

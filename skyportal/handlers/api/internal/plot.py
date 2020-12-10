@@ -37,7 +37,7 @@ class PlotSpectroscopyHandler(BaseHandler):
 
 class AirmassHandler(BaseHandler):
     def calculate_airmass(self, obj, telescope, sunset, sunrise):
-        permission_check = Obj.get_if_is_readable_by(obj.id, self.current_user)
+        permission_check = Obj.get_if_readable_by(obj.id, self.current_user)
         if permission_check is None:
             return self.error('Invalid assignment id.')
 
@@ -54,7 +54,7 @@ class AirmassHandler(BaseHandler):
 class PlotAssignmentAirmassHandler(AirmassHandler):
     @auth_or_token
     def get(self, assignment_id):
-        assignment = ClassicalAssignment.get_if_is_readable_by(
+        assignment = ClassicalAssignment.get_if_readable_by(
             assignment_id, self.current_user
         )
         if assignment is None:
@@ -86,7 +86,7 @@ class PlotObjTelAirmassHandler(AirmassHandler):
         else:
             time = ap_time.Time.now()
 
-        obj = Obj.get_if_is_readable_by(obj_id, self.current_user)
+        obj = Obj.get_if_readable_by(obj_id, self.current_user)
         if obj is None:
             return self.error('Invalid assignment id.')
 

@@ -41,7 +41,7 @@ class TaxonomyHandler(BaseHandler):
                   schema: Error
         """
         if taxonomy_id is not None:
-            taxonomy = Taxonomy.get_if_is_readable_by(taxonomy_id, self.current_user)
+            taxonomy = Taxonomy.get_if_readable_by(taxonomy_id, self.current_user)
             if taxonomy is None:
                 return self.error(
                     'Taxonomy does not exist or is not available to user.'

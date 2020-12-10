@@ -44,7 +44,7 @@ class RecentSourcesHandler(BaseHandler):
                 recency_index = sources_seen[obj_id]
                 sources_seen[obj_id] += 1
 
-            s = Obj.get_if_is_readable_by(  # Returns Source.obj
+            s = Obj.get_if_readable_by(  # Returns Source.obj
                 obj_id, self.current_user, options=[joinedload(Obj.thumbnails)],
             )
 
