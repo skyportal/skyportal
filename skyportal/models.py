@@ -309,7 +309,7 @@ def _get_if_accessible_by(cls, cls_id, user_or_token, access_func_name, options=
 
 def make_permission_control(name, opname):
 
-    access_func_name = f'{opname}_by'
+    access_func_name = f'is_{opname}_by'
     pair_table_func_name = f'_{opname}_pair_table'
     get_classmethod_name = f'get_if_{opname}_by'
     required_attributes_func_name = f'_required_attributes_for_{opname}_check'
