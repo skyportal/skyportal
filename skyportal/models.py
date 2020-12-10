@@ -218,6 +218,40 @@ def _is_accessible(self, user_or_token, access_func):
     )
 
 
+def _bulk_retrieve(
+    cls, user_or_token, opname, accessible_pair_func, required_attrs, options=[]
+):
+    for attr in required_attrs:
+        if not hasattr(cls, attr):
+            raise TypeError(
+                f'{cls} does not have the attribute "{attr}", '
+                f'and thus does not expose the interface that is needed '
+                f'to check if {opname}.'
+            )
+
+    if isinstance(user_or_token, User):
+        accessibility_target = user_or_token.id
+    elif isinstance(user_or_token, Token):
+        accessibility_target = user_or_token.created_by_id
+    else:
+        raise TypeError(
+            f'Invalid argument passed to user_or_token, '
+            f'expected User or Token, got '
+            f'{user_or_token.__class__.__name__}'
+        )
+
+    pairs = accessible_pair_func(cls.__table__, User.__table__).alias()
+
+    return (
+        DBSession()
+        .query(cls)
+        .join(User, sa.literal(True))
+        .join(pairs, sa.and_(User.id == pairs.c.user_id, cls.id == pairs.c.cls_id))
+        .filter(User.id == accessibility_target)
+        .options(options)
+    )
+
+
 def _is_accessible_sql(
     cls, user_or_token, opname, accessible_pair_func, required_attrs
 ):
@@ -245,7 +279,7 @@ def _is_accessible_sql(
     correlation_user_alias = sa.alias(User)
     accessible_pairs = accessible_pair_func(
         correlation_cls_alias, correlation_user_alias
-    )
+    ).lateral()
 
     return (
         sa.select([accessible_pairs.c.cls_id.isnot(None)])
@@ -279,6 +313,7 @@ def make_permission_control(name, opname):
     pair_table_func_name = f'_{opname}_pair_table'
     get_classmethod_name = f'get_if_{opname}_by'
     required_attributes_func_name = f'_required_attributes_for_{opname}_check'
+    bulk_func_name = f'retrieve_all_records_{opname}_by'
 
     @hybrid_method
     def is_accessible(self, user_or_token):
@@ -301,6 +336,14 @@ def make_permission_control(name, opname):
         )
 
     @classmethod
+    def bulk_retrieve(cls, user_or_token, options=[]):
+        pair_table_func = getattr(cls, pair_table_func_name)
+        required_attrs = getattr(cls, required_attributes_func_name)()
+        return _bulk_retrieve(
+            cls, user_or_token, opname, pair_table_func, required_attrs, options=options
+        )
+
+    @classmethod
     @abc.abstractmethod
     def _pair_table(cls, correlation_cls_alias, correlation_user_alias):
         return NotImplemented
@@ -315,6 +358,7 @@ def make_permission_control(name, opname):
         pair_table_func_name: _pair_table,
         required_attributes_func_name: _required_attributes,
         access_func_name: is_accessible,
+        bulk_func_name: bulk_retrieve,
     }
     return type(name, (), class_dict)
 
@@ -352,7 +396,7 @@ class ReadableByGroupMembers(ReadProtected):
             .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
         )
 
-        return readable_by_virtue_of_groups.distinct().lateral()
+        return readable_by_virtue_of_groups.distinct()
 
 
 class ReadableByGroupsMembers(ReadProtected):
@@ -389,7 +433,7 @@ class ReadableByGroupsMembers(ReadProtected):
             .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
         )
 
-        return readable_by_virtue_of_groups.distinct().lateral()
+        return readable_by_virtue_of_groups.distinct()
 
 
 class ReadableByGroupsMembersIfObjIsReadable(ReadProtected):
@@ -433,7 +477,7 @@ class ReadableByGroupsMembersIfObjIsReadable(ReadProtected):
             .where(obj_alias.id == cls_alias.c.obj_id)
         )
 
-        return readable_by_virtue_of_groups.distinct().lateral()
+        return readable_by_virtue_of_groups.distinct()
 
 
 class ReadableByFilterGroupMembers(ReadProtected):
@@ -468,7 +512,7 @@ class ReadableByFilterGroupMembers(ReadProtected):
             .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
         )
 
-        return readable_by_virtue_of_groups.distinct().lateral()
+        return readable_by_virtue_of_groups.distinct()
 
 
 class ReadableIfObjIsReadable(ReadProtected):
@@ -497,7 +541,7 @@ class ReadableIfObjIsReadable(ReadProtected):
             .where(obj_alias.id == cls_alias.c.obj_id)
         )
 
-        return readable_by_virtue_of_obj.distinct().lateral()
+        return readable_by_virtue_of_obj.distinct()
 
 
 class ModifiableByOwner(WriteProtected):
@@ -535,9 +579,7 @@ class ModifiableByOwner(WriteProtected):
             .where(user_acls.c.user_id == correlation_user_alias.c.id)
         )
 
-        return sa.union(
-            modifiable_by_virtue_of_owner, modifiable_by_virtue_of_acl
-        ).lateral()
+        return sa.union(modifiable_by_virtue_of_owner, modifiable_by_virtue_of_acl)
 
 
 class NumpyArray(sa.types.TypeDecorator):
@@ -1172,7 +1214,7 @@ class Obj(
             .where(unified_group_users.c.user_id == correlation_user_alias.c.id)
         )
 
-        return sa.union(phot_subq, source_subq, cand_subq).lateral()
+        return sa.union(phot_subq, source_subq, cand_subq)
 
 
 class Filter(ReadableByGroupMembers, Base):
