@@ -364,7 +364,7 @@ def make_permission_control(name, opname):
 
 
 ReadProtected = make_permission_control('ReadProtected', 'readable')
-WriteProtected = make_permission_control('WriteProtected', 'is_modifiable')
+WriteProtected = make_permission_control('WriteProtected', 'modifiable')
 
 
 class ReadableByGroupMembers(ReadProtected):
@@ -546,11 +546,11 @@ class ReadableIfObjIsReadable(ReadProtected):
 
 class ModifiableByOwner(WriteProtected):
     @classmethod
-    def _required_attributes_for_is_modifiable_check(cls):
+    def _required_attributes_for_modifiable_check(cls):
         return ('owner',)
 
     @classmethod
-    def _is_modifiable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def _modifiable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
         cls_alias = sa.alias(cls)
         user_alias = sa.alias(User)
         user_acls = user_acls_temporary_table()
