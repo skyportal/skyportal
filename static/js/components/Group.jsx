@@ -3,6 +3,7 @@ import { useHistory, useParams, Link } from "react-router-dom";
 import PropTypes from "prop-types";
 
 import { useDispatch, useSelector } from "react-redux";
+import { useForm, Controller } from "react-hook-form";
 import {
   makeStyles,
   useTheme,
@@ -44,7 +45,6 @@ import Chip from "@material-ui/core/Chip";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import MUIDataTable from "mui-datatables";
 
-import { useForm, Controller } from "react-hook-form";
 import { showNotification } from "baselayer/components/Notifications";
 
 import * as groupActions from "../ducks/group";
@@ -55,6 +55,7 @@ import NewGroupUserForm from "./NewGroupUserForm";
 import InviteNewGroupUserForm from "./InviteNewGroupUserForm";
 import AddUsersFromGroupForm from "./AddUsersFromGroupForm";
 import GroupAdmissionRequestsManagement from "./GroupAdmissionRequestsManagement";
+import ManageUserButtons from "./GroupPageManageUserButtons";
 
 const useStyles = makeStyles((theme) => ({
   padding_bottom: {
@@ -114,75 +115,6 @@ const getMuiTheme = (theme) =>
       },
     },
   });
-
-const ManageUserButtons = ({ group, loadedId, user, isAdmin }) => {
-  const dispatch = useDispatch();
-
-  let numAdmins = 0;
-  group?.users?.forEach((groupUser) => {
-    if (groupUser?.admin) {
-      numAdmins += 1;
-    }
-  });
-
-  const toggleUserAdmin = async (usr) => {
-    const result = await dispatch(
-      groupsActions.updateGroupUser(loadedId, {
-        userID: usr.id,
-        admin: !isAdmin(usr),
-      })
-    );
-    if (result.status === "success") {
-      dispatch(
-        showNotification(
-          "User admin status for this group successfully updated."
-        )
-      );
-      dispatch(groupActions.fetchGroup(loadedId));
-    }
-  };
-  return (
-    <div>
-      <Button
-        size="small"
-        onClick={() => {
-          toggleUserAdmin(user);
-        }}
-        disabled={isAdmin(user) && numAdmins === 1}
-      >
-        <span style={{ whiteSpace: "nowrap" }}>
-          {isAdmin(user) ? "Revoke admin status" : "Grant admin status"}
-        </span>
-      </Button>
-      <IconButton
-        edge="end"
-        aria-label="delete"
-        data-testid={`delete-${user.username}`}
-        onClick={() =>
-          dispatch(
-            groupsActions.deleteGroupUser({
-              userID: user.id,
-              group_id: group.id,
-            })
-          )
-        }
-        disabled={isAdmin(user) && numAdmins === 1}
-      >
-        <DeleteIcon />
-      </IconButton>
-    </div>
-  );
-};
-
-ManageUserButtons.propTypes = {
-  loadedId: PropTypes.number.isRequired,
-  user: PropTypes.shape({
-    id: PropTypes.number,
-    username: PropTypes.string,
-  }).isRequired,
-  isAdmin: PropTypes.func.isRequired,
-  group: PropTypes.shape(PropTypes.object).isRequired,
-};
 
 const Group = () => {
   const classes = useStyles();
