@@ -160,6 +160,7 @@ class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
     users = []
     streams = []
     filters = []
+    private = False
 
     # @factory.post_generation
     # def streams(obj, create, extracted, **kwargs):

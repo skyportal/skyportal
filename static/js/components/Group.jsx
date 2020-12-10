@@ -54,6 +54,7 @@ import * as filterActions from "../ducks/filter";
 import NewGroupUserForm from "./NewGroupUserForm";
 import InviteNewGroupUserForm from "./InviteNewGroupUserForm";
 import AddUsersFromGroupForm from "./AddUsersFromGroupForm";
+import GroupAdmissionRequestsManagement from "./GroupAdmissionRequestsManagement";
 
 const useStyles = makeStyles((theme) => ({
   padding_bottom: {
@@ -258,26 +259,25 @@ const Group = () => {
   };
 
   const { id } = useParams();
-  const loadedId = useSelector((state) => state.group?.id);
-
-  useEffect(() => {
-    const fetchGroup = async () => {
-      const data = await dispatch(groupActions.fetchGroup(id));
-      if (data.status === "error") {
-        setGroupLoadError(data.message);
-      }
-    };
-    if (id !== loadedId) {
-      fetchGroup();
-    }
-  }, [id, loadedId, dispatch]);
 
   const group = useSelector((state) => state.group);
   const currentUser = useSelector((state) => state.profile);
   const { invitationsEnabled } = useSelector((state) => state.sysInfo);
-
-  // fetch streams:
   const streams = useSelector((state) => state.streams);
+  const [dataFetched, setDataFetched] = useState(false);
+
+  useEffect(() => {
+    const fetchGroup = async () => {
+      const result = await dispatch(groupActions.fetchGroup(id));
+      if (result.status === "error") {
+        setGroupLoadError(result.message);
+      }
+    };
+    if (!dataFetched) {
+      fetchGroup();
+      setDataFetched(true);
+    }
+  }, [id, group, dataFetched, dispatch]);
 
   useEffect(() => {
     const fetchStreams = async () => {
@@ -316,7 +316,7 @@ const Group = () => {
       dispatch(showNotification("Added filter to group"));
     }
     handleDialogClose();
-    dispatch(groupActions.fetchGroup(loadedId));
+    dispatch(groupActions.fetchGroup(group.id));
   };
 
   if (groupLoadError) {
@@ -410,7 +410,7 @@ const Group = () => {
               >
                 <div className={classes.manageUserPopover}>
                   <ManageUserButtons
-                    loadedId={loadedId}
+                    loadedId={group.id}
                     user={user}
                     isAdmin={isAdmin}
                     group={group}
@@ -420,7 +420,7 @@ const Group = () => {
             </div>
           ) : (
             <ManageUserButtons
-              loadedId={loadedId}
+              loadedId={group.id}
               user={user}
               isAdmin={isAdmin}
               group={group}
@@ -438,9 +438,9 @@ const Group = () => {
         customBodyRender: renderName,
         filter: true,
         // Display only if there's at least one user with a first/last name
-        display:
-          group?.users.filter((user) => user.first_name || user.last_name)
-            .length > 0,
+        display: !!group?.users?.filter(
+          (user) => user.first_name || user.last_name
+        )?.length,
       },
     },
     {
@@ -534,7 +534,7 @@ const Group = () => {
           <MuiThemeProvider theme={getMuiTheme(theme)}>
             <MUIDataTable
               columns={columns}
-              data={group ? group.users : []}
+              data={group?.users ? group.users : []}
               options={options}
             />
           </MuiThemeProvider>
@@ -553,6 +553,8 @@ const Group = () => {
                 )}
                 <br />
                 <AddUsersFromGroupForm groupID={group.id} />
+                <br />
+                <GroupAdmissionRequestsManagement groupID={group.id} />
               </>
             )}
           </div>
@@ -613,7 +615,7 @@ const Group = () => {
                                       )
                                     );
                                   }
-                                  dispatch(groupActions.fetchGroup(loadedId));
+                                  dispatch(groupActions.fetchGroup(group.id));
                                 }}
                               >
                                 <DeleteIcon />
