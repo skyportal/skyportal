@@ -67,8 +67,13 @@ function API(endpoint, actionType, method = "GET", body = {}, otherArgs = {}) {
   };
 }
 
-function GET(endpoint, actionType) {
-  return API(endpoint, actionType, "GET");
+function GET(endpoint, actionType, queryParams) {
+  let url = endpoint;
+  if (queryParams) {
+    const queryString = new URLSearchParams(queryParams).toString();
+    url += `?${queryString}`;
+  }
+  return API(url, actionType, "GET");
 }
 
 function POST(endpoint, actionType, payload) {

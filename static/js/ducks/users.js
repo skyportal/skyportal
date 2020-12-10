@@ -17,9 +17,7 @@ export function fetchUsers(filterParams = {}) {
   if (!Object.keys(filterParams).includes("pageNumber")) {
     filterParams.pageNumber = 1;
   }
-  const params = new URLSearchParams(filterParams);
-  const queryString = params.toString();
-  return API.GET(`/api/user?${queryString}`, FETCH_USERS);
+  return API.GET("/api/user", FETCH_USERS, filterParams);
 }
 
 // Websocket message handler

@@ -25,9 +25,7 @@ export const fetchCandidates = (filterParams = {}) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
     filterParams.pageNumber = 1;
   }
-  const params = new URLSearchParams(filterParams);
-  const queryString = params.toString();
-  return API.GET(`/api/candidates?${queryString}`, FETCH_CANDIDATES);
+  return API.GET("/api/candidates", FETCH_CANDIDATES, filterParams);
 };
 
 export const setCandidatesAnnotationSortOptions = (item) => {
@@ -38,7 +36,7 @@ export const setCandidatesAnnotationSortOptions = (item) => {
 };
 
 export const fetchAnnotationsInfo = () => {
-  return API.GET(`/api/internal/annotations_info`, FETCH_ANNOTATIONS_INFO);
+  return API.GET("/api/internal/annotations_info", FETCH_ANNOTATIONS_INFO);
 };
 
 export const setFilterFormData = (formData) => {

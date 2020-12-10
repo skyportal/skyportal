@@ -23,32 +23,22 @@ const addFilterParamDefaults = (filterParams) => {
 
 export function fetchSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
-  const params = new URLSearchParams(filterParams);
-  const queryString = params.toString();
-  return API.GET(`/api/sources?${queryString}`, FETCH_SOURCES);
+  return API.GET("/api/sources", FETCH_SOURCES, filterParams);
 }
 
 export function fetchSavedGroupSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
-  const params = new URLSearchParams(filterParams);
-  const additionalInfo = "includePhotometry=true&includeSpectrumExists=true";
-  const queryString = params.toString();
-  return API.GET(
-    `/api/sources?${additionalInfo}&${queryString}`,
-    FETCH_SAVED_GROUP_SOURCES
-  );
+  filterParams.includePhotometry = true;
+  filterParams.includeSpectrumExists = true;
+  return API.GET("/api/sources", FETCH_SAVED_GROUP_SOURCES, filterParams);
 }
 
 export function fetchPendingGroupSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
   filterParams.pendingOnly = true;
-  const params = new URLSearchParams(filterParams);
-  const additionalInfo = "includePhotometry=true&includeSpectrumExists=true";
-  const queryString = params.toString();
-  return API.GET(
-    `/api/sources?${additionalInfo}&${queryString}`,
-    FETCH_PENDING_GROUP_SOURCES
-  );
+  filterParams.includePhotometry = true;
+  filterParams.includeSpectrumExists = true;
+  return API.GET("/api/sources", FETCH_PENDING_GROUP_SOURCES, filterParams);
 }
 
 const initialState = {

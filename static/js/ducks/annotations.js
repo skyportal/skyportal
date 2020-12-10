@@ -6,11 +6,10 @@ const FETCH_ANNOTATIONS_INFO_OK = "skyportal/FETCH_ANNOTATIONS_INFO_OK";
 
 // eslint-disable-next-line import/prefer-default-export
 export const fetchAnnotationsInfo = (filterParams = {}) => {
-  const params = new URLSearchParams(filterParams);
-  const queryString = params.toString();
   return API.GET(
-    `/api/internal/annotations_info?${queryString}`,
-    FETCH_ANNOTATIONS_INFO
+    "/api/internal/annotations_info",
+    FETCH_ANNOTATIONS_INFO,
+    filterParams
   );
 };
 
