@@ -278,7 +278,9 @@ class CandidateHandler(BaseHandler):
                     .joinedload(Photometry.instrument)
                 )
             c = Candidate.get_obj_if_readable_by(
-                obj_id, self.current_user, options=query_options,
+                obj_id,
+                self.current_user,
+                options=query_options,
             )
             if c is None:
                 return self.error("Invalid ID")
@@ -438,7 +440,6 @@ class CandidateHandler(BaseHandler):
             order_by = [Obj.last_detected.desc().nullslast(), Obj.id]
 
         if saved_status in [
-            "all",
             "savedToAllSelected",
             "savedToAnySelected",
             "savedToAnyAccessible",
@@ -446,70 +447,48 @@ class CandidateHandler(BaseHandler):
             "notSavedToAnySelected",
             "notSavedToAllSelected",
         ]:
+            notin = False
+            active_sources = (
+                DBSession().query(Source.obj_id).filter(Source.active.is_(True))
+            )
             if saved_status == "savedToAllSelected":
                 # Retrieve objects that have as many active saved groups that are
                 # in 'group_ids' as there are items in 'group_ids'
-                q = q.filter(
-                    Obj.id.in_(
-                        DBSession()
-                        .query(Source.obj_id)
-                        .filter(Source.active.is_(True))
-                        .filter(Source.group_id.in_(group_ids))
-                        .group_by(Source.obj_id)
-                        .having(func.count(Source.group_id) == len(group_ids))
-                    )
+                subquery = (
+                    active_sources.filter(Source.group_id.in_(group_ids))
+                    .group_by(Source.obj_id)
+                    .having(func.count(Source.group_id) == len(group_ids))
                 )
             elif saved_status == "savedToAnySelected":
-                q = q.filter(
-                    Obj.id.in_(
-                        DBSession()
-                        .query(Source.obj_id)
-                        .filter(Source.active.is_(True))
-                        .filter(Source.group_id.in_(group_ids))
-                    )
-                )
+                subquery = active_sources.filter(Source.group_id.in_(group_ids))
             elif saved_status == "savedToAnyAccessible":
-                q = q.filter(
-                    Obj.id.in_(
-                        DBSession()
-                        .query(Source.obj_id)
-                        .filter(Source.active.is_(True))
-                        .filter(Source.group_id.in_(user_accessible_group_ids))
-                    )
+                subquery = active_sources.filter(
+                    Source.group_id.in_(user_accessible_group_ids)
                 )
             elif saved_status == "notSavedToAnyAccessible":
-                q = q.filter(
-                    Obj.id.notin_(
-                        DBSession()
-                        .query(Source.obj_id)
-                        .filter(Source.active.is_(True))
-                        .filter(Source.group_id.in_(user_accessible_group_ids))
-                    )
+                subquery = active_sources.filter(
+                    Source.group_id.in_(user_accessible_group_ids)
                 )
+                notin = True
             elif saved_status == "notSavedToAnySelected":
-                q = q.filter(
-                    Obj.id.notin_(
-                        DBSession()
-                        .query(Source.obj_id)
-                        .filter(Source.active.is_(True))
-                        .filter(Source.group_id.in_(group_ids))
-                    )
-                )
+                subquery = active_sources.filter(Source.group_id.in_(group_ids))
+                notin = True
             elif saved_status == "notSavedToAllSelected":
                 # Retrieve objects that have as many active saved groups that are
                 # in 'group_ids' as there are items in 'group_ids', and select
                 # the objects not in that set
-                q = q.filter(
-                    Obj.id.notin_(
-                        DBSession()
-                        .query(Source.obj_id)
-                        .filter(Source.active.is_(True))
-                        .filter(Source.group_id.in_(group_ids))
-                        .group_by(Source.obj_id)
-                        .having(func.count(Source.group_id) == len(group_ids))
-                    )
+                subquery = (
+                    active_sources.filter(Source.group_id.in_(group_ids))
+                    .group_by(Source.obj_id)
+                    .having(func.count(Source.group_id) == len(group_ids))
                 )
-        else:
+                notin = True
+            q = (
+                q.filter(Obj.id.notin_(subquery))
+                if notin
+                else q.filter(Obj.id.in_(subquery))
+            )
+        elif saved_status != "all":
             return self.error(
                 f"Invalid savedStatus: {saved_status}. Must be one of the enumerated options."
             )
@@ -613,7 +592,9 @@ class CandidateHandler(BaseHandler):
             # Define a custom sort order to have annotations from the correct
             # origin first, all others afterwards
             origin_sort_order = case(
-                value=Annotation.origin, whens={sort_by_origin: 1}, else_=None,
+                value=Annotation.origin,
+                whens={sort_by_origin: 1},
+                else_=None,
             )
             annotation_sort_criterion = (
                 Annotation.data[sort_by_key].desc().nullslast()
