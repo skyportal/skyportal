@@ -961,7 +961,7 @@ Candidate.is_readable_by = candidate_is_readable_by
 
 User.listings = relationship(
     'Listing',
-    backref='listings',
+    back_populates='user',
     passive_deletes=True,
     doc='The listings saved by this user',
 )
@@ -2608,7 +2608,10 @@ class Listing(Base):
     )
 
     list_name = sa.Column(
-        sa.String, index=True, doc="Name of the list, e.g., 'favorites'. ",
+        sa.String,
+        index=True,
+        nullable=False,
+        doc="Name of the list, e.g., 'favorites'. ",
     )
 
 

@@ -189,7 +189,7 @@ def test_add_objects_to_different_lists(user, public_candidate, public_candidate
     assert status == 200
 
     # get the list back, should include only one item that matches list1
-    status, data = api('GET', f'listing/{user.id}?list_name={list1}', token=token_id)
+    status, data = api('GET', f'listing/{user.id}?listName={list1}', token=token_id)
 
     assert status == 200
     new_list = data["data"]
@@ -216,25 +216,35 @@ def test_patching_listing(user, user2, public_candidate, public_candidate2):
     assert status == 200
     item1 = data["data"]["listing_id"]  # get the list item ID
 
+    status, data = api(
+        'PUT',
+        'listing',
+        data={'user_id': user.id, 'obj_id': public_candidate2.id, 'list_name': list1},
+        token=token_id,
+    )
+
+    assert status == 200
+    item2 = data["data"]["listing_id"]  # get the list item ID
+
     list2 = str(uuid.uuid4())
     status, data = api(
         'PATCH',
-        f'listing/{item1}',
+        f'listing/{item2}',
         data={'user_id': user.id, 'obj_id': public_candidate2.id, 'list_name': list2},
         token=token_id,
     )
 
     assert status == 200
 
-    # get the list back, should include only one item that matches list1
-    status, data = api('GET', f'listing/{user.id}?list_name={list2}', token=token_id)
-
+    # get the list back, should include only one item that matches list2
+    status, data = api('GET', f'listing/{user.id}?listName={list2}', token=token_id)
+    print(data["data"])
     assert status == 200
     new_list = data["data"]
 
     assert len(new_list) == 1
 
-    assert new_list[0]['id'] == item1  # the listing ID is the same
+    assert new_list[0]['id'] == item2  # the listing ID is the same
 
     assert new_list[0]['user_id'] == user.id  # user stays the same
     assert new_list[0]['obj_id'] == public_candidate2.id  # obj id is new
@@ -309,7 +319,7 @@ def test_listings_user_permissions(
 
     # get the list back, should include only one item that matches user2
     status, data = api(
-        'GET', f'listing/{user2.id}?list_name=favorites', token=super_token_id
+        'GET', f'listing/{user2.id}?listName=favorites', token=super_token_id
     )
 
     assert status == 200

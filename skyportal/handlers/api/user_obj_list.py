@@ -23,11 +23,10 @@ class UserObjListHandler(BaseHandler):
           required: true
           type: string
         - in: query
-          name: list_name
+          name: listName
           required: false
           type: string
-
-        description: |
+          description: |
             find all objects saved to this list.
             If not given will return all objects
             saved by the user to all lists.
@@ -41,7 +40,10 @@ class UserObjListHandler(BaseHandler):
         if User.query.get(user_id) is None:  # verify that user exists
             return self.error(f'User "{user_id}" does not exist!')
 
-        user_id = int(user_id)
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return self.error("Invalid `user_id` parameter; unable to parse to integer")
 
         # verify that poster has read access to user_id's lists
         if (
@@ -50,16 +52,16 @@ class UserObjListHandler(BaseHandler):
         ):
             return self.error('Insufficient permissions to access this listing. ')
 
-        list_name = self.get_query_argument("list_name", None)
+        list_name = self.get_query_argument("listName", None)
 
-        objects = DBSession().query(Listing).filter(Listing.user_id == user_id)
+        query = DBSession().query(Listing).filter(Listing.user_id == user_id)
 
         if list_name is not None:
-            objects = objects.filter(Listing.list_name == list_name)
-            if objects.first() is None:
+            query = query.filter(Listing.list_name == list_name)
+            if query.first() is None:
                 return self.error(f'No entries under the "{list_name}" list. ')
 
-        return self.success(data=objects.all())
+        return self.success(data=query.all())
 
     def add_listing(self, error_if_exists):
         """
@@ -77,12 +79,10 @@ class UserObjListHandler(BaseHandler):
         except ValidationError as e:
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
 
-        user_id = data.get('user_id')
+        user_id = int(data.get('user_id'))
 
         if User.query.get(user_id) is None:  # verify that user exists
             return self.error(f'User "{user_id}" does not exist!')
-
-        user_id = int(user_id)
 
         # verify that poster has write access to user_id's lists
         if (
