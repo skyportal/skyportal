@@ -1,12 +1,13 @@
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_CANDIDATE = "skyportal/FETCH_CANDIDATE";
-export const FETCH_CANDIDATE_OK = "skyportal/FETCH_CANDIDATE_OK";
-export const FETCH_CANDIDATE_FAIL = "skyportal/FETCH_CANDIDATE_FAIL";
-export const FETCH_CANDIDATE_ERROR = "skyportal/FETCH_CANDIDATE_ERROR";
+const FETCH_CANDIDATE = "skyportal/FETCH_CANDIDATE";
+const FETCH_CANDIDATE_OK = "skyportal/FETCH_CANDIDATE_OK";
+const FETCH_CANDIDATE_FAIL = "skyportal/FETCH_CANDIDATE_FAIL";
+const FETCH_CANDIDATE_ERROR = "skyportal/FETCH_CANDIDATE_ERROR";
 
-const fetchCandidate = (id, how = FETCH_CANDIDATE) =>
+// eslint-disable-next-line import/prefer-default-export
+export const fetchCandidate = (id, how = FETCH_CANDIDATE) =>
   API.GET(`/api/candidates/${id}`, how);
 
 const initialState = {
@@ -39,5 +40,4 @@ const reducer = (state = initialState, action) => {
   }
 };
 
-export default fetchCandidate;
 store.injectReducer("candidate", reducer);

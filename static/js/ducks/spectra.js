@@ -3,15 +3,14 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_SOURCE_SPECTRA = "skyportal/FETCH_SOURCE_SPECTRA";
-export const FETCH_SOURCE_SPECTRA_OK = "skyportal/FETCH_SOURCE_SPECTRA_OK";
+const FETCH_SOURCE_SPECTRA = "skyportal/FETCH_SOURCE_SPECTRA";
+const FETCH_SOURCE_SPECTRA_OK = "skyportal/FETCH_SOURCE_SPECTRA_OK";
 
-export const UPLOAD_SPECTRUM = "skyportal/UPLOAD_SPECTRUM";
-export const UPLOAD_SPECTRUM_OK = "skyportal/UPLOAD_SPECTRUM_OK";
+const UPLOAD_SPECTRUM = "skyportal/UPLOAD_SPECTRUM";
+const UPLOAD_SPECTRUM_OK = "skyportal/UPLOAD_SPECTRUM_OK";
 
-export const PARSE_SOURCE_SPECTRUM_ASCII =
-  "skyportal/PARSE_SOURCE_SPECTRUM_ASCII";
-export const PARSE_SOURCE_SPECTRUM_ASCII_OK =
+const PARSE_SOURCE_SPECTRUM_ASCII = "skyportal/PARSE_SOURCE_SPECTRUM_ASCII";
+const PARSE_SOURCE_SPECTRUM_ASCII_OK =
   "skyportal/PARSE_SOURCE_SPECTRUM_ASCII_OK";
 
 export const RESET_PARSED_SPECTRUM = "skyportal/RESET_PARSED_SPECTRUM";
