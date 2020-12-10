@@ -1,15 +1,14 @@
 import store from "../store";
 import * as API from "../API";
 
-export const INVITE_USER = "skyportal/INVITE_USER";
-export const INVITE_USER_OK = "skyportal/INVITE_USER_OK";
+const INVITE_USER = "skyportal/INVITE_USER";
 
-export const FETCH_INVITATIONS = "skyportal/FETCH_INVITATIONS";
-export const FETCH_INVITATIONS_OK = "skyportal/FETCH_INVITATIONS_OK";
+const FETCH_INVITATIONS = "skyportal/FETCH_INVITATIONS";
+const FETCH_INVITATIONS_OK = "skyportal/FETCH_INVITATIONS_OK";
 
-export const UPDATE_INVITATION = "skyportal/UPDATE_INVITATION";
+const UPDATE_INVITATION = "skyportal/UPDATE_INVITATION";
 
-export const DELETE_INVITATION = "skyportal/DELETE_INVITATION";
+const DELETE_INVITATION = "skyportal/DELETE_INVITATION";
 
 export const inviteUser = ({ userEmail, streamIDs, groupIDs, groupAdmin }) =>
   API.POST("/api/invitations", INVITE_USER, {

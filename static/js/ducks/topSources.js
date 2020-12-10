@@ -3,9 +3,10 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_TOP_SOURCES = "skyportal/FETCH_TOP_SOURCES";
-export const FETCH_TOP_SOURCES_OK = "skyportal/FETCH_TOP_SOURCES_OK";
+const FETCH_TOP_SOURCES = "skyportal/FETCH_TOP_SOURCES";
+const FETCH_TOP_SOURCES_OK = "skyportal/FETCH_TOP_SOURCES_OK";
 
+// eslint-disable-next-line import/prefer-default-export
 export const fetchTopSources = () =>
   API.GET("/api/internal/source_views", FETCH_TOP_SOURCES);
 
