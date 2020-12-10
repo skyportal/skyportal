@@ -135,7 +135,7 @@ const Group = () => {
   const [panelStreamsExpanded, setPanelStreamsExpanded] = React.useState(
     "panel-streams"
   );
-  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [addFilterDialogOpen, setAddFilterDialogOpen] = React.useState(false);
   const fullScreen = !useMediaQuery(theme.breakpoints.up("md"));
 
   // Mobile manage user popover
@@ -160,12 +160,12 @@ const Group = () => {
 
   const [addStreamOpen, setAddStreamOpen] = useState(false);
 
-  const handleDialogClose = () => {
-    setDialogOpen(false);
+  const handleAddFilterDialogClose = () => {
+    setAddFilterDialogOpen(false);
   };
 
-  const handleClickDialogOpen = () => {
-    setDialogOpen(true);
+  const handleAddFilterDialogOpen = () => {
+    setAddFilterDialogOpen(true);
   };
 
   const handleConfirmDeleteDialogClose = () => {
@@ -256,7 +256,7 @@ const Group = () => {
     if (result.status === "success") {
       dispatch(showNotification("Added filter to group"));
     }
-    handleDialogClose();
+    handleAddFilterDialogClose();
     dispatch(groupActions.fetchGroup(group.id));
   };
 
@@ -595,7 +595,7 @@ const Group = () => {
                   variant="contained"
                   color="primary"
                   className={classes.button_add}
-                  onClick={handleClickDialogOpen}
+                  onClick={handleAddFilterDialogOpen}
                 >
                   Add filter
                 </Button>
@@ -670,8 +670,8 @@ const Group = () => {
       </Dialog>
       <Dialog
         fullScreen={fullScreen}
-        open={dialogOpen}
-        onClose={handleDialogClose}
+        open={addFilterDialogOpen}
+        onClose={handleAddFilterDialogClose}
         aria-labelledby="responsive-dialog-title"
       >
         <form onSubmit={handleSubmit(onSubmitAddFilter)}>
@@ -731,7 +731,11 @@ const Group = () => {
             >
               Add
             </Button>
-            <Button autoFocus onClick={handleDialogClose} color="primary">
+            <Button
+              autoFocus
+              onClick={handleAddFilterDialogClose}
+              color="primary"
+            >
               Dismiss
             </Button>
           </DialogActions>
