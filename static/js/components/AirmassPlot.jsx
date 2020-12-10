@@ -5,9 +5,9 @@ import embed from "vega-embed";
 import dayjs from "dayjs";
 
 import VegaPlot from "./VegaPlot";
-import fetchEphemeris from "../ducks/ephemeris";
+import * as ephemerisActions from "../ducks/ephemeris";
 
-const airmass_spec = (url, ephemeris) => {
+const airmassSpec = (url, ephemeris) => {
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v4.json",
     background: "transparent",
@@ -150,7 +150,7 @@ const AirmassPlot = React.memo((props) => {
     <div
       ref={(node) => {
         if (node) {
-          embed(node, airmass_spec(dataUrl, ephemeris), {
+          embed(node, airmassSpec(dataUrl, ephemeris), {
             actions: false,
           });
         }
@@ -164,7 +164,9 @@ export const AirMassPlotWithEphemURL = ({ dataUrl, ephemerisUrl }) => {
   const [ephemeris, setEphemeris] = useState(null);
   useEffect(() => {
     const getEphem = async () => {
-      const result = await dispatch(fetchEphemeris(ephemerisUrl));
+      const result = await dispatch(
+        ephemerisActions.fetchEphemeris(ephemerisUrl)
+      );
       if (result.status === "success") {
         setEphemeris(result.data);
       }

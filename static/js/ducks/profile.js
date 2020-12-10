@@ -3,21 +3,16 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_USER_PROFILE = "skyportal/FETCH_USER_PROFILE";
-export const FETCH_USER_PROFILE_OK = "skyportal/FETCH_USER_PROFILE_OK";
+const FETCH_USER_PROFILE = "skyportal/FETCH_USER_PROFILE";
+const FETCH_USER_PROFILE_OK = "skyportal/FETCH_USER_PROFILE_OK";
 
-export const GENERATE_TOKEN = "skyportal/GENERATE_TOKEN";
-export const GENERATE_TOKEN_OK = "skyportal/GENERATE_TOKEN_OK";
+const GENERATE_TOKEN = "skyportal/GENERATE_TOKEN";
 
-export const UPDATE_USER_PREFERENCES = "skyportal/UPDATE_USER_PREFERENCES";
-export const UPDATE_USER_PREFERENCES_OK =
-  "skyportal/UPDATE_USER_PREFERENCES_OK";
+const UPDATE_USER_PREFERENCES = "skyportal/UPDATE_USER_PREFERENCES";
 
-export const UPDATE_BASIC_USER_INFO = "skyportal/UPDATE_BASIC_USER_INFO";
-export const UPDATE_BASIC_USER_INFO_OK = "skyportal/UPDATE_BASIC_USER_INFO_OK";
+const UPDATE_BASIC_USER_INFO = "skyportal/UPDATE_BASIC_USER_INFO";
 
-export const DELETE_TOKEN = "skyportal/DELETE_TOKEN";
-export const DELETE_TOKEN_OK = "skyportal/DELETE_TOKEN_OK";
+const DELETE_TOKEN = "skyportal/DELETE_TOKEN";
 
 export function updateUserPreferences(preferences) {
   return API.PATCH("/api/internal/profile", UPDATE_USER_PREFERENCES, {
@@ -51,6 +46,7 @@ messageHandler.add((actionType, payload, dispatch) => {
 const initialState = {
   username: "",
   first_name: null,
+  id: null,
   last_name: null,
   contact_email: null,
   contact_phone: null,
@@ -60,6 +56,7 @@ const initialState = {
   permissions: [],
   tokens: [],
   preferences: {},
+  groupAdmissionRequests: [],
 };
 
 const reducer = (state = initialState, action) => {

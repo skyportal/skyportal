@@ -431,7 +431,6 @@ class SourceHandler(BaseHandler):
                     username_or_token_id=self.current_user.id,
                     is_token=True,
                 )
-                self.push_all(action="skyportal/FETCH_TOP_SOURCES")
 
             s = Obj.get_if_readable_by(
                 obj_id, self.current_user, options=query_options,
@@ -844,7 +843,6 @@ class SourceHandler(BaseHandler):
         if not obj_already_exists:
             obj.add_linked_thumbnails()
 
-        self.push_all(action="skyportal/FETCH_SOURCES")
         # If we're updating a source
         if previously_saved is not None:
             self.push_all(
@@ -854,7 +852,6 @@ class SourceHandler(BaseHandler):
         self.push_all(
             action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
         )
-        self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
         return self.success(data={"id": obj.id})
 
     @permissions(['Upload data'])

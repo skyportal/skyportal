@@ -4,6 +4,8 @@ import pytest
 
 from skyportal.tests import api
 
+from tdtax import taxonomy, __version__
+
 
 @pytest.mark.flaky(reruns=2)
 def test_candidate_group_filtering(
@@ -446,3 +448,145 @@ def test_submit_annotations_filtering(
     driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
     # The second candidate should not exist
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{public_candidate2.id}"]')
+
+
+def test_candidate_classifications_filtering(
+    driver,
+    user,
+    public_candidate,
+    public_filter,
+    public_group,
+    upload_data_token,
+    taxonomy_token,
+    classification_token,
+):
+    # Post an object with a classification
+    candidate_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": candidate_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "POST", "sources", data={"id": candidate_id}, token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        'POST',
+        'taxonomy',
+        data={
+            'name': "test taxonomy" + str(uuid.uuid4()),
+            'hierarchy': taxonomy,
+            'group_ids': [public_group.id],
+            'provenance': f"tdtax_{__version__}",
+            'version': __version__,
+            'isLatest': True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+    taxonomy_id = data['data']['taxonomy_id']
+
+    status, data = api(
+        'POST',
+        'classification',
+        data={
+            'obj_id': candidate_id,
+            'classification': 'Algol',
+            'taxonomy_id': taxonomy_id,
+            'probability': 1.0,
+            'group_ids': [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/candidates")
+    driver.click_xpath(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
+        wait_clickable=False,
+    )
+    driver.click_xpath("//div[@id='classifications-select']")
+    driver.click_xpath("//li[@data-value='Algol']", scroll_parent=True)
+    driver.click_xpath('//span[text()="Search"]')
+    # Should see the posted classification
+    driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}"]')
+
+    # Now search for a different classification
+    driver.click_xpath("//div[@id='classifications-select']")
+    # Clear old classification selection
+    driver.click_xpath("//li[@data-value='Algol']", scroll_parent=True)
+    driver.click_xpath("//li[@data-value='AGN']", scroll_parent=True)
+    driver.click_xpath('//span[text()="Search"]')
+    # Should no longer see the classification
+    driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{candidate_id}"]')
+
+
+def test_candidate_redshift_filtering(
+    driver, user, public_filter, public_group, upload_data_token,
+):
+    # Post candidates with different redshifts
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id1,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 0,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id2,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 1,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/candidates")
+    driver.click_xpath(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
+        wait_clickable=False,
+    )
+    min_box = driver.wait_for_xpath("//input[@id='minimum-redshift']")
+    min_text = "0"
+    min_box.send_keys(min_text)
+    max_box = driver.wait_for_xpath("//input[@id='maximum-redshift']")
+    max_text = "0.5"
+    max_box.send_keys(max_text)
+    driver.click_xpath('//span[text()="Search"]')
+    # Should see the obj_id1 but not obj_id2
+    driver.wait_for_xpath(f'//a[@data-testid="{obj_id1}"]')
+    driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{obj_id2}"]')

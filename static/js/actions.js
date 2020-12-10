@@ -1,4 +1,4 @@
-import fetchAllocations from "./ducks/allocations";
+import * as allocationsActions from "./ducks/allocations";
 import * as groupsActions from "./ducks/groups";
 import * as profileActions from "./ducks/profile";
 import * as sysInfoActions from "./ducks/sysInfo";
@@ -21,7 +21,7 @@ export default function hydrate() {
     dispatch(newsFeedActions.fetchNewsFeed());
     dispatch(topSourcesActions.fetchTopSources());
     dispatch(instrumentsActions.fetchInstruments());
-    dispatch(fetchAllocations());
+    dispatch(allocationsActions.fetchAllocations());
     dispatch(instrumentsActions.fetchInstrumentForms());
     dispatch(recentSourcesActions.fetchRecentSources());
     dispatch(sourceCountsActions.fetchSourceCounts());

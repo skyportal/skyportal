@@ -6,6 +6,7 @@ import { makeStyles } from "@material-ui/core/styles";
 import GroupManagement from "./GroupManagement";
 import GroupList from "./GroupList";
 import NewGroupForm from "./NewGroupForm";
+import NonMemberGroupList from "./NonMemberGroupList";
 
 const useStyles = makeStyles(() => ({
   // Hide drag handle icon since this isn't the home page
@@ -23,16 +24,28 @@ const useStyles = makeStyles(() => ({
 
 const Groups = () => {
   const classes = useStyles();
-  const roles = useSelector((state) => state.profile.roles);
-  const groups = useSelector((state) => state.groups.user);
+  const { roles } = useSelector((state) => state.profile);
+  const { user: userGroups, all: allGroups } = useSelector(
+    (state) => state.groups
+  );
 
-  if (groups.length === 0) {
+  if (userGroups.length === 0 || allGroups === null) {
     return <h3>Loading...</h3>;
   }
 
+  const nonMemberGroups = allGroups.filter(
+    (g) => !g.single_user_group && !userGroups.map((ug) => ug.id).includes(g.id)
+  );
+
   return (
     <div>
-      <GroupList title="My Groups" groups={groups} classes={classes} />
+      <GroupList title="My Groups" groups={userGroups} classes={classes} />
+      {!!nonMemberGroups.length && (
+        <>
+          <br />
+          <NonMemberGroupList groups={nonMemberGroups} />
+        </>
+      )}
       <NewGroupForm />
       {roles.includes("Super admin") && <GroupManagement />}
     </div>

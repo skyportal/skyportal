@@ -1,35 +1,31 @@
 import messageHandler from "baselayer/MessageHandler";
 
 import * as API from "../API";
-import fetchCandidate from "./candidate";
+import * as candidateActions from "./candidate";
 import store from "../store";
 
-export const FETCH_CANDIDATES = "skyportal/FETCH_CANDIDATES";
-export const FETCH_CANDIDATES_OK = "skyportal/FETCH_CANDIDATES_OK";
-export const FETCH_CANDIDATES_FAIL = "skyportal/FETCH_CANDIDATES_FAIL";
+const FETCH_CANDIDATES = "skyportal/FETCH_CANDIDATES";
+const FETCH_CANDIDATES_OK = "skyportal/FETCH_CANDIDATES_OK";
 
-export const FETCH_CANDIDATE_AND_MERGE = "skyportal/FETCH_CANDIDATE_AND_MERGE";
-export const FETCH_CANDIDATE_AND_MERGE_OK =
-  "skyportal/FETCH_CANDIDATE_AND_MERGE_OK";
+const FETCH_CANDIDATE_AND_MERGE = "skyportal/FETCH_CANDIDATE_AND_MERGE";
+const FETCH_CANDIDATE_AND_MERGE_OK = "skyportal/FETCH_CANDIDATE_AND_MERGE_OK";
 
-export const REFRESH_CANDIDATE = "skyportal/REFRESH_CANDIDATE";
+const REFRESH_CANDIDATE = "skyportal/REFRESH_CANDIDATE";
 
-export const SET_CANDIDATES_ANNOTATION_SORT_OPTIONS =
+const SET_CANDIDATES_ANNOTATION_SORT_OPTIONS =
   "skyportal/SET_CANDIDATES_ANNOTATION_SORT_OPTIONS";
 
-export const FETCH_ANNOTATIONS_INFO = "skyportal/FETCH_ANNOTATIONS_INFO";
-export const FETCH_ANNOTATIONS_INFO_OK = "skyportal/FETCH_ANNOTATIONS_INFO_OK";
+const FETCH_ANNOTATIONS_INFO = "skyportal/FETCH_ANNOTATIONS_INFO";
+const FETCH_ANNOTATIONS_INFO_OK = "skyportal/FETCH_ANNOTATIONS_INFO_OK";
 
-export const SET_CANDIDATES_FILTER_FORM_DATA =
+const SET_CANDIDATES_FILTER_FORM_DATA =
   "skyportal/SET_CANDIDATES_FILTER_FORM_DATA";
 
 export const fetchCandidates = (filterParams = {}) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
     filterParams.pageNumber = 1;
   }
-  const params = new URLSearchParams(filterParams);
-  const queryString = params.toString();
-  return API.GET(`/api/candidates?${queryString}`, FETCH_CANDIDATES);
+  return API.GET("/api/candidates", FETCH_CANDIDATES, filterParams);
 };
 
 export const setCandidatesAnnotationSortOptions = (item) => {
@@ -40,7 +36,7 @@ export const setCandidatesAnnotationSortOptions = (item) => {
 };
 
 export const fetchAnnotationsInfo = () => {
-  return API.GET(`/api/internal/annotations_info`, FETCH_ANNOTATIONS_INFO);
+  return API.GET("/api/internal/annotations_info", FETCH_ANNOTATIONS_INFO);
 };
 
 export const setFilterFormData = (formData) => {
@@ -62,7 +58,12 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     if (candidates.candidates !== null) {
       candidates.candidates.forEach((candidate) => {
         if (candidate.internal_key === payload.id && !done) {
-          dispatch(fetchCandidate(candidate.id, FETCH_CANDIDATE_AND_MERGE));
+          dispatch(
+            candidateActions.fetchCandidate(
+              candidate.id,
+              FETCH_CANDIDATE_AND_MERGE
+            )
+          );
           done = true;
         }
       });

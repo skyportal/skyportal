@@ -3,12 +3,12 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-export const REFRESH_OBSERVING_RUN = "skyportal/REFRESH_OBSERVING_RUN";
+const REFRESH_OBSERVING_RUN = "skyportal/REFRESH_OBSERVING_RUN";
 
-export const FETCH_OBSERVING_RUN = "skyportal/FETCH_OBSERVING_RUN";
-export const FETCH_OBSERVING_RUN_OK = "skyportal/FETCH_OBSERVING_RUN_OK";
+const FETCH_OBSERVING_RUN = "skyportal/FETCH_OBSERVING_RUN";
+const FETCH_OBSERVING_RUN_OK = "skyportal/FETCH_OBSERVING_RUN_OK";
 
-export const SUBMIT_OBSERVING_RUN = "skyportal/SUBMIT_OBSERVING_RUN";
+const SUBMIT_OBSERVING_RUN = "skyportal/SUBMIT_OBSERVING_RUN";
 
 export const fetchObservingRun = (id) =>
   API.GET(`/api/observing_run/${id}`, FETCH_OBSERVING_RUN);
