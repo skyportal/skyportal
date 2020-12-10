@@ -22,9 +22,7 @@ export const fetchInvitations = (filterParams = {}) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
     filterParams.pageNumber = 1;
   }
-  const params = new URLSearchParams(filterParams);
-  const queryString = params.toString();
-  return API.GET(`/api/invitations?${queryString}`, FETCH_INVITATIONS);
+  return API.GET("/api/invitations", FETCH_INVITATIONS, filterParams);
 };
 
 export const updateInvitation = (invitationID, payload) =>
