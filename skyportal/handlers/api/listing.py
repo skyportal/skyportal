@@ -16,26 +16,26 @@ class UserObjListHandler(BaseHandler):
     def get(self, user_id):
         """
         ---
-            description: get all listings corresponding to a specific user and that match a list name.
-            parameters:
-            - in: path
-              name: user_id
-              required: true
-              type: string
-            - in: query
-              name: list_name
-              required: false
-              type: string
+        description: get all listings corresponding to a specific user and that match a list name.
+        parameters:
+        - in: path
+          name: user_id
+          required: true
+          type: string
+        - in: query
+          name: list_name
+          required: false
+          type: string
 
-            description: |
-                find all objects saved to this list.
-                If not given will return all objects
-                saved by the user to all lists.
+        description: |
+            find all objects saved to this list.
+            If not given will return all objects
+            saved by the user to all lists.
 
-            responses:
-              200:
-                content:
-                  schema: ArrayOFListings
+        responses:
+          200:
+            content:
+              schema: ArrayOFListings
         """
 
         if User.query.get(user_id) is None:  # verify that user exists
