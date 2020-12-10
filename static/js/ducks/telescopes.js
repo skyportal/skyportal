@@ -1,9 +1,10 @@
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_TELESCOPES = "skyportal/FETCH_TELESCOPES";
-export const FETCH_TELESCOPES_OK = "skyportal/FETCH_TELESCOPES_OK";
+const FETCH_TELESCOPES = "skyportal/FETCH_TELESCOPES";
+const FETCH_TELESCOPES_OK = "skyportal/FETCH_TELESCOPES_OK";
 
+// eslint-disable-next-line import/prefer-default-export
 export const fetchTelescopes = () =>
   API.GET("/api/telescope", FETCH_TELESCOPES);
 

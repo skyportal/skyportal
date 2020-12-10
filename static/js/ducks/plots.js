@@ -1,9 +1,10 @@
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_SOURCE_PLOT = "skyportal/FETCH_SOURCE_PLOT";
-export const FETCH_SOURCE_PLOT_OK = "skyportal/FETCH_SOURCE_PLOT_OK";
+const FETCH_SOURCE_PLOT = "skyportal/FETCH_SOURCE_PLOT";
+const FETCH_SOURCE_PLOT_OK = "skyportal/FETCH_SOURCE_PLOT_OK";
 
+// eslint-disable-next-line import/prefer-default-export
 export function fetchPlotData(url) {
   return API.GET(url, FETCH_SOURCE_PLOT);
 }

@@ -1,12 +1,12 @@
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_ROLES = "skyportal/FETCH_ROLES";
-export const FETCH_ROLES_OK = "skyportal/FETCH_ROLES_OK";
+const FETCH_ROLES = "skyportal/FETCH_ROLES";
+const FETCH_ROLES_OK = "skyportal/FETCH_ROLES_OK";
 
-export const ADD_USER_ROLES = "skyportal/ADD_USER_ROLES";
+const ADD_USER_ROLES = "skyportal/ADD_USER_ROLES";
 
-export const DELETE_USER_ROLE = "skyportal/DELETE_USER_ROLE";
+const DELETE_USER_ROLE = "skyportal/DELETE_USER_ROLE";
 
 export const fetchRoles = () => API.GET("/api/roles", FETCH_ROLES);
 

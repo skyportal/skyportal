@@ -1,22 +1,16 @@
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_SOURCES = "skyportal/FETCH_SOURCES";
-export const FETCH_SOURCES_OK = "skyportal/FETCH_SOURCES_OK";
-export const FETCH_SOURCES_FAIL = "skyportal/FETCH_SOURCES_FAIL";
+const FETCH_SOURCES = "skyportal/FETCH_SOURCES";
+const FETCH_SOURCES_OK = "skyportal/FETCH_SOURCES_OK";
+const FETCH_SOURCES_FAIL = "skyportal/FETCH_SOURCES_FAIL";
 
-export const FETCH_SAVED_GROUP_SOURCES = "skyportal/FETCH_SAVED_GROUP_SOURCES";
-export const FETCH_SAVED_GROUP_SOURCES_OK =
-  "skyportal/FETCH_SAVED_GROUP_SOURCES_OK";
-export const FETCH_SAVED_GROUP_SOURCES_FAIL =
-  "skyportal/FETCH_SAVED_GROUP_SOURCES_FAIL";
+const FETCH_SAVED_GROUP_SOURCES = "skyportal/FETCH_SAVED_GROUP_SOURCES";
+const FETCH_SAVED_GROUP_SOURCES_OK = "skyportal/FETCH_SAVED_GROUP_SOURCES_OK";
 
-export const FETCH_PENDING_GROUP_SOURCES =
-  "skyportal/FETCH_PENDING_GROUP_SOURCES";
-export const FETCH_PENDING_GROUP_SOURCES_OK =
+const FETCH_PENDING_GROUP_SOURCES = "skyportal/FETCH_PENDING_GROUP_SOURCES";
+const FETCH_PENDING_GROUP_SOURCES_OK =
   "skyportal/FETCH_PENDING_GROUP_SOURCES_OK";
-export const FETCH_PENDING_GROUP_SOURCES_FAIL =
-  "skyportal/FETCH_PENDING_GROUP_SOURCES_FAIL";
 
 const addFilterParamDefaults = (filterParams) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {

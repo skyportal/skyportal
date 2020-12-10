@@ -1,7 +1,8 @@
 import store from "../store";
 
-export const ROTATE_LOGO = "skyportal/ROTATE_LOGO";
+const ROTATE_LOGO = "skyportal/ROTATE_LOGO";
 
+// eslint-disable-next-line import/prefer-default-export
 export function rotateLogo() {
   return {
     type: ROTATE_LOGO,

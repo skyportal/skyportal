@@ -3,9 +3,10 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_OBSERVING_RUNS = "skyportal/FETCH_OBSERVING_RUNS";
-export const FETCH_OBSERVING_RUNS_OK = "skyportal/FETCH_OBSERVING_RUNS_OK";
+const FETCH_OBSERVING_RUNS = "skyportal/FETCH_OBSERVING_RUNS";
+const FETCH_OBSERVING_RUNS_OK = "skyportal/FETCH_OBSERVING_RUNS_OK";
 
+// eslint-disable-next-line import/prefer-default-export
 export const fetchObservingRuns = () =>
   API.GET("/api/observing_run", FETCH_OBSERVING_RUNS);
 

@@ -3,26 +3,20 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_GROUPS = "skyportal/FETCH_GROUPS";
-export const FETCH_GROUPS_OK = "skyportal/FETCH_GROUPS_OK";
+const FETCH_GROUPS = "skyportal/FETCH_GROUPS";
+const FETCH_GROUPS_OK = "skyportal/FETCH_GROUPS_OK";
 
-export const ADD_GROUP = "skyportal/ADD_GROUP";
-export const ADD_GROUP_OK = "skyportal/ADD_GROUP_OK";
+const ADD_GROUP = "skyportal/ADD_GROUP";
 
-export const DELETE_GROUP = "skyportal/DELETE_GROUP";
-export const DELETE_GROUP_OK = "skyportal/DELETE_GROUP_OK";
+const DELETE_GROUP = "skyportal/DELETE_GROUP";
 
-export const ADD_GROUP_USER = "skyportal/ADD_GROUP_USER";
-export const ADD_GROUP_USER_OK = "skyportal/ADD_GROUP_USER_OK";
+const ADD_GROUP_USER = "skyportal/ADD_GROUP_USER";
 
-export const ADD_GROUP_USERS = "skyportal/ADD_GROUP_USERS";
-export const ADD_GROUP_USERS_OK = "skyportal/ADD_GROUP_USERS_OK";
+const ADD_GROUP_USERS = "skyportal/ADD_GROUP_USERS";
 
-export const UPDATE_GROUP_USER = "skyportal/UPDATE_GROUP_USER";
-export const UPDATE_GROUP_USER_OK = "skyportal/UPDATE_GROUP_USER_OK";
+const UPDATE_GROUP_USER = "skyportal/UPDATE_GROUP_USER";
 
-export const DELETE_GROUP_USER = "skyportal/DELETE_GROUP_USER";
-export const DELETE_GROUP_USER_OK = "skyportal/DELETE_GROUP_USER_OK";
+const DELETE_GROUP_USER = "skyportal/DELETE_GROUP_USER";
 
 export function fetchGroups(includeSingleUserGroups = false) {
   return API.GET(
