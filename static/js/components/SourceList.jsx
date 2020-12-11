@@ -12,7 +12,6 @@ import Grid from "@material-ui/core/Grid";
 import Typography from "@material-ui/core/Typography";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import Input from "@material-ui/core/Input";
-import InputLabel from "@material-ui/core/InputLabel";
 import Chip from "@material-ui/core/Chip";
 import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
@@ -68,18 +67,6 @@ const getStyles = (classification, selectedClassifications, theme) => {
   };
 };
 
-const filterOutEmptyValues = (data) => {
-  let filteredData = {};
-  // Filter out empty fields from an object (form data)
-  Object.keys(data).forEach((key) => {
-    // Empty array ([]) counts as true, so specifically test for it
-    if (!(Array.isArray(data[key]) && data[key].length == 0) && key) {
-      filteredData[key] = data[key];
-    }
-  });
-  return filteredData;
-};
-
 const SourceList = () => {
   const classes = useStyles();
   const theme = useTheme();
@@ -123,13 +110,11 @@ const SourceList = () => {
   const { handleSubmit, register, getValues, control, reset } = useForm();
 
   const onSubmit = (formData) => {
-    const data = filterOutEmptyValues({
+    const data = {
       ...formData,
       pageNumber: 1,
       numPerPage: rowsPerPage,
-    });
-    console.log(formData);
-    console.log(data);
+    };
     dispatch(sourcesActions.fetchSources(data));
   };
 
@@ -146,22 +131,22 @@ const SourceList = () => {
 
   const handleSourceTablePagination = (pageNumber, numPerPage) => {
     setRowsPerPage(numPerPage);
-    const data = filterOutEmptyValues({
+    const data = {
       ...getValues(),
       pageNumber,
       numPerPage,
-    });
+    };
     dispatch(sourcesActions.fetchSources(data));
   };
 
   const handleSourceTableSorting = (formData) => {
-    const data = filterOutEmptyValues({
+    const data = {
       ...getValues(),
       pageNumber: 1,
       numPerPage: rowsPerPage,
       sortBy: formData.column,
       sortOrder: formData.ascending ? "asc" : "desc",
-    });
+    };
     dispatch(sourcesActions.fetchSources(data));
   };
 
