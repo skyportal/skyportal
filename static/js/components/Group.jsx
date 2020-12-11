@@ -4,14 +4,8 @@ import PropTypes from "prop-types";
 
 import { useDispatch, useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
-import {
-  makeStyles,
-  useTheme,
-  createMuiTheme,
-  MuiThemeProvider,
-} from "@material-ui/core/styles";
+import { makeStyles, useTheme } from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
-import MoreVertIcon from "@material-ui/icons/MoreVert";
 import DeleteIcon from "@material-ui/icons/Delete";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
@@ -19,7 +13,6 @@ import ListItemSecondaryAction from "@material-ui/core/ListItemSecondaryAction";
 import ListItemText from "@material-ui/core/ListItemText";
 import IconButton from "@material-ui/core/IconButton";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
-import Popover from "@material-ui/core/Popover";
 
 import Accordion from "@material-ui/core/Accordion";
 import AccordionSummary from "@material-ui/core/AccordionSummary";
@@ -40,22 +33,16 @@ import MenuItem from "@material-ui/core/MenuItem";
 import FormHelperText from "@material-ui/core/FormHelperText";
 import FormControl from "@material-ui/core/FormControl";
 import Select from "@material-ui/core/Select";
-import Divider from "@material-ui/core/Divider";
-import Chip from "@material-ui/core/Chip";
 import CircularProgress from "@material-ui/core/CircularProgress";
-import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
+
+import GroupUsers from "./GroupUsers";
 
 import * as groupActions from "../ducks/group";
 import * as groupsActions from "../ducks/groups";
 import * as streamsActions from "../ducks/streams";
 import * as filterActions from "../ducks/filter";
-import NewGroupUserForm from "./NewGroupUserForm";
-import InviteNewGroupUserForm from "./InviteNewGroupUserForm";
-import AddUsersFromGroupForm from "./AddUsersFromGroupForm";
-import GroupAdmissionRequestsManagement from "./GroupAdmissionRequestsManagement";
-import ManageUserButtons from "./GroupPageManageUserButtons";
 
 const useStyles = makeStyles((theme) => ({
   padding_bottom: {
@@ -97,25 +84,6 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const getMuiTheme = (theme) =>
-  createMuiTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTableHeadCell: {
-        hintIconAlone: {
-          marginTop: 0,
-        },
-        hintIconWithSortIcon: {
-          marginTop: 0,
-        },
-        sortLabelRoot: {
-          height: "auto",
-          marginBottom: "auto",
-        },
-      },
-    },
-  });
-
 const Group = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -129,32 +97,11 @@ const Group = () => {
   const [panelSourcesExpanded, setPanelSourcesExpanded] = React.useState(
     "panel-sources"
   );
-  const [panelMembersExpanded, setPanelMembersExpanded] = React.useState(
-    "panel-members"
-  );
   const [panelStreamsExpanded, setPanelStreamsExpanded] = React.useState(
     "panel-streams"
   );
   const [addFilterDialogOpen, setAddFilterDialogOpen] = React.useState(false);
   const fullScreen = !useMediaQuery(theme.breakpoints.up("md"));
-
-  // Mobile manage user popover
-  const mobile = !useMediaQuery(theme.breakpoints.up("sm"));
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const [openedPopoverId, setOpenedPopoverId] = React.useState(null);
-
-  const handlePopoverOpen = (event, popoverId) => {
-    setOpenedPopoverId(popoverId);
-    setAnchorEl(event.target);
-  };
-
-  const handlePopoverClose = () => {
-    setOpenedPopoverId(null);
-    setAnchorEl(null);
-  };
-
-  const openManageUserPopover = Boolean(anchorEl);
-  const popoverId = openManageUserPopover ? "manage-user-popover" : undefined;
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
@@ -183,9 +130,6 @@ const Group = () => {
   const handlePanelSourcesChange = (panel) => (event, isExpanded) => {
     setPanelSourcesExpanded(isExpanded ? panel : false);
   };
-  const handlePanelMembersChange = (panel) => (event, isExpanded) => {
-    setPanelMembersExpanded(isExpanded ? panel : false);
-  };
   const handlePanelStreamsChange = (panel) => (event, isExpanded) => {
     setPanelStreamsExpanded(isExpanded ? panel : false);
   };
@@ -194,7 +138,6 @@ const Group = () => {
 
   const group = useSelector((state) => state.group);
   const currentUser = useSelector((state) => state.profile);
-  const { invitationsEnabled } = useSelector((state) => state.sysInfo);
   const streams = useSelector((state) => state.streams);
   const [dataFetched, setDataFetched] = useState(false);
 
@@ -289,150 +232,6 @@ const Group = () => {
   const isStreamIdInStreams = (sid) =>
     streams?.map((stream) => stream.id).includes(sid);
 
-  // Set-up members table
-  // MUI DataTable functions
-  const renderName = (value) => {
-    return value
-      ? `${value.first_name ? value.first_name : ""} ${
-          value.last_name ? value.last_name : ""
-        }`
-      : "";
-  };
-
-  const renderUsername = (dataIndex) => {
-    const user = group?.users[dataIndex];
-    return (
-      <Link to={`/user/${user.id}`} className={classes.filterLink}>
-        {user.username}
-      </Link>
-    );
-  };
-
-  const renderAdmin = (dataIndex) => {
-    const user = group?.users[dataIndex];
-    return (
-      user &&
-      user.admin && (
-        <div style={{ display: "inline-block" }} id={`${user.id}-admin-chip`}>
-          <Chip label="Admin" size="small" color="secondary" />
-        </div>
-      )
-    );
-  };
-
-  const renderActions = (dataIndex) => {
-    const user = group?.users[dataIndex];
-    return (
-      <div>
-        {group &&
-          currentUser.permissions?.includes("Manage users") &&
-          (mobile ? (
-            <div>
-              <IconButton
-                edge="end"
-                aria-label="open-manage-user-popover"
-                onClick={(e) => handlePopoverOpen(e, user.id)}
-              >
-                <MoreVertIcon />
-              </IconButton>
-              <Popover
-                id={popoverId}
-                open={openedPopoverId === user.id}
-                anchorEl={anchorEl}
-                onClose={handlePopoverClose}
-                anchorOrigin={{
-                  vertical: "bottom",
-                  horizontal: "center",
-                }}
-                transformOrigin={{
-                  vertical: "top",
-                  horizontal: "center",
-                }}
-              >
-                <div className={classes.manageUserPopover}>
-                  <ManageUserButtons
-                    loadedId={group.id}
-                    user={user}
-                    isAdmin={isAdmin}
-                    group={group}
-                  />
-                </div>
-              </Popover>
-            </div>
-          ) : (
-            <ManageUserButtons
-              loadedId={group.id}
-              user={user}
-              isAdmin={isAdmin}
-              group={group}
-            />
-          ))}
-      </div>
-    );
-  };
-
-  const columns = [
-    {
-      name: "first_name",
-      label: "Name",
-      options: {
-        customBodyRender: renderName,
-        filter: true,
-        // Display only if there's at least one user with a first/last name
-        display: !!group?.users?.filter(
-          (user) => user.first_name || user.last_name
-        )?.length,
-      },
-    },
-    {
-      name: "username",
-      label: "Username",
-      options: {
-        // Turn off default filtering for custom form
-        filter: true,
-        customBodyRenderLite: renderUsername,
-      },
-    },
-    {
-      name: "admin",
-      label: "Admin",
-      options: {
-        sort: true,
-        customBodyRenderLite: renderAdmin,
-        filter: true,
-        hint:
-          "An admin is anyone that is a system admin, has group management permissions, and/or is specifically an admin of this group.",
-      },
-    },
-    {
-      name: "actions",
-      label: "Actions",
-      options: {
-        sort: false,
-        customBodyRenderLite: renderActions,
-        filter: false,
-        display: isAdmin(currentUser),
-        hint:
-          "Note that removing admin status only applies to group-specific admin status. Users who are also system admins and/or have 'Manage groups' permissions will remain admins regardless.",
-      },
-    },
-  ];
-
-  const options = {
-    responsive: "standard",
-    print: true,
-    download: true,
-    search: true,
-    selectableRows: "none",
-    enableNestedDataAccess: ".",
-    rowsPerPage: 25,
-    rowsPerPageOptions: [10, 25, 50, 100, 200],
-    filter: true,
-    jumpToPage: true,
-    pagination: true,
-    rowHover: false,
-  };
-
   return (
     <div>
       <Typography variant="h5" style={{ paddingBottom: 10 }}>
@@ -459,48 +258,14 @@ const Group = () => {
         </AccordionDetails>
       </Accordion>
 
-      <Accordion
-        expanded={panelMembersExpanded === "panel-members"}
-        onChange={handlePanelMembersChange("panel-members")}
-      >
-        <AccordionSummary
-          expandIcon={<ExpandMoreIcon />}
-          aria-controls="panel-members-content"
-          id="panel-members-header"
-          className={classes.accordion_summary}
-        >
-          <Typography className={classes.heading}>Members</Typography>
-        </AccordionSummary>
-        <AccordionDetails className={classes.accordion_details}>
-          <MuiThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              columns={columns}
-              data={group?.users ? group.users : []}
-              options={options}
-            />
-          </MuiThemeProvider>
-          <Divider />
-          <div className={classes.paper}>
-            {isAdmin(currentUser) && (
-              <>
-                <br />
-                <NewGroupUserForm group_id={group.id} />
-                <br />
-                {invitationsEnabled && (
-                  <>
-                    <br />
-                    <InviteNewGroupUserForm group_id={group.id} />
-                  </>
-                )}
-                <br />
-                <AddUsersFromGroupForm groupID={group.id} />
-                <br />
-                <GroupAdmissionRequestsManagement groupID={group.id} />
-              </>
-            )}
-          </div>
-        </AccordionDetails>
-      </Accordion>
+      <GroupUsers
+        group={group}
+        classes={classes}
+        currentUser={currentUser}
+        theme={theme}
+        isAdmin={isAdmin}
+      />
+
       {streams?.length > 0 && (
         <Accordion
           expanded={panelStreamsExpanded === "panel-streams"}
