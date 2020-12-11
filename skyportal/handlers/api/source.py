@@ -447,7 +447,9 @@ class SourceHandler(BaseHandler):
                 )
 
             s = Obj.get_if_readable_by(
-                obj_id, self.current_user, options=query_options,
+                obj_id,
+                self.current_user,
+                options=query_options,
             )
 
             if s is None:
@@ -543,7 +545,6 @@ class SourceHandler(BaseHandler):
 
         # Fetch multiple sources
         query_options = [joinedload(Obj.thumbnails)]
-
         if not save_summary:
             q = (
                 DBSession()
@@ -586,10 +587,10 @@ class SourceHandler(BaseHandler):
             other = ha.Point(ra=ra, dec=dec)
             q = q.filter(Obj.within(other, radius))
         if start_date:
-            start_date = arrow.get(start_date.strip())
+            start_date = arrow.get(start_date.strip()).datetime
             q = q.filter(Obj.last_detected >= start_date)
         if end_date:
-            end_date = arrow.get(end_date.strip())
+            end_date = arrow.get(end_date.strip()).datetime
             q = q.filter(Obj.last_detected <= end_date)
         if saved_before:
             q = q.filter(Source.saved_at <= saved_before)
@@ -632,7 +633,6 @@ class SourceHandler(BaseHandler):
                     if sort_order == "asc"
                     else [Obj.ra.desc().nullslast()]
                 )
-                print(sort_by, sort_order)
             elif sort_by == "dec":
                 order_by = (
                     [Obj.dec.nullslast()]
@@ -653,9 +653,9 @@ class SourceHandler(BaseHandler):
                 )
             elif sort_by == "classification":
                 order_by = (
-                    [Classification.classification]
+                    [Classification.classification.nullslast()]
                     if sort_order == "asc"
-                    else [Classification.classification.desc()]
+                    else [Classification.classification.desc().nullslast()]
                 )
 
         if page_number:
@@ -927,7 +927,8 @@ class SourceHandler(BaseHandler):
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
         DBSession().commit()
         self.push_all(
-            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key},
+            action="skyportal/REFRESH_SOURCE",
+            payload={"obj_key": obj.internal_key},
         )
 
         return self.success(action='skyportal/FETCH_SOURCES')
@@ -1092,7 +1093,9 @@ class SourceOffsetsHandler(BaseHandler):
                 schema: Error
         """
         source = Obj.get_if_readable_by(
-            obj_id, self.current_user, options=[joinedload(Obj.photometry)],
+            obj_id,
+            self.current_user,
+            options=[joinedload(Obj.photometry)],
         )
         if source is None:
             return self.error('Source not found', status=404)
@@ -1263,7 +1266,9 @@ class SourceFinderHandler(BaseHandler):
                 schema: Error
         """
         source = Obj.get_if_readable_by(
-            obj_id, self.current_user, options=[joinedload(Obj.photometry)],
+            obj_id,
+            self.current_user,
+            options=[joinedload(Obj.photometry)],
         )
         if source is None:
             return self.error('Source not found', status=404)

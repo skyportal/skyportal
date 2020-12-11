@@ -49,23 +49,36 @@ const useStyles = makeStyles((theme) => ({
   },
   blockWrapper: {
     width: "100%",
+    marginBottom: "0.5rem",
   },
   title: {
-    margin: "1rem 0rem 0rem 0rem",
+    margin: "0.5rem 0rem 0rem 0rem",
   },
   spinner: {
     marginTop: "1rem",
   },
 }));
 
-function getStyles(classification, selectedClassifications, theme) {
+const getStyles = (classification, selectedClassifications, theme) => {
   return {
     fontWeight:
       selectedClassifications.indexOf(classification) === -1
         ? theme.typography.fontWeightRegular
         : theme.typography.fontWeightMedium,
   };
-}
+};
+
+const filterOutEmptyValues = (data) => {
+  let filteredData = {};
+  // Filter out empty fields from an object (form data)
+  Object.keys(data).forEach((key) => {
+    // Empty array ([]) counts as true, so specifically test for it
+    if (!(Array.isArray(data[key]) && data[key].length == 0) && key) {
+      filteredData[key] = data[key];
+    }
+  });
+  return filteredData;
+};
 
 const SourceList = () => {
   const classes = useStyles();
@@ -107,37 +120,48 @@ const SourceList = () => {
     dispatch(sourcesActions.fetchSources());
   }, [dispatch]);
 
-  const { handleSubmit, register, getValues, control } = useForm();
+  const { handleSubmit, register, getValues, control, reset } = useForm();
 
-  const onSubmit = (data) => {
+  const onSubmit = (formData) => {
+    const data = filterOutEmptyValues({
+      ...formData,
+      pageNumber: 1,
+      numPerPage: rowsPerPage,
+    });
+    console.log(formData);
+    console.log(data);
     dispatch(sourcesActions.fetchSources(data));
   };
 
   const handleClickReset = () => {
     setRowsPerPage(100);
-    dispatch(sourcesActions.fetchSources());
+    reset();
+    dispatch(
+      sourcesActions.fetchSources({
+        pageNumber: 1,
+        numPerPage: 100,
+      })
+    );
   };
 
   const handleSourceTablePagination = (pageNumber, numPerPage) => {
     setRowsPerPage(numPerPage);
-    const data = {
+    const data = filterOutEmptyValues({
       ...getValues(),
       pageNumber,
       numPerPage,
-      totalMatches: sourcesState.totalMatches,
-    };
+    });
     dispatch(sourcesActions.fetchSources(data));
   };
 
   const handleSourceTableSorting = (formData) => {
-    const data = {
+    const data = filterOutEmptyValues({
       ...getValues(),
       pageNumber: 1,
-      rowsPerPage,
-      totalMatches: sourcesState.totalMatches,
+      numPerPage: rowsPerPage,
       sortBy: formData.column,
       sortOrder: formData.ascending ? "asc" : "desc",
-    };
+    });
     dispatch(sourcesActions.fetchSources(data));
   };
 
@@ -247,9 +271,9 @@ const SourceList = () => {
               />
             </div>
             <div className={classes.blockWrapper}>
-              <InputLabel id="classifications-select-label">
-                Classifications
-              </InputLabel>
+              <h5 className={classes.title}> Filter by Classification </h5>
+            </div>
+            <div className={classes.blockWrapper}>
               <Controller
                 render={({ onChange, value }) => (
                   <Select

@@ -291,7 +291,11 @@ const SourceTable = ({
   const renderObjId = (dataIndex) => {
     const objid = sources[dataIndex].id;
     return (
-      <a href={`/source/${objid}`} key={`${objid}_objid`}>
+      <a
+        href={`/source/${objid}`}
+        key={`${objid}_objid`}
+        data-testid={`${objid}`}
+      >
         {objid}
       </a>
     );

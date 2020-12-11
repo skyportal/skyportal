@@ -178,3 +178,77 @@ def test_add_sources_two_groups(
 
     # the new group must have been saved later!
     assert saved_group2 > saved_group1
+
+
+def test_filter_by_classification(
+    driver,
+    user,
+    public_group,
+    upload_data_token,
+    taxonomy_token,
+    classification_token,
+):
+    # Post an object with a classification
+    source_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": source_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'POST',
+        'taxonomy',
+        data={
+            'name': "test taxonomy" + str(uuid.uuid4()),
+            'hierarchy': taxonomy,
+            'group_ids': [public_group.id],
+            'provenance': f"tdtax_{__version__}",
+            'version': __version__,
+            'isLatest': True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+    taxonomy_id = data['data']['taxonomy_id']
+
+    status, data = api(
+        'POST',
+        'classification',
+        data={
+            'obj_id': source_id,
+            'classification': 'Algol',
+            'taxonomy_id': taxonomy_id,
+            'probability': 1.0,
+            'group_ids': [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/sources")
+    driver.click_xpath("//div[@id='classifications-select']")
+    driver.click_xpath("//li[@data-value='Algol']", scroll_parent=True)
+    driver.click_xpath('//span[text()="Submit"]')
+    # Should see the posted source
+    driver.wait_for_xpath(f'//a[@data-testid="{source_id}"]')
+
+    # Now search for a different classification
+    driver.click_xpath("//div[@id='classifications-select']")
+    # Clear old classification selection
+    driver.click_xpath("//li[@data-value='Algol']", scroll_parent=True)
+    driver.click_xpath("//li[@data-value='AGN']", scroll_parent=True)
+    driver.click_xpath('//span[text()="Submit"]')
+    # Should no longer see the source
+    driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{source_id}"]')
