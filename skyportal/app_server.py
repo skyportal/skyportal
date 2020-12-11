@@ -3,7 +3,6 @@ import tornado.web
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app import model_util as baselayer_model_util
 from baselayer.log import make_log
-from baselayer.app.env import load_env
 
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
@@ -78,7 +77,6 @@ from . import models, model_util, openapi
 
 
 log = make_log('app_server')
-env, _ = load_env()
 
 skyportal_handlers = [
     # API endpoints
@@ -160,7 +158,7 @@ skyportal_handlers = [
 ]
 
 
-def make_app(cfg, baselayer_handlers, baselayer_settings):
+def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None):
     """Create and return a `tornado.web.Application` object with specified
     handlers and settings.
 
@@ -173,6 +171,11 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         Tornado handlers needed for baselayer to function.
     baselayer_settings : cfg
         Settings needed for baselayer to function.
+    process : int
+        When launching multiple app servers, which number is this?
+    env : dict
+        Environment in which the app was launched.  Currently only has
+        one key, 'debug'---true if launched with `--debug`.
 
     """
     if cfg['cookie_secret'] == 'abc01234':
