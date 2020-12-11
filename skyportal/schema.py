@@ -814,6 +814,36 @@ class PhotometryRangeQuery(_Schema):
     )
 
 
+class SpectrumRangeQuery(_Schema):
+    instrument_ids = fields.List(
+        fields.Integer,
+        description="IDs of the instruments to query "
+        "for spectra from. If `None`, "
+        "queries all instruments.",
+        required=False,
+        missing=None,
+        default=None,
+    )
+
+    min_date = fields.DateTime(
+        required=False,
+        description='Query for spectra taken after '
+        'this UT `DateTime`. For an '
+        'open-ended interval use `None`.',
+        missing=None,
+        default=None,
+    )
+
+    max_date = fields.DateTime(
+        required=False,
+        description='Query for spectra taken before '
+        'this UT `DateTime`. For an '
+        'open-ended interval use `None`.',
+        missing=None,
+        default=None,
+    )
+
+
 class SpectrumAsciiFileParseJSON(_Schema):
 
     wave_column = fields.Integer(
@@ -1107,6 +1137,7 @@ ObservingRunGet = ObservingRunGet()
 AssignmentSchema = AssignmentSchema()
 ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
 PhotometryRangeQuery = PhotometryRangeQuery()
+SpectrumRangeQuery = SpectrumRangeQuery()
 SpectrumAsciiFilePostJSON = SpectrumAsciiFilePostJSON()
 FollowupRequestPost = FollowupRequestPost()
 SpectrumAsciiFileParseJSON = SpectrumAsciiFileParseJSON()

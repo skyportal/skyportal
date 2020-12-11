@@ -40,6 +40,7 @@ from .spectrum import (
     ObjSpectraHandler,
     SpectrumASCIIFileParser,
     SpectrumASCIIFileHandler,
+    SpectrumRangeHandler,
 )
 from .stream import StreamHandler, StreamUserHandler
 from .sysinfo import SysInfoHandler

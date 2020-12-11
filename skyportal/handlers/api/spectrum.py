@@ -1,5 +1,6 @@
 import io
 from pathlib import Path
+from astropy.time import Time
 import numpy as np
 
 from sqlalchemy.orm import joinedload
@@ -25,6 +26,7 @@ from ...schema import (
     SpectrumPost,
     GroupIDList,
     SpectrumAsciiFileParseJSON,
+    SpectrumRangeQuery
 )
 
 _, cfg = load_env()
@@ -547,3 +549,47 @@ class ObjSpectraHandler(BaseHandler):
                 )
 
         return self.success(data=return_values)
+
+
+class SpectrumRangeHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """Docstring appears below as an f-string."""
+
+        json = self.get_json()
+
+        try:
+            standardized = SpectrumRangeQuery.load(json)
+        except ValidationError as e:
+            return self.error(f'Invalid request body: {e.normalized_messages()}')
+
+        format = self.get_query_argument('format', default='mag')
+        if format not in ['mag', 'flux']:
+            return self.error('Invalid output format.')
+
+        instrument_ids = standardized['instrument_ids']
+        min_date = standardized['min_date']
+        max_date = standardized['max_date']
+
+        gids = [g.id for g in self.current_user.accessible_groups]
+
+        query = (
+            DBSession()
+            .query(Spectrum)
+            .join(GroupSpectrum)
+            .filter(GroupSpectrum.group_id.in_(gids))
+        )
+
+        if instrument_ids is not None:
+            query = query.filter(Spectrum.instrument_id.in_(instrument_ids))
+        if min_date is not None:
+            mjd = Time(min_date, format='datetime').mjd
+            query = query.filter(Spectrum.mjd >= mjd)
+        if max_date is not None:
+            mjd = Time(max_date, format='datetime').mjd
+            query = query.filter(Spectrum.mjd <= mjd)
+
+        output = [serialize(p, magsys, format) for p in query]
+        return self.success(data=output)
+
+
