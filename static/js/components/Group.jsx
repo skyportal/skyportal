@@ -289,6 +289,15 @@ const Group = () => {
     fetchStreams();
   }, [currentUser, dispatch]);
 
+  const handleDeleteGroup = async () => {
+    const result = await dispatch(groupsActions.deleteGroup(group.id));
+    if (result.status === "success") {
+      dispatch(groupsActions.fetchGroups(true));
+      setConfirmDeleteOpen(false);
+      history.push("/groups");
+    }
+  };
+
   // forms
   // add stream to group
   const onSubmitAddStream = async (data) => {
@@ -815,14 +824,7 @@ const Group = () => {
           <Button autoFocus onClick={() => setConfirmDeleteOpen(false)}>
             Dismiss
           </Button>
-          <Button
-            color="primary"
-            onClick={() => {
-              dispatch(groupsActions.deleteGroup(group.id));
-              setConfirmDeleteOpen(false);
-              history.push("/groups");
-            }}
-          >
+          <Button color="primary" onClick={handleDeleteGroup}>
             Confirm
           </Button>
         </DialogActions>
