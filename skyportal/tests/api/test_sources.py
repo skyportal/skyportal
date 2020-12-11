@@ -267,9 +267,7 @@ def test_starlist(upload_data_token, public_source):
     assert isinstance(data["data"]["starlist_info"][0]["ra"], float)
 
     status, data = api(
-        "GET",
-        f"sources/{public_source.id}/offsets",
-        token=upload_data_token,
+        "GET", f"sources/{public_source.id}/offsets", token=upload_data_token,
     )
     assert status == 200
     assert data["status"] == "success"

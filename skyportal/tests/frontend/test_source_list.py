@@ -181,12 +181,7 @@ def test_add_sources_two_groups(
 
 
 def test_filter_by_classification(
-    driver,
-    user,
-    public_group,
-    upload_data_token,
-    taxonomy_token,
-    classification_token,
+    driver, user, public_group, upload_data_token, taxonomy_token, classification_token,
 ):
     # Post an object with a classification
     source_id = str(uuid.uuid4())
