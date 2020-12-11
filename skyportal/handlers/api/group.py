@@ -262,7 +262,6 @@ class GroupHandler(BaseHandler):
         )
         DBSession().commit()
 
-        self.push_all(action='skyportal/FETCH_GROUPS')
         return self.success(data={"id": g.id})
 
     @auth_or_token
@@ -358,7 +357,6 @@ class GroupHandler(BaseHandler):
         self.push_all(
             action='skyportal/REFRESH_GROUP', payload={'group_id': int(group_id)}
         )
-        self.push_all(action='skyportal/FETCH_GROUPS')
         return self.success()
 
 

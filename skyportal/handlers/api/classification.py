@@ -2,8 +2,6 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Source, Group, Classification, Taxonomy, Obj
-from .internal.recent_sources import RecentSourcesHandler
-from .internal.source_views import SourceViewsHandler
 
 
 class ClassificationHandler(BaseHandler):
@@ -160,16 +158,6 @@ class ClassificationHandler(BaseHandler):
             action='skyportal/REFRESH_SOURCE',
             payload={'obj_key': classification.obj.internal_key},
         )
-        if classification.obj_id in RecentSourcesHandler.get_recent_source_ids(
-            self.current_user
-        ):
-            self.push_all(action='skyportal/FETCH_RECENT_SOURCES')
-
-        if classification.obj_id in map(
-            lambda view_obj_tuple: view_obj_tuple[1],
-            SourceViewsHandler.get_top_source_views_and_ids(self.current_user),
-        ):
-            self.push_all(action='skyportal/FETCH_TOP_SOURCES')
 
         self.push_all(
             action='skyportal/REFRESH_CANDIDATE',
@@ -252,8 +240,6 @@ class ClassificationHandler(BaseHandler):
         self.push_all(
             action='skyportal/REFRESH_CANDIDATE', payload={'id': c.obj.internal_key},
         )
-        if c.obj_id in RecentSourcesHandler.get_recent_source_ids(self.current_user):
-            self.push_all(action='skyportal/FETCH_RECENT_SOURCES')
 
         return self.success()
 
@@ -279,7 +265,6 @@ class ClassificationHandler(BaseHandler):
         c = Classification.query.get(classification_id)
         if c is None:
             return self.error("Invalid classification ID")
-        obj_id = c.obj_id
         obj_key = c.obj.internal_key
         author = c.author
         if ("Super admin" in [role.id for role in roles]) or (user.id == author.id):
@@ -293,8 +278,6 @@ class ClassificationHandler(BaseHandler):
         self.push_all(
             action='skyportal/REFRESH_CANDIDATE', payload={'id': obj_key},
         )
-        if obj_id in RecentSourcesHandler.get_recent_source_ids(self.current_user):
-            self.push_all(action='skyportal/FETCH_RECENT_SOURCES')
 
         return self.success()
 
