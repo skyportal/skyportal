@@ -78,7 +78,6 @@ class SourceViewsHandler(BaseHandler):
             username_or_token_id=self.current_user.username,
             is_token=False,
         )
-        self.push_all(action="skyportal/FETCH_TOP_SOURCES")
         return self.success()
 
 
