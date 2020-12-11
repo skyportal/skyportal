@@ -14,7 +14,7 @@ from .group import (
     GroupUsersFromOtherGroupsHandler,
 )
 
-from .listing import UserObjListHandler
+from .user_obj_list import UserObjListHandler
 from .group_admission_request import GroupAdmissionRequestHandler
 from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler

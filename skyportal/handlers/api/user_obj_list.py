@@ -30,7 +30,6 @@ class UserObjListHandler(BaseHandler):
             find all objects saved to this list.
             If not given will return all objects
             saved by the user to all lists.
-
         responses:
           200:
             content:
