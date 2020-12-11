@@ -70,4 +70,4 @@ def downgrade():
         op.f('ix_groupadmissionrequests_group_id'), table_name='groupadmissionrequests'
     )
     op.drop_table('groupadmissionrequests')
-    op.execute("DROP TYPE 'admission_request_status'")
+    op.execute("DROP TYPE admission_request_status")
