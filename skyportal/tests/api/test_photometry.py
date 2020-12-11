@@ -1240,6 +1240,7 @@ def test_token_user_retrieving_source_photometry_and_convert(
     assert 'mjd' in data['data'][0]
     assert 'ra_unc' in data['data'][0]
 
+    data['data'] = sorted(data['data'], key=lambda d: d['mjd'])
     mag1_ab = -2.5 * np.log10(data['data'][0]['flux']) + data['data'][0]['zp']
     magerr1_ab = 2.5 / np.log(10) * data['data'][0]['fluxerr'] / data['data'][0]['flux']
 
@@ -1256,6 +1257,7 @@ def test_token_user_retrieving_source_photometry_and_convert(
     assert status == 200
     assert data['status'] == 'success'
 
+    data['data'] = sorted(data['data'], key=lambda d: d['mjd'])
     assert np.allclose(mag1_ab, data['data'][0]['mag'])
     assert np.allclose(magerr1_ab, data['data'][0]['magerr'])
 
@@ -1268,6 +1270,7 @@ def test_token_user_retrieving_source_photometry_and_convert(
         token=view_only_token,
     )
 
+    data['data'] = sorted(data['data'], key=lambda d: d['mjd'])
     mag1_vega = -2.5 * np.log10(data['data'][0]['flux']) + data['data'][0]['zp']
     magerr1_vega = (
         2.5 / np.log(10) * data['data'][0]['fluxerr'] / data['data'][0]['flux']
