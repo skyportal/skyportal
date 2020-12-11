@@ -12,8 +12,8 @@ const config = {
   output: {
     path: path.resolve(__dirname, "static/build"),
     publicPath: "/static/build/",
-    filename: "[name].bundle.js",
-    chunkFilename: "[name].[chunkHash].bundle.js",
+    filename: "[name]{{ js_dir_hash }}.bundle.js",
+    chunkFilename: "[name]{{ js_dir_hash }}.[chunkHash].bundle.js",
   },
   module: {
     rules: [

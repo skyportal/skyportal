@@ -33,6 +33,7 @@ static/js/components/HomePage.jsx
 static/login.html
 static/loginerror.html
 static/index.html
+webpack.config.js
 .tokens.yaml
 # Auto-generated data files
 data/taxonomy_sitewide.yaml

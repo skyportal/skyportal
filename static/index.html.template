@@ -12,6 +12,6 @@
   </head>
   <body>
     <div id="content"></div>
-    <script src="/static/build/main.bundle.js"></script>
+    <script src="/static/build/main{{ js_dir_hash }}.bundle.js"></script>
   </body>
 </html>
