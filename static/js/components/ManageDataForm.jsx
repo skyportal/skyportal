@@ -96,7 +96,7 @@ const createSpecRow = (
   instrument,
   observed,
   groups,
-  uploader,
+  owner,
   reducers,
   observers
 ) => ({
@@ -104,7 +104,7 @@ const createSpecRow = (
   instrument,
   observed,
   groups,
-  uploader,
+  owner,
   reducers,
   observers,
 });
@@ -221,19 +221,22 @@ const ManageDataForm = ({ route }) => {
           spec.instrument_name,
           spec.observed_at,
           spec.groups.map((group) => group.name).join(", "),
-          spec.uploader,
+          spec.owner,
           spec.reducers,
           spec.observers
         )
       )
     : [];
 
-  const RenderSingleUser = (dataIndex) => {
-    const user = specRows[dataIndex].uploader;
-    if (user) {
-      return <UserContactLink user={user} />;
-    }
-    return <div />;
+  const makeRenderSingleUser = (key) => {
+    const RenderSingleUser = (dataIndex) => {
+      const user = specRows[dataIndex][key];
+      if (user) {
+        return <UserContactLink user={user} />;
+      }
+      return <div />;
+    };
+    return RenderSingleUser;
   };
 
   const makeRenderMultipleUsers = (key) => {
@@ -332,9 +335,12 @@ const ManageDataForm = ({ route }) => {
     { name: "observed", label: "Observed (UTC)" },
     { name: "groups", label: "Currently visible to" },
     {
-      name: "uploader",
+      name: "owner",
       label: "Uploaded by",
-      options: { customBodyRenderLite: RenderSingleUser, filter: false },
+      options: {
+        customBodyRenderLite: makeRenderSingleUser("owner"),
+        filter: false,
+      },
     },
     {
       name: "reducers",
