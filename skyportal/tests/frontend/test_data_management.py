@@ -35,9 +35,11 @@ def test_delete_spectrum(driver, public_source):
 
     spectrum = public_source.spectra[0]
     driver.get(f"/become_user/{spectrum.owner_id}")
-    driver.get(f"/source/manage_data/{public_source.id}")
+    driver.get(f"/manage_data/{public_source.id}")
 
     driver.click_xpath("//*[contains(@data-testid, 'delete-spectrum-button')]")
     driver.click_xpath("//*[@data-testid='yes-delete']")
 
-    driver.wait_for_xpath_to_disappear('//h5')
+    driver.wait_for_xpath_to_disappear(
+        '//*[@data-testid="spectrum-table"]//*[@data-testid="MUIDataTableBodyRow-9"]'
+    )

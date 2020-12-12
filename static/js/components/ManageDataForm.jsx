@@ -443,6 +443,7 @@ const ManageDataForm = ({ route }) => {
               ),
               expandableRowsOnClick: false,
             }}
+            data-testid="spectrum-table"
           />
         )}
       </div>
