@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
@@ -18,7 +18,6 @@ import DialogContent from "@material-ui/core/DialogContent";
 import { showNotification } from "baselayer/components/Notifications";
 
 import FormValidationError from "./FormValidationError";
-import Plot from "./Plot";
 
 import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
@@ -49,6 +48,8 @@ UserContactLink.propTypes = {
     contact_email: PropTypes.string,
   }).isRequired,
 };
+
+const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 
 const createPhotRow = (
   id,
@@ -110,11 +111,13 @@ const SpectrumRow = ({ rowData, route }) => {
   return (
     <div>
       <Paper className={styles.photometryContainer}>
-        <Plot
-          className={styles.plot}
-          // eslint-disable-next-line react/prop-types
-          url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`}
-        />
+        <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
+          <Plot
+            className={styles.plot}
+            // eslint-disable-next-line react/prop-types
+            url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`}
+          />
+        </Suspense>
       </Paper>
     </div>
   );

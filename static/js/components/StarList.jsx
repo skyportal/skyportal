@@ -93,9 +93,18 @@ export const ObservingRunStarList = () => {
           )
         )
       );
-
+      const standard_promise = [
+        dispatch(
+          GET(
+            `/api/internal/standards?facility=${facility}`,
+            "skyportal/FETCH_STANDARDS"
+          )
+        ),
+      ];
       const starlistInfo = [];
       const values = await Promise.allSettled(promises);
+      const standard_value = await Promise.allSettled(standard_promise);
+      values.push(standard_value[0]);
 
       values.forEach((response) =>
         starlistInfo.push(...response.value.data.starlist_info)

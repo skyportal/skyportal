@@ -57,6 +57,7 @@ const Source = ({ route }) => {
   if (source.id === undefined) {
     return <div>Source not found</div>;
   }
+  document.title = source.id;
 
   return (
     <Paper ref={ref} elevation={1}>

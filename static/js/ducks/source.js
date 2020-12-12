@@ -3,70 +3,50 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-export const REFRESH_SOURCE = "skyportal/REFRESH_SOURCE";
+const REFRESH_SOURCE = "skyportal/REFRESH_SOURCE";
 
-export const FETCH_LOADED_SOURCE = "skyportal/FETCH_LOADED_SOURCE";
-export const FETCH_LOADED_SOURCE_OK = "skyportal/FETCH_LOADED_SOURCE_OK";
-export const FETCH_LOADED_SOURCE_ERROR = "skyportal/FETCH_LOADED_SOURCE_ERROR";
-export const FETCH_LOADED_SOURCE_FAIL = "skyportal/FETCH_LOADED_SOURCE_FAIL";
+const FETCH_LOADED_SOURCE = "skyportal/FETCH_LOADED_SOURCE";
+const FETCH_LOADED_SOURCE_OK = "skyportal/FETCH_LOADED_SOURCE_OK";
+const FETCH_LOADED_SOURCE_ERROR = "skyportal/FETCH_LOADED_SOURCE_ERROR";
+const FETCH_LOADED_SOURCE_FAIL = "skyportal/FETCH_LOADED_SOURCE_FAIL";
 
-export const ADD_CLASSIFICATION = "skyportal/ADD_CLASSIFICATION";
-export const ADD_CLASSIFICATION_OK = "skyportal/ADD_CLASSIFICATION_OK";
+const ADD_CLASSIFICATION = "skyportal/ADD_CLASSIFICATION";
 
-export const DELETE_CLASSIFICATION = "skyportal/DELETE_CLASSIFICATION";
-export const DELETE_CLASSIFICATION_OK = "skyportal/DELETE_CLASSIFICATION_OK";
+const DELETE_CLASSIFICATION = "skyportal/DELETE_CLASSIFICATION";
 
-export const ADD_COMMENT = "skyportal/ADD_COMMENT";
-export const ADD_COMMENT_OK = "skyportal/ADD_COMMENT_OK";
+const ADD_COMMENT = "skyportal/ADD_COMMENT";
 
-export const DELETE_COMMENT = "skyportal/DELETE_COMMENT";
-export const DELETE_COMMENT_OK = "skyportal/DELETE_COMMENT_OK";
+const DELETE_COMMENT = "skyportal/DELETE_COMMENT";
 
-export const GET_COMMENT_ATTACHMENT = "skyportal/GET_COMMENT_ATTACHMENT";
-export const GET_COMMENT_ATTACHMENT_OK = "skyportal/GET_COMMENT_ATTACHMENT_OK";
+const GET_COMMENT_ATTACHMENT = "skyportal/GET_COMMENT_ATTACHMENT";
+const GET_COMMENT_ATTACHMENT_OK = "skyportal/GET_COMMENT_ATTACHMENT_OK";
 
-export const ADD_SOURCE_VIEW = "skyportal/ADD_SOURCE_VIEW";
-export const ADD_SOURCE_VIEW_OK = "skyportal/ADD_SOURCE_VIEW_OK";
+const ADD_SOURCE_VIEW = "skyportal/ADD_SOURCE_VIEW";
 
-export const SUBMIT_FOLLOWUP_REQUEST = "skyportal/SUBMIT_FOLLOWUP_REQUEST";
-export const SUBMIT_FOLLOWUP_REQUEST_OK =
-  "skyportal/SUBMIT_FOLLOWUP_REQUEST_OK";
+const SUBMIT_FOLLOWUP_REQUEST = "skyportal/SUBMIT_FOLLOWUP_REQUEST";
 
-export const EDIT_FOLLOWUP_REQUEST = "skyportal/EDIT_FOLLOWUP_REQUEST";
-export const EDIT_FOLLOWUP_REQUEST_OK = "skyportal/EDIT_FOLLOWUP_REQUEST_OK";
+const EDIT_FOLLOWUP_REQUEST = "skyportal/EDIT_FOLLOWUP_REQUEST";
 
-export const SUBMIT_ASSIGNMENT = "skyportal/SUBMIT_ASSIGNMENT";
-export const SUBMIT_ASSIGNMENT_OK = "skyportal/SUBMIT_ASSIGNMENT_OK";
+const SUBMIT_ASSIGNMENT = "skyportal/SUBMIT_ASSIGNMENT";
 
-export const EDIT_ASSIGNMENT = "skyportal/EDIT_ASSIGNMENT";
-export const EDIT_ASSIGNMENT_OK = "skyportal/EDIT_ASSIGNMENT_OK";
+const EDIT_ASSIGNMENT = "skyportal/EDIT_ASSIGNMENT";
 
-export const DELETE_ASSIGNMENT = "skyportal/DELETE_ASSIGNMENT";
-export const DELETE_ASSIGNMENT_OK = "skyportal/DELETE_ASSIGNMENT_OK";
+const DELETE_ASSIGNMENT = "skyportal/DELETE_ASSIGNMENT";
 
-export const SAVE_SOURCE = "skyportal/SAVE_SOURCE";
-export const SAVE_SOURCE_OK = "skyportal/SAVE_SOURCE_OK";
+const SAVE_SOURCE = "skyportal/SAVE_SOURCE";
 
-export const TRANSFER_SOURCE_OR_REQUEST_SAVE =
+const TRANSFER_SOURCE_OR_REQUEST_SAVE =
   "skyportal/TRANSFER_SOURCE_OR_REQUEST_SAVE";
-export const TRANSFER_SOURCE_OR_REQUEST_SAVE_OK =
-  "skyportal/TRANSFER_SOURCE_OR_REQUEST_SAVE_OK";
 
-export const UPDATE_SOURCE = "skyportal/UPDATE_SOURCE";
-export const UPDATE_SOURCE_OK = "skyportal/UPDATE_SOURCE_OK";
+const UPDATE_SOURCE = "skyportal/UPDATE_SOURCE";
 
-export const DELETE_FOLLOWUP_REQUEST = "skyportal/DELETE_FOLLOWUP_REQUEST";
-export const DELETE_FOLLOWUP_REQUEST_OK =
-  "skyportal/DELETE_FOLLOWUP_REQUEST_OK";
+const DELETE_FOLLOWUP_REQUEST = "skyportal/DELETE_FOLLOWUP_REQUEST";
 
-export const UPLOAD_PHOTOMETRY = "skyportal/UPLOAD_PHOTOMETRY";
-export const UPLOAD_PHOTOMETRY_OK = "skyportal/UPLOAD_PHOTOMETRY_OK";
+const UPLOAD_PHOTOMETRY = "skyportal/UPLOAD_PHOTOMETRY";
 
-export const SHARE_DATA = "skyportal/SHARE_DATA";
-export const SHARE_DATA_OK = "skyportal/SHARE_DATA_OK";
+const SHARE_DATA = "skyportal/SHARE_DATA";
 
-export const SEND_ALERT = "skyportal/SEND_ALERT";
-export const SEND_ALERT_OK = "skyportal/SEND_ALERT_OK";
+const SEND_ALERT = "skyportal/SEND_ALERT";
 
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
 
@@ -116,7 +96,10 @@ export function getCommentAttachment(comment_id) {
 }
 
 export function fetchSource(id) {
-  return API.GET(`/api/sources/${id}`, FETCH_LOADED_SOURCE);
+  return API.GET(
+    `/api/sources/${id}?includeComments=true`,
+    FETCH_LOADED_SOURCE
+  );
 }
 
 export function addSourceView(id) {

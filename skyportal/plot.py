@@ -1,15 +1,16 @@
+import itertools
+
 import numpy as np
 import pandas as pd
 
-from bokeh.core.json_encoder import serialize_json
 from bokeh.core.properties import List, String
-from bokeh.document import Document
 from bokeh.layouts import row, column
 from bokeh.models import CustomJS, HoverTool, Range1d, Slider, Button, LinearAxis
 from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
 from bokeh.plotting import figure, ColumnDataSource
-from bokeh.util.compiler import bundle_all_models
-from bokeh.util.serialization import make_id
+
+import bokeh.embed as bokeh_embed
+
 
 from astropy.time import Time
 
@@ -105,65 +106,8 @@ SPEC_LINES = {
 
 class CheckboxWithLegendGroup(CheckboxGroup):
     colors = List(String, help="List of legend colors")
-    __implementation__ = """
-import {empty, input, label, div} from "core/dom"
-import * as p from "core/properties"
-import {CheckboxGroup, CheckboxGroupView} from "models/widgets/checkbox_group"
-export class CheckboxWithLegendGroupView extends CheckboxGroupView
-  render: () ->
-    super()
-    empty(@el)
-    active = @model.active
-    colors = @model.colors
-    for text, i in @model.labels
-      inputEl = input({type: "checkbox", value: "#{i}"})
-      inputEl.addEventListener("change", () => @change_input())
-      if @model.disabled then inputEl.disabled = true
-      if i in active then inputEl.checked = true
-      attrs = {
-        style: "border-left: 12px solid #{colors[i]}; padding-left: 0.3em;"
-      }
-      labelEl = label(attrs, inputEl, text)
-      if @model.inline
-        labelEl.classList.add("bk-bs-checkbox-inline")
-        @el.appendChild(labelEl)
-      else
-        divEl = div({class: "bk-bs-checkbox"}, labelEl)
-        @el.appendChild(divEl)
-    return @
-export class CheckboxWithLegendGroup extends CheckboxGroup
-  type: "CheckboxWithLegendGroup"
-  default_view: CheckboxWithLegendGroupView
-  @define {
-    colors:   [ p.Array, []    ]
-  }
-"""
 
-
-# TODO replace with (script, div) method
-def _plot_to_json(plot):
-    """Convert plot to JSON objects necessary for rendering with `bokehJS`.
-    Parameters
-    ----------
-    plot : bokeh.plotting.figure.Figure
-        Bokeh plot object to be rendered.
-    Returns
-    -------
-    (str, str)
-        Returns (docs_json, render_items) json for the desired plot.
-    """
-    render_items = [{'docid': plot._id, 'elementid': make_id()}]
-
-    doc = Document()
-    doc.add_root(plot)
-    docs_json_inner = doc.to_json()
-    docs_json = {render_items[0]['docid']: docs_json_inner}
-
-    docs_json = serialize_json(docs_json)
-    render_items = serialize_json(render_items)
-    custom_model_js = bundle_all_models()
-
-    return docs_json, render_items, custom_model_js
+    __implementation__ = ""
 
 
 tooltip_format = [
@@ -177,22 +121,37 @@ tooltip_format = [
     ('instrument', '@instrument'),
     ('stacked', '@stacked'),
 ]
-cmap = cm.get_cmap('jet_r')
+cmap_opt = cm.get_cmap('nipy_spectral')
+cmap_uv = cm.get_cmap('cool')
+cmap_ir = cm.get_cmap('autumn')
 
 
-def get_color(bandpass_name, cmap_limits=(3000.0, 10000.0)):
+def get_color(bandpass_name):
     if bandpass_name.startswith('ztf'):
         return {'ztfg': 'green', 'ztfi': 'orange', 'ztfr': 'red'}[bandpass_name]
     else:
         bandpass = sncosmo.get_bandpass(bandpass_name)
         wave = bandpass.wave_eff
+
+        if 0 < wave < 3000:
+            cmap = cmap_uv
+            cmap_limits = (0, 3000)
+        elif 3000 <= wave <= 10000:
+            cmap = cmap_opt
+            cmap_limits = (3000, 10000)
+        elif 10000 < wave < 1e5:
+            wave = np.log10(wave)
+            cmap = cmap_ir
+            cmap_limits = (4, 5)
+        else:
+            raise ValueError('wavelength out of range for color maps')
+
         rgb = cmap((cmap_limits[1] - wave) / (cmap_limits[1] - cmap_limits[0]))[:3]
         bandcolor = rgb2hex(rgb)
 
         return bandcolor
 
 
-# TODO make async so that thread isn't blocked
 def photometry_plot(obj_id, user, width=600, height=300):
     """Create scatter plot of photometry for object.
     Parameters
@@ -226,10 +185,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         return None, None, None
 
     data['color'] = [get_color(f) for f in data['filter']]
-    data['label'] = [
-        f'{i} {f}-band' for i, f in zip(data['instrument'], data['filter'])
-    ]
-
+    data['label'] = [f'{i}/{f}' for i, f in zip(data['instrument'], data['filter'])]
     data['zp'] = PHOT_ZP
     data['magsys'] = 'ab'
     data['alpha'] = 1.0
@@ -268,14 +224,14 @@ def photometry_plot(obj_id, user, width=600, height=300):
     upper = np.max(fdata['flux']) * 1.05
 
     plot = figure(
-        plot_width=width,
-        plot_height=height,
+        aspect_ratio=1.7,
+        sizing_mode='scale_both',
         active_drag='box_zoom',
         tools='box_zoom,wheel_zoom,pan,reset,save',
         y_range=(lower, upper),
     )
-
     imhover = HoverTool(tooltips=tooltip_format)
+    imhover.renderers = []
     plot.add_tools(imhover)
 
     model_dict = {}
@@ -359,22 +315,31 @@ def photometry_plot(obj_id, user, width=600, height=300):
     plot.yaxis.axis_label = 'Flux (μJy)'
     plot.toolbar.logo = None
 
+    colors_labels = data[['color', 'label']].drop_duplicates()
+
     toggle = CheckboxWithLegendGroup(
-        labels=list(data.label.unique()),
-        active=list(range(len(data.label.unique()))),
-        colors=list(data.color.unique()),
+        labels=colors_labels.label.tolist(),
+        active=list(range(len(colors_labels))),
+        colors=colors_labels.color.tolist(),
+        width=width // 5,
     )
 
     # TODO replace `eval` with Namespaces
     # https://github.com/bokeh/bokeh/pull/6340
-    toggle.callback = CustomJS(
-        args={'toggle': toggle, **model_dict},
-        code=open(
-            os.path.join(os.path.dirname(__file__), '../static/js/plotjs', 'togglef.js')
-        ).read(),
+    toggle.js_on_click(
+        CustomJS(
+            args={'toggle': toggle, **model_dict},
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__), '../static/js/plotjs', 'togglef.js'
+                )
+            ).read(),
+        )
     )
 
-    slider = Slider(start=0.0, end=15.0, value=0.0, step=1.0, title='Binsize (days)')
+    slider = Slider(
+        start=0.0, end=15.0, value=0.0, step=1.0, title='Binsize (days)', max_width=350
+    )
 
     callback = CustomJS(
         args={'slider': slider, 'toggle': toggle, **model_dict},
@@ -420,8 +385,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
             HoverTool(tooltips=[("Last detection", f'{last}')], renderers=[last_r],)
         )
 
-    layout = row(plot, toggle)
-    layout = column(slider, layout)
+    layout = column(slider, row(plot, toggle), sizing_mode='scale_width', width=width)
 
     p1 = Panel(child=layout, title='Flux')
 
@@ -449,8 +413,8 @@ def photometry_plot(obj_id, user, width=600, height=300):
     xmax = data['mjd'].max() + 2
 
     plot = figure(
-        plot_width=width,
-        plot_height=height + 100,
+        aspect_ratio=1.5,
+        sizing_mode='scale_both',
         active_drag='box_zoom',
         tools='box_zoom,wheel_zoom,pan,reset,save',
         y_range=(ymax, ymin),
@@ -495,6 +459,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         )
 
     imhover = HoverTool(tooltips=tooltip_format)
+    imhover.renderers = []
     plot.add_tools(imhover)
 
     model_dict = {}
@@ -655,34 +620,43 @@ def photometry_plot(obj_id, user, width=600, height=300):
     plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
     plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
 
+    colors_labels = data[['color', 'label']].drop_duplicates()
+
     toggle = CheckboxWithLegendGroup(
-        labels=list(data.label.unique()),
-        active=list(range(len(data.label.unique()))),
-        colors=list(data.color.unique()),
+        labels=colors_labels.label.tolist(),
+        active=list(range(len(colors_labels))),
+        colors=colors_labels.color.tolist(),
+        width=width // 5,
     )
 
     # TODO replace `eval` with Namespaces
     # https://github.com/bokeh/bokeh/pull/6340
-    toggle.callback = CustomJS(
-        args={'toggle': toggle, **model_dict},
-        code=open(
-            os.path.join(os.path.dirname(__file__), '../static/js/plotjs', 'togglem.js')
-        ).read(),
+    toggle.js_on_click(
+        CustomJS(
+            args={'toggle': toggle, **model_dict},
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__), '../static/js/plotjs', 'togglem.js'
+                )
+            ).read(),
+        )
     )
 
     slider = Slider(start=0.0, end=15.0, value=0.0, step=1.0, title='Binsize (days)')
 
     button = Button(label="Export Bold Light Curve to CSV")
-    button.callback = CustomJS(
-        args={'slider': slider, 'toggle': toggle, **model_dict},
-        code=open(
-            os.path.join(
-                os.path.dirname(__file__), '../static/js/plotjs', "download.js"
+    button.js_on_click(
+        CustomJS(
+            args={'slider': slider, 'toggle': toggle, **model_dict},
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__), '../static/js/plotjs', "download.js"
+                )
             )
+            .read()
+            .replace('objname', obj_id)
+            .replace('default_zp', str(PHOT_ZP)),
         )
-        .read()
-        .replace('objname', obj_id)
-        .replace('default_zp', str(PHOT_ZP)),
     )
 
     toplay = row(slider, button)
@@ -697,17 +671,15 @@ def photometry_plot(obj_id, user, width=600, height=300):
     )
     slider.js_on_change('value', callback)
 
-    layout = row(plot, toggle)
-    layout = column(toplay, layout)
+    layout = column(toplay, row(plot, toggle), sizing_mode='scale_width', width=width)
 
     p2 = Panel(child=layout, title='Mag')
 
-    tabs = Tabs(tabs=[p2, p1])
-    return _plot_to_json(tabs)
+    tabs = Tabs(tabs=[p2, p1], width=width, height=height, sizing_mode='fixed')
+    return bokeh_embed.json_item(tabs)
 
 
-# TODO make async so that thread isn't blocked
-def spectroscopy_plot(obj_id, user, spec_id=None):
+def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
     obj = Obj.query.get(obj_id)
     spectra = (
         DBSession()
@@ -743,12 +715,14 @@ def spectroscopy_plot(obj_id, user, spec_id=None):
                 'telescope': s.instrument.telescope.name,
                 'instrument': s.instrument.name,
                 'date_observed': s.observed_at.date().isoformat(),
-                'pi': s.assignment.run.pi
-                if s.assignment is not None
-                else (
-                    s.followup_request.allocation.pi
-                    if s.followup_request is not None
-                    else ""
+                'pi': (
+                    s.assignment.run.pi
+                    if s.assignment is not None
+                    else (
+                        s.followup_request.allocation.pi
+                        if s.followup_request is not None
+                        else ""
+                    )
                 ),
             }
         )
@@ -786,11 +760,10 @@ def spectroscopy_plot(obj_id, user, spec_id=None):
     xmin = np.min(data['wavelength']) - 100
     xmax = np.max(data['wavelength']) + 100
     plot = figure(
-        plot_width=600,
-        plot_height=300,
+        aspect_ratio=2,
+        sizing_mode='scale_width',
         y_range=(ymin, ymax),
         x_range=(xmin, xmax),
-        sizing_mode='scale_both',
         tools='box_zoom,wheel_zoom,pan,reset',
         active_drag='box_zoom',
     )
@@ -821,14 +794,17 @@ def spectroscopy_plot(obj_id, user, spec_id=None):
         labels=spec_labels,
         active=list(range(len(spectra))),
         colors=[color_map[k] for k, df in split],
+        width=width // 5,
     )
-    toggle.callback = CustomJS(
-        args={'toggle': toggle, **model_dict},
-        code="""
+    toggle.js_on_click(
+        CustomJS(
+            args={'toggle': toggle, **model_dict},
+            code="""
           for (let i = 0; i < toggle.labels.length; i++) {
               eval("s" + i).visible = (toggle.active.includes(i))
           }
     """,
+        ),
     )
 
     z_title = Div(text="Redshift (<i>z</i>): ")
@@ -843,24 +819,30 @@ def spectroscopy_plot(obj_id, user, spec_id=None):
     z_textinput = TextInput(
         value=str(obj.redshift if obj.redshift is not None else 0.0)
     )
-    z_slider.callback = CustomJS(
-        args={'slider': z_slider, 'textinput': z_textinput},
-        code="""
-            textinput.value = slider.value.toFixed(3).toString();
+    z_slider.js_on_change(
+        'value',
+        CustomJS(
+            args={'slider': z_slider, 'textinput': z_textinput},
+            code="""
+            textinput.value = parseFloat(slider.value).toFixed(3);
             textinput.change.emit();
         """,
+        ),
     )
     z = column(z_title, z_slider, z_textinput)
 
     v_title = Div(text="<i>V</i><sub>expansion</sub> (km/s): ")
     v_exp_slider = Slider(value=0.0, start=0.0, end=3e4, step=10.0, show_value=False,)
     v_exp_textinput = TextInput(value='0')
-    v_exp_slider.callback = CustomJS(
-        args={'slider': v_exp_slider, 'textinput': v_exp_textinput},
-        code="""
-            textinput.value = slider.value.toFixed(0).toString();
+    v_exp_slider.js_on_change(
+        'value',
+        CustomJS(
+            args={'slider': v_exp_slider, 'textinput': v_exp_textinput},
+            code="""
+            textinput.value = parseFloat(slider.value).toFixed(0);
             textinput.change.emit();
         """,
+        ),
     )
     v_exp = column(v_title, v_exp_slider, v_exp_textinput)
 
@@ -879,18 +861,22 @@ def spectroscopy_plot(obj_id, user, spec_id=None):
         )
         model_dict[f'el{i}'].visible = False
 
-    # Split spectral lines into 3 columns
-    element_dicts = np.array_split(np.array(list(SPEC_LINES.items()), dtype=object), 3)
-    elements_groups = []
-    col_offset = 0
-    for element_dict in element_dicts:
+    # Split spectral line legend into columns
+    columns = 7
+    element_dicts = zip(*itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns))
+
+    elements_groups = []  # The Bokeh checkbox groups
+    callbacks = []  # The checkbox callbacks for each element
+    for column_idx, element_dict in enumerate(element_dicts):
+        element_dict = [e for e in element_dict if e is not None]
         labels = [key for key, value in element_dict]
         colors = [c for key, (w, c) in element_dict]
-        elements = CheckboxWithLegendGroup(labels=labels, active=[], colors=colors,)
+        elements = CheckboxWithLegendGroup(
+            labels=labels, active=[], colors=colors, width=width // (columns + 1)
+        )
         elements_groups.append(elements)
 
-        # TODO callback policy: don't require submit for text changes?
-        elements.callback = CustomJS(
+        callback = CustomJS(
             args={
                 'elements': elements,
                 'z': z_textinput,
@@ -899,9 +885,9 @@ def spectroscopy_plot(obj_id, user, spec_id=None):
             },
             code=f"""
             let c = 299792.458; // speed of light in km / s
-            const i_max = {col_offset} + elements.labels.length;
+            const i_max = {column_idx} +  {columns} * elements.labels.length;
             let local_i = 0;
-            for (let i = {col_offset}; i < i_max; i++) {{
+            for (let i = {column_idx}; i < i_max; i = i + {columns}) {{
                 let el = eval("el" + i);
                 el.visible = (elements.active.includes(local_i))
                 el.data_source.data.x = el.data_source.data.wavelength.map(
@@ -913,19 +899,13 @@ def spectroscopy_plot(obj_id, user, spec_id=None):
             }}
         """,
         )
+        elements.js_on_click(callback)
+        callbacks.append(callback)
 
-        col_offset += len(labels)
-
-    # Our current version of Bokeh doesn't properly execute multiple callbacks
-    # https://github.com/bokeh/bokeh/issues/6508
-    # Workaround is to manually put the code snippets together
     z_textinput.js_on_change(
         'value',
         CustomJS(
             args={
-                'elements0': elements_groups[0],
-                'elements1': elements_groups[1],
-                'elements2': elements_groups[2],
                 'z': z_textinput,
                 'slider': z_slider,
                 'v_exp': v_exp_textinput,
@@ -934,24 +914,6 @@ def spectroscopy_plot(obj_id, user, spec_id=None):
             code="""
             // Update slider value to match text input
             slider.value = parseFloat(z.value).toFixed(3);
-
-            // Update plot data for each element
-            let c = 299792.458; // speed of light in km / s
-            const offset_col_1 = elements0.labels.length;
-            const offset_col_2 = offset_col_1 + elements1.labels.length;
-            const i_max = offset_col_2 + elements2.labels.length;
-            for (let i = 0; i < i_max; i++) {{
-                let el = eval("el" + i);
-                el.visible =
-                    elements0.active.includes(i) ||
-                    elements1.active.includes(i - offset_col_1) ||
-                    elements2.active.includes(i - offset_col_2);
-                el.data_source.data.x = el.data_source.data.wavelength.map(
-                    x_i => (x_i * (1 + parseFloat(z.value)) /
-                                    (1 + parseFloat(v_exp.value) / c))
-                );
-                el.data_source.change.emit();
-            }}
         """,
         ),
     )
@@ -960,9 +922,6 @@ def spectroscopy_plot(obj_id, user, spec_id=None):
         'value',
         CustomJS(
             args={
-                'elements0': elements_groups[0],
-                'elements1': elements_groups[1],
-                'elements2': elements_groups[2],
                 'z': z_textinput,
                 'slider': v_exp_slider,
                 'v_exp': v_exp_textinput,
@@ -971,30 +930,17 @@ def spectroscopy_plot(obj_id, user, spec_id=None):
             code="""
             // Update slider value to match text input
             slider.value = parseFloat(v_exp.value).toFixed(3);
-
-            // Update plot data for each element
-            let c = 299792.458; // speed of light in km / s
-            const offset_col_1 = elements0.labels.length;
-            const offset_col_2 = offset_col_1 + elements1.labels.length;
-            const i_max = offset_col_2 + elements2.labels.length;
-            for (let i = 0; i < i_max; i++) {{
-                let el = eval("el" + i);
-                el.visible =
-                    elements0.active.includes(i) ||
-                    elements1.active.includes(i - offset_col_1) ||
-                    elements2.active.includes(i - offset_col_2);
-                el.data_source.data.x = el.data_source.data.wavelength.map(
-                    x_i => (x_i * (1 + parseFloat(z.value)) /
-                                    (1 + parseFloat(v_exp.value) / c))
-                );
-                el.data_source.change.emit();
-            }}
         """,
         ),
     )
 
+    # Update the element spectral lines as well
+    for callback in callbacks:
+        z_textinput.js_on_change('value', callback)
+        v_exp_textinput.js_on_change('value', callback)
+
     row1 = row(plot, toggle)
     row2 = row(elements_groups)
     row3 = row(z, v_exp)
-    layout = column(row1, row2, row3)
-    return _plot_to_json(layout)
+    layout = column(row1, row2, row3, width=width)
+    return bokeh_embed.json_item(layout)

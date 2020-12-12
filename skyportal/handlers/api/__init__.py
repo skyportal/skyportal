@@ -1,7 +1,7 @@
 from .acls import ACLHandler, UserACLHandler
 from .allocation import AllocationHandler
 from .candidate import CandidateHandler
-from .classification import ClassificationHandler
+from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
 from .filter import FilterHandler
@@ -13,6 +13,7 @@ from .group import (
     GroupStreamHandler,
     GroupUsersFromOtherGroupsHandler,
 )
+from .group_admission_request import GroupAdmissionRequestHandler
 from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler

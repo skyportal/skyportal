@@ -21,6 +21,7 @@ from skyportal.handlers.api import (
     GroupHandler,
     GroupUserHandler,
     GroupUsersFromOtherGroupsHandler,
+    GroupAdmissionRequestHandler,
     PublicGroupHandler,
     GroupStreamHandler,
     InstrumentHandler,
@@ -31,6 +32,7 @@ from skyportal.handlers.api import (
     PhotometryHandler,
     BulkDeletePhotometryHandler,
     ObjPhotometryHandler,
+    ObjClassificationHandler,
     PhotometryRangeHandler,
     RoleHandler,
     UserRoleHandler,
@@ -68,6 +70,7 @@ from skyportal.handlers.api.internal import (
     PlotObjTelAirmassHandler,
     AnnotationsInfoHandler,
     EphemerisHandler,
+    StandardsHandler,
 )
 
 from . import models, model_util, openapi
@@ -97,6 +100,7 @@ skyportal_handlers = [
     (r'/api/groups(/[0-9]+)/users(/.*)?', GroupUserHandler),
     (r'/api/groups(/[0-9]+)/usersFromGroups(/.*)?', GroupUsersFromOtherGroupsHandler,),
     (r'/api/groups(/[0-9]+)?', GroupHandler),
+    (r'/api/group_admission_requests(/[0-9]+)?', GroupAdmissionRequestHandler),
     (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
     (r'/api/invitations(/.*)?', InvitationHandler),
     (r'/api/newsfeed', NewsFeedHandler),
@@ -110,6 +114,7 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_]+)/spectra', ObjSpectraHandler),
     (r'/api/sources(/[0-9A-Za-z-_]+)/offsets', SourceOffsetsHandler),
     (r'/api/sources(/[0-9A-Za-z-_]+)/finder', SourceFinderHandler),
+    (r'/api/sources(/[0-9A-Za-z-_]+)/classifications', ObjClassificationHandler),
     (r'/api/sources(/.*)?', SourceHandler),
     (r'/api/source_notifications', SourceNotificationHandler),
     (r'/api/source_groups(/.*)?', SourceGroupsHandler),
@@ -134,6 +139,7 @@ skyportal_handlers = [
     (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
     (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
     (r'/api/internal/instrument_forms', RoboticInstrumentsHandler),
+    (r'/api/internal/standards', StandardsHandler),
     (r'/api/internal/plot/airmass/assignment/(.*)', PlotAssignmentAirmassHandler),
     (r'/api/internal/plot/airmass/objtel/(.*)/([0-9]+)', PlotObjTelAirmassHandler,),
     (r'/api/internal/ephemeris/([0-9]+)', EphemerisHandler),
