@@ -10,10 +10,12 @@ import Autocomplete from "@material-ui/lab/Autocomplete";
 import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
 import Paper from "@material-ui/core/Paper";
-import IconButton from "@material-ui/core";
+import IconButton from "@material-ui/core/IconButton";
 import DeleteForeverIcon from "@material-ui/icons/DeleteForever";
+import GetAppIcon from "@material-ui/icons/GetApp";
 import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
+import Papa from "papaparse";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -24,6 +26,24 @@ import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
 import { useSourceStyles } from "./SourceDesktop";
 import { deleteSpectrum } from "../ducks/spectra";
+
+function get_filename(spectrum) {
+  return `${spectrum.obj_id}_${spectrum.instrument_name}_${spectrum.observed_at}.csv`;
+}
+
+function to_csv(spectrum) {
+  const formatted = [];
+  spectrum.wavelengths.forEach((wave, i) => {
+    const obj = {};
+    obj.wavelength = wave;
+    obj.flux = spectrum.fluxes[i];
+    if (spectrum.fluxerr) {
+      obj.fluxerr = spectrum.fluxerr[i];
+    }
+    formatted.push(obj);
+  });
+  return Papa.unparse(formatted);
+}
 
 const UserContactLink = ({ user }) => {
   const display_string =
@@ -193,8 +213,9 @@ const ShareDataForm = ({ route }) => {
       )
     : [];
 
-  const specRows = spectra[route.id]
-    ? spectra[route.id].map((spec) =>
+  const sourceSpectra = spectra[route.id];
+  const specRows = sourceSpectra
+    ? sourceSpectra.map((spec) =>
         createSpecRow(
           spec.id,
           spec.instrument_name,
@@ -262,6 +283,7 @@ const ShareDataForm = ({ route }) => {
               </Button>
               <Button
                 onClick={async () => {
+                  setOpen(false);
                   const result = await dispatch(deleteSpectrum(specid));
                   if (result.status === "success") {
                     dispatch(showNotification("Spectrum deleted."));
@@ -286,6 +308,24 @@ const ShareDataForm = ({ route }) => {
     );
   };
 
+  const DownloadSpectrumButton = (dataIndex) => {
+    const specid = specRows[dataIndex].id;
+    const spectrum = sourceSpectra.find((spec) => spec.id === specid);
+
+    const data = spectrum.original_file_string
+      ? spectrum.original_file_string
+      : to_csv(spectrum);
+    const filename = spectrum.original_file_filename
+      ? spectrum.original_file_filename
+      : get_filename(spectrum);
+
+    return (
+      <IconButton href={`data:,${encodeURI(data)}`} download={filename}>
+        <GetAppIcon />
+      </IconButton>
+    );
+  };
+
   const specHeadCells = [
     { name: "id", label: "ID" },
     { name: "instrument", label: "Instrument" },
@@ -294,24 +334,33 @@ const ShareDataForm = ({ route }) => {
     {
       name: "uploader",
       label: "Uploaded by",
-      options: { customBodyRenderLite: RenderSingleUser },
+      options: { customBodyRenderLite: RenderSingleUser, filter: false },
     },
     {
       name: "reducers",
       label: "Reduced by",
       options: {
         customBodyRenderLite: makeRenderMultipleUsers("reducers"),
+        filter: false,
       },
     },
     {
       name: "observers",
       label: "Observed by",
-      options: { customBodyRenderLite: makeRenderMultipleUsers("observers") },
+      options: {
+        customBodyRenderLite: makeRenderMultipleUsers("observers"),
+        filter: false,
+      },
     },
     {
       name: "delete",
-      label: "Delete Spectrum",
-      options: { customBodyRenderLite: DeleteSpectrumButton },
+      label: "Delete",
+      options: { customBodyRenderLite: DeleteSpectrumButton, filter: false },
+    },
+    {
+      name: "download",
+      label: "Download",
+      options: { customBodyRenderLite: DownloadSpectrumButton, filter: false },
     },
   ];
 
@@ -392,7 +441,7 @@ const ShareDataForm = ({ route }) => {
               renderExpandableRow: (rowData, rowMeta) => (
                 <SpectrumRow rowData={rowData} route={route} />
               ),
-              expandableRowsOnClick: true,
+              expandableRowsOnClick: false,
             }}
           />
         )}
