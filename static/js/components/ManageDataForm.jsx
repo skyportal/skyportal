@@ -148,7 +148,7 @@ SpectrumRow.propTypes = {
   rowData: PropTypes.arrayOf(PropTypes.number).isRequired,
 };
 
-const ShareDataForm = ({ route }) => {
+const ManageDataForm = ({ route }) => {
   const classes = useStyles();
 
   const dispatch = useDispatch();
@@ -500,10 +500,10 @@ const ShareDataForm = ({ route }) => {
     </>
   );
 };
-ShareDataForm.propTypes = {
+ManageDataForm.propTypes = {
   route: PropTypes.shape({
     id: PropTypes.string,
   }).isRequired,
 };
 
-export default ShareDataForm;
+export default ManageDataForm;
