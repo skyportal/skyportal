@@ -158,7 +158,7 @@ skyportal_handlers = [
 ]
 
 
-def make_app(cfg, baselayer_handlers, baselayer_settings):
+def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None):
     """Create and return a `tornado.web.Application` object with specified
     handlers and settings.
 
@@ -171,6 +171,11 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         Tornado handlers needed for baselayer to function.
     baselayer_settings : cfg
         Settings needed for baselayer to function.
+    process : int
+        When launching multiple app servers, which number is this?
+    env : dict
+        Environment in which the app was launched.  Currently only has
+        one key, 'debug'---true if launched with `--debug`.
 
     """
     if cfg['cookie_secret'] == 'abc01234':
@@ -219,8 +224,13 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
 
     app = tornado.web.Application(handlers, **settings)
     models.init_db(**cfg['database'])
-    baselayer_model_util.create_tables()
+
+    # If tables are found in the database, new tables will only be added
+    # in debug mode.  In production, we leave the tables alone, since
+    # migrations might be used.
+    baselayer_model_util.create_tables(add=env.debug)
     model_util.refresh_enums()
+
     model_util.setup_permissions()
     app.cfg = cfg
 
