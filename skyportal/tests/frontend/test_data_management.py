@@ -41,5 +41,5 @@ def test_delete_spectrum(driver, public_source):
     driver.click_xpath("//*[@data-testid='yes-delete']")
 
     driver.wait_for_xpath_to_disappear(
-        '//*[@data-testid="spectrum-table"]//*[@data-testid="MUIDataTableBodyRow-9"]'
+        '//*[@data-testid="spectrum-table"]//*[@data-testid="MUIDataTableBodyRow-1"]'
     )
