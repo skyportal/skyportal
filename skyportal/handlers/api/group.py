@@ -1,3 +1,4 @@
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
@@ -9,6 +10,8 @@ from ...models import (
     Group,
     GroupStream,
     GroupUser,
+    Obj,
+    Source,
     Stream,
     User,
     Token,
@@ -746,3 +749,49 @@ class GroupStreamHandler(BaseHandler):
                 action='skyportal/REFRESH_GROUP', payload={'group_id': int(group_id)}
             )
             return self.success()
+
+
+class ObjGroupsHandler(BaseHandler):
+    @auth_or_token
+    def get(self, obj_id):
+        """
+        ---
+        description: Retrieve basic info on Groups that an Obj is saved to
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfGroups
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        s = Obj.get_if_readable_by(obj_id, self.current_user)
+
+        if s is None:
+            return self.error("Source not found", status=404)
+
+        source_info = s.to_dict()
+
+        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
+
+        query = (
+            DBSession()
+            .query(Group)
+            .join(Source)
+            .filter(
+                Source.obj_id == source_info["id"],
+                Group.id.in_(user_accessible_group_ids),
+            )
+        )
+        query = query.filter(or_(Source.requested.is_(True), Source.active.is_(True)))
+        groups = [g.to_dict() for g in query.all()]
+
+        return self.success(data=groups)
