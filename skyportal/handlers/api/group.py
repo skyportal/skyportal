@@ -120,57 +120,49 @@ class GroupHandler(BaseHandler):
                   schema: Error
         """
         if group_id is not None:
-            group = (
-                Group.query.join(GroupUser)
-                .join(User)
-                .filter(Group.id == group_id)
-                .first()
-            )
+            group = Group.query.get(group_id)
+            if group is None:
+                return self.error(f"Could not load group with ID {group_id}")
             # If not super admin or member of group
             if (
                 not {"System admin", "Manage groups"}.intersection(
                     set(self.associated_user_object.permissions)
                 )
-            ) and (
-                group is not None
-                and group.id not in [g.id for g in self.current_user.accessible_groups]
-            ):
+            ) and group.id not in [g.id for g in self.current_user.accessible_groups]:
                 return self.error('Insufficient permissions.')
 
-            if group is not None:
-                # Do not include User.groups to avoid circular reference
-                users = [
-                    {
-                        "id": user.id,
-                        "username": user.username,
-                        "first_name": user.first_name,
-                        "last_name": user.last_name,
-                        "contact_email": user.contact_email,
-                        "contact_phone": user.contact_phone,
-                        "oauth_uid": user.oauth_uid,
-                        "admin": has_admin_access_for_group(user, group_id),
-                    }
-                    for user in group.users
-                ]
-                group = group.to_dict()
-                group['users'] = users
-                # grab streams:
-                streams = (
-                    DBSession()
-                    .query(Stream)
-                    .join(GroupStream)
-                    .filter(GroupStream.group_id == group_id)
-                    .all()
-                )
-                group['streams'] = streams
-                # grab filters:
-                filters = (
-                    DBSession().query(Filter).filter(Filter.group_id == group_id).all()
-                )
-                group['filters'] = filters
+            # Do not include User.groups to avoid circular reference
+            users = [
+                {
+                    "id": user.id,
+                    "username": user.username,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "contact_email": user.contact_email,
+                    "contact_phone": user.contact_phone,
+                    "oauth_uid": user.oauth_uid,
+                    "admin": has_admin_access_for_group(user, group_id),
+                }
+                for user in group.users
+            ]
+            group = group.to_dict()
+            group['users'] = users
+            # grab streams:
+            streams = (
+                DBSession()
+                .query(Stream)
+                .join(GroupStream)
+                .filter(GroupStream.group_id == group_id)
+                .all()
+            )
+            group['streams'] = streams
+            # grab filters:
+            filters = (
+                DBSession().query(Filter).filter(Filter.group_id == group_id).all()
+            )
+            group['filters'] = filters
 
-                return self.success(data=group)
-            return self.error(f"Could not load group with ID {group_id}")
+            return self.success(data=group)
         group_name = self.get_query_argument("name", None)
         if group_name is not None:
             groups = Group.query.filter(Group.name == group_name).all()
