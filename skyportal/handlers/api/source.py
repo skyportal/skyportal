@@ -424,6 +424,13 @@ class SourceHandler(BaseHandler):
                 .joinedload(Allocation.group),
             ]
 
+            s = Obj.get_if_readable_by(
+                obj_id, self.current_user, options=query_options,
+            )
+
+            if s is None:
+                return self.error("Source not found", status=404)
+
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
                 register_source_view(
@@ -431,13 +438,6 @@ class SourceHandler(BaseHandler):
                     username_or_token_id=self.current_user.id,
                     is_token=True,
                 )
-
-            s = Obj.get_if_readable_by(
-                obj_id, self.current_user, options=query_options,
-            )
-
-            if s is None:
-                return self.error("Source not found", status=404)
 
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
                 IOLoop.current().add_callback(
