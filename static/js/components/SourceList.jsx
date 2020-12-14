@@ -78,7 +78,7 @@ const SourceList = () => {
     dispatch(sourcesActions.fetchSources());
   };
 
-  const handleSourceTablePagination = (pageNumber, numPerPage) => {
+  const handleSourceTablePagination = (pageNumber, numPerPage, sortData) => {
     setRowsPerPage(numPerPage);
     const data = {
       ...getValues(),
@@ -86,6 +86,10 @@ const SourceList = () => {
       numPerPage,
       totalMatches: sourcesState.totalMatches,
     };
+    if (sortData) {
+      data.sortBy = sortData.column;
+      data.sortOrder = sortData.ascending ? "asc" : "desc";
+    }
     dispatch(sourcesActions.fetchSources(data));
   };
 
