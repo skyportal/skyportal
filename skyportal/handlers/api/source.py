@@ -564,7 +564,7 @@ class SourceHandler(BaseHandler):
             )
 
         if classifications is not None or sort_by == "classification":
-            q = q.join(Classification)
+            q = q.join(Classification, isouter=True)
 
         if sourceID:
             q = q.filter(Obj.id.contains(sourceID.strip()))
