@@ -38,6 +38,8 @@ class GroupHandler(BaseHandler):
         ---
         single:
           description: Retrieve a group
+          tags:
+            - groups
           parameters:
             - in: path
               name: group_id
@@ -69,6 +71,8 @@ class GroupHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all groups
+          tags:
+            - groups
           parameters:
             - in: query
               name: name
@@ -202,6 +206,8 @@ class GroupHandler(BaseHandler):
         """
         ---
         description: Create a new group
+        tags:
+          - groups
         requestBody:
           content:
             application/json:
@@ -264,6 +270,8 @@ class GroupHandler(BaseHandler):
         """
         ---
         description: Update a group
+        tags:
+          - groups
         parameters:
           - in: path
             name: group_id
@@ -317,6 +325,8 @@ class GroupHandler(BaseHandler):
         """
         ---
         description: Delete a group
+        tags:
+          - groups
         parameters:
           - in: path
             name: group_id
@@ -361,6 +371,9 @@ class GroupUserHandler(BaseHandler):
         """
         ---
         description: Add a group user
+        tags:
+          - groups
+          - users
         parameters:
           - in: path
             name: group_id
@@ -452,6 +465,9 @@ class GroupUserHandler(BaseHandler):
         """
         ---
         description: Update a group user's admin status
+        tags:
+          - groups
+          - users
         parameters:
           - in: path
             name: group_id
@@ -508,6 +524,9 @@ class GroupUserHandler(BaseHandler):
         """
         ---
         description: Delete a group user
+        tags:
+          - groups
+          - users
         parameters:
           - in: path
             name: group_id
@@ -553,6 +572,9 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
         """
         ---
         description: Add users from other group(s) to specified group
+        tags:
+          - groups
+          - users
         parameters:
           - in: path
             name: group_id
@@ -640,6 +662,9 @@ class GroupStreamHandler(BaseHandler):
         """
         ---
         description: Add alert stream access to group
+        tags:
+          - groups
+          - streams
         parameters:
           - in: path
             name: group_id
@@ -709,6 +734,9 @@ class GroupStreamHandler(BaseHandler):
         """
         ---
         description: Delete an alert stream from group
+        tags:
+          - groups
+          - streams
         parameters:
           - in: path
             name: group_id
@@ -749,6 +777,9 @@ class ObjGroupsHandler(BaseHandler):
         """
         ---
         description: Retrieve basic info on Groups that an Obj is saved to
+        tags:
+          - groups
+          - sources
         parameters:
           - in: path
             name: obj_id

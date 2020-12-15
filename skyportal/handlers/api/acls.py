@@ -9,6 +9,8 @@ class ACLHandler(BaseHandler):
     def get(self):
         """
         description: Retrieve list of all ACL IDs (strings)
+        tags:
+          - acls
         responses:
           200:
             content:
@@ -33,6 +35,8 @@ class UserACLHandler(BaseHandler):
         """
         ---
         description: Grant new ACL(s) to a user
+        tags:
+          - acls
         parameters:
           - in: path
             name: user_id
@@ -81,6 +85,8 @@ class UserACLHandler(BaseHandler):
         """
         ---
         description: Remove ACL from user permissions
+        tags:
+          - acls
         parameters:
           - in: path
             name: user_id

@@ -9,6 +9,8 @@ class RoleHandler(BaseHandler):
     def get(self):
         """
         description: Retrieve list of all Role IDs (strings)
+        tags:
+          - roles
         responses:
           200:
             content:
@@ -37,6 +39,8 @@ class UserRoleHandler(BaseHandler):
         """
         ---
         description: Grant new Role(s) to a user
+        tags:
+          - roles
         parameters:
           - in: path
             name: user_id
@@ -85,6 +89,8 @@ class UserRoleHandler(BaseHandler):
         """
         ---
         description: Delete user role
+        tags:
+          - roles
         parameters:
           - in: path
             name: user_id

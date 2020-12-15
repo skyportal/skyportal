@@ -26,6 +26,8 @@ class AssignmentHandler(BaseHandler):
         ---
         single:
           description: Retrieve an observing run assignment
+          tags:
+            - assignments
           parameters:
             - in: path
               name: assignment_id
@@ -43,6 +45,8 @@ class AssignmentHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all observing run assignments
+          tags:
+            - assignments
           responses:
             200:
               content:
@@ -101,6 +105,8 @@ class AssignmentHandler(BaseHandler):
         """
         ---
         description: Post new target assignment to observing run
+        tags:
+          - assignments
         requestBody:
           content:
             application/json:
@@ -168,6 +174,8 @@ class AssignmentHandler(BaseHandler):
         """
         ---
         description: Update an assignment
+        tags:
+          - assignments
         parameters:
           - in: path
             name: assignment_id
@@ -221,6 +229,8 @@ class AssignmentHandler(BaseHandler):
         """
         ---
         description: Delete assignment.
+        tags:
+          - assignments
         parameters:
           - in: path
             name: assignment_id
@@ -256,6 +266,8 @@ class FollowupRequestHandler(BaseHandler):
         ---
         single:
           description: Retrieve a followup request
+          tags:
+            - followup_requests
           parameters:
             - in: path
               name: followup_request_id
@@ -273,6 +285,8 @@ class FollowupRequestHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all followup requests
+          tags:
+            - followup_requests
           responses:
             200:
               content:
@@ -320,6 +334,8 @@ class FollowupRequestHandler(BaseHandler):
         """
         ---
         description: Submit follow-up request.
+        tags:
+          - followup_requests
         requestBody:
           content:
             application/json:
@@ -408,6 +424,8 @@ class FollowupRequestHandler(BaseHandler):
         """
         ---
         description: Update a follow-up request
+        tags:
+          - followup_requests
         parameters:
           - in: path
             name: request_id
@@ -485,6 +503,8 @@ class FollowupRequestHandler(BaseHandler):
         """
         ---
         description: Delete follow-up request.
+        tags:
+          - followup_requests
         parameters:
           - in: path
             name: request_id

@@ -49,6 +49,8 @@ class CandidateHandler(BaseHandler):
         ---
         single:
           description: Check if a Candidate exists
+          tags:
+            - candidates
           parameters:
             - in: path
               name: obj_id
@@ -85,6 +87,8 @@ class CandidateHandler(BaseHandler):
         ---
         single:
           description: Retrieve a candidate
+          tags:
+            - candidates
           parameters:
             - in: path
               name: obj_id
@@ -101,6 +105,8 @@ class CandidateHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          tags:
+            - candidates
           description: Retrieve all candidates
           parameters:
           - in: query
@@ -640,6 +646,8 @@ class CandidateHandler(BaseHandler):
         """
         ---
         description: Create new candidate(s) (one per filter).
+        tags:
+          - candidates
         requestBody:
           content:
             application/json:
@@ -751,6 +759,8 @@ class CandidateHandler(BaseHandler):
         """
         ---
         description: Delete a candidate
+        tags:
+          - candidates
         parameters:
           - in: path
             name: candidate_id

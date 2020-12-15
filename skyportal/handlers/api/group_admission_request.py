@@ -16,6 +16,9 @@ class GroupAdmissionRequestHandler(BaseHandler):
         ---
         single:
           description: Retrieve a group admission request
+          tags:
+            - group_admission_requests
+            - groups
           parameters:
             - in: path
               name: admission_request_id
@@ -33,6 +36,9 @@ class GroupAdmissionRequestHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all group admission requests
+          tags:
+            - group_admission_requests
+            - groups
           parameters:
           - in: query
             name: groupID
@@ -76,6 +82,9 @@ class GroupAdmissionRequestHandler(BaseHandler):
         """
         ---
         description: Create a new group admission request
+        tags:
+          - group_admission_requests
+          - groups
         requestBody:
           content:
             application/json:
@@ -146,6 +155,9 @@ class GroupAdmissionRequestHandler(BaseHandler):
         """
         ---
         description: Update an admission request's status
+        tags:
+          - group_admission_requests
+          - groups
         parameters:
           - in: path
             name: admission_request_id
@@ -193,6 +205,9 @@ class GroupAdmissionRequestHandler(BaseHandler):
         """
         ---
         description: Delete a group admission request
+        tags:
+          - group_admission_requests
+          - groups
         parameters:
           - in: path
             name: admission_request_id
