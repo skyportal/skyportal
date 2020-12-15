@@ -32,6 +32,34 @@ from ...schema import (
 _, cfg = load_env()
 
 
+def serialize(spec):
+
+    return_value = {
+        'wavelengths': spec.wavelengths,
+        'followup_request_id': spec.followup_request_id,
+        'fluxes': spec.fluxes,
+        'assignment_id': spec.assignment_id,
+        'errors': spec.errors,
+        'altdata': spec.altdata,
+        'obj_id': spec.obj_id,
+        'original_file_string': spec.original_file_string,
+        'observed_at': spec.observed_at,
+        'original_file_filename': spec.original_file_filename,
+        'owner_id': spec.owner_id,
+        'created_at': spec.created_at,
+        'modified': spec.modified,
+        'instrument_id': spec.instrument_id,
+        'instrument_name': spec.instrument.name,
+        'origin': spec.origin,
+        'id': spec.id,
+        'groups': spec.groups,
+        'reducers': spec.reducers,
+        'observers': spec.observers
+    }
+
+    return return_value
+
+
 class SpectrumHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
@@ -563,10 +591,6 @@ class SpectrumRangeHandler(BaseHandler):
         except ValidationError as e:
             return self.error(f'Invalid request body: {e.normalized_messages()}')
 
-        format = self.get_query_argument('format', default='mag')
-        if format not in ['mag', 'flux']:
-            return self.error('Invalid output format.')
-
         instrument_ids = standardized['instrument_ids']
         min_date = standardized['min_date']
         max_date = standardized['max_date']
@@ -583,13 +607,13 @@ class SpectrumRangeHandler(BaseHandler):
         if instrument_ids is not None:
             query = query.filter(Spectrum.instrument_id.in_(instrument_ids))
         if min_date is not None:
-            mjd = Time(min_date, format='datetime').mjd
-            query = query.filter(Spectrum.mjd >= mjd)
+            utc = Time(min_date, format='isot', scale='utc')
+            query = query.filter(Spectrum.observed_at >= utc)
         if max_date is not None:
-            mjd = Time(max_date, format='datetime').mjd
-            query = query.filter(Spectrum.mjd <= mjd)
+            utc = Time(max_date, format='isot', scale='utc')
+            query = query.filter(Spectrum.observed_at <= utc)
 
-        output = [serialize(p, magsys, format) for p in query]
+        output = [serialize(p) for p in query]
         return self.success(data=output)
 
 
