@@ -537,11 +537,12 @@ def test_sources_filter_by_classifications(
     )
     assert status == 200
 
+    taxonomy_name = "test taxonomy" + str(uuid.uuid4())
     status, data = api(
         "POST",
         "taxonomy",
         data={
-            "name": "test taxonomy" + str(uuid.uuid4()),
+            "name": taxonomy_name,
             "hierarchy": taxonomy,
             "group_ids": [public_group.id],
             "provenance": f"tdtax_{__version__}",
@@ -571,7 +572,10 @@ def test_sources_filter_by_classifications(
     status, data = api(
         "GET",
         "sources",
-        params={"classifications": "Algol", "group_ids": f"{public_group.id}"},
+        params={
+            "classifications": f"{taxonomy_name}: Algol",
+            "group_ids": f"{public_group.id}",
+        },
         token=view_only_token,
     )
     assert status == 200

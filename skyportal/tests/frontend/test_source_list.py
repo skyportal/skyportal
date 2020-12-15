@@ -201,11 +201,12 @@ def test_filter_by_classification(
     )
     assert status == 200
 
+    taxonomy_name = "test taxonomy" + str(uuid.uuid4())
     status, data = api(
         'POST',
         'taxonomy',
         data={
-            'name': "test taxonomy" + str(uuid.uuid4()),
+            'name': taxonomy_name,
             'hierarchy': taxonomy,
             'group_ids': [public_group.id],
             'provenance': f"tdtax_{__version__}",
@@ -234,7 +235,9 @@ def test_filter_by_classification(
     driver.get(f"/become_user/{user.id}")
     driver.get("/sources")
     driver.click_xpath("//div[@id='classifications-select']")
-    driver.click_xpath("//li[@data-value='Algol']", scroll_parent=True)
+    driver.click_xpath(
+        f"//li[@data-value='{taxonomy_name}: Algol']", scroll_parent=True
+    )
     driver.click_xpath('//span[text()="Submit"]')
     # Should see the posted source
     driver.wait_for_xpath(f'//a[@data-testid="{source_id}"]')
@@ -242,8 +245,10 @@ def test_filter_by_classification(
     # Now search for a different classification
     driver.click_xpath("//div[@id='classifications-select']")
     # Clear old classification selection
-    driver.click_xpath("//li[@data-value='Algol']", scroll_parent=True)
-    driver.click_xpath("//li[@data-value='AGN']", scroll_parent=True)
+    driver.click_xpath(
+        f"//li[@data-value='{taxonomy_name}: Algol']", scroll_parent=True
+    )
+    driver.click_xpath(f"//li[@data-value='{taxonomy_name}: AGN']", scroll_parent=True)
     driver.click_xpath('//span[text()="Submit"]')
     # Should no longer see the source
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{source_id}"]')

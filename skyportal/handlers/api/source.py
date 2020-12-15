@@ -8,7 +8,7 @@ import io
 import math
 from dateutil.parser import isoparse
 from sqlalchemy.orm import joinedload
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, tuple_
 import arrow
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
@@ -30,6 +30,7 @@ from ...models import (
     ObservingRun,
     SourceNotification,
     Classification,
+    Taxonomy,
 )
 from .internal.source_views import register_source_view
 from ...utils import (
@@ -314,8 +315,8 @@ class SourceHandler(BaseHandler):
             explode: false
             style: simple
             description: |
-              Comma-separated string of classification(s) to filter for sources matching
-              that/those classification(s).
+              Comma-separated string of "taxonomy: classification" pair(s) to filter for sources matching
+              that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
           responses:
             200:
               content:
@@ -565,6 +566,8 @@ class SourceHandler(BaseHandler):
 
         if classifications is not None or sort_by == "classification":
             q = q.join(Classification, isouter=True)
+            if classifications is not None:
+                q = q.join(Taxonomy)
 
         if sourceID:
             q = q.filter(Obj.id.contains(sourceID.strip()))
@@ -610,7 +613,18 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid classifications value -- must provide at least one string value"
                 )
-            q = q.filter(Classification.classification.in_(classifications))
+            # Parse into tuples of taxonomy: classification
+            classifications = list(
+                map(
+                    lambda c: (c.split(":")[0].strip(), c.split(":")[1].strip()),
+                    classifications,
+                )
+            )
+            q = q.filter(
+                tuple_(Taxonomy.name, Classification.classification).in_(
+                    classifications
+                )
+            )
         q = apply_active_or_requested_filtering(q, include_requested, requested_only)
         if group_ids is not None:
             if not all(gid in user_accessible_group_ids for gid in group_ids):

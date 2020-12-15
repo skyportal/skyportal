@@ -84,7 +84,6 @@ const SourceList = () => {
     PaperProps: {
       style: {
         maxHeight: ITEM_HEIGHT * 4.5,
-        width: 250,
       },
     },
   };
@@ -95,7 +94,7 @@ const SourceList = () => {
   let classifications = [];
   latestTaxonomyList.forEach((taxonomy) => {
     const currentClasses = allowedClasses(taxonomy.hierarchy).map(
-      (option) => option.class
+      (option) => `${taxonomy.name}: ${option.class}`
     );
     classifications = classifications.concat(currentClasses);
   });
