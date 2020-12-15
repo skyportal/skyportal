@@ -6,7 +6,6 @@ import warnings
 from datetime import datetime, timezone, timedelta
 import requests
 import arrow
-import abc
 
 import astroplan
 import numpy as np
@@ -17,12 +16,11 @@ import sqlalchemy as sa
 from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.orm import relationship, aliased, Query
+from sqlalchemy.orm import relationship, aliased
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.declarative.api import DeclarativeMeta
-from sqlalchemy.sql.expression import FromClause, BinaryExpression
 from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy import func
 
@@ -47,8 +45,9 @@ from baselayer.app.models import (  # noqa
     Token,
     UserACL,
     UserRole,
+    AccessPattern,
+    user_acls_temporary_table,
 )
-from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
 
@@ -76,53 +75,6 @@ utcnow = func.timezone('UTC', func.current_timestamp())
 
 _, cfg = load_env()
 cosmo = establish_cosmology(cfg)
-
-
-def user_acls_temporary_table():
-    """This method creates a temporary table that maps user_ids to their
-    acl_ids (from roles and individual ACL grants).
-
-    The temporary table lives for the duration of the current database
-    transaction and is visible only to the transaction it was created
-    within. The temporary table maintains a forward and reverse index
-    for fast joins on accessible groups.
-
-    This function can be called many times within a transaction. It will only
-    create the table once per transaction and subsequent calls will always
-    return a reference to the table created on the first call, with the same
-    underlying data.
-
-    Returns
-    -------
-    table: `sqlalchemy.Table`
-        The forward- and reverse-indexed `merged_user_acls` temporary
-        table for the current database transaction.
-    """
-    sql = """CREATE TEMP TABLE IF NOT EXISTS merged_user_acls ON COMMIT DROP AS
-    (SELECT u.id AS user_id, ra.acl_id AS acl_id
-         FROM users u
-         JOIN user_roles ur ON u.id = ur.user_id
-         JOIN role_acls ra ON ur.role_id = ra.role_id
-         UNION
-     SELECT ua.user_id, ua.acl_id FROM user_acls ua)"""
-    DBSession().execute(sql)
-    DBSession().execute(
-        'CREATE INDEX IF NOT EXISTS merged_user_acls_forward_index '
-        'ON merged_user_acls (user_id, acl_id)'
-    )
-    DBSession().execute(
-        'CREATE INDEX IF NOT EXISTS merged_user_acls_reverse_index '
-        'ON merged_user_acls (acl_id, user_id)'
-    )
-
-    t = sa.Table(
-        'merged_user_acls',
-        Base.metadata,
-        sa.Column('user_id', sa.Integer, primary_key=True),
-        sa.Column('acl_id', sa.Integer, primary_key=True),
-        extend_existing=True,
-    )
-    return t
 
 
 def user_accessible_groups_temporary_table():
@@ -213,521 +165,18 @@ def user_to_dict(self):
 
 User.to_dict = user_to_dict
 
-# These are codes representing the different ways a user can attempt to
-# touch a database table or record.
-
-ACCESS_TYPE_MODIFIERS = {
-    'create': 'postable',
-    'read': 'readable',
-    'update': 'modifiable',
-    'delete': 'deletable',
-}
-
-ACCESS_TYPES = list(ACCESS_TYPE_MODIFIERS.keys())
-ACCESS_MODIFIERS = list(ACCESS_TYPE_MODIFIERS.values())
-
 # Allowed types for accessible_pair_func arguments and function
 apf_arg_type = Union[DeclarativeMeta, sa.Table]
 accessible_pair_func_type = Callable[[apf_arg_type, apf_arg_type], sa.Table]
 
 
-def _access_func_names(access_type: str):
-    """Return the names of access control methods for a specified type of
-    access.
+class AccessibleByGroupMembers(AccessPattern):
+    """A record that is accessible only to members of its associated group."""
 
-    Parameters
-    ----------
-    access_type: string, required:
-        Type of access to check. Valid choices are `['create', 'read', 'update',
-        'delete']`.
-
-    Returns
-    -------
-    func_names: dict
-       Names of the access control functions for the requested access type.
-    """
-
-    access_modifier = ACCESS_TYPE_MODIFIERS[access_type]
-    access_func_name = f'is_{access_modifier}_by'
-    pair_table_func_name = f'_{access_modifier}_pair_table'
-    get_classmethod_name = f'get_if_{access_modifier}_by'
-    required_attributes_func_name = f'_required_attributes_for_{access_modifier}_check'
-    bulk_func_name = f'retrieve_all_records_{access_modifier}_by'
-
-    return {
-        'access_func': access_func_name,
-        'pair_table_func': pair_table_func_name,
-        'get_classmethod': get_classmethod_name,
-        'required_attributes_func': required_attributes_func_name,
-        'bulk_retrieve_func': bulk_func_name,
-    }
-
-
-def _is_accessible(
-    self: Base, user_or_token: Union[User, Token], access_type: str
-) -> bool:
-    """Helper function that determines whether a User or Token has a
-    specified type of access to a database record.
-
-    Parameters
-    ----------
-    self: `baselayer.app.models.Base`:
-        The instance to check the User or Token's access to. Must be in the
-        SQLalchemy "persistent" state (https://docs.sqlalchemy.org/en/13/\
-        orm/session_state_management.html#quickie-intro-to-object-states)
-    user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
-        The User or Token to check.
-    access_type: string, required:
-        Type of access to check. Valid choices are `['create', 'read', 'update',
-        'delete']`.
-
-    Returns
-    -------
-    accessible: bool
-        Whether the User or Token has the specified type of access to
-        the record.
-    """
-
-    if not isinstance(user_or_token, (User, Token)):
-        raise ValueError(
-            'user_or_token must be an instance of User or Token, '
-            f'got {user_or_token.__class__.__name__}.'
-        )
-
-    # get the classmethod that determines whether a record of type `cls` is
-    # accessible to a user or token
-    cls = type(self)
-    access_func = getattr(cls, f'is_{ACCESS_TYPE_MODIFIERS[access_type]}_by')
-
-    # Query for the value of the access_func for this particular record and
-    # return the result.
-    return (
-        DBSession().query(access_func(user_or_token)).filter(cls.id == self.id).scalar()
-    )
-
-
-def _bulk_retrieve(
-    cls: DeclarativeMeta,
-    user_or_token: Union[User, Token],
-    access_type: str,
-    options=[],
-) -> Query:
-    """Helper method that constructs (but does not execute) a database query to
-    retrieve all records that are accessible to a single user or token from a
-    specified table.
-
-    The query is based on join-dependent relationship hybrid logic,
-    (https://docs.sqlalchemy.org/en/14/orm/extensions/hybrid.html?highlight=\
-    hybrid%20method#join-dependent-relationship-hybrid),
-    rather than correlated subquery hybrid logic. This gives it better
-    performance compared to the correlated subquery-based hybrid methods
-    `is_*_by`, but a more restricted range of uses.
-
-    Parameters
-    ----------
-    cls: DeclarativeMeta
-        Mapped class to query for records. Must be a subclass of Base.
-    user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
-        The User or Token to check.
-    access_type: string
-        Type of access to check. Valid choices are `['create', 'read', 'update',
-        'delete']`.
-    options: list of `sqlalchemy.orm.MapperOption`s
-       Options that will be passed to `options()` in the loader query.
-    Returns
-    -------
-    query: `sqlalchemy.orm.Query`
-       The query for accessible records.
-    """
-
-    func_names = _access_func_names(access_type)
-    required_attrs_func = getattr(cls, func_names['required_attrs_func'])
-
-    for attr in required_attrs_func():
-        if not hasattr(cls, attr):
-            raise TypeError(
-                f'{cls} does not have the attribute "{attr}", '
-                f'and thus does not expose the interface that is needed '
-                f'to check if records are {ACCESS_TYPE_MODIFIERS[access_type]}.'
-            )
-
-    if isinstance(user_or_token, User):
-        accessibility_target = user_or_token.id
-    elif isinstance(user_or_token, Token):
-        accessibility_target = user_or_token.created_by_id
-    else:
-        raise TypeError(
-            f'Invalid argument passed to user_or_token, '
-            f'expected User or Token, got '
-            f'{user_or_token.__class__.__name__}'
-        )
-
-    # Construct a query that maps user_ids to accessible cls_ids.
-    accessible_pair_func = getattr(cls, func_names['pair_table_func'])
-    pairs = accessible_pair_func(cls.__table__, User.__table__).alias()
-
-    return (
-        DBSession()
-        .query(cls)
-        .join(User, sa.literal(True))
-        .join(pairs, sa.and_(User.id == pairs.c.user_id, cls.id == pairs.c.cls_id))
-        .filter(User.id == accessibility_target)
-        .options(options)
-    )
-
-
-def _is_accessible_sql(
-    cls: DeclarativeMeta,
-    user_or_token: Union[FromClause, sa.Column, User, Token, DeclarativeMeta],
-    access_type: str,
-) -> BinaryExpression:
-    f"""Generate an SQL expression representing whether a mapped class is
-    accessible to a specified user or token, or to an entire table of users
-    or tokens (via broadcasting).
-
-    The expressions can be queried directly,
-
-        >>> u = User.query.first()
-        >>> DBSession().query(cls.is_readable_by(u))
-
-    or used as filter clauses,
-
-        >>> u = User.query.first()
-        >>> DBSession().query(cls).filter(cls.is_readable_by(u))
-
-    or used as join clauses,
-
-        >>> DBSession().query(cls).join(User, cls.is_readable_by(User))
-
-    The BinaryExpression is designed to be highly portable and is constructed
-    using correlated subquery relationship hybrids and laterals. This ensures
-    that large intermediate tables are never created, that indices are used
-    wherever possible, and that filter clauses from enclosing queries are
-    always propagated down the query stack.
-
-    Parameters
-    ----------
-    cls: DeclarativeMeta
-        Mapped class to query for records. Must be a subclass of Base.
-    user_or_token: `baselayer.app.models.User`, `baselayer.app.models.Token`,
-    `sqlalchmey.sql.expression.FromClause`, `sqlalchemy.Column`
-        The User, Token, or table to check. Can be a User or Token object,
-        a reference to an `sqlalchemy.Table` pointing to the users or tokens
-        table, or an `sqlalchemy.Column` containing the primary key of the
-        users table.
-    access_type: string, required:
-        Type of access to check. Valid choices are {ACCESS_TYPES}.
-    Returns
-    -------
-    accessible: `sqlalchemy.sql.expression.BinaryExpression`
-        SQLalchemy expression representing whether the User, Token, or table
-        has access to the record. Can be queried directly, or used as a filter
-        or join clause.
-    """
-
-    func_names = _access_func_names(access_type)
-    required_attrs_func = getattr(cls, func_names['required_attrs_func'])
-
-    # Ensure that the constructed class has the
-    for attr in required_attrs_func():
-        if not hasattr(cls, attr):
-            raise TypeError(
-                f'{cls.__name__} does not have the attribute "{attr}", '
-                f'and thus does not expose the interface that is needed '
-                f'to check if {ACCESS_TYPE_MODIFIERS[access_type]}.'
-            )
-
-    # Extract the users.id column from whatever was passed to `user_or_token`.
-    if isinstance(user_or_token, FromClause):
-        if hasattr(user_or_token.c, 'created_by_id'):
-            accessibility_target = user_or_token.c.created_by_id
-        else:
-            accessibility_target = user_or_token.c.id
-    elif isinstance(user_or_token, sa.Column):
-        accessibility_target = user_or_token
-    elif user_or_token is Token or isinstance(user_or_token, Token):
-        accessibility_target = user_or_token.created_by_id
-    else:
-        accessibility_target = user_or_token.id
-
-    #
-    correlation_cls_alias = sa.alias(cls)
-    correlation_user_alias = sa.alias(User)
-
-    accessible_pair_func = getattr(cls, func_names['pair_table_func'])
-    accessible_pairs = accessible_pair_func(
-        correlation_cls_alias, correlation_user_alias
-    ).lateral()
-
-    return (
-        sa.select([accessible_pairs.c.cls_id])
-        .select_from(
-            sa.join(
-                correlation_cls_alias, correlation_user_alias, sa.literal(True)
-            ).outerjoin(
-                accessible_pairs,
-                correlation_cls_alias.c.id == accessible_pairs.c.cls_id,
-            )
-        )
-        .where(correlation_cls_alias.c.id == cls.id)
-        .where(correlation_user_alias.c.id == accessibility_target)
-        .label(ACCESS_TYPE_MODIFIERS[access_type])
-        .isnot(None)
-    )
-
-
-def _get_if_accessible_by(
-    cls: DeclarativeMeta,
-    cls_id: Union[str, int],
-    user_or_token: Union[User, Token],
-    access_type: str,
-    options=[],
-) -> Base:
-    """Return a database record if it is accessible to the specified User or
-    Token. If no record exists, return None. If the record exists but is
-    inaccessible, raise an `AccessError`.
-
-    Parameters
-    ----------
-    cls: DeclarativeMeta
-        Mapped class to query for records. Must be a subclass of Base.
-    cls_id: int or str
-        The primary key of the record to query for.
-    user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
-        The User or Token to check.
-    access_type: string, required:
-        Type of access to check. Valid choices are `['create', 'read', 'update',
-        'delete']`.
-    options: list of `sqlalchemy.orm.MapperOption`s
-       Options that will be passed to `options()` in the loader query.
-
-    Returns
-    -------
-    record: `baselayer.app.models.Base`
-        The requested record.
-    """
-    instance = cls.query.options(options).get(cls_id)
-    func_names = _access_func_names(access_type)
-    if instance is not None:
-        access_func = getattr(instance, func_names['access_func'])
-        if not access_func(user_or_token):
-            raise AccessError('Insufficient permissions.')
-    return instance
-
-
-def make_permission_control(name: str, access_type: str) -> type:
-    """Create a mixin class that attaches access control methods to database
-    records.
-
-    Parameters
-    ----------
-    name: The name of the class to create.
-    access_type: string, required:
-        Type of access to regulate via the class. Valid choices are
-        `['create', 'read', 'update', 'delete']`.
-
-    Returns
-    -------
-    permission_control_class: type
-        Mixin class that attaches access control methods to database records.
-    """
-
-    func_names = _access_func_names(access_type)
-    access_func_name = func_names['access_func']
-    pair_table_func_name = func_names['pair_table_func']
-    required_attributes_func_name = func_names['required_attributes_func']
-    get_classmethod_name = func_names['get_classmethod']
-    bulk_func_name = func_names['bulk_retrieve_func']
-
-    @hybrid_method
-    def is_accessible(self: Base, user_or_token: Union[User, Token]) -> bool:
-        """Determine whether the specified User or Token has access to a
-        database record.
-
-        Parameters
-        ----------
-        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
-            The User or Token to check.
-
-        Returns
-        -------
-        accessible: bool
-            Whether the User or Token has the specified type of access to
-            the record.
-        """
-
-        cls = type(self)
-        access_func = getattr(cls, access_func_name)
-        return _is_accessible(self, user_or_token, access_func)
-
-    @is_accessible.expression
-    def is_accessible(
-        cls: DeclarativeMeta,
-        user_or_token: Union[FromClause, sa.Column, User, Token, DeclarativeMeta],
-    ) -> BinaryExpression:
-        """Generate an SQL expression representing whether a mapped class is
-        accessible to a specified user or token, or to an entire table of users
-        or tokens (via broadcasting).
-
-        The expressions can be queried directly,
-
-            >>> u = User.query.first()
-            >>> DBSession().query(cls.is_readable_by(u))
-
-        or used as filter clauses,
-
-            >>> u = User.query.first()
-            >>> DBSession().query(cls).filter(cls.is_readable_by(u))
-
-        or used as join clauses,
-
-            >>> DBSession().query(cls).join(User, cls.is_readable_by(User))
-
-        The BinaryExpression is designed to be highly portable and is constructed
-        using correlated subquery relationship hybrids and laterals. This ensures
-        that large intermediate tables are never created, that indices are used
-        wherever possible, and that filter clauses from enclosing queries are
-        always propagated down the query stack.
-
-        Parameters
-        ----------
-        user_or_token: `baselayer.app.models.User`, `baselayer.app.models.Token`,
-        `sqlalchmey.sql.expression.FromClause`, `sqlalchemy.Column`
-            The User, Token, or table to check. Can be a User or Token object,
-            a reference to an `sqlalchemy.Table` pointing to the users or tokens
-            table, or an `sqlalchemy.Column` containing the primary key of the
-            users table.
-        Returns
-        -------
-        accessible: `sqlalchemy.sql.expression.BinaryExpression`
-            SQLalchemy expression representing whether the User, Token, or table
-            has access to the record. Can be queried directly, or used as a filter
-            or join clause.
-        """
-        pair_table_func = getattr(cls, pair_table_func_name)
-        required_attrs = getattr(cls, required_attributes_func_name)()
-        return _is_accessible_sql(
-            cls, user_or_token, access_type, pair_table_func, required_attrs
-        )
+    required_attrs = ('group',)
 
     @classmethod
-    def get_classmethod(
-        cls: DeclarativeMeta,
-        cls_id: Union[str, int],
-        user_or_token: Union[User, Token],
-        options=[],
-    ) -> Base:
-        """Return a database record if it is accessible to the specified User or
-        Token. If no record exists, return None. If the record exists but is
-        inaccessible, raise an `AccessError`.
-
-        Parameters
-        ----------
-        cls_id: int or str
-            The primary key of the record to query for.
-        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
-            The User or Token to check.
-        options: list of `sqlalchemy.orm.MapperOption`s
-           Options that will be passed to `options()` in the loader query.
-
-        Returns
-        -------
-        record: `baselayer.app.models.Base`
-            The requested record.
-        """
-        return _get_if_accessible_by(
-            cls, cls_id, user_or_token, access_func_name, options=options
-        )
-
-    @classmethod
-    def bulk_retrieve(
-        cls: DeclarativeMeta, user_or_token: Union[User, Token], options=[]
-    ) -> Query:
-        """Helper method that constructs (but does not execute) a database query to
-        retrieve all records that are accessible to a single User or Token from a
-        specified table.
-
-        The query is based on join-dependent relationship hybrid logic,
-        (https://docs.sqlalchemy.org/en/14/orm/extensions/hybrid.html?highlight=\
-        hybrid%20method#join-dependent-relationship-hybrid),
-        rather than correlated subquery hybrid logic. This gives it better
-        performance compared to the correlated subquery-based hybrid methods
-        `is_*_by`, but a more restricted range of uses.
-
-        Parameters
-        ----------
-        cls: DeclarativeMeta
-            Mapped class to query for records. Must be a subclass of Base.
-        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
-            The User or Token to check.
-        options: list of `sqlalchemy.orm.MapperOption`s
-           Options that will be passed to `options()` in the loader query.
-        Returns
-        -------
-        query: `sqlalchemy.orm.Query`
-           The query for accessible records.
-        """
-        return _bulk_retrieve(cls, user_or_token, access_type, options=options)
-
-    @classmethod
-    @abc.abstractmethod
-    def _pair_table(
-        cls: DeclarativeMeta, correlation_cls_alias, correlation_user_alias
-    ) -> FromClause:
-        """
-
-        Parameters
-        ----------
-        cls
-        correlation_cls_alias
-        correlation_user_alias
-
-        Returns
-        -------
-
-        """
-        return NotImplemented
-
-    @classmethod
-    @abc.abstractmethod
-    def _required_attributes(cls):
-        """Mapped class attributes required for permission control class to be
-        mixed.
-
-        Returns
-        -------
-        attribute_names: tuple of str
-           The names of the attributes that must be present in the mixed class
-           for the permission control class to be mixed successfully.
-        """
-        return NotImplemented
-
-    # Create the type and install the methods.
-    class_dict = {
-        get_classmethod_name: get_classmethod,
-        pair_table_func_name: _pair_table,
-        required_attributes_func_name: _required_attributes,
-        access_func_name: is_accessible,
-        bulk_func_name: bulk_retrieve,
-    }
-    return type(name, (), class_dict)
-
-
-CreateProtected = make_permission_control('WriteProtected', 'create')
-ReadProtected = make_permission_control('ReadProtected', 'read')
-UpdateProtected = make_permission_control('UpdateProtected', 'update')
-DeleteProtected = make_permission_control('DeleteProtected', 'delete')
-
-
-class ReadableByGroupMembers(ReadProtected):
-    """A record that is readable only to members of its parent group."""
-
-    @classmethod
-    def _required_attributes_for_readable_check(cls):
-        return ('group',)
-
-    @classmethod
-    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def access_table(cls, outer_cls, outer_user):
 
         cls_alias = sa.alias(cls)
         user_accessible_groups = user_accessible_groups_temporary_table()
@@ -746,23 +195,21 @@ class ReadableByGroupMembers(ReadProtected):
                     cls_alias.c.group_id == user_accessible_groups.c.group_id,
                 )
             )
-            .where(cls_alias.c.id == correlation_cls_alias.c.id)
-            .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
+            .where(cls_alias.c.id == outer_cls.c.id)
+            .where(user_accessible_groups.c.user_id == outer_user.c.id)
         )
 
         return readable_by_virtue_of_groups.distinct()
 
 
-class ReadableByGroupsMembers(ReadProtected):
+class AccessibleByGroupsMembers(AccessPattern):
     """A record that is readable only to members of its multiple (many-to-many)
     parent groups."""
 
-    @classmethod
-    def _required_attributes_for_readable_check(cls):
-        return ('groups',)
+    required_attrs = ('groups',)
 
     @classmethod
-    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def access_table(cls, outer_cls, outer_user):
 
         cls_alias = sa.alias(cls)
         cls_groups_join_table = sa.inspect(cls).relationships['groups'].secondary
@@ -786,23 +233,21 @@ class ReadableByGroupsMembers(ReadProtected):
                     == user_accessible_groups.c.group_id,
                 )
             )
-            .where(cls_alias.c.id == correlation_cls_alias.c.id)
-            .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
+            .where(cls_alias.c.id == outer_cls.c.id)
+            .where(user_accessible_groups.c.user_id == outer_user.c.id)
         )
 
         return readable_by_virtue_of_groups.distinct()
 
 
-class ReadableByGroupsMembersIfObjIsReadable(ReadProtected):
+class AccessibleByGroupsMembersIfObjIsReadable(AccessPattern):
     """A record that is readable members of its multiple (many-to-many)
     parent groups if the record's corresponding Obj is readable."""
 
-    @classmethod
-    def _required_attributes_for_readable_check(cls):
-        return 'groups', 'obj'
+    required_attrs = 'groups', 'obj'
 
     @classmethod
-    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def access_table(cls, outer_cls, outer_user):
 
         cls_alias = sa.alias(cls)
         cls_groups_join_table = sa.inspect(cls).relationships['groups'].secondary
@@ -832,24 +277,22 @@ class ReadableByGroupsMembersIfObjIsReadable(ReadProtected):
                     obj_alias.is_readable_by(user_accessible_groups.c.user_id),
                 )
             )
-            .where(cls_alias.c.id == correlation_cls_alias.c.id)
-            .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
+            .where(cls_alias.c.id == outer_cls.c.id)
+            .where(user_accessible_groups.c.user_id == outer_user.c.id)
             .where(obj_alias.id == cls_alias.c.obj_id)
         )
 
         return readable_by_virtue_of_groups.distinct()
 
 
-class ReadableByFilterGroupMembers(ReadProtected):
+class AccessibleByFilterGroupMembers(AccessPattern):
     """A record that is readable to members of the group associated with the
     record's `filter` attribute."""
 
-    @classmethod
-    def _required_attributes_for_readable_check(cls):
-        return ('filter',)
+    required_attrs = ('filter',)
 
     @classmethod
-    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def access_table(cls, outer_cls, outer_user):
 
         cls_alias = sa.alias(cls)
         user_accessible_groups = user_accessible_groups_temporary_table()
@@ -871,23 +314,20 @@ class ReadableByFilterGroupMembers(ReadProtected):
                     Filter.group_id == user_accessible_groups.c.group_id,
                 )
             )
-            .where(cls_alias.c.id == correlation_cls_alias.c.id)
-            .where(user_accessible_groups.c.user_id == correlation_user_alias.c.id)
+            .where(cls_alias.c.id == outer_cls.c.id)
+            .where(user_accessible_groups.c.user_id == outer_user.c.id)
         )
 
         return readable_by_virtue_of_groups.distinct()
 
 
-class ReadableIfObjIsReadable(ReadProtected):
-    """A record that is readable to anyone with read-access to the record's
-    Obj."""
+class AccessibleIfObjIsReadable(AccessPattern):
+    """A record that is readable to anyone who can read the record's Obj."""
+
+    required_attrs = ('obj',)
 
     @classmethod
-    def _required_attributes_for_readable_check(cls):
-        return ('obj',)
-
-    @classmethod
-    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
+    def access_table(cls, outer_cls, outer_user):
 
         cls_alias = sa.alias(cls)
         user_alias = sa.alias(User)
@@ -902,52 +342,69 @@ class ReadableIfObjIsReadable(ReadProtected):
                     user_alias, obj_alias.is_readable_by(user_alias)
                 )
             )
-            .where(cls_alias.c.id == correlation_cls_alias.c.id)
-            .where(user_alias.c.id == correlation_user_alias.c.id)
+            .where(cls_alias.c.id == outer_cls.c.id)
+            .where(user_alias.c.id == outer_user.c.id)
             .where(obj_alias.id == cls_alias.c.obj_id)
         )
 
         return readable_by_virtue_of_obj.distinct()
 
 
-class ModifiableByOwner(CreateProtected):
-    """A record that can only be modified by its owner or a System admin."""
+class ObjIsReadableLogic(AccessPattern):
+
+    required_attrs = ()
 
     @classmethod
-    def _required_attributes_for_modifiable_check(cls):
-        return ('owner',)
+    def access_table(cls, outer_cls, outer_user):
+        cand_x_filt = sa.join(Candidate, Filter)
+        phot_x_groupphot = sa.join(Photometry, GroupPhotometry)
+        unified_group_users = user_accessible_groups_temporary_table()
 
-    @classmethod
-    def _modifiable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
-        cls_alias = sa.alias(cls)
-        user_alias = sa.alias(User)
-        user_acls = user_acls_temporary_table()
-
-        modifiable_by_virtue_of_owner = (
-            sa.select(
-                [cls_alias.c.id.label('cls_id'), user_alias.c.id.label('user_id')]
-            )
-            .select_from(
-                sa.join(cls_alias, user_alias, cls_alias.c.owner_id == user_alias.c.id,)
-            )
-            .where(cls_alias.c.id == correlation_cls_alias.c.id)
-            .where(user_alias.c.id == correlation_user_alias.c.id)
-        )
-
-        modifiable_by_virtue_of_acl = (
-            sa.select([cls_alias.c.id, user_acls.c.user_id])
+        source_subq = (
+            sa.select([Source.obj_id, unified_group_users.c.user_id])
             .select_from(
                 sa.join(
-                    correlation_cls_alias,
-                    user_acls,
-                    user_acls.c.acl_id == 'System admin',
+                    Source,
+                    unified_group_users,
+                    Source.group_id == unified_group_users.c.group_id,
                 )
             )
-            .where(cls_alias.c.id == correlation_cls_alias.c.id)
-            .where(user_acls.c.user_id == correlation_user_alias.c.id)
+            .where(Source.obj_id == outer_cls.c.id)
+            .where(unified_group_users.c.user_id == outer_user.c.id)
         )
 
-        return sa.union(modifiable_by_virtue_of_owner, modifiable_by_virtue_of_acl)
+        cand_subq = (
+            sa.select([Candidate.obj_id, unified_group_users.c.user_id])
+            .select_from(
+                sa.join(
+                    cand_x_filt,
+                    unified_group_users,
+                    Filter.group_id == unified_group_users.c.group_id,
+                )
+            )
+            .where(Candidate.obj_id == outer_cls.c.id)
+            .where(unified_group_users.c.user_id == outer_user.c.id)
+        )
+
+        phot_subq = (
+            sa.select(
+                [
+                    Photometry.obj_id.label('cls_id'),
+                    unified_group_users.c.user_id.label('user_id'),
+                ]
+            )
+            .select_from(
+                sa.join(
+                    phot_x_groupphot,
+                    unified_group_users,
+                    GroupPhotometry.group_id == unified_group_users.c.group_id,
+                )
+            )
+            .where(Photometry.obj_id == outer_cls.c.id)
+            .where(unified_group_users.c.user_id == outer_user.c.id)
+        )
+
+        return sa.union(phot_subq, source_subq, cand_subq)
 
 
 class NumpyArray(sa.types.TypeDecorator):
@@ -1159,11 +616,11 @@ def token_groups(self):
 Token.groups = token_groups
 
 
-class Obj(
-    ReadProtected, Base, ha.Point,
-):
+class Obj(Base, ha.Point):
     """A record of an astronomical Object and its metadata, such as position,
     positional uncertainties, name, and redshift."""
+
+    read = ObjIsReadableLogic
 
     id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
     # TODO should this column type be decimal? fixed-precison numeric
@@ -1528,64 +985,8 @@ class Obj(
 
         return telescope.observer.altaz(time, self.target).alt
 
-    @classmethod
-    def _required_attributes_for_readable_check(cls):
-        return ()
 
-    @classmethod
-    def _readable_pair_table(cls, correlation_cls_alias, correlation_user_alias):
-        cand_x_filt = sa.join(Candidate, Filter)
-        phot_x_groupphot = sa.join(Photometry, GroupPhotometry)
-        unified_group_users = user_accessible_groups_temporary_table()
-
-        source_subq = (
-            sa.select([Source.obj_id, unified_group_users.c.user_id])
-            .select_from(
-                sa.join(
-                    Source,
-                    unified_group_users,
-                    Source.group_id == unified_group_users.c.group_id,
-                )
-            )
-            .where(Source.obj_id == correlation_cls_alias.c.id)
-            .where(unified_group_users.c.user_id == correlation_user_alias.c.id)
-        )
-
-        cand_subq = (
-            sa.select([Candidate.obj_id, unified_group_users.c.user_id])
-            .select_from(
-                sa.join(
-                    cand_x_filt,
-                    unified_group_users,
-                    Filter.group_id == unified_group_users.c.group_id,
-                )
-            )
-            .where(Candidate.obj_id == correlation_cls_alias.c.id)
-            .where(unified_group_users.c.user_id == correlation_user_alias.c.id)
-        )
-
-        phot_subq = (
-            sa.select(
-                [
-                    Photometry.obj_id.label('cls_id'),
-                    unified_group_users.c.user_id.label('user_id'),
-                ]
-            )
-            .select_from(
-                sa.join(
-                    phot_x_groupphot,
-                    unified_group_users,
-                    GroupPhotometry.group_id == unified_group_users.c.group_id,
-                )
-            )
-            .where(Photometry.obj_id == correlation_cls_alias.c.id)
-            .where(unified_group_users.c.user_id == correlation_user_alias.c.id)
-        )
-
-        return sa.union(phot_subq, source_subq, cand_subq)
-
-
-class Filter(ReadableByGroupMembers, Base):
+class Filter(Base):
     """An alert filter that operates on a Stream. A Filter is associated
     with exactly one Group, and a Group may have multiple operational Filters.
     """
@@ -1624,7 +1025,7 @@ class Filter(ReadableByGroupMembers, Base):
     )
 
 
-class Candidate(ReadableByFilterGroupMembers, Base):
+class Candidate(AccessibleByFilterGroupMembers, Base):
     "An Obj that passed a Filter, becoming scannable on the Filter's scanning page."
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
@@ -1680,7 +1081,7 @@ Candidate.__table_args__ = (
 )
 
 
-Source = join_model("sources", Group, Obj, mixins=(ReadableByGroupMembers,))
+Source = join_model("sources", Group, Obj)
 
 Source.__doc__ = (
     "An Obj that has been saved to a Group. Once an Obj is saved as a Source, "
@@ -2054,7 +1455,7 @@ class Instrument(Base):
         return getattr(facility_apis, self.listener_classname)
 
 
-class Allocation(ReadableByGroupMembers, Base):
+class Allocation(Base):
     """An allocation of observing time on a robotic instrument."""
 
     pi = sa.Column(sa.String, doc="The PI of the allocation's proposal.")
@@ -2097,7 +1498,7 @@ class Allocation(ReadableByGroupMembers, Base):
     )
 
 
-class Taxonomy(ReadableByGroupsMembers, Base):
+class Taxonomy(AccessibleByGroupsMembers, Base):
     """An ontology within which Objs can be classified."""
 
     __tablename__ = 'taxonomies'
@@ -2154,7 +1555,7 @@ GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
 GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
 
 
-class Comment(ReadableByGroupsMembersIfObjIsReadable, Base):
+class Comment(Base):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
@@ -2219,7 +1620,7 @@ GroupComment.__doc__ = "Join table mapping Groups to Comments."
 User.comments = relationship("Comment", back_populates="author")
 
 
-class Annotation(ReadableByGroupsMembersIfObjIsReadable, Base):
+class Annotation(Base):
     """A sortable/searchable Annotation made by a filter or other robot,
     with a set of data as JSON """
 
@@ -2288,7 +1689,7 @@ GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
 User.annotations = relationship("Annotation", back_populates="author")
 
 
-class Classification(ReadableByGroupsMembersIfObjIsReadable, Base):
+class Classification(Base):
     """Classification of an Obj."""
 
     classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
@@ -2347,7 +1748,7 @@ GroupClassifications = join_model("group_classifications", Group, Classification
 GroupClassifications.__doc__ = "Join table mapping Groups to Classifications."
 
 
-class Photometry(ha.Point, ReadableByGroupsMembers, ModifiableByOwner, Base):
+class Photometry(ha.Point, Base):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
     __tablename__ = 'photometry'
@@ -2550,7 +1951,7 @@ GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 
 
-class Spectrum(ReadableByGroupsMembersIfObjIsReadable, ModifiableByOwner, Base):
+class Spectrum(Base):
     """Wavelength-dependent measurement of the flux of an object through a
     dispersive element."""
 
@@ -2842,7 +2243,7 @@ GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
 #        return '/' + file_uri.lstrip('./')
 
 
-class FollowupRequest(ReadableIfObjIsReadable, CreateProtected, Base):
+class FollowupRequest(Base):
     """A request for follow-up data (spectroscopy, photometry, or both) using a
     robotic instrument."""
 
@@ -2974,7 +2375,7 @@ User.transactions = relationship(
 )
 
 
-class Thumbnail(ReadableIfObjIsReadable, Base):
+class Thumbnail(Base):
     """Thumbnail image centered on the location of an Obj."""
 
     # TODO delete file after deleting row
@@ -3007,7 +2408,7 @@ class Thumbnail(ReadableIfObjIsReadable, Base):
     )
 
 
-class ObservingRun(ModifiableByOwner, Base):
+class ObservingRun(Base):
     """A classical observing run with a target list (of Objs)."""
 
     instrument_id = sa.Column(
@@ -3131,7 +2532,7 @@ User.observing_runs = relationship(
 )
 
 
-class ClassicalAssignment(ReadableIfObjIsReadable, CreateProtected, Base):
+class ClassicalAssignment(Base):
     """Assignment of an Obj to an Observing Run as a target."""
 
     requester_id = sa.Column(
@@ -3274,7 +2675,7 @@ def send_user_invite_email(mapper, connection, target):
     )
 
 
-class SourceNotification(ReadableByGroupsMembers, Base):
+class SourceNotification(AccessibleByGroupsMembers, Base):
     groups = relationship(
         "Group",
         secondary="group_notifications",
