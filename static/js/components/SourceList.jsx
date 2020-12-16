@@ -128,13 +128,17 @@ const SourceList = () => {
     );
   };
 
-  const handleSourceTablePagination = (pageNumber, numPerPage) => {
+  const handleSourceTablePagination = (pageNumber, numPerPage, sortData) => {
     setRowsPerPage(numPerPage);
     const data = {
       ...getValues(),
       pageNumber,
       numPerPage,
     };
+    if (sortData) {
+      data.sortBy = sortData.column;
+      data.sortOrder = sortData.ascending ? "asc" : "desc";
+    }
     dispatch(sourcesActions.fetchSources(data));
   };
 

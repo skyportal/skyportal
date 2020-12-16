@@ -81,15 +81,22 @@ const GroupSources = ({ route }) => {
     );
   };
 
-  const handleSavedSourcesTablePagination = (pageNumber, numPerPage) => {
+  const handleSavedSourcesTablePagination = (
+    pageNumber,
+    numPerPage,
+    sortData
+  ) => {
     setSavedSourcesRowsPerPage(numPerPage);
-    dispatch(
-      sourcesActions.fetchSavedGroupSources({
-        group_ids: [route.id],
-        pageNumber,
-        numPerPage,
-      })
-    );
+    const data = {
+      group_ids: [route.id],
+      pageNumber,
+      numPerPage,
+    };
+    if (sortData) {
+      data.sortBy = sortData.column;
+      data.sortOrder = sortData.ascending ? "asc" : "desc";
+    }
+    dispatch(sourcesActions.fetchSavedGroupSources(data));
   };
 
   const handlePendingSourcesTableSorting = (formData) => {
