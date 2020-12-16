@@ -826,19 +826,19 @@ class SpectrumRangeQuery(_Schema):
     )
 
     min_date = fields.DateTime(
-        required=False,
         description='Query for spectra taken after '
         'this UT `DateTime`. For an '
         'open-ended interval use `None`.',
+        required=False,
         missing=None,
         default=None,
     )
 
     max_date = fields.DateTime(
-        required=False,
         description='Query for spectra taken before '
         'this UT `DateTime`. For an '
         'open-ended interval use `None`.',
+        required=False,
         missing=None,
         default=None,
     )

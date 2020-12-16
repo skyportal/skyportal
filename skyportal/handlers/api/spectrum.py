@@ -556,16 +556,9 @@ class SpectrumRangeHandler(BaseHandler):
     def get(self):
         """Docstring appears below as an f-string."""
 
-        json = self.get_json()
-
-        try:
-            standardized = SpectrumRangeQuery.load(json)
-        except ValidationError as e:
-            return self.error(f'Invalid request body: {e.normalized_messages()}')
-
-        instrument_ids = standardized['instrument_ids']
-        min_date = standardized['min_date']
-        max_date = standardized['max_date']
+        instrument_ids = self.get_query_arguments('instrument_ids')
+        min_date = self.get_query_argument('min_date', None)
+        max_date = self.get_query_argument('max_date', None)
 
         gids = [g.id for g in self.current_user.accessible_groups]
 
