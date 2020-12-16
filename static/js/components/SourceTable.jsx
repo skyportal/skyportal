@@ -137,7 +137,11 @@ const SourceTable = ({
         );
         break;
       case "sort":
-        sortingCallback(tableState.sortOrder);
+        if (tableState.sortOrder.direction === "none") {
+          paginateCallback(1, tableState.rowsPerPage, {});
+        } else {
+          sortingCallback(tableState.sortOrder);
+        }
         break;
       default:
     }
@@ -537,6 +541,7 @@ const SourceTable = ({
       options: {
         filter: true,
         sort: true,
+        sortThirdClickReset: true,
         display: displayedColumns.includes("Source ID"),
         customBodyRenderLite: renderObjId,
       },
@@ -556,6 +561,7 @@ const SourceTable = ({
       options: {
         filter: false,
         sort: true,
+        sortThirdClickReset: true,
         display: displayedColumns.includes("RA (deg)"),
         customBodyRenderLite: renderRA,
       },
@@ -566,6 +572,7 @@ const SourceTable = ({
       options: {
         filter: false,
         sort: true,
+        sortThirdClickReset: true,
         display: displayedColumns.includes("Dec (deg)"),
         customBodyRenderLite: renderDec,
       },
@@ -576,6 +583,7 @@ const SourceTable = ({
       options: {
         filter: false,
         sort: true,
+        sortThirdClickReset: true,
         display: displayedColumns.includes("RA (hh:mm:ss)"),
         customBodyRenderLite: renderRASex,
       },
@@ -586,6 +594,7 @@ const SourceTable = ({
       options: {
         filter: false,
         sort: true,
+        sortThirdClickReset: true,
         display: displayedColumns.includes("Dec (dd:mm:ss)"),
         customBodyRenderLite: renderDecSex,
       },
@@ -596,6 +605,7 @@ const SourceTable = ({
       options: {
         filter: false,
         sort: true,
+        sortThirdClickReset: true,
         display: displayedColumns.includes("Redshift"),
       },
     },
@@ -605,6 +615,7 @@ const SourceTable = ({
       options: {
         filter: true,
         sort: true,
+        sortThirdClickReset: true,
         display: displayedColumns.includes("Classification"),
         customBodyRenderLite: renderClassification,
       },
@@ -625,6 +636,7 @@ const SourceTable = ({
       options: {
         filter: false,
         sort: true,
+        sortThirdClickReset: true,
         display: displayedColumns.includes("Date Saved"),
         customBodyRenderLite: renderDateSaved,
       },
