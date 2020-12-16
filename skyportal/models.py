@@ -45,9 +45,11 @@ from baselayer.app.models import (  # noqa
     Token,
     UserACL,
     UserRole,
-    AccessControl,
+    UserAccessControl,
+    accessible_through_relationship,
     user_acls_temporary_table,
     AccessibleByOwner,
+    Inaccessible,
 )
 from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
@@ -171,7 +173,7 @@ apf_arg_type = Union[DeclarativeMeta, sa.Table]
 accessible_pair_func_type = Callable[[apf_arg_type, apf_arg_type], sa.Table]
 
 
-class AccessibleByGroupMembers(AccessControl):
+class AccessibleByGroupMembers(UserAccessControl):
     """A record that is accessible only to members of its associated group."""
 
     required_attrs = ('group',)
@@ -228,7 +230,7 @@ class AccessibleByGroupMembers(AccessControl):
         return readable_by_virtue_of_groups.distinct()
 
 
-class AccessibleByGroupsMembers(AccessControl):
+class AccessibleByGroupsMembers(UserAccessControl):
     """A record that is readable only to members of its multiple (many-to-many)
     parent groups."""
 
@@ -263,7 +265,7 @@ class AccessibleByGroupsMembers(AccessControl):
             users table, respectively.
         """
         cls_alias = aliased(cls)
-        cls_groups_join_table = sa.inspect(cls).relationships['groups'].secondary
+        cls_groups_join_table = sa.inspect(cls).mapper.relationships['groups'].secondary
         user_accessible_groups = user_accessible_groups_temporary_table()
 
         readable_by_virtue_of_groups = (
@@ -291,7 +293,7 @@ class AccessibleByGroupsMembers(AccessControl):
         return readable_by_virtue_of_groups.distinct()
 
 
-class AccessibleByGroupsMembersIfObjIsReadable(AccessControl):
+class AccessibleByGroupsMembersIfObjIsReadable(UserAccessControl):
     """A record that is readable members of its multiple (many-to-many)
     parent groups if the record's corresponding Obj is readable."""
 
@@ -327,7 +329,7 @@ class AccessibleByGroupsMembersIfObjIsReadable(AccessControl):
         """
 
         cls_alias = aliased(cls)
-        cls_groups_join_table = sa.inspect(cls).relationships['groups'].secondary
+        cls_groups_join_table = sa.inspect(cls).mapper.relationships['groups'].secondary
         user_accessible_groups = user_accessible_groups_temporary_table()
         obj_alias = aliased(Obj)
 
@@ -351,7 +353,7 @@ class AccessibleByGroupsMembersIfObjIsReadable(AccessControl):
                 )
                 .join(
                     obj_alias,
-                    obj_alias.is_readable_by(user_accessible_groups.c.user_id),
+                    obj_alias.is_accessible_by(user_accessible_groups.c.user_id),
                 )
             )
             .where(cls_alias.id == cls.id)
@@ -362,8 +364,8 @@ class AccessibleByGroupsMembersIfObjIsReadable(AccessControl):
         return readable_by_virtue_of_groups.distinct()
 
 
-def AccessibleByGroupMembersVia(relationship_class_name, relationship_name):
-    class _AccessibleByGroupMembersVia(AccessControl):
+def accessible_by_group_members_via(relationship_class_name, relationship_name):
+    class _AccessibleByGroupMembersVia(UserAccessControl):
         """A record that is readable to members of the group associated a record's
         relationship."""
 
@@ -428,7 +430,7 @@ def AccessibleByGroupMembersVia(relationship_class_name, relationship_name):
     return _AccessibleByGroupMembersVia
 
 
-class AccessibleIfObjIsReadable(AccessControl):
+class AccessibleIfObjIsReadable(UserAccessControl):
     """A record that is readable to anyone who can read the record's Obj."""
 
     required_attrs = ('obj',)
@@ -469,7 +471,7 @@ class AccessibleIfObjIsReadable(AccessControl):
             sa.select([cls_alias.id.label('cls_id'), user_alias.id.label('user_id')])
             .select_from(
                 sa.join(cls_alias, obj_alias, obj_alias.id == cls_alias.obj_id).join(
-                    user_alias, obj_alias.is_readable_by(user_alias)
+                    user_alias, obj_alias.is_accessible_by(user_alias)
                 )
             )
             .where(cls_alias.c.id == cls.id)
@@ -480,7 +482,7 @@ class AccessibleIfObjIsReadable(AccessControl):
         return readable_by_virtue_of_obj.distinct()
 
 
-class ObjIsReadableLogic(AccessControl):
+class ObjIsReadableLogic(UserAccessControl):
 
     required_attrs = ()
 
@@ -662,7 +664,7 @@ class Group(Base):
     )
 
 
-GroupUser = join_model('group_users', Group, User)
+GroupUser = join_model('group_users', Group, User, base=Base)
 GroupUser.__doc__ = "Join table mapping `Group`s to `User`s."
 
 GroupUser.admin = sa.Column(
@@ -676,6 +678,8 @@ GroupUser.admin = sa.Column(
 class Stream(Base):
     """A data stream producing alerts that can be programmatically filtered
     using a Filter. """
+
+    create = Inaccessible
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Stream name.")
     altdata = sa.Column(
@@ -707,11 +711,11 @@ class Stream(Base):
     )
 
 
-GroupStream = join_model('group_streams', Group, Stream)
+GroupStream = join_model('group_streams', Group, Stream, base=Base)
 GroupStream.__doc__ = "Join table mapping Groups to Streams."
 
 
-StreamUser = join_model('stream_users', Stream, User)
+StreamUser = join_model('stream_users', Stream, User, base=Base)
 StreamUser.__doc__ = "Join table mapping Streams to Users."
 
 
@@ -863,6 +867,7 @@ class Obj(Base, ha.Point):
         order_by="Candidate.passed_at",
         doc="Candidates associated with the object.",
     )
+
     comments = relationship(
         'Comment',
         back_populates='obj',
@@ -871,6 +876,7 @@ class Obj(Base, ha.Point):
         order_by="Comment.created_at",
         doc="Comments posted about the object.",
     )
+
     annotations = relationship(
         'Annotation',
         back_populates='obj',
@@ -1154,7 +1160,7 @@ class Filter(Base):
     with exactly one Group, and a Group may have multiple operational Filters.
     """
 
-    create = read = update = AccessibleByGroupMembers
+    create = read = update = delete = AccessibleByGroupMembers
 
     name = sa.Column(sa.String, nullable=False, unique=False, doc="Filter name.")
     stream_id = sa.Column(
@@ -1192,7 +1198,7 @@ class Filter(Base):
 
 class Candidate(Base):
     "An Obj that passed a Filter, becoming scannable on the Filter's scanning page."
-    create = read = update = delete = AccessibleByGroupMembersVia(Filter, 'filter')
+    create = read = update = delete = accessible_by_group_members_via(Filter, 'filter')
 
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
@@ -1248,7 +1254,7 @@ Candidate.__table_args__ = (
 )
 
 
-Source = join_model("sources", Group, Obj)
+Source = join_model("sources", Group, Obj, base=Base)
 
 Source.create = AccessibleByGroupMembers
 Source.read = AccessibleByGroupMembers
@@ -1678,6 +1684,7 @@ class Taxonomy(Base):
     """An ontology within which Objs can be classified."""
 
     create = read = AccessibleByGroupsMembers
+    update = delete = AccessibleByOwner
 
     __tablename__ = 'taxonomies'
     name = sa.Column(
@@ -1701,6 +1708,19 @@ class Taxonomy(Base):
     )
     version = sa.Column(
         sa.String, nullable=False, doc='Semantic version of this taxonomy'
+    )
+
+    owner_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the User who uploaded the taxonomy.",
+    )
+    owner = relationship(
+        'User',
+        foreign_keys=[owner_id],
+        cascade='save-update, merge, refresh-expire, expunge',
+        doc="The User who uploaded the taxonomy.",
     )
 
     isLatest = sa.Column(
@@ -1729,7 +1749,7 @@ class Taxonomy(Base):
     )
 
 
-GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
+GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy, base=Base)
 GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
 
 
@@ -1737,6 +1757,7 @@ class Comment(Base):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
     create = read = AccessibleByGroupsMembersIfObjIsReadable
+    update = delete = accessible_through_relationship('author', 'author_id')
 
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
     ctype = sa.Column(
@@ -1756,7 +1777,11 @@ class Comment(Base):
 
     origin = sa.Column(sa.String, nullable=True, doc='Comment origin.')
     author = relationship(
-        "User", back_populates="comments", doc="Comment's author.", uselist=False,
+        "User",
+        back_populates="comments",
+        doc="Comment's author.",
+        uselist=False,
+        foreign_keys="Comment.author_id",
     )
     author_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
@@ -1794,10 +1819,12 @@ class Comment(Base):
         return dict
 
 
-GroupComment = join_model("group_comments", Group, Comment)
+GroupComment = join_model("group_comments", Group, Comment, base=Base)
 GroupComment.__doc__ = "Join table mapping Groups to Comments."
 
-User.comments = relationship("Comment", back_populates="author")
+User.comments = relationship(
+    "Comment", back_populates="author", foreign_keys="Comment.author_id"
+)
 
 
 class Annotation(Base):
@@ -1805,12 +1832,17 @@ class Annotation(Base):
     with a set of data as JSON """
 
     create = read = AccessibleByGroupsMembersIfObjIsReadable
+    update = delete = accessible_through_relationship('author', 'author_id')
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
     data = sa.Column(JSONB, default=None, doc="Searchable data in JSON format")
     author = relationship(
-        "User", back_populates="annotations", doc="Annotation's author.", uselist=False,
+        "User",
+        back_populates="annotations",
+        doc="Annotation's author.",
+        uselist=False,
+        foreign_keys="Annotation.author_id",
     )
     author_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
@@ -1865,16 +1897,19 @@ class Annotation(Base):
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
 
-GroupAnnotation = join_model("group_annotations", Group, Annotation)
+GroupAnnotation = join_model("group_annotations", Group, Annotation, base=Base)
 GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
 
-User.annotations = relationship("Annotation", back_populates="author")
+User.annotations = relationship(
+    "Annotation", back_populates="author", foreign_keys="Annotation.author_id"
+)
 
 
 class Classification(Base):
     """Classification of an Obj."""
 
-    create = read = update = delete = AccessibleByGroupsMembersIfObjIsReadable
+    create = read = AccessibleByGroupsMembersIfObjIsReadable
+    update = delete = accessible_through_relationship('author', 'author_id')
 
     classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
     taxonomy_id = sa.Column(
@@ -1900,7 +1935,11 @@ class Classification(Base):
         index=True,
         doc="ID of the User that made this Classification",
     )
-    author = relationship('User', doc="The User that made this classification.")
+    author = relationship(
+        'User',
+        doc="The User that made this classification.",
+        foreign_keys="Classification.author_id",
+    )
     author_name = sa.Column(
         sa.String,
         nullable=False,
@@ -1928,7 +1967,9 @@ class Classification(Base):
         return super().to_dict()
 
 
-GroupClassifications = join_model("group_classifications", Group, Classification)
+GroupClassifications = join_model(
+    "group_classifications", Group, Classification, base=Base
+)
 GroupClassifications.__doc__ = "Join table mapping Groups to Classifications."
 
 
@@ -1937,8 +1978,9 @@ class Photometry(ha.Point, Base):
 
     __tablename__ = 'photometry'
 
-    read = AccessibleByGroupsMembers
     create = AccessibleByGroupsMembersIfObjIsReadable
+    read = AccessibleByGroupsMembers
+    update = delete = AccessibleByOwner
 
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
     flux = sa.Column(
@@ -2131,10 +2173,13 @@ Photometry.__table_args__ = (
 
 
 User.photometry = relationship(
-    'Photometry', doc='Photometry uploaded by this User.', back_populates='owner'
+    'Photometry',
+    doc='Photometry uploaded by this User.',
+    back_populates='owner',
+    foreign_keys="Photometry.owner_id",
 )
 
-GroupPhotometry = join_model("group_photometry", Group, Photometry)
+GroupPhotometry = join_model("group_photometry", Group, Photometry, base=Base)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 
 
@@ -2142,8 +2187,8 @@ class Spectrum(Base):
     """Wavelength-dependent measurement of the flux of an object through a
     dispersive element."""
 
-    read = AccessibleByGroupsMembersIfObjIsReadable
-    create = AccessibleByGroupsMembersIfObjIsReadable
+    create = read = AccessibleByGroupsMembersIfObjIsReadable
+    update = delete = AccessibleByOwner
 
     __tablename__ = 'spectra'
     # TODO better numpy integration
@@ -2195,10 +2240,12 @@ class Spectrum(Base):
     )
 
     reducers = relationship(
-        "User", secondary="spectrum_reducers", doc="Users that reduced this spectrum."
+        "User", secondary="spectrum_reducers", doc="Users that reduced this spectrum.",
     )
     observers = relationship(
-        "User", secondary="spectrum_observers", doc="Users that observed this spectrum."
+        "User",
+        secondary="spectrum_observers",
+        doc="Users that observed this spectrum.",
     )
 
     followup_request_id = sa.Column(sa.ForeignKey('followuprequests.id'), nullable=True)
@@ -2410,13 +2457,16 @@ class Spectrum(Base):
 
 
 User.spectra = relationship(
-    'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
+    'Spectrum',
+    doc='Spectra uploaded by this User.',
+    back_populates='owner',
+    foreign_keys="Spectrum.owner_id",
 )
 
-SpectrumReducer = join_model("spectrum_reducers", Spectrum, User)
-SpectrumObserver = join_model("spectrum_observers", Spectrum, User)
+SpectrumReducer = join_model("spectrum_reducers", Spectrum, User, base=Base)
+SpectrumObserver = join_model("spectrum_observers", Spectrum, User, base=Base)
 
-GroupSpectrum = join_model("group_spectra", Group, Spectrum)
+GroupSpectrum = join_model("group_spectra", Group, Spectrum, base=Base)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
 
 
@@ -2437,7 +2487,9 @@ class FollowupRequest(Base):
     """A request for follow-up data (spectroscopy, photometry, or both) using a
     robotic instrument."""
 
-    create = read = AccessibleByGroupMembersVia(Allocation, 'allocation')
+    create = read = update = delete = accessible_by_group_members_via(
+        Allocation, 'allocation'
+    )
 
     requester_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
@@ -2499,7 +2551,9 @@ class FollowupRequest(Base):
         return self.allocation.instrument
 
 
-FollowupRequestTargetGroup = join_model('request_groups', FollowupRequest, Group)
+FollowupRequestTargetGroup = join_model(
+    'request_groups', FollowupRequest, Group, base=Base
+)
 
 
 class FacilityTransaction(Base):
@@ -2538,6 +2592,7 @@ class FacilityTransaction(Base):
         'User',
         back_populates='transactions',
         doc='The User who initiated the transaction.',
+        foreign_keys="FacilityTransaction.initiator_id",
     )
 
 
@@ -2552,14 +2607,14 @@ User.transactions = relationship(
     'FacilityTransaction',
     back_populates='initiator',
     doc="The FacilityTransactions initiated by this User.",
+    foreign_keys="FacilityTransaction.initiator_id",
 )
 
 
 class Thumbnail(Base):
     """Thumbnail image centered on the location of an Obj."""
 
-    read = AccessibleIfObjIsReadable
-    create = AccessibleIfObjIsReadable
+    create = read = update = delete = AccessibleIfObjIsReadable
 
     # TODO delete file after deleting row
     type = sa.Column(
@@ -2641,6 +2696,7 @@ class ObservingRun(Base):
         'User',
         back_populates='observing_runs',
         doc="The User who created this ObservingRun.",
+        foreign_keys="ObservingRun.owner_id",
     )
     owner_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
@@ -2715,14 +2771,14 @@ User.observing_runs = relationship(
     'ObservingRun',
     cascade='save-update, merge, refresh-expire, expunge',
     doc="Observing Runs this User has created.",
+    foreign_keys="ObservingRun.owner_id",
 )
 
 
 class ClassicalAssignment(Base):
     """Assignment of an Obj to an Observing Run as a target."""
 
-    update = AccessibleIfObjIsReadable
-    delete = AccessibleIfObjIsReadable
+    create = read = update = delete = AccessibleIfObjIsReadable
 
     requester_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="CASCADE"),
@@ -2821,9 +2877,6 @@ User.assignments = relationship(
 
 class Invitation(Base):
 
-    read = AccessibleByOwner
-    create = AccessibleByOwner
-
     token = sa.Column(sa.String(), nullable=False, unique=True)
     groups = relationship(
         "Group",
@@ -2849,9 +2902,9 @@ class Invitation(Base):
     used = sa.Column(sa.Boolean, nullable=False, default=False)
 
 
-GroupInvitation = join_model('group_invitations', Group, Invitation)
-StreamInvitation = join_model('stream_invitations', Stream, Invitation)
-UserInvitation = join_model("user_invitations", User, Invitation)
+GroupInvitation = join_model('group_invitations', Group, Invitation, base=Base)
+StreamInvitation = join_model('stream_invitations', Stream, Invitation, base=Base)
+UserInvitation = join_model("user_invitations", User, Invitation, base=Base)
 
 
 @event.listens_for(Invitation, 'after_insert')
@@ -3022,7 +3075,7 @@ def _make_retreive_accessible_children(cls):
     return lambda self, user_or_token, options=[]: (
         DBSession()
         .query(cls)
-        .filter(cls.obj_id == self.id, cls.is_readable_by(user_or_token))
+        .filter(cls.obj_id == self.id, cls.is_accessible_by(user_or_token))
         .options(options)
         .all()
     )
