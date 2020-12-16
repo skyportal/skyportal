@@ -291,7 +291,11 @@ const SourceTable = ({
   const renderObjId = (dataIndex) => {
     const objid = sources[dataIndex].id;
     return (
-      <a href={`/source/${objid}`} key={`${objid}_objid`}>
+      <a
+        href={`/source/${objid}`}
+        key={`${objid}_objid`}
+        data-testid={`${objid}`}
+      >
         {objid}
       </a>
     );
@@ -528,8 +532,15 @@ const SourceTable = ({
       column: {
         type: "string",
         title: "Column",
-        enum: ["id", "ra", "dec", "redshift", "saved_at"],
-        enumNames: ["Source ID", "RA", "Dec", "Redshift", "Date Saved"],
+        enum: ["id", "ra", "dec", "redshift", "saved_at", "classification"],
+        enumNames: [
+          "Source ID",
+          "RA",
+          "Dec",
+          "Redshift",
+          "Date Saved",
+          "Classification",
+        ],
       },
       ascending: {
         title: "Order",
