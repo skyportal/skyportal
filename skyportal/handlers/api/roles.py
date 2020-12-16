@@ -8,6 +8,7 @@ class RoleHandler(BaseHandler):
     @auth_or_token
     def get(self):
         """
+        ---
         description: Retrieve list of all Role IDs (strings)
         tags:
           - roles
@@ -23,7 +24,7 @@ class RoleHandler(BaseHandler):
                         data:
                           type: array
                           items:
-                            - $ref: '#/components/schemas/Role'
+                            $ref: '#/components/schemas/Role'
                           description: List of all Roles.
         """
         roles = Role.query.all()
