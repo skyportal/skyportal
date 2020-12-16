@@ -26,7 +26,6 @@ from ...schema import (
     SpectrumPost,
     GroupIDList,
     SpectrumAsciiFileParseJSON,
-    SpectrumRangeQuery
 )
 
 _, cfg = load_env()
@@ -579,5 +578,3 @@ class SpectrumRangeHandler(BaseHandler):
             query = query.filter(Spectrum.observed_at <= utc.isot)
 
         return self.success(data=query.all())
-
-
