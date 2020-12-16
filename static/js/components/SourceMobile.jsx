@@ -364,11 +364,6 @@ const SourceMobile = ({ source }) => {
                 <Link to={`/manage_data/${source.id}`} role="link">
                   <Button variant="contained">Manage data</Button>
                 </Link>
-                <Link to={`/spectra/${source.id}`} role="link">
-                  <Button variant="contained" data-testid="view-spectra-button">
-                    View Spectra
-                  </Button>
-                </Link>
               </div>
             </AccordionDetails>
           </Accordion>
