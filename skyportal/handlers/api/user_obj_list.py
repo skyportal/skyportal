@@ -57,8 +57,6 @@ class UserObjListHandler(BaseHandler):
 
         if list_name is not None:
             query = query.filter(Listing.list_name == list_name)
-            if query.first() is None:
-                return self.error(f'No entries under the "{list_name}" list. ')
 
         return self.success(data=query.all())
 
@@ -100,7 +98,7 @@ class UserObjListHandler(BaseHandler):
                 "Input `list_name` must begin with alphanumeric/underscore"
             )
 
-        objects = (
+        query = (
             DBSession()
             .query(Listing)
             .filter(
@@ -111,13 +109,13 @@ class UserObjListHandler(BaseHandler):
         )
 
         # what to do if listing already exists...
-        if objects.first() is not None:
+        if query.first() is not None:
             if error_if_exists:
                 return self.error(
                     f'Listing already exists with user_id={user_id}, obj_id={obj_id} and list_name={list_name}'
                 )
             else:
-                return self.success(data={'listing_id': objects.first().id})
+                return self.success(data={'listing_id': query.first().id})
 
         # no such listing, can just add a new one!
         listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name)
@@ -173,7 +171,7 @@ class UserObjListHandler(BaseHandler):
 
         """
 
-        return self.add_listing(True)
+        return self.add_listing(error_if_exists=True)
 
     @auth_or_token
     def put(self):
@@ -221,7 +219,7 @@ class UserObjListHandler(BaseHandler):
 
         """
 
-        return self.add_listing(False)
+        return self.add_listing(error_if_exists=False)
 
     @auth_or_token
     def patch(self, listing_id):
