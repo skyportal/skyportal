@@ -271,8 +271,8 @@ const SourceDesktop = ({ source }) => {
                       Upload additional photometry
                     </Button>
                   </Link>
-                  <Link to={`/share_data/${source.id}`} role="link">
-                    <Button variant="contained">Share data</Button>
+                  <Link to={`/manage_data/${source.id}`} role="link">
+                    <Button variant="contained">Manage data</Button>
                   </Link>
                   <Button
                     variant="contained"
@@ -312,8 +312,8 @@ const SourceDesktop = ({ source }) => {
                       Upload additional spectroscopy
                     </Button>
                   </Link>
-                  <Link to={`/share_data/${source.id}`} role="link">
-                    <Button variant="contained">Share data</Button>
+                  <Link to={`/manage_data/${source.id}`} role="link">
+                    <Button variant="contained">Manage data</Button>
                   </Link>
                 </div>
               </div>

@@ -47,8 +47,8 @@ app:
       component: About
     - path: "/run/:id"
       component: RunSummary
-    - path: "/share_data/:id"
-      component: ShareDataForm
+    - path: "/manage_data/:id"
+      component: ManageDataForm
     - path: "/filter/:fid"
       component: Filter
     - path: "/runs"
