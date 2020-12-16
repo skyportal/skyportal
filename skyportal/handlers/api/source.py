@@ -76,6 +76,8 @@ class SourceHandler(BaseHandler):
         ---
         single:
           description: Check if a Source exists
+          tags:
+            - sources
           parameters:
             - in: path
               name: obj_id
@@ -112,6 +114,8 @@ class SourceHandler(BaseHandler):
         ---
         single:
           description: Retrieve a source
+          tags:
+            - sources
           parameters:
             - in: path
               name: obj_id
@@ -129,6 +133,8 @@ class SourceHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all sources
+          tags:
+            - sources
           parameters:
           - in: query
             name: ra
@@ -751,6 +757,8 @@ class SourceHandler(BaseHandler):
         """
         ---
         description: Add a new source
+        tags:
+          - sources
         requestBody:
           content:
             application/json:
@@ -859,6 +867,8 @@ class SourceHandler(BaseHandler):
         """
         ---
         description: Update a source
+        tags:
+          - sources
         parameters:
           - in: path
             name: obj_id
@@ -904,6 +914,8 @@ class SourceHandler(BaseHandler):
         """
         ---
         description: Delete a source
+        tags:
+          - sources
         parameters:
           - in: path
             name: obj_id
@@ -943,6 +955,8 @@ class SourceOffsetsHandler(BaseHandler):
         """
         ---
         description: Retrieve offset stars to aid in spectroscopy
+        tags:
+          - sources
         parameters:
         - in: path
           name: obj_id
@@ -1156,6 +1170,8 @@ class SourceFinderHandler(BaseHandler):
         """
         ---
         description: Generate a PDF/PNG finding chart to aid in spectroscopy
+        tags:
+          - sources
         parameters:
         - in: path
           name: obj_id
@@ -1372,6 +1388,8 @@ class SourceNotificationHandler(BaseHandler):
         """
         ---
         description: Send out a new source notification
+        tags:
+          - notifications
         requestBody:
           content:
             application/json:

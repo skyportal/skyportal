@@ -31,6 +31,8 @@ class SysInfoHandler(BaseHandler):
         """
         ---
         description: Retrieve system/deployment info
+        tags:
+          - system_info
         responses:
           200:
             content:

@@ -36,6 +36,8 @@ class SpectrumHandler(BaseHandler):
         """
         ---
         description: Upload spectrum
+        tags:
+          - spectra
         requestBody:
           content:
             application/json:
@@ -147,6 +149,8 @@ class SpectrumHandler(BaseHandler):
         """
         ---
         description: Retrieve a spectrum
+        tags:
+          - spectra
         parameters:
           - in: path
             name: spectrum_id
@@ -196,6 +200,8 @@ class SpectrumHandler(BaseHandler):
         """
         ---
         description: Update spectrum
+        tags:
+          - spectra
         parameters:
           - in: path
             name: spectrum_id
@@ -257,6 +263,8 @@ class SpectrumHandler(BaseHandler):
         """
         ---
         description: Delete a spectrum
+        tags:
+          - spectra
         parameters:
           - in: path
             name: spectrum_id
@@ -338,6 +346,8 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
         """
         ---
         description: Upload spectrum from ASCII file
+        tags:
+          - spectra
         requestBody:
           content:
             application/json:
@@ -458,6 +468,8 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
         """
         ---
         description: Parse spectrum from ASCII file
+        tags:
+          - spectra
         requestBody:
           content:
             application/json:
@@ -483,6 +495,8 @@ class ObjSpectraHandler(BaseHandler):
         """
         ---
         description: Retrieve all spectra associated with an Object
+        tags:
+          - spectra
         parameters:
           - in: path
             name: obj_id

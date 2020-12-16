@@ -15,6 +15,9 @@ class SourceGroupsHandler(BaseHandler):
         """
         ---
         description: Save or request group(s) to save source, and optionally unsave from group(s).
+        tags:
+          - sources
+          - groups
         requestBody:
           content:
             application/json:
@@ -121,6 +124,9 @@ class SourceGroupsHandler(BaseHandler):
         """
         ---
         description: Update a Source table row
+        tags:
+          - sources
+          - groups
         parameters:
           - in: path
             name: obj_id

@@ -36,6 +36,8 @@ class InstrumentHandler(BaseHandler):
         ---
         single:
           description: Retrieve an instrument
+          tags:
+            - instruments
           parameters:
             - in: path
               name: instrument_id
@@ -53,6 +55,8 @@ class InstrumentHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all instruments
+          tags:
+            - instruments
           parameters:
             - in: query
               name: name
@@ -90,6 +94,8 @@ class InstrumentHandler(BaseHandler):
         """
         ---
         description: Update instrument
+        tags:
+          - instruments
         parameters:
           - in: path
             name: instrument_id
@@ -129,6 +135,8 @@ class InstrumentHandler(BaseHandler):
         """
         ---
         description: Delete an instrument
+        tags:
+          - instruments
         parameters:
           - in: path
             name: instrument_id
@@ -156,6 +164,8 @@ class InstrumentHandler(BaseHandler):
 InstrumentHandler.post.__doc__ = f"""
         ---
         description: Add a new instrument
+        tags:
+          - instruments
         requestBody:
           content:
             application/json:

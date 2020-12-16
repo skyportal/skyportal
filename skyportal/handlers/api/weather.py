@@ -21,7 +21,10 @@ class WeatherHandler(BaseHandler):
     def get(self):
         """
         ---
-        description: Retrieve weather at a telescope site for the user
+        description: Retrieve weather at the telescope site saved by user
+        tags:
+          - weather
+          - telescopes
         responses:
           200:
             content:

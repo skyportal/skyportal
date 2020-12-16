@@ -16,6 +16,8 @@ class StreamHandler(BaseHandler):
         ---
         single:
           description: Retrieve a stream
+          tags:
+            - streams
           parameters:
             - in: path
               name: filter_id
@@ -33,6 +35,8 @@ class StreamHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all streams
+          tags:
+            - streams
           responses:
             200:
               content:
@@ -56,6 +60,8 @@ class StreamHandler(BaseHandler):
         """
         ---
         description: POST a new stream.
+        tags:
+          - streams
         requestBody:
           content:
             application/json:
@@ -102,6 +108,8 @@ class StreamHandler(BaseHandler):
         """
         ---
         description: Update a stream
+        tags:
+          - streams
         parameters:
           - in: path
             name: stream_id
@@ -145,6 +153,8 @@ class StreamHandler(BaseHandler):
         """
         ---
         description: Delete a stream
+        tags:
+          - streams
         parameters:
           - in: path
             name: stream_id
@@ -169,6 +179,9 @@ class StreamUserHandler(BaseHandler):
         """
         ---
         description: Grant stream access to a user
+        tags:
+          - streams
+          - users
         parameters:
           - in: path
             name: stream_id
@@ -229,6 +242,9 @@ class StreamUserHandler(BaseHandler):
         """
         ---
         description: Delete a stream user (revoke stream access for user)
+        tags:
+          - streams
+          - users
         parameters:
           - in: path
             name: stream_id
