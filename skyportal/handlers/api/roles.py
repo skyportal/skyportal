@@ -8,7 +8,10 @@ class RoleHandler(BaseHandler):
     @auth_or_token
     def get(self):
         """
+        ---
         description: Retrieve list of all Role IDs (strings)
+        tags:
+          - roles
         responses:
           200:
             content:
@@ -21,7 +24,7 @@ class RoleHandler(BaseHandler):
                         data:
                           type: array
                           items:
-                            - $ref: '#/components/schemas/Role'
+                            $ref: '#/components/schemas/Role'
                           description: List of all Roles.
         """
         roles = Role.query.all()
@@ -37,6 +40,8 @@ class UserRoleHandler(BaseHandler):
         """
         ---
         description: Grant new Role(s) to a user
+        tags:
+          - roles
         parameters:
           - in: path
             name: user_id
@@ -85,6 +90,8 @@ class UserRoleHandler(BaseHandler):
         """
         ---
         description: Delete user role
+        tags:
+          - roles
         parameters:
           - in: path
             name: user_id

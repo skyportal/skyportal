@@ -16,6 +16,10 @@ class GroupAdmissionRequestHandler(BaseHandler):
         ---
         single:
           description: Retrieve a group admission request
+          tags:
+            - group_admission_requests
+            - groups
+            - users
           parameters:
             - in: path
               name: admission_request_id
@@ -33,6 +37,10 @@ class GroupAdmissionRequestHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all group admission requests
+          tags:
+            - group_admission_requests
+            - groups
+            - users
           parameters:
           - in: query
             name: groupID
@@ -76,6 +84,10 @@ class GroupAdmissionRequestHandler(BaseHandler):
         """
         ---
         description: Create a new group admission request
+        tags:
+          - group_admission_requests
+          - groups
+          - users
         requestBody:
           content:
             application/json:
@@ -145,7 +157,11 @@ class GroupAdmissionRequestHandler(BaseHandler):
     def patch(self, admission_request_id):
         """
         ---
-        description: Update an admission request's status
+        description: Update a group admission request's status
+        tags:
+          - group_admission_requests
+          - groups
+          - users
         parameters:
           - in: path
             name: admission_request_id
@@ -193,6 +209,10 @@ class GroupAdmissionRequestHandler(BaseHandler):
         """
         ---
         description: Delete a group admission request
+        tags:
+          - group_admission_requests
+          - groups
+          - users
         parameters:
           - in: path
             name: admission_request_id

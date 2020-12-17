@@ -3,7 +3,7 @@ import pytest
 from .. import api
 
 from tdtax import taxonomy, __version__
-
+from selenium.common.exceptions import TimeoutException
 from datetime import datetime, timezone
 
 
@@ -251,6 +251,14 @@ def test_sources_sorting(
     driver.click_xpath("//button[@data-testid='sortButton']")
     driver.click_xpath("//div[@id='root_column']")
     driver.click_xpath("//li[@data-value='saved_at']", scroll_parent=True)
+    # For some reason, on only the first time a sort option is selected in the test,
+    # the click sometimes does not go through; was unable to reproduce behavior
+    # through manual clicking. For now, just retry it if this is the case
+    try:
+        driver.wait_for_xpath("//div[@id='root_column'][text()='Date Saved']")
+    except TimeoutException:
+        driver.click_xpath("//div[@id='root_column']")
+        driver.click_xpath("//li[@data-value='saved_at']", scroll_parent=True)
     driver.click_xpath("//input[@value='false']", wait_clickable=False)
     driver.click_xpath("//span[text()='Submit']")
 

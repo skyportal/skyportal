@@ -52,6 +52,9 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = User
 
     username = factory.LazyFunction(lambda: str(uuid.uuid4()))
+    contact_email = factory.LazyFunction(lambda: f'{uuid.uuid4().hex[:10]}@gmail.com')
+    first_name = factory.LazyFunction(lambda: f'{uuid.uuid4().hex[:4]}')
+    last_name = factory.LazyFunction(lambda: f'{uuid.uuid4().hex[:4]}')
 
     @factory.post_generation
     def roles(obj, create, extracted, **kwargs):
@@ -140,6 +143,9 @@ class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
     fluxes = 1e-9 * np.random.random(len(wavelengths))
     observed_at = datetime.datetime.now()
     owner_id = 1
+
+    reducers = factory.LazyFunction(lambda: [UserFactory() for _ in range(2)])
+    observers = factory.LazyFunction(lambda: [UserFactory() for _ in range(1)])
 
 
 class StreamFactory(factory.alchemy.SQLAlchemyModelFactory):

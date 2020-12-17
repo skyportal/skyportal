@@ -113,7 +113,7 @@ const FilterCandidateList = ({
 
   const defaultStartDate = new Date();
   defaultStartDate.setDate(defaultStartDate.getDate() - 1);
-  const defaultEndDate = new Date();
+  const defaultEndDate = null;
 
   const ITEM_HEIGHT = 48;
   const MenuProps = {
@@ -227,12 +227,13 @@ const FilterCandidateList = ({
               rules={{ validate: validateDates }}
               name="startDate"
               control={control}
+              defaultValue={defaultStartDate}
             />
             &nbsp;
             <Controller
               render={({ onChange, value }) => (
                 <KeyboardDateTimePicker
-                  value={dayjs.utc(value)}
+                  value={value ? dayjs.utc(value) : null}
                   onChange={(e, date) => onChange(dayjs.utc(date))}
                   label="End (UTC)"
                   format="YYYY/MM/DD HH:mm"
@@ -244,6 +245,7 @@ const FilterCandidateList = ({
               rules={{ validate: validateDates }}
               name="endDate"
               control={control}
+              defaultValue={defaultEndDate}
             />
           </div>
           <div className={classes.savedStatusSelect}>
@@ -271,9 +273,9 @@ const FilterCandidateList = ({
               Classifications
             </InputLabel>
             <Controller
+              labelId="classifications-select-label"
               render={({ onChange, value }) => (
                 <Select
-                  labelId="classifications-select-label"
                   id="classifications-select"
                   multiple
                   value={value}
@@ -322,7 +324,6 @@ const FilterCandidateList = ({
                 render={({ onChange, value }) => (
                   <TextField
                     id="minimum-redshift"
-                    labelId="classifications-select-label"
                     label="Minimum"
                     type="number"
                     value={value}
@@ -336,6 +337,7 @@ const FilterCandidateList = ({
                   />
                 )}
                 name="redshiftMinimum"
+                labelId="redshift-select-label"
                 control={control}
                 defaultValue=""
               />

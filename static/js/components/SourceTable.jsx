@@ -64,6 +64,17 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+const defaultDisplayedColumns = [
+  "Source ID",
+  "RA (deg)",
+  "Dec (deg)",
+  "Redshift",
+  "Classification",
+  "Groups",
+  "Date Saved",
+  "Finder",
+];
+
 // MUI data table with pull out rows containing a summary of each source.
 // This component is used in GroupSources and SourceList.
 const SourceTable = ({
@@ -94,6 +105,9 @@ const SourceTable = ({
   const sortOpen = Boolean(sortAnchorEl);
   const sortId = sortOpen ? "sort-popover" : undefined;
   const [currentSortColumn, setCurrentSortColumn] = useState(null);
+  const [displayedColumns, setDisplayedColumns] = useState(
+    defaultDisplayedColumns
+  );
 
   // Color styling
   const userColorTheme = useSelector(
@@ -116,7 +130,19 @@ const SourceTable = ({
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
-        paginateCallback(tableState.page + 1, tableState.rowsPerPage);
+        paginateCallback(
+          tableState.page + 1,
+          tableState.rowsPerPage,
+          currentSortColumn
+        );
+        break;
+      case "viewColumnsChange":
+        // Save displayed column labels
+        setDisplayedColumns(
+          tableState.columns
+            .filter((column) => column.display === "true")
+            .map((column) => column.label)
+        );
         break;
       default:
     }
@@ -291,7 +317,11 @@ const SourceTable = ({
   const renderObjId = (dataIndex) => {
     const objid = sources[dataIndex].id;
     return (
-      <a href={`/source/${objid}`} key={`${objid}_objid`}>
+      <a
+        href={`/source/${objid}`}
+        key={`${objid}_objid`}
+        data-testid={`${objid}`}
+      >
         {objid}
       </a>
     );
@@ -471,10 +501,12 @@ const SourceTable = ({
     const peakPoint = source.photometry
       .filter((point) => point.flux)
       .sort((a, b) => a.flux - b.flux)[0];
-    return (
+    return source.photometry.length > 0 ? (
       <Tooltip title={`${(mjdNow - peakPoint.mjd).toFixed(2)} days ago`}>
         <div>{`${flux_to_mag(peakPoint.flux, peakPoint.zp).toFixed(4)}`}</div>
       </Tooltip>
+    ) : (
+      <div>No photometry</div>
     );
   };
 
@@ -483,12 +515,14 @@ const SourceTable = ({
     const latestPoint = source.photometry
       .filter((point) => point.flux)
       .sort((a, b) => b.mjd - a.mjd)[0];
-    return (
+    return source.photometry.length > 0 ? (
       <Tooltip title={`${(mjdNow - latestPoint.mjd).toFixed(2)} days ago`}>
         <div>
           {`${flux_to_mag(latestPoint.flux, latestPoint.zp).toFixed(4)}`}
         </div>
       </Tooltip>
+    ) : (
+      <div>No photometry</div>
     );
   };
 
@@ -528,8 +562,15 @@ const SourceTable = ({
       column: {
         type: "string",
         title: "Column",
-        enum: ["id", "ra", "dec", "redshift", "saved_at"],
-        enumNames: ["Source ID", "RA", "Dec", "Redshift", "Date Saved"],
+        enum: ["id", "ra", "dec", "redshift", "saved_at", "classification"],
+        enumNames: [
+          "Source ID",
+          "RA",
+          "Dec",
+          "Redshift",
+          "Date Saved",
+          "Classification",
+        ],
       },
       ascending: {
         title: "Order",
@@ -593,6 +634,7 @@ const SourceTable = ({
       label: "Source ID",
       options: {
         filter: true,
+        display: displayedColumns.includes("Source ID"),
         customBodyRenderLite: renderObjId,
         customHeadLabelRender: () => renderHeader("id", "Source ID"),
       },
@@ -601,7 +643,7 @@ const SourceTable = ({
       name: "Alias",
       options: {
         filter: true,
-        display: false,
+        display: displayedColumns.includes("Alias"),
         customBodyRenderLite: renderAlias,
       },
     },
@@ -610,6 +652,7 @@ const SourceTable = ({
       label: "RA (deg)",
       options: {
         filter: false,
+        display: displayedColumns.includes("RA (deg)"),
         customBodyRenderLite: renderRA,
         customHeadLabelRender: () => renderHeader("ra", "RA (deg)"),
       },
@@ -619,6 +662,7 @@ const SourceTable = ({
       label: "Dec (deg)",
       options: {
         filter: false,
+        display: displayedColumns.includes("Dec (deg)"),
         customBodyRenderLite: renderDec,
         customHeadLabelRender: () => renderHeader("dec", "Dec (deg)"),
       },
@@ -628,7 +672,7 @@ const SourceTable = ({
       label: "RA (hh:mm:ss)",
       options: {
         filter: false,
-        display: false,
+        display: displayedColumns.includes("RA (hh:mm:ss)"),
         customBodyRenderLite: renderRASex,
         customHeadLabelRender: () => renderHeader("ra", "RA (hh:mm:ss)"),
       },
@@ -638,7 +682,7 @@ const SourceTable = ({
       label: "Dec (dd:mm:ss)",
       options: {
         filter: false,
-        display: false,
+        display: displayedColumns.includes("Dec (dd:mm:ss)"),
         customBodyRenderLite: renderDecSex,
         customHeadLabelRender: () => renderHeader("dec", "Dec (dd:mm:ss)"),
       },
@@ -648,6 +692,7 @@ const SourceTable = ({
       label: "Redshift",
       options: {
         filter: false,
+        display: displayedColumns.includes("Redshift"),
         customHeadLabelRender: () => renderHeader("redshift", "Redshift"),
       },
     },
@@ -656,6 +701,7 @@ const SourceTable = ({
       label: "Classification",
       options: {
         filter: true,
+        display: displayedColumns.includes("Classification"),
         customBodyRenderLite: renderClassification,
         customHeadLabelRender: () =>
           renderHeader("classification", "Classification"),
@@ -666,6 +712,7 @@ const SourceTable = ({
       label: "Groups",
       options: {
         filter: false,
+        display: displayedColumns.includes("Groups"),
         customBodyRenderLite: renderGroups,
       },
     },
@@ -674,6 +721,7 @@ const SourceTable = ({
       label: "Date Saved",
       options: {
         filter: false,
+        display: displayedColumns.includes("Date Saved"),
         customBodyRenderLite: renderDateSaved,
         customHeadLabelRender: () => renderHeader("saved_at", "Date Saved"),
       },
@@ -682,6 +730,7 @@ const SourceTable = ({
       name: "Finder",
       options: {
         filter: false,
+        display: displayedColumns.includes("Finder"),
         customBodyRenderLite: renderFinderButton,
       },
     },
@@ -689,28 +738,28 @@ const SourceTable = ({
       name: "Spectrum?",
       options: {
         customBodyRenderLite: renderSpectrumExists,
-        display: false,
+        display: displayedColumns.includes("Spectrum?"),
       },
     },
     {
       name: "Peak Magnitude",
       options: {
         customBodyRenderLite: renderPeakMagnitude,
-        display: false,
+        display: displayedColumns.includes("Peak Magnitude"),
       },
     },
     {
       name: "Latest Magnitude",
       options: {
         customBodyRenderLite: renderLatestMagnitude,
-        display: false,
+        display: displayedColumns.includes("Latest Magnitude"),
       },
     },
     {
       name: "TNS Name",
       options: {
         customBodyRenderLite: renderTNSName,
-        display: false,
+        display: displayedColumns.includes("TNS Name"),
       },
     },
   ];

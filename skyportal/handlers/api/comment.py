@@ -12,6 +12,8 @@ class CommentHandler(BaseHandler):
         """
         ---
         description: Retrieve a comment
+        tags:
+          - comments
         parameters:
           - in: path
             name: comment_id
@@ -38,6 +40,8 @@ class CommentHandler(BaseHandler):
         """
         ---
         description: Post a comment
+        tags:
+          - comments
         requestBody:
           content:
             application/json:
@@ -171,6 +175,8 @@ class CommentHandler(BaseHandler):
         """
         ---
         description: Update a comment
+        tags:
+          - comments
         parameters:
           - in: path
             name: comment_id
@@ -257,6 +263,8 @@ class CommentHandler(BaseHandler):
         """
         ---
         description: Delete a comment
+        tags:
+          - comments
         parameters:
           - in: path
             name: comment_id
@@ -289,6 +297,8 @@ class CommentAttachmentHandler(BaseHandler):
         """
         ---
         description: Download comment attachment
+        tags:
+          - comments
         parameters:
           - in: path
             name: comment_id
