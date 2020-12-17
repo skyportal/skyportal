@@ -547,7 +547,7 @@ class ObjSpectraHandler(BaseHandler):
                     f'Invalid "normalization" value "{normalization}, use "median" or None'
                 )
 
-        return self.success(data=return_values)
+        return self.success(data={'obj_id': obj.id, 'spectra': return_values})
 
 
 class SpectrumRangeHandler(BaseHandler):
