@@ -12,6 +12,7 @@ from .group import (
     GroupUserHandler,
     GroupStreamHandler,
     GroupUsersFromOtherGroupsHandler,
+    ObjGroupsHandler,
 )
 from .group_admission_request import GroupAdmissionRequestHandler
 from .instrument import InstrumentHandler

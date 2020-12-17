@@ -7,15 +7,20 @@ import ButtonGroup from "@material-ui/core/ButtonGroup";
 import Checkbox from "@material-ui/core/Checkbox";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import TextField from "@material-ui/core/TextField";
-import { makeStyles } from "@material-ui/core/styles";
+import { makeStyles, useTheme } from "@material-ui/core/styles";
 import Grid from "@material-ui/core/Grid";
 import Typography from "@material-ui/core/Typography";
 import CircularProgress from "@material-ui/core/CircularProgress";
+import Input from "@material-ui/core/Input";
+import Chip from "@material-ui/core/Chip";
+import Select from "@material-ui/core/Select";
+import MenuItem from "@material-ui/core/MenuItem";
 import { useForm, Controller } from "react-hook-form";
 
 import * as sourcesActions from "../ducks/sources";
 import UninitializedDBMessage from "./UninitializedDBMessage";
 import SourceTable from "./SourceTable";
+import { allowedClasses } from "./ClassificationForm";
 
 const useStyles = makeStyles((theme) => ({
   paperDiv: {
@@ -43,17 +48,28 @@ const useStyles = makeStyles((theme) => ({
   },
   blockWrapper: {
     width: "100%",
+    marginBottom: "0.5rem",
   },
   title: {
-    margin: "1rem 0rem 0rem 0rem",
+    margin: "0.5rem 0rem 0rem 0rem",
   },
   spinner: {
     marginTop: "1rem",
   },
 }));
 
+const getStyles = (classification, selectedClassifications, theme) => {
+  return {
+    fontWeight:
+      selectedClassifications.indexOf(classification) === -1
+        ? theme.typography.fontWeightRegular
+        : theme.typography.fontWeightMedium,
+  };
+};
+
 const SourceList = () => {
   const classes = useStyles();
+  const theme = useTheme();
   const dispatch = useDispatch();
 
   const sourcesState = useSelector((state) => state.sources.latest);
@@ -63,40 +79,76 @@ const SourceList = () => {
 
   const [rowsPerPage, setRowsPerPage] = useState(100);
 
+  const ITEM_HEIGHT = 48;
+  const MenuProps = {
+    PaperProps: {
+      style: {
+        maxHeight: ITEM_HEIGHT * 4.5,
+      },
+    },
+  };
+
+  // Get unique classification names, in alphabetical order
+  const { taxonomyList } = useSelector((state) => state.taxonomies);
+  const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
+  let classifications = [];
+  latestTaxonomyList.forEach((taxonomy) => {
+    const currentClasses = allowedClasses(taxonomy.hierarchy).map(
+      (option) => `${taxonomy.name}: ${option.class}`
+    );
+    classifications = classifications.concat(currentClasses);
+  });
+  classifications = Array.from(new Set(classifications)).sort();
+
+  const [selectedClassifications, setSelectedClassifications] = useState([]);
+
   useEffect(() => {
     dispatch(sourcesActions.fetchSources());
   }, [dispatch]);
 
-  const { handleSubmit, register, getValues, control } = useForm();
+  const { handleSubmit, register, getValues, control, reset } = useForm();
 
-  const onSubmit = (data) => {
+  const onSubmit = (formData) => {
+    const data = {
+      ...formData,
+      pageNumber: 1,
+      numPerPage: rowsPerPage,
+    };
     dispatch(sourcesActions.fetchSources(data));
   };
 
   const handleClickReset = () => {
     setRowsPerPage(100);
-    dispatch(sourcesActions.fetchSources());
+    reset();
+    dispatch(
+      sourcesActions.fetchSources({
+        pageNumber: 1,
+        numPerPage: 100,
+      })
+    );
   };
 
-  const handleSourceTablePagination = (pageNumber, numPerPage) => {
+  const handleSourceTablePagination = (pageNumber, numPerPage, sortData) => {
     setRowsPerPage(numPerPage);
     const data = {
       ...getValues(),
       pageNumber,
       numPerPage,
-      totalMatches: sourcesState.totalMatches,
     };
+    if (sortData && Object.keys(sortData).length > 0) {
+      data.sortBy = sortData.name;
+      data.sortOrder = sortData.direction;
+    }
     dispatch(sourcesActions.fetchSources(data));
   };
 
-  const handleSourceTableSorting = (formData) => {
+  const handleSourceTableSorting = (sortData) => {
     const data = {
       ...getValues(),
       pageNumber: 1,
       rowsPerPage,
-      totalMatches: sourcesState.totalMatches,
-      sortBy: formData.column,
-      sortOrder: formData.ascending ? "asc" : "desc",
+      sortBy: sortData.name,
+      sortOrder: sortData.direction,
     };
     dispatch(sourcesActions.fetchSources(data));
   };
@@ -204,6 +256,55 @@ const SourceList = () => {
                     defaultValue={false}
                   />
                 }
+              />
+            </div>
+            <div className={classes.blockWrapper}>
+              <h5 className={classes.title}> Filter by Classification </h5>
+            </div>
+            <div className={classes.blockWrapper}>
+              <Controller
+                render={({ onChange, value }) => (
+                  <Select
+                    labelId="classifications-select-label"
+                    id="classifications-select"
+                    multiple
+                    value={value}
+                    onChange={(event) => {
+                      setSelectedClassifications(event.target.value);
+                      onChange(event.target.value);
+                    }}
+                    input={<Input id="classifications-select" />}
+                    renderValue={(selected) => (
+                      <div className={classes.chips}>
+                        {selected.map((classification) => (
+                          <Chip
+                            key={classification}
+                            label={classification}
+                            className={classes.chip}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    MenuProps={MenuProps}
+                  >
+                    {classifications.map((classification) => (
+                      <MenuItem
+                        key={classification}
+                        value={classification}
+                        style={getStyles(
+                          classification,
+                          selectedClassifications,
+                          theme
+                        )}
+                      >
+                        {classification}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                )}
+                name="classifications"
+                control={control}
+                defaultValue={[]}
               />
             </div>
             <div className={classes.blockWrapper}>

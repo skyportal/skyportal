@@ -14,7 +14,7 @@ def filter_for_value(driver, value, last=False):
 
 
 def test_group_admission_request_and_acceptance(
-    driver, user, super_admin_user_two_groups, public_group, public_group2
+    driver, user, super_admin_user, public_group, public_group2
 ):
     driver.get(f'/become_user/{user.id}')
     driver.get('/groups')
@@ -24,7 +24,7 @@ def test_group_admission_request_and_acceptance(
     driver.wait_for_xpath(
         f'//*[@data-testid="deleteAdmissionRequestButton{public_group2.id}"]'
     )
-    driver.get(f"/become_user/{super_admin_user_two_groups.id}")
+    driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/group/{public_group2.id}")
     filter_for_value(driver, user.username, last=True)
     driver.wait_for_xpath('//div[text()="pending"]')

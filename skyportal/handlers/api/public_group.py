@@ -13,19 +13,14 @@ class PublicGroupHandler(BaseHandler):
         """
         ---
         single:
-          description: Retrieve the ID of the public group
+          description: Retrieve the public group
+          tags:
+            - groups
           responses:
             200:
               content:
                 application/json:
-                  schema:
-                    allOf:
-                      - $ref: '#/components/schemas/Success'
-                      - type: object
-                        properties:
-                          id:
-                            type: integer
-                            description: ID of the public group
+                  schema: SingleGroup
         """
         pg = Group.query.filter(Group.name == cfg['misc.public_group_name']).first()
         if pg is None:

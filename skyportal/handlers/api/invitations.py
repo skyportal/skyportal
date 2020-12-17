@@ -24,6 +24,8 @@ class InvitationHandler(BaseHandler):
         """
         ---
         description: Invite a new user
+        tags:
+          - invitations
         requestBody:
           content:
             application/json:
@@ -153,6 +155,8 @@ class InvitationHandler(BaseHandler):
         """
         ---
         description: Retrieve invitations
+        tags:
+          - invitations
         parameters:
           - in: query
             name: includeUsed
@@ -270,6 +274,8 @@ class InvitationHandler(BaseHandler):
         """
         ---
         description: Update a pending invitation
+        tags:
+          - invitations
         requestBody:
           content:
             application/json:
@@ -339,6 +345,8 @@ class InvitationHandler(BaseHandler):
         """
         ---
         description: Delete an invitation
+        tags:
+          - invitations
         parameters:
           - in: path
             name: invitation_id

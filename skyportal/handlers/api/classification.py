@@ -10,6 +10,8 @@ class ClassificationHandler(BaseHandler):
         """
         ---
         description: Retrieve a classification
+        tags:
+          - classifications
         parameters:
           - in: path
             name: classification_id
@@ -38,6 +40,8 @@ class ClassificationHandler(BaseHandler):
         """
         ---
         description: Post a classification
+        tags:
+          - classifications
         requestBody:
           content:
             application/json:
@@ -171,6 +175,8 @@ class ClassificationHandler(BaseHandler):
         """
         ---
         description: Update a classification
+        tags:
+          - classifications
         parameters:
           - in: path
             name: classification
@@ -248,6 +254,8 @@ class ClassificationHandler(BaseHandler):
         """
         ---
         description: Delete a classification
+        tags:
+          - classifications
         parameters:
           - in: path
             name: classification_id
@@ -288,6 +296,8 @@ class ObjClassificationHandler(BaseHandler):
         """
         ---
         description: Retrieve an object's classifications
+        tags:
+          - classifications
         parameters:
           - in: path
             name: obj_id

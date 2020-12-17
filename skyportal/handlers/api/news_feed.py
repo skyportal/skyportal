@@ -18,6 +18,8 @@ class NewsFeedHandler(BaseHandler):
         """
         ---
         description: Retrieve summary of recent activity
+        tags:
+          - news_feed
         responses:
           200:
             content:
