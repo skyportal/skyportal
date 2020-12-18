@@ -75,9 +75,10 @@ const WidgetPrefsDialog = ({
                 return (
                   <div key={key}>
                     Select {key}:
-                    {Object.keys(initialValues[key]).map((subkey, idx) => (
+                    <br />
+                    {Object.keys(initialValues[key]).map((subKey) => (
                       <FormControlLabel
-                        key={subkey}
+                        key={subKey}
                         control={
                           <Controller
                             render={({ onChange, value }) => (
@@ -86,15 +87,15 @@ const WidgetPrefsDialog = ({
                                   onChange(event.target.checked)
                                 }
                                 checked={value}
-                                data-testid={`${subkey}[${idx}]`}
+                                data-testid={`${key}.${subKey}`}
                               />
                             )}
-                            name={`${key}.${subkey}`}
+                            name={`${key}.${subKey}`}
                             control={control}
                             defaultValue={false}
                           />
                         }
-                        label={subkey}
+                        label={subKey}
                       />
                     ))}
                   </div>
