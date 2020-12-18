@@ -202,7 +202,7 @@ const TopSources = ({ classes }) => {
           <div className={classes.widgetIcon}>
             <WidgetPrefsDialog
               // Only expose num sources
-              formValues={{ maxNumSources: topSourcesPrefs.maxNumSources }}
+              initialValues={{ maxNumSources: topSourcesPrefs.maxNumSources }}
               stateBranchName="topSources"
               title="Top Sources Preferences"
               onSubmit={profileActions.updateUserPreferences}

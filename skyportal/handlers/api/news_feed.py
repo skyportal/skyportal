@@ -51,7 +51,7 @@ class NewsFeedHandler(BaseHandler):
         if 'newsFeed' in preferences and 'numItems' in preferences['newsFeed']:
             n_items = min(int(preferences['newsFeed']['numItems']), 50)
         else:
-            n_items = 5
+            n_items = 10
 
         def fetch_newest(model):
             query = model.query.filter(

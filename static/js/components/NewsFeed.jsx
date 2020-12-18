@@ -22,7 +22,14 @@ dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const defaultPrefs = {
-  numItems: "5",
+  numItems: "10",
+  categories: {
+    classifications: true,
+    comments: true,
+    photometry: true,
+    sources: true,
+    spectra: true,
+  },
 };
 
 const NewsFeedItem = ({ item }) => {
@@ -134,7 +141,7 @@ const NewsFeed = ({ classes }) => {
         <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
         <div className={classes.widgetIcon}>
           <WidgetPrefsDialog
-            formValues={newsFeedPrefs}
+            initialValues={newsFeedPrefs}
             stateBranchName="newsFeed"
             title="News Feed Preferences"
             onSubmit={profileActions.updateUserPreferences}
