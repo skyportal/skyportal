@@ -18,6 +18,9 @@ const useStyles = makeStyles(() => ({
     textAlign: "center",
     margin: "1rem",
   },
+  inputSectionDiv: {
+    marginBottom: "1rem",
+  },
 }));
 
 const WidgetPrefsDialog = ({
@@ -73,7 +76,7 @@ const WidgetPrefsDialog = ({
                 initialValues[key].constructor === Object
               ) {
                 return (
-                  <div key={key}>
+                  <div key={key} className={classes.inputSectionDiv}>
                     Select {key}:
                     <br />
                     {Object.keys(initialValues[key]).map((subKey) => (
@@ -103,7 +106,7 @@ const WidgetPrefsDialog = ({
               }
               if (typeof initialValues[key] === "string") {
                 return (
-                  <div key={key}>
+                  <div key={key} className={classes.inputSectionDiv}>
                     <TextField
                       data-testid={key}
                       size="small"
