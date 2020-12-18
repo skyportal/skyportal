@@ -12,6 +12,9 @@
   </head>
   <body>
     <div id="content"></div>
-    <script src="/static/build/main.bundle.js"></script>
+    <script
+      src="/static/build/main.bundle.js?{{'static/build/main.bundle.js' | md5sum}}"
+    >
+    </script>
   </body>
 </html>
