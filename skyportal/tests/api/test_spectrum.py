@@ -9,6 +9,7 @@ import datetime
 def test_token_user_get_range_spectrum(
     upload_data_token, public_source, public_group, lris
 ):
+    # post two spectra at two different dates
     status, data = api(
         'POST',
         'spectrum',
@@ -41,6 +42,7 @@ def test_token_user_get_range_spectrum(
     assert status == 200
     assert data['status'] == 'success'
 
+    # test range that includes first spectrum
     status, data = api(
         'GET',
         f'spectrum/range?instrument_ids={lris.id}'
@@ -53,9 +55,10 @@ def test_token_user_get_range_spectrum(
     assert data['data'][0]['fluxes'][0] == 234.2
     assert data['data'][0]['obj_id'] == public_source.id
 
+    # test open ended range that includes second spectrum
     status, data = api(
         'GET',
-        f'spectrum/range?instrument_ids={lris.id}' f'&min_date=2020-01-15T00:00:00',
+        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00',
         token=upload_data_token,
     )
     assert status == 200
@@ -64,13 +67,59 @@ def test_token_user_get_range_spectrum(
     assert data['data'][0]['fluxes'][0] == 434.2
     assert data['data'][0]['obj_id'] == public_source.id
 
+    # test open ended range that includes both spectra
     status, data = api(
         'GET',
-        f'spectrum/range?instrument_ids={lris.id}' f'&min_date=2020-01-01T00:00:00',
+        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-01T00:00:00',
         token=upload_data_token,
     )
     assert status == 200
     assert len(data['data']) == 2
+    assert data['status'] == 'success'
+
+    # test legal variations on input isot format
+    # 2020-01-15
+    status, data = api(
+        'GET',
+        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15',
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['status'] == 'success'
+    assert data['data'][0]['fluxes'][0] == 434.2
+    assert data['data'][0]['obj_id'] == public_source.id
+
+    # 2020-01-15T00:00:00+00:00
+    status, data = api(
+        'GET',
+        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00&plus;00:00',
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['status'] == 'success'
+    assert data['data'][0]['fluxes'][0] == 434.2
+    assert data['data'][0]['obj_id'] == public_source.id
+
+    # 2020-01-15T00:00:00Z
+    status, data = api(
+        'GET',
+        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00Z',
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['status'] == 'success'
+    assert data['data'][0]['fluxes'][0] == 434.2
+    assert data['data'][0]['obj_id'] == public_source.id
+
+    # test with no instrument ids
+    status, data = api(
+        'GET', f'spectrum/range?min_date=2020-01-01T00:00:00', token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 0
     assert data['status'] == 'success'
 
 
