@@ -662,7 +662,7 @@ class SpectrumRangeHandler(BaseHandler):
             .filter(GroupSpectrum.group_id.in_(gids))
         )
 
-        if instrument_ids is not None:
+        if instrument_ids:
             query = query.filter(Spectrum.instrument_id.in_(instrument_ids))
         if min_date is not None:
             utc = Time(min_date, format='isot', scale='utc')

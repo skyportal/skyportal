@@ -116,11 +116,15 @@ def test_token_user_get_range_spectrum(
 
     # test with no instrument ids
     status, data = api(
-        'GET', f'spectrum/range?min_date=2020-01-01T00:00:00', token=upload_data_token,
+        'GET',
+        f'spectrum/range?min_date=2020-01-01T00:00:00&max_date=2020-02-01',
+        token=upload_data_token,
     )
     assert status == 200
-    assert len(data['data']) == 0
+    assert len(data['data']) == 1
     assert data['status'] == 'success'
+    assert data['data'][0]['fluxes'][0] == 234.2
+    assert data['data'][0]['obj_id'] == public_source.id
 
 
 def test_token_user_post_get_spectrum_data(
