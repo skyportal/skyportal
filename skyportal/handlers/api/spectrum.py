@@ -1,5 +1,6 @@
 import io
 from pathlib import Path
+from astropy.time import Time
 import numpy as np
 
 from sqlalchemy.orm import joinedload
@@ -587,3 +588,87 @@ class ObjSpectraHandler(BaseHandler):
                 )
 
         return self.success(data={'obj_id': obj.id, 'spectra': return_values})
+
+
+class SpectrumRangeHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Retrieve spectra for given instrument within date range
+        tags:
+          - spectra
+        parameters:
+          - in: query
+            name: instrument_ids
+            required: false
+            schema:
+              type: list of integers
+            description: |
+              Instrument id numbers of spectrum.  If None, retrieve
+              for all instruments.
+          - in: query
+            name: min_date
+            required: false
+            schema:
+              type: ISO UTC date string
+            description: |
+              Minimum UTC date of range in ISOT format.  If None,
+              open ended range.
+          - in: query
+            name: max_date
+            required: false
+            schema:
+              type: ISO UTC date string
+            description: |
+              Maximum UTC date of range in ISOT format. If None,
+              open ended range.
+
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            obj_id:
+                              type: string
+                              description: The ID of the requested Obj
+                            spectra:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/Spectrum'
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        instrument_ids = self.get_query_arguments('instrument_ids')
+        min_date = self.get_query_argument('min_date', None)
+        max_date = self.get_query_argument('max_date', None)
+
+        gids = [g.id for g in self.current_user.accessible_groups]
+
+        query = (
+            DBSession()
+            .query(Spectrum)
+            .join(GroupSpectrum)
+            .filter(GroupSpectrum.group_id.in_(gids))
+        )
+
+        if instrument_ids:
+            query = query.filter(Spectrum.instrument_id.in_(instrument_ids))
+        if min_date is not None:
+            utc = Time(min_date, format='isot', scale='utc')
+            query = query.filter(Spectrum.observed_at >= utc.isot)
+        if max_date is not None:
+            utc = Time(max_date, format='isot', scale='utc')
+            query = query.filter(Spectrum.observed_at <= utc.isot)
+
+        return self.success(data=query.all())
