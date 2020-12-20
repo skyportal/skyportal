@@ -13,28 +13,31 @@ from ...models import (
 
 class UserObjListHandler(BaseHandler):
     @auth_or_token
-    def get(self, user_id):
+    def get(self, user_id=None):
         """
         ---
         description: get all listings corresponding to a specific user and that match a list name.
         parameters:
         - in: path
           name: user_id
-          required: true
+          required: false
           type: string
         - in: query
           name: listName
           required: false
           type: string
           description: |
-            find all objects saved to this list.
+            name of the list to retrieve objects from.
             If not given will return all objects
             saved by the user to all lists.
         responses:
           200:
             content:
-              schema: ArrayOFListings
+              schema: ArrayOfListings
         """
+
+        if user_id is None:
+            user_id = self.current_user
 
         if User.query.get(user_id) is None:  # verify that user exists
             return self.error(f'User "{user_id}" does not exist!')
@@ -63,9 +66,9 @@ class UserObjListHandler(BaseHandler):
     def add_listing(self, error_if_exists):
         """
         Add the listing given in the request body.
-        Two different behaviors when error_if_exists is true/false:
-        - true: will throw an error if listing exists (POST)
-        - false: will ignore if listing already exists (PUT)
+        error_if_exists: boolean
+          true: will throw an error if listing exists (POST)
+          false: will ignore if listing already exists (PUT)
         """
 
         data = self.get_json()
@@ -114,7 +117,7 @@ class UserObjListHandler(BaseHandler):
                 return self.error(
                     f'Listing already exists with user_id={user_id}, obj_id={obj_id} and list_name={list_name}'
                 )
-            else:
+            else:  # if user, obj and list name are identical, no need for an update of existing record
                 return self.success(data={'listing_id': query.first().id})
 
         # no such listing, can just add a new one!
@@ -129,14 +132,14 @@ class UserObjListHandler(BaseHandler):
     def post(self):
         """
         ---
-        description: Add a listing. If it exists, return an error
+        description: Add a listing.
         requestBody:
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  user_ud:
+                  user_id:
                     type: integer
                     required: true
                   obj_id:
@@ -177,14 +180,14 @@ class UserObjListHandler(BaseHandler):
     def put(self):
         """
         ---
-        description: Add a listing, if it doesn't exist yet
+        description: Add a listing, if it exists, ignore this call
         requestBody:
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  user_ud:
+                  user_id:
                     type: integer
                     required: true
                   obj_id:
@@ -215,7 +218,7 @@ class UserObjListHandler(BaseHandler):
                           properties:
                             listing_id:
                               type: integer
-                              description: New listing ID
+                              description: New or existing listing ID
 
         """
 
@@ -225,7 +228,7 @@ class UserObjListHandler(BaseHandler):
     def patch(self, listing_id):
         """
         ---
-        description: Update a listing with new parameters
+        description: Update an existing listing
         parameters:
         - in: path
           name: listing_id
@@ -238,7 +241,7 @@ class UserObjListHandler(BaseHandler):
               schema:
                 type: object
                 properties:
-                  user_ud:
+                  user_id:
                     type: integer
                     required: true
                   obj_id:
@@ -263,14 +266,17 @@ class UserObjListHandler(BaseHandler):
 
         """
 
-        listing = Listing.query.get(int(listing_id))
+        try:
+            listing = Listing.query.get(int(listing_id))
+        except TypeError:
+            return self.error('Listing ID must be convertible to int. ')
 
         if listing is None:
             return self.error("Listing does not exist.")
 
         # verify that poster has write access to user_id's lists
         if (
-            not self.associated_user_object.id == listing.user_id
+            self.associated_user_object.id != listing.user_id
             and "System admin" not in self.associated_user_object.permissions
         ):
             return self.error('Insufficient permissions to access this listing. ')
@@ -284,16 +290,14 @@ class UserObjListHandler(BaseHandler):
         except ValidationError as e:
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
 
-        user_id = data.get('user_id')
+        user_id = int(data.get('user_id'))
 
         if User.query.get(user_id) is None:  # verify that user exists
             return self.error(f'User "{user_id}" does not exist!')
 
-        user_id = int(user_id)
-
         # verify that poster has write access to the new user_id
         if (
-            not self.associated_user_object.id == user_id
+            self.associated_user_object.id != user_id
             and "System admin" not in self.associated_user_object.permissions
         ):
             return self.error(
@@ -345,7 +349,7 @@ class UserObjListHandler(BaseHandler):
 
         # verify that poster has write access to user_id's lists
         if (
-            not self.associated_user_object.id == listing.user_id
+            self.associated_user_object.id != listing.user_id
             and "System admin" not in self.associated_user_object.permissions
         ):
             return self.error('Insufficient permissions to access this listing. ')

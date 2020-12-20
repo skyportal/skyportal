@@ -590,7 +590,7 @@ class Obj(Base, ha.Point):
         back_populates="obj",
         cascade="delete",
         passive_deletes=True,
-        doc="Listings like favorites list",
+        doc="Listings combining interesting objects referenced by a user+obj+list name combination, e.g., favorites list",
     )
 
     @hybrid_property

@@ -38,7 +38,7 @@ def test_add_objects_to_list(user, public_candidate, public_candidate2):
     item2 = data["data"]["listing_id"]  # get the list item ID
 
     # get the list back, should include only two items
-    status, data = api('GET', f'listing/{user.id}?list_name=favorites', token=token_id)
+    status, data = api('GET', f'listing/{user.id}?listName=favorites', token=token_id)
 
     assert status == 200
     new_list = data["data"]
@@ -150,7 +150,7 @@ def test_add_remove_objects(user, public_candidate, public_candidate2):
     assert status == 200
 
     # get the list back, should include only one item
-    status, data = api('GET', f'listing/{user.id}?list_name=favorites', token=token_id)
+    status, data = api('GET', f'listing/{user.id}?listName=favorites', token=token_id)
 
     assert status == 200
     new_list = data["data"]
