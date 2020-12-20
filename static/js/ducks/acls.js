@@ -1,12 +1,12 @@
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_ACLS = "skyportal/FETCH_ACLS";
-export const FETCH_ACLS_OK = "skyportal/FETCH_ACLS_OK";
+const FETCH_ACLS = "skyportal/FETCH_ACLS";
+const FETCH_ACLS_OK = "skyportal/FETCH_ACLS_OK";
 
-export const ADD_USER_ACLS = "skyportal/ADD_USER_ACLS";
+const ADD_USER_ACLS = "skyportal/ADD_USER_ACLS";
 
-export const DELETE_USER_ACL = "skyportal/DELETE_USER_ACL";
+const DELETE_USER_ACL = "skyportal/DELETE_USER_ACL";
 
 export const fetchACLs = () => API.GET("/api/acls", FETCH_ACLS);
 

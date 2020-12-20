@@ -71,14 +71,13 @@ class SourceViewsHandler(BaseHandler):
     @tornado.web.authenticated
     def post(self, obj_id):
         # Ensure user has access to source
-        Source.get_obj_if_readable_by(obj_id, self.current_user)
+        Obj.get_if_readable_by(obj_id, self.current_user)
         # This endpoint will only be hit by front-end, so this will never be a token
         register_source_view(
             obj_id=obj_id,
             username_or_token_id=self.current_user.username,
             is_token=False,
         )
-        self.push_all(action="skyportal/FETCH_TOP_SOURCES")
         return self.success()
 
 

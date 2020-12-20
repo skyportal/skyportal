@@ -13,6 +13,8 @@ class TaxonomyHandler(BaseHandler):
         ---
         single:
           description: Retrieve a taxonomy
+          tags:
+            - taxonomies
           parameters:
             - in: path
               name: taxonomy_id
@@ -30,6 +32,8 @@ class TaxonomyHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Get all the taxonomies
+          tags:
+            - taxonomies
           responses:
             200:
               content:
@@ -63,6 +67,8 @@ class TaxonomyHandler(BaseHandler):
         """
         ---
         description: Post new taxonomy
+        tags:
+          - taxonomies
         requestBody:
           content:
             application/json:
@@ -198,6 +204,8 @@ class TaxonomyHandler(BaseHandler):
         """
         ---
         description: Delete a taxonomy
+        tags:
+          - taxonomies
         parameters:
           - in: path
             name: taxonomy_id

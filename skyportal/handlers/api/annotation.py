@@ -11,6 +11,8 @@ class AnnotationHandler(BaseHandler):
         """
         ---
         description: Retrieve an annotation
+        tags:
+          - annotations
         parameters:
           - in: path
             name: annotation_id
@@ -37,6 +39,8 @@ class AnnotationHandler(BaseHandler):
         """
         ---
         description: Post an annotation
+        tags:
+          - annotations
         requestBody:
           content:
             application/json:
@@ -173,6 +177,8 @@ class AnnotationHandler(BaseHandler):
         """
         ---
         description: Update an annotation
+        tags:
+          - annotations
         parameters:
           - in: path
             name: annotation_id
@@ -243,6 +249,8 @@ class AnnotationHandler(BaseHandler):
         """
         ---
         description: Delete an annotation
+        tags:
+          - annotations
         parameters:
           - in: path
             name: annotation_id

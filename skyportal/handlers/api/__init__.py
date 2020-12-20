@@ -12,6 +12,7 @@ from .group import (
     GroupUserHandler,
     GroupStreamHandler,
     GroupUsersFromOtherGroupsHandler,
+    ObjGroupsHandler,
 )
 
 from .user_obj_list import UserObjListHandler
@@ -42,6 +43,7 @@ from .spectrum import (
     ObjSpectraHandler,
     SpectrumASCIIFileParser,
     SpectrumASCIIFileHandler,
+    SpectrumRangeHandler,
 )
 from .stream import StreamHandler, StreamUserHandler
 from .sysinfo import SysInfoHandler

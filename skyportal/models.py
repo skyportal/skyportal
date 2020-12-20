@@ -1805,7 +1805,8 @@ User.comments = relationship("Comment", back_populates="author")
 
 
 class Annotation(Base):
-    """A sortable/searchable Annotation made by a filter or other robot, with a set of data as JSON """
+    """A sortable/searchable Annotation made by a filter or other robot,
+    with a set of data as JSON """
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 

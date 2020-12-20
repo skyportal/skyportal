@@ -3,9 +3,10 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_RECENT_SOURCES = "skyportal/FETCH_RECENT_SOURCES";
-export const FETCH_RECENT_SOURCES_OK = "skyportal/FETCH_RECENT_SOURCES_OK";
+const FETCH_RECENT_SOURCES = "skyportal/FETCH_RECENT_SOURCES";
+const FETCH_RECENT_SOURCES_OK = "skyportal/FETCH_RECENT_SOURCES_OK";
 
+// eslint-disable-next-line import/prefer-default-export
 export const fetchRecentSources = () =>
   API.GET("/api/internal/recent_sources", FETCH_RECENT_SOURCES);
 

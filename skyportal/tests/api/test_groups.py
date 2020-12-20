@@ -343,3 +343,11 @@ def test_cannot_delete_sitewide_public_group(super_admin_token):
     status, data = api("DELETE", f"groups/{group_id}", token=super_admin_token)
     assert data["status"] == "error"
     assert data["message"] == "Cannot delete site-wide public group."
+
+
+def test_obj_groups(public_source, public_group, super_admin_token):
+    status, data = api(
+        'GET', f'sources/{public_source.id}/groups', token=super_admin_token
+    )
+    assert status == 200
+    assert data["data"][0]["id"] == public_group.id

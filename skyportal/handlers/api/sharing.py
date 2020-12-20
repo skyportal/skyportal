@@ -9,6 +9,8 @@ class SharingHandler(BaseHandler):
         """
         ---
         description: Share data with additional groups/users
+        tags:
+          - data_sharing
         requestBody:
           content:
             application/json:

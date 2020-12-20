@@ -9,6 +9,13 @@ import { useForm, Controller } from "react-hook-form";
 import Autocomplete from "@material-ui/lab/Autocomplete";
 import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
+import Paper from "@material-ui/core/Paper";
+import IconButton from "@material-ui/core/IconButton";
+import DeleteForeverIcon from "@material-ui/icons/DeleteForever";
+import GetAppIcon from "@material-ui/icons/GetApp";
+import Dialog from "@material-ui/core/Dialog";
+import DialogContent from "@material-ui/core/DialogContent";
+import Papa from "papaparse";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -18,6 +25,49 @@ import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
 import { useSourceStyles } from "./SourceDesktop";
+import { deleteSpectrum } from "../ducks/spectra";
+
+function get_filename(spectrum) {
+  return `${spectrum.obj_id}_${spectrum.instrument_name}_${spectrum.observed_at}.csv`;
+}
+
+function to_csv(spectrum) {
+  const formatted = [];
+  spectrum.wavelengths.forEach((wave, i) => {
+    const obj = {};
+    obj.wavelength = wave;
+    obj.flux = spectrum.fluxes[i];
+    if (spectrum.fluxerr) {
+      obj.fluxerr = spectrum.fluxerr[i];
+    }
+    formatted.push(obj);
+  });
+  return Papa.unparse(formatted);
+}
+
+const UserContactLink = ({ user }) => {
+  const display_string =
+    user.first_name && user.last_name
+      ? `${user.first_name} ${user.last_name}`
+      : user.username;
+  return (
+    <div>
+      {user.contact_email && (
+        <a href={`mailto:${user.contact_email}`}>{display_string}</a>
+      )}
+      {!user.contact_email && <p>{display_string}</p>}
+    </div>
+  );
+};
+
+UserContactLink.propTypes = {
+  user: PropTypes.shape({
+    first_name: PropTypes.string,
+    last_name: PropTypes.string,
+    username: PropTypes.string.isRequired,
+    contact_email: PropTypes.string,
+  }).isRequired,
+};
 
 const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 
@@ -41,11 +91,22 @@ const createPhotRow = (
   groups,
 });
 
-const createSpecRow = (id, instrument, observed, groups) => ({
+const createSpecRow = (
   id,
   instrument,
   observed,
   groups,
+  owner,
+  reducers,
+  observers
+) => ({
+  id,
+  instrument,
+  observed,
+  groups,
+  owner,
+  reducers,
+  observers,
 });
 
 const photHeadCells = [
@@ -59,22 +120,37 @@ const photHeadCells = [
   { name: "groups", label: "Currently visible to" },
 ];
 
-const specHeadCells = [
-  { name: "id", label: "ID" },
-  { name: "instrument", label: "Instrument" },
-  { name: "observed", label: "Observed (UTC)" },
-  { name: "groups", label: "Currently visible to" },
-];
-
 const useStyles = makeStyles(() => ({
   groupSelect: {
     width: "20rem",
   },
 }));
 
-const ShareDataForm = ({ route }) => {
-  const classes = useStyles();
+const SpectrumRow = ({ rowData, route }) => {
   const styles = useSourceStyles();
+  return (
+    <div>
+      <Paper className={styles.photometryContainer}>
+        <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
+          <Plot
+            className={styles.plot}
+            // eslint-disable-next-line react/prop-types
+            url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`}
+          />
+        </Suspense>
+      </Paper>
+    </div>
+  );
+};
+
+SpectrumRow.propTypes = {
+  route: PropTypes.string.isRequired,
+  rowData: PropTypes.arrayOf(PropTypes.number).isRequired,
+};
+
+const ManageDataForm = ({ route }) => {
+  const classes = useStyles();
+
   const dispatch = useDispatch();
   const [selectedPhotRows, setSelectedPhotRows] = useState([]);
   const [selectedSpecRows, setSelectedSpecRows] = useState([]);
@@ -137,16 +213,164 @@ const ShareDataForm = ({ route }) => {
       )
     : [];
 
-  const specRows = spectra[route.id]
-    ? spectra[route.id].map((spec) =>
+  const sourceSpectra = spectra[route.id];
+  const specRows = sourceSpectra
+    ? sourceSpectra.map((spec) =>
         createSpecRow(
           spec.id,
           spec.instrument_name,
           spec.observed_at,
-          spec.groups.map((group) => group.name).join(", ")
+          spec.groups.map((group) => group.name).join(", "),
+          spec.owner,
+          spec.reducers,
+          spec.observers
         )
       )
     : [];
+
+  const makeRenderSingleUser = (key) => {
+    const RenderSingleUser = (dataIndex) => {
+      const user = specRows[dataIndex][key];
+      if (user) {
+        return <UserContactLink user={user} />;
+      }
+      return <div />;
+    };
+    return RenderSingleUser;
+  };
+
+  const makeRenderMultipleUsers = (key) => {
+    const RenderMultipleUsers = (dataIndex) => {
+      const users = specRows[dataIndex][key];
+      if (users) {
+        return users.map((user) => (
+          <UserContactLink user={user} key={user.id} />
+        ));
+      }
+      return <div />;
+    };
+    return RenderMultipleUsers;
+  };
+
+  const DeleteSpectrumButton = (dataIndex) => {
+    const specid = specRows[dataIndex].id;
+    const [open, setOpen] = useState(false);
+    return (
+      <div>
+        <Dialog
+          open={open}
+          aria-labelledby="simple-modal-title"
+          aria-describedby="simple-modal-description"
+          onClose={() => {
+            setOpen(false);
+          }}
+          className={classes.detailedSpecButton}
+        >
+          <DialogContent>
+            <div>
+              <Typography variant="h6">
+                Are you sure you want to do this?
+              </Typography>
+              The following operation <em>permanently</em> deletes the spectrum
+              from the database. This operation cannot be undone and your data
+              cannot be recovered after the fact. You will have to upload the
+              spectrum again from scratch.
+            </div>
+            <div>
+              <Button
+                onClick={() => {
+                  setOpen(false);
+                }}
+              >
+                No, do not delete the spectrum.
+              </Button>
+              <Button
+                onClick={async () => {
+                  setOpen(false);
+                  const result = await dispatch(deleteSpectrum(specid));
+                  if (result.status === "success") {
+                    dispatch(showNotification("Spectrum deleted."));
+                  }
+                }}
+                data-testid="yes-delete"
+              >
+                Yes, delete the spectrum.
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        <IconButton
+          onClick={() => {
+            setOpen(true);
+          }}
+          data-testid={`delete-spectrum-button-${specid}`}
+        >
+          <DeleteForeverIcon />
+        </IconButton>
+      </div>
+    );
+  };
+
+  const DownloadSpectrumButton = (dataIndex) => {
+    const specid = specRows[dataIndex].id;
+    const spectrum = sourceSpectra.find((spec) => spec.id === specid);
+
+    const data = spectrum.original_file_string
+      ? spectrum.original_file_string
+      : to_csv(spectrum);
+    const filename = spectrum.original_file_filename
+      ? spectrum.original_file_filename
+      : get_filename(spectrum);
+
+    const blob = new Blob([data], { type: "text/plain" });
+
+    return (
+      <IconButton href={URL.createObjectURL(blob)} download={filename}>
+        <GetAppIcon />
+      </IconButton>
+    );
+  };
+
+  const specHeadCells = [
+    { name: "id", label: "ID" },
+    { name: "instrument", label: "Instrument" },
+    { name: "observed", label: "Observed (UTC)" },
+    { name: "groups", label: "Currently visible to" },
+    {
+      name: "owner",
+      label: "Uploaded by",
+      options: {
+        customBodyRenderLite: makeRenderSingleUser("owner"),
+        filter: false,
+      },
+    },
+    {
+      name: "reducers",
+      label: "Reduced by",
+      options: {
+        customBodyRenderLite: makeRenderMultipleUsers("reducers"),
+        filter: false,
+      },
+    },
+    {
+      name: "observers",
+      label: "Observed by",
+      options: {
+        customBodyRenderLite: makeRenderMultipleUsers("observers"),
+        filter: false,
+      },
+    },
+    {
+      name: "delete",
+      label: "Delete",
+      options: { customBodyRenderLite: DeleteSpectrumButton, filter: false },
+    },
+    {
+      name: "download",
+      label: "Download",
+      options: { customBodyRenderLite: DownloadSpectrumButton, filter: false },
+    },
+  ];
 
   const options = {
     textLabels: {
@@ -223,16 +447,11 @@ const ShareDataForm = ({ route }) => {
               expandableRows: true,
               // eslint-disable-next-line react/display-name,no-unused-vars
               renderExpandableRow: (rowData, rowMeta) => (
-                <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
-                  <Plot
-                    className={styles.plot}
-                    // eslint-disable-next-line react/prop-types
-                    url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`}
-                  />
-                </Suspense>
+                <SpectrumRow rowData={rowData} route={route} />
               ),
-              expandableRowsOnClick: true,
+              expandableRowsOnClick: false,
             }}
+            data-testid="spectrum-table"
           />
         )}
       </div>
@@ -290,10 +509,10 @@ const ShareDataForm = ({ route }) => {
     </>
   );
 };
-ShareDataForm.propTypes = {
+ManageDataForm.propTypes = {
   route: PropTypes.shape({
     id: PropTypes.string,
   }).isRequired,
 };
 
-export default ShareDataForm;
+export default ManageDataForm;

@@ -11,6 +11,8 @@ class TelescopeHandler(BaseHandler):
         """
         ---
         description: Create telescopes
+        tags:
+          - telescopes
         requestBody:
           content:
             application/json:
@@ -55,6 +57,8 @@ class TelescopeHandler(BaseHandler):
         ---
         single:
           description: Retrieve a telescope
+          tags:
+            - telescopes
           parameters:
             - in: path
               name: telescope_id
@@ -72,6 +76,8 @@ class TelescopeHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all telescopes
+          tags:
+            - telescopes
           parameters:
             - in: query
               name: name
@@ -104,6 +110,8 @@ class TelescopeHandler(BaseHandler):
         """
         ---
         description: Update telescope
+        tags:
+          - telescopes
         parameters:
           - in: path
             name: telescope_id
@@ -146,6 +154,8 @@ class TelescopeHandler(BaseHandler):
         """
         ---
         description: Delete a telescope
+        tags:
+          - telescopes
         parameters:
           - in: path
             name: telescope_id

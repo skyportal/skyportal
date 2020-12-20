@@ -23,10 +23,9 @@ import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 
 import { HtmlTooltip } from "./UploadPhotometry";
 
-import * as Actions from "../ducks/spectra";
+import * as spectraActions from "../ducks/spectra";
 import { fetchSource } from "../ducks/source";
 import { fetchUsers } from "../ducks/users";
-import { RESET_PARSED_SPECTRUM } from "../ducks/spectra";
 
 dayjs.extend(utc);
 
@@ -120,7 +119,7 @@ const UploadSpectrumForm = ({ route }) => {
   // on page load or refresh, block until state.spectra.parsed is reset
   useEffect(() => {
     const blockingFunc = async () => {
-      dispatch({ type: Actions.RESET_PARSED_SPECTRUM });
+      dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
       dispatch(fetchUsers());
       const result = await dispatch(fetchSource(route.id));
       const defaultFormData = {
@@ -366,7 +365,7 @@ const UploadSpectrumForm = ({ route }) => {
   };
 
   const parseAscii = ({ formData }) => {
-    dispatch({ type: Actions.RESET_PARSED_SPECTRUM });
+    dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
     const ascii = dataUriToBuffer(formData.file).toString();
     const payload = {
       ascii,
@@ -375,7 +374,7 @@ const UploadSpectrumForm = ({ route }) => {
       fluxerr_column:
         formData?.has_fluxerr === "Yes" ? formData.fluxerr_column : null,
     };
-    dispatch(Actions.parseASCIISpectrum(payload));
+    dispatch(spectraActions.parseASCIISpectrum(payload));
   };
 
   const uploadSpectrum = async () => {
@@ -405,10 +404,10 @@ const UploadSpectrumForm = ({ route }) => {
       reduced_by: persistentFormData.reduced_by,
       group_ids: persistentFormData.group_ids,
     };
-    const result = await dispatch(Actions.uploadASCIISpectrum(payload));
+    const result = await dispatch(spectraActions.uploadASCIISpectrum(payload));
     if (result.status === "success") {
       dispatch(showNotification("Upload successful."));
-      dispatch({ type: RESET_PARSED_SPECTRUM });
+      dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
       setPersistentFormData({
         file: undefined,
         group_ids: source.groups.map((group) => group.id),
@@ -440,7 +439,7 @@ const UploadSpectrumForm = ({ route }) => {
             onChange={({ formData }) => {
               if (formData.file !== persistentFormData.file) {
                 setFormKey(Date.now());
-                dispatch({ type: RESET_PARSED_SPECTRUM });
+                dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
               }
               setPersistentFormData(formData);
             }}

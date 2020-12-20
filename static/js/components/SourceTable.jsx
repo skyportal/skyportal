@@ -13,13 +13,13 @@ import Chip from "@material-ui/core/Chip";
 import Link from "@material-ui/core/Link";
 import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
 import CircularProgress from "@material-ui/core/CircularProgress";
-import Popover from "@material-ui/core/Popover";
-import SortIcon from "@material-ui/icons/Sort";
-import ArrowUpward from "@material-ui/icons/ArrowUpward";
-import ArrowDownward from "@material-ui/icons/ArrowDownward";
-import Form from "@rjsf/material-ui";
 import MUIDataTable from "mui-datatables";
-import { makeStyles } from "@material-ui/core/styles";
+import {
+  makeStyles,
+  createMuiTheme,
+  MuiThemeProvider,
+  useTheme,
+} from "@material-ui/core/styles";
 import Tooltip from "@material-ui/core/Tooltip";
 import GroupIcon from "@material-ui/icons/Group";
 import CheckIcon from "@material-ui/icons/Check";
@@ -51,18 +51,30 @@ const useStyles = makeStyles((theme) => ({
   tableGrid: {
     width: "100%",
   },
-  sortButtton: {
-    "&:hover": {
-      color: theme.palette.primary.main,
-    },
-  },
-  icon: {
-    verticalAlign: "top",
-  },
-  sortFormContainer: {
-    padding: "1rem",
-  },
 }));
+
+const getMuiTheme = (theme) =>
+  createMuiTheme({
+    palette: theme.palette,
+    overrides: {
+      MUIDataTableHeadCell: {
+        sortLabelRoot: {
+          height: "1.4rem",
+        },
+      },
+    },
+  });
+
+const defaultDisplayedColumns = [
+  "Source ID",
+  "RA (deg)",
+  "Dec (deg)",
+  "Redshift",
+  "Classification",
+  "Groups",
+  "Date Saved",
+  "Finder",
+];
 
 // MUI data table with pull out rows containing a summary of each source.
 // This component is used in GroupSources and SourceList.
@@ -83,17 +95,11 @@ const SourceTable = ({
   const dispatch = useDispatch();
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const classes = useStyles();
+  const theme = useTheme();
 
-  const [sortAnchorEl, setSortAnchorEl] = useState(null);
-  const handleSortClick = (event) => {
-    setSortAnchorEl(event.currentTarget);
-  };
-  const handleSortClose = () => {
-    setSortAnchorEl(null);
-  };
-  const sortOpen = Boolean(sortAnchorEl);
-  const sortId = sortOpen ? "sort-popover" : undefined;
-  const [currentSortColumn, setCurrentSortColumn] = useState(null);
+  const [displayedColumns, setDisplayedColumns] = useState(
+    defaultDisplayedColumns
+  );
 
   // Color styling
   const userColorTheme = useSelector(
@@ -116,7 +122,26 @@ const SourceTable = ({
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
-        paginateCallback(tableState.page + 1, tableState.rowsPerPage);
+        paginateCallback(
+          tableState.page + 1,
+          tableState.rowsPerPage,
+          tableState.sortOrder
+        );
+        break;
+      case "viewColumnsChange":
+        // Save displayed column labels
+        setDisplayedColumns(
+          tableState.columns
+            .filter((column) => column.display === "true")
+            .map((column) => column.label)
+        );
+        break;
+      case "sort":
+        if (tableState.sortOrder.direction === "none") {
+          paginateCallback(1, tableState.rowsPerPage, {});
+        } else {
+          sortingCallback(tableState.sortOrder);
+        }
         break;
       default:
     }
@@ -291,7 +316,11 @@ const SourceTable = ({
   const renderObjId = (dataIndex) => {
     const objid = sources[dataIndex].id;
     return (
-      <a href={`/source/${objid}`} key={`${objid}_objid`}>
+      <a
+        href={`/source/${objid}`}
+        key={`${objid}_objid`}
+        data-testid={`${objid}`}
+      >
         {objid}
       </a>
     );
@@ -471,10 +500,12 @@ const SourceTable = ({
     const peakPoint = source.photometry
       .filter((point) => point.flux)
       .sort((a, b) => a.flux - b.flux)[0];
-    return (
+    return source.photometry.length > 0 ? (
       <Tooltip title={`${(mjdNow - peakPoint.mjd).toFixed(2)} days ago`}>
         <div>{`${flux_to_mag(peakPoint.flux, peakPoint.zp).toFixed(4)}`}</div>
       </Tooltip>
+    ) : (
+      <div>No photometry</div>
     );
   };
 
@@ -483,12 +514,14 @@ const SourceTable = ({
     const latestPoint = source.photometry
       .filter((point) => point.flux)
       .sort((a, b) => b.mjd - a.mjd)[0];
-    return (
+    return source.photometry.length > 0 ? (
       <Tooltip title={`${(mjdNow - latestPoint.mjd).toFixed(2)} days ago`}>
         <div>
           {`${flux_to_mag(latestPoint.flux, latestPoint.zp).toFixed(4)}`}
         </div>
       </Tooltip>
+    ) : (
+      <div>No photometry</div>
     );
   };
 
@@ -501,107 +534,24 @@ const SourceTable = ({
     );
   };
 
-  const renderHeader = (name, label) => {
-    const sortedOn = currentSortColumn && currentSortColumn.column === name;
-    return (
-      <div>
-        {label}
-        {sortedOn && currentSortColumn.ascending && (
-          <ArrowUpward fontSize="small" className={classes.icon} />
-        )}
-        {sortedOn && !currentSortColumn.ascending && (
-          <ArrowDownward fontSize="small" className={classes.icon} />
-        )}
-      </div>
-    );
-  };
-
-  const handleSortSubmit = ({ formData }) => {
-    setCurrentSortColumn(formData);
-    handleSortClose();
-    sortingCallback(formData);
-  };
-  const sortingFormSchema = {
-    description: "Sort by column",
-    type: "object",
-    properties: {
-      column: {
-        type: "string",
-        title: "Column",
-        enum: ["id", "ra", "dec", "redshift", "saved_at"],
-        enumNames: ["Source ID", "RA", "Dec", "Redshift", "Date Saved"],
-      },
-      ascending: {
-        title: "Order",
-        type: "boolean",
-        enumNames: ["Ascending", "Descending"],
-      },
-    },
-  };
-
-  const sortingFormUISchema = {
-    ascending: {
-      "ui:widget": "radio",
-    },
-  };
-
-  const renderSortForm = () => {
-    return (
-      <>
-        <Tooltip title="Sort">
-          <span>
-            <IconButton
-              aria-describedby={sortId}
-              onClick={handleSortClick}
-              className={classes.sortButtton}
-              data-testid="sortButton"
-            >
-              <SortIcon />
-            </IconButton>
-          </span>
-        </Tooltip>
-
-        <Popover
-          id={sortId}
-          open={sortOpen}
-          onClose={handleSortClose}
-          anchorEl={sortAnchorEl}
-          anchorOrigin={{
-            vertical: "center",
-            horizontal: "left",
-          }}
-          transformOrigin={{
-            vertical: "top",
-            horizontal: "right",
-          }}
-        >
-          <div className={classes.sortFormContainer}>
-            <Form
-              schema={sortingFormSchema}
-              onSubmit={handleSortSubmit}
-              uiSchema={sortingFormUISchema}
-            />
-          </div>
-        </Popover>
-      </>
-    );
-  };
-
   const columns = [
     {
       name: "id",
       label: "Source ID",
       options: {
         filter: true,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Source ID"),
         customBodyRenderLite: renderObjId,
-        customHeadLabelRender: () => renderHeader("id", "Source ID"),
       },
     },
     {
       name: "Alias",
       options: {
         filter: true,
-        display: false,
+        sort: false,
+        display: displayedColumns.includes("Alias"),
         customBodyRenderLite: renderAlias,
       },
     },
@@ -610,8 +560,10 @@ const SourceTable = ({
       label: "RA (deg)",
       options: {
         filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("RA (deg)"),
         customBodyRenderLite: renderRA,
-        customHeadLabelRender: () => renderHeader("ra", "RA (deg)"),
       },
     },
     {
@@ -619,8 +571,10 @@ const SourceTable = ({
       label: "Dec (deg)",
       options: {
         filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Dec (deg)"),
         customBodyRenderLite: renderDec,
-        customHeadLabelRender: () => renderHeader("dec", "Dec (deg)"),
       },
     },
     {
@@ -628,9 +582,10 @@ const SourceTable = ({
       label: "RA (hh:mm:ss)",
       options: {
         filter: false,
-        display: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("RA (hh:mm:ss)"),
         customBodyRenderLite: renderRASex,
-        customHeadLabelRender: () => renderHeader("ra", "RA (hh:mm:ss)"),
       },
     },
     {
@@ -638,9 +593,10 @@ const SourceTable = ({
       label: "Dec (dd:mm:ss)",
       options: {
         filter: false,
-        display: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Dec (dd:mm:ss)"),
         customBodyRenderLite: renderDecSex,
-        customHeadLabelRender: () => renderHeader("dec", "Dec (dd:mm:ss)"),
       },
     },
     {
@@ -648,7 +604,9 @@ const SourceTable = ({
       label: "Redshift",
       options: {
         filter: false,
-        customHeadLabelRender: () => renderHeader("redshift", "Redshift"),
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Redshift"),
       },
     },
     {
@@ -656,9 +614,10 @@ const SourceTable = ({
       label: "Classification",
       options: {
         filter: true,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Classification"),
         customBodyRenderLite: renderClassification,
-        customHeadLabelRender: () =>
-          renderHeader("classification", "Classification"),
       },
     },
     {
@@ -666,6 +625,8 @@ const SourceTable = ({
       label: "Groups",
       options: {
         filter: false,
+        sort: false,
+        display: displayedColumns.includes("Groups"),
         customBodyRenderLite: renderGroups,
       },
     },
@@ -674,43 +635,51 @@ const SourceTable = ({
       label: "Date Saved",
       options: {
         filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Date Saved"),
         customBodyRenderLite: renderDateSaved,
-        customHeadLabelRender: () => renderHeader("saved_at", "Date Saved"),
       },
     },
     {
       name: "Finder",
       options: {
         filter: false,
+        sort: false,
+        display: displayedColumns.includes("Finder"),
         customBodyRenderLite: renderFinderButton,
       },
     },
     {
       name: "Spectrum?",
       options: {
+        sort: false,
         customBodyRenderLite: renderSpectrumExists,
-        display: false,
+        display: displayedColumns.includes("Spectrum?"),
       },
     },
     {
       name: "Peak Magnitude",
       options: {
+        sort: false,
         customBodyRenderLite: renderPeakMagnitude,
-        display: false,
+        display: displayedColumns.includes("Peak Magnitude"),
       },
     },
     {
       name: "Latest Magnitude",
       options: {
+        sort: false,
         customBodyRenderLite: renderLatestMagnitude,
-        display: false,
+        display: displayedColumns.includes("Latest Magnitude"),
       },
     },
     {
       name: "TNS Name",
       options: {
+        sort: false,
         customBodyRenderLite: renderTNSName,
-        display: false,
+        display: displayedColumns.includes("TNS Name"),
       },
     },
   ];
@@ -720,8 +689,7 @@ const SourceTable = ({
     expandableRows: true,
     renderExpandableRow: renderPullOutRow,
     selectableRows: "none",
-    sort: false,
-    customToolbar: renderSortForm,
+    sort: true,
     onTableChange: handleTableChange,
     serverSide: true,
     rowsPerPage: numPerPage,
@@ -755,12 +723,14 @@ const SourceTable = ({
           spacing={3}
         >
           <Grid item className={classes.tableGrid}>
-            <MUIDataTable
-              title={title}
-              columns={columns}
-              data={sources}
-              options={options}
-            />
+            <MuiThemeProvider theme={getMuiTheme(theme)}>
+              <MUIDataTable
+                title={title}
+                columns={columns}
+                data={sources}
+                options={options}
+              />
+            </MuiThemeProvider>
           </Grid>
         </Grid>
       </div>

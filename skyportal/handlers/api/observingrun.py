@@ -20,6 +20,8 @@ class ObservingRunHandler(BaseHandler):
         """
         ---
         description: Add a new observing run
+        tags:
+          - observing_runs
         requestBody:
           content:
             application/json:
@@ -68,6 +70,8 @@ class ObservingRunHandler(BaseHandler):
         ---
         single:
           description: Retrieve an observing run
+          tags:
+            - observing_runs
           parameters:
             - in: path
               name: run_id
@@ -85,6 +89,8 @@ class ObservingRunHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all observing runs
+          tags:
+            - observing_runs
           responses:
             200:
               content:
@@ -183,6 +189,8 @@ class ObservingRunHandler(BaseHandler):
         """
         ---
         description: Update observing run
+        tags:
+          - observing_runs
         parameters:
           - in: path
             name: run_id
@@ -235,6 +243,8 @@ class ObservingRunHandler(BaseHandler):
         """
         ---
         description: Delete an observing run
+        tags:
+          - observing_runs
         parameters:
           - in: path
             name: run_id

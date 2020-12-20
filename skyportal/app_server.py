@@ -42,10 +42,12 @@ from skyportal.handlers.api import (
     SourceOffsetsHandler,
     SourceFinderHandler,
     SourceNotificationHandler,
+    ObjGroupsHandler,
     SourceGroupsHandler,
     SpectrumHandler,
     SpectrumASCIIFileHandler,
     SpectrumASCIIFileParser,
+    SpectrumRangeHandler,
     ObjSpectraHandler,
     StreamHandler,
     StreamUserHandler,
@@ -117,12 +119,14 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_]+)/offsets', SourceOffsetsHandler),
     (r'/api/sources(/[0-9A-Za-z-_]+)/finder', SourceFinderHandler),
     (r'/api/sources(/[0-9A-Za-z-_]+)/classifications', ObjClassificationHandler),
+    (r'/api/sources(/[0-9A-Za-z-_]+)/groups', ObjGroupsHandler),
     (r'/api/sources(/.*)?', SourceHandler),
     (r'/api/source_notifications', SourceNotificationHandler),
     (r'/api/source_groups(/.*)?', SourceGroupsHandler),
     (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
     (r'/api/spectrum/parse/ascii', SpectrumASCIIFileParser),
     (r'/api/spectrum/ascii(/[0-9]+)?', SpectrumASCIIFileHandler),
+    (r'/api/spectrum/range(/.*)?', SpectrumRangeHandler),
     (r'/api/streams(/[0-9]+)/users(/.*)?', StreamUserHandler),
     (r'/api/streams(/[0-9]+)?', StreamHandler),
     (r'/api/sysinfo', SysInfoHandler),
@@ -160,7 +164,7 @@ skyportal_handlers = [
 ]
 
 
-def make_app(cfg, baselayer_handlers, baselayer_settings):
+def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None):
     """Create and return a `tornado.web.Application` object with specified
     handlers and settings.
 
@@ -173,6 +177,11 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         Tornado handlers needed for baselayer to function.
     baselayer_settings : cfg
         Settings needed for baselayer to function.
+    process : int
+        When launching multiple app servers, which number is this?
+    env : dict
+        Environment in which the app was launched.  Currently only has
+        one key, 'debug'---true if launched with `--debug`.
 
     """
     if cfg['cookie_secret'] == 'abc01234':
@@ -221,8 +230,13 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
 
     app = tornado.web.Application(handlers, **settings)
     models.init_db(**cfg['database'])
-    baselayer_model_util.create_tables()
+
+    # If tables are found in the database, new tables will only be added
+    # in debug mode.  In production, we leave the tables alone, since
+    # migrations might be used.
+    baselayer_model_util.create_tables(add=env.debug)
     model_util.refresh_enums()
+
     model_util.setup_permissions()
     app.cfg = cfg
 
