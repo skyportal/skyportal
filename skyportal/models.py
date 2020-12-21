@@ -20,7 +20,6 @@ from sqlalchemy.orm import relationship, aliased
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.ext.declarative.api import DeclarativeMeta
 from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy import func
 
@@ -46,7 +45,7 @@ from baselayer.app.models import (  # noqa
     UserACL,
     UserRole,
     UserAccessControl,
-    accessible_through_relationship,
+    accessible_through_foreign_key,
     user_acls_temporary_table,
     AccessibleByOwner,
     Inaccessible,
@@ -66,8 +65,6 @@ from .enum_types import (
 from .email_utils import send_email
 
 from skyportal import facility_apis
-
-from typing import Union, Callable
 
 # In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
 # All DB fluxes are stored in microJy (AB).
@@ -168,408 +165,141 @@ def user_to_dict(self):
 
 User.to_dict = user_to_dict
 
-# Allowed types for accessible_pair_func arguments and function
-apf_arg_type = Union[DeclarativeMeta, sa.Table]
-accessible_pair_func_type = Callable[[apf_arg_type, apf_arg_type], sa.Table]
-
 
 class AccessibleByGroupMembers(UserAccessControl):
     """A record that is accessible only to members of its associated group."""
 
-    required_attrs = ('group',)
-
-    @staticmethod
-    def access_table(cls, user):
-        """A join table mapping records from a table to users who can access
-        them. Subclasses of AccessControlPattern must implement this method
-        with the appropriate logic.
-
-        The join table should be constructed using aliases of `cls` and `user`,
-        then correlated against `cls` and `user` to ensure indices are propagated
-        and Cardinality is respected.
+    @classmethod
+    def accessible_pairs(cls, target_right, user_right):
+        """Construct a join table mapping User records to accessible target
+        records.
 
         Parameters
         ----------
-        cls: mapped class or alias of mapped class
-            The mapped class (or an alias of the mapped class) representing the
-            access-controlled table.
-        user: User class or alias of User class
-            The User class (or an alias of the User class).
+        target_right: `baselayer.app.models.Base` or alias of
+        `baselayer.app.models.Base`
+            Access protected class or alias of the access protected class.
+        user_right: `baselayer.app.models.Base` or alias of
+        `baselayer.app.models.Base`
+            The `User` class or an alias of the `User` class.
 
         Returns
         -------
-        access_table: sqlalchemy.sql.expression.FromClause
-            A join table mapping records of the `cls` table to records
-            of the users table. Each row corresponds to one class/user pair that
-            is accessible. The schema of this table may vary depending on the
-            schema of `cls`, but will always contain two columns, `cls_id` and
-            `user_id`, representing the primary keys of the `cls` table and the
-            users table, respectively.
+        table: `sqlalchemy.sql.expression.Selectable`
+            SQLalchemy table mapping User records to accessible target records.
         """
-        cls_alias = aliased(cls)
+
+        # Ensure the target class has the foreign key that moderates
+        # access control.
+        cls.check_cls_for_attributes(target_right, ['group_id'])
         user_accessible_groups = user_accessible_groups_temporary_table()
 
-        readable_by_virtue_of_groups = (
-            sa.select(
-                [
-                    cls_alias.id.label('cls_id'),
-                    user_accessible_groups.c.user_id.label('user_id'),
-                ]
-            )
-            .select_from(
-                sa.join(
-                    cls_alias,
-                    user_accessible_groups,
-                    cls_alias.group_id == user_accessible_groups.c.group_id,
-                )
-            )
-            .where(cls_alias.id == cls.id)
-            .where(user_accessible_groups.c.user_id == user.id)
-        )
-
-        return readable_by_virtue_of_groups.distinct()
+        return sa.join(
+            target_right,
+            user_accessible_groups,
+            target_right.group_id == user_accessible_groups.c.group_id,
+        ).join(user_right, user_right.id == user_accessible_groups.c.user_id)
 
 
 class AccessibleByGroupsMembers(UserAccessControl):
     """A record that is readable only to members of its multiple (many-to-many)
     parent groups."""
 
-    required_attrs = ('groups',)
-
-    @staticmethod
-    def access_table(cls, user):
-        """A join table mapping records from a table to users who can access
-        them. Subclasses of AccessControlPattern must implement this method
-        with the appropriate logic.
-
-        The join table should be constructed using aliases of `cls` and `user`,
-        then correlated against `cls` and `user` to ensure indices are propagated
-        and Cardinality is respected.
+    @classmethod
+    def accessible_pairs(cls, target_right, user_right):
+        """Construct a join table mapping User records to accessible target
+        records.
 
         Parameters
         ----------
-        cls: mapped class or alias of mapped class
-            The mapped class (or an alias of the mapped class) representing the
-            access-controlled table.
-        user: User class or alias of User class
-            The User class (or an alias of the User class).
+        target_right: `baselayer.app.models.Base` or alias of
+        `baselayer.app.models.Base`
+            Access protected class or alias of the access protected class.
+        user_right: `baselayer.app.models.Base` or alias of
+        `baselayer.app.models.Base`
+            The `User` class or an alias of the `User` class.
 
         Returns
         -------
-        access_table: sqlalchemy.sql.expression.FromClause
-            A join table mapping records of the `cls` table to records
-            of the users table. Each row corresponds to one class/user pair that
-            is accessible. The schema of this table may vary depending on the
-            schema of `cls`, but will always contain two columns, `cls_id` and
-            `user_id`, representing the primary keys of the `cls` table and the
-            users table, respectively.
-        """
-        cls_alias = aliased(cls)
-        cls_groups_join_table = sa.inspect(cls).mapper.relationships['groups'].secondary
-        user_accessible_groups = user_accessible_groups_temporary_table()
-
-        readable_by_virtue_of_groups = (
-            sa.select(
-                [
-                    cls_alias.id.label('cls_id'),
-                    user_accessible_groups.c.user_id.label('user_id'),
-                ]
-            )
-            .select_from(
-                sa.join(
-                    cls_alias,
-                    cls_groups_join_table,
-                    # automatically detects foreign key
-                ).join(
-                    user_accessible_groups,
-                    cls_groups_join_table.c.group_id
-                    == user_accessible_groups.c.group_id,
-                )
-            )
-            .where(cls_alias.id == cls.id)
-            .where(user_accessible_groups.c.user_id == user.id)
-        )
-
-        return readable_by_virtue_of_groups.distinct()
-
-
-class AccessibleByGroupsMembersIfObjIsReadable(UserAccessControl):
-    """A record that is readable members of its multiple (many-to-many)
-    parent groups if the record's corresponding Obj is readable."""
-
-    required_attrs = 'groups', 'obj'
-
-    @staticmethod
-    def access_table(cls, user):
-        """A join table mapping records from a table to users who can access
-        them. Subclasses of AccessControlPattern must implement this method
-        with the appropriate logic.
-
-        The join table should be constructed using aliases of `cls` and `user`,
-        then correlated against `cls` and `user` to ensure indices are propagated
-        and Cardinality is respected.
-
-        Parameters
-        ----------
-        cls: mapped class or alias of mapped class
-            The mapped class (or an alias of the mapped class) representing the
-            access-controlled table.
-        user: User class or alias of User class
-            The User class (or an alias of the User class).
-
-        Returns
-        -------
-        access_table: sqlalchemy.sql.expression.FromClause
-            A join table mapping records of the `cls` table to records
-            of the users table. Each row corresponds to one class/user pair that
-            is accessible. The schema of this table may vary depending on the
-            schema of `cls`, but will always contain two columns, `cls_id` and
-            `user_id`, representing the primary keys of the `cls` table and the
-            users table, respectively.
+        table: `sqlalchemy.sql.expression.Selectable`
+            SQLalchemy table mapping User records to accessible target records.
         """
 
-        cls_alias = aliased(cls)
-        cls_groups_join_table = sa.inspect(cls).mapper.relationships['groups'].secondary
+        # Ensure the target class has the foreign key that moderates
+        # access control.
+        cls.check_cls_for_attributes(target_right, ['groups'])
         user_accessible_groups = user_accessible_groups_temporary_table()
-        obj_alias = aliased(Obj)
-
-        readable_by_virtue_of_groups = (
-            sa.select(
-                [
-                    cls_alias.id.label('cls_id'),
-                    user_accessible_groups.c.user_id.label('user_id'),
-                ]
-            )
-            .select_from(
-                sa.join(
-                    cls_alias,
-                    cls_groups_join_table,
-                    # automatically detects foreign key
-                )
-                .join(
-                    user_accessible_groups,
-                    cls_groups_join_table.c.group_id
-                    == user_accessible_groups.c.group_id,
-                )
-                .join(
-                    obj_alias,
-                    obj_alias.is_accessible_by(user_accessible_groups.c.user_id),
-                )
-            )
-            .where(cls_alias.id == cls.id)
-            .where(user_accessible_groups.c.user_id == user.id)
-            .where(obj_alias.id == cls_alias.obj_id)
+        cls_groups_join_table = (
+            sa.inspect(target_right).mapper.relationships['groups'].secondary
         )
 
-        return readable_by_virtue_of_groups.distinct()
+        return (
+            sa.join(
+                target_right,
+                cls_groups_join_table,
+                # automatically detects foreign key
+            )
+            .join(
+                user_accessible_groups,
+                cls_groups_join_table.c.group_id == user_accessible_groups.c.group_id,
+            )
+            .join(user_right, user_right.id == user_accessible_groups.c.user_id)
+        )
 
 
-def accessible_by_group_members_via(relationship_class_name, relationship_name):
+def accessible_by_group_members_via_relationship(related_class):
+    """Create a class that grants access to Users that can access the
+    record's group, which is defined on a foreign key relationship.
+
+    Parameters
+    ----------
+    related_class: DeclarativeMeta
+        The class which is related to the target class and provides the "groups"
+        attribute for membership checking.
+
+    Returns
+    -------
+    AccessibleByUser: type
+        Class implementing the accessible-by-group-via logic.
+    """
+
     class _AccessibleByGroupMembersVia(UserAccessControl):
-        """A record that is readable to members of the group associated a record's
-        relationship."""
+        """A record that is readable to members of the group associated with a
+        record's relationship."""
 
-        required_attrs = (relationship_name,)
-
-        @staticmethod
-        def access_table(cls, user):
-            """A join table mapping records from a table to users who can access
-            them. Subclasses of AccessControlPattern must implement this method
-            with the appropriate logic.
-
-            The join table should be constructed using aliases of `cls` and `user`,
-            then correlated against `cls` and `user` to ensure indices are propagated
-            and Cardinality is respected.
+        @classmethod
+        def accessible_pairs(cls, target_right, user_right):
+            """Construct a join table mapping User records to accessible target
+            records.
 
             Parameters
             ----------
-            cls: mapped class or alias of mapped class
-                The mapped class (or an alias of the mapped class) representing the
-                access-controlled table.
-            user: User class or alias of User class
-                The User class (or an alias of the User class).
+            target_right: `baselayer.app.models.Base` or alias of
+            `baselayer.app.models.Base`
+                Access protected class or alias of the access protected class.
+            user_right: `baselayer.app.models.Base` or alias of
+            `baselayer.app.models.Base`
+                The `User` class or an alias of the `User` class.
 
             Returns
             -------
-            access_table: sqlalchemy.sql.expression.FromClause
-                A join table mapping records of the `cls` table to records
-                of the users table. Each row corresponds to one class/user pair that
-                is accessible. The schema of this table may vary depending on the
-                schema of `cls`, but will always contain two columns, `cls_id` and
-                `user_id`, representing the primary keys of the `cls` table and the
-                users table, respectively.
+            table: `sqlalchemy.sql.expression.Selectable`
+                SQLalchemy table mapping User records to accessible target records.
             """
-            cls_alias = aliased(cls)
-            rel_alias = aliased(relationship_class_name)
 
             user_accessible_groups = user_accessible_groups_temporary_table()
+            related_alias = aliased(related_class)
 
-            readable_by_virtue_of_groups = (
-                sa.select(
-                    [
-                        cls_alias.id.label('cls_id'),
-                        user_accessible_groups.c.user_id.label('user_id'),
-                    ]
+            return (
+                sa.join(target_right, related_alias)
+                .join(
+                    user_accessible_groups,
+                    related_alias.group_id == user_accessible_groups.c.group_id,
                 )
-                .select_from(
-                    sa.join(
-                        cls_alias,
-                        rel_alias,
-                        # automatically detects foreign key
-                    ).join(
-                        user_accessible_groups,
-                        rel_alias.group_id == user_accessible_groups.c.group_id,
-                    )
-                )
-                .where(cls_alias.id == cls.id)
-                .where(user_accessible_groups.c.user_id == user.id)
+                .join(user_right, user_right.id == user_accessible_groups.c.user_id)
             )
-
-            return readable_by_virtue_of_groups.distinct()
 
     return _AccessibleByGroupMembersVia
-
-
-class AccessibleIfObjIsReadable(UserAccessControl):
-    """A record that is readable to anyone who can read the record's Obj."""
-
-    required_attrs = ('obj',)
-
-    @staticmethod
-    def access_table(cls, user):
-        """A join table mapping records from a table to users who can access
-        them. Subclasses of AccessControlPattern must implement this method
-        with the appropriate logic.
-
-        The join table should be constructed using aliases of `cls` and `user`,
-        then correlated against `cls` and `user` to ensure indices are propagated
-        and Cardinality is respected.
-
-        Parameters
-        ----------
-        cls: mapped class or alias of mapped class
-            The mapped class (or an alias of the mapped class) representing the
-            access-controlled table.
-        user: User class or alias of User class
-            The User class (or an alias of the User class).
-
-        Returns
-        -------
-        access_table: sqlalchemy.sql.expression.FromClause
-            A join table mapping records of the `cls` table to records
-            of the users table. Each row corresponds to one class/user pair that
-            is accessible. The schema of this table may vary depending on the
-            schema of `cls`, but will always contain two columns, `cls_id` and
-            `user_id`, representing the primary keys of the `cls` table and the
-            users table, respectively.
-        """
-        cls_alias = aliased(cls)
-        user_alias = aliased(User)
-        obj_alias = aliased(Obj)
-
-        readable_by_virtue_of_obj = (
-            sa.select([cls_alias.id.label('cls_id'), user_alias.id.label('user_id')])
-            .select_from(
-                sa.join(cls_alias, obj_alias, obj_alias.id == cls_alias.obj_id).join(
-                    user_alias, obj_alias.is_accessible_by(user_alias)
-                )
-            )
-            .where(cls_alias.c.id == cls.id)
-            .where(user_alias.c.id == user.id)
-            .where(obj_alias.id == cls_alias.c.obj_id)
-        )
-
-        return readable_by_virtue_of_obj.distinct()
-
-
-class ObjIsReadableLogic(UserAccessControl):
-
-    required_attrs = ()
-
-    @staticmethod
-    def access_table(cls, user):
-        """A join table mapping records from a table to users who can access
-        them. Subclasses of AccessControlPattern must implement this method
-        with the appropriate logic.
-
-        The join table should be constructed using aliases of `cls` and `user`,
-        then correlated against `cls` and `user` to ensure indices are propagated
-        and Cardinality is respected.
-
-        Parameters
-        ----------
-        cls: mapped class or alias of mapped class
-            The mapped class (or an alias of the mapped class) representing the
-            access-controlled table.
-        user: User class or alias of User class
-            The User class (or an alias of the User class).
-
-        Returns
-        -------
-        access_table: sqlalchemy.sql.expression.FromClause
-            A join table mapping records of the `cls` table to records
-            of the users table. Each row corresponds to one class/user pair that
-            is accessible. The schema of this table may vary depending on the
-            schema of `cls`, but will always contain two columns, `cls_id` and
-            `user_id`, representing the primary keys of the `cls` table and the
-            users table, respectively.
-        """
-
-        cand_alias = aliased(Candidate)
-        filt_alias = aliased(Filter)
-        phot_alias = aliased(Photometry)
-        group_phot_alias = aliased(GroupPhotometry)
-        source_alias = aliased(Source)
-
-        cand_x_filt = sa.join(cand_alias, filt_alias)
-        phot_x_groupphot = sa.join(phot_alias, group_phot_alias)
-        unified_group_users = user_accessible_groups_temporary_table()
-
-        phot_subq = (
-            sa.select(
-                [
-                    phot_alias.obj_id.label('cls_id'),
-                    unified_group_users.c.user_id.label('user_id'),
-                ]
-            )
-            .select_from(
-                sa.join(
-                    phot_x_groupphot,
-                    unified_group_users,
-                    group_phot_alias.group_id == unified_group_users.c.group_id,
-                )
-            )
-            .where(phot_alias.obj_id == cls.id)
-            .where(unified_group_users.c.user_id == user.id)
-        )
-
-        source_subq = (
-            sa.select([source_alias.obj_id, unified_group_users.c.user_id])
-            .select_from(
-                sa.join(
-                    source_alias,
-                    unified_group_users,
-                    source_alias.group_id == unified_group_users.c.group_id,
-                )
-            )
-            .where(source_alias.obj_id == cls.id)
-            .where(unified_group_users.c.user_id == user.id)
-        )
-
-        cand_subq = (
-            sa.select([cand_alias.obj_id, unified_group_users.c.user_id])
-            .select_from(
-                sa.join(
-                    cand_x_filt,
-                    unified_group_users,
-                    filt_alias.group_id == unified_group_users.c.group_id,
-                )
-            )
-            .where(cand_alias.obj_id == cls.id)
-            .where(unified_group_users.c.user_id == user.id)
-        )
-
-        return sa.union(phot_subq, source_subq, cand_subq)
 
 
 class NumpyArray(sa.types.TypeDecorator):
@@ -786,8 +516,6 @@ Token.groups = token_groups
 class Obj(Base, ha.Point):
     """A record of an astronomical Object and its metadata, such as position,
     positional uncertainties, name, and redshift."""
-
-    read = ObjIsReadableLogic
 
     id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
     # TODO should this column type be decimal? fixed-precison numeric
@@ -1198,7 +926,9 @@ class Filter(Base):
 
 class Candidate(Base):
     "An Obj that passed a Filter, becoming scannable on the Filter's scanning page."
-    create = read = update = delete = accessible_by_group_members_via(Filter, 'filter')
+    create = read = update = delete = accessible_by_group_members_via_relationship(
+        Filter, 'filter'
+    )
 
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
@@ -1344,8 +1074,6 @@ class SourceView(Base):
     """Record of an instance in which a Source was viewed via the frontend or
     retrieved via the API (for use in the "Top Sources" widget).
     """
-
-    create = read = AccessibleIfObjIsReadable
 
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
@@ -1756,8 +1484,8 @@ GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
 class Comment(Base):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
-    create = read = AccessibleByGroupsMembersIfObjIsReadable
-    update = delete = accessible_through_relationship('author', 'author_id')
+    create = read = AccessibleByGroupsMembers
+    update = delete = accessible_through_foreign_key('author', 'author_id')
 
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
     ctype = sa.Column(
@@ -1831,8 +1559,8 @@ class Annotation(Base):
     """A sortable/searchable Annotation made by a filter or other robot,
     with a set of data as JSON """
 
-    create = read = AccessibleByGroupsMembersIfObjIsReadable
-    update = delete = accessible_through_relationship('author', 'author_id')
+    create = read = AccessibleByGroupsMembers
+    update = delete = accessible_through_foreign_key('author', 'author_id')
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
@@ -1908,8 +1636,8 @@ User.annotations = relationship(
 class Classification(Base):
     """Classification of an Obj."""
 
-    create = read = AccessibleByGroupsMembersIfObjIsReadable
-    update = delete = accessible_through_relationship('author', 'author_id')
+    create = read = AccessibleByGroupsMembers
+    update = delete = accessible_through_foreign_key('author', 'author_id')
 
     classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
     taxonomy_id = sa.Column(
@@ -1978,7 +1706,7 @@ class Photometry(ha.Point, Base):
 
     __tablename__ = 'photometry'
 
-    create = AccessibleByGroupsMembersIfObjIsReadable
+    create = AccessibleByGroupsMembers
     read = AccessibleByGroupsMembers
     update = delete = AccessibleByOwner
 
@@ -2187,7 +1915,7 @@ class Spectrum(Base):
     """Wavelength-dependent measurement of the flux of an object through a
     dispersive element."""
 
-    create = read = AccessibleByGroupsMembersIfObjIsReadable
+    create = read = AccessibleByGroupsMembers
     update = delete = AccessibleByOwner
 
     __tablename__ = 'spectra'
@@ -2487,7 +2215,7 @@ class FollowupRequest(Base):
     """A request for follow-up data (spectroscopy, photometry, or both) using a
     robotic instrument."""
 
-    create = read = update = delete = accessible_by_group_members_via(
+    create = read = update = delete = accessible_by_group_members_via_relationship(
         Allocation, 'allocation'
     )
 
@@ -2613,8 +2341,6 @@ User.transactions = relationship(
 
 class Thumbnail(Base):
     """Thumbnail image centered on the location of an Obj."""
-
-    create = read = update = delete = AccessibleIfObjIsReadable
 
     # TODO delete file after deleting row
     type = sa.Column(
@@ -2777,8 +2503,6 @@ User.observing_runs = relationship(
 
 class ClassicalAssignment(Base):
     """Assignment of an Obj to an Observing Run as a target."""
-
-    create = read = update = delete = AccessibleIfObjIsReadable
 
     requester_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="CASCADE"),
