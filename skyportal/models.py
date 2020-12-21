@@ -48,7 +48,7 @@ from baselayer.app.models import (  # noqa
     accessible_by_user,
     user_acls_temporary_table,
     AccessibleByOwner,
-    Inaccessible,
+    Restricted,
 )
 from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
@@ -406,7 +406,7 @@ class Stream(Base):
     """A data stream producing alerts that can be programmatically filtered
     using a Filter. """
 
-    create = update = delete = Inaccessible
+    create = update = delete = Restricted
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Stream name.")
     altdata = sa.Column(
@@ -440,11 +440,11 @@ class Stream(Base):
 
 GroupStream = join_model('group_streams', Group, Stream, base=Base)
 GroupStream.__doc__ = "Join table mapping Groups to Streams."
-GroupStream.create = Inaccessible
+GroupStream.create = Restricted
 
 StreamUser = join_model('stream_users', Stream, User, base=Base)
 StreamUser.__doc__ = "Join table mapping Streams to Users."
-StreamUser.create = Inaccessible
+StreamUser.create = Restricted
 
 
 User.groups = relationship(
