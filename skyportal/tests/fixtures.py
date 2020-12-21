@@ -21,12 +21,17 @@ from skyportal.models import (
     Filter,
     ObservingRun,
     ClassicalAssignment,
+    init_db,
 )
 
 from baselayer.app.env import load_env
 
 TMP_DIR = mkdtemp()
 env, cfg = load_env()
+
+
+print("Setting test database to:", cfg["database"])
+init_db(**cfg["database"])
 
 
 class BaseMeta:

@@ -927,7 +927,7 @@ class Filter(Base):
 class Candidate(Base):
     "An Obj that passed a Filter, becoming scannable on the Filter's scanning page."
     create = read = update = delete = accessible_by_group_members_via_relationship(
-        Filter, 'filter'
+        Filter
     )
 
     obj_id = sa.Column(
@@ -1485,7 +1485,7 @@ class Comment(Base):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
     create = read = AccessibleByGroupsMembers
-    update = delete = accessible_through_foreign_key('author', 'author_id')
+    update = delete = accessible_through_foreign_key('author_id')
 
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
     ctype = sa.Column(
@@ -1560,7 +1560,7 @@ class Annotation(Base):
     with a set of data as JSON """
 
     create = read = AccessibleByGroupsMembers
-    update = delete = accessible_through_foreign_key('author', 'author_id')
+    update = delete = accessible_through_foreign_key('author_id')
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
@@ -1637,7 +1637,7 @@ class Classification(Base):
     """Classification of an Obj."""
 
     create = read = AccessibleByGroupsMembers
-    update = delete = accessible_through_foreign_key('author', 'author_id')
+    update = delete = accessible_through_foreign_key('author_id')
 
     classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
     taxonomy_id = sa.Column(
@@ -2216,7 +2216,7 @@ class FollowupRequest(Base):
     robotic instrument."""
 
     create = read = update = delete = accessible_by_group_members_via_relationship(
-        Allocation, 'allocation'
+        Allocation
     )
 
     requester_id = sa.Column(

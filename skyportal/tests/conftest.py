@@ -45,8 +45,6 @@ print("Loading test configuration from _test_config.yaml")
 basedir = pathlib.Path(os.path.dirname(__file__))
 cfg = load_config([(basedir / "../../test_config.yaml").absolute()])
 set_server_url(f'http://localhost:{cfg["ports.app"]}')
-print("Setting test database to:", cfg["database"])
-models.init_db(**cfg["database"])
 
 # Add a "test factory" User so that all factory-generated comments have a
 # proper author, if it doesn't already exist (the user may already be in
