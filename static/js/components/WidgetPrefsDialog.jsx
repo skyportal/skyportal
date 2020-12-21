@@ -12,6 +12,7 @@ import { makeStyles } from "@material-ui/core/styles";
 import SaveIcon from "@material-ui/icons/Save";
 import TextField from "@material-ui/core/TextField";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
+import Typography from "@material-ui/core/Typography";
 
 const useStyles = makeStyles(() => ({
   saveButton: {
@@ -77,8 +78,7 @@ const WidgetPrefsDialog = ({
               ) {
                 return (
                   <div key={key} className={classes.inputSectionDiv}>
-                    Select {key}:
-                    <br />
+                    <Typography variant="subtitle2">Select {key}:</Typography>
                     {Object.keys(initialValues[key]).map((subKey) => (
                       <FormControlLabel
                         key={subKey}
