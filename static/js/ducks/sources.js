@@ -23,6 +23,8 @@ const addFilterParamDefaults = (filterParams) => {
 
 export function fetchSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
+  filterParams.includePhotometry = true;
+  filterParams.includeSpectrumExists = true;
   return API.GET("/api/sources", FETCH_SOURCES, filterParams);
 }
 

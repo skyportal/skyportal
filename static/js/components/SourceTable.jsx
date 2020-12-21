@@ -32,6 +32,7 @@ import styles from "./CommentList.css";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
+import SourceTableFilterForm from "./SourceTableFilterForm";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
 
@@ -51,6 +52,12 @@ const useStyles = makeStyles((theme) => ({
   tableGrid: {
     width: "100%",
   },
+  groupSelect: {
+    maxWidth: "20rem",
+  },
+  filterFormRow: {
+    margin: "0.75rem 0",
+  },
 }));
 
 const getMuiTheme = (theme) =>
@@ -60,6 +67,17 @@ const getMuiTheme = (theme) =>
       MUIDataTableHeadCell: {
         sortLabelRoot: {
           height: "1.4rem",
+        },
+      },
+      // Hide default filter items for custom form
+      MuiGridList: {
+        root: {
+          display: "none",
+        },
+      },
+      MUIDataTableFilter: {
+        header: {
+          display: "none",
         },
       },
     },
@@ -101,6 +119,9 @@ const SourceTable = ({
     defaultDisplayedColumns
   );
 
+  let { all: allGroups } = useSelector((state) => state.groups);
+  const [tableFilterList, setTableFilterList] = useState([]);
+
   // Color styling
   const userColorTheme = useSelector(
     (state) => state.profile.preferences.theme
@@ -110,13 +131,14 @@ const SourceTable = ({
 
   const mjdNow = Math.floor(Date.now() / 86400000.0 + 40587.5);
 
-  if (!sources) {
+  if (!allGroups?.length || !sources) {
     return (
       <div>
         <CircularProgress color="secondary" />
       </div>
     );
   }
+  allGroups = allGroups.filter((group) => !group.single_user_group);
 
   const handleTableChange = (action, tableState) => {
     switch (action) {
@@ -534,12 +556,48 @@ const SourceTable = ({
     );
   };
 
+  const handleFilterSubmit = async (formData) => {
+    Object.keys(formData).forEach(
+      (key) => !formData[key] && delete formData[key]
+    );
+    setTableFilterList(
+      Object.entries(formData).map(([key, value]) => `${key}: ${value}`)
+    );
+  };
+
+  const handleTableFilterChipChange = (column, filterList, type) => {
+    if (type === "chip") {
+      const nameFilterList = filterList[0];
+      // Convert chip filter list to filter form data
+      const data = {};
+      nameFilterList.forEach((filterChip) => {
+        const [key, value] = filterChip.split(": ");
+        data[key] = value;
+      });
+      handleFilterSubmit(data);
+    }
+  };
+
+  const customFilterDisplay = () => (
+    <SourceTableFilterForm
+      handleFilterSubmit={handleFilterSubmit}
+      groups={allGroups}
+    />
+  );
+
   const columns = [
     {
       name: "id",
       label: "Source ID",
       options: {
+        // Hijack custom filtering for this column to use for the entire form
         filter: true,
+        filterType: "custom",
+        filterList: tableFilterList,
+        filterOptions: {
+          // eslint-disable-next-line react/display-name
+          display: () => <></>,
+        },
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Source ID"),
@@ -549,7 +607,7 @@ const SourceTable = ({
     {
       name: "Alias",
       options: {
-        filter: true,
+        filter: false,
         sort: false,
         display: displayedColumns.includes("Alias"),
         customBodyRenderLite: renderAlias,
@@ -613,7 +671,7 @@ const SourceTable = ({
       name: "classification",
       label: "Classification",
       options: {
-        filter: true,
+        filter: false,
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Classification"),
@@ -653,6 +711,7 @@ const SourceTable = ({
     {
       name: "Spectrum?",
       options: {
+        filter: false,
         sort: false,
         customBodyRenderLite: renderSpectrumExists,
         display: displayedColumns.includes("Spectrum?"),
@@ -661,6 +720,7 @@ const SourceTable = ({
     {
       name: "Peak Magnitude",
       options: {
+        filter: false,
         sort: false,
         customBodyRenderLite: renderPeakMagnitude,
         display: displayedColumns.includes("Peak Magnitude"),
@@ -669,6 +729,7 @@ const SourceTable = ({
     {
       name: "Latest Magnitude",
       options: {
+        filter: false,
         sort: false,
         customBodyRenderLite: renderLatestMagnitude,
         display: displayedColumns.includes("Latest Magnitude"),
@@ -677,6 +738,7 @@ const SourceTable = ({
     {
       name: "TNS Name",
       options: {
+        filter: false,
         sort: false,
         customBodyRenderLite: renderTNSName,
         display: displayedColumns.includes("TNS Name"),
@@ -698,7 +760,9 @@ const SourceTable = ({
     jumpToPage: true,
     pagination: true,
     count: totalMatches,
-    filter: false,
+    filter: true,
+    customFilterDialogFooter: customFilterDisplay,
+    onFilterChange: handleTableFilterChipChange,
     search: false,
   };
 
