@@ -561,3 +561,19 @@ def test_show_photometry_table(public_source, driver, user):
     driver.wait_for_xpath_to_disappear(
         '//*[@data-testid="close-photometry-table-button"]'
     )
+
+
+def test_javascript_sexagesimal_conversion(public_source, driver, user):
+    public_source.ra = 342.0708127
+    public_source.dec = 56.1130711
+    DBSession().commit()
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath('//*[contains(., "22:48:17.00")]')
+    driver.wait_for_xpath('//*[contains(., "+56:06:47.06")]')
+    public_source.ra = 75.6377796
+    public_source.dec = 15.606709
+    DBSession().commit()
+    driver.refresh()
+    driver.wait_for_xpath('//*[contains(., "05:02:33.07")]')
+    driver.wait_for_xpath('//*[contains(., "+15:36:24.15")]')
