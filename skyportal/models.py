@@ -45,7 +45,7 @@ from baselayer.app.models import (  # noqa
     UserACL,
     UserRole,
     UserAccessControl,
-    accessible_through_foreign_key,
+    accessible_by_user,
     user_acls_temporary_table,
     AccessibleByOwner,
     Inaccessible,
@@ -166,41 +166,6 @@ def user_to_dict(self):
 User.to_dict = user_to_dict
 
 
-class AccessibleByGroupMembers(UserAccessControl):
-    """A record that is accessible only to members of its associated group."""
-
-    @classmethod
-    def accessible_pairs(cls, target_right, user_right):
-        """Construct a join table mapping User records to accessible target
-        records.
-
-        Parameters
-        ----------
-        target_right: `baselayer.app.models.Base` or alias of
-        `baselayer.app.models.Base`
-            Access protected class or alias of the access protected class.
-        user_right: `baselayer.app.models.Base` or alias of
-        `baselayer.app.models.Base`
-            The `User` class or an alias of the `User` class.
-
-        Returns
-        -------
-        table: `sqlalchemy.sql.expression.Selectable`
-            SQLalchemy table mapping User records to accessible target records.
-        """
-
-        # Ensure the target class has the foreign key that moderates
-        # access control.
-        cls.check_cls_for_attributes(target_right, ['group_id'])
-        user_accessible_groups = user_accessible_groups_temporary_table()
-
-        return sa.join(
-            target_right,
-            user_accessible_groups,
-            target_right.group_id == user_accessible_groups.c.group_id,
-        ).join(user_right, user_right.id == user_accessible_groups.c.user_id)
-
-
 class AccessibleByGroupsMembers(UserAccessControl):
     """A record that is readable only to members of its multiple (many-to-many)
     parent groups."""
@@ -247,16 +212,17 @@ class AccessibleByGroupsMembers(UserAccessControl):
         )
 
 
-def accessible_by_group_members_via_relationship(related_class):
+def accessible_by_group_members(related_class=None, admins_only=False):
     """Create a class that grants access to Users that can access the
     record's group, which is defined on a foreign key relationship.
 
     Parameters
     ----------
-    related_class: DeclarativeMeta
+    related_class: DeclarativeMeta, optional, default None
         The class which is related to the target class and provides the "groups"
-        attribute for membership checking.
-
+        attribute for membership checking. If
+    admins_only: bool
+        Grant access to group admins only?
     Returns
     -------
     AccessibleByUser: type
@@ -288,18 +254,46 @@ def accessible_by_group_members_via_relationship(related_class):
             """
 
             user_accessible_groups = user_accessible_groups_temporary_table()
-            related_alias = aliased(related_class)
+            user_acls = user_acls_temporary_table()
 
-            return (
-                sa.join(target_right, related_alias)
-                .join(
+            if related_class is not None:
+                related_alias = aliased(related_class)
+                base = sa.join(target_right, related_alias)
+                groups_joinkey = related_alias.group_id
+            else:
+                base = target_right
+                groups_joinkey = target_right.group_id
+
+            base = (
+                base.join(
                     user_accessible_groups,
-                    related_alias.group_id == user_accessible_groups.c.group_id,
+                    groups_joinkey == user_accessible_groups.c.group_id,
                 )
                 .join(user_right, user_right.id == user_accessible_groups.c.user_id)
+                .join(user_acls, user_acls.user_id == user_right.id)
             )
 
+            if admins_only:
+                group_users = aliased(GroupUser)
+                base = base.join(
+                    group_users,
+                    sa.and_(
+                        user_right.id == group_users.user_id,
+                        groups_joinkey == group_users.group_id,
+                        sa.or_(
+                            group_users.admin.is_(True),
+                            user_acls.acl_id == "System admin",
+                        ),
+                    ),
+                )
+
+            return base
+
     return _AccessibleByGroupMembersVia
+
+
+AccessibleByGroupMembers = accessible_by_group_members()
+AccessibleByGroupAdmins = accessible_by_group_members(admins_only=True)
 
 
 class NumpyArray(sa.types.TypeDecorator):
@@ -318,6 +312,8 @@ class Group(Base):
     `Stream` permissions. In order for a `User` to join a `Group`, the `User`
     must have access to all of the `Group`'s data `Stream`s.
     """
+
+    update = delete = AccessibleByGroupAdmins
 
     name = sa.Column(
         sa.String, unique=True, nullable=False, index=True, doc='Name of the group.'
@@ -396,6 +392,7 @@ class Group(Base):
 
 GroupUser = join_model('group_users', Group, User, base=Base)
 GroupUser.__doc__ = "Join table mapping `Group`s to `User`s."
+GroupUser.create = GroupUser.update = GroupUser.delete = AccessibleByGroupAdmins
 
 GroupUser.admin = sa.Column(
     sa.Boolean,
@@ -409,7 +406,7 @@ class Stream(Base):
     """A data stream producing alerts that can be programmatically filtered
     using a Filter. """
 
-    create = Inaccessible
+    create = update = delete = Inaccessible
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Stream name.")
     altdata = sa.Column(
@@ -443,10 +440,11 @@ class Stream(Base):
 
 GroupStream = join_model('group_streams', Group, Stream, base=Base)
 GroupStream.__doc__ = "Join table mapping Groups to Streams."
-
+GroupStream.create = Inaccessible
 
 StreamUser = join_model('stream_users', Stream, User, base=Base)
 StreamUser.__doc__ = "Join table mapping Streams to Users."
+StreamUser.create = Inaccessible
 
 
 User.groups = relationship(
@@ -926,9 +924,7 @@ class Filter(Base):
 
 class Candidate(Base):
     "An Obj that passed a Filter, becoming scannable on the Filter's scanning page."
-    create = read = update = delete = accessible_by_group_members_via_relationship(
-        Filter
-    )
+    create = read = update = delete = accessible_by_group_members(Filter)
 
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
@@ -1366,7 +1362,7 @@ class Instrument(Base):
 class Allocation(Base):
     """An allocation of observing time on a robotic instrument."""
 
-    create = read = update = delete = AccessibleByGroupMembers
+    update = delete = AccessibleByGroupMembers
 
     pi = sa.Column(sa.String, doc="The PI of the allocation's proposal.")
     proposal_id = sa.Column(
@@ -1410,9 +1406,6 @@ class Allocation(Base):
 
 class Taxonomy(Base):
     """An ontology within which Objs can be classified."""
-
-    create = read = AccessibleByGroupsMembers
-    update = delete = AccessibleByOwner
 
     __tablename__ = 'taxonomies'
     name = sa.Column(
@@ -1479,13 +1472,14 @@ class Taxonomy(Base):
 
 GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy, base=Base)
 GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
+GroupTaxonomy.read = GroupTaxonomy.create = AccessibleByGroupMembers
 
 
 class Comment(Base):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
     create = read = AccessibleByGroupsMembers
-    update = delete = accessible_through_foreign_key('author_id')
+    update = delete = accessible_by_user('author_id')
 
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
     ctype = sa.Column(
@@ -1550,6 +1544,7 @@ class Comment(Base):
 GroupComment = join_model("group_comments", Group, Comment, base=Base)
 GroupComment.__doc__ = "Join table mapping Groups to Comments."
 
+
 User.comments = relationship(
     "Comment", back_populates="author", foreign_keys="Comment.author_id"
 )
@@ -1560,7 +1555,7 @@ class Annotation(Base):
     with a set of data as JSON """
 
     create = read = AccessibleByGroupsMembers
-    update = delete = accessible_through_foreign_key('author_id')
+    update = delete = accessible_by_user('author_id')
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
@@ -1637,7 +1632,7 @@ class Classification(Base):
     """Classification of an Obj."""
 
     create = read = AccessibleByGroupsMembers
-    update = delete = accessible_through_foreign_key('author_id')
+    update = delete = accessible_by_user('author_id')
 
     classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
     taxonomy_id = sa.Column(
@@ -1706,8 +1701,7 @@ class Photometry(ha.Point, Base):
 
     __tablename__ = 'photometry'
 
-    create = AccessibleByGroupsMembers
-    read = AccessibleByGroupsMembers
+    create = read = AccessibleByGroupsMembers
     update = delete = AccessibleByOwner
 
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
@@ -2215,9 +2209,7 @@ class FollowupRequest(Base):
     """A request for follow-up data (spectroscopy, photometry, or both) using a
     robotic instrument."""
 
-    create = read = update = delete = accessible_by_group_members_via_relationship(
-        Allocation
-    )
+    create = read = update = delete = accessible_by_group_members(Allocation)
 
     requester_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
