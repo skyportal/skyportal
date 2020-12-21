@@ -194,15 +194,16 @@ class AccessibleByGroupsMembers(UserAccessControl):
         # access control.
         cls.check_cls_for_attributes(target_right, ['groups'])
         user_accessible_groups = user_accessible_groups_temporary_table()
-        cls_groups_join_table = (
-            sa.inspect(target_right).mapper.relationships['groups'].secondary
-        )
+        relationship = sa.inspect(target_right).mapper.relationships['groups']
+        cls_groups_join_table = sa.alias(relationship.secondary)
+        (local_key_0, remote_key_0), _ = relationship.local_remote_pairs
 
         return (
             sa.join(
                 target_right,
                 cls_groups_join_table,
-                # automatically detects foreign key
+                getattr(target_right, local_key_0.name)
+                == getattr(cls_groups_join_table.c, remote_key_0.name),
             )
             .join(
                 user_accessible_groups,
@@ -290,6 +291,59 @@ def accessible_by_group_members(related_class=None, admins_only=False):
             return base
 
     return _AccessibleByGroupMembersVia
+
+
+def accessible_if_properties_are_accessible(properties, mode):
+    class AccessibleIfPropertiesAreAccessible(UserAccessControl):
+        @classmethod
+        def accessible_pairs(cls, target_right, user_right):
+            """Construct a join table mapping User records to accessible target
+            records.
+
+            Parameters
+            ----------
+            target_right: `baselayer.app.models.Base` or alias of
+            `baselayer.app.models.Base`
+                Access protected class or alias of the access protected class.
+            user_right: `baselayer.app.models.Base` or alias of
+            `baselayer.app.models.Base`
+                The `User` class or an alias of the `User` class.
+
+            Returns
+            -------
+            table: `sqlalchemy.sql.expression.Selectable`
+                SQLalchemy table mapping User records to accessible target records.
+            """
+
+            if len(properties) == 0:
+                raise ValueError("Need at least 1 property to check.")
+            cls.check_cls_for_attributes(target_right, properties)
+
+            base = cls.all_pairs(target_right, user_right)
+
+            for prop in properties:
+                relationship = sa.inspect(target_right).mapper.relationships[prop]
+                property_class = relationship.argument()
+                aliased_property_class = aliased(property_class)
+                local_col, remote_col = relationship.local_remote_pairs[0]
+                join_condition = getattr(
+                    aliased_property_class, remote_col.name
+                ) == getattr(target_right, local_col.name)
+
+                logic = getattr(property_class, mode)
+                user_alias = aliased(User)
+                accessible_pairs = logic.accessible_pairs(
+                    aliased_property_class, user_alias
+                )
+
+                base = base.join(
+                    accessible_pairs,
+                    sa.and_(join_condition, user_alias.id == user_right.id),
+                )
+
+            return base
+
+    return AccessibleIfPropertiesAreAccessible
 
 
 AccessibleByGroupMembers = accessible_by_group_members()
@@ -1622,6 +1676,10 @@ class Annotation(Base):
 
 GroupAnnotation = join_model("group_annotations", Group, Annotation, base=Base)
 GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
+
+GroupAnnotation.create = GroupAnnotation.read = accessible_if_properties_are_accessible(
+    ['group', 'annotation'], 'read'
+)
 
 User.annotations = relationship(
     "Annotation", back_populates="author", foreign_keys="Annotation.author_id"
