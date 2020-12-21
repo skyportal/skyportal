@@ -15,7 +15,9 @@ const ra_to_hours = (ra, sep = null) => {
     .padStart(2, "0");
   const ra_s = (((ra % 15) * 4) % 1) * 60;
   const ra_s_integer = Math.floor(ra_s).toString().padStart(2, "0");
-  const ra_s_decimal = Math.floor((ra_s - ra_s_integer) * 100);
+  const ra_s_decimal = Math.round((ra_s - ra_s_integer) * 100)
+    .toString()
+    .padStart(2, "0");
   const ra_s_str = `${ra_s_integer}.${ra_s_decimal}`;
 
   if (!(sep == null)) {
@@ -32,7 +34,9 @@ const dec_to_dms = (deci, sep = null) => {
   const min_padded = min.toString().padStart(2, "0");
   const sec = (dec - deg - min / 60) * 3600;
   const sec_int = Math.floor(sec).toString().padStart(2, "0");
-  const sec_decimal = Math.floor((sec - sec_int) * 100);
+  const sec_decimal = Math.round((sec - sec_int) * 100)
+    .toString()
+    .padStart(2, "0");
   let sign = "+";
   if (deci < 0) {
     sign = "-";
