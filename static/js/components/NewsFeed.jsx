@@ -124,6 +124,9 @@ const NewsFeed = ({ classes }) => {
   const { items } = useSelector((state) => state.newsFeed);
   const newsFeedPrefs =
     useSelector((state) => state.profile.preferences.newsFeed) || defaultPrefs;
+  if (!Object.keys(newsFeedPrefs).includes("categories")) {
+    newsFeedPrefs.categories = defaultPrefs.categories;
+  }
 
   // Color styling
   const userColorTheme = useSelector(
