@@ -72,6 +72,9 @@ utcnow = func.timezone('UTC', func.current_timestamp())
 _, cfg = load_env()
 cosmo = establish_cosmology(cfg)
 
+# The minimum signal-to-noise ratio to consider a photometry point as a detection
+PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
+
 
 def get_app_base_url():
     ports_to_ignore = {True: 443, False: 80}  # True/False <-> server.ssl=True/False
@@ -548,7 +551,7 @@ class Obj(Base, ha.Point):
     detect_photometry_count = sa.Column(
         sa.Integer,
         nullable=True,
-        doc="How many times the object was detected above :math:`S/N = 5`.",
+        doc="How many times the object was detected above :math:`S/N = phot_detection_threshold (3.0 by default)`.",
     )
 
     spectra = relationship(
@@ -587,17 +590,21 @@ class Obj(Base, ha.Point):
 
     @hybrid_property
     def last_detected(self):
-        """UTC ISO date at which the object was last detected above a S/N of 5."""
-        detections = [phot.iso for phot in self.photometry if phot.snr and phot.snr > 5]
+        """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
+        detections = [
+            phot.iso
+            for phot in self.photometry
+            if phot.snr and phot.snr > PHOT_DETECTION_THRESHOLD
+        ]
         return max(detections) if detections else None
 
     @last_detected.expression
     def last_detected(cls):
-        """UTC ISO date at which the object was last detected above a S/N of 5."""
+        """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
         return (
             sa.select([sa.func.max(Photometry.iso)])
             .where(Photometry.obj_id == cls.id)
-            .where(Photometry.snr > 5.0)
+            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
             .group_by(Photometry.obj_id)
             .label('last_detected')
         )
@@ -1790,7 +1797,7 @@ User.comments = relationship("Comment", back_populates="author")
 
 class Annotation(Base):
     """A sortable/searchable Annotation made by a filter or other robot,
-    with a set of data as JSON """
+    with a set of data as JSON"""
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 

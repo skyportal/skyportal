@@ -251,6 +251,10 @@ misc:
   cosmology: Planck18_arXiv_v2
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
 
+  # The minimum signal-to-noise ratio/ n-sigma for lim mag cacluations to
+  # consider a photometry point as a detection
+  photometry_detection_threshold_nsigma: 3.0
+
 weather:
   # time in seconds to wait before fetching weather for a given telescope
   refresh_time: 3600.0
