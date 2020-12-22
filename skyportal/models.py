@@ -588,7 +588,7 @@ class Obj(Base, ha.Point):
     listings = relationship(
         "Listing",
         back_populates="obj",
-        cascade="delete",
+        cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="Listings combining interesting objects referenced by a user+obj+list name combination, e.g., favorites list",
     )
