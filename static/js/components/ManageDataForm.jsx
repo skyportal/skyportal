@@ -322,8 +322,10 @@ const ManageDataForm = ({ route }) => {
       ? spectrum.original_file_filename
       : get_filename(spectrum);
 
+    const blob = new Blob([data], { type: "text/plain" });
+
     return (
-      <IconButton href={`data:,${encodeURI(data)}`} download={filename}>
+      <IconButton href={URL.createObjectURL(blob)} download={filename}>
         <GetAppIcon />
       </IconButton>
     );

@@ -135,20 +135,20 @@ const SourceList = () => {
       pageNumber,
       numPerPage,
     };
-    if (sortData) {
-      data.sortBy = sortData.column;
-      data.sortOrder = sortData.ascending ? "asc" : "desc";
+    if (sortData && Object.keys(sortData).length > 0) {
+      data.sortBy = sortData.name;
+      data.sortOrder = sortData.direction;
     }
     dispatch(sourcesActions.fetchSources(data));
   };
 
-  const handleSourceTableSorting = (formData) => {
+  const handleSourceTableSorting = (sortData) => {
     const data = {
       ...getValues(),
       pageNumber: 1,
-      numPerPage: rowsPerPage,
-      sortBy: formData.column,
-      sortOrder: formData.ascending ? "asc" : "desc",
+      rowsPerPage,
+      sortBy: sortData.name,
+      sortOrder: sortData.direction,
     };
     dispatch(sourcesActions.fetchSources(data));
   };

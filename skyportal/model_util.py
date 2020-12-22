@@ -36,10 +36,10 @@ role_acls = {
 env, cfg = load_env()
 
 
-def add_user(username, roles=[], auth=False):
+def add_user(username, roles=[], auth=False, first_name=None, last_name=None):
     user = User.query.filter(User.username == username).first()
     if user is None:
-        user = User(username=username)
+        user = User(username=username, first_name=first_name, last_name=last_name)
         if auth:
             TornadoStorage.user.create_social_auth(user, user.username, 'google-oauth2')
 
@@ -84,7 +84,12 @@ def make_super_user(username):
 def provision_token():
     """Provision an initial administrative token.
     """
-    admin = add_user('provisioned_admin', roles=['Super admin'])
+    admin = add_user(
+        'provisioned_admin',
+        roles=['Super admin'],
+        first_name="provisioned",
+        last_name="admin",
+    )
     token_name = 'Initial admin token'
 
     token = (
