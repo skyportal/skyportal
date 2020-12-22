@@ -480,8 +480,8 @@ def user_group2(public_group2):
 
 
 @pytest.fixture()
-def public_groupuser(public_group_with_stream_with_users):
-    return public_group_with_stream_with_users.users[0]
+def public_groupuser(group_with_stream_with_users):
+    return group_with_stream_with_users.users[0]
 
 
 @pytest.fixture()
