@@ -412,6 +412,7 @@ class Stream(Base):
     """A data stream producing alerts that can be programmatically filtered
     using a Filter. """
 
+    read = AccessibleByGroupsMembers
     create = update = delete = Restricted
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Stream name.")
@@ -446,7 +447,10 @@ class Stream(Base):
 
 GroupStream = join_model('group_streams', Group, Stream, base=Base)
 GroupStream.__doc__ = "Join table mapping Groups to Streams."
-GroupStream.create = Restricted
+GroupStream.create = GroupStream.update = GroupStream.delete = compose_access_control(
+    AccessibleByGroupAdmins, GroupStream.read
+)
+
 
 StreamUser = join_model('stream_users', Stream, User, base=Base)
 StreamUser.__doc__ = "Join table mapping Streams to Users."

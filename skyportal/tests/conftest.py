@@ -36,6 +36,8 @@ from skyportal.models import (
     User,
     Allocation,
     FollowupRequest,
+    GroupStream,
+    StreamUser,
 )
 
 import astroplan
@@ -184,6 +186,32 @@ def group_with_stream_with_users(
 
 
 @pytest.fixture()
+def public_groupstream(group_with_stream_with_users):
+    return (
+        DBSession()
+        .query(GroupStream)
+        .filter(
+            GroupStream.group_id == group_with_stream_with_users.id,
+            GroupStream.stream_id == group_with_stream_with_users.streams[0].id,
+        )
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_streamuser(group_with_stream_with_users):
+    return (
+        DBSession()
+        .query(StreamUser)
+        .filter(
+            StreamUser.user_id == group_with_stream_with_users.users[0].id,
+            StreamUser.stream_id == group_with_stream_with_users.streams[0].id,
+        )
+        .first()
+    )
+
+
+@pytest.fixture()
 def public_filter(public_group, public_stream):
     return FilterFactory(group=public_group, stream=public_stream)
 
@@ -239,6 +267,16 @@ def public_candidate(public_filter, user):
     )
     DBSession.commit()
     return obj
+
+
+@pytest.fixture()
+def public_candidate_object(public_candidate):
+    return public_candidate.candidates[0]
+
+
+@pytest.fixture()
+def public_source_object(public_source):
+    return public_source.sources[0]
 
 
 @pytest.fixture()
@@ -439,6 +477,11 @@ def user_group2(public_group2):
     return UserFactory(
         groups=[public_group2], roles=[models.Role.query.get("Full user")]
     )
+
+
+@pytest.fixture()
+def public_groupuser(public_group_with_stream_with_users):
+    return public_group_with_stream_with_users.users[0]
 
 
 @pytest.fixture()
