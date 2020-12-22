@@ -284,9 +284,7 @@ class CandidateHandler(BaseHandler):
                     .joinedload(Photometry.instrument)
                 )
             c = Candidate.get_obj_if_readable_by(
-                obj_id,
-                self.current_user,
-                options=query_options,
+                obj_id, self.current_user, options=query_options,
             )
             if c is None:
                 return self.error("Invalid ID")
@@ -598,9 +596,7 @@ class CandidateHandler(BaseHandler):
             # Define a custom sort order to have annotations from the correct
             # origin first, all others afterwards
             origin_sort_order = case(
-                value=Annotation.origin,
-                whens={sort_by_origin: 1},
-                else_=None,
+                value=Annotation.origin, whens={sort_by_origin: 1}, else_=None,
             )
             annotation_sort_criterion = (
                 Annotation.data[sort_by_key].desc().nullslast()
