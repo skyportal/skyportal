@@ -293,7 +293,7 @@ def accessible_by_group_members(related_class=None, admins_only=False):
     return _AccessibleByGroupMembersVia
 
 
-def accessible_if_properties_are_accessible(properties, mode):
+def accessible_if_properties_are_accessible(properties, modes):
     class AccessibleIfPropertiesAreAccessible(UserAccessControl):
         @classmethod
         def accessible_pairs(cls, target_right, user_right):
@@ -321,7 +321,7 @@ def accessible_if_properties_are_accessible(properties, mode):
 
             base = cls.all_pairs(target_right, user_right)
 
-            for prop in properties:
+            for prop, mode in zip(properties, modes):
                 relationship = sa.inspect(target_right).mapper.relationships[prop]
                 property_class = relationship.argument()
                 aliased_property_class = aliased(property_class)
@@ -348,6 +348,34 @@ def accessible_if_properties_are_accessible(properties, mode):
 
 AccessibleByGroupMembers = accessible_by_group_members()
 AccessibleByGroupAdmins = accessible_by_group_members(admins_only=True)
+
+
+def compose_access_control(access_controls):
+    class ComposedAccessControl(UserAccessControl):
+        @classmethod
+        def accessible_pairs(cls, target_right, user_right):
+            base = cls.all_pairs(target_right, user_right)
+
+            for access_control in access_controls:
+
+                # join against the first access control
+                target_right_1 = aliased(target_right)
+                user_right_1 = aliased(user_right)
+                accessible_1 = access_control.accessible_pairs(
+                    target_right_1, user_right_1
+                )
+
+                base = base.join(
+                    accessible_1,
+                    sa.and_(
+                        target_right.id == target_right_1.id,
+                        user_right.id == user_right_1.id,
+                    ),
+                )
+
+            return base
+
+    return ComposedAccessControl
 
 
 class NumpyArray(sa.types.TypeDecorator):
@@ -495,6 +523,7 @@ class Stream(Base):
 GroupStream = join_model('group_streams', Group, Stream, base=Base)
 GroupStream.__doc__ = "Join table mapping Groups to Streams."
 GroupStream.create = Restricted
+GroupStream.read = accessible_if_properties_are_accessible(['group', 'stream'], [''])
 
 StreamUser = join_model('stream_users', Stream, User, base=Base)
 StreamUser.__doc__ = "Join table mapping Streams to Users."
@@ -1532,7 +1561,12 @@ GroupTaxonomy.read = GroupTaxonomy.create = AccessibleByGroupMembers
 class Comment(Base):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
-    create = read = AccessibleByGroupsMembers
+    create = read = compose_access_control(
+        [
+            AccessibleByGroupsMembers,
+            accessible_if_properties_are_accessible(['obj'], ['read']),
+        ]
+    )
     update = delete = accessible_by_user('author_id')
 
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
@@ -1678,18 +1712,24 @@ GroupAnnotation = join_model("group_annotations", Group, Annotation, base=Base)
 GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
 
 GroupAnnotation.create = GroupAnnotation.read = accessible_if_properties_are_accessible(
-    ['group', 'annotation'], 'read'
+    ['annotation'], ['read']
 )
 
 User.annotations = relationship(
     "Annotation", back_populates="author", foreign_keys="Annotation.author_id"
 )
 
+# To create or read a classification, you must have read access to the
+# underlying taxonomy, and be a member of at least one of the
+# classification's target groups
+ok_if_tax_readable = accessible_if_properties_are_accessible(['taxonomy'], ['read'])
+
 
 class Classification(Base):
     """Classification of an Obj."""
 
-    create = read = AccessibleByGroupsMembers
+    create = ok_if_tax_readable
+    read = compose_access_control([AccessibleByGroupsMembers, ok_if_tax_readable])
     update = delete = accessible_by_user('author_id')
 
     classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
@@ -1752,6 +1792,11 @@ GroupClassifications = join_model(
     "group_classifications", Group, Classification, base=Base
 )
 GroupClassifications.__doc__ = "Join table mapping Groups to Classifications."
+GroupClassifications.create = accessible_if_properties_are_accessible(
+    ['classification'], ['read']
+)
+GroupClassifications.read = AccessibleByGroupMembers
+GroupClassifications.delete = AccessibleByGroupMembers
 
 
 class Photometry(ha.Point, Base):
@@ -1759,7 +1804,7 @@ class Photometry(ha.Point, Base):
 
     __tablename__ = 'photometry'
 
-    create = read = AccessibleByGroupsMembers
+    read = AccessibleByGroupsMembers
     update = delete = AccessibleByOwner
 
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
@@ -1961,13 +2006,18 @@ User.photometry = relationship(
 
 GroupPhotometry = join_model("group_photometry", Group, Photometry, base=Base)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
+GroupPhotometry.read = AccessibleByGroupMembers
+GroupPhotometry.create = accessible_if_properties_are_accessible(
+    ['photometry'], ['read']
+)
+GroupPhotometry.delete = AccessibleByGroupMembers
 
 
 class Spectrum(Base):
     """Wavelength-dependent measurement of the flux of an object through a
     dispersive element."""
 
-    create = read = AccessibleByGroupsMembers
+    read = AccessibleByGroupsMembers
     update = delete = AccessibleByOwner
 
     __tablename__ = 'spectra'
@@ -2246,8 +2296,27 @@ User.spectra = relationship(
 SpectrumReducer = join_model("spectrum_reducers", Spectrum, User, base=Base)
 SpectrumObserver = join_model("spectrum_observers", Spectrum, User, base=Base)
 
+SpectrumReducer.read = SpectrumObserver.read = accessible_if_properties_are_accessible(
+    ['spectrum'], ['read']
+)
+SpectrumReducer.create = (
+    SpectrumReducer.delete
+) = (
+    SpectrumReducer.update
+) = (
+    SpectrumObserver.create
+) = (
+    SpectrumObserver.delete
+) = SpectrumObserver.update = accessible_if_properties_are_accessible(
+    ['spectrum'], ['delete']
+)
+
 GroupSpectrum = join_model("group_spectra", Group, Spectrum, base=Base)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
+
+GroupSpectrum.read = AccessibleByGroupMembers
+GroupSpectrum.create = accessible_if_properties_are_accessible(['spectrum'], ['read'])
+GroupSpectrum.update = GroupSpectrum.delete = AccessibleByGroupAdmins
 
 
 # def format_public_url(context):
@@ -2267,7 +2336,9 @@ class FollowupRequest(Base):
     """A request for follow-up data (spectroscopy, photometry, or both) using a
     robotic instrument."""
 
-    create = read = update = delete = accessible_by_group_members(Allocation)
+    create = read = update = delete = accessible_by_group_members(
+        related_class=Allocation
+    )
 
     requester_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
