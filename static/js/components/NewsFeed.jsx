@@ -140,6 +140,7 @@ const NewsFeed = ({ classes }) => {
             onSubmit={profileActions.updateUserPreferences}
           />
         </div>
+        <br />
         <div className={newsFeedStyle} style={{ height: "85%" }}>
           {items.map((item) => (
             <NewsFeedItem
