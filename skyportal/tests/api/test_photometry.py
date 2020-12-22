@@ -8,6 +8,7 @@ from skyportal.models import DBSession, Token
 
 
 _, cfg = load_env()
+PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 
 def test_token_user_post_get_photometry_data(
@@ -776,7 +777,7 @@ def test_token_user_post_photometry_limits(
 
     assert data['data']['flux'] is None
     np.testing.assert_allclose(
-        data['data']['fluxerr'], 10 ** (-0.4 * (22.3 - 23.9)) / 5
+        data['data']['fluxerr'], 10 ** (-0.4 * (22.3 - 23.9)) / PHOT_DETECTION_THRESHOLD
     )
 
     status, data = api(
@@ -1332,7 +1333,7 @@ def test_token_user_retrieve_null_photometry(
     assert data['data']['flux'] is None
 
     np.testing.assert_allclose(
-        data['data']['fluxerr'], 10 ** (-0.4 * (22.3 - 23.9)) / 5.0
+        data['data']['fluxerr'], 10 ** (-0.4 * (22.3 - 23.9)) / PHOT_DETECTION_THRESHOLD
     )
 
     status, data = api(
