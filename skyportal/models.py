@@ -135,7 +135,7 @@ AS
         sa.Column('group_id', sa.Integer, primary_key=True),
         extend_existing=True,
     )
-    return t
+    return sa.alias(t)
 
 
 def get_app_base_url():
@@ -268,12 +268,13 @@ def accessible_by_group_members(related_class=None, admins_only=False):
                 groups_joinkey = target_right.group_id
 
             base = (
-                base.join(
+                sa.join(
+                    base,
                     user_accessible_groups,
                     groups_joinkey == user_accessible_groups.c.group_id,
                 )
                 .join(user_right, user_right.id == user_accessible_groups.c.user_id)
-                .join(user_acls, user_acls.user_id == user_right.id)
+                .join(user_acls, user_acls.c.user_id == user_right.id)
             )
 
             if admins_only:
@@ -285,7 +286,7 @@ def accessible_by_group_members(related_class=None, admins_only=False):
                         groups_joinkey == group_users.group_id,
                         sa.or_(
                             group_users.admin.is_(True),
-                            user_acls.acl_id == "System admin",
+                            user_acls.c.acl_id == "System admin",
                         ),
                     ),
                 )
