@@ -1368,7 +1368,10 @@ class Instrument(Base):
 class Allocation(Base):
     """An allocation of observing time on a robotic instrument."""
 
-    update = delete = AccessibleByGroupMembers
+    create = read = update = delete = compose_access_control(
+        AccessibleByGroupMembers,
+        accessible_if_properties_are_accessible(instrument='read'),
+    )
 
     pi = sa.Column(sa.String, doc="The PI of the allocation's proposal.")
     proposal_id = sa.Column(
@@ -2841,21 +2844,6 @@ def update_single_user_group(mapper, connection, target):
         single_user_group = target.single_user_group
         single_user_group.name = slugify(target.username)
         DBSession().add(single_user_group)
-
-
-def _make_retreive_accessible_children(cls):
-    return lambda self, user_or_token, options=[]: (
-        DBSession()
-        .query(cls)
-        .filter(cls.obj_id == self.id, cls.is_accessible_by(user_or_token))
-        .options(options)
-        .all()
-    )
-
-
-for cls in [Comment, Classification, Spectrum, Photometry, Annotation, Thumbnail]:
-    func_name = f'get_{cls.__tablename__}_readable_by'
-    setattr(Obj, func_name, _make_retreive_accessible_children(cls))
 
 
 schema.setup_schema()

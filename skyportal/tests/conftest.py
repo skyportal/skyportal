@@ -3,17 +3,13 @@
 import pytest
 import os
 import uuid
-import pathlib
+
 from datetime import datetime, timedelta
 from pathlib import Path
 import numpy as np
 
 from baselayer.app import models
-from baselayer.app.config import load_config
-from baselayer.app.test_util import (  # noqa: F401
-    driver,
-    set_server_url,
-)
+from baselayer.app.test_util import driver  # noqa: F401
 
 from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 from skyportal.tests.fixtures import (
@@ -42,11 +38,6 @@ from skyportal.models import (
 
 import astroplan
 
-
-print("Loading test configuration from _test_config.yaml")
-basedir = pathlib.Path(os.path.dirname(__file__))
-cfg = load_config([(basedir / "../../test_config.yaml").absolute()])
-set_server_url(f'http://localhost:{cfg["ports.app"]}')
 
 # Add a "test factory" User so that all factory-generated comments have a
 # proper author, if it doesn't already exist (the user may already be in

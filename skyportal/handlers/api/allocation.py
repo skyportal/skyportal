@@ -1,6 +1,6 @@
 from ..base import BaseHandler
-from ...models import DBSession, Group, Allocation, Instrument
-from baselayer.app.access import auth_or_token, permissions
+from ...models import DBSession, Allocation
+from baselayer.app.access import auth_or_token, permissions, AccessError
 from marshmallow.exceptions import ValidationError
 
 
@@ -47,16 +47,9 @@ class AllocationHandler(BaseHandler):
         """
 
         # get owned allocations
-        allocations = (
-            DBSession()
-            .query(Allocation)
-            .filter(
-                Allocation.group_id.in_(
-                    [g.id for g in self.current_user.accessible_groups]
-                )
-            )
+        allocations = Allocation.query_records_accessible_by(
+            self.current_user, mode="read"
         )
-
         if allocation_id is not None:
             try:
                 allocation_id = int(allocation_id)
@@ -108,16 +101,14 @@ class AllocationHandler(BaseHandler):
                 f'Error parsing posted allocation: "{e.normalized_messages()}"'
             )
 
-        group = Group.query.get(allocation.group_id)
-        if group is None:
-            return self.error(f'No group with specified ID: {allocation.group_id}')
-
-        instrument = Instrument.query.get(allocation.instrument_id)
-        if instrument is None:
-            return self.error(f'No group with specified ID: {allocation.instrument_id}')
-
         DBSession().add(allocation)
-        DBSession().commit()
+        self.enforce_permissions_on_next_flush()
+
+        try:
+            DBSession().commit()
+        except AccessError as e:
+            return self.error(e.args[0])
+
         return self.success(data={"id": allocation.id})
 
     @permissions(['Manage allocations'])
@@ -145,7 +136,8 @@ class AllocationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        allocation = Allocation.query.get(int(allocation_id))
+        allocation_id = int(allocation_id)
+        allocation = Allocation.query.get(allocation_id)
 
         if allocation is None:
             return self.error('No such allocation')
@@ -160,7 +152,14 @@ class AllocationHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
-        DBSession().commit()
+
+        self.enforce_permissions_on_next_flush()
+
+        try:
+            DBSession().commit()
+        except AccessError as e:
+            return self.error(e.args[0])
+
         return self.success()
 
     @permissions(['Manage allocations'])
@@ -182,5 +181,10 @@ class AllocationHandler(BaseHandler):
         """
         allocation = Allocation.query.get(int(allocation_id))
         DBSession().delete(allocation)
-        DBSession().commit()
+        self.enforce_permissions_on_next_flush()
+
+        try:
+            DBSession().commit()
+        except AccessError as e:
+            return self.error(e.args[0])
         return self.success()
