@@ -330,3 +330,68 @@ def test_listings_user_permissions(
     assert new_list[0]['id'] == item1  # the listing ID is the same
 
     assert new_list[0]['obj_id'] == public_candidate.id  # obj stays the same
+
+
+def test_invalid_listing_name_fails(user, public_candidate):
+    token_id = create_token(
+        ACLs=["Upload data"], user_id=user.id, name=str(uuid.uuid4())
+    )
+
+    # we cannot post a listing with an empty string
+    status, data = api(
+        'PUT',
+        'listing',
+        data={'user_id': user.id, 'obj_id': public_candidate.id, 'list_name': ''},
+        token=token_id,
+    )
+
+    assert status == 400
+    assert 'must begin with alphanumeric/underscore' in data["message"]
+
+    # we cannot post a listing with a non-alphanumeric first letter
+    status, data = api(
+        'PUT',
+        'listing',
+        data={'user_id': user.id, 'obj_id': public_candidate.id, 'list_name': ' '},
+        token=token_id,
+    )
+
+    assert status == 400
+    assert 'must begin with alphanumeric/underscore' in data["message"]
+
+    # we cannot post a listing with a non-alphanumeric first letter
+    status, data = api(
+        'PUT',
+        'listing',
+        data={'user_id': user.id, 'obj_id': public_candidate.id, 'list_name': '-'},
+        token=token_id,
+    )
+
+    assert status == 400
+    assert 'must begin with alphanumeric/underscore' in data["message"]
+
+    # this is ok
+    status, data = api(
+        'PUT',
+        'listing',
+        data={
+            'user_id': user.id,
+            'obj_id': public_candidate.id,
+            'list_name': 'favorites',
+        },
+        token=token_id,
+    )
+
+    assert status == 200
+    listing_id = data["data"]["listing_id"]
+
+    # we cannot post a listing with a non-alphanumeric first letter
+    status, data = api(
+        'PATCH',
+        f'listing/{listing_id}',
+        data={'user_id': user.id, 'obj_id': public_candidate.id, 'list_name': ''},
+        token=token_id,
+    )
+
+    assert status == 400
+    assert 'must begin with alphanumeric/underscore' in data["message"]

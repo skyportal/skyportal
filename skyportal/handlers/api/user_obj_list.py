@@ -11,6 +11,12 @@ from ...models import (
 )
 
 
+def check_list_name(
+    name,
+):  # checks that list_name begins with an alphanumeric character
+    return re.search(r'^\w+', name) is not None
+
+
 class UserObjListHandler(BaseHandler):
     @auth_or_token
     def get(self, user_id=None):
@@ -86,7 +92,7 @@ class UserObjListHandler(BaseHandler):
 
         # verify that poster has write access to user_id's lists
         if (
-            not self.associated_user_object.id == user_id
+            self.associated_user_object.id != user_id
             and "System admin" not in self.associated_user_object.permissions
         ):
             return self.error('Insufficient permissions to access this listing. ')
@@ -96,7 +102,7 @@ class UserObjListHandler(BaseHandler):
             return self.error(f'Object "{obj_id}" does not exist!')
 
         list_name = data.get('list_name')
-        if not re.search(r'^\w+', list_name):
+        if not check_list_name(list_name):
             return self.error(
                 "Input `list_name` must begin with alphanumeric/underscore"
             )
@@ -309,7 +315,7 @@ class UserObjListHandler(BaseHandler):
             return self.error(f'Object "{obj_id}" does not exist!')
 
         list_name = data.get('list_name')
-        if not re.search(r'^\w+', list_name):
+        if not check_list_name(list_name):
             return self.error(
                 "Input `list_name` must begin with alphanumeric/underscore"
             )
