@@ -1570,7 +1570,8 @@ class Annotation(Base):
     """A sortable/searchable Annotation made by a filter or other robot,
     with a set of data as JSON """
 
-    create = read = compose_access_control(
+    create = accessible_if_properties_are_accessible(obj='read')
+    read = compose_access_control(
         AccessibleByGroupsMembers, accessible_if_properties_are_accessible(obj='read')
     )
     update = delete = accessible_by_user('author')

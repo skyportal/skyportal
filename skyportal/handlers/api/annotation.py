@@ -1,8 +1,8 @@
 import re
 from marshmallow.exceptions import ValidationError
-from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.access import permissions, auth_or_token, AccessError
 from ..base import BaseHandler
-from ...models import DBSession, Source, Annotation, Group, Candidate, Filter
+from ...models import DBSession, Annotation, Group
 
 
 class AnnotationHandler(BaseHandler):
@@ -27,7 +27,7 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        annotation = Annotation.get_if_readable_by(annotation_id, self.current_user)
+        annotation = Annotation.get_if_accessible_by(annotation_id, self.current_user)
         if annotation is None:
             return self.error('Invalid annotation ID.')
         return self.success(data=annotation)
@@ -106,65 +106,31 @@ class AnnotationHandler(BaseHandler):
 
         annotation_data = data.get("data")
 
-        # Ensure user/token has access to parent source
-        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
-        user_accessible_filter_ids = [
-            filtr.id
-            for g in self.current_user.accessible_groups
-            for filtr in g.filters
-            if g.filters is not None
-        ]
-
-        if not group_ids:
-            group_ids = user_accessible_group_ids
-        group_ids = [int(id) for id in group_ids]
-        group_ids = set(group_ids).intersection(user_accessible_group_ids)
-        if not group_ids:
-            return self.error(
-                f"Invalid group IDs field ({group_ids}): "
-                "You must provide one or more valid group IDs."
-            )
-
-        # Only post to groups source/candidate is actually associated with
-        candidate_group_ids = [
-            f.group_id
-            for f in (
-                DBSession()
-                .query(Filter)
-                .join(Candidate)
-                .filter(Filter.id.in_(user_accessible_filter_ids))
-                .filter(Candidate.obj_id == obj_id)
-                .all()
-            )
-        ]
-        source_group_ids = [
-            source.group_id
-            for source in DBSession()
-            .query(Source)
-            .filter(Source.obj_id == obj_id)
-            .all()
-        ]
-        group_ids = set(group_ids).intersection(candidate_group_ids + source_group_ids)
-        if not group_ids:
-            return self.error("Obj is not associated with any of the specified groups.")
-
-        groups = Group.query.filter(Group.id.in_(group_ids)).all()
-
         author = self.associated_user_object
         annotation = Annotation(
-            data=annotation_data,
-            obj_id=obj_id,
-            origin=origin,
-            author=author,
-            groups=groups,
+            data=annotation_data, obj_id=obj_id, origin=origin, author=author,
         )
 
+        groups = []
+        if group_ids is not None:
+            for group_id in group_ids:
+                group = Group.query.get(group_id)
+                if not group:
+                    return self.error(f'Invalid group ID: {group_id}')
+                groups.append(group)
+
+        groups.append(self.associated_user_object.single_user_group)
+        annotation.groups = groups
         DBSession().add(annotation)
-        DBSession().commit()
+        obj = annotation.obj
+
+        try:
+            self.finalize_transaction()
+        except AccessError as e:
+            return self.error(f'{e}')
 
         self.push_all(
-            action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': annotation.obj.internal_key},
+            action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj.internal_key},
         )
         return self.success(data={'annotation_id': annotation.id})
 
@@ -204,7 +170,7 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        a = Annotation.get_if_readable_by(annotation_id, self.current_user)
+        a = Annotation.query.get(annotation_id)
         if a is None:
             return self.error('Invalid annotation ID.')
 
@@ -217,22 +183,20 @@ class AnnotationHandler(BaseHandler):
             schema.load(data, partial=True)
         except ValidationError as e:
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
-        DBSession().flush()
+
         if group_ids is not None:
-            a = Annotation.get_if_readable_by(annotation_id, self.current_user)
-            groups = Group.query.filter(Group.id.in_(group_ids)).all()
-            if not groups:
-                return self.error(
-                    "Invalid group_ids field. Specify at least one valid group ID."
-                )
-            if not all(
-                [group in self.current_user.accessible_groups for group in groups]
-            ):
-                return self.error(
-                    "Cannot associate an annotation with groups you are not a member of."
-                )
+            groups = []
+            for group_id in group_ids:
+                group = Group.query.get(group_id)
+                if group is None:
+                    return self.error(f'Invalid group ID: {group_id}')
+                groups.append(group)
             a.groups = groups
-        DBSession().commit()
+
+        try:
+            self.finalize_transaction()
+        except AccessError as e:
+            return self.error(f'{e}')
         self.push_all(
             action='skyportal/REFRESH_SOURCE', payload={'obj_key': a.obj.internal_key}
         )
@@ -255,17 +219,16 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        user = self.associated_user_object
         a = Annotation.query.get(annotation_id)
         if a is None:
             return self.error("Invalid annotation ID")
         obj_key = a.obj.internal_key
-        if (user.is_system_admin or "Manage groups" in user.permissions) or (
-            a.author == user
-        ):
-            Annotation.query.filter_by(id=annotation_id).delete()
-            DBSession().commit()
-        else:
-            return self.error('Insufficient user permissions.')
+        DBSession().delete(a)
+
+        try:
+            self.finalize_transaction()
+        except AccessError as e:
+            return self.error(f'{e}')
+
         self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key})
         return self.success()

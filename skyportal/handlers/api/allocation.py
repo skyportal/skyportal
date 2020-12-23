@@ -102,12 +102,11 @@ class AllocationHandler(BaseHandler):
             )
 
         DBSession().add(allocation)
-        self.enforce_permissions_on_next_flush()
 
         try:
-            DBSession().commit()
+            self.finalize_transaction()
         except AccessError as e:
-            return self.error(e.args[0])
+            return self.error(f'{e}')
 
         return self.success(data={"id": allocation.id})
 
@@ -153,12 +152,10 @@ class AllocationHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
 
-        self.enforce_permissions_on_next_flush()
-
         try:
-            DBSession().commit()
+            self.finalize_transaction()
         except AccessError as e:
-            return self.error(e.args[0])
+            return self.error(f'{e}')
 
         return self.success()
 
@@ -181,10 +178,9 @@ class AllocationHandler(BaseHandler):
         """
         allocation = Allocation.query.get(int(allocation_id))
         DBSession().delete(allocation)
-        self.enforce_permissions_on_next_flush()
 
         try:
-            DBSession().commit()
+            self.finalize_transaction()
         except AccessError as e:
-            return self.error(e.args[0])
+            return self.error(f'{e}')
         return self.success()

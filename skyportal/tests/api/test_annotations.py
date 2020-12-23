@@ -149,7 +149,7 @@ def test_add_and_retrieve_annotation_group_access(
     # This token does not belong to public_group2
     status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
     assert status == 400
-    assert "Insufficient permissions." in data["message"]
+    assert "Insufficient permissions" in data["message"]
 
     # Both tokens should be able to view this annotation
     status, data = api(
@@ -211,7 +211,7 @@ def test_update_annotation_group_list(
     # This token does not belong to public_group2
     status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
     assert status == 400
-    assert "Insufficient permissions." in data["message"]
+    assert "Insufficient permissions" in data["message"]
 
     # Both tokens should be able to view annotation after updating group list
     status, data = api(
