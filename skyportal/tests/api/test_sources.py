@@ -3,6 +3,7 @@ import pytest
 import numpy.testing as npt
 import numpy as np
 from tdtax import taxonomy, __version__
+import arrow
 
 from skyportal.tests import api
 from skyportal.models import cosmo
@@ -581,3 +582,47 @@ def test_sources_filter_by_classifications(
     assert status == 200
     assert len(data["data"]["sources"]) == 1
     assert data["data"]["sources"][0]["id"] == obj_id1
+
+
+def test_source_photometry_summary_info(
+    upload_data_token, view_only_token, public_source_no_data, ztf_camera, public_group
+):
+    pt1 = {"mjd": 58001.0, "flux": 13.24}
+    pt2 = {"mjd": 58002.0, "flux": 15.24}
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source_no_data.id),
+            'mjd': [pt1["mjd"], pt2["mjd"]],
+            'instrument_id': ztf_camera.id,
+            'flux': [pt1["flux"], pt2["flux"]],
+            'fluxerr': [0.031, 0.031],
+            'filter': ['ztfg', 'ztfg'],
+            'zp': [25.0, 25.0],
+            'magsys': ['ab', 'ab'],
+            'ra': 264.1947917,
+            'dec': [50.5478333, 50.5478333],
+            'dec_unc': 0.2,
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["ids"]) == 2
+
+    mag1_ab = -2.5 * np.log10(pt1["flux"]) + 25.0
+    iso1 = arrow.get((pt1["mjd"] - 40_587) * 86400.0).isoformat()
+    mag2_ab = -2.5 * np.log10(pt2["flux"]) + 25.0
+    iso2 = arrow.get((pt2["mjd"] - 40_587) * 86400.0).isoformat()
+
+    status, data = api(
+        "GET", f"sources/{public_source_no_data.id}", token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert data["data"]["last_detected_at"] == iso2
+    assert data["data"]["last_detected_mag"] == mag2_ab
+    assert data["data"]["peak_detected_at"] == iso1
+    assert data["data"]["peak_detected_mag"] == mag1_ab

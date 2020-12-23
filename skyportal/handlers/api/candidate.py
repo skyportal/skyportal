@@ -338,7 +338,7 @@ class CandidateHandler(BaseHandler):
                 candidate_info["classifications"] = c.get_classifications_readable_by(
                     self.current_user
                 )
-            candidate_info["last_detected"] = c.last_detected
+            candidate_info["last_detected_at"] = c.last_detected_at
             candidate_info["gal_lon"] = c.gal_lon_deg
             candidate_info["gal_lat"] = c.gal_lat_deg
             candidate_info["luminosity_distance"] = c.luminosity_distance
@@ -439,7 +439,7 @@ class CandidateHandler(BaseHandler):
             # Don't apply the order by just yet. Save it so we can pass it to
             # the LIMT/OFFSET helper function down the line once other query
             # params are set.
-            order_by = [Obj.last_detected.desc().nullslast(), Obj.id]
+            order_by = [Obj.last_detected_at.desc().nullslast(), Obj.id]
         if unsaved_only == "true":
             q = q.filter(
                 Obj.id.notin_(
@@ -559,7 +559,7 @@ class CandidateHandler(BaseHandler):
             order_by = [
                 origin_sort_order.nullslast(),
                 annotation_sort_criterion,
-                Obj.last_detected.desc().nullslast(),
+                Obj.last_detected_at.desc().nullslast(),
                 Obj.id,
             ]
         try:
@@ -629,7 +629,7 @@ class CandidateHandler(BaseHandler):
                     obj.get_annotations_readable_by(self.current_user),
                     key=lambda x: x.origin,
                 )
-                candidate_list[-1]["last_detected"] = obj.last_detected
+                candidate_list[-1]["last_detected_at"] = obj.last_detected_at
                 candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
                 candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
                 candidate_list[-1]["luminosity_distance"] = obj.luminosity_distance

@@ -586,20 +586,81 @@ class Obj(Base, ha.Point):
     )
 
     @hybrid_property
-    def last_detected(self):
+    def last_detected_at(self):
         """UTC ISO date at which the object was last detected above a S/N of 5."""
         detections = [phot.iso for phot in self.photometry if phot.snr and phot.snr > 5]
         return max(detections) if detections else None
 
-    @last_detected.expression
-    def last_detected(cls):
+    @last_detected_at.expression
+    def last_detected_at(cls):
         """UTC ISO date at which the object was last detected above a S/N of 5."""
         return (
             sa.select([sa.func.max(Photometry.iso)])
             .where(Photometry.obj_id == cls.id)
             .where(Photometry.snr > 5.0)
             .group_by(Photometry.obj_id)
-            .label('last_detected')
+            .label('last_detected_at')
+        )
+
+    @hybrid_property
+    def last_detected_mag(self):
+        """Magnitude at which the object was last detected above a S/N of 5."""
+        detections = [
+            (phot.iso, phot.mag)
+            for phot in self.photometry
+            if phot.snr and phot.snr > 5
+        ]
+        return max(detections, key=(lambda x: x[0]))[1] if detections else None
+
+    @last_detected_mag.expression
+    def last_detected_mag(cls):
+        """Magnitude at which the object was last detected above a S/N of 5."""
+        return (
+            sa.select([Photometry.mag])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr > 5.0)
+            .group_by(Photometry.obj_id)
+            .having(Photometry.iso == sa.func.max(Photometry.iso))
+            .label('last_detected_mag')
+        )
+
+    @hybrid_property
+    def peak_detected_at(self):
+        """UTC ISO date at which the object was detected at peak magnitude above a S/N of 5."""
+        detections = [
+            (phot.iso, phot.mag)
+            for phot in self.photometry
+            if phot.snr and phot.snr > 5
+        ]
+        return max(detections, key=(lambda x: x[1]))[0] if detections else None
+
+    @peak_detected_at.expression
+    def peak_detected_at(cls):
+        """UTC ISO date at which the object was detected at peak magnitude above a S/N of 5."""
+        return (
+            sa.select([Photometry.iso])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr > 5.0)
+            .group_by(Photometry.obj_id)
+            .having(Photometry.mag == sa.func.max(Photometry.mag))
+            .label('peak_detected_at')
+        )
+
+    @hybrid_property
+    def peak_detected_mag(self):
+        """Peak magnitude at which the object was detected above a S/N of 5."""
+        detections = [phot.mag for phot in self.photometry if phot.snr and phot.snr > 5]
+        return max(detections) if detections else None
+
+    @peak_detected_mag.expression
+    def peak_detected_mag(cls):
+        """Peak magnitude at which the object was detected above a S/N of 5."""
+        return (
+            sa.select([sa.func.max(Photometry.mag)])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr > 5.0)
+            .group_by(Photometry.obj_id)
+            .label('peak_detected_mag')
         )
 
     def add_linked_thumbnails(self):
@@ -1790,7 +1851,7 @@ User.comments = relationship("Comment", back_populates="author")
 
 class Annotation(Base):
     """A sortable/searchable Annotation made by a filter or other robot,
-    with a set of data as JSON """
+    with a set of data as JSON"""
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 

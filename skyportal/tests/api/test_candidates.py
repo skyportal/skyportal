@@ -231,7 +231,7 @@ def test_candidate_list_sorting_basic(
     assert status == 200
 
     # Sort by the numeric field so that public_candidate is returned first,
-    # instead of by last_detected (which would put public_candidate2 first)
+    # instead of by last_detected_at (which would put public_candidate2 first)
     status, data = api(
         "GET",
         f"candidates/?sortByAnnotationOrigin={origin}&sortByAnnotationKey=numeric_field",
