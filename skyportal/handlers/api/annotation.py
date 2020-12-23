@@ -111,15 +111,16 @@ class AnnotationHandler(BaseHandler):
             data=annotation_data, obj_id=obj_id, origin=origin, author=author,
         )
 
-        groups = []
+        groups = [self.associated_user_object.single_user_group]
         if group_ids is not None:
-            for group_id in group_ids:
-                group = Group.query.get(group_id)
-                if not group:
-                    return self.error(f'Invalid group ID: {group_id}')
-                groups.append(group)
+            try:
+                _groups = Group.get_if_accessible_by(
+                    group_ids, self.current_user, raise_if_none=True
+                )
+            except AccessError as e:
+                return self.error(f'{e}')
+            groups.extend(_groups)
 
-        groups.append(self.associated_user_object.single_user_group)
         annotation.groups = groups
         DBSession().add(annotation)
         obj = annotation.obj
@@ -185,13 +186,15 @@ class AnnotationHandler(BaseHandler):
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
 
         if group_ids is not None:
-            groups = []
-            for group_id in group_ids:
-                group = Group.query.get(group_id)
-                if group is None:
-                    return self.error(f'Invalid group ID: {group_id}')
-                groups.append(group)
-            a.groups = groups
+            try:
+                groups = Group.get_if_accessible_by(
+                    group_ids, self.current_user, raise_if_none=True
+                )
+            except AccessError as e:
+                return self.error(f'{e}')
+
+            # merge update groups (dont delete groups)
+            a.groups = list(set(a.groups) | set(groups))
 
         try:
             self.finalize_transaction()
