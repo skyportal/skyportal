@@ -22,7 +22,6 @@ from ...models import (
     Filter,
     Annotation,
     Group,
-    Comment,
     Classification,
 )
 
@@ -271,28 +270,31 @@ class CandidateHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-
+        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         include_photometry = self.get_query_argument("includePhotometry", False)
 
         if obj_id is not None:
-            query_options = [joinedload(Obj.thumbnails)]
+            query_options = [joinedload(Candidate.obj).joinedload(Obj.thumbnails)]
             if include_photometry:
                 query_options.append(
-                    joinedload(Obj.photometry).joinedload(Photometry.instrument)
+                    joinedload(Candidate.obj)
+                    .joinedload(Obj.photometry)
+                    .joinedload(Photometry.instrument)
                 )
-
-            c = Obj.get_if_readable_by(
+            c = Candidate.get_obj_if_readable_by(
                 obj_id, self.current_user, options=query_options,
             )
             if c is None:
                 return self.error("Invalid ID")
-
             accessible_candidates = (
                 DBSession()
                 .query(Candidate)
+                .join(Filter)
                 .filter(
                     Candidate.obj_id == obj_id,
-                    Candidate.is_readable_by(self.current_user),
+                    Filter.group_id.in_(
+                        [g.id for g in self.current_user.accessible_groups]
+                    ),
                 )
                 .all()
             )
@@ -313,24 +315,13 @@ class CandidateHandler(BaseHandler):
             candidate_info["comments"] = sorted(
                 [
                     cmt.to_dict()
-                    for cmt in DBSession()
-                    .query(Comment)
-                    .filter(
-                        Comment.obj_id == obj_id,
-                        Comment.is_readable_by(self.current_user),
-                    )
+                    for cmt in c.get_comments_readable_by(self.current_user)
                 ],
                 key=lambda x: x["created_at"],
                 reverse=True,
             )
             candidate_info["annotations"] = sorted(
-                DBSession()
-                .query(Annotation)
-                .filter(
-                    Annotation.obj_id == obj_id,
-                    Annotation.is_readable_by(self.current_user),
-                )
-                .all(),
+                c.get_annotations_readable_by(self.current_user),
                 key=lambda x: x.origin,
             )
             candidate_info["is_source"] = len(c.sources) > 0
@@ -341,19 +332,12 @@ class CandidateHandler(BaseHandler):
                     .join(Source)
                     .filter(Source.obj_id == obj_id)
                     .filter(Source.active.is_(True))
-                    .filter(Source.is_readable_by(self.current_user))
+                    .filter(Group.id.in_(user_accessible_group_ids))
                     .all()
                 )
-                candidate_info["classifications"] = (
-                    DBSession()
-                    .query(Classification)
-                    .filter(
-                        Classification.obj_id == obj_id,
-                        Classification.is_readable_by(self.current_user),
-                    )
-                    .all()
+                candidate_info["classifications"] = c.get_classifications_readable_by(
+                    self.current_user
                 )
-
             candidate_info["last_detected"] = c.last_detected
             candidate_info["gal_lon"] = c.gal_lon_deg
             candidate_info["gal_lat"] = c.gal_lat_deg
@@ -430,8 +414,14 @@ class CandidateHandler(BaseHandler):
             DBSession()
             .query(Obj)
             .join(Candidate)
+            .filter(
+                Obj.id.in_(
+                    DBSession()
+                    .query(Candidate.obj_id)
+                    .filter(Candidate.filter_id.in_(filter_ids))
+                )
+            )
             .outerjoin(Annotation)
-            .filter(Candidate.is_readable_by(self.current_user))
         )  # Join in annotations info for sort/filter
         if classifications is not None:
             if isinstance(classifications, str) and "," in classifications:
@@ -463,10 +453,10 @@ class CandidateHandler(BaseHandler):
             "null",
             "undefined",
         ]:
-            start_date = arrow.get(start_date).isoformat()
+            start_date = arrow.get(start_date).datetime
             q = q.filter(Candidate.passed_at >= start_date)
         if end_date is not None and end_date.strip() not in ["", "null", "undefined"]:
-            end_date = arrow.get(end_date).isoformat()
+            end_date = arrow.get(end_date).datetime
             q = q.filter(Candidate.passed_at <= end_date)
         if redshift_range_str is not None:
             redshift_range = ast.literal_eval(redshift_range_str)
@@ -589,7 +579,7 @@ class CandidateHandler(BaseHandler):
         matching_source_ids = (
             DBSession()
             .query(Source.obj_id)
-            .filter(Source.is_readable_by(self.current_user))
+            .filter(Source.group_id.in_(user_accessible_group_ids))
             .filter(Source.obj_id.in_([obj.id for obj in query_results["candidates"]]))
             .all()
         )
@@ -604,28 +594,25 @@ class CandidateHandler(BaseHandler):
                         .join(Source)
                         .filter(Source.obj_id == obj.id)
                         .filter(Source.active.is_(True))
-                        .filter(Source.is_readable_by(self.current_user))
+                        .filter(Group.id.in_(user_accessible_group_ids))
                         .all()
                     )
-
-                    obj.classifications = (
-                        DBSession()
-                        .query(Classification)
-                        .filter(
-                            Classification.obj_id == obj.id,
-                            Classification.is_readable_by(self.current_user),
-                        )
-                        .all()
+                    obj.classifications = obj.get_classifications_readable_by(
+                        self.current_user
                     )
                 obj.passing_group_ids = [
                     f.group_id
                     for f in (
                         DBSession()
                         .query(Filter)
-                        .join(Candidate)
-                        .filter(Filter.is_readable_by(self.current_user))
-                        .filter(Candidate.is_readable_by(self.current_user))
-                        .filter(Candidate.obj_id == obj.id)
+                        .filter(Filter.id.in_(user_accessible_filter_ids))
+                        .filter(
+                            Filter.id.in_(
+                                DBSession()
+                                .query(Candidate.filter_id)
+                                .filter(Candidate.obj_id == obj.id)
+                            )
+                        )
                         .all()
                     )
                 ]
@@ -633,24 +620,13 @@ class CandidateHandler(BaseHandler):
                 candidate_list[-1]["comments"] = sorted(
                     [
                         cmt.to_dict()
-                        for cmt in DBSession()
-                        .query(Comment)
-                        .filter(
-                            Comment.obj_id == obj.id,
-                            Comment.is_readable_by(self.current_user),
-                        )
+                        for cmt in obj.get_comments_readable_by(self.current_user)
                     ],
                     key=lambda x: x["created_at"],
                     reverse=True,
                 )
                 candidate_list[-1]["annotations"] = sorted(
-                    DBSession()
-                    .query(Annotation)
-                    .filter(
-                        Annotation.obj_id == obj.id,
-                        Annotation.is_readable_by(self.current_user),
-                    )
-                    .all(),
+                    obj.get_annotations_readable_by(self.current_user),
                     key=lambda x: x.origin,
                 )
                 candidate_list[-1]["last_detected"] = obj.last_detected

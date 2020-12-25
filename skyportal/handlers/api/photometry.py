@@ -913,7 +913,7 @@ class ObjPhotometryHandler(BaseHandler):
         obj = Obj.query.get(obj_id)
         if obj is None:
             return self.error('Invalid object id.')
-        photometry = obj.get_photometry_readable_by(self.current_user)
+        photometry = Obj.get_photometry_readable_by_user(obj_id, self.current_user)
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
         return self.success(

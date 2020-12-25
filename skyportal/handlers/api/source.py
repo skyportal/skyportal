@@ -96,11 +96,12 @@ class SourceHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        user_group_ids = [g.id for g in self.associated_user_object.accessible_groups]
         num_s = (
             DBSession()
             .query(Source)
             .filter(Source.obj_id == obj_id)
-            .filter(Source.is_readable_by(self.current_user))
+            .filter(Source.group_id.in_(user_group_ids))
             .count()
         )
         if num_s > 0:
@@ -496,13 +497,15 @@ class SourceHandler(BaseHandler):
                 f for f in s.followup_requests if f.status != 'deleted'
             ]
             if include_photometry:
-                photometry = s.get_photometry_readable_by(self.current_user)
+                photometry = Obj.get_photometry_readable_by_user(
+                    obj_id, self.current_user
+                )
                 source_info["photometry"] = [
                     serialize(phot, 'ab', 'flux') for phot in photometry
                 ]
             if include_spectrum_exists:
                 source_info["spectrum_exists"] = (
-                    len(s.get_spectra_readable_by(self.current_user)) > 0
+                    len(Obj.get_spectra_readable_by(obj_id, self.current_user)) > 0
                 )
             query = (
                 DBSession()
@@ -552,7 +555,11 @@ class SourceHandler(BaseHandler):
                 DBSession()
                 .query(Obj)
                 .join(Source)
-                .filter(Source.is_readable_by(self.current_user))
+                .filter(
+                    Source.group_id.in_(
+                        user_accessible_group_ids
+                    )  # only give sources the user has access to
+                )
                 .options(query_options)
             )
         else:
@@ -560,7 +567,7 @@ class SourceHandler(BaseHandler):
                 DBSession()
                 .query(Source)
                 .join(Obj)
-                .filter(Source.is_readable_by(self.current_user))
+                .filter(Source.group_id.in_(user_accessible_group_ids))
             )
 
         if classifications is not None or sort_by == "classification":
@@ -734,13 +741,16 @@ class SourceHandler(BaseHandler):
                     "angular_diameter_distance"
                 ] = source.angular_diameter_distance
                 if include_photometry:
-                    photometry = source.get_photometry_readable_by(self.current_user)
+                    photometry = Obj.get_photometry_readable_by_user(
+                        source.id, self.current_user
+                    )
                     source_list[-1]["photometry"] = [
                         serialize(phot, 'ab', 'flux') for phot in photometry
                     ]
                 if include_spectrum_exists:
                     source_list[-1]["spectrum_exists"] = (
-                        len(source.get_spectra_readable_by(self.current_user)) > 0
+                        len(Obj.get_spectra_readable_by(source.id, self.current_user))
+                        > 0
                     )
 
                 groups_query = (

@@ -555,8 +555,8 @@ class ObjSpectraHandler(BaseHandler):
         obj = Obj.query.get(obj_id)
         if obj is None:
             return self.error('Invalid object ID.')
-        spectra = obj.get_spectra_readable_by(
-            self.current_user, options=[joinedload(Spectrum.groups)]
+        spectra = Obj.get_spectra_readable_by(
+            obj_id, self.current_user, options=[joinedload(Spectrum.groups)]
         )
         return_values = []
         for spec in spectra:

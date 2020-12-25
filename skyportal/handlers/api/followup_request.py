@@ -59,10 +59,12 @@ class AssignmentHandler(BaseHandler):
         """
 
         # get owned assignments
+        assignments = DBSession().query(ClassicalAssignment)
         assignments = (
-            DBSession()
-            .query(ClassicalAssignment)
-            .filter(ClassicalAssignment.is_readable_by(self.current_user))
+            assignments.join(Obj)
+            .join(Source)
+            .join(Group)
+            .filter(Group.id.in_([g.id for g in self.current_user.accessible_groups]))
         )
 
         if assignment_id is not None:
@@ -149,7 +151,7 @@ class AssignmentHandler(BaseHandler):
             return self.error('Object is already assigned to this run.')
 
         assignment = ClassicalAssignment(**data)
-        source = Obj.get_if_readable_by(assignment.obj_id, self.current_user)
+        source = Source.get_obj_if_readable_by(assignment.obj_id, self.current_user)
 
         if source is None:
             return self.error(f'Invalid obj_id: "{assignment.obj_id}"')
@@ -355,7 +357,7 @@ class FollowupRequestHandler(BaseHandler):
                               description: New follow-up request ID
         """
         data = self.get_json()
-        _ = Obj.get_if_readable_by(data["obj_id"], self.current_user)
+        _ = Source.get_obj_if_readable_by(data["obj_id"], self.current_user)
 
         try:
             data = FollowupRequestPost.load(data)

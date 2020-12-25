@@ -1,7 +1,7 @@
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 from .... import plot
-from ....models import ClassicalAssignment, Obj, Telescope
+from ....models import ClassicalAssignment, Source, Telescope
 
 import numpy as np
 from astropy import time as ap_time
@@ -37,7 +37,7 @@ class PlotSpectroscopyHandler(BaseHandler):
 
 class AirmassHandler(BaseHandler):
     def calculate_airmass(self, obj, telescope, sunset, sunrise):
-        permission_check = Obj.get_if_readable_by(obj.id, self.current_user)
+        permission_check = Source.get_obj_if_readable_by(obj.id, self.current_user)
         if permission_check is None:
             return self.error('Invalid assignment id.')
 
@@ -54,9 +54,7 @@ class AirmassHandler(BaseHandler):
 class PlotAssignmentAirmassHandler(AirmassHandler):
     @auth_or_token
     def get(self, assignment_id):
-        assignment = ClassicalAssignment.get_if_readable_by(
-            assignment_id, self.current_user
-        )
+        assignment = ClassicalAssignment.query.get(assignment_id)
         if assignment is None:
             return self.error('Invalid assignment id.')
         obj = assignment.obj
@@ -86,7 +84,7 @@ class PlotObjTelAirmassHandler(AirmassHandler):
         else:
             time = ap_time.Time.now()
 
-        obj = Obj.get_if_readable_by(obj_id, self.current_user)
+        obj = Source.get_obj_if_readable_by(obj_id, self.current_user)
         if obj is None:
             return self.error('Invalid assignment id.')
 

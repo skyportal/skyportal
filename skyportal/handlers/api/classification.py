@@ -1,7 +1,7 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Group, Classification, Taxonomy, Obj
+from ...models import DBSession, Source, Group, Classification, Taxonomy, Obj
 
 
 class ClassificationHandler(BaseHandler):
@@ -96,6 +96,9 @@ class ClassificationHandler(BaseHandler):
         data = self.get_json()
         obj_id = data['obj_id']
         # Ensure user/token has access to parent source
+        source = Source.get_obj_if_readable_by(obj_id, self.current_user)
+        if source is None:
+            return self.error("Invalid source.")
         user_group_ids = [g.id for g in self.current_user.groups]
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         group_ids = data.pop("group_ids", user_group_ids)
@@ -111,12 +114,12 @@ class ClassificationHandler(BaseHandler):
 
         # check the taxonomy
         taxonomy_id = data["taxonomy_id"]
-        taxonomy = Taxonomy.get_if_readable_by(taxonomy_id, self.current_user)
-        if taxonomy is None:
+        taxonomy = Taxonomy.get_taxonomy_usable_by_user(taxonomy_id, self.current_user)
+        if len(taxonomy) == 0:
             return self.error(
                 'That taxonomy does not exist or is not available to user.'
             )
-        if not isinstance(taxonomy, Taxonomy):
+        if not isinstance(taxonomy, list):
             return self.error('Problem retrieving taxonomy')
 
         def allowed_classes(hierarchy):
@@ -127,7 +130,7 @@ class ClassificationHandler(BaseHandler):
                 for item in hierarchy.get("subclasses", []):
                     yield from allowed_classes(item)
 
-        if data['classification'] not in allowed_classes(taxonomy.hierarchy):
+        if data['classification'] not in allowed_classes(taxonomy[0].hierarchy):
             return self.error(
                 f"That classification ({data['classification']}) "
                 'is not in the allowed classes for the chosen '

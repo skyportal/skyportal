@@ -43,9 +43,23 @@ class FilterHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        acls = self.current_user.permissions
 
         if filter_id is not None:
-            f = Filter.get_if_readable_by(filter_id, self.current_user)
+            if self.current_user.is_system_admin or "Manage groups" in acls:
+                f = DBSession().query(Filter).get(filter_id)
+            else:
+                f = (
+                    DBSession()
+                    .query(Filter)
+                    .filter(
+                        Filter.id == filter_id,
+                        Filter.group_id.in_(
+                            [g.id for g in self.current_user.accessible_groups]
+                        ),
+                    )
+                    .first()
+                )
             if f is None:
                 return self.error("Invalid filter ID.")
             # get stream:
@@ -57,7 +71,9 @@ class FilterHandler(BaseHandler):
         filters = (
             DBSession()
             .query(Filter)
-            .filter(Filter.is_readable_by(self.current_user))
+            .filter(
+                Filter.group_id.in_([g.id for g in self.current_user.accessible_groups])
+            )
             .all()
         )
         return self.success(data=filters)
@@ -154,8 +170,22 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        acls = self.current_user.permissions
 
-        f = Filter.get_if_readable_by(filter_id, self.current_user)
+        if self.current_user.is_system_admin or "Manage groups" in acls:
+            f = DBSession().query(Filter).get(filter_id)
+        else:
+            f = (
+                DBSession()
+                .query(Filter)
+                .filter(
+                    Filter.id == filter_id,
+                    Filter.group_id.in_(
+                        [g.id for g in self.current_user.accessible_groups]
+                    ),
+                )
+                .first()
+            )
         if f is None:
             return self.error("Invalid filter ID.")
 
@@ -195,7 +225,22 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        f = Filter.get_if_readable_by(filter_id, self.current_user)
+        acls = self.current_user.permissions
+
+        if self.current_user.is_system_admin or "Manage groups" in acls:
+            f = DBSession().query(Filter).get(filter_id)
+        else:
+            f = (
+                DBSession()
+                .query(Filter)
+                .filter(
+                    Filter.id == filter_id,
+                    Filter.group_id.in_(
+                        [g.id for g in self.current_user.accessible_groups]
+                    ),
+                )
+                .first()
+            )
         if f is None:
             return self.error("Invalid filter ID.")
 

@@ -78,6 +78,11 @@ class NewsFeedHandler(BaseHandler):
                 .limit(n_items)
             )
             newest = query.all()
+
+            if model == Comment:
+                for comment in newest:
+                    comment.author_info = comment.construct_author_info_dict()
+
             return newest
 
         news_feed_items = []
