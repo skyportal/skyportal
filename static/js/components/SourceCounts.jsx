@@ -49,7 +49,7 @@ const SourceCounts = ({ classes, sinceDaysAgo }) => {
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
           <div className={classes.widgetIcon}>
             <WidgetPrefsDialog
-              formValues={sourceCountPrefs}
+              initialValues={sourceCountPrefs}
               stateBranchName="sourceCounts"
               title="Source Count Preferences"
               onSubmit={profileActions.updateUserPreferences}
