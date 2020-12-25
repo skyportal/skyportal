@@ -49,6 +49,7 @@ from baselayer.app.models import (  # noqa
     user_acls_temporary_table,
     AccessibleByOwner,
     Restricted,
+    AccessibleByAnyone,
     compose_access_control,
     accessible_if_properties_are_accessible,
 )
@@ -211,7 +212,7 @@ class AccessibleByGroupsMembers(UserAccessControl):
                 user_accessible_groups,
                 cls_groups_join_table.c.group_id == user_accessible_groups.c.group_id,
             )
-            .join(user_right, user_right.id == user_accessible_groups.c.user_id)
+            .join(user_right, user_right.id == user_accessible_groups.user_id)
         )
 
 
@@ -300,6 +301,39 @@ AccessibleByGroupMembers = accessible_by_group_members()
 AccessibleByGroupAdmins = accessible_by_group_members(admins_only=True)
 
 
+class AccessibleByMembers(UserAccessControl):
+    """A record that is readable to members of the group associated with a
+    record's relationship."""
+
+    @classmethod
+    def accessible_pairs(cls, target_right, user_right):
+        """Construct a join table mapping User records to accessible target
+        records.
+
+        Parameters
+        ----------
+        target_right: `baselayer.app.models.Base` or alias of
+        `baselayer.app.models.Base`
+            Access protected class or alias of the access protected class.
+        user_right: `baselayer.app.models.Base` or alias of
+        `baselayer.app.models.Base`
+            The `User` class or an alias of the `User` class.
+
+        Returns
+        -------
+        table: `sqlalchemy.sql.expression.Selectable`
+            SQLalchemy table mapping User records to accessible target records.
+        """
+
+        user_accessible_groups = user_accessible_groups_temporary_table()
+
+        return sa.join(
+            target_right,
+            user_accessible_groups,
+            target_right.id == user_accessible_groups.c.group_id,
+        ).join(user_right, user_right.id == user_accessible_groups.c.user_id)
+
+
 class NumpyArray(sa.types.TypeDecorator):
     """SQLAlchemy representation of a NumPy array."""
 
@@ -318,6 +352,7 @@ class Group(Base):
     """
 
     update = delete = AccessibleByGroupAdmins
+    member = AccessibleByMembers
 
     name = sa.Column(
         sa.String, unique=True, nullable=False, index=True, doc='Name of the group.'
@@ -522,6 +557,8 @@ Token.groups = token_groups
 class Obj(Base, ha.Point):
     """A record of an astronomical Object and its metadata, such as position,
     positional uncertainties, name, and redshift."""
+
+    update = AccessibleByAnyone
 
     id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
     # TODO should this column type be decimal? fixed-precison numeric
@@ -1416,6 +1453,8 @@ class Allocation(Base):
 class Taxonomy(Base):
     """An ontology within which Objs can be classified."""
 
+    read = update = delete = AccessibleByGroupsMembers
+
     __tablename__ = 'taxonomies'
     name = sa.Column(
         sa.String,
@@ -1438,19 +1477,6 @@ class Taxonomy(Base):
     )
     version = sa.Column(
         sa.String, nullable=False, doc='Semantic version of this taxonomy'
-    )
-
-    owner_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True,
-        doc="ID of the User who uploaded the taxonomy.",
-    )
-    owner = relationship(
-        'User',
-        foreign_keys=[owner_id],
-        cascade='save-update, merge, refresh-expire, expunge',
-        doc="The User who uploaded the taxonomy.",
     )
 
     isLatest = sa.Column(
