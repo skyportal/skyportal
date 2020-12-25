@@ -142,7 +142,12 @@ const FollowupRequestForm = ({
       >
         {isSubmitting && (
           <div>
-            <Button className={classes.hiddenButton} type="submit" />
+            <Button
+              className={classes.hiddenButton}
+              size="large"
+              color="primary"
+              type="submit"
+            />
             <CircularProgress />
           </div>
         )}

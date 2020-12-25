@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
+import Button from "@material-ui/core/Button";
+import CircularProgress from "@material-ui/core/CircularProgress";
 import { makeStyles } from "@material-ui/core/styles";
 
 import * as Actions from "../ducks/source";
@@ -20,8 +22,12 @@ const FollowupRequestLists = ({
 }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const deleteRequest = (id) => {
-    dispatch(Actions.deleteFollowupRequest(id));
+
+  const [isDeleting, setIsDeleting] = useState(false);
+  const handleDelete = async (id) => {
+    setIsDeleting(true);
+    await dispatch(Actions.deleteFollowupRequest(id));
+    setIsDeleting(false);
   };
 
   if (
@@ -105,16 +111,24 @@ const FollowupRequestLists = ({
                       <td>{followupRequest.status}</td>
                       {modifiable && (
                         <td>
-                          {implementsDelete && (
-                            <button
-                              type="button"
-                              name={`deleteRequest_${followupRequest.id}`}
-                              onClick={() => {
-                                deleteRequest(followupRequest.id);
-                              }}
-                            >
-                              Delete
-                            </button>
+                          {implementsDelete && isDeleting ? (
+                            <div>
+                              <CircularProgress />
+                            </div>
+                          ) : (
+                            <div>
+                              <Button
+                                onClick={() => {
+                                  handleDelete(followupRequest.id);
+                                }}
+                                className={classes.hiddenButton}
+                                size="small"
+                                color="primary"
+                                type="submit"
+                              >
+                                Delete
+                              </Button>
+                            </div>
                           )}
                           {implementsEdit && (
                             <EditFollowupRequestDialog
