@@ -8,7 +8,7 @@ import io
 import math
 from dateutil.parser import isoparse
 from sqlalchemy.orm import joinedload
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, tuple_
 import arrow
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
@@ -29,6 +29,8 @@ from ...models import (
     ClassicalAssignment,
     ObservingRun,
     SourceNotification,
+    Classification,
+    Taxonomy,
 )
 from .internal.source_views import register_source_view
 from ...utils import (
@@ -76,6 +78,8 @@ class SourceHandler(BaseHandler):
         ---
         single:
           description: Check if a Source exists
+          tags:
+            - sources
           parameters:
             - in: path
               name: obj_id
@@ -111,6 +115,8 @@ class SourceHandler(BaseHandler):
         ---
         single:
           description: Retrieve a source
+          tags:
+            - sources
           parameters:
             - in: path
               name: obj_id
@@ -128,6 +134,8 @@ class SourceHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all sources
+          tags:
+            - sources
           parameters:
           - in: query
             name: ra
@@ -302,6 +310,18 @@ class SourceHandler(BaseHandler):
               type: boolean
             description: |
               Boolean indicating whether to return if a source has a spectra. Defaults to false.
+          - in: query
+            name: classifications
+            nullable: true
+            schema:
+              type: array
+              items:
+                type: string
+            explode: false
+            style: simple
+            description: |
+              Comma-separated string of "taxonomy: classification" pair(s) to filter for sources matching
+              that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
           responses:
             200:
               content:
@@ -351,6 +371,7 @@ class SourceHandler(BaseHandler):
         include_spectrum_exists = self.get_query_argument(
             "includeSpectrumExists", False
         )
+        classifications = self.get_query_argument("classifications", None)
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -423,6 +444,13 @@ class SourceHandler(BaseHandler):
                 .joinedload(Allocation.group),
             ]
 
+            s = Obj.get_if_readable_by(
+                obj_id, self.current_user, options=query_options,
+            )
+
+            if s is None:
+                return self.error("Source not found", status=404)
+
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
                 register_source_view(
@@ -430,13 +458,6 @@ class SourceHandler(BaseHandler):
                     username_or_token_id=self.current_user.id,
                     is_token=True,
                 )
-
-            s = Obj.get_if_readable_by(
-                obj_id, self.current_user, options=query_options,
-            )
-
-            if s is None:
-                return self.error("Source not found", status=404)
 
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
                 IOLoop.current().add_callback(
@@ -526,7 +547,6 @@ class SourceHandler(BaseHandler):
 
         # Fetch multiple sources
         query_options = [joinedload(Obj.thumbnails)]
-
         if not save_summary:
             q = (
                 DBSession()
@@ -542,6 +562,11 @@ class SourceHandler(BaseHandler):
                 .join(Obj)
                 .filter(Source.is_readable_by(self.current_user))
             )
+
+        if classifications is not None or sort_by == "classification":
+            q = q.join(Classification, isouter=True)
+            if classifications is not None:
+                q = q.join(Taxonomy)
 
         if sourceID:
             q = q.filter(Obj.id.contains(sourceID.strip()))
@@ -562,10 +587,10 @@ class SourceHandler(BaseHandler):
             other = ha.Point(ra=ra, dec=dec)
             q = q.filter(Obj.within(other, radius))
         if start_date:
-            start_date = arrow.get(start_date.strip())
+            start_date = arrow.get(start_date.strip()).datetime
             q = q.filter(Obj.last_detected >= start_date)
         if end_date:
-            end_date = arrow.get(end_date.strip())
+            end_date = arrow.get(end_date.strip()).datetime
             q = q.filter(Obj.last_detected <= end_date)
         if saved_before:
             q = q.filter(Source.saved_at <= saved_before)
@@ -578,6 +603,27 @@ class SourceHandler(BaseHandler):
             )
         if has_tns_name in ['true', True]:
             q = q.filter(Obj.altdata['tns']['name'].isnot(None))
+        if classifications is not None:
+            if isinstance(classifications, str) and "," in classifications:
+                classifications = [c.strip() for c in classifications.split(",")]
+            elif isinstance(classifications, str):
+                classifications = [classifications]
+            else:
+                return self.error(
+                    "Invalid classifications value -- must provide at least one string value"
+                )
+            # Parse into tuples of taxonomy: classification
+            classifications = list(
+                map(
+                    lambda c: (c.split(":")[0].strip(), c.split(":")[1].strip()),
+                    classifications,
+                )
+            )
+            q = q.filter(
+                tuple_(Taxonomy.name, Classification.classification).in_(
+                    classifications
+                )
+            )
         q = apply_active_or_requested_filtering(q, include_requested, requested_only)
         if group_ids is not None:
             if not all(gid in user_accessible_group_ids for gid in group_ids):
@@ -598,7 +644,6 @@ class SourceHandler(BaseHandler):
                     if sort_order == "asc"
                     else [Obj.ra.desc().nullslast()]
                 )
-                print(sort_by, sort_order)
             elif sort_by == "dec":
                 order_by = (
                     [Obj.dec.nullslast()]
@@ -616,6 +661,12 @@ class SourceHandler(BaseHandler):
                     [Source.saved_at]
                     if sort_order == "asc"
                     else [Source.saved_at.desc()]
+                )
+            elif sort_by == "classification":
+                order_by = (
+                    [Classification.classification.nullslast()]
+                    if sort_order == "asc"
+                    else [Classification.classification.desc().nullslast()]
                 )
 
         if page_number:
@@ -741,6 +792,8 @@ class SourceHandler(BaseHandler):
         """
         ---
         description: Add a new source
+        tags:
+          - sources
         requestBody:
           content:
             application/json:
@@ -849,6 +902,8 @@ class SourceHandler(BaseHandler):
         """
         ---
         description: Update a source
+        tags:
+          - sources
         parameters:
           - in: path
             name: obj_id
@@ -894,6 +949,8 @@ class SourceHandler(BaseHandler):
         """
         ---
         description: Delete a source
+        tags:
+          - sources
         parameters:
           - in: path
             name: obj_id
@@ -933,6 +990,8 @@ class SourceOffsetsHandler(BaseHandler):
         """
         ---
         description: Retrieve offset stars to aid in spectroscopy
+        tags:
+          - sources
         parameters:
         - in: path
           name: obj_id
@@ -1146,6 +1205,8 @@ class SourceFinderHandler(BaseHandler):
         """
         ---
         description: Generate a PDF/PNG finding chart to aid in spectroscopy
+        tags:
+          - sources
         parameters:
         - in: path
           name: obj_id
@@ -1362,6 +1423,8 @@ class SourceNotificationHandler(BaseHandler):
         """
         ---
         description: Send out a new source notification
+        tags:
+          - notifications
         requestBody:
           content:
             application/json:

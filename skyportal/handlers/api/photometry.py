@@ -600,6 +600,8 @@ class PhotometryHandler(BaseHandler):
         """
         ---
         description: Upload photometry
+        tags:
+          - photometry
         requestBody:
           content:
             application/json:
@@ -666,6 +668,8 @@ class PhotometryHandler(BaseHandler):
         """
         ---
         description: Update and/or upload photometry, resolving potential duplicates
+        tags:
+          - photometry
         requestBody:
           content:
             application/json:
@@ -795,6 +799,8 @@ class PhotometryHandler(BaseHandler):
         """
         ---
         description: Update photometry
+        tags:
+          - photometry
         parameters:
           - in: path
             name: photometry_id
@@ -869,6 +875,8 @@ class PhotometryHandler(BaseHandler):
         """
         ---
         description: Delete photometry
+        tags:
+          - photometry
         parameters:
           - in: path
             name: photometry_id
@@ -919,6 +927,8 @@ class BulkDeletePhotometryHandler(BaseHandler):
         """
         ---
         description: Delete bulk-uploaded photometry set
+        tags:
+          - photometry
         parameters:
           - in: path
             name: upload_id
@@ -1000,6 +1010,8 @@ class PhotometryRangeHandler(BaseHandler):
 PhotometryHandler.get.__doc__ = f"""
         ---
         description: Retrieve photometry
+        tags:
+          - photometry
         parameters:
           - in: path
             name: photometry_id
@@ -1044,6 +1056,8 @@ PhotometryHandler.get.__doc__ = f"""
 ObjPhotometryHandler.get.__doc__ = f"""
         ---
         description: Retrieve all photometry associated with an Object
+        tags:
+          - photometry
         parameters:
           - in: path
             name: obj_id
@@ -1089,6 +1103,8 @@ ObjPhotometryHandler.get.__doc__ = f"""
 PhotometryRangeHandler.get.__doc__ = f"""
         ---
         description: Get photometry taken by specific instruments over a date range
+        tags:
+          - photometry
         parameters:
           - in: query
             name: format

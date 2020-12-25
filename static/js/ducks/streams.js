@@ -3,26 +3,20 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_STREAMS = "skyportal/FETCH_STREAMS";
-export const FETCH_STREAMS_OK = "skyportal/FETCH_STREAMS_OK";
+const FETCH_STREAMS = "skyportal/FETCH_STREAMS";
+const FETCH_STREAMS_OK = "skyportal/FETCH_STREAMS_OK";
 
-export const ADD_STREAM = "skyportal/ADD_STREAM";
-export const ADD_STREAM_OK = "skyportal/ADD_STREAM_OK";
+const ADD_STREAM = "skyportal/ADD_STREAM";
 
-export const DELETE_STREAM = "skyportal/DELETE_STREAM";
-export const DELETE_STREAM_OK = "skyportal/DELETE_STREAM_OK";
+const DELETE_STREAM = "skyportal/DELETE_STREAM";
 
-export const ADD_GROUP_STREAM = "skyportal/ADD_GROUP_STREAM";
-export const ADD_GROUP_STREAM_OK = "skyportal/ADD_GROUP_STREAM_OK";
+const ADD_GROUP_STREAM = "skyportal/ADD_GROUP_STREAM";
 
-export const DELETE_GROUP_STREAM = "skyportal/DELETE_GROUP_STREAM";
-export const DELETE_GROUP_STREAM_OK = "skyportal/DELETE_GROUP_STREAM_OK";
+const DELETE_GROUP_STREAM = "skyportal/DELETE_GROUP_STREAM";
 
-export const ADD_STREAM_USER = "skyportal/ADD_STREAM_USER";
-export const ADD_STREAM_USER_OK = "skyportal/ADD_STREAM_USER_OK";
+const ADD_STREAM_USER = "skyportal/ADD_STREAM_USER";
 
-export const DELETE_STREAM_USER = "skyportal/DELETE_STREAM_USER";
-export const DELETE_STREAM_USER_OK = "skyportal/DELETE_STREAM_USER_OK";
+const DELETE_STREAM_USER = "skyportal/DELETE_STREAM_USER";
 
 export function fetchStreams() {
   return API.GET("/api/streams", FETCH_STREAMS);

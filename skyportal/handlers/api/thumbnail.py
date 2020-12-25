@@ -16,6 +16,8 @@ class ThumbnailHandler(BaseHandler):
         """
         ---
         description: Upload thumbnails
+        tags:
+          - thumbnails
         requestBody:
           content:
             application/json:
@@ -81,6 +83,8 @@ class ThumbnailHandler(BaseHandler):
         """
         ---
         description: Retrieve a thumbnail
+        tags:
+          - thumbnails
         parameters:
           - in: path
             name: thumbnail_id
@@ -110,6 +114,8 @@ class ThumbnailHandler(BaseHandler):
         """
         ---
         description: Update thumbnail
+        tags:
+          - thumbnails
         parameters:
           - in: path
             name: thumbnail_id
@@ -155,6 +161,8 @@ class ThumbnailHandler(BaseHandler):
         """
         ---
         description: Delete a thumbnail
+        tags:
+          - thumbnails
         parameters:
           - in: path
             name: thumbnail_id

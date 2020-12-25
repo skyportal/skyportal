@@ -1,22 +1,16 @@
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_SOURCES = "skyportal/FETCH_SOURCES";
-export const FETCH_SOURCES_OK = "skyportal/FETCH_SOURCES_OK";
-export const FETCH_SOURCES_FAIL = "skyportal/FETCH_SOURCES_FAIL";
+const FETCH_SOURCES = "skyportal/FETCH_SOURCES";
+const FETCH_SOURCES_OK = "skyportal/FETCH_SOURCES_OK";
+const FETCH_SOURCES_FAIL = "skyportal/FETCH_SOURCES_FAIL";
 
-export const FETCH_SAVED_GROUP_SOURCES = "skyportal/FETCH_SAVED_GROUP_SOURCES";
-export const FETCH_SAVED_GROUP_SOURCES_OK =
-  "skyportal/FETCH_SAVED_GROUP_SOURCES_OK";
-export const FETCH_SAVED_GROUP_SOURCES_FAIL =
-  "skyportal/FETCH_SAVED_GROUP_SOURCES_FAIL";
+const FETCH_SAVED_GROUP_SOURCES = "skyportal/FETCH_SAVED_GROUP_SOURCES";
+const FETCH_SAVED_GROUP_SOURCES_OK = "skyportal/FETCH_SAVED_GROUP_SOURCES_OK";
 
-export const FETCH_PENDING_GROUP_SOURCES =
-  "skyportal/FETCH_PENDING_GROUP_SOURCES";
-export const FETCH_PENDING_GROUP_SOURCES_OK =
+const FETCH_PENDING_GROUP_SOURCES = "skyportal/FETCH_PENDING_GROUP_SOURCES";
+const FETCH_PENDING_GROUP_SOURCES_OK =
   "skyportal/FETCH_PENDING_GROUP_SOURCES_OK";
-export const FETCH_PENDING_GROUP_SOURCES_FAIL =
-  "skyportal/FETCH_PENDING_GROUP_SOURCES_FAIL";
 
 const addFilterParamDefaults = (filterParams) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
@@ -29,32 +23,22 @@ const addFilterParamDefaults = (filterParams) => {
 
 export function fetchSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
-  const params = new URLSearchParams(filterParams);
-  const queryString = params.toString();
-  return API.GET(`/api/sources?${queryString}`, FETCH_SOURCES);
+  return API.GET("/api/sources", FETCH_SOURCES, filterParams);
 }
 
 export function fetchSavedGroupSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
-  const params = new URLSearchParams(filterParams);
-  const additionalInfo = "includePhotometry=true&includeSpectrumExists=true";
-  const queryString = params.toString();
-  return API.GET(
-    `/api/sources?${additionalInfo}&${queryString}`,
-    FETCH_SAVED_GROUP_SOURCES
-  );
+  filterParams.includePhotometry = true;
+  filterParams.includeSpectrumExists = true;
+  return API.GET("/api/sources", FETCH_SAVED_GROUP_SOURCES, filterParams);
 }
 
 export function fetchPendingGroupSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
   filterParams.pendingOnly = true;
-  const params = new URLSearchParams(filterParams);
-  const additionalInfo = "includePhotometry=true&includeSpectrumExists=true";
-  const queryString = params.toString();
-  return API.GET(
-    `/api/sources?${additionalInfo}&${queryString}`,
-    FETCH_PENDING_GROUP_SOURCES
-  );
+  filterParams.includePhotometry = true;
+  filterParams.includeSpectrumExists = true;
+  return API.GET("/api/sources", FETCH_PENDING_GROUP_SOURCES, filterParams);
 }
 
 const initialState = {

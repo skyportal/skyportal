@@ -10,6 +10,8 @@ class AllocationHandler(BaseHandler):
         """
         ---
         single:
+          tags:
+            - allocations
           description: Retrieve an allocation
           parameters:
             - in: path
@@ -27,6 +29,8 @@ class AllocationHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          tags:
+            - allocations
           description: Retrieve all allocations
           parameters:
           - in: query
@@ -72,6 +76,8 @@ class AllocationHandler(BaseHandler):
         """
         ---
         description: Post new allocation on a robotic instrument
+        tags:
+          - allocations
         requestBody:
           content:
             application/json:
@@ -115,6 +121,8 @@ class AllocationHandler(BaseHandler):
         """
         ---
         description: Update an allocation on a robotic instrument
+        tags:
+          - allocations
         parameters:
           - in: path
             name: allocation_id
@@ -164,6 +172,8 @@ class AllocationHandler(BaseHandler):
         """
         ---
         description: Delete allocation.
+        tags:
+          - allocations
         parameters:
           - in: path
             name: allocation_id

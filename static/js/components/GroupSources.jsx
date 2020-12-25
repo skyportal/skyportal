@@ -69,50 +69,64 @@ const GroupSources = ({ route }) => {
 
   const groupName = groups.filter((g) => g.id === groupID)[0]?.name || "";
 
-  const handleSavedSourcesTableSorting = (formData) => {
+  const handleSavedSourcesTableSorting = (sortData) => {
     dispatch(
       sourcesActions.fetchSavedGroupSources({
         group_ids: [route.id],
         pageNumber: 1,
         numPerPage: savedSourcesRowsPerPage,
-        sortBy: formData.column,
-        sortOrder: formData.ascending ? "asc" : "desc",
+        sortBy: sortData.name,
+        sortOrder: sortData.direction,
       })
     );
   };
 
-  const handleSavedSourcesTablePagination = (pageNumber, numPerPage) => {
+  const handleSavedSourcesTablePagination = (
+    pageNumber,
+    numPerPage,
+    sortData
+  ) => {
     setSavedSourcesRowsPerPage(numPerPage);
-    dispatch(
-      sourcesActions.fetchSavedGroupSources({
-        group_ids: [route.id],
-        pageNumber,
-        numPerPage,
-      })
-    );
+    const data = {
+      group_ids: [route.id],
+      pageNumber,
+      numPerPage,
+    };
+    if (sortData && Object.keys(sortData).length > 0) {
+      data.sortBy = sortData.name;
+      data.sortOrder = sortData.direction;
+    }
+    dispatch(sourcesActions.fetchSavedGroupSources(data));
   };
 
-  const handlePendingSourcesTableSorting = (formData) => {
+  const handlePendingSourcesTableSorting = (sortData) => {
     dispatch(
       sourcesActions.fetchPendingGroupSources({
         group_ids: [route.id],
         pageNumber: 1,
         numPerPage: pendingSourcesRowsPerPage,
-        sortBy: formData.column,
-        sortOrder: formData.ascending ? "asc" : "desc",
+        sortBy: sortData.name,
+        sortOrder: sortData.direction,
       })
     );
   };
 
-  const handlePendingSourcesTablePagination = (pageNumber, numPerPage) => {
+  const handlePendingSourcesTablePagination = (
+    pageNumber,
+    numPerPage,
+    sortData
+  ) => {
     setPendingSourcesRowsPerPage(numPerPage);
-    dispatch(
-      sourcesActions.fetchPendingGroupSources({
-        group_ids: [route.id],
-        pageNumber,
-        numPerPage,
-      })
-    );
+    const data = {
+      group_ids: [route.id],
+      pageNumber,
+      numPerPage,
+    };
+    if (sortData && Object.keys(sortData).length > 0) {
+      data.sortBy = sortData.name;
+      data.sortOrder = sortData.direction;
+    }
+    dispatch(sourcesActions.fetchPendingGroupSources(data));
   };
 
   if (

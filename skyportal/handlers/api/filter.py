@@ -12,6 +12,8 @@ class FilterHandler(BaseHandler):
         ---
         single:
           description: Retrieve a filter
+          tags:
+            - filters
           parameters:
             - in: path
               name: filter_id
@@ -29,6 +31,8 @@ class FilterHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all filters
+          tags:
+            - filters
           responses:
             200:
               content:
@@ -63,6 +67,8 @@ class FilterHandler(BaseHandler):
         """
         ---
         description: POST a new filter.
+        tags:
+          - filters
         requestBody:
           content:
             application/json:
@@ -126,6 +132,8 @@ class FilterHandler(BaseHandler):
         """
         ---
         description: Update filter name
+        tags:
+          - filters
         parameters:
           - in: path
             name: filter_id
@@ -173,6 +181,8 @@ class FilterHandler(BaseHandler):
         """
         ---
         description: Delete a filter
+        tags:
+          - filters
         parameters:
           - in: path
             name: filter_id

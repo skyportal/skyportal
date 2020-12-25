@@ -139,7 +139,15 @@ const CommentAttachmentPreview = ({ filename, commentId }) => {
     fileType.toLowerCase()
   );
 
-  const jsonFile = isCached ? JSON.parse(commentAttachment.attachment) : {};
+  let jsonFile = {};
+  try {
+    jsonFile = isCached ? JSON.parse(commentAttachment.attachment) : {};
+  } catch (e) {
+    jsonFile = {
+      "JSON Preview Parsing Error": `${e.message}. Please download the file if you want to inspect it.`,
+    };
+  }
+
   if (fileType.toLowerCase() === "json" && !isCached && open) {
     dispatch(sourceActions.getCommentAttachment(commentId));
   }

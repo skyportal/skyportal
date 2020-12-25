@@ -15,6 +15,9 @@ class SourceGroupsHandler(BaseHandler):
         """
         ---
         description: Save or request group(s) to save source, and optionally unsave from group(s).
+        tags:
+          - sources
+          - groups
         requestBody:
           content:
             application/json:
@@ -108,14 +111,12 @@ class SourceGroupsHandler(BaseHandler):
             source.unsaved_at = datetime.datetime.utcnow()
 
         DBSession().commit()
-        self.push_all(action="skyportal/FETCH_SOURCES")
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
         )
         self.push_all(
             action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
         )
-        self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
         return self.success()
 
     @permissions(['Upload data'])
@@ -123,6 +124,9 @@ class SourceGroupsHandler(BaseHandler):
         """
         ---
         description: Update a Source table row
+        tags:
+          - sources
+          - groups
         parameters:
           - in: path
             name: obj_id
@@ -170,12 +174,10 @@ class SourceGroupsHandler(BaseHandler):
         if active and not previously_active:
             source.saved_by_id = self.associated_user_object.id
         DBSession().commit()
-        self.push_all(action="skyportal/FETCH_SOURCES")
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
         )
         self.push_all(
             action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
         )
-        self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
         return self.success()

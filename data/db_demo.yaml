@@ -295,13 +295,13 @@ taxonomy:
 observing_run:
   - pi: Danny Goldstein
     instrument_id: =ESI
-    calendar_date: "2021-02-16"
+    calendar_date: "2020-02-16"
     group_id: =program_A
     observers: "Danny Goldstein, Peter Nugent"
     =id: esi_run
   - pi: Danny Goldstein
     instrument_id: =LRIS
-    calendar_date: "2021-06-17"
+    calendar_date: "2020-06-17"
     group_id: =program_A
     observers: "Danny Goldstein, Peter Nugent"
     =id: lris_run
@@ -360,7 +360,7 @@ spectrum:
   - obj_id: 14gqr_unsaved_copy
     file: spec1.csv
     instrument_id: =ALFOSC
-    observed_at: "2019-10-24T00:00:00"
+    observed_at: "2019-10-28T00:00:00"
     assignment_id: 1
     group_ids:
       - =program_A
@@ -376,7 +376,7 @@ spectrum:
   - obj_id: 16fil_unsaved_copy
     file: spec2.csv
     instrument_id: =ALFOSC
-    observed_at: "2019-10-24T00:00:00"
+    observed_at: "2019-10-28T00:00:00"
     assignment_id: 2
     group_ids:
       - =program_A

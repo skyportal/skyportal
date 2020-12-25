@@ -3,7 +3,6 @@ import pytest
 from .. import api
 
 from tdtax import taxonomy, __version__
-
 from datetime import datetime, timezone
 
 
@@ -247,12 +246,13 @@ def test_sources_sorting(
     # Wait for the group name appears
     driver.wait_for_xpath(f"//*[text()[contains(., '{public_group.name}')]]")
 
-    # Now sort by date saved
-    driver.click_xpath("//button[@data-testid='sortButton']")
-    driver.click_xpath("//div[@id='root_column']")
-    driver.click_xpath("//li[@data-value='saved_at']", scroll_parent=True)
-    driver.click_xpath("//input[@value='false']", wait_clickable=False)
-    driver.click_xpath("//span[text()='Submit']")
+    # Now sort by date saved desc by clicking the header twice
+    driver.click_xpath(
+        "//span[contains(@data-testid, 'headcol-')]//div[text()='Date Saved']"
+    )
+    driver.click_xpath(
+        "//span[contains(@data-testid, 'headcol-')]//div[text()='Date Saved']"
+    )
 
     # Now, the first one posted should be the second row
     # Col 0, Row 0 should be the second sources's id (MuiDataTableBodyCell-0-0)
@@ -265,11 +265,9 @@ def test_sources_sorting(
     )
 
     # Now sort by redshift ascending, which would put obj_id first
-    driver.click_xpath("//button[@data-testid='sortButton']")
-    driver.click_xpath("//div[@id='root_column']")
-    driver.click_xpath("//li[@data-value='redshift']", scroll_parent=True)
-    driver.click_xpath("//input[@value='true']", wait_clickable=False)
-    driver.click_xpath("//span[text()='Submit']")
+    driver.click_xpath(
+        "//span[contains(@data-testid, 'headcol-')]//div[text()='Redshift']"
+    )
 
     # Now, the first one posted should be the second row
     # Col 0, Row 0 should be the second sources's id (MuiDataTableBodyCell-0-0)

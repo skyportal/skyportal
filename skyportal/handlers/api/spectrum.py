@@ -1,5 +1,6 @@
 import io
 from pathlib import Path
+from astropy.time import Time
 import numpy as np
 
 from sqlalchemy.orm import joinedload
@@ -36,6 +37,8 @@ class SpectrumHandler(BaseHandler):
         """
         ---
         description: Upload spectrum
+        tags:
+          - spectra
         requestBody:
           content:
             application/json:
@@ -140,6 +143,11 @@ class SpectrumHandler(BaseHandler):
             payload={'obj_key': spec.obj.internal_key},
         )
 
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE_SPECTRA',
+            payload={'obj_key': spec.obj.internal_key},
+        )
+
         return self.success(data={"id": spec.id})
 
     @auth_or_token
@@ -147,6 +155,8 @@ class SpectrumHandler(BaseHandler):
         """
         ---
         description: Retrieve a spectrum
+        tags:
+          - spectra
         parameters:
           - in: path
             name: spectrum_id
@@ -187,6 +197,7 @@ class SpectrumHandler(BaseHandler):
             spec_dict["groups"] = spectrum.groups
             spec_dict["reducers"] = spectrum.reducers
             spec_dict["observers"] = spectrum.observers
+            spec_dict["owner"] = spectrum.owner
             return self.success(data=spec_dict)
         else:
             return self.error(f"Could not load spectrum with ID {spectrum_id}")
@@ -196,6 +207,8 @@ class SpectrumHandler(BaseHandler):
         """
         ---
         description: Update spectrum
+        tags:
+          - spectra
         parameters:
           - in: path
             name: spectrum_id
@@ -257,6 +270,8 @@ class SpectrumHandler(BaseHandler):
         """
         ---
         description: Delete a spectrum
+        tags:
+          - spectra
         parameters:
           - in: path
             name: spectrum_id
@@ -289,6 +304,11 @@ class SpectrumHandler(BaseHandler):
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
             payload={'obj_key': spectrum.obj.internal_key},
+        )
+
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE_SPECTRA',
+            payload={'obj_id': spectrum.obj_id},
         )
 
         return self.success()
@@ -338,6 +358,8 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
         """
         ---
         description: Upload spectrum from ASCII file
+        tags:
+          - spectra
         requestBody:
           content:
             application/json:
@@ -458,6 +480,8 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
         """
         ---
         description: Parse spectrum from ASCII file
+        tags:
+          - spectra
         requestBody:
           content:
             application/json:
@@ -483,6 +507,8 @@ class ObjSpectraHandler(BaseHandler):
         """
         ---
         description: Retrieve all spectra associated with an Object
+        tags:
+          - spectra
         parameters:
           - in: path
             name: obj_id
@@ -505,7 +531,21 @@ class ObjSpectraHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: ArrayOfSpectrums
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            obj_id:
+                              type: string
+                              description: The ID of the requested Obj
+                            spectra:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/Spectrum'
           400:
             content:
               application/json:
@@ -525,6 +565,7 @@ class ObjSpectraHandler(BaseHandler):
             spec_dict["groups"] = spec.groups
             spec_dict["reducers"] = spec.reducers
             spec_dict["observers"] = spec.observers
+            spec_dict["owner"] = spec.owner
             return_values.append(spec_dict)
 
         normalization = self.get_query_argument('normalization', None)
@@ -546,4 +587,88 @@ class ObjSpectraHandler(BaseHandler):
                     f'Invalid "normalization" value "{normalization}, use "median" or None'
                 )
 
-        return self.success(data=return_values)
+        return self.success(data={'obj_id': obj.id, 'spectra': return_values})
+
+
+class SpectrumRangeHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Retrieve spectra for given instrument within date range
+        tags:
+          - spectra
+        parameters:
+          - in: query
+            name: instrument_ids
+            required: false
+            schema:
+              type: list of integers
+            description: |
+              Instrument id numbers of spectrum.  If None, retrieve
+              for all instruments.
+          - in: query
+            name: min_date
+            required: false
+            schema:
+              type: ISO UTC date string
+            description: |
+              Minimum UTC date of range in ISOT format.  If None,
+              open ended range.
+          - in: query
+            name: max_date
+            required: false
+            schema:
+              type: ISO UTC date string
+            description: |
+              Maximum UTC date of range in ISOT format. If None,
+              open ended range.
+
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            obj_id:
+                              type: string
+                              description: The ID of the requested Obj
+                            spectra:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/Spectrum'
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        instrument_ids = self.get_query_arguments('instrument_ids')
+        min_date = self.get_query_argument('min_date', None)
+        max_date = self.get_query_argument('max_date', None)
+
+        gids = [g.id for g in self.current_user.accessible_groups]
+
+        query = (
+            DBSession()
+            .query(Spectrum)
+            .join(GroupSpectrum)
+            .filter(GroupSpectrum.group_id.in_(gids))
+        )
+
+        if instrument_ids:
+            query = query.filter(Spectrum.instrument_id.in_(instrument_ids))
+        if min_date is not None:
+            utc = Time(min_date, format='isot', scale='utc')
+            query = query.filter(Spectrum.observed_at >= utc.isot)
+        if max_date is not None:
+            utc = Time(max_date, format='isot', scale='utc')
+            query = query.filter(Spectrum.observed_at <= utc.isot)
+
+        return self.success(data=query.all())

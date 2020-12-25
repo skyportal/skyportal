@@ -48,6 +48,7 @@ const NewGroupForm = () => {
     event.preventDefault();
     const result = await dispatch(groupsActions.addNewGroup(formState));
     if (result.status === "success") {
+      dispatch(groupsActions.fetchGroups(true));
       setState({
         name: "",
         nickname: "",
