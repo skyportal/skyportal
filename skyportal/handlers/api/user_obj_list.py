@@ -11,10 +11,36 @@ from ...models import (
 )
 
 
-def check_list_name(
-    name,
-):  # checks that list_name begins with an alphanumeric character
+def check_list_name(name):
+    """
+    checks that list_name begins with an alphanumeric character
+    """
     return re.search(r'^\w+', name) is not None
+
+
+def check_user_and_permissions(user_id, associated_user):
+    """
+    Verify that the user id is valid, and that the user has access to the requested user's listings.
+    If fails, return an error string.
+    If succeeds, return None.
+    """
+
+    try:
+        user_id = int(user_id)
+    except ValueError:
+        return "Invalid `user_id` parameter; unable to parse to integer"
+
+    if User.query.get(user_id) is None:  # verify that user exists
+        return f'User "{user_id}" does not exist!'
+
+    # verify that poster has write access to user_id's lists
+    if (
+        associated_user.id != user_id
+        and "System admin" not in associated_user.permissions
+    ):
+        return 'Insufficient permissions to access this listing.'
+
+    return None
 
 
 class UserObjListHandler(BaseHandler):
@@ -22,7 +48,7 @@ class UserObjListHandler(BaseHandler):
     def get(self, user_id=None):
         """
         ---
-        description: get all listings corresponding to a specific user and that match a list name.
+        description: Retrieve sources from a user's lists
         parameters:
         - in: path
           name: user_id
@@ -45,20 +71,9 @@ class UserObjListHandler(BaseHandler):
         if user_id is None:
             user_id = self.current_user
 
-        if User.query.get(user_id) is None:  # verify that user exists
-            return self.error(f'User "{user_id}" does not exist!')
-
-        try:
-            user_id = int(user_id)
-        except ValueError:
-            return self.error("Invalid `user_id` parameter; unable to parse to integer")
-
-        # verify that poster has read access to user_id's lists
-        if (
-            self.associated_user_object.id != user_id
-            and "System admin" not in self.associated_user_object.permissions
-        ):
-            return self.error('Insufficient permissions to access this listing. ')
+        error_obj = check_user_and_permissions(user_id, self.associated_user_object)
+        if error_obj is not None:
+            return error_obj
 
         list_name = self.get_query_argument("listName", None)
 
@@ -85,17 +100,11 @@ class UserObjListHandler(BaseHandler):
         except ValidationError as e:
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
 
-        user_id = int(data.get('user_id'))
+        user_id = data.get('user_id')
 
-        if User.query.get(user_id) is None:  # verify that user exists
-            return self.error(f'User "{user_id}" does not exist!')
-
-        # verify that poster has write access to user_id's lists
-        if (
-            self.associated_user_object.id != user_id
-            and "System admin" not in self.associated_user_object.permissions
-        ):
-            return self.error('Insufficient permissions to access this listing. ')
+        err_str = check_user_and_permissions(user_id, self.associated_user_object)
+        if err_str is not None:
+            return self.error(err_str)
 
         obj_id = data.get('obj_id')
         if Obj.query.get(obj_id) is None:  # verify that object exists!
@@ -111,7 +120,7 @@ class UserObjListHandler(BaseHandler):
             DBSession()
             .query(Listing)
             .filter(
-                Listing.user_id == user_id,
+                Listing.user_id == int(user_id),
                 Listing.obj_id == obj_id,
                 Listing.list_name == list_name,
             )
@@ -123,16 +132,18 @@ class UserObjListHandler(BaseHandler):
                 return self.error(
                     f'Listing already exists with user_id={user_id}, obj_id={obj_id} and list_name={list_name}'
                 )
-            else:  # if user, obj and list name are identical, no need for an update of existing record
-                return self.success(data={'listing_id': query.first().id})
+            else:  # update the listing instead
+                listing = query.first()
+                listing.user_id = user_id
+                listing.obj_id = obj_id
+                listing.list_name = list_name
+        else:  # no such listing, can just add a new one!
+            listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name)
+            DBSession().add(listing)
 
-        # no such listing, can just add a new one!
-        listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name)
-
-        DBSession().add(listing)
         DBSession().commit()
 
-        return self.success(data={'listing_id': listing.id})
+        return self.success(data={'id': listing.id})
 
     @auth_or_token
     def post(self):
@@ -174,7 +185,7 @@ class UserObjListHandler(BaseHandler):
                         data:
                           type: object
                           properties:
-                            listing_id:
+                            id:
                               type: integer
                               description: New listing ID
 
@@ -222,7 +233,7 @@ class UserObjListHandler(BaseHandler):
                         data:
                           type: object
                           properties:
-                            listing_id:
+                            id:
                               type: integer
                               description: New or existing listing ID
 
@@ -280,41 +291,34 @@ class UserObjListHandler(BaseHandler):
         if listing is None:
             return self.error("Listing does not exist.")
 
-        # verify that poster has write access to user_id's lists
-        if (
-            self.associated_user_object.id != listing.user_id
-            and "System admin" not in self.associated_user_object.permissions
-        ):
-            return self.error('Insufficient permissions to access this listing. ')
+        err_str = check_user_and_permissions(
+            listing.user_id, self.associated_user_object
+        )
+        if err_str is not None:
+            return self.error(err_str)
 
         # get the data from the request body
         data = self.get_json()
 
         schema = Listing.__schema__()
         try:
-            schema.load(data)
+            schema.load(data, partial=True)
         except ValidationError as e:
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
 
-        user_id = int(data.get('user_id'))
+        user_id = data.get('user_id', listing.user_id)
+        user_id = int(user_id)
 
-        if User.query.get(user_id) is None:  # verify that user exists
-            return self.error(f'User "{user_id}" does not exist!')
+        err_str = check_user_and_permissions(user_id, self.associated_user_object)
+        if err_str is not None:
+            return self.error(err_str)
 
-        # verify that poster has write access to the new user_id
-        if (
-            self.associated_user_object.id != user_id
-            and "System admin" not in self.associated_user_object.permissions
-        ):
-            return self.error(
-                f'Insufficient permissions to change listings for user ID: {user_id}. '
-            )
-
-        obj_id = data.get('obj_id')
+        obj_id = data.get('obj_id', listing.obj_id)
         if Obj.query.get(obj_id) is None:  # verify that object exists!
             return self.error(f'Object "{obj_id}" does not exist!')
 
-        list_name = data.get('list_name')
+        list_name = data.get('list_name', listing.list_name)
+
         if not check_list_name(list_name):
             return self.error(
                 "Input `list_name` must begin with alphanumeric/underscore"

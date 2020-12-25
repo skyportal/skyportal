@@ -21,7 +21,7 @@ def test_add_objects_to_list(user, public_candidate, public_candidate2):
     )
 
     assert status == 200
-    item1 = data["data"]["listing_id"]  # get the list item ID
+    item1 = data["data"]["id"]  # get the list item ID
 
     status, data = api(
         'PUT',
@@ -35,7 +35,7 @@ def test_add_objects_to_list(user, public_candidate, public_candidate2):
     )
 
     assert status == 200
-    item2 = data["data"]["listing_id"]  # get the list item ID
+    item2 = data["data"]["id"]  # get the list item ID
 
     # get the list back, should include only two items
     status, data = api('GET', f'listing/{user.id}?listName=favorites', token=token_id)
@@ -58,7 +58,6 @@ def test_add_objects_to_list(user, public_candidate, public_candidate2):
     )
 
     assert status == 400
-    assert 'does not exist' in data["message"]
 
 
 def test_double_posting(user, public_candidate):
@@ -78,7 +77,7 @@ def test_double_posting(user, public_candidate):
     )
 
     assert status == 200
-    listing_id1 = data['data']['listing_id']
+    listing_id1 = data['data']['id']
 
     # try posting the same listing again!
     status, data = api(
@@ -107,7 +106,7 @@ def test_double_posting(user, public_candidate):
     )
 
     assert status == 200
-    listing_id2 = data['data']['listing_id']
+    listing_id2 = data['data']['id']
 
     assert listing_id1 == listing_id2  # check the PUT returns the same identifier
 
@@ -129,7 +128,7 @@ def test_add_remove_objects(user, public_candidate, public_candidate2):
         token=token_id,
     )
     assert status == 200
-    item1 = data["data"]["listing_id"]  # get the list item ID
+    item1 = data["data"]["id"]  # get the list item ID
 
     status, data = api(
         'PUT',
@@ -143,7 +142,7 @@ def test_add_remove_objects(user, public_candidate, public_candidate2):
     )
 
     assert status == 200
-    item2 = data["data"]["listing_id"]  # get the list item ID
+    item2 = data["data"]["id"]  # get the list item ID
 
     status, data = api('DELETE', f'listing/{item1}', token=token_id)
 
@@ -176,7 +175,7 @@ def test_add_objects_to_different_lists(user, public_candidate, public_candidate
     )
 
     assert status == 200
-    item1 = data["data"]["listing_id"]  # get the list item ID
+    item1 = data["data"]["id"]  # get the list item ID
 
     list2 = str(uuid.uuid4())
     status, data = api(
@@ -214,7 +213,7 @@ def test_patching_listing(user, user2, public_candidate, public_candidate2):
     )
 
     assert status == 200
-    item1 = data["data"]["listing_id"]  # get the list item ID
+    item1 = data["data"]["id"]  # get the list item ID
 
     status, data = api(
         'PUT',
@@ -224,7 +223,7 @@ def test_patching_listing(user, user2, public_candidate, public_candidate2):
     )
 
     assert status == 200
-    item2 = data["data"]["listing_id"]  # get the list item ID
+    item2 = data["data"]["id"]  # get the list item ID
 
     list2 = str(uuid.uuid4())
     status, data = api(
@@ -281,7 +280,7 @@ def test_listings_user_permissions(
     )
 
     assert status == 200
-    item1 = data["data"]["listing_id"]  # get the list item ID
+    item1 = data["data"]["id"]  # get the list item ID
 
     # try to add this to a different user
     status, data = api(
@@ -326,10 +325,47 @@ def test_listings_user_permissions(
     new_list = data["data"]
 
     assert len(new_list) == 1
-
     assert new_list[0]['id'] == item1  # the listing ID is the same
-
     assert new_list[0]['obj_id'] == public_candidate.id  # obj stays the same
+
+    # try to patch with only partial data inputs
+    # bring this listing back to first user with super token permission
+    status, data = api(
+        'PATCH', f'listing/{item1}', data={'user_id': user.id}, token=super_token_id,
+    )
+
+    assert status == 200
+
+    # change the object id only
+    status, data = api(
+        'PATCH',
+        f'listing/{item1}',
+        data={'obj_id': public_candidate2.id},
+        token=token_id,
+    )
+
+    assert status == 200
+
+    # change the list name only
+    status, data = api(
+        'PATCH', f'listing/{item1}', data={'list_name': 'new_listing'}, token=token_id,
+    )
+
+    assert status == 200
+
+    # get the list back, should include only one item that matches user2
+    status, data = api(
+        'GET', f'listing/{user.id}?listName=new_listing', token=super_token_id
+    )
+
+    assert status == 200
+    new_list = data["data"]
+
+    assert len(new_list) == 1
+    assert new_list[0]['id'] == item1  # the listing ID is the same
+    assert new_list[0]['obj_id'] == public_candidate2.id  # obj was updated
+    assert new_list[0]['user_id'] == user.id  # user was returned to original
+    assert new_list[0]['list_name'] == 'new_listing'  # new listing name
 
 
 def test_invalid_listing_name_fails(user, public_candidate):
@@ -383,7 +419,7 @@ def test_invalid_listing_name_fails(user, public_candidate):
     )
 
     assert status == 200
-    listing_id = data["data"]["listing_id"]
+    listing_id = data["data"]["id"]
 
     # we cannot post a listing with a non-alphanumeric first letter
     status, data = api(
