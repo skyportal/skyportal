@@ -1,9 +1,8 @@
+import os
 import requests
 from datetime import datetime, timedelta
 from astropy.time import Time
 import urllib
-from sshtunnel import SSHTunnelForwarder
-import jwt
 
 from . import FollowUpAPI
 from baselayer.app.env import load_env
@@ -13,40 +12,7 @@ from ..utils import http
 env, cfg = load_env()
 
 
-ZTF_URL = 'http://localhost:8000'
-"""URL for the P48 scheduler."""
-
-
-server = SSHTunnelForwarder(
-    'schoty.caltech.edu',
-    ssh_username=cfg["app.ztf_username"],
-    ssh_password=cfg["app.ztf_password"],
-    remote_bind_address=('127.0.0.1', 5000),
-    local_bind_address=('localhost', 8000),
-)
-
-secret_key = cfg["app.ztf_secret_key"]
-
-
-def ztf_queue():
-
-    server.start()
-    r = requests.get(urllib.parse.urljoin(ZTF_URL, 'api/queues'), json={})
-    server.stop()
-    data_all = r.json()
-
-    return data_all
-
-
-def ztf_delete_queue(queue_name):
-
-    server.start()
-    r = requests.delete(
-        urllib.parse.urljoin(ZTF_URL, 'api/queues'), json={'queue_name': queue_name}
-    )
-    server.stop()
-
-    r.raise_for_status()
+secret_key = cfg["app.secret_key"]
 
 
 class ZTFRequest:
@@ -108,11 +74,79 @@ class ZTFRequest:
         return json_data
 
 
+def authenticate():
+    """Authenticate user, return access token
+    :return:
+    """
+
+    base_url = (
+        f"{cfg['app.kowalski_protocol']}://"
+        f"{cfg['app.kowalski_host']}:{cfg['app.kowalski_port']}"
+    )
+
+    session = requests.Session()
+
+    # post username and password, get access token
+    auth = session.post(
+        f"{base_url}/api/auth",
+        json={
+            "username": cfg["app.kowalski_username"],
+            "password": cfg["app.kowalski_password"],
+        },
+    )
+
+    if auth.status_code == requests.codes.ok:
+        print(auth.json())
+
+        if "token" not in auth.json():
+            print("Authentication failed")
+            raise Exception(auth.json().get("message", "Authentication failed"))
+
+        access_token = auth.json().get("token")
+
+        print("Successfully authenticated")
+
+        return access_token
+
+    raise Exception("Authentication failed")
+
+
+def query_kowalski(query: dict, api: str, method="post", timeout=7):
+
+    base_url = (
+        f"{cfg['app.kowalski_protocol']}://"
+        f"{cfg['app.kowalski_host']}:{cfg['app.kowalski_port']}"
+    )
+
+    token = authenticate()
+    headers = {"Authorization": token}
+
+    session = requests.Session()
+
+    if method == "post":
+        resp = session.post(
+            urllib.parse.urljoin(base_url, os.path.join('api', api)),
+            json=query,
+            headers=headers,
+            timeout=timeout,
+        )
+    elif method == "delete":
+        resp = session.delete(
+            urllib.parse.urljoin(base_url, os.path.join('api', api)),
+            json=query,
+            headers=headers,
+            timeout=timeout,
+        )
+    else:
+        raise Exception("Kowalski method not implemented.")
+
+    return resp
+
+
 class ZTFAPI(FollowUpAPI):
 
     """An interface to ZTF operations."""
 
-    @staticmethod
     def delete(request):
 
         """Delete a follow-up request from ZTF queue.
@@ -144,13 +178,8 @@ class ZTFAPI(FollowUpAPI):
         queue_name = "ToO_" + request.payload["queue_name"]
 
         payload = {'queue_name': queue_name, 'user': request.requester.username}
-        encoded_jwt = jwt.encode(payload, secret_key, algorithm='HS256')
 
-        server.start()
-        r = requests.delete(
-            urllib.parse.urljoin(ZTF_URL, 'api/queues'), data=encoded_jwt
-        )
-        server.stop()
+        r = query_kowalski(query=payload, api='triggers/ztf.DELETE', method="delete")
 
         r.raise_for_status()
         request.status = "deleted"
@@ -165,7 +194,6 @@ class ZTFAPI(FollowUpAPI):
         DBSession().add(transaction)
 
     # subclasses *must* implement the method below
-    @staticmethod
     def submit(request):
 
         """Submit a follow-up request to ZTF.
@@ -188,11 +216,10 @@ class ZTFAPI(FollowUpAPI):
             'queue_type': 'list',
             'user': request.requester.username,
         }
-        encoded_jwt = jwt.encode(payload, secret_key, algorithm='HS256')
 
-        server.start()
-        r = requests.put(urllib.parse.urljoin(ZTF_URL, 'api/queues'), data=encoded_jwt)
-        server.stop()
+        r = query_kowalski(query=payload, api='triggers/ztf.POST', method="post")
+
+        print(r.text)
 
         r.raise_for_status()
 
