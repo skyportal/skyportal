@@ -66,6 +66,7 @@ class FilterHandler(BaseHandler):
             stream = DBSession().query(Stream).get(f.stream_id)
             f.stream = stream
 
+            self.verify_permissions()
             return self.success(data=f)
 
         filters = (
@@ -76,6 +77,7 @@ class FilterHandler(BaseHandler):
             )
             .all()
         )
+        self.verify_permissions()
         return self.success(data=filters)
 
     @auth_or_token
@@ -139,7 +141,7 @@ class FilterHandler(BaseHandler):
             return self.error("Access to stream unauthorized for group.")
 
         DBSession().add(fil)
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success(data={"id": fil.id})
 
@@ -203,7 +205,7 @@ class FilterHandler(BaseHandler):
         if fil.group_id != f.group_id or fil.stream_id != f.stream_id:
             return self.error("Cannot update group_id or stream_id.")
 
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success()
 
     @auth_or_token
@@ -245,6 +247,6 @@ class FilterHandler(BaseHandler):
             return self.error("Invalid filter ID.")
 
         DBSession().delete(Filter.query.get(filter_id))
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success()

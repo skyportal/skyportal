@@ -1,5 +1,6 @@
-from skyportal.tests import api
 import datetime
+
+from skyportal.tests import api
 
 
 def test_sharing_photometry(

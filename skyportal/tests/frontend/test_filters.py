@@ -1,7 +1,8 @@
 import uuid
-import pytest
-from baselayer.app.env import load_env
 
+import pytest
+
+from baselayer.app.env import load_env
 
 _, cfg = load_env()
 

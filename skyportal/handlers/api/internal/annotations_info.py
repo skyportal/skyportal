@@ -1,9 +1,11 @@
 from collections import defaultdict
+
 from sqlalchemy import func, literal
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql import functions
 from sqlalchemy.sql.elements import ColumnClause
 from sqlalchemy.sql.selectable import FromClause
+
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 from ....models import (

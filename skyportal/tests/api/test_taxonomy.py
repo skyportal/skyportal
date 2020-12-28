@@ -1,8 +1,8 @@
 import uuid
 
-from skyportal.tests import api
-
 from tdtax import taxonomy, __version__
+
+from skyportal.tests import api
 
 
 def test_add_retrieve_delete_taxonomy(taxonomy_token, public_group):
@@ -167,4 +167,4 @@ def test_taxonomy_group_view(
     # this token is not apart of group 2
     status, data = api('GET', f'taxonomy/{taxonomy_id}', token=taxonomy_token)
     assert status == 400
-    assert "Insufficient permissions." in data["message"]
+    assert "is not available to user" in data["message"]

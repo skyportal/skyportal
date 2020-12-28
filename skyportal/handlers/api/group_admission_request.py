@@ -1,4 +1,5 @@
 from baselayer.app.access import auth_or_token
+from .group import has_admin_access_for_group
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -6,7 +7,6 @@ from ...models import (
     User,
     GroupAdmissionRequest,
 )
-from .group import has_admin_access_for_group
 
 
 class GroupAdmissionRequestHandler(BaseHandler):
@@ -66,7 +66,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
 
             response_data = admission_request.to_json()
             response_data["user"] = admission_request.user
-
+            self.verify_permissions()
             return self.success(data=response_data)
 
         q = GroupAdmissionRequest.query
@@ -77,6 +77,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             {**admission_request.to_dict(), "user": admission_request.user}
             for admission_request in admission_requests
         ]
+        self.verify_permissions()
         return self.success(data=response_data)
 
     @auth_or_token
@@ -149,7 +150,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             user_id=user_id, group_id=group_id, status="pending"
         )
         DBSession().add(admission_request)
-        DBSession().commit()
+        self.finalize_transaction()
         self.push(action="skyportal/FETCH_USER_PROFILE")
         return self.success(data={"id": admission_request.id})
 
@@ -201,7 +202,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
         ):
             return self.error("Insufficient permissions.")
         admission_request.status = status
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success()
 
     @auth_or_token
@@ -235,6 +236,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
         ):
             return self.error("Insufficient permissions")
         DBSession().delete(admission_request)
-        DBSession().commit()
+        self.finalize_transaction()
         self.push(action="skyportal/FETCH_USER_PROFILE")
         return self.success()

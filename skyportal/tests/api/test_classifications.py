@@ -1,8 +1,8 @@
 import uuid
 
-from skyportal.tests import api
-
 from tdtax import taxonomy, __version__
+
+from skyportal.tests import api
 
 
 def test_add_bad_classification(

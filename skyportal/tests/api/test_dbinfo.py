@@ -1,5 +1,5 @@
-from skyportal.tests import api
 import skyportal
+from skyportal.tests import api
 
 
 def test_db_info(view_only_token):

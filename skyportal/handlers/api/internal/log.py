@@ -1,7 +1,7 @@
 import tornado.web
+
 from baselayer.log import make_log
 from ...base import BaseHandler
-
 
 log = make_log('js')
 

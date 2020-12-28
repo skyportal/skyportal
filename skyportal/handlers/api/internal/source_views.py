@@ -1,12 +1,13 @@
 import datetime
+
+import tornado.web
 from sqlalchemy import func, desc
 from sqlalchemy.orm import joinedload
-import tornado.web
+
 from baselayer.app.access import auth_or_token
+from .recent_sources import first_thumbnail_public_url
 from ...base import BaseHandler
 from ....models import DBSession, Obj, Source, SourceView
-from .recent_sources import first_thumbnail_public_url
-
 
 default_prefs = {'maxNumSources': 10, 'sinceDaysAgo': 7}
 

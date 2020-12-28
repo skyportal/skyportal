@@ -1,11 +1,12 @@
 import uuid
 
-import pytest
 import numpy as np
 import numpy.testing as npt
+import pytest
 import requests
 from requests.exceptions import HTTPError, Timeout, ConnectionError
 
+from skyportal.models import Photometry
 from skyportal.tests import api
 from skyportal.utils import (
     get_nearby_offset_stars,
@@ -14,7 +15,6 @@ from skyportal.utils import (
     _calculate_best_position_for_offset_stars,
 )
 from skyportal.utils.offset import irsa
-from skyportal.models import Photometry
 
 
 def test_calculate_best_position_no_photometry():

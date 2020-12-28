@@ -1,10 +1,10 @@
-import uuid
 import datetime
+import uuid
+
 import pytest
+from tdtax import taxonomy, __version__
 
 from skyportal.tests import api
-
-from tdtax import taxonomy, __version__
 
 
 @pytest.mark.flaky(reruns=2)

@@ -1,5 +1,6 @@
-import pytest
 import uuid
+
+import pytest
 
 
 def test_token_acls_options_rendering1(driver, user):

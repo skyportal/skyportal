@@ -1,38 +1,37 @@
-import yaml
-import uuid
-import re
 import json
+import re
+import uuid
 import warnings
 from datetime import datetime, timezone, timedelta
-import requests
+
 import arrow
-
 import astroplan
+import healpix_alchemy as ha
 import numpy as np
-import timezonefinder
-from slugify import slugify
-
+import requests
 import sqlalchemy as sa
+import timezonefinder
+import yaml
+from astropy import coordinates as ap_coord
+from astropy import time as ap_time
+from astropy import units as u
+from astropy.io import fits, ascii
+from astropy.utils.exceptions import AstropyWarning
+from slugify import slugify
 from sqlalchemy import cast, event
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy import func
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.orm import relationship, aliased
-from sqlalchemy.schema import UniqueConstraint
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import relationship, joinedload
+from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy_utils import URLType, EmailType
-from sqlalchemy import func
-
 from twilio.rest import Client as TwilioClient
 
-from astropy import units as u
-from astropy import time as ap_time
-from astropy.utils.exceptions import AstropyWarning
-from astropy import coordinates as ap_coord
-from astropy.io import fits, ascii
-import healpix_alchemy as ha
-
-from .utils.cosmology import establish_cosmology
+from baselayer.app.custom_exceptions import AccessError
+from baselayer.app.env import load_env
+from baselayer.app.json_util import to_json
 from baselayer.app.models import (  # noqa
     init_db,
     join_model,
@@ -45,18 +44,16 @@ from baselayer.app.models import (  # noqa
     UserACL,
     UserRole,
     UserAccessControl,
-    accessible_by_user,
-    user_acls_temporary_table,
+    accessible_if_user_is,
     AccessibleByOwner,
     Restricted,
-    AccessibleByAnyone,
+    Public,
     compose_access_control,
     accessible_if_properties_are_accessible,
 )
-from baselayer.app.env import load_env
-from baselayer.app.json_util import to_json
-
+from skyportal import facility_apis
 from . import schema
+from .email_utils import send_email
 from .enum_types import (
     allowed_bandpasses,
     thumbnail_types,
@@ -65,9 +62,7 @@ from .enum_types import (
     api_classnames,
     listener_classnames,
 )
-from .email_utils import send_email
-
-from skyportal import facility_apis
+from .utils.cosmology import establish_cosmology
 
 # In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
 # All DB fluxes are stored in microJy (AB).
@@ -78,65 +73,6 @@ utcnow = func.timezone('UTC', func.current_timestamp())
 
 _, cfg = load_env()
 cosmo = establish_cosmology(cfg)
-
-
-def user_accessible_groups_temporary_table():
-    """This method creates a temporary table that maps user_ids to their
-    accessible group_ids. For normal users, accessible groups are identical
-    to what is in the group_users table. For users with the "System admin" ACL,
-    all groups are accessible.
-
-    The temporary table lives for the duration of the current database
-    transaction and is visible only to the transaction it was created
-    within. The temporary table maintains a forward and reverse index
-    for fast joins on accessible groups.
-
-    This function can be called many times within a transaction. It will only
-    create the table once per transaction and subsequent calls will always
-    return a reference to the table created on the first call, with the same
-    underlying data.
-
-    Returns
-    -------
-    table: `sqlalchemy.Table`
-        The forward- and reverse-indexed `user_accessible_groups` temporary
-        table for the current database transaction.
-    """
-
-    user_acls = user_acls_temporary_table()
-
-    sql = f"""
-CREATE TEMP TABLE IF NOT EXISTS user_accessible_groups ON COMMIT DROP
-AS
-  (SELECT user_id,
-          group_id
-   FROM group_users
-   UNION SELECT sq.user_id,
-                sq.group_id
-   FROM
-     (SELECT uacl.user_id AS user_id,
-             g.id AS group_id
-      FROM
-        {user_acls.name} uacl
-      JOIN groups g ON uacl.acl_id = 'System admin') sq);"""
-    DBSession().execute(sql)
-    DBSession().execute(
-        'CREATE INDEX IF NOT EXISTS user_accessible_groups_forward_index '
-        'ON user_accessible_groups (user_id, group_id)'
-    )
-    DBSession().execute(
-        'CREATE INDEX IF NOT EXISTS user_accessible_groups_reverse_index '
-        'ON user_accessible_groups (group_id, user_id)'
-    )
-
-    t = sa.Table(
-        'user_accessible_groups',
-        Base.metadata,
-        sa.Column('user_id', sa.Integer, primary_key=True),
-        sa.Column('group_id', sa.Integer, primary_key=True),
-        extend_existing=True,
-    )
-    return sa.alias(t)
 
 
 def get_app_base_url():
@@ -169,169 +105,71 @@ def user_to_dict(self):
 User.to_dict = user_to_dict
 
 
-class AccessibleByGroupsMembers(UserAccessControl):
-    """A record that is readable only to members of its multiple (many-to-many)
-    parent groups."""
+def is_readable_by(self, user_or_token):
+    """Generic ownership logic for any `skyportal` ORM model.
 
-    @classmethod
-    def accessible_pairs(cls, target_right, user_right):
-        """Construct a join table mapping User records to accessible target
-        records.
+    Models with complicated ownership logic should implement their own method
+    instead of adding too many additional conditions here.
+    """
+    if hasattr(self, 'tokens'):
+        return user_or_token in self.tokens
+    if hasattr(self, 'groups'):
+        return bool(set(self.groups) & set(user_or_token.accessible_groups))
+    if hasattr(self, 'group'):
+        return self.group in user_or_token.accessible_groups
+    if hasattr(self, 'users'):
+        if hasattr(user_or_token, 'created_by'):
+            if user_or_token.created_by in self.users:
+                return True
+        return user_or_token in self.users
 
-        Parameters
-        ----------
-        target_right: `baselayer.app.models.Base` or alias of
-        `baselayer.app.models.Base`
-            Access protected class or alias of the access protected class.
-        user_right: `baselayer.app.models.Base` or alias of
-        `baselayer.app.models.Base`
-            The `User` class or an alias of the `User` class.
-
-        Returns
-        -------
-        table: `sqlalchemy.sql.expression.Selectable`
-            SQLalchemy table mapping User records to accessible target records.
-        """
-
-        # Ensure the target class has the foreign key that moderates
-        # access control.
-        cls.check_cls_for_attributes(target_right, ['groups'])
-        user_accessible_groups = user_accessible_groups_temporary_table()
-        relationship = sa.inspect(target_right).mapper.relationships['groups']
-        cls_groups_join_table = sa.alias(relationship.secondary)
-        (local_key_0, remote_key_0), _ = relationship.local_remote_pairs
-
-        return (
-            sa.join(
-                target_right,
-                cls_groups_join_table,
-                getattr(target_right, local_key_0.name)
-                == getattr(cls_groups_join_table.c, remote_key_0.name),
-            )
-            .join(
-                user_accessible_groups,
-                cls_groups_join_table.c.group_id == user_accessible_groups.c.group_id,
-            )
-            .join(user_right, user_right.id == user_accessible_groups.user_id)
-        )
+    raise NotImplementedError(f"{type(self).__name__} object has no owner")
 
 
-def accessible_by_group_members(related_class=None, admins_only=False):
-    """Create a class that grants access to Users that can access the
-    record's group, which is defined on a foreign key relationship.
+def is_modifiable_by(self, user):
+    """Return a boolean indicating whether an object point can be modified or
+    deleted by a given user.
 
     Parameters
     ----------
-    related_class: DeclarativeMeta, optional, default None
-        The class which is related to the target class and provides the "groups"
-        attribute for membership checking. If
-    admins_only: bool
-        Grant access to group admins only?
+    user: `baselayer.app.models.User`
+       The User to check.
+
     Returns
     -------
-    AccessibleByUser: type
-        Class implementing the accessible-by-group-via logic.
+    readable: bool
+       Whether the Object can be modified by the User.
     """
 
-    class _AccessibleByGroupMembersVia(UserAccessControl):
-        """A record that is readable to members of the group associated with a
-        record's relationship."""
+    if not hasattr(self, 'owner'):
+        raise TypeError(
+            f'Object {self} does not have an `owner` attribute, '
+            f'and thus does not expose the interface that is needed '
+            f'to check for modification or deletion privileges.'
+        )
 
-        @classmethod
-        def accessible_pairs(cls, target_right, user_right):
-            """Construct a join table mapping User records to accessible target
-            records.
-
-            Parameters
-            ----------
-            target_right: `baselayer.app.models.Base` or alias of
-            `baselayer.app.models.Base`
-                Access protected class or alias of the access protected class.
-            user_right: `baselayer.app.models.Base` or alias of
-            `baselayer.app.models.Base`
-                The `User` class or an alias of the `User` class.
-
-            Returns
-            -------
-            table: `sqlalchemy.sql.expression.Selectable`
-                SQLalchemy table mapping User records to accessible target records.
-            """
-
-            user_accessible_groups = user_accessible_groups_temporary_table()
-            user_acls = user_acls_temporary_table()
-
-            if related_class is not None:
-                related_alias = aliased(related_class)
-                base = sa.join(target_right, related_alias)
-                groups_joinkey = related_alias.group_id
-            else:
-                base = target_right
-                groups_joinkey = target_right.group_id
-
-            base = (
-                sa.join(
-                    base,
-                    user_accessible_groups,
-                    groups_joinkey == user_accessible_groups.c.group_id,
-                )
-                .join(user_right, user_right.id == user_accessible_groups.c.user_id)
-                .join(user_acls, user_acls.c.user_id == user_right.id)
-            )
-
-            if admins_only:
-                group_users = aliased(GroupUser)
-                base = base.join(
-                    group_users,
-                    sa.and_(
-                        user_right.id == group_users.user_id,
-                        groups_joinkey == group_users.group_id,
-                        sa.or_(
-                            group_users.admin.is_(True),
-                            user_acls.c.acl_id == "System admin",
-                        ),
-                    ),
-                )
-
-            return base
-
-    return _AccessibleByGroupMembersVia
+    is_admin = "System admin" in user.permissions
+    owns_spectrum = self.owner is user
+    return is_admin or owns_spectrum
 
 
-AccessibleByGroupMembers = accessible_by_group_members()
-AccessibleByGroupAdmins = accessible_by_group_members(admins_only=True)
+Base.is_readable_by = is_readable_by
+
+AccessibleByGroupsMembers = accessible_if_user_is('groups.group_users.user')
+AccessibleByGroupMembers = accessible_if_user_is('group.group_users.user')
+AccessibleByMembers = accessible_if_user_is('group_users.user')
 
 
-class AccessibleByMembers(UserAccessControl):
-    """A record that is readable to members of the group associated with a
-    record's relationship."""
+class AccessibleByGroupAdmins(AccessibleByGroupMembers):
+    @staticmethod
+    def query_accessible_rows(cls, user_or_token, columns=None):
+        base = super().query_accessible_rows(cls, user_or_token, columns=columns)
+        base = base.filter(GroupUser.admin.is_(True))
+        return base
 
-    @classmethod
-    def accessible_pairs(cls, target_right, user_right):
-        """Construct a join table mapping User records to accessible target
-        records.
 
-        Parameters
-        ----------
-        target_right: `baselayer.app.models.Base` or alias of
-        `baselayer.app.models.Base`
-            Access protected class or alias of the access protected class.
-        user_right: `baselayer.app.models.Base` or alias of
-        `baselayer.app.models.Base`
-            The `User` class or an alias of the `User` class.
-
-        Returns
-        -------
-        table: `sqlalchemy.sql.expression.Selectable`
-            SQLalchemy table mapping User records to accessible target records.
-        """
-
-        user_accessible_groups = user_accessible_groups_temporary_table()
-
-        return sa.join(
-            target_right,
-            user_accessible_groups,
-            target_right.id == user_accessible_groups.c.group_id,
-        ).join(user_right, user_right.id == user_accessible_groups.c.user_id)
+class AccessibleByAdmins(AccessibleByMembers):
+    query_accessible_rows = AccessibleByGroupAdmins.query_accessible_rows
 
 
 class NumpyArray(sa.types.TypeDecorator):
@@ -351,7 +189,7 @@ class Group(Base):
     must have access to all of the `Group`'s data `Stream`s.
     """
 
-    update = delete = AccessibleByGroupAdmins
+    update = delete = AccessibleByAdmins
     member = AccessibleByMembers
 
     name = sa.Column(
@@ -621,7 +459,7 @@ class Obj(Base, ha.Point):
     """A record of an astronomical Object and its metadata, such as position,
     positional uncertainties, name, and redshift."""
 
-    update = AccessibleByAnyone
+    update = Public
 
     id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
     # TODO should this column type be decimal? fixed-precison numeric
@@ -1032,7 +870,9 @@ class Filter(Base):
 
 class Candidate(Base):
     "An Obj that passed a Filter, becoming scannable on the Filter's scanning page."
-    create = read = update = delete = accessible_by_group_members(Filter)
+    create = read = update = delete = accessible_if_user_is(
+        'filter.group.group_users.user'
+    )
 
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
@@ -1086,6 +926,67 @@ Candidate.__table_args__ = (
         unique=True,
     ),
 )
+
+
+def get_candidate_if_readable_by(obj_id, user_or_token, options=[]):
+    """Return an Obj from the database if the Obj is a Candidate in at least
+    one of the requesting User or Token owner's accessible Groups. If the Obj is not a
+    Candidate in one of the User or Token owner's accessible Groups, raise an AccessError.
+    If the Obj does not exist, return `None`.
+
+    Parameters
+    ----------
+    obj_id : integer or string
+       Primary key of the Obj.
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+    options : list of `sqlalchemy.orm.MapperOption`s
+       Options that wil be passed to `options()` in the loader query.
+
+    Returns
+    -------
+    obj : `skyportal.models.Obj`
+       The requested Obj.
+    """
+
+    if Candidate.query.filter(Candidate.obj_id == obj_id).first() is None:
+        return None
+    user_group_ids = [g.id for g in user_or_token.accessible_groups]
+    c = (
+        Candidate.query.filter(Candidate.obj_id == obj_id)
+        .filter(
+            Candidate.filter_id.in_(
+                DBSession.query(Filter.id).filter(Filter.group_id.in_(user_group_ids))
+            )
+        )
+        .options(options)
+        .first()
+    )
+    if c is None:
+        raise AccessError("Insufficient permissions.")
+    return c.obj
+
+
+def candidate_is_readable_by(self, user_or_token):
+    """Return a boolean indicating whether the Candidate passed the Filter
+    of any of a User or Token owner's accessible Groups.
+
+
+    Parameters
+    ----------
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    readable : bool
+       Whether the Candidate is readable by the User or Token owner.
+    """
+    return self.filter.group in user_or_token.accessible_groups
+
+
+Candidate.get_obj_if_readable_by = get_candidate_if_readable_by
+Candidate.is_readable_by = candidate_is_readable_by
 
 
 Source = join_model("sources", Group, Obj, base=Base)
@@ -1156,6 +1057,269 @@ Obj.candidates = relationship(
     back_populates='obj',
     doc="Instances in which this Obj passed a group's filter.",
 )
+
+
+def source_is_readable_by(self, user_or_token):
+    """Return a boolean indicating whether the Source has been saved to
+    any of a User or Token owner's accessible Groups.
+
+    Parameters
+    ----------
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    readable : bool
+       Whether the Candidate is readable by the User or Token owner.
+    """
+
+    source_group_ids = [
+        row[0]
+        for row in DBSession.query(Source.group_id)
+        .filter(Source.obj_id == self.obj_id)
+        .all()
+    ]
+    return bool(set(source_group_ids) & {g.id for g in user_or_token.accessible_groups})
+
+
+def get_source_if_readable_by(obj_id, user_or_token, options=[]):
+    """Return an Obj from the database if the Obj is a Source in at least
+    one of the requesting User or Token owner's accessible Groups. If the Obj is not a
+    Source in one of the User or Token owner's accessible Groups, raise an AccessError.
+    If the Obj does not exist, return `None`.
+
+    Parameters
+    ----------
+    obj_id : integer or string
+       Primary key of the Obj.
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+    options : list of `sqlalchemy.orm.MapperOption`s
+       Options that wil be passed to `options()` in the loader query.
+
+    Returns
+    -------
+    obj : `skyportal.models.Obj`
+       The requested Obj.
+    """
+
+    if Source.query.filter(Source.obj_id == obj_id).first() is None:
+        return None
+    user_group_ids = [g.id for g in user_or_token.accessible_groups]
+    s = (
+        Source.query.filter(Source.obj_id == obj_id)
+        .filter(Source.group_id.in_(user_group_ids))
+        .options(options)
+        .first()
+    )
+    if s is None:
+        raise AccessError("Insufficient permissions.")
+    return s.obj
+
+
+Source.is_readable_by = source_is_readable_by
+Source.get_obj_if_readable_by = get_source_if_readable_by
+
+
+def get_obj_if_readable_by(obj_id, user_or_token, options=[]):
+    """Return an Obj from the database if the Obj is either a Source or a Candidate in at least
+    one of the requesting User or Token owner's accessible Groups. If the Obj is not a
+    Source or a Candidate in one of the User or Token owner's accessible Groups, raise an AccessError.
+    If the Obj does not exist, return `None`.
+
+    Parameters
+    ----------
+    obj_id : integer or string
+       Primary key of the Obj.
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+    options : list of `sqlalchemy.orm.MapperOption`s
+       Options that wil be passed to `options()` in the loader query.
+
+    Returns
+    -------
+    obj : `skyportal.models.Obj`
+       The requested Obj.
+    """
+
+    def construct_joinedload(base, additional_attrs):
+        jl = joinedload(base)
+        for attr in additional_attrs:
+            jl = jl.joinedload(attr)
+        return jl
+
+    if Obj.query.get(obj_id) is None:
+        return None
+    if "System admin" in user_or_token.permissions:
+        return Obj.query.options(options).get(obj_id)
+
+    # the order of the following attempts is important -
+    # this one should come first
+    if Obj.get_photometry_readable_by_user(obj_id, user_or_token):
+        return Obj.query.options(options).get(obj_id)
+
+    try:
+        source_opts = [construct_joinedload(Source.obj, o.path) for o in options]
+        obj = Source.get_obj_if_readable_by(obj_id, user_or_token, source_opts)
+    except AccessError:  # They may still be able to view the associated Candidate
+        cand_opts = [construct_joinedload(Candidate.obj, o.path) for o in options]
+        obj = Candidate.get_obj_if_readable_by(obj_id, user_or_token, cand_opts)
+
+    if obj is None:
+        raise AccessError('Insufficient permissions.')
+
+    # If we get here, the user has access to either the associated Source or Candidate
+    return obj
+
+
+Obj.get_if_readable_by = get_obj_if_readable_by
+
+
+def get_obj_comments_readable_by(self, user_or_token):
+    """Query the database and return the Comments on this Obj that are accessible
+    to any of the User or Token owner's accessible Groups.
+
+    Parameters
+    ----------
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    comment_list : list of `skyportal.models.Comment`
+       The accessible comments attached to this Obj.
+    """
+    readable_comments = [
+        comment for comment in self.comments if comment.is_readable_by(user_or_token)
+    ]
+
+    # Grab basic author info for the comments
+    for comment in readable_comments:
+        comment.author_info = comment.construct_author_info_dict()
+
+    return readable_comments
+
+
+Obj.get_comments_readable_by = get_obj_comments_readable_by
+
+
+def get_obj_annotations_readable_by(self, user_or_token):
+    """Query the database and return the Annotations on this Obj that are accessible
+    to any of the User or Token owner's accessible Groups.
+
+    Parameters
+    ----------
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    annotation_list : list of `skyportal.models.Annotation`
+       The accessible annotations attached to this Obj.
+    """
+    readable_annotations = [
+        annotation
+        for annotation in self.annotations
+        if annotation.is_readable_by(user_or_token)
+    ]
+
+    # Grab basic author info for the annotations
+    for annotation in readable_annotations:
+        annotation.author_info = annotation.construct_author_info_dict()
+
+    return readable_annotations
+
+
+Obj.get_annotations_readable_by = get_obj_annotations_readable_by
+
+
+def get_obj_classifications_readable_by(self, user_or_token):
+    """Query the database and return the Classifications on this Obj that are accessible
+    to any of the User or Token owner's accessible Groups.
+
+    Parameters
+    ----------
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    classification_list : list of `skyportal.models.Classification`
+       The accessible classifications attached to this Obj.
+    """
+    return [
+        classifications
+        for classifications in self.classifications
+        if classifications.is_readable_by(user_or_token)
+    ]
+
+
+Obj.get_classifications_readable_by = get_obj_classifications_readable_by
+
+
+def get_photometry_readable_by_user(obj_id, user_or_token):
+    """Query the database and return the Photometry for this Obj that is shared
+    with any of the User or Token owner's accessible Groups.
+
+    Parameters
+    ----------
+    obj_id : string
+       The ID of the Obj to look up.
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    photometry_list : list of `skyportal.models.Photometry`
+       The accessible Photometry of this Obj.
+    """
+    return (
+        Photometry.query.filter(Photometry.obj_id == obj_id)
+        .filter(
+            Photometry.groups.any(
+                Group.id.in_([g.id for g in user_or_token.accessible_groups])
+            )
+        )
+        .all()
+    )
+
+
+Obj.get_photometry_readable_by_user = get_photometry_readable_by_user
+
+
+def get_spectra_readable_by(obj_id, user_or_token, options=()):
+    """Query the database and return the Spectra for this Obj that are shared
+    with any of the User or Token owner's accessible Groups.
+
+    Parameters
+    ----------
+    obj_id : string
+       The ID of the Obj to look up.
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+    options : list of `sqlalchemy.orm.MapperOption`s
+       Options that wil be passed to `options()` in the loader query.
+
+    Returns
+    -------
+    photometry_list : list of `skyportal.models.Spectrum`
+       The accessible Spectra of this Obj.
+    """
+
+    return (
+        Spectrum.query.filter(Spectrum.obj_id == obj_id)
+        .filter(
+            Spectrum.groups.any(
+                Group.id.in_([g.id for g in user_or_token.accessible_groups])
+            )
+        )
+        .options(options)
+        .all()
+    )
+
+
+Obj.get_spectra_readable_by = get_spectra_readable_by
 
 
 User.sources = relationship(
@@ -1575,6 +1739,38 @@ GroupTaxonomy.delete = GroupTaxonomy.update = compose_access_control(
 )
 
 
+def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
+    """Query the database and return the requested Taxonomy if it is accessible
+    to the requesting User or Token owner. If the Taxonomy is not accessible or
+    if it does not exist, return an empty list.
+
+    Parameters
+    ----------
+    taxonomy_id : integer
+       The ID of the requested Taxonomy.
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    tax : `skyportal.models.Taxonomy`
+       The requested Taxonomy.
+    """
+
+    return (
+        Taxonomy.query.filter(Taxonomy.id == taxonomy_id)
+        .filter(
+            Taxonomy.groups.any(
+                Group.id.in_([g.id for g in user_or_token.accessible_groups])
+            )
+        )
+        .all()
+    )
+
+
+Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
+
+
 class Comment(Base):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
@@ -1582,7 +1778,7 @@ class Comment(Base):
         AccessibleByGroupsMembers, accessible_if_properties_are_accessible(obj='read'),
     )
 
-    update = delete = accessible_by_user('author')
+    update = delete = accessible_if_user_is('author')
 
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
     ctype = sa.Column(
@@ -1629,22 +1825,26 @@ class Comment(Base):
         doc="Groups that can see the comment.",
     )
 
-    @property
-    def author_info(self):
+    def construct_author_info_dict(self):
         return {
             field: getattr(self.author, field)
             for field in ('username', 'first_name', 'last_name', 'gravatar_url')
         }
 
-    def to_dict(self):
-        _ = self.groups
-        dict = super().to_dict()
-        dict['author'] = self.author.to_dict()
-        dict['author_info'] = self.author_info
-        return dict
+    @classmethod
+    def get_if_readable_by(cls, ident, user, options=[]):
+        comment = cls.query.options(options).get(ident)
+
+        if comment is not None and not comment.is_readable_by(user):
+            raise AccessError('Insufficient permissions.')
+
+        # Grab basic author info for the comment
+        comment.author_info = comment.construct_author_info_dict()
+
+        return comment
 
 
-GroupComment = join_model("group_comments", Group, Comment, base=Base)
+GroupComment = join_model("group_comments", Group, Comment)
 GroupComment.__doc__ = "Join table mapping Groups to Comments."
 GroupComment.delete = GroupComment.update = compose_access_control(
     AccessibleByGroupMembers, GroupComment.read
@@ -1663,7 +1863,7 @@ class Annotation(Base):
     read = compose_access_control(
         AccessibleByGroupsMembers, accessible_if_properties_are_accessible(obj='read')
     )
-    update = delete = accessible_by_user('author')
+    update = delete = accessible_if_user_is('author')
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
@@ -1711,19 +1911,23 @@ class Annotation(Base):
         doc="Groups that can see the annotation.",
     )
 
-    @property
-    def author_info(self):
+    def construct_author_info_dict(self):
         return {
             field: getattr(self.author, field)
             for field in ('username', 'first_name', 'last_name', 'gravatar_url')
         }
 
-    def to_dict(self):
-        _ = self.groups
-        dict = super().to_dict()
-        dict['author'] = self.author.to_dict()
-        dict['author_info'] = self.author_info
-        return dict
+    @classmethod
+    def get_if_readable_by(cls, ident, user, options=[]):
+        annotation = cls.query.options(options).get(ident)
+
+        if annotation is not None and not annotation.is_readable_by(user):
+            raise AccessError('Insufficient permissions.')
+
+        # Grab basic author info for the annotation
+        annotation.author_info = annotation.construct_author_info_dict()
+
+        return annotation
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
@@ -1751,7 +1955,7 @@ class Classification(Base):
 
     create = ok_if_tax_and_obj_readable
     read = compose_access_control(AccessibleByGroupsMembers, ok_if_tax_and_obj_readable)
-    update = delete = accessible_by_user('author')
+    update = delete = accessible_if_user_is('author')
 
     classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
     taxonomy_id = sa.Column(
@@ -1777,11 +1981,7 @@ class Classification(Base):
         index=True,
         doc="ID of the User that made this Classification",
     )
-    author = relationship(
-        'User',
-        doc="The User that made this classification.",
-        foreign_keys="Classification.author_id",
-    )
+    author = relationship('User', doc="The User that made this classification.")
     author_name = sa.Column(
         sa.String,
         nullable=False,
@@ -1803,10 +2003,6 @@ class Classification(Base):
         passive_deletes=True,
         doc="Groups that can access this Classification.",
     )
-
-    def to_dict(self):
-        _ = self.groups
-        return super().to_dict()
 
 
 GroupClassifications = join_model(
@@ -1995,6 +2191,8 @@ class Photometry(ha.Point, Base):
         """Signal-to-noise ratio of this Photometry point."""
         return self.flux / self.fluxerr
 
+
+Photometry.is_modifiable_by = is_modifiable_by
 
 # Deduplication index. This is a unique index that prevents any photometry
 # point that has the same obj_id, instrument_id, origin, mjd, flux error,
@@ -2303,21 +2501,19 @@ class Spectrum(Base):
         )
 
 
+Spectrum.is_modifiable_by = is_modifiable_by
 User.spectra = relationship(
-    'Spectrum',
-    doc='Spectra uploaded by this User.',
-    back_populates='owner',
-    foreign_keys="Spectrum.owner_id",
+    'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
 )
 
 SpectrumReducer = join_model("spectrum_reducers", Spectrum, User, base=Base)
 SpectrumObserver = join_model("spectrum_observers", Spectrum, User, base=Base)
 SpectrumReducer.create = (
     SpectrumReducer.delete
-) = SpectrumReducer.update = accessible_by_user('owner', of='spectrum')
+) = SpectrumReducer.update = accessible_if_user_is('owner', of='spectrum')
 SpectrumObserver.create = (
     SpectrumObserver.delete
-) = SpectrumObserver.update = accessible_by_user('owner', of='spectrum')
+) = SpectrumObserver.update = accessible_if_user_is('owner', of='spectrum')
 
 # should be accessible only by spectrumowner ^^
 
@@ -2345,8 +2541,8 @@ class FollowupRequest(Base):
     """A request for follow-up data (spectroscopy, photometry, or both) using a
     robotic instrument."""
 
-    create = read = update = delete = accessible_by_group_members(
-        related_class=Allocation
+    create = read = update = delete = accessible_if_user_is(
+        'allocation.group.group_users.user'
     )
 
     requester_id = sa.Column(
@@ -2361,6 +2557,18 @@ class FollowupRequest(Base):
         back_populates='followup_requests',
         doc="The User who requested the follow-up.",
         foreign_keys=[requester_id],
+    )
+
+    last_modified_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='SET NULL'),
+        nullable=False,
+        doc="The ID of the User who last modified the request.",
+    )
+
+    last_modified_by = relationship(
+        User,
+        doc="The user who last modified the request.",
+        foreign_keys=[last_modified_by_id],
     )
 
     obj = relationship('Obj', back_populates='followup_requests', doc="The target Obj.")
@@ -2408,6 +2616,25 @@ class FollowupRequest(Base):
     def instrument(self):
         return self.allocation.instrument
 
+    def is_readable_by(self, user_or_token):
+        """Return a boolean indicating whether a FollowupRequest belongs to
+        an allocation that is accessible to the given user or token.
+
+        Parameters
+        ----------
+        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
+           The User or Token to check.
+
+        Returns
+        -------
+        readable: bool
+           Whether the FollowupRequest belongs to an Allocation that is
+           accessible to the given user or token.
+        """
+
+        user_or_token_group_ids = [g.id for g in user_or_token.accessible_groups]
+        return self.allocation.group_id in user_or_token_group_ids
+
 
 FollowupRequestTargetGroup = join_model(
     'request_groups', FollowupRequest, Group, base=Base
@@ -2415,7 +2642,7 @@ FollowupRequestTargetGroup = join_model(
 FollowupRequestTargetGroup.update = (
     FollowupRequestTargetGroup.delete
 ) = compose_access_control(
-    accessible_by_user('requester', of='followup_request'),
+    accessible_if_user_is('requester', of='followup_request'),
     FollowupRequestTargetGroup.read,
 )
 
@@ -2786,7 +3013,7 @@ def send_user_invite_email(mapper, connection, target):
     )
 
 
-class SourceNotification(AccessibleByGroupsMembers, Base):
+class SourceNotification(Base):
     groups = relationship(
         "Group",
         secondary="group_notifications",

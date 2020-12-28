@@ -1,11 +1,11 @@
 import io
 from pathlib import Path
-from astropy.time import Time
-import numpy as np
 
+import numpy as np
+from astropy.time import Time
+from marshmallow.exceptions import ValidationError
 from sqlalchemy.orm import joinedload
 
-from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from ..base import BaseHandler
@@ -136,7 +136,7 @@ class SpectrumHandler(BaseHandler):
         spec.groups = groups
         spec.owner_id = owner_id
         DBSession().add(spec)
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
@@ -198,6 +198,7 @@ class SpectrumHandler(BaseHandler):
             spec_dict["reducers"] = spectrum.reducers
             spec_dict["observers"] = spectrum.observers
             spec_dict["owner"] = spectrum.owner
+            self.verify_permissions()
             return self.success(data=spec_dict)
         else:
             return self.error(f"Could not load spectrum with ID {spectrum_id}")
@@ -256,7 +257,7 @@ class SpectrumHandler(BaseHandler):
         for k in data:
             setattr(spectrum, k, data[k])
 
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
@@ -299,7 +300,7 @@ class SpectrumHandler(BaseHandler):
             )
 
         DBSession().delete(spectrum)
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
@@ -464,7 +465,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
         spec.observers = observers
 
         DBSession().add(spec)
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
@@ -671,4 +672,5 @@ class SpectrumRangeHandler(BaseHandler):
             utc = Time(max_date, format='isot', scale='utc')
             query = query.filter(Spectrum.observed_at <= utc.isot)
 
+        self.verify_permissions()
         return self.success(data=query.all())

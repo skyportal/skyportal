@@ -1,7 +1,8 @@
 import uuid
-from skyportal.tests import api
+
 from skyportal.model_util import create_token
 from skyportal.models import DBSession, Token
+from skyportal.tests import api
 
 
 def test_get_user_info(manage_users_token, user):

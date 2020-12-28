@@ -1,7 +1,8 @@
 import uuid
-from skyportal.tests import api
-from skyportal.model_util import create_token
+
 from baselayer.app.env import load_env
+from skyportal.model_util import create_token
+from skyportal.tests import api
 
 _, cfg = load_env()
 

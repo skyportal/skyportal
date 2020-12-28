@@ -1,9 +1,9 @@
 import os
 import urllib.parse
+
 import requests
 
 from baselayer.app.env import load_env
-
 
 IS_CI_BUILD = "TRAVIS" in os.environ or "GITHUB_ACTIONS" in os.environ
 

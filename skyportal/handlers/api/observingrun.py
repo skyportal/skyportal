@@ -1,6 +1,7 @@
 import numpy as np
-from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
+from sqlalchemy.orm import joinedload
+
 from baselayer.app.access import permissions, auth_or_token, AccessError
 from ..base import BaseHandler
 from ...models import (
@@ -59,7 +60,7 @@ class ObservingRunHandler(BaseHandler):
         run.owner_id = self.associated_user_object.id
 
         DBSession().add(run)
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
         return self.success(data={"id": run.id})
@@ -172,6 +173,7 @@ class ObservingRunHandler(BaseHandler):
                     d["rise_time_utc"] = rt if rt is not np.ma.masked else ''
                     d["set_time_utc"] = st if st is not np.ma.masked else ''
 
+            self.verify_permissions()
             return self.success(data=data)
 
         runs = ObservingRun.query.order_by(ObservingRun.calendar_date.asc()).all()
@@ -182,6 +184,7 @@ class ObservingRunHandler(BaseHandler):
                 run.calendar_noon
             ).isot
 
+        self.verify_permissions()
         return self.success(data=runs_list)
 
     @permissions(["Upload data"])
@@ -233,7 +236,7 @@ class ObservingRunHandler(BaseHandler):
             setattr(orun, param, new_params[param])
 
         DBSession().add(orun)
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
         return self.success()
@@ -272,7 +275,7 @@ class ObservingRunHandler(BaseHandler):
             return self.error("Only the owner of an observing run can modify the run.")
 
         DBSession().query(ObservingRun).filter(ObservingRun.id == run_id).delete()
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
         return self.success()

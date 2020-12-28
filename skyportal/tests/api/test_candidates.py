@@ -1,10 +1,10 @@
 import datetime
-import numpy.testing as npt
 import uuid
 
-from skyportal.tests import api
-
+import numpy.testing as npt
 from tdtax import taxonomy, __version__
+
+from skyportal.tests import api
 
 
 def test_candidate_list(view_only_token, public_candidate):

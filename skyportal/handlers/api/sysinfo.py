@@ -1,13 +1,11 @@
 import os
 import subprocess
 
-from baselayer.app.env import load_env
 from baselayer.app.access import auth_or_token
-from ..base import BaseHandler
-
+from baselayer.app.env import load_env
 from skyportal.models import cosmo
 from skyportal.utils import gitlog
-
+from ..base import BaseHandler
 
 _, cfg = load_env()
 

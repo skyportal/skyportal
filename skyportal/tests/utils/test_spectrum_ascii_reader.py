@@ -1,9 +1,9 @@
-import yaml
 import datetime
-from glob import glob
 import os
+from glob import glob
 
 import numpy as np
+import yaml
 
 from skyportal.models import Spectrum
 

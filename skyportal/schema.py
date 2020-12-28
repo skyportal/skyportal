@@ -6,11 +6,13 @@
 # From
 # https://marshmallow-sqlalchemy.readthedocs.io/en/latest/recipes.html#automatically-generating-schemas-for-sqlalchemy-models
 
-from marshmallow_sqlalchemy import (
-    ModelConversionError as _ModelConversionError,
-    ModelSchema as _ModelSchema,
-)
+import inspect
+import operator
+import sys
+from enum import Enum
 
+import numpy as np
+from astropy.table import Table
 from marshmallow import (
     Schema as _Schema,
     fields,
@@ -19,10 +21,12 @@ from marshmallow import (
     ValidationError,
 )
 from marshmallow_enum import EnumField
-
+from marshmallow_sqlalchemy import (
+    ModelConversionError as _ModelConversionError,
+    ModelSchema as _ModelSchema,
+)
 
 from baselayer.app.models import Base as _Base, DBSession as _DBSession
-
 from skyportal.enum_types import (
     py_allowed_bandpasses,
     py_allowed_magsystems,
@@ -31,14 +35,6 @@ from skyportal.enum_types import (
     ALLOWED_MAGSYSTEMS,
     force_render_enum_markdown,
 )
-
-from astropy.table import Table
-import operator
-
-import sys
-import inspect
-import numpy as np
-from enum import Enum
 
 
 class ApispecEnumField(EnumField):

@@ -1,10 +1,12 @@
-import os
-import io
 import base64
+import io
+import os
 from pathlib import Path
+
+from PIL import Image, UnidentifiedImageError
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.exc import StatementError
-from PIL import Image, UnidentifiedImageError
+
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Obj, Source, Thumbnail
@@ -74,7 +76,7 @@ class ThumbnailHandler(BaseHandler):
             return self.error(f"Error creating new thumbnail: {e}")
         except UnidentifiedImageError as e:
             return self.error(f"Invalid file type: {e}")
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success(data={"id": t.id})
 
@@ -106,7 +108,7 @@ class ThumbnailHandler(BaseHandler):
             return self.error(f"Could not load thumbnail with ID {thumbnail_id}")
         # Ensure user/token has access to parent source
         _ = Source.get_obj_if_readable_by(t.obj.id, self.current_user)
-
+        self.verify_permissions()
         return self.success(data=t)
 
     @permissions(['Manage sources'])
@@ -152,7 +154,7 @@ class ThumbnailHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success()
 
@@ -186,7 +188,7 @@ class ThumbnailHandler(BaseHandler):
         _ = Source.get_obj_if_readable_by(t.obj.id, self.current_user)
 
         DBSession().query(Thumbnail).filter(Thumbnail.id == int(thumbnail_id)).delete()
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success()
 

@@ -1,9 +1,9 @@
-from skyportal.handlers import BaseHandler
-from baselayer.app.access import auth_or_token
 import jsonschema
 
-from ...models import FollowupRequest, DBSession
+from baselayer.app.access import auth_or_token
+from skyportal.handlers import BaseHandler
 from ... import facility_apis, enum_types
+from ...models import FollowupRequest
 
 
 class FacilityMessageHandler(BaseHandler):
@@ -35,7 +35,7 @@ class FacilityMessageHandler(BaseHandler):
 
         jsonschema.validate(data, instrument.listener_class.complete_schema())
         instrument.listener_class.process_message(self)
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",

@@ -1,9 +1,11 @@
-import os
-from skyportal.tests import api
-from glob import glob
-import yaml
-import numpy as np
 import datetime
+import os
+from glob import glob
+
+import numpy as np
+import yaml
+
+from skyportal.tests import api
 
 
 def test_token_user_get_range_spectrum(

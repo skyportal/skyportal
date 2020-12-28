@@ -1,5 +1,5 @@
-from .base import BaseHandler
 from baselayer.app.models import ACL
+from .base import BaseHandler
 from ..models import User
 
 

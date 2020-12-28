@@ -1,17 +1,17 @@
 import os
-from os.path import join as pjoin
 import uuid
 from io import BytesIO
+from os.path import join as pjoin
+
 import pytest
+from PIL import Image, ImageChops
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import TimeoutException
-from PIL import Image, ImageChops
 
 from baselayer.app.config import load_config
-from skyportal.tests import api
 from skyportal.models import DBSession
-
+from skyportal.tests import api
 
 cfg = load_config()
 

@@ -1,7 +1,7 @@
 from baselayer.app.access import auth_or_token, permissions
 
 from ..base import BaseHandler
-from ...models import DBSession, Role, User, UserRole
+from ...models import Role, User, UserRole
 
 
 class RoleHandler(BaseHandler):
@@ -31,6 +31,7 @@ class RoleHandler(BaseHandler):
         for i, role in enumerate(roles):
             roles[i] = role.to_dict()
             roles[i]['acls'] = [acl.id for acl in role.acls]
+        self.verify_permissions()
         return self.success(data=roles)
 
 
@@ -82,7 +83,7 @@ class UserRoleHandler(BaseHandler):
             return self.error("Invalid user_id parameter.")
         new_roles = Role.query.filter(Role.id.in_(new_role_ids)).all()
         user.roles = list(set(user.roles).union(set(new_roles)))
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success()
 
     @permissions(["Manage users"])
@@ -120,5 +121,5 @@ class UserRoleHandler(BaseHandler):
             .filter(UserRole.role_id == role_id)
             .delete()
         )
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success()

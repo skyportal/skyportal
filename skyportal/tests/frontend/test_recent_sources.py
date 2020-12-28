@@ -1,9 +1,9 @@
-import uuid
 import datetime
+import uuid
 
 import pytest
-from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.action_chains import ActionChains
 
 from skyportal.tests import api
 

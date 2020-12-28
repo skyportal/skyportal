@@ -1,10 +1,17 @@
 import datetime
-from itertools import cycle, islice
-import uuid
-from tempfile import mkdtemp
-import numpy as np
-import factory
+import os
+import pathlib
 import random
+import uuid
+from itertools import cycle, islice
+from tempfile import mkdtemp
+
+import factory
+import numpy as np
+
+from baselayer.app.config import load_config
+from baselayer.app.env import load_env
+from baselayer.app.test_util import set_server_url
 from skyportal.models import (
     DBSession,
     User,
@@ -23,12 +30,6 @@ from skyportal.models import (
     ClassicalAssignment,
     init_db,
 )
-
-import os
-import pathlib
-from baselayer.app.config import load_config
-from baselayer.app.env import load_env
-from baselayer.app.test_util import set_server_url
 
 TMP_DIR = mkdtemp()
 env, cfg = load_env()

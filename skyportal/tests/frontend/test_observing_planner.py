@@ -1,11 +1,12 @@
-import uuid
-import pytest
-from ...models import DBSession, ObservingRun
-from .. import api
 import time
+import uuid
 
+import pytest
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
+
+from .. import api
+from ...models import DBSession, ObservingRun
 
 
 def post_assignment(obj, run, priority, comment, token):

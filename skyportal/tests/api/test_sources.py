@@ -1,14 +1,14 @@
 import uuid
-import pytest
-import numpy.testing as npt
+from datetime import datetime, timezone, timedelta
+
 import numpy as np
+import numpy.testing as npt
+import pytest
+from dateutil import parser
 from tdtax import taxonomy, __version__
 
-from skyportal.tests import api
 from skyportal.models import cosmo
-
-from datetime import datetime, timezone, timedelta
-from dateutil import parser
+from skyportal.tests import api
 
 
 def test_source_list(view_only_token):

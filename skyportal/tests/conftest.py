@@ -1,28 +1,16 @@
 """Test fixture configuration."""
 
-import pytest
 import os
 import uuid
-
 from datetime import datetime, timedelta
 from pathlib import Path
+
+import astroplan
 import numpy as np
+import pytest
 
 from baselayer.app import models
 from baselayer.app.test_util import driver  # noqa: F401
-
-from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
-from skyportal.tests.fixtures import (
-    ObjFactory,
-    StreamFactory,
-    GroupFactory,
-    UserFactory,
-    FilterFactory,
-    InstrumentFactory,
-    ObservingRunFactory,
-    TelescopeFactory,
-    ClassicalAssignmentFactory,
-)
 from skyportal.model_util import create_token
 from skyportal.models import (
     DBSession,
@@ -35,9 +23,18 @@ from skyportal.models import (
     GroupStream,
     StreamUser,
 )
-
-import astroplan
-
+from skyportal.tests.fixtures import (
+    ObjFactory,
+    StreamFactory,
+    GroupFactory,
+    UserFactory,
+    FilterFactory,
+    InstrumentFactory,
+    ObservingRunFactory,
+    TelescopeFactory,
+    ClassicalAssignmentFactory,
+)
+from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 
 # Add a "test factory" User so that all factory-generated comments have a
 # proper author, if it doesn't already exist (the user may already be in

@@ -1,7 +1,8 @@
 from social_tornado.models import TornadoStorage
-from skyportal.models import DBSession, ACL, Role, User, Group, Token
-from skyportal.enum_types import LISTENER_CLASSES, sqla_enum_types
+
 from baselayer.app.env import load_env
+from skyportal.enum_types import LISTENER_CLASSES, sqla_enum_types
+from skyportal.models import DBSession, ACL, Role, User, Group, Token
 
 all_acl_ids = [
     'Become user',

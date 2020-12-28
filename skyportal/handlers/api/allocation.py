@@ -1,7 +1,8 @@
+from marshmallow.exceptions import ValidationError
+
+from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
 from ...models import DBSession, Group, Allocation, Instrument
-from baselayer.app.access import auth_or_token, permissions
-from marshmallow.exceptions import ValidationError
 
 
 class AllocationHandler(BaseHandler):
@@ -76,6 +77,7 @@ class AllocationHandler(BaseHandler):
             allocations = allocations.filter(Allocation.instrument_id == instrument_id)
 
         allocations = allocations.all()
+        self.verify_permissions()
         return self.success(data=allocations)
 
     @permissions(['Manage allocations'])
@@ -123,7 +125,7 @@ class AllocationHandler(BaseHandler):
             return self.error(f'No group with specified ID: {allocation.instrument_id}')
 
         DBSession().add(allocation)
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success(data={"id": allocation.id})
 
     @permissions(['Manage allocations'])
@@ -168,7 +170,7 @@ class AllocationHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success()
 
     @permissions(['Manage allocations'])
@@ -192,5 +194,5 @@ class AllocationHandler(BaseHandler):
         """
         allocation = Allocation.query.get(int(allocation_id))
         DBSession().delete(allocation)
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success()

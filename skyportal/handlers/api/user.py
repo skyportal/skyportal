@@ -2,10 +2,9 @@ import phonenumbers
 from phonenumbers.phonenumberutil import NumberParseException
 from validate_email import validate_email
 
-
-from ..base import BaseHandler
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
+from ..base import BaseHandler
 from ...models import (
     DBSession,
     User,
@@ -18,7 +17,6 @@ from ...models import (
     ACL,
     Stream,
 )
-
 
 env, cfg = load_env()
 
@@ -191,6 +189,7 @@ class UserHandler(BaseHandler):
             user_info["permissions"] = sorted(user.permissions)
             user_info["roles"] = sorted([role.id for role in user.roles])
             user_info["acls"] = sorted([acl.id for acl in user.acls])
+            self.verify_permissions()
             return self.success(data=user_info)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
@@ -253,6 +252,7 @@ class UserHandler(BaseHandler):
 
         info["users"] = return_values
         info["totalMatches"] = int(total_matches)
+        self.verify_permissions()
         return self.success(data=info)
 
     @permissions(["Manage users"])
@@ -354,7 +354,7 @@ class UserHandler(BaseHandler):
             roles=roles,
             group_ids_and_admin=group_ids_and_admin,
         )
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success(data={"id": user_id})
 
     @permissions(["Manage users"])
@@ -382,5 +382,5 @@ class UserHandler(BaseHandler):
         """
         user = User.query.get(user_id)
         DBSession().delete(user)
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success()

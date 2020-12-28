@@ -110,7 +110,7 @@ class SourceGroupsHandler(BaseHandler):
             source.active = False
             source.unsaved_at = datetime.datetime.utcnow()
 
-        DBSession().commit()
+        self.finalize_transaction()
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
         )
@@ -173,7 +173,7 @@ class SourceGroupsHandler(BaseHandler):
         source.requested = requested
         if active and not previously_active:
             source.saved_by_id = self.associated_user_object.id
-        DBSession().commit()
+        self.finalize_transaction()
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
         )

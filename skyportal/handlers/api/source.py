@@ -1,21 +1,26 @@
 import datetime
-from json.decoder import JSONDecodeError
-import python_http_client.exceptions
-from twilio.base.exceptions import TwilioException
-import tornado
-from tornado.ioloop import IOLoop
+import functools
 import io
 import math
-from dateutil.parser import isoparse
-from sqlalchemy.orm import joinedload
-from sqlalchemy import func, or_, tuple_
+from json.decoder import JSONDecodeError
+
 import arrow
+import healpix_alchemy as ha
+import python_http_client.exceptions
+import tornado
+from dateutil.parser import isoparse
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
-import functools
-import healpix_alchemy as ha
+from sqlalchemy import func, or_, tuple_
+from sqlalchemy.orm import joinedload
+from tornado.ioloop import IOLoop
+from twilio.base.exceptions import TwilioException
+
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
+from .candidate import grab_query_results, update_redshift_history_if_relevant
+from .internal.source_views import register_source_view
+from .photometry import serialize
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -32,7 +37,6 @@ from ...models import (
     Classification,
     Taxonomy,
 )
-from .internal.source_views import register_source_view
 from ...utils import (
     get_nearby_offset_stars,
     facility_parameters,
@@ -40,9 +44,6 @@ from ...utils import (
     get_finding_chart,
     _calculate_best_position_for_offset_stars,
 )
-from .candidate import grab_query_results, update_redshift_history_if_relevant
-from .photometry import serialize
-
 
 SOURCES_PER_PAGE = 100
 
@@ -104,6 +105,7 @@ class SourceHandler(BaseHandler):
             .filter(Source.group_id.in_(user_group_ids))
             .count()
         )
+        self.verify_permissions()
         if num_s > 0:
             return self.success()
         else:
@@ -546,6 +548,7 @@ class SourceHandler(BaseHandler):
                 )
                 source_info["groups"][i]['saved_at'] = saved_at
 
+            self.verify_permissions()
             return self.success(data=source_info)
 
         # Fetch multiple sources
@@ -795,6 +798,7 @@ class SourceHandler(BaseHandler):
                     source_list[-1]["groups"][i]['saved_at'] = saved_at
             query_results["sources"] = source_list
 
+        self.verify_permissions()
         return self.success(data=query_results)
 
     @permissions(['Upload data'])
@@ -892,7 +896,7 @@ class SourceHandler(BaseHandler):
                 for group in groups
             ]
         )
-        DBSession().commit()
+        self.finalize_transaction()
         if not obj_already_exists:
             obj.add_linked_thumbnails()
 
@@ -947,7 +951,7 @@ class SourceHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
-        DBSession().commit()
+        self.finalize_transaction()
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key},
         )
@@ -989,7 +993,7 @@ class SourceHandler(BaseHandler):
         )
         s.active = False
         s.unsaved_by = self.current_user
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success(action='skyportal/FETCH_SOURCES')
 
@@ -1195,6 +1199,7 @@ class SourceOffsetsHandler(BaseHandler):
             [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
         )
 
+        self.verify_permissions()
         return self.success(
             data={
                 'facility': facility,
@@ -1405,6 +1410,8 @@ class SourceFinderHandler(BaseHandler):
             'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'
         )
 
+        self.verify_permissions()
+
         for i in range(math.ceil(max_file_size / chunk_size)):
             chunk = image.read(chunk_size)
             if not chunk:
@@ -1545,7 +1552,7 @@ class SourceNotificationHandler(BaseHandler):
         )
         DBSession().add(new_notification)
         try:
-            DBSession().commit()
+            self.finalize_transaction()
         except python_http_client.exceptions.UnauthorizedError:
             return self.error(
                 "Twilio Sendgrid authorization error. Please ensure "

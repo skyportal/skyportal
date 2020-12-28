@@ -1,6 +1,7 @@
-import uuid
-import pytest
 import datetime
+import uuid
+
+import pytest
 
 from skyportal.models import DBSession, SourceView
 from skyportal.tests import api

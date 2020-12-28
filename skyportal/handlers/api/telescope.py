@@ -1,6 +1,6 @@
 from marshmallow.exceptions import ValidationError
-from baselayer.app.access import permissions, auth_or_token
 
+from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Telescope
 
@@ -47,7 +47,7 @@ class TelescopeHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
         DBSession().add(telescope)
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success(data={"id": telescope.id})
 
@@ -98,12 +98,15 @@ class TelescopeHandler(BaseHandler):
             t = Telescope.query.get(int(telescope_id))
             if t is None:
                 return self.error(f"Could not load telescope with ID {telescope_id}")
+            self.verify_permissions()
             return self.success(data=t)
         tel_name = self.get_query_argument("name", None)
         query = Telescope.query
         if tel_name is not None:
             query = query.filter(Telescope.name == tel_name)
-        return self.success(data=query.all())
+        data = query.all()
+        self.verify_permissions()
+        return self.success(data=data)
 
     @permissions(['Manage sources'])
     def put(self, telescope_id):
@@ -145,7 +148,7 @@ class TelescopeHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success()
 
@@ -177,6 +180,6 @@ class TelescopeHandler(BaseHandler):
             return self.error('Invalid telescope ID.')
 
         DBSession().query(Telescope).filter(Telescope.id == int(telescope_id)).delete()
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success()

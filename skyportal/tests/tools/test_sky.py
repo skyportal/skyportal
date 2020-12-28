@@ -1,9 +1,10 @@
-import pytest
 import numpy as np
-from astropy.time import Time
+import pytest
 from astroplan import FixedTarget
-from skyportal.models import Obj
 from astropy.coordinates.name_resolve import NameResolveError
+from astropy.time import Time
+
+from skyportal.models import Obj
 
 ads_down = False
 
