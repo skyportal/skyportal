@@ -14,6 +14,8 @@ targets = [
     'keck1_telescope',
     'sedm',
     'public_group_sedm_allocation',
+    'public_group_taxonomy',
+    'taxonomy',
 ]
 
 

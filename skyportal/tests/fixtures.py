@@ -28,8 +28,11 @@ from skyportal.models import (
     Filter,
     ObservingRun,
     ClassicalAssignment,
+    Taxonomy,
     init_db,
 )
+
+import tdtax
 
 TMP_DIR = mkdtemp()
 env, cfg = load_env()
@@ -286,3 +289,23 @@ class ClassicalAssignmentFactory(factory.alchemy.SQLAlchemyModelFactory):
     requester = factory.SubFactory(UserFactory)
     last_modified_by = factory.SubFactory(UserFactory)
     priority = factory.LazyFunction(lambda: str(random.choice(range(1, 6))))
+
+
+class TaxonomyFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Taxonomy
+
+    name = factory.LazyFunction(lambda: str(uuid.uuid4())[:10])
+    hierarchy = tdtax.taxonomy
+    provenance = f"tdtax_{tdtax.__version__}"
+    version = tdtax.__version__
+    isLatest = True
+
+    @factory.post_generation
+    def groups(obj, create, passed_groups, *args, **kwargs):
+        if not passed_groups:
+            passed_groups = []
+
+        obj.groups = passed_groups
+        DBSession().add(obj)
+        DBSession().commit()

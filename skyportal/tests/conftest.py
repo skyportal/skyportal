@@ -23,6 +23,7 @@ from skyportal.models import (
     GroupStream,
     StreamUser,
     GroupUser,
+    GroupTaxonomy,
 )
 from skyportal.tests.fixtures import (
     ObjFactory,
@@ -34,6 +35,7 @@ from skyportal.tests.fixtures import (
     ObservingRunFactory,
     TelescopeFactory,
     ClassicalAssignmentFactory,
+    TaxonomyFactory,
 )
 from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 
@@ -818,3 +820,21 @@ def source_notification_user_token(source_notification_user):
         ACLs=[], user_id=source_notification_user.id, name=str(uuid.uuid4()),
     )
     return token_id
+
+
+@pytest.fixture()
+def public_taxonomy(public_group):
+    return TaxonomyFactory(groups=[public_group])
+
+
+@pytest.fixture()
+def public_group_taxonomy(public_taxonomy):
+    return (
+        DBSession()
+        .query(GroupTaxonomy)
+        .filter(
+            GroupTaxonomy.group_id == public_taxonomy.groups[0].id,
+            GroupTaxonomy.taxonomie_id == public_taxonomy.id,
+        )
+        .first()
+    )
