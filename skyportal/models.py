@@ -2033,12 +2033,12 @@ class Classification(Base):
     )
 
 
-GroupClassifications = join_model(
+GroupClassification = join_model(
     "group_classifications", Group, Classification, base=Base
 )
-GroupClassifications.__doc__ = "Join table mapping Groups to Classifications."
-GroupClassifications.delete = GroupClassifications.update = compose_access_control(
-    AccessibleByGroupMembers, GroupClassifications.read
+GroupClassification.__doc__ = "Join table mapping Groups to Classifications."
+GroupClassification.delete = GroupClassification.update = compose_access_control(
+    AccessibleByGroupAdmins, GroupClassification.read
 )
 
 

@@ -29,6 +29,7 @@ from skyportal.models import (
     ObservingRun,
     ClassicalAssignment,
     Taxonomy,
+    Classification,
     init_db,
 )
 
@@ -323,6 +324,27 @@ class TaxonomyFactory(factory.alchemy.SQLAlchemyModelFactory):
     provenance = f"tdtax_{tdtax.__version__}"
     version = tdtax.__version__
     isLatest = True
+
+    @factory.post_generation
+    def groups(obj, create, passed_groups, *args, **kwargs):
+        if not passed_groups:
+            passed_groups = []
+
+        obj.groups = passed_groups
+        DBSession().add(obj)
+        DBSession().commit()
+
+
+class ClassificationFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Classification
+
+    taxonomy = factory.SubFactory(TaxonomyFactory)
+    classification = factory.LazyFunction(lambda: str(uuid.uuid4())[:10])
+    author = factory.SubFactory(UserFactory)
+    author_name = factory.LazyFunction(lambda: str(uuid.uuid4())[:10])
+    obj = factory.SubFactory(ObjFactory)
+    probability = factory.LazyFunction(lambda: float(np.random.uniform()))
 
     @factory.post_generation
     def groups(obj, create, passed_groups, *args, **kwargs):

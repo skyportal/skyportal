@@ -1812,3 +1812,223 @@ def test_group_admin_user_delete_public_groupannotation(
         group_admin_user, mode="delete"
     )
     assert accessible
+
+
+def test_user_create_public_classification(user, public_classification):
+    accessible = public_classification.is_accessible_by(user, mode="create")
+    assert accessible
+
+
+def test_user_read_public_classification(user, public_classification):
+    accessible = public_classification.is_accessible_by(user, mode="read")
+    assert accessible
+
+
+def test_user_update_public_classification(user, public_classification):
+    accessible = public_classification.is_accessible_by(user, mode="update")
+    assert not accessible  # must be classification author
+
+
+def test_user_delete_public_classification(user, public_classification):
+    accessible = public_classification.is_accessible_by(user, mode="delete")
+    assert not accessible  # must be classification author
+
+
+def test_user_group2_create_public_classification(user_group2, public_classification):
+    accessible = public_classification.is_accessible_by(user_group2, mode="create")
+    assert not accessible  # need read access to underlying taxonomy
+
+
+def test_user_group2_read_public_classification(user_group2, public_classification):
+    accessible = public_classification.is_accessible_by(user_group2, mode="read")
+    assert not accessible  # must be a member of the classification's target groups
+
+
+def test_user_group2_update_public_classification(user_group2, public_classification):
+    accessible = public_classification.is_accessible_by(user_group2, mode="update")
+    assert not accessible  # must be classification author
+
+
+def test_user_group2_delete_public_classification(user_group2, public_classification):
+    accessible = public_classification.is_accessible_by(user_group2, mode="delete")
+    assert not accessible  # must be classification author
+
+
+def test_super_admin_user_create_public_classification(
+    super_admin_user, public_classification
+):
+    accessible = public_classification.is_accessible_by(super_admin_user, mode="create")
+    assert accessible
+
+
+def test_super_admin_user_read_public_classification(
+    super_admin_user, public_classification
+):
+    accessible = public_classification.is_accessible_by(super_admin_user, mode="read")
+    assert accessible
+
+
+def test_super_admin_user_update_public_classification(
+    super_admin_user, public_classification
+):
+    accessible = public_classification.is_accessible_by(super_admin_user, mode="update")
+    assert accessible
+
+
+def test_super_admin_user_delete_public_classification(
+    super_admin_user, public_classification
+):
+    accessible = public_classification.is_accessible_by(super_admin_user, mode="delete")
+    assert accessible
+
+
+def test_group_admin_user_create_public_classification(
+    group_admin_user, public_classification
+):
+    accessible = public_classification.is_accessible_by(group_admin_user, mode="create")
+    assert accessible
+
+
+def test_group_admin_user_read_public_classification(
+    group_admin_user, public_classification
+):
+    accessible = public_classification.is_accessible_by(group_admin_user, mode="read")
+    assert accessible
+
+
+def test_group_admin_user_update_public_classification(
+    group_admin_user, public_classification
+):
+    accessible = public_classification.is_accessible_by(group_admin_user, mode="update")
+    assert not accessible  # must be classification author
+
+
+def test_group_admin_user_delete_public_classification(
+    group_admin_user, public_classification
+):
+    accessible = public_classification.is_accessible_by(group_admin_user, mode="delete")
+    assert not accessible  # must be classification author
+
+
+def test_user_create_public_groupclassification(user, public_groupclassification):
+    accessible = public_groupclassification.is_accessible_by(user, mode="create")
+    assert accessible
+
+
+def test_user_read_public_groupclassification(user, public_groupclassification):
+    accessible = public_groupclassification.is_accessible_by(user, mode="read")
+    assert accessible
+
+
+def test_user_update_public_groupclassification(user, public_groupclassification):
+    accessible = public_groupclassification.is_accessible_by(user, mode="update")
+    assert not accessible  # must be group admin
+
+
+def test_user_delete_public_groupclassification(user, public_groupclassification):
+    accessible = public_groupclassification.is_accessible_by(user, mode="delete")
+    assert not accessible  # must be group admin
+
+
+def test_user_group2_create_public_groupclassification(
+    user_group2, public_groupclassification
+):
+    accessible = public_groupclassification.is_accessible_by(user_group2, mode="create")
+    assert not accessible  # must be able ot read the classification
+
+
+def test_user_group2_read_public_groupclassification(
+    user_group2, public_groupclassification
+):
+    accessible = public_groupclassification.is_accessible_by(user_group2, mode="read")
+    assert not accessible  # must be able to read the classification
+
+
+def test_user_group2_update_public_groupclassification(
+    user_group2, public_groupclassification
+):
+    accessible = public_groupclassification.is_accessible_by(user_group2, mode="update")
+    assert (
+        not accessible
+    )  # must be able to read the classification and be a group admin
+
+
+def test_user_group2_delete_public_groupclassification(
+    user_group2, public_groupclassification
+):
+    accessible = public_groupclassification.is_accessible_by(user_group2, mode="delete")
+    assert (
+        not accessible
+    )  # must be able ot read the classification and be a group admin
+
+
+def test_super_admin_user_create_public_groupclassification(
+    super_admin_user, public_groupclassification
+):
+    accessible = public_groupclassification.is_accessible_by(
+        super_admin_user, mode="create"
+    )
+    assert accessible
+
+
+def test_super_admin_user_read_public_groupclassification(
+    super_admin_user, public_groupclassification
+):
+    accessible = public_groupclassification.is_accessible_by(
+        super_admin_user, mode="read"
+    )
+    assert accessible
+
+
+def test_super_admin_user_update_public_groupclassification(
+    super_admin_user, public_groupclassification
+):
+    accessible = public_groupclassification.is_accessible_by(
+        super_admin_user, mode="update"
+    )
+    assert accessible
+
+
+def test_super_admin_user_delete_public_groupclassification(
+    super_admin_user, public_groupclassification
+):
+    accessible = public_groupclassification.is_accessible_by(
+        super_admin_user, mode="delete"
+    )
+    assert accessible
+
+
+def test_group_admin_user_create_public_groupclassification(
+    group_admin_user, public_groupclassification
+):
+    accessible = public_groupclassification.is_accessible_by(
+        group_admin_user, mode="create"
+    )
+    assert accessible
+
+
+def test_group_admin_user_read_public_groupclassification(
+    group_admin_user, public_groupclassification
+):
+    accessible = public_groupclassification.is_accessible_by(
+        group_admin_user, mode="read"
+    )
+    assert accessible
+
+
+def test_group_admin_user_update_public_groupclassification(
+    group_admin_user, public_groupclassification
+):
+    accessible = public_groupclassification.is_accessible_by(
+        group_admin_user, mode="update"
+    )
+    assert accessible
+
+
+def test_group_admin_user_delete_public_groupclassification(
+    group_admin_user, public_groupclassification
+):
+    accessible = public_groupclassification.is_accessible_by(
+        group_admin_user, mode="delete"
+    )
+    assert accessible

@@ -20,6 +20,8 @@ targets = [
     'public_groupcomment',
     'public_annotation',
     'public_groupannotation',
+    'public_classification',
+    'public_groupclassification',
 ]
 
 

@@ -26,6 +26,7 @@ from skyportal.models import (
     GroupTaxonomy,
     GroupComment,
     GroupAnnotation,
+    GroupClassification,
 )
 from skyportal.tests.fixtures import (
     ObjFactory,
@@ -40,6 +41,7 @@ from skyportal.tests.fixtures import (
     TaxonomyFactory,
     CommentFactory,
     AnnotationFactory,
+    ClassificationFactory,
 )
 from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 
@@ -879,6 +881,31 @@ def public_groupannotation(public_annotation):
         .filter(
             GroupAnnotation.group_id == public_annotation.groups[0].id,
             GroupAnnotation.annotation_id == public_annotation.id,
+        )
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_classification(
+    public_taxonomy, user_two_groups, public_group, public_source
+):
+    return ClassificationFactory(
+        obj=public_source,
+        groups=[public_group],
+        author=user_two_groups,
+        taxonomy=public_taxonomy,
+    )
+
+
+@pytest.fixture()
+def public_groupclassification(public_classification):
+    return (
+        DBSession()
+        .query(GroupClassification)
+        .filter(
+            GroupClassification.group_id == public_classification.groups[0].id,
+            GroupClassification.classification_id == public_classification.id,
         )
         .first()
     )
