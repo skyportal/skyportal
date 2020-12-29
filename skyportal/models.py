@@ -1705,7 +1705,8 @@ class Allocation(Base):
 class Taxonomy(Base):
     """An ontology within which Objs can be classified."""
 
-    read = update = delete = AccessibleByGroupsMembers
+    # TODO: Add ownership logic to taxonomy
+    read = AccessibleByGroupsMembers
 
     __tablename__ = 'taxonomies'
     name = sa.Column(
@@ -1760,7 +1761,7 @@ class Taxonomy(Base):
 GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy, base=Base)
 GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
 GroupTaxonomy.delete = GroupTaxonomy.update = compose_access_control(
-    AccessibleByGroupMembers, GroupTaxonomy.read
+    AccessibleByGroupAdmins, GroupTaxonomy.read
 )
 
 
