@@ -106,15 +106,6 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
         DBSession().commit()
 
 
-class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
-    class Meta(BaseMeta):
-        model = Comment
-
-    text = f'Test comment {str(uuid.uuid4())}'
-    ctype = 'text'
-    author = factory.SubFactory(UserFactory)
-
-
 class AnnotationFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Annotation
@@ -201,6 +192,26 @@ class FilterFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Filter
 
     name = str(uuid.uuid4())
+
+
+class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Comment
+
+    text = f'Test comment {str(uuid.uuid4())}'
+    ctype = 'text'
+    author = factory.SubFactory(UserFactory)
+
+    @factory.post_generation
+    def groups(obj, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for group in extracted:
+                obj.groups.append(group)
+                DBSession().add(obj)
+                DBSession().commit()
 
 
 class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):

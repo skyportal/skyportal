@@ -1800,7 +1800,9 @@ Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
 class Comment(Base):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
-    create = read = compose_access_control(
+    create = accessible_if_properties_are_accessible(obj='read')
+
+    read = compose_access_control(
         AccessibleByGroupsMembers, accessible_if_properties_are_accessible(obj='read'),
     )
 

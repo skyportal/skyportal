@@ -1448,3 +1448,83 @@ def test_group_admin_user_delete_public_group_taxonomy(
 def test_group_admin_user_delete_public_taxonomy(group_admin_user, public_taxonomy):
     accessible = public_taxonomy.is_accessible_by(group_admin_user, mode="delete")
     assert not accessible  # need sysadmin
+
+
+def test_user_create_public_comment(user, public_comment):
+    accessible = public_comment.is_accessible_by(user, mode="create")
+    assert accessible
+
+
+def test_user_read_public_comment(user, public_comment):
+    accessible = public_comment.is_accessible_by(user, mode="read")
+    assert accessible
+
+
+def test_user_update_public_comment(user, public_comment):
+    accessible = public_comment.is_accessible_by(user, mode="update")
+    assert not accessible  # must be comment author
+
+
+def test_user_delete_public_comment(user, public_comment):
+    accessible = public_comment.is_accessible_by(user, mode="delete")
+    assert not accessible  # must be comment author
+
+
+def test_user_group2_create_public_comment(user_group2, public_comment):
+    accessible = public_comment.is_accessible_by(user_group2, mode="create")
+    assert accessible
+
+
+def test_user_group2_read_public_comment(user_group2, public_comment):
+    accessible = public_comment.is_accessible_by(user_group2, mode="read")
+    assert not accessible  # must be a member of the comment's target groups
+
+
+def test_user_group2_update_public_comment(user_group2, public_comment):
+    accessible = public_comment.is_accessible_by(user_group2, mode="update")
+    assert not accessible  # must be comment author
+
+
+def test_user_group2_delete_public_comment(user_group2, public_comment):
+    accessible = public_comment.is_accessible_by(user_group2, mode="delete")
+    assert not accessible  # must be comment author
+
+
+def test_super_admin_user_create_public_comment(super_admin_user, public_comment):
+    accessible = public_comment.is_accessible_by(super_admin_user, mode="create")
+    assert accessible
+
+
+def test_super_admin_user_read_public_comment(super_admin_user, public_comment):
+    accessible = public_comment.is_accessible_by(super_admin_user, mode="read")
+    assert accessible
+
+
+def test_super_admin_user_update_public_comment(super_admin_user, public_comment):
+    accessible = public_comment.is_accessible_by(super_admin_user, mode="update")
+    assert accessible
+
+
+def test_super_admin_user_delete_public_comment(super_admin_user, public_comment):
+    accessible = public_comment.is_accessible_by(super_admin_user, mode="delete")
+    assert accessible
+
+
+def test_group_admin_user_create_public_comment(group_admin_user, public_comment):
+    accessible = public_comment.is_accessible_by(group_admin_user, mode="create")
+    assert accessible
+
+
+def test_group_admin_user_read_public_comment(group_admin_user, public_comment):
+    accessible = public_comment.is_accessible_by(group_admin_user, mode="read")
+    assert accessible
+
+
+def test_group_admin_user_update_public_comment(group_admin_user, public_comment):
+    accessible = public_comment.is_accessible_by(group_admin_user, mode="update")
+    assert not accessible  # must be comment author
+
+
+def test_group_admin_user_delete_public_comment(group_admin_user, public_comment):
+    accessible = public_comment.is_accessible_by(group_admin_user, mode="delete")
+    assert not accessible  # must be comment author

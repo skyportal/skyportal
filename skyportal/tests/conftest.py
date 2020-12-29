@@ -36,6 +36,7 @@ from skyportal.tests.fixtures import (
     TelescopeFactory,
     ClassicalAssignmentFactory,
     TaxonomyFactory,
+    CommentFactory,
 )
 from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 
@@ -837,4 +838,11 @@ def public_group_taxonomy(public_taxonomy):
             GroupTaxonomy.taxonomie_id == public_taxonomy.id,
         )
         .first()
+    )
+
+
+@pytest.fixture()
+def public_comment(user_no_groups, public_source, public_group):
+    return CommentFactory(
+        obj=public_source, groups=[public_group], author=user_no_groups
     )

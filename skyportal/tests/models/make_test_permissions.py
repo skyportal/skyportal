@@ -15,7 +15,8 @@ targets = [
     'sedm',
     'public_group_sedm_allocation',
     'public_group_taxonomy',
-    'taxonomy',
+    'public_taxonomy',
+    'public_comment',
 ]
 
 
@@ -27,11 +28,10 @@ with open(fname, 'w') as f:
         for access_type in access_types:
             for target in targets:
                 test = f"""
-def test_{user}_{access_type}_{target}({user}, {target}, benchmark):
+def test_{user}_{access_type}_{target}({user}, {target}):
     def check_accessibility():
         accessible = {target}.is_accessible_by({user}, mode="{access_type}")
         assert accessible == accessible
-    benchmark(check_accessibility)
 
 """
                 f.write(test)
