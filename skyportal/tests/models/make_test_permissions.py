@@ -18,6 +18,8 @@ targets = [
     'public_taxonomy',
     'public_comment',
     'public_groupcomment',
+    'public_annotation',
+    'public_groupannotation',
 ]
 
 

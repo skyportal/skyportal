@@ -112,6 +112,18 @@ class AnnotationFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     data = {'unique_id': str(uuid.uuid4())}
     author = factory.SubFactory(UserFactory)
+    origin = factory.LazyFunction(lambda: str(uuid.uuid4())[:10])
+
+    @factory.post_generation
+    def groups(obj, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for group in extracted:
+                obj.groups.append(group)
+                DBSession().add(obj)
+                DBSession().commit()
 
 
 class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):

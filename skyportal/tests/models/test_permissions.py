@@ -1624,3 +1624,191 @@ def test_group_admin_user_delete_public_groupcomment(
 ):
     accessible = public_groupcomment.is_accessible_by(group_admin_user, mode="delete")
     assert accessible
+
+
+def test_user_create_public_annotation(user, public_annotation):
+    accessible = public_annotation.is_accessible_by(user, mode="create")
+    assert accessible
+
+
+def test_user_read_public_annotation(user, public_annotation):
+    accessible = public_annotation.is_accessible_by(user, mode="read")
+    assert accessible
+
+
+def test_user_update_public_annotation(user, public_annotation):
+    accessible = public_annotation.is_accessible_by(user, mode="update")
+    assert not accessible  # must be annotation author
+
+
+def test_user_delete_public_annotation(user, public_annotation):
+    accessible = public_annotation.is_accessible_by(user, mode="delete")
+    assert not accessible  # must be annotation author
+
+
+def test_user_group2_create_public_annotation(user_group2, public_annotation):
+    accessible = public_annotation.is_accessible_by(user_group2, mode="create")
+    assert accessible
+
+
+def test_user_group2_read_public_annotation(user_group2, public_annotation):
+    accessible = public_annotation.is_accessible_by(user_group2, mode="read")
+    assert not accessible  # must be a member of the annotation's target groups
+
+
+def test_user_group2_update_public_annotation(user_group2, public_annotation):
+    accessible = public_annotation.is_accessible_by(user_group2, mode="update")
+    assert not accessible  # must be annotation author
+
+
+def test_user_group2_delete_public_annotation(user_group2, public_annotation):
+    accessible = public_annotation.is_accessible_by(user_group2, mode="delete")
+    assert not accessible  # must be annotation author
+
+
+def test_super_admin_user_create_public_annotation(super_admin_user, public_annotation):
+    accessible = public_annotation.is_accessible_by(super_admin_user, mode="create")
+    assert accessible
+
+
+def test_super_admin_user_read_public_annotation(super_admin_user, public_annotation):
+    accessible = public_annotation.is_accessible_by(super_admin_user, mode="read")
+    assert accessible
+
+
+def test_super_admin_user_update_public_annotation(super_admin_user, public_annotation):
+    accessible = public_annotation.is_accessible_by(super_admin_user, mode="update")
+    assert accessible
+
+
+def test_super_admin_user_delete_public_annotation(super_admin_user, public_annotation):
+    accessible = public_annotation.is_accessible_by(super_admin_user, mode="delete")
+    assert accessible
+
+
+def test_group_admin_user_create_public_annotation(group_admin_user, public_annotation):
+    accessible = public_annotation.is_accessible_by(group_admin_user, mode="create")
+    assert accessible
+
+
+def test_group_admin_user_read_public_annotation(group_admin_user, public_annotation):
+    accessible = public_annotation.is_accessible_by(group_admin_user, mode="read")
+    assert accessible
+
+
+def test_group_admin_user_update_public_annotation(group_admin_user, public_annotation):
+    accessible = public_annotation.is_accessible_by(group_admin_user, mode="update")
+    assert not accessible  # must be annotation author
+
+
+def test_group_admin_user_delete_public_annotation(group_admin_user, public_annotation):
+    accessible = public_annotation.is_accessible_by(group_admin_user, mode="delete")
+    assert not accessible  # must be annotation author
+
+
+def test_user_create_public_groupannotation(user, public_groupannotation):
+    accessible = public_groupannotation.is_accessible_by(user, mode="create")
+    assert accessible
+
+
+def test_user_read_public_groupannotation(user, public_groupannotation):
+    accessible = public_groupannotation.is_accessible_by(user, mode="read")
+    assert accessible
+
+
+def test_user_update_public_groupannotation(user, public_groupannotation):
+    accessible = public_groupannotation.is_accessible_by(user, mode="update")
+    assert not accessible  # must be group admin
+
+
+def test_user_delete_public_groupannotation(user, public_groupannotation):
+    accessible = public_groupannotation.is_accessible_by(user, mode="delete")
+    assert not accessible  # must be group admin
+
+
+def test_user_group2_create_public_groupannotation(user_group2, public_groupannotation):
+    accessible = public_groupannotation.is_accessible_by(user_group2, mode="create")
+    assert not accessible  # must be able ot read the annotation
+
+
+def test_user_group2_read_public_groupannotation(user_group2, public_groupannotation):
+    accessible = public_groupannotation.is_accessible_by(user_group2, mode="read")
+    assert not accessible  # must be able to read the annotation
+
+
+def test_user_group2_update_public_groupannotation(user_group2, public_groupannotation):
+    accessible = public_groupannotation.is_accessible_by(user_group2, mode="update")
+    assert not accessible  # must be able to read the annotation and be a group admin
+
+
+def test_user_group2_delete_public_groupannotation(user_group2, public_groupannotation):
+    accessible = public_groupannotation.is_accessible_by(user_group2, mode="delete")
+    assert not accessible  # must be able ot read the annotation and be a group admin
+
+
+def test_super_admin_user_create_public_groupannotation(
+    super_admin_user, public_groupannotation
+):
+    accessible = public_groupannotation.is_accessible_by(
+        super_admin_user, mode="create"
+    )
+    assert accessible
+
+
+def test_super_admin_user_read_public_groupannotation(
+    super_admin_user, public_groupannotation
+):
+    accessible = public_groupannotation.is_accessible_by(super_admin_user, mode="read")
+    assert accessible
+
+
+def test_super_admin_user_update_public_groupannotation(
+    super_admin_user, public_groupannotation
+):
+    accessible = public_groupannotation.is_accessible_by(
+        super_admin_user, mode="update"
+    )
+    assert accessible
+
+
+def test_super_admin_user_delete_public_groupannotation(
+    super_admin_user, public_groupannotation
+):
+    accessible = public_groupannotation.is_accessible_by(
+        super_admin_user, mode="delete"
+    )
+    assert accessible
+
+
+def test_group_admin_user_create_public_groupannotation(
+    group_admin_user, public_groupannotation
+):
+    accessible = public_groupannotation.is_accessible_by(
+        group_admin_user, mode="create"
+    )
+    assert accessible
+
+
+def test_group_admin_user_read_public_groupannotation(
+    group_admin_user, public_groupannotation
+):
+    accessible = public_groupannotation.is_accessible_by(group_admin_user, mode="read")
+    assert accessible
+
+
+def test_group_admin_user_update_public_groupannotation(
+    group_admin_user, public_groupannotation
+):
+    accessible = public_groupannotation.is_accessible_by(
+        group_admin_user, mode="update"
+    )
+    assert accessible
+
+
+def test_group_admin_user_delete_public_groupannotation(
+    group_admin_user, public_groupannotation
+):
+    accessible = public_groupannotation.is_accessible_by(
+        group_admin_user, mode="delete"
+    )
+    assert accessible
