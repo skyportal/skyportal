@@ -24,6 +24,7 @@ from skyportal.models import (
     StreamUser,
     GroupUser,
     GroupTaxonomy,
+    GroupComment,
 )
 from skyportal.tests.fixtures import (
     ObjFactory,
@@ -845,4 +846,17 @@ def public_group_taxonomy(public_taxonomy):
 def public_comment(user_no_groups, public_source, public_group):
     return CommentFactory(
         obj=public_source, groups=[public_group], author=user_no_groups
+    )
+
+
+@pytest.fixture()
+def public_groupcomment(public_comment):
+    return (
+        DBSession()
+        .query(GroupComment)
+        .filter(
+            GroupComment.group_id == public_comment.groups[0].id,
+            GroupComment.comment_id == public_comment.id,
+        )
+        .first()
     )

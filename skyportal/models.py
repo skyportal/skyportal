@@ -1875,7 +1875,7 @@ class Comment(Base):
 GroupComment = join_model("group_comments", Group, Comment)
 GroupComment.__doc__ = "Join table mapping Groups to Comments."
 GroupComment.delete = GroupComment.update = compose_access_control(
-    AccessibleByGroupMembers, GroupComment.read
+    AccessibleByGroupAdmins, GroupComment.read
 )
 
 User.comments = relationship(
@@ -1963,7 +1963,7 @@ class Annotation(Base):
 GroupAnnotation = join_model("group_annotations", Group, Annotation, base=Base)
 GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
 GroupAnnotation.delete = GroupAnnotation.update = compose_access_control(
-    AccessibleByGroupMembers, GroupAnnotation.read
+    AccessibleByGroupAdmins, GroupAnnotation.read
 )
 
 User.annotations = relationship(

@@ -17,6 +17,7 @@ targets = [
     'public_group_taxonomy',
     'public_taxonomy',
     'public_comment',
+    'public_groupcomment',
 ]
 
 
