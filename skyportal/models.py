@@ -155,21 +155,45 @@ def is_modifiable_by(self, user):
 
 Base.is_readable_by = is_readable_by
 
-AccessibleByGroupsMembers = accessible_if_user_is('groups.group_users.user')
-AccessibleByGroupMembers = accessible_if_user_is('group.group_users.user')
-AccessibleByMembers = accessible_if_user_is('group_users.user')
+AccessibleByGroupsMembers = accessible_if_user_is('groups.users')
+AccessibleByGroupMembers = accessible_if_user_is('group.users')
+AccessibleByMembers = accessible_if_user_is('users')
 
 
 class AccessibleByGroupAdmins(AccessibleByGroupMembers):
     @staticmethod
     def query_accessible_rows(cls, user_or_token, columns=None):
-        base = super().query_accessible_rows(cls, user_or_token, columns=columns)
-        base = base.filter(GroupUser.admin.is_(True))
-        return base
+        if user_or_token.is_admin:
+            return Public.query_accessible_rows(cls, user_or_token, columns=columns)
+        query = AccessibleByGroupMembers.query_accessible_rows(
+            cls, user_or_token, columns=columns
+        )
+        admin_subq = (
+            DBSession().query(GroupUser).filter(GroupUser.admin.is_(True)).subquery()
+        )
+        query = query.join(
+            admin_subq,
+            sa.and_(admin_subq.c.group_id == Group.id, admin_subq.c.user_id == User.id),
+        )
+        return query
 
 
 class AccessibleByAdmins(AccessibleByMembers):
-    query_accessible_rows = AccessibleByGroupAdmins.query_accessible_rows
+    @staticmethod
+    def query_accessible_rows(cls, user_or_token, columns=None):
+        if user_or_token.is_admin:
+            return Public.query_accessible_rows(cls, user_or_token, columns=columns)
+        query = AccessibleByMembers.query_accessible_rows(
+            cls, user_or_token, columns=columns
+        )
+        admin_subq = (
+            DBSession().query(GroupUser).filter(GroupUser.admin.is_(True)).subquery()
+        )
+        query = query.join(
+            admin_subq,
+            sa.and_(admin_subq.c.group_id == Group.id, admin_subq.c.user_id == User.id),
+        )
+        return query
 
 
 class NumpyArray(sa.types.TypeDecorator):
@@ -348,7 +372,7 @@ class Stream(Base):
     """A data stream producing alerts that can be programmatically filtered
     using a Filter. """
 
-    read = AccessibleByGroupsMembers
+    read = accessible_if_user_is('users')
     create = update = delete = Restricted
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Stream name.")
@@ -832,6 +856,7 @@ class Filter(Base):
     with exactly one Group, and a Group may have multiple operational Filters.
     """
 
+    # TODO: Track filter ownership and allow owners to update, delete filters
     create = read = update = delete = AccessibleByGroupMembers
 
     name = sa.Column(sa.String, nullable=False, unique=False, doc="Filter name.")
@@ -2510,10 +2535,10 @@ SpectrumReducer = join_model("spectrum_reducers", Spectrum, User, base=Base)
 SpectrumObserver = join_model("spectrum_observers", Spectrum, User, base=Base)
 SpectrumReducer.create = (
     SpectrumReducer.delete
-) = SpectrumReducer.update = accessible_if_user_is('owner', of='spectrum')
+) = SpectrumReducer.update = accessible_if_user_is('spectrum.owner')
 SpectrumObserver.create = (
     SpectrumObserver.delete
-) = SpectrumObserver.update = accessible_if_user_is('owner', of='spectrum')
+) = SpectrumObserver.update = accessible_if_user_is('spectrum.owner')
 
 # should be accessible only by spectrumowner ^^
 
@@ -2642,7 +2667,7 @@ FollowupRequestTargetGroup = join_model(
 FollowupRequestTargetGroup.update = (
     FollowupRequestTargetGroup.delete
 ) = compose_access_control(
-    accessible_if_user_is('requester', of='followup_request'),
+    accessible_if_user_is('followup_request.requester'),
     FollowupRequestTargetGroup.read,
 )
 

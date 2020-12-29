@@ -99,7 +99,7 @@ def test_user_read_public_groupuser(
 ):
 
     accessible = public_groupuser.is_accessible_by(user, mode="read")
-    assert not accessible  # needs group admin
+    assert accessible
 
 
 def test_user_read_public_stream(
@@ -307,7 +307,7 @@ def test_user_delete_public_filter(
 ):
 
     accessible = public_filter.is_accessible_by(user, mode="delete")
-    assert not accessible  # needs group admin
+    assert accessible  # any group member can delete a group filter for now
 
 
 def test_user_delete_public_candidate_object(
@@ -1087,7 +1087,6 @@ def test_group_admin_user_create_public_group(
 def test_group_admin_user_create_public_groupuser(
     group_admin_user, public_groupuser,
 ):
-
     accessible = public_groupuser.is_accessible_by(group_admin_user, mode="create")
     assert accessible
 
@@ -1285,7 +1284,9 @@ def test_group_admin_user_update_public_stream(
 def test_group_admin_user_update_public_groupstream(
     group_admin_user, public_groupstream,
 ):
+    import pdb
 
+    pdb.set_trace()
     accessible = public_groupstream.is_accessible_by(group_admin_user, mode="update")
     assert accessible
 

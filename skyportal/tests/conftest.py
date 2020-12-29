@@ -22,6 +22,7 @@ from skyportal.models import (
     FollowupRequest,
     GroupStream,
     StreamUser,
+    GroupUser,
 )
 from skyportal.tests.fixtures import (
     ObjFactory,
@@ -144,13 +145,13 @@ def stream_with_users(super_admin_user, group_admin_user, user, view_only_user):
 
 
 @pytest.fixture()
-def public_group():
-    return GroupFactory()
+def public_group(public_stream):
+    return GroupFactory(streams=[public_stream])
 
 
 @pytest.fixture()
-def public_group2():
-    return GroupFactory()
+def public_group2(public_stream2):
+    return GroupFactory(streams=[public_stream2])
 
 
 @pytest.fixture()
@@ -174,27 +175,24 @@ def group_with_stream_with_users(
 
 
 @pytest.fixture()
-def public_groupstream(group_with_stream_with_users):
+def public_groupstream(public_group):
     return (
         DBSession()
         .query(GroupStream)
         .filter(
-            GroupStream.group_id == group_with_stream_with_users.id,
-            GroupStream.stream_id == group_with_stream_with_users.streams[0].id,
+            GroupStream.group_id == public_group.id,
+            GroupStream.stream_id == public_group.streams[0].id,
         )
         .first()
     )
 
 
 @pytest.fixture()
-def public_streamuser(group_with_stream_with_users):
+def public_streamuser(public_stream, user):
     return (
         DBSession()
         .query(StreamUser)
-        .filter(
-            StreamUser.user_id == group_with_stream_with_users.users[0].id,
-            StreamUser.stream_id == group_with_stream_with_users.streams[0].id,
-        )
+        .filter(StreamUser.user_id == user.id, StreamUser.stream_id == public_stream.id)
         .first()
     )
 
@@ -454,22 +452,33 @@ def private_source():
 
 
 @pytest.fixture()
-def user(public_group):
+def user(public_group, public_stream):
     return UserFactory(
-        groups=[public_group], roles=[models.Role.query.get("Full user")]
+        groups=[public_group],
+        roles=[models.Role.query.get("Full user")],
+        streams=[public_stream],
     )
 
 
 @pytest.fixture()
-def user_group2(public_group2):
+def user_group2(public_group2, public_stream):
     return UserFactory(
-        groups=[public_group2], roles=[models.Role.query.get("Full user")]
+        groups=[public_group2],
+        roles=[models.Role.query.get("Full user")],
+        streams=[public_stream],
     )
 
 
 @pytest.fixture()
-def public_groupuser(group_with_stream_with_users):
-    return group_with_stream_with_users.users[0]
+def public_groupuser(public_group, user):
+    user.groups.append(public_group)
+    DBSession().commit()
+    return (
+        DBSession()
+        .query(GroupUser)
+        .filter(GroupUser.group_id == public_group.id, GroupUser.user_id == user.id)
+        .first()
+    )
 
 
 @pytest.fixture()
@@ -506,10 +515,21 @@ def view_only_user2(public_group):
 
 
 @pytest.fixture()
-def group_admin_user(public_group):
-    return UserFactory(
-        groups=[public_group], roles=[models.Role.query.get("Group admin")]
+def group_admin_user(public_group, public_stream):
+    user = UserFactory(
+        groups=[public_group],
+        roles=[models.Role.query.get("Group admin")],
+        streams=[public_stream],
     )
+    group_user = (
+        DBSession()
+        .query(GroupUser)
+        .filter(GroupUser.group_id == public_group.id, GroupUser.user_id == user.id)
+        .first()
+    )
+    group_user.admin = True
+    DBSession().commit()
+    return user
 
 
 @pytest.fixture()
@@ -521,9 +541,11 @@ def group_admin_user_two_groups(public_group, public_group2):
 
 
 @pytest.fixture()
-def super_admin_user(public_group):
+def super_admin_user(public_group, public_stream):
     return UserFactory(
-        groups=[public_group], roles=[models.Role.query.get("Super admin")]
+        groups=[public_group],
+        roles=[models.Role.query.get("Super admin")],
+        streams=[public_stream],
     )
 
 
